@@ -441,34 +441,34 @@ type GetObjectOutput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
-	// The Base64 encoded, 32-bit CRC-32 checksum of the object. This checksum is only
+	// The Base64 encoded, 32-bit CRC32 checksum of the object. This checksum is only
 	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32 *string
 
-	// The Base64 encoded, 32-bit CRC-32C checksum of the object. This will only be
+	// The Base64 encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32C *string
 
-	// The Base64 encoded, 64-bit CRC-64NVME checksum of the object. For more
+	// The Base64 encoded, 64-bit CRC64NVME checksum of the object. For more
 	// information, see [Checking object integrity in the Amazon S3 User Guide].
 	//
 	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC64NVME *string
 
-	// The Base64 encoded, 160-bit SHA-1 digest of the object. This will only be
+	// The Base64 encoded, 160-bit SHA1 digest of the object. This will only be
 	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumSHA1 *string
 
-	// The Base64 encoded, 256-bit SHA-256 digest of the object. This will only be
+	// The Base64 encoded, 256-bit SHA256 digest of the object. This will only be
 	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
@@ -728,6 +728,9 @@ func (c *Client) addOperationGetObjectMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addResponseChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetObjectValidationMiddleware(stack); err != nil {

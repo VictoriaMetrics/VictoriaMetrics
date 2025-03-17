@@ -16,6 +16,27 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.17.0-victorialogs)
+
+Released at 2025-03-16
+
+**Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
+It is safe upgrading to this release and all the future releases from older releases.**
+
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support zstd compression for all HTTP-based ingestion protocols. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): allow specifying prefixes for log fields, which must be ignored during data ingestion, at `ignore_fields` HTTP query arg and at `VL-Ignore-Fields` HTTP header. For example, `ignore_fields=foo.*,bar.baz.*` will ignore all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), which start from `foo.` or from `bar.baz.`. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+* FEATURE: [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{label in ("v1", ..., "vN")}` and `{label not_in ("v1", ..., "vN")}` syntax. It is equivalent to `{label=~"v1|...|vN"}` and `{label!~"v1|...|vN"}` respectively, where `v1`, ... , `vN` are properly escaped inside regexp. For example, `{app in ("foo.bar","baz")}` is equivalent to `{app=~"foo\\.bar|baz"}` - note that the `.` char is properly escaped inside the regexp.
+* FEATURE: improve performance when processing constant log fields with length exceeding 256 bytes. For example, repeated stack traces.
+
+* BUGFIX: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): return `204 No Content` HTTP response code from `/insert/loki/api/v1/push` endpoint. Previously `200 Success` code was sent. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505).
+* BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly parse `trace_id` and `span_id` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) as hex numbers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8502) for details. Thanks to @forgethub for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8511).
+
+## [v1.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.16.0-victorialogs)
+
+Released at 2025-03-12
+
+* FEATURE: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): automatically parse JSON-encoded log fields from the plaintext log message and store them as separate [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). This behavior allows achieving lower disk space usage and higher query performance comparing to the case when the JSON-encoded log fields were stored in VictoriaLogs as a plaintext log message, which should be parsed at query time with [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe). The previous behaviour can be restored if needed by passing `-loki.disableMessageParsing` command-line flag to VictoriaLogs (the previous behavior isn't recommended because it is less efficient). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8486).
+
 * BUGFIX: [querying](https://docs.victoriametrics.com/victorialogs/querying/): properly parse floating-point numbers with leading zeroes in fractional part (for example, `12.03` or `1.0002`). Parsing for these numbers has been broken in [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8464).
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support floating-point timestamps for [Elasticsearch data ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/#elasticsearch-bulk-api). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8470).
 * BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly convert nested OpenTelemetry attributes into JSON. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8384).
@@ -67,7 +88,7 @@ Released at 2025-02-20
 Released at 2025-02-19
 
 **Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
-It is safe upgrading to this release from older releases.**
+It is safe upgrading to this release and all the future releases from older releases.**
 
 * FEATURE: improve per-field data locality on disk. This reduces overhead related to reading data from unrelated fields during queries. This improves query performance over structured logs with big number of fields (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)) when only a small portion of fields are used in the query.
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce memory usage by up to 4x when ingesting [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/) at high rate into VictoriaLogs.

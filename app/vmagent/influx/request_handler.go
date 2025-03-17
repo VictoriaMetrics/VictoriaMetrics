@@ -35,8 +35,8 @@ var (
 // InsertHandlerForReader processes remote write for influx line protocol.
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
-func InsertHandlerForReader(at *auth.Token, r io.Reader, isGzipped bool) error {
-	return stream.Parse(r, true, isGzipped, "", "", func(db string, rows []parser.Row) error {
+func InsertHandlerForReader(at *auth.Token, r io.Reader, encoding string) error {
+	return stream.Parse(r, encoding, true, "", "", func(db string, rows []parser.Row) error {
 		return insertRows(at, db, rows, nil)
 	})
 }
@@ -49,13 +49,13 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	isStreamMode := req.Header.Get("Stream-Mode") == "1"
 	q := req.URL.Query()
 	precision := q.Get("precision")
 	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 	db := q.Get("db")
-	return stream.Parse(req.Body, isStreamMode, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	isStreamMode := req.Header.Get("Stream-Mode") == "1"
+	return stream.Parse(req.Body, encoding, isStreamMode, precision, db, func(db string, rows []parser.Row) error {
 		return insertRows(at, db, rows, extraLabels)
 	})
 }

@@ -115,6 +115,7 @@ It is possible configuring VictoriaLogs to accept compressed log messages via `-
 The following compression methods are supported:
 
 - `none` - no compression
+- `zstd` - [zstd compression](https://en.wikipedia.org/wiki/Zstd)
 - `gzip` - [gzip compression](https://en.wikipedia.org/wiki/Gzip)
 - `deflate` - [deflate compression](https://en.wikipedia.org/wiki/Deflate)
 
@@ -157,6 +158,9 @@ For example, the following command starts VictoriaLogs, which drops `proc_id` an
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.ignoreFields.tcp='["prod_id","msg_id"]'
 ```
+
+The list may contain field name prefixes ending with `*` such as `some-prefix*`. In this case all the log fields starting with this prefix
+are ignored during data ingestion.
 
 ## Adding extra fields
 

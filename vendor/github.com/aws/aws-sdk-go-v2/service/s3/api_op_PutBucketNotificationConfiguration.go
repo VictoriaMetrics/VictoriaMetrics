@@ -190,6 +190,9 @@ func (c *Client) addOperationPutBucketNotificationConfigurationMiddlewares(stack
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketNotificationConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

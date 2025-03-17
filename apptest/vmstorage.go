@@ -21,6 +21,7 @@ type Vmstorage struct {
 	vmselectAddr    string
 
 	forceFlushURL string
+	forceMergeURL string
 }
 
 // StartVmstorage starts an instance of vmstorage with the given flags. It also
@@ -57,6 +58,7 @@ func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, e
 		vmselectAddr:    stderrExtracts[3],
 
 		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
+		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 	}, nil
 }
 
@@ -78,6 +80,15 @@ func (app *Vmstorage) ForceFlush(t *testing.T) {
 	t.Helper()
 
 	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// ForceMerge is a test helper function that forces the merging of parts.
+func (app *Vmstorage) ForceMerge(t *testing.T) {
+	t.Helper()
+	_, statusCode := app.cli.Get(t, app.forceMergeURL)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}

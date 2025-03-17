@@ -10,42 +10,49 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
+
+var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry request")
 
 // ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
 //
 // callback shouldn't hold tss items after returning.
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
-func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
-
-	if isGzipped {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzip-compressed OpenTelemetry protocol data: %w", err)
+func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
+	err := common.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
+		if processBody != nil {
+			dataNew, err := processBody(data)
+			if err != nil {
+				return fmt.Errorf("cannot process request body: %w", err)
+			}
+			data = dataNew
 		}
-		defer common.PutGzipReader(zr)
-		r = zr
+		return parseData(data, callback)
+	})
+	if err != nil {
+		return fmt.Errorf("cannot decode OpenTelemetry protocol data: %w", err)
+	}
+	return nil
+}
+
+func parseData(data []byte, callback func(tss []prompbmarshal.TimeSeries) error) error {
+	var req pb.ExportMetricsServiceRequest
+	if err := req.UnmarshalProtobuf(data); err != nil {
+		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
 	}
 
 	wr := getWriteContext()
 	defer putWriteContext(wr)
-	req, err := wr.readAndUnpackRequest(r, processBody)
-	if err != nil {
-		return fmt.Errorf("cannot unpack OpenTelemetry metrics: %w", err)
-	}
-	wr.parseRequestToTss(req)
+
+	wr.parseRequestToTss(&req)
 
 	if err := callback(wr.tss); err != nil {
 		return fmt.Errorf("error when processing OpenTelemetry samples: %w", err)
@@ -274,9 +281,6 @@ func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.Ke
 }
 
 type writeContext struct {
-	// bb holds the original data (json or protobuf), which must be parsed.
-	bb bytesutil.ByteBuffer
-
 	// tss holds parsed time series
 	tss []prompbmarshal.TimeSeries
 
@@ -292,8 +296,6 @@ type writeContext struct {
 }
 
 func (wr *writeContext) reset() {
-	wr.bb.Reset()
-
 	clear(wr.tss)
 	wr.tss = wr.tss[:0]
 
@@ -307,24 +309,6 @@ func (wr *writeContext) reset() {
 func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	clear(labels)
 	return labels[:0]
-}
-
-func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func([]byte) ([]byte, error)) (*pb.ExportMetricsServiceRequest, error) {
-	if _, err := wr.bb.ReadFrom(r); err != nil {
-		return nil, fmt.Errorf("cannot read request: %w", err)
-	}
-	var req pb.ExportMetricsServiceRequest
-	if processBody != nil {
-		data, err := processBody(wr.bb.B)
-		if err != nil {
-			return nil, fmt.Errorf("cannot process request body: %w", err)
-		}
-		wr.bb.B = append(wr.bb.B[:0], data...)
-	}
-	if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
-	}
-	return &req, nil
 }
 
 func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {

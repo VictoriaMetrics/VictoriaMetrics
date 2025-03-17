@@ -6,19 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-)
-
-var (
-	// Verify ByteBuffer implements the given interfaces.
-	_ io.Writer           = &ByteBuffer{}
-	_ fs.MustReadAtCloser = &ByteBuffer{}
-	_ io.ReaderFrom       = &ByteBuffer{}
-
-	// Verify reader implement filestream.ReadCloser interface.
-	_ filestream.ReadCloser = &reader{}
 )
 
 // ByteBuffer implements a simple byte buffer.
@@ -34,11 +22,6 @@ func (bb *ByteBuffer) Path() string {
 
 // Reset resets bb.
 func (bb *ByteBuffer) Reset() {
-	if cap(bb.B) > 64*1024 {
-		// It is better dropping too big buffers instead of keeping them around.
-		// This should reduce the overall memory usage, while shouldn't increase time spent in GC too much.
-		bb.B = nil
-	}
 	bb.B = bb.B[:0]
 }
 
@@ -46,19 +29,6 @@ func (bb *ByteBuffer) Reset() {
 func (bb *ByteBuffer) Write(p []byte) (int, error) {
 	bb.B = append(bb.B, p...)
 	return len(p), nil
-}
-
-// MustReadAt reads len(p) bytes starting from the given offset.
-func (bb *ByteBuffer) MustReadAt(p []byte, offset int64) {
-	if offset < 0 {
-		logger.Panicf("BUG: cannot read at negative offset=%d", offset)
-	}
-	if offset > int64(len(bb.B)) {
-		logger.Panicf("BUG: too big offset=%d; cannot exceed len(bb.B)=%d", offset, len(bb.B))
-	}
-	if n := copy(p, bb.B[offset:]); n < len(p) {
-		logger.Panicf("BUG: EOF occurred after reading %d bytes out of %d bytes at offset %d", n, len(p), offset)
-	}
 }
 
 // ReadFrom reads all the data from r to bb until EOF.

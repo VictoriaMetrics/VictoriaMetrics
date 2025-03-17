@@ -144,6 +144,19 @@ func TestStreamFilterMatchStreamName(t *testing.T) {
 	f(`{a="b" or c=""}`, `{}`, true)
 	f(`{a="b" or c=""}`, `{c="x"}`, false)
 	f(`{a="b" or c=""}`, `{a="b"}`, true)
+
+	// `in` operator
+	f(`{a in (b, "c")}`, `{a="c"}`, true)
+	f(`{a in (b, "c")}`, `{a="b"}`, true)
+	f(`{a in (b, "c")}`, `{a="d"}`, false)
+	f(`{x="y" or a in (b, "c")}`, `{a="d",x="y"}`, true)
+
+	// `not_in` operator
+	f(`{a not_in (b, "c")}`, `{a="c"}`, false)
+	f(`{a not_in (b, "c")}`, `{a="b"}`, false)
+	f(`{a not_in (b, "c")}`, `{a="d"}`, true)
+	f(`{x="y", a not_in (b, "c")}`, `{a="b",x="y"}`, false)
+	f(`{x="y", a not_in (b, "c")}`, `{a="d",x="y"}`, true)
 }
 
 func TestNewTestStreamFilterSuccess(t *testing.T) {
@@ -164,6 +177,8 @@ func TestNewTestStreamFilterSuccess(t *testing.T) {
 	f(`{ "foo" =~ "bar.+" , baz!="a" or x="y"}`, `{foo=~"bar.+",baz!="a" or x="y"}`)
 	f(`{"a b"='c}"d' OR de="aaa"}`, `{"a b"="c}\"d" or de="aaa"}`)
 	f(`{a-q:w.z="b", c="d" or 'x a'=y-z=q}`, `{"a-q:w.z"="b",c="d" or "x a"="y-z=q"}`)
+	f(`{a in (a, "b.c|d")}`, `{a=~"a|b\\.c\\|d"}`)
+	f(`{a not_in (a, "b.c|d")}`, `{a!~"a|b\\.c\\|d"}`)
 }
 
 func TestNewTestStreamFilterFailure(t *testing.T) {
@@ -189,6 +204,11 @@ func TestNewTestStreamFilterFailure(t *testing.T) {
 	f("{foo=bar")
 	f("{foo=bar baz}")
 	f("{foo='bar' baz='x'}")
+	f("{foo=(a}")
+	f("{foo=(a)}")
+	f("{foo in (a")
+	f("{foo in (a,")
+	f("{foo in (a,}")
 }
 
 func mustNewTestStreamFilter(s string) *StreamFilter {

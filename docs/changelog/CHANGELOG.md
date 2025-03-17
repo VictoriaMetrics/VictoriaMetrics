@@ -19,16 +19,27 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 * SECURITY: upgrade Go builder from Go1.24.0 to Go1.24.1. See the list of issues addressed in [Go1.24.1](https://github.com/golang/go/issues?q=milestone%3AGo1.24.1+label%3ACherryPickApproved).
+
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support zstd compression for OpenTelemetry and Datadog metrics ingestion. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): use original unmodified by [relabeling](https://docs.victoriametrics.com/#relabeling) job name as `scrape_pool` value for [/api/v1/targets](https://docs.victoriametrics.com/#prometheus-querying-api-usage) responses. This change fixes discrepancy with Prometheus as mentioned in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343). Thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8457).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxTSDBStatusTopNSeries` to allow setting a limit for topN argument accepted by `/api/v1/status/tsdb` endpoint.
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): expose `vmalert_alerts_send_duration_seconds` metric to measure the time taken to send alerts to the specified `-notifier.url`. Thanks to @eyazici90 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8468).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support AWS EKS Pod Identity. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5780) for details.
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): improve performance of `or` binary operator. The performance was degraded in [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8382) issues for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): expose `vmalert_alerts_send_duration_seconds` metric to measure the time taken to send alerts to the specified `-notifier.url`. Thanks to @eyazici90 for [the pull reuqest](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8468).
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): fix metric that shows number of active time series when per-day index is disabled. Previously, once per-day index was disabled, the active time series metric would stop being populated and the `Active time series` chart would show 0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8411) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): prevent from `too big duration` panic when the query contains too big `Ni` durations because of too big `step` value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/), [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly apply TLS settings for URLs with scheme other than `https`. Previously, TLS settings were ignored for such URLs. That could lead to unexpected behavior when a request was receiving a redirect response to a URL with `https` scheme. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8494) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): prevent dropping persistent queue data when changes happened for `-remoteWrite.showURL` flag, query params or fragment in remote write URL. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle `multitenant` query request on storage communication error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8461) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce number of allocations that could increase CPU usage on ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details.
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
 Released at 2025-03-07
+
+**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
@@ -68,6 +79,8 @@ Released at 2025-03-07
 ## [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0)
 
 Released at 2025-02-21
+
+**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).

@@ -507,9 +507,18 @@ func (b *block) appendRowsTo(dst *rows) {
 	dst.timestamps = append(dst.timestamps, b.timestamps...)
 
 	// copy columns
-	fieldsBuf := dst.fieldsBuf
 	ccs := b.constColumns
 	cs := b.columns
+
+	// Pre-allocate dst.fieldsBuf for all the fields across rows.
+	fieldsCount := len(b.timestamps) * (len(ccs) + len(cs))
+	fieldsBuf := slicesutil.SetLength(dst.fieldsBuf, len(dst.fieldsBuf)+fieldsCount)
+	fieldsBuf = fieldsBuf[:len(fieldsBuf)-fieldsCount]
+
+	// Pre-allocate dst.rows
+	dst.rows = slicesutil.SetLength(dst.rows, len(dst.rows)+len(b.timestamps))
+	dstRows := dst.rows[len(dst.rows)-len(b.timestamps):]
+
 	for i := range b.timestamps {
 		fieldsLen := len(fieldsBuf)
 		// copy const columns
@@ -526,7 +535,7 @@ func (b *block) appendRowsTo(dst *rows) {
 				Value: value,
 			})
 		}
-		dst.rows = append(dst.rows, fieldsBuf[fieldsLen:])
+		dstRows[i] = fieldsBuf[fieldsLen:]
 	}
 	dst.fieldsBuf = fieldsBuf
 }

@@ -35,12 +35,19 @@ func TestMarshalUnmarshalStringsBlock(t *testing.T) {
 		}
 		putStringsBlockUnmarshaler(sbu)
 	}
+
+	// and empty string
 	f("", 5)
+
+	// a single string
 	f("foo", 9)
+
+	// Strings with identical length
 	f(`foo
 bar
-baz
-`, 18)
+baz`, 18)
+
+	// Long strings
 	f(`
 Apr 28 13:39:06 localhost systemd[1]: Started Network Manager Script Dispatcher Service.
 Apr 28 13:39:06 localhost nm-dispatcher: req:1 'connectivity-change': new request (2 scripts)
@@ -73,6 +80,10 @@ Apr 28 13:48:01 localhost kernel: [36020.499858] CPU0: Package temperature/speed
 Apr 28 13:48:01 localhost kernel: [36020.499859] CPU2: Package temperature/speed normal
 `, 951)
 
+	// const strings
+	f("foo\nfoo", 10)
+	f("foo\nfoo\nfoo", 9)
+
 	// Generate a string longer than 1<<16 bytes
 	s := "foo"
 	for len(s) < (1 << 16) {
@@ -90,4 +101,46 @@ Apr 28 13:48:01 localhost kernel: [36020.499859] CPU2: Package temperature/speed
 		lines += fmt.Sprintf("line %d\n", i)
 	}
 	f(lines, 766)
+}
+
+func TestMarshalUnmarshalUint64Block(t *testing.T) {
+	f := func(a []uint64) {
+		t.Helper()
+
+		data := marshalUint64Block(nil, a)
+
+		result, tail, err := unmarshalUint64Block(nil, data, uint64(len(a)))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(tail) != 0 {
+			t.Fatalf("unexpected non-nil tail with len=%d: %X", len(tail), tail)
+		}
+		if !reflect.DeepEqual(a, result) {
+			t.Fatalf("unexpected result\ngot\n%d\nwant\n%d", result, a)
+		}
+	}
+
+	// empty block
+	f(nil)
+
+	// uint8
+	f([]uint64{1})
+	f([]uint64{1, 1, 1})
+	f([]uint64{1, 2, 3})
+
+	// uint16
+	f([]uint64{1234})
+	f([]uint64{1234, 1234, 1234})
+	f([]uint64{1234, 34, 234})
+
+	// uint32
+	f([]uint64{1234 << 16})
+	f([]uint64{1234 << 16, 1234 << 16, 1234 << 16})
+	f([]uint64{1234 << 16, 1234<<16 + 1, 1234<<16 + 2})
+
+	// uint64
+	f([]uint64{1234 << 32})
+	f([]uint64{1234 << 32, 1234 << 32, 1234 << 32})
+	f([]uint64{1234 << 32, 1234<<32 + 1, 1234<<32 + 2})
 }

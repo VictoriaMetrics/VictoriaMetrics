@@ -74,7 +74,9 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		s := MustOpenStorage(path, OpenOptions{})
 		defer s.MustClose()
 
-		idb := s.idb()
+		idb, putIndexDB := s.getCurrIndexDB()
+		defer putIndexDB()
+
 		key := []byte("key")
 		idb.putMetricIDsToTagFiltersCache(nil, want, key)
 		got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
@@ -97,7 +99,8 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer fs.MustRemoveAll(path)
 	s := MustOpenStorage(path, OpenOptions{})
 	defer s.MustClose()
-	idb := s.idb()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 
 	key := []byte("key")
 	emptyMetricIDs := []uint64(nil)
@@ -583,7 +586,7 @@ func TestIndexDB(t *testing.T) {
 		const path = "TestIndexDB-serial"
 		s := MustOpenStorage(path, OpenOptions{})
 
-		db := s.idb()
+		db, putIndexDB := s.getCurrIndexDB()
 		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -593,14 +596,16 @@ func TestIndexDB(t *testing.T) {
 		}
 
 		// Re-open the storage and verify it works as expected.
+		putIndexDB()
 		s.MustClose()
 		s = MustOpenStorage(path, OpenOptions{})
 
-		db = s.idb()
+		db, putIndexDB = s.getCurrIndexDB()
 		if err := testIndexDBCheckTSIDByName(db, mns, tsids, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
+		putIndexDB()
 		s.MustClose()
 		fs.MustRemoveAll(path)
 	})
@@ -608,7 +613,7 @@ func TestIndexDB(t *testing.T) {
 	t.Run("concurrent", func(t *testing.T) {
 		const path = "TestIndexDB-concurrent"
 		s := MustOpenStorage(path, OpenOptions{})
-		db := s.idb()
+		db, putIndexDB := s.getCurrIndexDB()
 
 		ch := make(chan error, 3)
 		for i := 0; i < cap(ch); i++ {
@@ -637,6 +642,7 @@ func TestIndexDB(t *testing.T) {
 			}
 		}
 
+		putIndexDB()
 		s.MustClose()
 		fs.MustRemoveAll(path)
 	})
@@ -1509,7 +1515,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	}
 	s := MustOpenStorage(path, opts)
 
-	db := s.idb()
+	db, putIndexDB := s.getCurrIndexDB()
 	if db.generation == 0 {
 		t.Fatalf("expected indexDB generation to be not 0")
 	}
@@ -1553,6 +1559,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		}
 	}
 	prevGeneration := db.generation
+	putIndexDB()
 
 	// force index rotation
 	s.mustRotateIndexDB(time.Now())
@@ -1563,7 +1570,8 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	if cs.EntriesCount != metricRowsN {
 		t.Fatalf("expected tsidCache after rotation to contain %d rows; got %d", metricRowsN, cs2.EntriesCount)
 	}
-	dbNew := s.idb()
+
+	dbNew, putIndexDB := s.getCurrIndexDB()
 	if dbNew.generation == 0 {
 		t.Fatalf("expected new indexDB generation to be not 0")
 	}
@@ -1582,6 +1590,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		}
 	}
 
+	putIndexDB()
 	s.MustClose()
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
@@ -1591,7 +1600,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 func TestSearchTSIDWithTimeRange(t *testing.T) {
 	const path = "TestSearchTSIDWithTimeRange"
 	s := MustOpenStorage(path, OpenOptions{})
-	db := s.idb()
+	db, putIndexDB := s.getCurrIndexDB()
 
 	is := db.getIndexSearch(noDeadline)
 
@@ -2074,6 +2083,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 
+	putIndexDB()
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
@@ -2111,7 +2121,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	path := t.Name()
 	os.RemoveAll(path)
 	s := MustOpenStorage(path, OpenOptions{})
-	db := s.idb()
+	db, putIndexDB := s.getCurrIndexDB()
 
 	is := db.getIndexSearch(noDeadline)
 
@@ -2193,10 +2203,11 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	}
 
 	db.putIndexSearch(is2)
+	putIndexDB()
 
 	// rotate indexdb
 	s.mustRotateIndexDB(rotationDay)
-	db = s.idb()
+	db, putIndexDB = s.getCurrIndexDB()
 
 	// perform search for 0:0 tenant
 	// results of previous search requests shouldn't affect it
@@ -2230,6 +2241,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	}
 
 	db.extDB.putIndexSearch(isExt)
+	putIndexDB()
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }

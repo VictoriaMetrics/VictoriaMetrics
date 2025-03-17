@@ -3,6 +3,7 @@ package checksum
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/aws/smithy-go"
@@ -93,7 +94,7 @@ func (m *validateOutputPayloadChecksum) HandleDeserialize(
 
 	// Skip validation if no checksum algorithm or checksum is available.
 	if len(expectedChecksum) == 0 || len(algorithmToUse) == 0 {
-		if m.LogValidationSkipped {
+		if response.StatusCode != 404 && response.Body != http.NoBody && m.LogValidationSkipped {
 			// TODO this probably should have more information about the
 			// operation output that won't be validated.
 			logger.Logf(logging.Warn,

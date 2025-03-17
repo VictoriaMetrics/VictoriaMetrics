@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -1248,10 +1249,9 @@ func (vd *valuesDict) reset() {
 func (vd *valuesDict) copyFrom(a *arena, src *valuesDict) {
 	vd.reset()
 
-	dstValues := vd.values
-	for _, v := range src.values {
-		v = a.copyString(v)
-		dstValues = append(dstValues, v)
+	dstValues := slicesutil.SetLength(vd.values, len(src.values))
+	for i, v := range src.values {
+		dstValues[i] = a.copyString(v)
 	}
 	vd.values = dstValues
 }

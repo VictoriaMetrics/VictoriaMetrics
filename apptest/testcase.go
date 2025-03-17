@@ -146,6 +146,13 @@ func (c *Vmcluster) ForceFlush(t *testing.T) {
 	}
 }
 
+// ForceMerge is a test helper function that forces the merging of parts.
+func (c *Vmcluster) ForceMerge(t *testing.T) {
+	for _, s := range c.Vmstorages {
+		s.ForceMerge(t)
+	}
+}
+
 // MustStartVmauth is a test helper function that starts an instance of
 // vmauth and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileYAML string) *Vmauth {

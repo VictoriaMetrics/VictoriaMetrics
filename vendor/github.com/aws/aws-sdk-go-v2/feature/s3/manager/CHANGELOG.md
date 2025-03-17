@@ -1,3 +1,24 @@
+# v1.17.66 (2025-03-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.65 (2025-03-04.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.64 (2025-02-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.63 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.62 (2025-02-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.61 (2025-02-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

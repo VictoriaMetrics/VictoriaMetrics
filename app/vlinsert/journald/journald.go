@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"slices"
@@ -16,32 +15,30 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-const (
-	journaldEntryMaxNameLen = 64
-)
+// See https://github.com/systemd/systemd/blob/main/src/libsystemd/sd-journal/journal-file.c#L1703
+const journaldEntryMaxNameLen = 64
+
+var allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*`)
 
 var (
-	bodyBufferPool                bytesutil.ByteBufferPool
-	allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*`)
-)
-
-var (
-	journaldStreamFields = flagutil.NewArrayString("journald.streamFields", "Journal fields to be used as stream fields. "+
-		"See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.")
-	journaldIgnoreFields = flagutil.NewArrayString("journald.ignoreFields", "Journal fields to ignore. "+
-		"See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.")
-	journaldTimeField = flag.String("journald.timeField", "__REALTIME_TIMESTAMP", "Journal field to be used as time field. "+
-		"See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.")
-	journaldTenantID             = flag.String("journald.tenantID", "0:0", "TenantID for logs ingested via the Journald endpoint.")
+	journaldStreamFields = flagutil.NewArrayString("journald.streamFields", "Comma-separated list of fields to use as log stream fields for logs ingested over journald protocol. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#stream-fields")
+	journaldIgnoreFields = flagutil.NewArrayString("journald.ignoreFields", "Comma-separated list of fields to ignore for logs ingested over journald protocol. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#dropping-fields")
+	journaldTimeField = flag.String("journald.timeField", "__REALTIME_TIMESTAMP", "Field to use as a log timestamp for logs ingested via journald protocol. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#time-field")
+	journaldTenantID = flag.String("journald.tenantID", "0:0", "TenantID for logs ingested via the Journald endpoint. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#multitenancy")
 	journaldIncludeEntryMetadata = flag.Bool("journald.includeEntryMetadata", false, "Include journal entry fields, which with double underscores.")
+
+	maxRequestSize = flagutil.NewBytes("journald.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single journald request")
 )
 
 func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
@@ -89,43 +86,29 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsJournaldTotal.Inc()
 
-	if err := vlstorage.CanWriteData(); err != nil {
-		httpserver.Errorf(w, r, "%s", err)
-		return
-	}
-
-	reader := r.Body
-	var err error
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
-	writeconcurrencylimiter.PutReader(wcr)
-	bb := bodyBufferPool.Get()
-	defer bodyBufferPool.Put(bb)
-	if r.Header.Get("Content-Encoding") == "zstd" {
-		bb.B, err = zstd.Decompress(bb.B[:0], data)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot decompress zstd-encoded request with length %d: %s", len(data), err)
-			return
-		}
-		data = bb.B
-	}
 	cp, err := getCommonParams(r)
 	if err != nil {
+		errorsTotal.Inc()
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
 
-	lmp := cp.NewLogMessageProcessor("journald")
-	err = parseJournaldRequest(data, lmp, cp)
-	lmp.MustClose()
+	if err := vlstorage.CanWriteData(); err != nil {
+		errorsTotal.Inc()
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	encoding := r.Header.Get("Content-Encoding")
+	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.NewLogMessageProcessor("journald")
+		err := parseJournaldRequest(data, lmp, cp)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
 		errorsTotal.Inc()
-		httpserver.Errorf(w, r, "cannot parse Journald protobuf request: %s", err)
+		httpserver.Errorf(w, r, "cannot read journald protocol data: %s", err)
 		return
 	}
 
@@ -218,7 +201,6 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 			}
 			data = data[1:]
 		}
-		// https://github.com/systemd/systemd/blob/main/src/libsystemd/sd-journal/journal-file.c#L1703
 		if len(name) > journaldEntryMaxNameLen {
 			return fmt.Errorf("journald entry name should not exceed %d symbols, got: %q", journaldEntryMaxNameLen, name)
 		}

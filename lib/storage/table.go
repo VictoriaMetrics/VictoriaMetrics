@@ -457,6 +457,11 @@ func (tb *table) finalDedupWatcher() {
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
 				// Do not run final dedup for the current month.
+				// For the current month, the samples are countinously
+				// deduplicated by the background in-memory, small, and big part
+				// merge tasks. See:
+				// - paritition.mergeParts() in paritiont.go and
+				// - Block.deduplicateSamplesDuringMerge() in block.go.
 				continue
 			}
 			if !ptw.pt.isFinalDedupNeeded() {

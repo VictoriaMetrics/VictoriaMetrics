@@ -177,7 +177,10 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 	sw := &statWriter{
 		w: pw,
 	}
-	bw := bufio.NewWriter(sw)
+
+	// The 1MB write buffer increases data ingestion performance by reducing the number of send() syscalls
+	bw := bufio.NewWriterSize(sw, 1024*1024)
+
 	doneCh := make(chan struct{})
 	go func() {
 		generateLogs(bw, workerID, cfg.activeStreams, cfg.totalStreams)

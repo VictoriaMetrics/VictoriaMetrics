@@ -27,25 +27,25 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
-	wcr := writeconcurrencylimiter.GetReader(req.Body)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r := io.Reader(wcr)
-
 	q := req.URL.Query()
 	format := q.Get("format")
 	cds, err := csvimport.ParseColumnDescriptors(format)
 	if err != nil {
 		return fmt.Errorf("cannot parse the provided csv format: %w", err)
 	}
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped csv data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+
+	encoding := req.Header.Get("Content-Encoding")
+	reader, err := common.GetUncompressedReader(req.Body, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode csv data: %w", err)
 	}
-	ctx := getStreamContext(r)
+	defer common.PutUncompressedReader(reader)
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()

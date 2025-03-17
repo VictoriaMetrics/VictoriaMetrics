@@ -212,7 +212,7 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		var gotTimeSeries []vm.TimeSeries
 		var mx sync.RWMutex
 
-		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
+		err := stream.Parse(r.Body, "", func(block *stream.Block) error {
 			mn := &block.MetricName
 			var timeseries vm.TimeSeries
 			timeseries.Name = string(mn.MetricGroup)

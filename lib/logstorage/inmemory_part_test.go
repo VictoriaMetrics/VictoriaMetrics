@@ -76,19 +76,19 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 	f(GetLogRows(nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
-	f(newTestLogRows(1, 1, 0), 1, 0.7)
-	f(newTestLogRows(1, 2, 0), 1, 0.8)
-	f(newTestLogRows(1, 10, 0), 1, 2.0)
-	f(newTestLogRows(1, 1000, 0), 1, 7.1)
-	f(newTestLogRows(1, 20000, 0), 2, 7.2)
+	f(newTestLogRows(1, 1, 0), 1, 1.3)
+	f(newTestLogRows(1, 2, 0), 1, 1.7)
+	f(newTestLogRows(1, 10, 0), 1, 4.6)
+	f(newTestLogRows(1, 1000, 0), 1, 17.1)
+	f(newTestLogRows(1, 20000, 0), 5, 16.8)
 
 	// Check how inmemoryPart works with multiple streams
-	f(newTestLogRows(2, 1, 0), 2, 0.8)
-	f(newTestLogRows(10, 1, 0), 10, 1.1)
-	f(newTestLogRows(100, 1, 0), 100, 1.2)
-	f(newTestLogRows(10, 5, 0), 10, 1.5)
-	f(newTestLogRows(10, 1000, 0), 10, 7.2)
-	f(newTestLogRows(100, 100, 0), 100, 5.0)
+	f(newTestLogRows(2, 1, 0), 2, 1.6)
+	f(newTestLogRows(10, 1, 0), 10, 2.1)
+	f(newTestLogRows(100, 1, 0), 100, 2.3)
+	f(newTestLogRows(10, 5, 0), 10, 3.6)
+	f(newTestLogRows(10, 1000, 0), 10, 17.1)
+	f(newTestLogRows(100, 100, 0), 100, 12.4)
 }
 
 func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
@@ -108,9 +108,9 @@ func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
 	}
 
 	// check block overflow with unique tag rows
-	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.4)
-	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.5)
-	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.4)
+	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.5)
+	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.6)
+	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.7)
 	f(newTestLogRowsUniqTags(15, 20, 250), 15, 0.6)
 }
 
@@ -216,46 +216,47 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 	f([]*LogRows{GetLogRows(nil, nil, nil, ""), GetLogRows(nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
-	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.7)
-	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 2.0)
-	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 4.9)
-	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 7.1)
-	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 1, 7.4)
-	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 1.1)
-	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 1.3)
-	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 1.2)
-	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 2.1)
-	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 4.9)
+	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.3)
+	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 4.6)
+	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 12.0)
+	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 17.1)
+	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 3, 17.2)
+	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 2.1)
+	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 2.3)
+	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2.2)
+	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 5.5)
+	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 12.4)
 
 	//Check merge with multiple readers
 	f([]*LogRows{
 		newTestLogRows(1, 1, 0),
 		newTestLogRows(1, 1, 1),
-	}, 2, 0.9)
+	}, 2, 1.7)
 	f([]*LogRows{
 		newTestLogRows(2, 2, 0),
 		newTestLogRows(2, 2, 0),
-	}, 2, 1.8)
+	}, 2, 3.8)
 	f([]*LogRows{
 		newTestLogRows(1, 20, 0),
 		newTestLogRows(1, 10, 1),
 		newTestLogRows(1, 5, 2),
-	}, 3, 2.2)
+	}, 3, 5.5)
 	f([]*LogRows{
 		newTestLogRows(10, 20, 0),
 		newTestLogRows(20, 10, 1),
 		newTestLogRows(30, 5, 2),
-	}, 60, 2.0)
+	}, 60, 5.2)
 	f([]*LogRows{
 		newTestLogRows(10, 20, 0),
 		newTestLogRows(20, 10, 1),
 		newTestLogRows(30, 5, 2),
 		newTestLogRows(20, 7, 3),
 		newTestLogRows(10, 9, 4),
-	}, 90, 1.9)
+	}, 90, 5.0)
 }
 
 func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
+	longConstValue := "some-value " + string(make([]byte, maxConstColumnValueSize))
 	streamTags := []string{
 		"some-stream-tag",
 	}
@@ -291,6 +292,11 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 			fields = append(fields, Field{
 				Name:  "job",
 				Value: "foobar",
+			})
+			// add a field with const value with the length exceeding maxConstColumnValueSize
+			fields = append(fields, Field{
+				Name:  "long-const",
+				Value: longConstValue,
 			})
 			// add a field with uint value
 			fields = append(fields, Field{

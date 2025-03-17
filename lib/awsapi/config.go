@@ -26,7 +26,8 @@ type Config struct {
 	// See https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html
 	irsaRoleARN string
 
-	webTokenPath string
+	webTokenPath       string
+	containerTokenPath string
 
 	ec2Endpoint string
 	stsEndpoint string
@@ -52,13 +53,14 @@ type credentials struct {
 // NewConfig returns new AWS Config from the given args.
 func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service string) (*Config, error) {
 	cfg := &Config{
-		client:           http.DefaultClient,
-		region:           region,
-		roleARN:          roleARN,
-		irsaRoleARN:      os.Getenv("AWS_ROLE_ARN"),
-		service:          service,
-		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
-		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		client:             http.DefaultClient,
+		region:             region,
+		roleARN:            roleARN,
+		irsaRoleARN:        os.Getenv("AWS_ROLE_ARN"),
+		containerTokenPath: os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE"),
+		service:            service,
+		defaultAccessKey:   os.Getenv("AWS_ACCESS_KEY_ID"),
+		defaultSecretKey:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
 	if cfg.service == "" {
 		cfg.service = "aps"
@@ -211,11 +213,22 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		}
 		return cfg.getRoleWebIdentityCredentials(string(token), cfg.irsaRoleARN)
 	}
-	if ecsMetaURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(ecsMetaURI) > 0 {
-		path := "http://169.254.170.2" + ecsMetaURI
-		ac, err := getECSRoleCredentialsByPath(cfg.client, path)
+	fullURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+	if relativeURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(relativeURI) > 0 {
+		fullURI = "http://169.254.170.2" + relativeURI
+	}
+	if len(fullURI) > 0 {
+		token := os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN")
+		if len(token) == 0 && len(cfg.containerTokenPath) > 0 {
+			t, err := os.ReadFile(cfg.containerTokenPath)
+			if err != nil {
+				return nil, fmt.Errorf("cannot read containerToken from path: %q, err: %w", cfg.containerTokenPath, err)
+			}
+			token = string(t)
+		}
+		ac, err := getCredentialsByPath(cfg.client, fullURI, token)
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain ECS role credentials: %w", err)
+			return nil, err
 		}
 		acNew = ac
 	}
@@ -246,15 +259,21 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 	return acNew, nil
 }
 
-// getECSRoleCredentialsByPath makes request to ecs metadata service
-// and retrieves instances credentials
-// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
-func getECSRoleCredentialsByPath(client *http.Client, path string) (*credentials, error) {
-	resp, err := client.Get(path)
+// getCredentialsByPath makes request to metadata service and retrieves container credentials
+// https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html
+func getCredentialsByPath(client *http.Client, uri, token string) (*credentials, error) {
+	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get ECS instance role credentials: %w", err)
+		return nil, err
 	}
-	data, err := readResponseBody(resp, path)
+	if len(token) > 0 {
+		req.Header.Add("Authorization", token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get credentials from %s: %w", uri, err)
+	}
+	data, err := readResponseBody(resp, uri)
 	if err != nil {
 		return nil, err
 	}

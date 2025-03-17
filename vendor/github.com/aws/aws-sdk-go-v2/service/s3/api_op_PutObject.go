@@ -256,15 +256,15 @@ type PutObjectInput struct {
 	// For the x-amz-checksum-algorithm  header, replace  algorithm  with the
 	// supported algorithm from the following list:
 	//
-	//   - CRC-32
+	//   - CRC32
 	//
-	//   - CRC-32C
+	//   - CRC32C
 	//
-	//   - CRC-64NVME
+	//   - CRC64NVME
 	//
-	//   - SHA-1
+	//   - SHA1
 	//
-	//   - SHA-256
+	//   - SHA256
 	//
 	// For more information, see [Checking object integrity] in the Amazon S3 User Guide.
 	//
@@ -286,7 +286,7 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 32-bit CRC-32 checksum of the object. For more information, see [Checking object integrity]
+	// Base64 encoded, 32-bit CRC32 checksum of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -294,23 +294,23 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 32-bit CRC-32C checksum of the object. For more information,
-	// see [Checking object integrity]in the Amazon S3 User Guide.
+	// Base64 encoded, 32-bit CRC32C checksum of the object. For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32C *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 64-bit CRC-64NVME checksum of the object. The CRC-64NVME
-	// checksum is always a full object checksum. For more information, see [Checking object integrity in the Amazon S3 User Guide].
+	// Base64 encoded, 64-bit CRC64NVME checksum of the object. The CRC64NVME checksum
+	// is always a full object checksum. For more information, see [Checking object integrity in the Amazon S3 User Guide].
 	//
 	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC64NVME *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 160-bit SHA-1 digest of the object. For more information, see [Checking object integrity]
+	// Base64 encoded, 160-bit SHA1 digest of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -318,7 +318,7 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 256-bit SHA-256 digest of the object. For more information, see [Checking object integrity]
+	// Base64 encoded, 256-bit SHA256 digest of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -658,7 +658,7 @@ type PutObjectOutput struct {
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled *bool
 
-	// The Base64 encoded, 32-bit CRC-32 checksum of the object. This checksum is only
+	// The Base64 encoded, 32-bit CRC32 checksum of the object. This checksum is only
 	// be present if the checksum was uploaded with the object. When you use an API
 	// operation on an object that was uploaded using multipart uploads, this value may
 	// not be a direct checksum value of the full object. Instead, it's a calculation
@@ -669,8 +669,8 @@ type PutObjectOutput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32 *string
 
-	// The Base64 encoded, 32-bit CRC-32C checksum of the object. This checksum is
-	// only present if the checksum was uploaded with the object. When you use an API
+	// The Base64 encoded, 32-bit CRC32C checksum of the object. This checksum is only
+	// present if the checksum was uploaded with the object. When you use an API
 	// operation on an object that was uploaded using multipart uploads, this value may
 	// not be a direct checksum value of the full object. Instead, it's a calculation
 	// based on the checksum values of each individual part. For more information about
@@ -680,16 +680,16 @@ type PutObjectOutput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32C *string
 
-	// The Base64 encoded, 64-bit CRC-64NVME checksum of the object. This header is
-	// present if the object was uploaded with the CRC-64NVME checksum algorithm, or
-	// if it was uploaded without a checksum (and Amazon S3 added the default checksum,
-	// CRC-64NVME , to the uploaded object). For more information about how checksums
+	// The Base64 encoded, 64-bit CRC64NVME checksum of the object. This header is
+	// present if the object was uploaded with the CRC64NVME checksum algorithm, or if
+	// it was uploaded without a checksum (and Amazon S3 added the default checksum,
+	// CRC64NVME , to the uploaded object). For more information about how checksums
 	// are calculated with multipart uploads, see [Checking object integrity in the Amazon S3 User Guide].
 	//
 	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC64NVME *string
 
-	// The Base64 encoded, 160-bit SHA-1 digest of the object. This will only be
+	// The Base64 encoded, 160-bit SHA1 digest of the object. This will only be
 	// present if the object was uploaded with the object. When you use the API
 	// operation on an object that was uploaded using multipart uploads, this value may
 	// not be a direct checksum value of the full object. Instead, it's a calculation
@@ -700,7 +700,7 @@ type PutObjectOutput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumSHA1 *string
 
-	// The Base64 encoded, 256-bit SHA-256 digest of the object. This will only be
+	// The Base64 encoded, 256-bit SHA256 digest of the object. This will only be
 	// present if the object was uploaded with the object. When you use an API
 	// operation on an object that was uploaded using multipart uploads, this value may
 	// not be a direct checksum value of the full object. Instead, it's a calculation
@@ -877,6 +877,9 @@ func (c *Client) addOperationPutObjectMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutObjectValidationMiddleware(stack); err != nil {
