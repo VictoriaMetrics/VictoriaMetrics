@@ -408,6 +408,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
+	if res.IsPartial != nil && *res.IsPartial {
+		logger.Infof("group %q %s; rule: %q", ar.GroupName, "response is partial", ar.Name)
+	}
 	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.Samples, curState.Duration)
 
 	qFn := func(query string) ([]datasource.Metric, error) {

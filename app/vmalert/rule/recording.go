@@ -168,6 +168,9 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 		curState.Err = fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
 		return nil, curState.Err
 	}
+	if res.IsPartial != nil && *res.IsPartial {
+		logger.Infof("group %q %s; rule: %q", rr.GroupName, "response is partial", rr.Name)
+	}
 
 	qMetrics := res.Data
 	numSeries := len(qMetrics)
