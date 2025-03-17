@@ -189,10 +189,10 @@ func (im *Importer) Errors() chan *ImportError { return im.errors }
 
 // Input returns a channel for sending timeseries
 // that need to be imported
-func (im *Importer) Input(ts *TimeSeries) error {
+func (im *Importer) Input(ctx context.Context, ts *TimeSeries) error {
 	select {
-	case <-im.close:
-		return fmt.Errorf("importer is closed")
+	case <-ctx.Done():
+		return ctx.Err()
 	case im.input <- ts:
 		return nil
 	case err := <-im.errors:
@@ -220,24 +220,34 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize,
 	var waitForBatch time.Time
 	for {
 		select {
-		case <-im.close:
+		case <-ctx.Done():
 			for ts := range im.input {
 				ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
 				batch = append(batch, ts)
+				exitErr := &ImportError{
+					Batch: batch,
+				}
+				retryableFunc := func() error { return im.Import(batch) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				im.errors <- exitErr
 			}
-			exitErr := &ImportError{
-				Batch: batch,
-			}
-			retryableFunc := func() error { return im.Import(batch) }
-			_, err := im.backoff.Retry(ctx, retryableFunc)
-			if err != nil {
-				exitErr.Err = err
-			}
-			im.errors <- exitErr
 			return
 		case ts, ok := <-im.input:
 			if !ok {
-				continue
+				// drain all batches before exit
+				exitErr := &ImportError{
+					Batch: batch,
+				}
+				retryableFunc := func() error { return im.Import(batch) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				im.errors <- exitErr
+				return
 			}
 			// init waitForBatch when first
 			// value was received

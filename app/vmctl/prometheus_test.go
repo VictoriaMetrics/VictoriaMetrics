@@ -160,7 +160,7 @@ func TestPrometheusProcessorRun(t *testing.T) {
 				go tt.fields.closer(importer)
 			}
 
-			if err := pp.run(); (err != nil) != tt.wantErr {
+			if err := pp.run(context.Background()); (err != nil) != tt.wantErr {
 				t.Fatalf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

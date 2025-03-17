@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -30,7 +31,7 @@ type prometheusProcessor struct {
 	isVerbose bool
 }
 
-func (pp *prometheusProcessor) run() error {
+func (pp *prometheusProcessor) run(ctx context.Context) error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
@@ -59,7 +60,7 @@ func (pp *prometheusProcessor) run() error {
 		go func() {
 			defer wg.Done()
 			for br := range blockReadersCh {
-				if err := pp.do(br); err != nil {
+				if err := pp.do(ctx, br); err != nil {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
@@ -100,7 +101,7 @@ func (pp *prometheusProcessor) run() error {
 	return nil
 }
 
-func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
+func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error {
 	ss, err := pp.cl.Read(b)
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
@@ -150,7 +151,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 			Timestamps: timestamps,
 			Values:     values,
 		}
-		if err := pp.im.Input(&ts); err != nil {
+		if err := pp.im.Input(ctx, &ts); err != nil {
 			return err
 		}
 	}
