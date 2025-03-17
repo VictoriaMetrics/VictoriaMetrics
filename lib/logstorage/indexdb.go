@@ -437,7 +437,7 @@ func (is *indexSearch) getStreamIDsForTagRegexp(tenantID TenantID, tagName strin
 	return ids
 }
 
-func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical []byte) {
+func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical string) {
 	st := GetStreamTags()
 	mustUnmarshalStreamTags(st, streamTagsCanonical)
 	tenantID := streamID.tenantID

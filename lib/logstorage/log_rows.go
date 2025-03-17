@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -23,7 +24,7 @@ type LogRows struct {
 	streamIDs []streamID
 
 	// streamTagsCanonicals holds streamTagsCanonical entries for rows added to LogRows
-	streamTagsCanonicals [][]byte
+	streamTagsCanonicals []string
 
 	// timestamps holds stimestamps for rows added to LogRows
 	timestamps []int64
@@ -80,6 +81,8 @@ func (lr *LogRows) Reset() {
 	lr.ignoreFields.reset()
 
 	lr.extraFields = nil
+
+	clear(lr.extraStreamFields)
 	lr.extraStreamFields = lr.extraStreamFields[:0]
 
 	lr.defaultMsgValue = ""
@@ -101,19 +104,13 @@ func (lr *LogRows) ResetKeepSettings() {
 	}
 	lr.streamIDs = sids[:0]
 
-	sns := lr.streamTagsCanonicals
-	for i := range sns {
-		sns[i] = nil
-	}
-	lr.streamTagsCanonicals = sns[:0]
+	clear(lr.streamTagsCanonicals)
+	lr.streamTagsCanonicals = lr.streamTagsCanonicals[:0]
 
 	lr.timestamps = lr.timestamps[:0]
 
-	rows := lr.rows
-	for i := range rows {
-		rows[i] = nil
-	}
-	lr.rows = rows[:0]
+	clear(lr.rows)
+	lr.rows = lr.rows[:0]
 
 	lr.sf = nil
 }
@@ -192,16 +189,17 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	sid.id = hash128(bb.B)
 
 	// Store the row
-	lr.mustAddInternal(sid, timestamp, fields, bb.B)
+	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
+	lr.mustAddInternal(sid, timestamp, fields, streamTagsCanonical)
 	bbPool.Put(bb)
 }
 
-func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical []byte) {
+func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical string) {
 	stcs := lr.streamTagsCanonicals
-	if len(stcs) > 0 && string(stcs[len(stcs)-1]) == string(streamTagsCanonical) {
+	if len(stcs) > 0 && string(stcs[len(stcs)-1]) == streamTagsCanonical {
 		stcs = append(stcs, stcs[len(stcs)-1])
 	} else {
-		streamTagsCanonicalCopy := lr.a.copyBytes(streamTagsCanonical)
+		streamTagsCanonicalCopy := lr.a.copyString(streamTagsCanonical)
 		stcs = append(stcs, streamTagsCanonicalCopy)
 	}
 	lr.streamTagsCanonicals = stcs
