@@ -22,6 +22,7 @@ func (fq *FakeQuerier) SetErr(err error) {
 	fq.Unlock()
 }
 
+// SetPartialResponse marks query response as partial
 func (fq *FakeQuerier) SetPartialResponse(partial bool) {
 	fq.Lock()
 	fq.isPartial = &partial
