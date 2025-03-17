@@ -140,7 +140,7 @@ For example, the following command starts VictoriaLogs, which writes syslog mess
 
 VictoriaLogs uses `(hostname, app_name, proc_id)` fields as labels for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default.
 It is possible setting other set of labels via `-syslog.streamFields.tcp` and `-syslog.streamFields.udp` command-line flags
-for logs insted via the corresponding `-syslog.listenAddr.tcp` and `-syslog.listenAddr.dup` addresses.
+for logs instead via the corresponding `-syslog.listenAddr.tcp` and `-syslog.listenAddr.dup` addresses.
 For example, the following command starts VictoriaLogs, which uses `(hostname, app_name)` fields as log stream labels
 for logs received at TCP port 514:
 

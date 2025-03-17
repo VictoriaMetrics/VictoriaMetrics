@@ -39,7 +39,7 @@ type partHeader struct {
 	BloomValuesShardsCount uint64
 }
 
-// reset resets ph for subsequent re-use
+// reset resets ph for subsequent reuse
 func (ph *partHeader) reset() {
 	ph.FormatVersion = 0
 	ph.CompressedSizeBytes = 0
@@ -51,7 +51,7 @@ func (ph *partHeader) reset() {
 	ph.BloomValuesShardsCount = 0
 }
 
-// String returns string represenation for ph.
+// String returns string representation for ph.
 func (ph *partHeader) String() string {
 	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, "+
 		"MinTimestamp=%s, MaxTimestamp=%s, BloomValuesShardsCount=%d}",

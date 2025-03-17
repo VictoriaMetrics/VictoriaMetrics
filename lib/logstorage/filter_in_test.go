@@ -725,7 +725,7 @@ func TestFilterIn(t *testing.T) {
 		fi.values.values = []string{""}
 		testFilterMatchForColumns(t, columns, fi, "_msg", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 
-		// mimatch
+		// mismatch
 		fi = &filterIn{
 			fieldName: "_msg",
 		}

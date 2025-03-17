@@ -253,7 +253,7 @@ func unmarshalUint64Items(dst []uint64, src []byte, itemsCount uint64) ([]uint64
 
 	dstLen := uint64(len(dst)) + itemsCount
 	if dstLen > math.MaxInt {
-		return dst, fmt.Errorf("too long destination buffer: len=%d; musn't exceed %d", dstLen, uint64(math.MaxInt))
+		return dst, fmt.Errorf("too long destination buffer: len=%d; must not exceed %d", dstLen, uint64(math.MaxInt))
 	}
 	dst = slicesutil.SetLength(dst, int(dstLen))
 	dstA := dst[dstLen-itemsCount:]

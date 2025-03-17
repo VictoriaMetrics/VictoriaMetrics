@@ -130,7 +130,7 @@ func unmarshalTagValue(dst, src []byte) ([]byte, []byte, error) {
 	}
 }
 
-// MetricName reperesents a metric name.
+// MetricName represents a metric name.
 type MetricName struct {
 	AccountID uint32
 	ProjectID uint32

@@ -161,7 +161,7 @@ func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
 // the `Range query` section of the VictoriaMetrics documentation that a range
 // query is actually an instant query executed 1 + (start-end)/step times on the
 // time range from start to end. The only difference is that instant queries
-// will not procude ephemeral points.
+// will not produce ephemeral points.
 //
 // See: https://docs.victoriametrics.com/keyconcepts/#range-query
 func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.PrometheusQuerier) {

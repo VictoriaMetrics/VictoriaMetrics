@@ -18,7 +18,7 @@ TAR_OWNERSHIP ?= --owner=1000 --group=1000
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
-include cspell/Makefile
+include codespell/Makefile
 include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile

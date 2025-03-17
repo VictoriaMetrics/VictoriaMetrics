@@ -32,7 +32,7 @@ type blockData struct {
 	constColumns []Field
 }
 
-// reset resets bd for subsequent re-use
+// reset resets bd for subsequent reuse
 func (bd *blockData) reset() {
 	bd.streamID.reset()
 	bd.uncompressedSizeBytes = 0
@@ -201,7 +201,7 @@ type timestampsData struct {
 	maxTimestamp int64
 }
 
-// reset resets td for subsequent re-use
+// reset resets td for subsequent reuse
 func (td *timestampsData) reset() {
 	td.data = nil
 	td.marshalType = 0
@@ -288,7 +288,7 @@ type columnData struct {
 	bloomFilterData []byte
 }
 
-// reset rests cd for subsequent re-use
+// reset rests cd for subsequent reuse
 func (cd *columnData) reset() {
 	cd.name = ""
 	cd.valueType = 0

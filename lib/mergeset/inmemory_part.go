@@ -103,7 +103,7 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 var inmemoryPartBytePool bytesutil.ByteBufferPool
 
 // It is safe calling NewPart multiple times.
-// It is unsafe re-using mp while the returned part is in use.
+// It is unsafe reusing mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
 	size := mp.size()
 	p := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)

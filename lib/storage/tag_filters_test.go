@@ -1017,7 +1017,7 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		expectedPrefix := tvNoTrailingTagSeparator("")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
-		// Must match case-insenstive http
+		// Must match case-insensitive http
 		match("http")
 		match("HTTP")
 		match("hTTp")
@@ -1053,7 +1053,7 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		expectedPrefix := tvNoTrailingTagSeparator("")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
-		// Must match case-insenstive http
+		// Must match case-insensitive http
 		match("http")
 		match("HTTP")
 		match("hTTp://foobar.com")

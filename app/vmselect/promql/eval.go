@@ -1881,7 +1881,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 			samplesScannedTotal.Add(samplesScanned)
 			iafc.updateTimeseries(ts, workerID)
 
-			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be re-used.
+			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be reused.
 			ts.Timestamps = nil
 			ts.denyReuse = false
 		}

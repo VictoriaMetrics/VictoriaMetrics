@@ -67,7 +67,7 @@ type series struct {
 
 	expr graphiteql.Expr
 
-	// consolidateFunc is applied to raw samples in order to generate data points algined to the given step.
+	// consolidateFunc is applied to raw samples in order to generate data points aligned to the given step.
 	// see series.consolidate() function for details.
 	consolidateFunc aggrFunc
 

@@ -31,7 +31,7 @@ var (
 	totalStreams  = flag.Int("totalStreams", 0, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
 		"during data generation")
 	logsPerStream     = flag.Int64("logsPerStream", 1_000, "The number of log entries to generate per each log stream. Log entries are evenly distributed between -start and -end")
-	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constaint values to generate per each log entry; "+
+	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constant values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	varFieldsPerLog = flag.Int("varFieldsPerLog", 1, "The number of fields with variable values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")

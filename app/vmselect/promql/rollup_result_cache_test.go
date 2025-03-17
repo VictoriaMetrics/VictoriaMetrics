@@ -529,7 +529,7 @@ func TestMergeSeries(t *testing.T) {
 		}
 		tss, ok := mergeSeries(nil, a, b, bStart, ec)
 		if ok {
-			t.Fatalf("expecting failre to merge series")
+			t.Fatalf("expecting failure to merge series")
 		}
 		testTimeseriesEqual(t, tss, nil)
 	})
@@ -552,7 +552,7 @@ func TestMergeSeries(t *testing.T) {
 		}
 		tss, ok := mergeSeries(nil, a, b, bStart, ec)
 		if ok {
-			t.Fatalf("expecting failre to merge series")
+			t.Fatalf("expecting failure to merge series")
 		}
 		testTimeseriesEqual(t, tss, nil)
 	})
