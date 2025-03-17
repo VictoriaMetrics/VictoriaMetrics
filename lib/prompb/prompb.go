@@ -15,7 +15,7 @@ type WriteRequest struct {
 	samplesPool []Sample
 }
 
-// Reset resets wr for subsequent re-use.
+// Reset resets wr for subsequent reuse.
 func (wr *WriteRequest) Reset() {
 	clear(wr.Timeseries)
 	wr.Timeseries = wr.Timeseries[:0]

@@ -88,7 +88,7 @@ func (r *reader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// MustClose closes bb for subsequent re-use.
+// MustClose closes bb for subsequent reuse.
 func (r *reader) MustClose() {
 	r.bb = nil
 	r.readOffset = 0

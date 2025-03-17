@@ -161,7 +161,7 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 		finalizeAggrFunc(iac)
 		tss = append(tss, iac.ts)
 	}
-	// reset iafc state, so it could be re-used
+	// reset iafc state, so it could be reused
 	iafc.resetState()
 	return tss
 }

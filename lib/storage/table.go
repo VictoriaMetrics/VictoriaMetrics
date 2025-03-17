@@ -460,7 +460,7 @@ func (tb *table) finalDedupWatcher() {
 				// For the current month, the samples are countinously
 				// deduplicated by the background in-memory, small, and big part
 				// merge tasks. See:
-				// - paritition.mergeParts() in paritiont.go and
+				// - partition.mergeParts() in paritiont.go and
 				// - Block.deduplicateSamplesDuringMerge() in block.go.
 				continue
 			}

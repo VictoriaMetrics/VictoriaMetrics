@@ -181,7 +181,7 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 			if err != nil {
 				return fmt.Errorf("failed to extract binary field %q value size: %w", name, err)
 			}
-			// skip binary data sise
+			// skip binary data size
 			data = data[idx:]
 			if size == 0 {
 				return fmt.Errorf("unexpected zero binary data size decoded %d", size)

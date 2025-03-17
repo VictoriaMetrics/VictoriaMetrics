@@ -391,7 +391,7 @@ func newGetAuthHeaderCached(getAuthHeader getAuthHeaderFunc) getAuthHeaderFunc {
 	var ah string
 	var err error
 	return func() (string, error) {
-		// Cahe the auth header and the error for up to a second in order to save CPU time
+		// Cache the auth header and the error for up to a second in order to save CPU time
 		// on reading and parsing auth headers from files.
 		// This also reduces load on OAuth2 server when oauth2 config is enabled.
 		mu.Lock()
@@ -562,7 +562,7 @@ func (rt *roundTripper) getTransport() (http.RoundTripper, error) {
 
 func (ac *Config) getTLSConfig() (*tls.Config, error) {
 	if ac.getTLSCertCached == nil && ac.tlsServerName == "" && !ac.tlsInsecureSkipVerify && ac.tlsMinVersion == 0 && ac.getTLSRootCA == nil {
-		// Re-use zeroTLSConfig when ac doesn't contain tls-specific configs.
+		// Reuse zeroTLSConfig when ac doesn't contain tls-specific configs.
 		// This should reduce memory usage a bit.
 		return zeroTLSConfig, nil
 	}

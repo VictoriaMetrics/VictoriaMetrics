@@ -72,7 +72,7 @@ type streamReaders struct {
 	// columnIdxs contains bloomValuesShards indexes for column names seen in the part
 	columnIdxs map[string]uint64
 
-	// columnNames constains id->columnName mapping for all the columns seen in the part
+	// columnNames contains id->columnName mapping for all the columns seen in the part
 	columnNames []string
 }
 
@@ -259,7 +259,7 @@ type blockStreamReader struct {
 	minTimestampLast int64
 }
 
-// reset resets bsr, so it can be re-used
+// reset resets bsr, so it can be reused
 func (bsr *blockStreamReader) reset() {
 	bsr.blockData.reset()
 	bsr.a.reset()
@@ -449,7 +449,7 @@ func (bsr *blockStreamReader) NextBlock() bool {
 		logger.Panicf("FATAL: %s: too many blocks read so far: %d; mustn't exceed partHeader.BlocksCount=%d", bsr.Path(), bsr.globalBlocksCount, bsr.ph.BlocksCount)
 	}
 
-	// The block has been sucessfully read
+	// The block has been successfully read
 	bsr.nextBlockIdx++
 	return true
 }

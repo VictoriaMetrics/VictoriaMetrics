@@ -11,7 +11,7 @@ const filename = (
   </>
 );
 
-const tittle = (
+const title = (
   <>
     <p>Title - specify the title that will be displayed on the <Link
       to={router.queryAnalyzer}
@@ -51,7 +51,7 @@ const generate = (
 
 export default [
   filename,
-  tittle,
+  title,
   comment,
   trace,
   generate,

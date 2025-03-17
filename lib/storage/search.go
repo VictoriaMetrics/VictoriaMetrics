@@ -234,7 +234,7 @@ func (s *Search) NextMetricBlock() bool {
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
 			}
-			// for perfomance reasons parse metricGroup conditionally
+			// for performance reasons parse metricGroup conditionally
 			if s.idb.s.metricsTracker != nil {
 				var err error
 				// MetricName must be sorted and marshalled with MetricName.Marshal()
