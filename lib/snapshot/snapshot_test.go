@@ -104,3 +104,32 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 		t.Fatalf("Snapshot should have failed, got: %v", err)
 	}
 }
+
+func TestAdditionOfBasicAuthHeaders(t *testing.T) {
+	expectedAuthHeader := "Basic Zm9vOmJhcg=="
+
+	origUsername := basicAuthUser.Get()
+	origPassword := basicAuthPassword.Get()
+	// reset the flags after tests
+	defer func() {
+		if err := basicAuthUser.Set(origUsername); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if err := basicAuthPassword.Set(origPassword); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}()
+	if err := basicAuthUser.Set("foo"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if err := basicAuthPassword.Set("bar"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	req := httptest.NewRequest("GET", "http://foobar.com", nil)
+	addAuthHeaders(req)
+	authHeader := req.Header.Get("Authorization")
+	if authHeader != expectedAuthHeader {
+		t.Fatalf("invalid authorization header. got %q, but want %q", authHeader, expectedAuthHeader)
+	}
+}
