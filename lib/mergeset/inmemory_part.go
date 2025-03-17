@@ -58,9 +58,6 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.Reset()
 
-	// Reuse mp.itemsData and mp.lensData in sb.
-	// This eliminates copying itemsData and lensData from sb to mp later.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2247
 	sb := &storageBlock{}
 
 	// Use the minimum possible compressLevel for compressing inmemoryPart,
