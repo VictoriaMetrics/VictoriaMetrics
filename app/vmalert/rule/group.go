@@ -52,7 +52,7 @@ type Group struct {
 	EvalDelay      *time.Duration
 	Limit          int
 	Concurrency    int
-	Checksum       string
+	checksum       string
 	LastEvaluation time.Time
 
 	Labels          map[string]string
@@ -93,9 +93,7 @@ func newGroupMetrics(g *Group) *groupMetrics {
 	m.iterationDuration = m.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	m.iterationMissed = m.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
 	m.iterationInterval = m.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
-		g.mu.RLock()
 		i := g.Interval.Seconds()
-		g.mu.RUnlock()
 		return i
 	})
 	return m
@@ -135,7 +133,7 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Interval:        cfg.Interval.Duration(),
 		Limit:           cfg.Limit,
 		Concurrency:     cfg.Concurrency,
-		Checksum:        cfg.Checksum,
+		checksum:        cfg.Checksum,
 		Params:          cfg.Params,
 		Headers:         make(map[string]string),
 		NotifierHeaders: make(map[string]string),
@@ -194,12 +192,16 @@ func (g *Group) newRule(qb datasource.QuerierBuilder, r config.Rule) Rule {
 	return NewRecordingRule(qb, g, r)
 }
 
+// GetCheckSum returns group checksum
+func (g *Group) GetCheckSum() string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.checksum
+}
+
 // ID return unique group ID that consists of
 // rules file and group Name
 func (g *Group) ID() uint64 {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
 	hash := fnv.New64a()
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
@@ -274,17 +276,14 @@ func (g *Group) updateWith(newGroup *Group) error {
 		nr.registerMetrics(g)
 		newRules = append(newRules, nr)
 	}
-	// note that g.Interval is not updated here
-	// so the value can be compared later in
-	// group.Start function
-	g.Type = newGroup.Type
+
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
 	g.Headers = newGroup.Headers
 	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
 	g.Limit = newGroup.Limit
-	g.Checksum = newGroup.Checksum
+	g.checksum = newGroup.checksum
 	g.Rules = newRules
 	return nil
 }

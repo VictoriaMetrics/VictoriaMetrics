@@ -140,7 +140,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 			continue
 		}
 		delete(groupsRegistry, ng.ID())
-		if og.Checksum != ng.Checksum {
+		if og.GetCheckSum() != ng.GetCheckSum() {
 			toUpdate = append(toUpdate, updateItem{old: og, new: ng})
 		}
 	}
