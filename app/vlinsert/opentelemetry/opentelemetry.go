@@ -51,7 +51,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
+		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf", false)
 		useDefaultStreamFields := len(cp.StreamFields) == 0
 		err := pushProtobufRequest(data, lmp, useDefaultStreamFields)
 		lmp.MustClose()

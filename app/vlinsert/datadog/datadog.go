@@ -81,7 +81,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("datadog")
+		lmp := cp.NewLogMessageProcessor("datadog", false)
 		err := readLogsRequest(ts, data, lmp)
 		lmp.MustClose()
 		return err

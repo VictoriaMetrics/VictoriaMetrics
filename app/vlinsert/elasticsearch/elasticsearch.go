@@ -99,7 +99,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk")
+		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk", true)
 		encoding := r.Header.Get("Content-Encoding")
 		streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
 		n, err := readBulkRequest(streamName, r.Body, encoding, cp.TimeField, cp.MsgFields, lmp)

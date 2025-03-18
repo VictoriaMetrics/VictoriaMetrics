@@ -41,7 +41,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		encoding = "snappy"
 	}
 	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.cp.NewLogMessageProcessor("loki_protobuf")
+		lmp := cp.cp.NewLogMessageProcessor("loki_protobuf", false)
 		useDefaultStreamFields := len(cp.cp.StreamFields) == 0
 		err := parseProtobufRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
 		lmp.MustClose()

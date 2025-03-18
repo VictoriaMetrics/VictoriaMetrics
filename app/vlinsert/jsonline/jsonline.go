@@ -46,7 +46,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer common.PutUncompressedReader(reader)
 
-	lmp := cp.NewLogMessageProcessor("jsonline")
+	lmp := cp.NewLogMessageProcessor("jsonline", true)
 	streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
 	processStreamInternal(streamName, reader, cp.TimeField, cp.MsgFields, lmp)
 	lmp.MustClose()
