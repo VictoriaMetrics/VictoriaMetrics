@@ -22,6 +22,11 @@ import (
 //
 // The callback must not hold references to the data after returning.
 func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
+	if encoding == "snappy" {
+		// The snappy reader reads the whole message in memory before decompressing it.
+		// That's why the compressed message size must be limited too.
+		r = io.LimitReader(r, maxDataSize.N)
+	}
 	reader, err := GetUncompressedReader(r, encoding)
 	if err != nil {
 		return err
