@@ -372,7 +372,7 @@ func processStream(protocol string, r io.Reader, encoding string, useLocalTimest
 		return err
 	}
 
-	lmp := cp.NewLogMessageProcessor("syslog_" + protocol)
+	lmp := cp.NewLogMessageProcessor("syslog_"+protocol, true)
 	err := processStreamInternal(r, encoding, useLocalTimestamp, lmp)
 	lmp.MustClose()
 
