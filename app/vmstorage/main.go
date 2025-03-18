@@ -22,7 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
@@ -161,7 +161,7 @@ func main() {
 	})
 	metrics.RegisterSet(storageMetrics)
 
-	common.StartUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
 
 	servers.GetMaxUniqueTimeSeries() // for init and logging only.
 	vminsertSrv, err := servers.NewVMInsertServer(*vminsertAddr, strg)
@@ -201,7 +201,7 @@ func main() {
 	stopStaleSnapshotsRemover()
 	vmselectSrv.MustStop()
 	vminsertSrv.MustStop()
-	common.StopUnmarshalWorkers()
+	protoparserutil.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 
 	logger.Infof("gracefully closing the storage at %s", *storageDataPath)

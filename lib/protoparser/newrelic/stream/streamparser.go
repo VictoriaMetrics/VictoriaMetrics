@@ -9,8 +9,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 // callback shouldn't hold rows after returning.
 func Parse(r io.Reader, encoding string, callback func(rows []newrelic.Row) error) error {
 	readCalls.Inc()
-	err := common.ReadUncompressedData(r, encoding, maxInsertRequestSize, func(data []byte) error {
+	err := protoparserutil.ReadUncompressedData(r, encoding, maxInsertRequestSize, func(data []byte) error {
 		return parseData(data, callback)
 	})
 	if err != nil {

@@ -9,9 +9,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -40,11 +40,11 @@ func InsertHandler(req *http.Request) error {
 	}
 	switch p.Suffix {
 	case "api/put", "opentsdb/api/put":
-		extraLabels, err := parserCommon.GetExtraLabels(req)
+		extraLabels, err := protoparserutil.GetExtraLabels(req)
 		if err != nil {
 			return err
 		}
-		return stream.Parse(req, func(rows []parser.Row) error {
+		return stream.Parse(req, func(rows []opentsdbhttp.Row) error {
 			return insertRows(at, rows, extraLabels)
 		})
 	default:
@@ -52,7 +52,7 @@ func InsertHandler(req *http.Request) error {
 	}
 }
 
-func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []opentsdbhttp.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 	ctx.Reset() // This line is required for initializing ctx internals.

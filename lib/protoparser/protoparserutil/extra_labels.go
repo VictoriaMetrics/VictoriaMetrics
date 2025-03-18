@@ -1,4 +1,4 @@
-package common
+package protoparserutil
 
 import (
 	"encoding/base64"

@@ -43,8 +43,8 @@ import (
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
@@ -122,7 +122,7 @@ func main() {
 
 	relabel.Init()
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
-	common.StartUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
 	if len(*clusternativeListenAddr) > 0 {
 		clusternativeServer = clusternativeserver.MustStart(*clusternativeListenAddr, func(c net.Conn) error {
 			return clusternative.InsertHandler(c)
@@ -180,7 +180,7 @@ func main() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer.MustStop()
 	}
-	common.StopUnmarshalWorkers()
+	protoparserutil.StopUnmarshalWorkers()
 
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
@@ -246,7 +246,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch p.Suffix {
 	case "prometheus/", "prometheus", "prometheus/api/v1/write", "prometheus/api/v1/push":
-		if common.HandleVMProtoServerHandshake(w, r) {
+		if protoparserutil.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
 		prometheusWriteRequests.Inc()
