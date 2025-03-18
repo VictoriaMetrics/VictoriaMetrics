@@ -10,8 +10,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -50,7 +50,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	}
 
 	encoding := r.Header.Get("Content-Encoding")
-	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
 		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf", false)
 		useDefaultStreamFields := len(cp.StreamFields) == 0
 		err := pushProtobufRequest(data, lmp, useDefaultStreamFields)

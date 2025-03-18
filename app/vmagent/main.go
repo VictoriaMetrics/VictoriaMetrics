@@ -42,8 +42,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
@@ -145,7 +145,7 @@ func main() {
 	startTime := time.Now()
 	remotewrite.StartIngestionRateLimiter()
 	remotewrite.Init()
-	common.StartUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
 			return influx.InsertHandlerForReader(nil, r, "")
@@ -195,7 +195,7 @@ func main() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer.MustStop()
 	}
-	common.StopUnmarshalWorkers()
+	protoparserutil.StopUnmarshalWorkers()
 	remotewrite.Stop()
 
 	logger.Infof("successfully stopped vmagent in %.3f seconds", time.Since(startTime).Seconds())
@@ -282,7 +282,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch path {
 	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
-		if common.HandleVMProtoServerHandshake(w, r) {
+		if protoparserutil.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
 		prometheusWriteRequests.Inc()

@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 func TestParse(t *testing.T) {
-	common.StartUnmarshalWorkers()
-	defer common.StopUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
+	defer protoparserutil.StopUnmarshalWorkers()
 
 	const defaultTimestamp = 123
 	f := func(s string, rowsExpected []prometheus.Row) {

@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -39,12 +39,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encoding := r.Header.Get("Content-Encoding")
-	reader, err := common.GetUncompressedReader(r.Body, encoding)
+	reader, err := protoparserutil.GetUncompressedReader(r.Body, encoding)
 	if err != nil {
 		logger.Errorf("cannot decode jsonline request: %s", err)
 		return
 	}
-	defer common.PutUncompressedReader(reader)
+	defer protoparserutil.PutUncompressedReader(reader)
 
 	lmp := cp.NewLogMessageProcessor("jsonline", true)
 	streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)

@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -100,7 +100,7 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 	}
 
 	encoding := r.Header.Get("Content-Encoding")
-	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
 		lmp := cp.NewLogMessageProcessor("journald", false)
 		err := parseJournaldRequest(data, lmp, cp)
 		lmp.MustClose()

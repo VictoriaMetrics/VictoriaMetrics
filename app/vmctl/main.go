@@ -26,8 +26,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 func main() {
@@ -382,7 +382,7 @@ func main() {
 				},
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
-					common.StartUnmarshalWorkers()
+					protoparserutil.StartUnmarshalWorkers()
 					blockPath := c.Args().First()
 					encoding := ""
 					if c.Bool("gunzip") {

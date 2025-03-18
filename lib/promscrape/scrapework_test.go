@@ -11,8 +11,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 func TestIsAutoMetric(t *testing.T) {
@@ -733,8 +733,8 @@ func TestSendStaleSeries(t *testing.T) {
 		sw.Config = &ScrapeWork{
 			NoStaleMarkers: false,
 		}
-		common.StartUnmarshalWorkers()
-		defer common.StopUnmarshalWorkers()
+		protoparserutil.StartUnmarshalWorkers()
+		defer protoparserutil.StopUnmarshalWorkers()
 
 		var staleMarks int
 		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
@@ -762,8 +762,8 @@ func TestSendStaleSeries(t *testing.T) {
 	f(generateScrape(20000), generateScrape(10), 19990)
 }
 
-func parsePromRow(data string) *parser.Row {
-	var rows parser.Rows
+func parsePromRow(data string) *prometheus.Row {
+	var rows prometheus.Rows
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
 	}
@@ -775,7 +775,7 @@ func parsePromRow(data string) *parser.Row {
 }
 
 func parseData(data string) []prompbmarshal.TimeSeries {
-	return parser.MustParsePromMetrics(data, 0)
+	return prometheus.MustParsePromMetrics(data, 0)
 }
 
 func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {

@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 var (
@@ -44,14 +44,14 @@ func setUp() {
 		log.Fatalf("unable to set %q with value %q, err: %v", remoteWriteFlag, srv.URL, err)
 	}
 	logger.Init()
-	common.StartUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
 	remotewrite.Init()
 	testOutput = &bytes.Buffer{}
 	logger.SetOutputForTests(testOutput)
 }
 
 func tearDown() {
-	common.StopUnmarshalWorkers()
+	protoparserutil.StopUnmarshalWorkers()
 	srv.Close()
 	logger.ResetOutputForTest()
 	tmpDataDir := flag.Lookup("remoteWrite.tmpDataPath").Value.String()

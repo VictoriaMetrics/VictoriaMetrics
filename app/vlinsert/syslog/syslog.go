@@ -25,7 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -380,11 +380,11 @@ func processStream(protocol string, r io.Reader, encoding string, useLocalTimest
 }
 
 func processStreamInternal(r io.Reader, encoding string, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
-	reader, err := common.GetUncompressedReader(r, encoding)
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode syslog data: %w", err)
 	}
-	defer common.PutUncompressedReader(reader)
+	defer protoparserutil.PutUncompressedReader(reader)
 
 	return processUncompressedStream(reader, useLocalTimestamp, lmp)
 }
