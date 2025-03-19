@@ -110,13 +110,11 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	rr.state = &ruleState{
 		entries: make([]StateEntry, entrySize),
 	}
-	rr.metrics = newRecordingRuleMetrics(group.metrics.set, rr)
-
 	return rr
 }
 
-func (rr *RecordingRule) registerMetrics(g *Group) {
-	rr.metrics = newRecordingRuleMetrics(g.metrics.set, rr)
+func (rr *RecordingRule) registerMetrics(set *metrics.Set) {
+	rr.metrics = newRecordingRuleMetrics(set, rr)
 }
 
 // close unregisters rule metrics
