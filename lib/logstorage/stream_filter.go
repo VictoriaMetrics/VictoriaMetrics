@@ -170,10 +170,10 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	// parse tagName
 	tagName, err := parseStreamTagName(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse stream tag name: %w", err)
+		return nil, fmt.Errorf("cannot parse stream tag name inside {...}: %w", err)
 	}
 	if !lex.isKeyword("=", "!=", "=~", "!~", "in", "not_in") {
-		return nil, fmt.Errorf("unsupported operation %q in _steam filter for %q field; supported operations: =, !=, =~, !~, in, not_in", lex.token, tagName)
+		return nil, fmt.Errorf("unsupported operation %q inside {...} for %q field; supported operations: =, !=, =~, !~, in, not_in", lex.token, tagName)
 	}
 
 	// parse op
@@ -185,22 +185,26 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	if op == "in" || op == "not_in" {
 		args, err := parseArgsInParens(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read %q() args: %w", op, err)
+			return nil, fmt.Errorf("cannot read %s() args inside {...}: %w", op, err)
 		}
 		if op == "in" {
 			op = "=~"
 		} else {
 			op = "!~"
 		}
-		argsEscaped := make([]string, len(args))
-		for i := range args {
-			argsEscaped[i] = regexp.QuoteMeta(args[i])
+		if len(args) == 1 && args[0] == "*" {
+			value = ".*"
+		} else {
+			argsEscaped := make([]string, len(args))
+			for i := range args {
+				argsEscaped[i] = regexp.QuoteMeta(args[i])
+			}
+			value = strings.Join(argsEscaped, "|")
 		}
-		value = strings.Join(argsEscaped, "|")
 	} else {
 		v, err := parseStreamTagValue(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse value for tag %q: %w", tagName, err)
+			return nil, fmt.Errorf("cannot parse value for tag %q inside {...}: %w", tagName, err)
 		}
 		value = v
 	}
@@ -213,7 +217,7 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	if op == "=~" || op == "!~" {
 		re, err := regexutil.NewPromRegex(value)
 		if err != nil {
-			return nil, fmt.Errorf("invalid regexp %q for stream filter: %w", value, err)
+			return nil, fmt.Errorf("invalid regexp %q for %q inside {...}: %w", value, tagName, err)
 		}
 		stf.regexp = re
 	}

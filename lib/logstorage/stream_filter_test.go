@@ -150,6 +150,8 @@ func TestStreamFilterMatchStreamName(t *testing.T) {
 	f(`{a in (b, "c")}`, `{a="b"}`, true)
 	f(`{a in (b, "c")}`, `{a="d"}`, false)
 	f(`{x="y" or a in (b, "c")}`, `{a="d",x="y"}`, true)
+	f(`{a in (*)}`, `{b="c"}`, true)
+	f(`{a in (*)}`, `{a="c"}`, true)
 
 	// `not_in` operator
 	f(`{a not_in (b, "c")}`, `{a="c"}`, false)
@@ -157,6 +159,8 @@ func TestStreamFilterMatchStreamName(t *testing.T) {
 	f(`{a not_in (b, "c")}`, `{a="d"}`, true)
 	f(`{x="y", a not_in (b, "c")}`, `{a="b",x="y"}`, false)
 	f(`{x="y", a not_in (b, "c")}`, `{a="d",x="y"}`, true)
+	f(`{a not_in (*)}`, `{b="c"}`, false)
+	f(`{a not_in (*)}`, `{a="c"}`, false)
 }
 
 func TestNewTestStreamFilterSuccess(t *testing.T) {
@@ -179,6 +183,8 @@ func TestNewTestStreamFilterSuccess(t *testing.T) {
 	f(`{a-q:w.z="b", c="d" or 'x a'=y-z=q}`, `{"a-q:w.z"="b",c="d" or "x a"="y-z=q"}`)
 	f(`{a in (a, "b.c|d")}`, `{a=~"a|b\\.c\\|d"}`)
 	f(`{a not_in (a, "b.c|d")}`, `{a!~"a|b\\.c\\|d"}`)
+	f(`{a in (*)}`, `{a=~".*"}`)
+	f(`{a not_in (*)}`, `{a!~".*"}`)
 }
 
 func TestNewTestStreamFilterFailure(t *testing.T) {

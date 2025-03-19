@@ -36,7 +36,7 @@ func TestHandler(t *testing.T) {
 	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
 
 	m := &manager{groups: map[uint64]*rule.Group{
-		g.ID(): g,
+		g.CreateID(): g,
 	}}
 	rh := &requestHandler{m: m}
 

@@ -71,6 +71,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 // RequestHandler handles select requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+
 	if !strings.HasPrefix(path, "/select/") {
 		// Skip requests, which do not start with /select/, since these aren't our requests.
 		return false
@@ -105,38 +106,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
 
-	stopCh := ctxWithTimeout.Done()
-	select {
-	case concurrencyLimitCh <- struct{}{}:
-		defer func() { <-concurrencyLimitCh }()
-	default:
-		// Sleep for a while until giving up. This should resolve short bursts in requests.
-		concurrencyLimitReached.Inc()
-		select {
-		case concurrencyLimitCh <- struct{}{}:
-			defer func() { <-concurrencyLimitCh }()
-		case <-stopCh:
-			switch ctxWithTimeout.Err() {
-			case context.Canceled:
-				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-				requestURI := httpserver.GetRequestURI(r)
-				logger.Infof("client has canceled the pending request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-					time.Since(startTime).Seconds(), remoteAddr, requestURI)
-			case context.DeadlineExceeded:
-				concurrencyLimitTimeout.Inc()
-				err := &httpserver.ErrorWithStatusCode{
-					Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
-						"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
-						"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration=%s; to increase -search.maxConcurrentRequests; "+
-						"to pass bigger value to 'timeout' query arg",
-						d.Seconds(), *maxConcurrentRequests, maxQueueDuration, maxQueryDuration),
-					StatusCode: http.StatusServiceUnavailable,
-				}
-				httpserver.Errorf(w, r, "%s", err)
-			}
-			return true
-		}
+	if !incRequestConcurrency(ctxWithTimeout, w, r) {
+		return true
 	}
+	defer decRequestConcurrency()
 
 	if path == "/select/logsql/tail" {
 		logsqlTailRequests.Inc()
@@ -163,7 +136,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case context.DeadlineExceeded:
 		err = &httpserver.ErrorWithStatusCode{
 			Err: fmt.Errorf("the request couldn't be executed in %.3f seconds; possible solutions: "+
-				"to increase -search.maxQueryDuration=%s; to pass bigger value to 'timeout' query arg", d.Seconds(), maxQueryDuration),
+				"to increase -search.maxQueryDuration=%s; to pass bigger value to 'timeout' query arg", time.Since(startTime).Seconds(), maxQueryDuration),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 		httpserver.Errorf(w, r, "%s", err)
@@ -172,6 +145,46 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	return true
+}
+
+func incRequestConcurrency(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
+	stopCh := ctx.Done()
+	select {
+	case concurrencyLimitCh <- struct{}{}:
+		return true
+	default:
+		// Sleep for a while until giving up. This should resolve short bursts in requests.
+		concurrencyLimitReached.Inc()
+		select {
+		case concurrencyLimitCh <- struct{}{}:
+			return true
+		case <-stopCh:
+			switch ctx.Err() {
+			case context.Canceled:
+				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+				requestURI := httpserver.GetRequestURI(r)
+				logger.Infof("client has canceled the pending request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			case context.DeadlineExceeded:
+				concurrencyLimitTimeout.Inc()
+				err := &httpserver.ErrorWithStatusCode{
+					Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
+						"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
+						"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration=%s; to increase -search.maxConcurrentRequests; "+
+						"to pass bigger value to 'timeout' query arg",
+						time.Since(startTime).Seconds(), *maxConcurrentRequests, maxQueueDuration, maxQueryDuration),
+					StatusCode: http.StatusServiceUnavailable,
+				}
+				httpserver.Errorf(w, r, "%s", err)
+			}
+			return false
+		}
+	}
+}
+
+func decRequestConcurrency() {
+	<-concurrencyLimitCh
 }
 
 func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) bool {

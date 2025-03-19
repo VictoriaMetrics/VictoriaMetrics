@@ -17,6 +17,7 @@ const chunkSize = 4 * 1024
 type Buffer struct {
 	chunks []*[chunkSize]byte
 
+	// offset is the offset in the last chunk to write data to.
 	offset int
 }
 
@@ -36,6 +37,14 @@ func (cb *Buffer) Reset() {
 // SizeBytes returns the number of bytes occupied by the cb.
 func (cb *Buffer) SizeBytes() int {
 	return len(cb.chunks) * chunkSize
+}
+
+// Len returns the length of the data stored at cb.
+func (cb *Buffer) Len() int {
+	if len(cb.chunks) == 0 {
+		return 0
+	}
+	return (len(cb.chunks)-1)*chunkSize + cb.offset
 }
 
 // MustWrite writes p to cb.
@@ -134,6 +143,7 @@ func (cb *Buffer) NewReader() filestream.ReadCloser {
 type reader struct {
 	cb *Buffer
 
+	// offset is the offset at cb to read the next data at Read call.
 	offset int
 }
 
