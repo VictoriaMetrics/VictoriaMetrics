@@ -144,7 +144,7 @@ VictoriaMetrics is similar to Cortex in the following aspects:
 
 The main differences between Cortex and VictoriaMetrics:
 
-* Cortex re-uses Prometheus source code, while VictoriaMetrics is written from scratch.
+* Cortex reuses Prometheus source code, while VictoriaMetrics is written from scratch.
 * Cortex heavily relies on third-party services such as Consul, Memcache, DynamoDB, BigTable, Cassandra, etc.
   This may increase operational complexity and reduce system reliability compared to VictoriaMetrics' case,
   which doesn't use any external services. Compare [Cortex' Architecture](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md)
@@ -162,7 +162,7 @@ The main differences between Cortex and VictoriaMetrics:
 
 ## What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)?
 
-* Thanos re-uses Prometheus source code, while VictoriaMetrics is written from scratch.
+* Thanos reuses Prometheus source code, while VictoriaMetrics is written from scratch.
 * VictoriaMetrics accepts data via the [standard remote_write API for Prometheus](https://prometheus.io/docs/practices/remote_write/),
   while Thanos uses a non-standard [sidecar](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md) which must run alongside each Prometheus instance.
 * The Thanos sidecar requires disabling data compaction in Prometheus, which may hurt Prometheus performance and increase RAM usage. See [these docs](https://thanos.io/tip/components/sidecar.md/) for more details.

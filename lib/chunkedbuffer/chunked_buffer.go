@@ -17,12 +17,13 @@ const chunkSize = 4 * 1024
 type Buffer struct {
 	chunks []*[chunkSize]byte
 
+	// offset is the offset in the last chunk to write data to.
 	offset int
 }
 
-// Reset resets the cb, so it can be re-used for writing new data into it.
+// Reset resets the cb, so it can be reused for writing new data into it.
 //
-// Reset frees up memory chunks allocated for cb, so they could be re-used by other Buffer instances.
+// Reset frees up memory chunks allocated for cb, so they could be reused by other Buffer instances.
 func (cb *Buffer) Reset() {
 	for _, chunk := range cb.chunks {
 		putChunk(chunk)
@@ -36,6 +37,14 @@ func (cb *Buffer) Reset() {
 // SizeBytes returns the number of bytes occupied by the cb.
 func (cb *Buffer) SizeBytes() int {
 	return len(cb.chunks) * chunkSize
+}
+
+// Len returns the length of the data stored at cb.
+func (cb *Buffer) Len() int {
+	if len(cb.chunks) == 0 {
+		return 0
+	}
+	return (len(cb.chunks)-1)*chunkSize + cb.offset
 }
 
 // MustWrite writes p to cb.
@@ -119,7 +128,7 @@ func (cb *Buffer) Path() string {
 	return fmt.Sprintf("Buffer/%p/mem", cb)
 }
 
-// MustClose closes cb for subsequent re-use.
+// MustClose closes cb for subsequent reuse.
 func (cb *Buffer) MustClose() {
 	// Do nothing, since certain code rely on cb reading after MustClose call.
 }
@@ -134,6 +143,7 @@ func (cb *Buffer) NewReader() filestream.ReadCloser {
 type reader struct {
 	cb *Buffer
 
+	// offset is the offset at cb to read the next data at Read call.
 	offset int
 }
 

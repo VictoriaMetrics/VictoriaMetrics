@@ -39,7 +39,7 @@ func (b *block) reset() {
 	b.constColumns = ccs[:0]
 }
 
-// uncompressedSizeBytes returns the total size of the origianl log entries stored in b.
+// uncompressedSizeBytes returns the total size of the original log entries stored in b.
 //
 // It is supposed that every log entry has the following format:
 //
@@ -280,7 +280,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) {
 			for k := range columnIdxs {
 				fieldNames = append(fieldNames, k)
 			}
-			logger.Warnf("ignoring %d rows in the block, becasue they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
+			logger.Warnf("ignoring %d rows in the block, because they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
 			break
 		}
 		for j := range fields {

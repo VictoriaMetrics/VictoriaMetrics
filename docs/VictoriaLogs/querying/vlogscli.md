@@ -147,7 +147,7 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
 `vlogscli` supports the following output modes:
 
 * A single JSON line per every result. Type `\s` and press `enter` for this mode.
-* Multline JSON per every result. Type `\m` and press `enter` for this mode.
+* Multiline JSON per every result. Type `\m` and press `enter` for this mode.
 * Compact output. Type `\c` and press `enter` for this mode.
   This mode shows field values as is if the response contains a single field
   (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)

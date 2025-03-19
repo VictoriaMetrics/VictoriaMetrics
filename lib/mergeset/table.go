@@ -493,7 +493,7 @@ func getFilePartsConcurrency() int {
 // MustClose closes the table.
 func (tb *Table) MustClose() {
 	// Notify background workers to stop.
-	// The tb.partsLock is aquired in order to guarantee that tb.wg.Add() isn't called
+	// The tb.partsLock is acquired in order to guarantee that tb.wg.Add() isn't called
 	// after tb.stopCh is closed and tb.wg.Wait() is called below.
 	tb.partsLock.Lock()
 	close(tb.stopCh)

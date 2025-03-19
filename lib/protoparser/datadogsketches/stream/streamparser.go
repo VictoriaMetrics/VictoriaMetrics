@@ -5,9 +5,9 @@ import (
 	"io"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -16,7 +16,7 @@ import (
 // callback shouldn't hold series after returning.
 func Parse(r io.Reader, encoding string, callback func(series []*datadogsketches.Sketch) error) error {
 	readCalls.Inc()
-	err := common.ReadUncompressedData(r, encoding, datadogutils.MaxInsertRequestSize, func(data []byte) error {
+	err := protoparserutil.ReadUncompressedData(r, encoding, datadogutils.MaxInsertRequestSize, func(data []byte) error {
 		return parseData(data, callback)
 	})
 	if err != nil {

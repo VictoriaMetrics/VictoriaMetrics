@@ -120,7 +120,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if len(timestampStr) > 0 {
 		ts, err := fastfloat.Parse(timestampStr)
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w; orignal line: %q", timestampStr, err, sOrig)
+			return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w; original line: %q", timestampStr, err, sOrig)
 		}
 		r.Timestamp = int64(ts)
 	}

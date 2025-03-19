@@ -1,4 +1,4 @@
-package common
+package protoparserutil
 
 import (
 	"io"

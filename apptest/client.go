@@ -88,9 +88,9 @@ func readAllAndClose(t *testing.T, responseBody io.ReadCloser) string {
 	return string(b)
 }
 
-// ServesMetrics is used to retrive the app's metrics.
+// ServesMetrics is used to retrieve the app's metrics.
 //
-// This type is expected to be embdded by the apps that serve metrics.
+// This type is expected to be embedded by the apps that serve metrics.
 type ServesMetrics struct {
 	metricsURL string
 	cli        *Client

@@ -23,6 +23,11 @@ func TestBuffer(t *testing.T) {
 			totalSize += len(b)
 		}
 
+		cbLen := cb.Len()
+		if cbLen != totalSize {
+			t.Fatalf("nexpected Buffer.Len value; got %d; want %d", cbLen, totalSize)
+		}
+
 		size := cb.SizeBytes()
 		if size < totalSize {
 			t.Fatalf("too small SizeBytes; got %d; want at least %d", size, totalSize)
@@ -54,7 +59,7 @@ func TestBuffer(t *testing.T) {
 			t.Fatalf("unexpected amounts of data read from chunked buffer; got %d; want %d", n, off)
 		}
 
-		// Verify that reader path is equvalent to cb path
+		// Verify that reader path is equivalent to cb path
 		cbPath := cb.Path()
 		rPath := r.Path()
 		if cbPath != rPath {
@@ -88,7 +93,7 @@ func TestBuffer(t *testing.T) {
 			t.Fatalf("unexpected amounts of data written to chunked buffer; got %d; want %d", n, off)
 		}
 
-		// Verify that the data at cb is eqivalent to the data at cb2
+		// Verify that the data at cb is equivalent to the data at cb2
 		var bb2 bytes.Buffer
 		r2 := cb2.NewReader()
 		n, err = bb2.ReadFrom(r2)

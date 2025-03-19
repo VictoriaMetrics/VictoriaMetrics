@@ -15,8 +15,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry request")
@@ -27,7 +27,7 @@ var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
 func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
-	err := common.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
+	err := protoparserutil.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
 		if processBody != nil {
 			dataNew, err := processBody(data)
 			if err != nil {

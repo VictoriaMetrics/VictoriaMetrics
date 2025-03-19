@@ -13,7 +13,7 @@ func TestFieldsSet(t *testing.T) {
 		t.Fatalf("fs mustn't contain *")
 	}
 	if fs.contains("foo") {
-		t.Fatalf("fs musn't contain foo")
+		t.Fatalf("fs mustn't contain foo")
 	}
 	fs.add("foo")
 	fs.add("bar")
@@ -35,7 +35,7 @@ func TestFieldsSet(t *testing.T) {
 		t.Fatalf("fs must contain _msg")
 	}
 	if fs.contains("baz") {
-		t.Fatalf("fs musn't contain baz")
+		t.Fatalf("fs mustn't contain baz")
 	}
 	if fs.contains("*") {
 		t.Fatalf("fs mustn't contain *")

@@ -1523,7 +1523,7 @@ LogsQL supports the following pipes:
   per each [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`union`](#union-pipe) returns results from multiple LogsQL queries.
-- [`uniq`](#uniq-pipe) returns unique log entires.
+- [`uniq`](#uniq-pipe) returns unique log entries.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -4042,7 +4042,7 @@ VictoriaLogs supports the following options, which can be passed in the beginnin
   ```
 
   The `in(...)` [subquery](#subquery-filter) without `options(ignore_global_time_filter=true)`
-  takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range pased
+  takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range passed
   to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
 
   ```logsql

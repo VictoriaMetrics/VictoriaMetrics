@@ -116,7 +116,7 @@ func newTestAuthConfig(t *testing.T, isTLS bool, ba *promauth.BasicAuthConfig) *
 	}
 	ac, err := a.NewConfig()
 	if err != nil {
-		t.Fatalf("cannot setup promauth.Confg: %s", err)
+		t.Fatalf("cannot setup promauth.Config: %s", err)
 	}
 	return ac
 }
@@ -166,7 +166,7 @@ func TestClientProxyReadOk(t *testing.T) {
 		}
 
 		if !proxyHandler.receivedProxyRequest {
-			t.Fatalf("proxy server didn't recieved request")
+			t.Fatalf("proxy server didn't received request")
 		}
 		if string(got) != expectedBackendResponse {
 			t.Fatalf("not expected response: ")

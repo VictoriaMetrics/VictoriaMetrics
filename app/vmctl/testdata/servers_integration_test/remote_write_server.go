@@ -17,8 +17,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 )
 
@@ -206,8 +206,8 @@ func (rws *RemoteWriteServer) exportNativeHandler() http.Handler {
 
 func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		common.StartUnmarshalWorkers()
-		defer common.StopUnmarshalWorkers()
+		protoparserutil.StartUnmarshalWorkers()
+		defer protoparserutil.StopUnmarshalWorkers()
 
 		var gotTimeSeries []vm.TimeSeries
 		var mx sync.RWMutex

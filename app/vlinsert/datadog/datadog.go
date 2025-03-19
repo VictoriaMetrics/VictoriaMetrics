@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 var (
@@ -80,8 +80,8 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	encoding := r.Header.Get("Content-Encoding")
-	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("datadog")
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.NewLogMessageProcessor("datadog", false)
 		err := readLogsRequest(ts, data, lmp)
 		lmp.MustClose()
 		return err
@@ -107,7 +107,7 @@ var (
 // datadog message field has two formats:
 //   - regular log message with string text
 //   - nested json format for serverless plugins
-//     which has folowing format:
+//     which has the following format:
 //     {"message": {"message": "text","lamdba": {"arn": "string","requestID": "string"}, "timestamp": int64} }
 //
 // See https://github.com/DataDog/datadog-lambda-extension/blob/28b90c7e4e985b72d60b5f5a5147c69c7ac693c4/bottlecap/src/logs/lambda/mod.rs#L24

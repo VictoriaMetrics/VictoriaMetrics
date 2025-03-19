@@ -215,7 +215,7 @@ func (mr *mmapReader) mustClose() {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
 		}
 		mr.mmapData = nil
-		mmapedFiles.Dec()
+		mmappedFiles.Dec()
 	}
 	MustClose(mr.f)
 	mr.f = nil
@@ -231,7 +231,7 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 		return nil, fmt.Errorf("got negative file size: %d bytes", size)
 	}
 	if int64(int(size)) != size {
-		return nil, fmt.Errorf("file is too big to be mmap'ed: %d bytes", size)
+		return nil, fmt.Errorf("file is too big to be memory mapped: %d bytes", size)
 	}
 	// Round size to multiple of 4KB pages as `man 2 mmap` recommends.
 	// This may help preventing SIGBUS panic at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/581
@@ -242,11 +242,11 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	}
 	data, err := mmap(int(f.Fd()), int(size))
 	if err != nil {
-		return nil, fmt.Errorf("cannot mmap file with size %d bytes; already mmaped files: %d: %w; "+
-			"try increasing /proc/sys/vm/max_map_count or passing -fs.disableMmap command-line flag to the application", size, mmapedFiles.Get(), err)
+		return nil, fmt.Errorf("cannot mmap file with size %d bytes; already memory mapped files: %d: %w; "+
+			"try increasing /proc/sys/vm/max_map_count or passing -fs.disableMmap command-line flag to the application", size, mmappedFiles.Get(), err)
 	}
-	mmapedFiles.Inc()
+	mmappedFiles.Inc()
 	return data[:sizeOrig], nil
 }
 
-var mmapedFiles = metrics.NewCounter("vm_mmaped_files")
+var mmappedFiles = metrics.NewCounter("vm_mmapped_files")

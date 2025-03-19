@@ -142,7 +142,7 @@ func (p *part) MustClose() {
 type indexBlock struct {
 	bhs []blockHeader
 
-	// The buffer for holding the data referrred by bhs
+	// The buffer for holding the data referred by bhs
 	buf []byte
 }
 

@@ -102,9 +102,9 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 		if len(*addrs) > 0 || *configPath != "" {
 			return nil, fmt.Errorf("only one of -notifier.blackhole, -notifier.url and -notifier.config flags must be specified")
 		}
-
+		notifier := newBlackHoleNotifier()
 		staticNotifiersFn = func() []Notifier {
-			return []Notifier{newBlackHoleNotifier()}
+			return []Notifier{notifier}
 		}
 		return staticNotifiersFn, nil
 	}

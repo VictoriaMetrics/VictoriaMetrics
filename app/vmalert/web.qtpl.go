@@ -355,7 +355,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups [
 			}
 //line app/vmalert/web.qtpl:99
 			qw422016.N().S(`
-                    <span class="badge bg-success" title="Number of rules withs status Ok">`)
+                    <span class="badge bg-success" title="Number of rules with status Ok">`)
 //line app/vmalert/web.qtpl:100
 			qw422016.N().D(rOk[g.ID])
 //line app/vmalert/web.qtpl:100

@@ -2354,7 +2354,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or missconfiguration errors.",
+          "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or misconfiguration errors.",
           "fieldConfig": {
             "defaults": {
               "color": {

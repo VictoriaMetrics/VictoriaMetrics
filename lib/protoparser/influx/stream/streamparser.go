@@ -10,8 +10,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -41,7 +41,7 @@ func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string
 	// Process the whole request in one go.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
 	readCalls.Inc()
-	err := common.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
+	err := protoparserutil.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
 		ctx := getBatchContext()
 		defer putBatchContext(ctx)
 
@@ -59,11 +59,11 @@ func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string
 }
 
 func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string, callback func(db string, rows []influx.Row) error) error {
-	reader, err := common.GetUncompressedReader(r, encoding)
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
 	}
-	defer common.PutUncompressedReader(reader)
+	defer protoparserutil.PutUncompressedReader(reader)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)
@@ -79,7 +79,7 @@ func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string
 		uw.tsMultiplier = tsMultiplier
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
-		common.ScheduleUnmarshalWork(uw)
+		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
@@ -153,7 +153,7 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
+	ctx.reqBuf, ctx.tailBuf, ctx.err = protoparserutil.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -235,7 +235,7 @@ func (uw *unmarshalWork) runCallback() {
 	ctx.wg.Done()
 }
 
-// Unmarshal implements common.UnmarshalWork
+// Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	_ = unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier)
 	uw.runCallback()

@@ -9,7 +9,7 @@ import (
 // GetFloat64s returns a slice of float64 values with the given size.
 //
 // When the returned slice is no longer needed, it is advised calling PutFloat64s() on it,
-// so it could be re-used.
+// so it could be reused.
 func GetFloat64s(size int) *Float64s {
 	v := float64sPool.Get()
 	if v == nil {
@@ -20,7 +20,7 @@ func GetFloat64s(size int) *Float64s {
 	return a
 }
 
-// PutFloat64s returns a to the pool, so it can be re-used via GetFloat64s.
+// PutFloat64s returns a to the pool, so it can be reused via GetFloat64s.
 //
 // The a cannot be used after returning to the pull.
 func PutFloat64s(a *Float64s) {

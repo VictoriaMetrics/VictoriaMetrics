@@ -1221,7 +1221,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 		ts.Seek(kb.B)
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("error when searching for tag value sufixes for prefix %q: %w", prefix, err)
+		return fmt.Errorf("error when searching for tag value suffixes for prefix %q: %w", prefix, err)
 	}
 	return nil
 }
@@ -1600,7 +1600,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 // be stored.
 //
 // If the number of the series exceeds maxMetrics, no series will be deleted and
-// an error will be returned. Otherwise, the funciton returns the number of
+// an error will be returned. Otherwise, the function returns the number of
 // series deleted.
 func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	qt = qt.NewChild("deleting series for %s", tfss)
@@ -1622,7 +1622,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	deletedCount := len(metricIDs)
 	db.doExtDB(func(extDB *indexDB) {
 		var n int
-		qtChild := qt.NewChild("deleting series from the previos indexdb")
+		qtChild := qt.NewChild("deleting series from the previous indexdb")
 		n, err = extDB.DeleteTSIDs(qtChild, tfss, maxMetrics)
 		qtChild.Donef("deleted %d series", n)
 		deletedCount += n
@@ -3217,7 +3217,7 @@ func (mp *tagToMetricIDsRowParser) Reset() {
 
 // Init initializes mp from b, which should contain encoded tag->metricIDs row.
 //
-// b cannot be re-used until Reset call.
+// b cannot be reused until Reset call.
 func (mp *tagToMetricIDsRowParser) Init(b []byte, nsPrefixExpected byte) error {
 	tail, nsPrefix, err := unmarshalCommonPrefix(b)
 	if err != nil {
@@ -3255,7 +3255,7 @@ func (mp *tagToMetricIDsRowParser) MarshalPrefix(dst []byte) []byte {
 // InitOnlyTail initializes mp.tail from tail.
 //
 // b must contain tag->metricIDs row.
-// b cannot be re-used until Reset call.
+// b cannot be reused until Reset call.
 func (mp *tagToMetricIDsRowParser) InitOnlyTail(b, tail []byte) error {
 	if len(tail) == 0 {
 		return fmt.Errorf("missing metricID in the tag->metricIDs row %q", b)

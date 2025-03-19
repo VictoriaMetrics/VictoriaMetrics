@@ -2910,7 +2910,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
-		// Empty the tsidCache to test the case when tsid is retrived from the
+		// Empty the tsidCache to test the case when tsid is retrieved from the
 		// index that belongs to the current generation indexDB.
 		s.resetAndSaveTSIDCache()
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
@@ -2919,7 +2919,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		assertCounts(t, s, wantCounts, strict)
 
 		// Empty the tsidCache and rotate indexDB to test the case when tsid is
-		// retrived from the index that belongs to the previous generation
+		// retrieved from the index that belongs to the previous generation
 		// indexDB.
 		s.resetAndSaveTSIDCache()
 		s.mustRotateIndexDB(time.Now())

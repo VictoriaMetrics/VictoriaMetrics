@@ -246,6 +246,11 @@ func (sw *scrapeWork) loadLastScrape() string {
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrape []byte) {
+	if len(lastScrape) == 0 {
+		sw.lastScrape = nil
+		sw.lastScrapeCompressed = nil
+		return
+	}
 	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.IntN()
 	if mustCompress {
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
@@ -485,6 +490,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 	}
 	if up == 0 {
+		body = nil
 		bodyString = ""
 	}
 	seriesAdded := 0

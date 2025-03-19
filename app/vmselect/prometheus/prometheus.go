@@ -538,7 +538,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	defer bufferedwriter.Put(bw)
 	WriteLabelValuesResponse(bw, labelValues, qt)
 	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("canot flush label values to remote client: %w", err)
+		return fmt.Errorf("cannot flush label values to remote client: %w", err)
 	}
 	return nil
 }
@@ -986,7 +986,7 @@ func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result
 		// Slow path: remove NaNs.
 		srcTimestamps := ts.Timestamps
 		dstValues := ts.Values[:0]
-		// Do not re-use ts.Timestamps for dstTimestamps, since ts.Timestamps
+		// Do not reuse ts.Timestamps for dstTimestamps, since ts.Timestamps
 		// may be shared among multiple time series.
 		dstTimestamps := make([]int64, 0, len(ts.Timestamps))
 		for j, v := range ts.Values {

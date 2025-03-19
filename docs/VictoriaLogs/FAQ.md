@@ -254,7 +254,7 @@ or remove the unique parts from the log field before ingesting it into VictoriaL
 
 Use [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe).
 For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
-returns top 10 the most freqently seen [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) over the last hour:
+returns top 10 the most frequently seen [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) over the last hour:
 
 ```logsql
 _time:1h | collapse_nums prettify | top 10 (_msg)
@@ -289,7 +289,7 @@ returns all the values for the `level` field across all the logs seen during the
 _time:1h | field_values level
 ```
 
-The `hits` field in the returned results contains an esitmated number of logs with the given value for the `level` field.
+The `hits` field in the returned results contains an estimated number of logs with the given value for the `level` field.
 
 ## How to get the number of unique log streams on the given time range?
 

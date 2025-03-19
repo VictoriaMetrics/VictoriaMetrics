@@ -17,7 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
@@ -99,7 +99,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk")
+		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk", true)
 		encoding := r.Header.Get("Content-Encoding")
 		streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
 		n, err := readBulkRequest(streamName, r.Body, encoding, cp.TimeField, cp.MsgFields, lmp)
@@ -134,11 +134,11 @@ var (
 func readBulkRequest(streamName string, r io.Reader, encoding string, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
-	reader, err := common.GetUncompressedReader(r, encoding)
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return 0, fmt.Errorf("cannot decode Elasticsearch protocol data: %w", err)
 	}
-	defer common.PutUncompressedReader(reader)
+	defer protoparserutil.PutUncompressedReader(reader)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)

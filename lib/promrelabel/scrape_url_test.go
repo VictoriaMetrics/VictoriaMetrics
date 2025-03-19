@@ -38,7 +38,7 @@ func TestGetScrapeURL(t *testing.T) {
 	f(`{__address__="foo",__metrics_path__="/abc"}`, "http://foo/abc", "foo:80")
 	f(`{__address__="foo",__metrics_path__="/ab/c?d=ef&aa=bb"}`, "http://foo/ab/c?d=ef&aa=bb", "foo:80")
 
-	// explitit __param_*
+	// explicit __param_*
 	f(`{__address__="foo",__param_x="y"}`, "http://foo/metrics?x=y", "foo:80")
 	f(`{__address__="foo",__param_x="y",__param_y="aa"}`, "http://foo/metrics?x=y&y=aa", "foo:80")
 	f(`{__address__="foo",__param_x="y",__metrics_path__="?abc=de"}`, "http://foo/?abc=de&x=y", "foo:80")

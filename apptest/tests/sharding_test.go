@@ -65,7 +65,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 		t.Fatalf("storage-2 has no time series")
 	}
 	if numMetrics1+numMetrics2 != numMetrics {
-		t.Fatalf("unxepected total number of metrics: vmstorage-1 (%d) + vmstorage-2 (%d) != %d", numMetrics1, numMetrics2, numMetrics)
+		t.Fatalf("unexpected total number of metrics: vmstorage-1 (%d) + vmstorage-2 (%d) != %d", numMetrics1, numMetrics2, numMetrics)
 	}
 
 	// Retrieve all time series and verify that vmselect serves the complete set
