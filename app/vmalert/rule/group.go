@@ -40,7 +40,9 @@ var (
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu         sync.RWMutex
+	mu sync.RWMutex
+	// id stores the unique id for the group, and shouldn't change after the group create.
+	id         uint64
 	Name       string
 	File       string
 	Rules      []Rule
@@ -49,9 +51,10 @@ type Group struct {
 	EvalOffset *time.Duration
 	// EvalDelay will adjust timestamp for rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
-	EvalDelay      *time.Duration
-	Limit          int
-	Concurrency    int
+	EvalDelay   *time.Duration
+	Limit       int
+	Concurrency int
+	// checksum stores the hash of yaml definition for this group.
 	checksum       string
 	LastEvaluation time.Time
 
@@ -156,6 +159,7 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	if cfg.EvalDelay != nil {
 		g.EvalDelay = &cfg.EvalDelay.D
 	}
+	g.id = g.CreateID()
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}
@@ -199,9 +203,15 @@ func (g *Group) GetCheckSum() string {
 	return g.checksum
 }
 
-// ID return unique group ID that consists of
-// rules file and group Name
-func (g *Group) ID() uint64 {
+// GetID returns the unique group ID
+func (g *Group) GetID() uint64 {
+	return g.id
+}
+
+// CreateID returns the unique ID based on group basic fields.
+// Should only be called when creating new group,
+// use GetID() to afterward
+func (g *Group) CreateID() uint64 {
 	hash := fnv.New64a()
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
@@ -325,7 +335,7 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 	// sleep random duration to spread group rules evaluation
 	// over time in order to reduce load on datasource.
 	if !SkipRandSleepOnGroupStart {
-		sleepBeforeStart := delayBeforeStart(evalTS, g.ID(), g.Interval, g.EvalOffset)
+		sleepBeforeStart := delayBeforeStart(evalTS, g.GetID(), g.Interval, g.EvalOffset)
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)

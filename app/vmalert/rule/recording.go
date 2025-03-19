@@ -88,7 +88,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		Name:      cfg.Record,
 		Expr:      cfg.Expr,
 		Labels:    cfg.Labels,
-		GroupID:   group.ID(),
+		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
 		q: qb.BuildWithParams(datasource.QuerierParams{
