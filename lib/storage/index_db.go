@@ -1781,6 +1781,9 @@ func mergeSortedMetricIDs(a, b []uint64) []uint64 {
 	}
 }
 
+// getTSIDsFromMetricIDs retrieves TSIDs for given metricIDs.
+//
+// It is expected that metricIDs are already sorted by the caller. Otherwise the search may be slow.
 func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, deadline uint64) ([]TSID, error) {
 	qt = qt.NewChild("obtain tsids from %d metricIDs", len(metricIDs))
 	defer qt.Done()

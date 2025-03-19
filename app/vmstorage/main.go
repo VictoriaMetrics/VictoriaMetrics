@@ -96,7 +96,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 
 	resetResponseCacheIfNeeded = resetCacheIfNeeded
 	storage.SetLogNewSeries(*logNewSeries)
-	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
+	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())

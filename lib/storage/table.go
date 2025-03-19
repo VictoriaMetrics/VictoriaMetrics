@@ -209,7 +209,7 @@ func (tb *table) MustClose() {
 	}
 }
 
-// debugFlush flushes all pending raw index and data rows, so they become
+// DebugFlush flushes all pending raw index and data rows, so they become
 // visible to search.
 //
 // This function is for debug purposes only.

@@ -445,7 +445,8 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	}
 }
 
-func TestNextRetentionDeadlineSeconds(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyNextRetentionDeadlineSeconds(t *testing.T) {
 	f := func(currentTime string, retention, offset time.Duration, deadlineExpected string) {
 		t.Helper()
 
@@ -454,7 +455,7 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 			t.Fatalf("cannot parse currentTime=%q: %s", currentTime, err)
 		}
 
-		d := nextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
+		d := legacyNextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
 		deadline := time.Unix(d, 0).UTC().Format(time.RFC3339)
 		if deadline != deadlineExpected {
 			t.Fatalf("unexpected deadline; got %s; want %s", deadline, deadlineExpected)
@@ -1613,12 +1614,11 @@ func TestStorageRotateIndexDB(t *testing.T) {
 				wg.Done()
 			}()
 		}
-		s.mustRotateIndexDB(time.Now())
+		s.legacyMustRotateIndexDB(time.Now())
 		wg.Wait()
 		s.DebugFlush()
 
-		idbCurr := s.idb()
-		idbPrev := idbCurr.extDB
+		idbPrev, idbCurr := s.legacyIDBs()
 		isCurr := idbCurr.getIndexSearch(noDeadline)
 		defer idbCurr.putIndexSearch(isCurr)
 		isPrev := idbPrev.getIndexSearch(noDeadline)
@@ -1721,20 +1721,16 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	// Check snapshot dir entries
 
 	var (
-		data                 = filepath.Join(root, dataDirname)
-		smallData            = filepath.Join(data, smallDirname)
-		bigData              = filepath.Join(data, bigDirname)
-		indexData            = filepath.Join(data, indexdbDirname)
-		legacyIndexData      = filepath.Join(root, indexdbDirname)
-		legacyNextIndexData  = filepath.Join(legacyIndexData, s.idbNext.Load().name)
-		smallSnapshots       = filepath.Join(smallData, snapshotsDirname)
-		bigSnapshots         = filepath.Join(bigData, snapshotsDirname)
-		indexSnapshots       = filepath.Join(indexData, snapshotsDirname)
-		legacyIndexSnapshots = filepath.Join(legacyIndexData, snapshotsDirname)
-		smallSnapshot        = filepath.Join(smallSnapshots, snapshotName)
-		bigSnapshot          = filepath.Join(bigSnapshots, snapshotName)
-		indexSnapshot        = filepath.Join(indexSnapshots, snapshotName)
-		legacyIndexSnapshot  = filepath.Join(legacyIndexSnapshots, snapshotName)
+		data           = filepath.Join(root, dataDirname)
+		smallData      = filepath.Join(data, smallDirname)
+		bigData        = filepath.Join(data, bigDirname)
+		indexData      = filepath.Join(data, indexdbDirname)
+		smallSnapshots = filepath.Join(smallData, snapshotsDirname)
+		bigSnapshots   = filepath.Join(bigData, snapshotsDirname)
+		indexSnapshots = filepath.Join(indexData, snapshotsDirname)
+		smallSnapshot  = filepath.Join(smallSnapshots, snapshotName)
+		bigSnapshot    = filepath.Join(bigSnapshots, snapshotName)
+		indexSnapshot  = filepath.Join(indexSnapshots, snapshotName)
 	)
 
 	assertDirEntries := func(srcDir, snapshotDir string, excludePath ...string) {
@@ -1748,16 +1744,14 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	assertDirEntries(smallData, smallSnapshot, smallSnapshots)
 	assertDirEntries(bigData, bigSnapshot, bigSnapshots)
 	assertDirEntries(indexData, indexSnapshot, indexSnapshots)
-	assertDirEntries(legacyIndexData, legacyIndexSnapshot, legacyIndexSnapshots, legacyNextIndexData)
 
 	// Check snapshot symlinks
 
 	var (
-		snapshot           = filepath.Join(root, snapshotsDirname, snapshotName)
-		bigSymlink         = filepath.Join(snapshot, dataDirname, bigDirname)
-		smallSymlink       = filepath.Join(snapshot, dataDirname, smallDirname)
-		indexSymlink       = filepath.Join(snapshot, dataDirname, indexdbDirname)
-		legacyIndexSymlink = filepath.Join(snapshot, indexdbDirname)
+		snapshot     = filepath.Join(root, snapshotsDirname, snapshotName)
+		bigSymlink   = filepath.Join(snapshot, dataDirname, bigDirname)
+		smallSymlink = filepath.Join(snapshot, dataDirname, smallDirname)
+		indexSymlink = filepath.Join(snapshot, dataDirname, indexdbDirname)
 	)
 	assertSymlink := func(symlink string, wantRealpath string) {
 		t.Helper()
@@ -1772,7 +1766,6 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	assertSymlink(bigSymlink, bigSnapshot)
 	assertSymlink(smallSymlink, smallSnapshot)
 	assertSymlink(indexSymlink, indexSnapshot)
-	assertSymlink(legacyIndexSymlink, legacyIndexSnapshot)
 
 	// Check snapshot deletion.
 
@@ -1791,7 +1784,6 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	assertPathDoesNotExist(bigSnapshot)
 	assertPathDoesNotExist(smallSnapshot)
 	assertPathDoesNotExist(indexSnapshot)
-	assertPathDoesNotExist(legacyIndexSnapshot)
 }
 
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
@@ -2753,13 +2745,8 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		s.DebugFlush()
 		assertCounts(t, s, wantCounts, strict)
 
-		// Rotate indexDB to test the case when TSIDs from tsidCache have the
-		// generation that is older than the generation of the current indexDB.
-		s.mustRotateIndexDB(time.Now())
-		testDoConcurrently(s, op, concurrency, splitBatches, batches)
-		s.DebugFlush()
-		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, wantCounts, strict)
+		// TODO(rtm0): Add a case when a metricID is present in TSID cache but
+		// not in partition idb.
 
 		// Empty the tsidCache to test the case when tsid is retrived from the
 		// index that belongs to the current generation indexDB.
@@ -2769,15 +2756,8 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
-		// Empty the tsidCache and rotate indexDB to test the case when tsid is
-		// retrived from the index that belongs to the previous generation
-		// indexDB.
-		s.resetAndSaveTSIDCache()
-		s.mustRotateIndexDB(time.Now())
-		testDoConcurrently(s, op, concurrency, splitBatches, batches)
-		s.DebugFlush()
-		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, wantCounts, strict)
+		// TODO(rtm0): Add a case when a metricID is present in legacy IDB but
+		// not in partition idb.
 
 		s.MustClose()
 	}

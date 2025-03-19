@@ -57,12 +57,12 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
 
-	// nextRotationTimestamp is a timestamp in seconds of the next indexdb rotation.
+	// legacyNextRotationTimestamp is a timestamp in seconds of the next legacy indexdb rotation.
 	//
 	// It is used for gradual pre-population of the idbNext during the last hour before the indexdb rotation.
 	// in order to reduce spikes in CPU and disk IO usage just after the rotiation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
-	nextRotationTimestamp atomic.Int64
+	legacyNextRotationTimestamp atomic.Int64
 
 	path           string
 	cachePath      string
@@ -71,16 +71,16 @@ type Storage struct {
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
-	// idbCurr contains the currently used indexdb.
-	idbCurr atomic.Pointer[indexDB]
-
-	// idbNext is the next indexdb, which will become idbCurr at the next rotation.
+	// legacyIDBPrev and legacyIDBCurr contain the legacy previous and current
+	// IndexDBs respectively if they existed on file system before partition
+	// index was introduced. Otherwise, these fields will contain nil pointers.
+	// The fields will also contain nil pointers once the corresponding IndexDBs
+	// will become outside the retention period.
 	//
-	// It is started to be gradually pre-populated with the data for active time series during the last hour
-	// before nextRotationTimestamp.
-	// This reduces spikes in CPU and disk IO usage just after the rotiation.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
-	idbNext atomic.Pointer[indexDB]
+	// The support of legacy IndexDBs is required to provide forward
+	// compatibility with partition index.
+	legacyIDBPrev atomic.Pointer[indexDB]
+	legacyIDBCurr atomic.Pointer[indexDB]
 
 	tb *table
 
@@ -136,7 +136,7 @@ type Storage struct {
 
 	currHourMetricIDsUpdaterWG sync.WaitGroup
 	nextDayMetricIDsUpdaterWG  sync.WaitGroup
-	retentionWatcherWG         sync.WaitGroup
+	legacyRetentionWatcherWG   sync.WaitGroup
 	freeDiskSpaceWatcherWG     sync.WaitGroup
 
 	// The snapshotLock prevents from concurrent creation of snapshots,
@@ -163,6 +163,9 @@ type Storage struct {
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
+//
+// TODO(@rtm0): Extract legacy IndexDB initialization code into a separate
+// method and move it to storage_legacy.go.
 func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
@@ -237,38 +240,33 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
-	// TODO(@rtm0): Do not create snapshots if idb does not exist.
-	// Load indexdb
-	idbPath := filepath.Join(path, indexdbDirname)
-	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
-	fs.MustMkdirIfNotExist(idbSnapshotsPath)
-	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
-
-	// TODO(@rtm0): Do not open if does not exist or else open in read-only mode.
-	idbNext, idbCurr, idbPrev := s.mustOpenLegacyIndexDBTables(idbPath)
-
-	idbCurr.SetExtDB(idbPrev)
-	idbNext.SetExtDB(idbCurr)
-
-	s.idbCurr.Store(idbCurr)
-	s.idbNext.Store(idbNext)
-
-	// TODO(@rtm0): Remove idb rotation
-	// Initialize nextRotationTimestamp
+	legacyIDBPath := filepath.Join(path, indexdbDirname)
+	// Do not create legacy IndexDB snapshots dir if it does not exist.
+	if path := filepath.Join(legacyIDBPath, snapshotsDirname); fs.IsPathExist(path) {
+		// Cleanup the legacy IndexDB snapshots dir only if it exists.
+		fs.MustRemoveTemporaryDirs(path)
+	}
+	legacyIDBPrev, legacyIDBCurr := s.mustOpenLegacyIndexDBTables(legacyIDBPath)
+	s.legacyIDBPrev.Store(legacyIDBPrev)
+	s.legacyIDBCurr.Store(legacyIDBCurr)
 	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
-	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
-	s.nextRotationTimestamp.Store(nextRotationTimestamp)
+	nextRotationTimestamp := legacyNextRetentionDeadlineSeconds(nowSecs, retentionSecs, legacyRetentionTimezoneOffsetSecs)
+	s.legacyNextRotationTimestamp.Store(nextRotationTimestamp)
 
 	// Load nextDayMetricIDs cache
 	date := fasttime.UnixDate()
-	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(idbCurr.generation, date)
+	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 
 	// Load deleted metricIDs from legacy previous and current IndexDBs.
 	s.legacyDeletedMetricIDs = &uint64set.Set{}
-	s.legacyDeletedMetricIDs.Union(idbPrev.getDeletedMetricIDs())
-	s.legacyDeletedMetricIDs.Union(idbCurr.getDeletedMetricIDs())
+	if legacyIDBPrev != nil {
+		s.legacyDeletedMetricIDs.Union(legacyIDBPrev.getDeletedMetricIDs())
+	}
+	if legacyIDBCurr != nil {
+		s.legacyDeletedMetricIDs.Union(legacyIDBCurr.getDeletedMetricIDs())
+	}
 
 	// check for free disk space before opening the table
 	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
@@ -281,7 +279,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
-	s.startRetentionWatcher()
+	s.startLegacyRetentionWatcher()
 
 	return s
 }
@@ -310,15 +308,7 @@ func getTSIDCacheSize() int {
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.DebugFlush()
-
-	idb := s.idb()
-	if idb == nil {
-		return
-	}
-	idb.tb.DebugFlush()
-	idb.doExtDB(func(extDB *indexDB) {
-		extDB.tb.DebugFlush()
-	})
+	// Do not flush legacy IndexDBs since they are read-only.
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
@@ -363,24 +353,30 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
 	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
-	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
-	idb := s.idb()
-	currSnapshot := filepath.Join(idbSnapshot, idb.name)
-	if err := idb.tb.LegacyCreateSnapshotAt(currSnapshot); err != nil {
-		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
-	}
-	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
+	// TODO(@rtm0): Extract into Storage.createLegacyIndexDBSnapshot() and move
+	// to storage_legacy.go.
+	if s.hasLegacyIDBs() {
+		idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
+		dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
-	var err error
-	idb.doExtDB(func(extDB *indexDB) {
-		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
-		err = extDB.tb.LegacyCreateSnapshotAt(prevSnapshot)
-	})
-	if err != nil {
-		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
+		legacyIDBPrev, legacyIDBCurr := s.legacyIDBs()
+		if legacyIDBPrev != nil {
+			prevSnapshot := filepath.Join(idbSnapshot, legacyIDBPrev.name)
+			if err := legacyIDBPrev.tb.LegacyCreateSnapshotAt(prevSnapshot); err != nil {
+				return "", fmt.Errorf("cannot create legacy prev indexDB snapshot: %w", err)
+			}
+
+		}
+		if legacyIDBCurr != nil {
+			currSnapshot := filepath.Join(idbSnapshot, legacyIDBCurr.name)
+			if err := legacyIDBCurr.tb.LegacyCreateSnapshotAt(currSnapshot); err != nil {
+				return "", fmt.Errorf("cannot create legacy curr indexDB snapshot: %w", err)
+			}
+		}
+
+		dstIdbDir := filepath.Join(dstDir, indexdbDirname)
+		fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 	}
-	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
-	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 
 	fs.MustSyncPath(dstDir)
 
@@ -460,10 +456,6 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 		}
 	}
 	return nil
-}
-
-func (s *Storage) idb() *indexDB {
-	return s.idbCurr.Load()
 }
 
 // Metrics contains essential metrics for the Storage.
@@ -625,7 +617,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
 	s.prefetchedMetricIDsLock.Unlock()
 
-	d := s.nextRetentionSeconds()
+	d := s.legacyNextRetentionSeconds()
 	if d < 0 {
 		d = 0
 	}
@@ -635,11 +627,19 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	// Add legacy IndexDB metrics to partition IndexDB metrics
 	// TODO(@rtm0): Keep them separate and introduce separate metrics for legacy
 	// IndexDB?
-	s.idb().UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
+	legacyIDBPrev, legacyIDBCurr := s.legacyIDBs()
+	if legacyIDBPrev != nil {
+		legacyIDBPrev.UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
+	}
+	if legacyIDBCurr != nil {
+		legacyIDBCurr.UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
+	}
+
 }
 
-func (s *Storage) nextRetentionSeconds() int64 {
-	return s.nextRotationTimestamp.Load() - int64(fasttime.UnixTimestamp())
+// TODO(@rtm0): Move to storage_legacy.go
+func (s *Storage) legacyNextRetentionSeconds() int64 {
+	return s.legacyNextRotationTimestamp.Load() - int64(fasttime.UnixTimestamp())
 }
 
 // SetFreeDiskSpaceLimit sets the minimum free disk space size of current storage path
@@ -703,25 +703,30 @@ func (s *Storage) notifyReadWriteMode() {
 	// opened in read-only mode and must remain so throughout the process life.
 }
 
-func (s *Storage) startRetentionWatcher() {
-	// TODO(@rtm0): Do not start retention watcher if there is no previous or
-	// current IndexDB.
-	s.retentionWatcherWG.Add(1)
+// TODO(@rtm0): Move to storage_legacy.go
+func (s *Storage) startLegacyRetentionWatcher() {
+	if !s.hasLegacyIDBs() {
+		return
+	}
+	s.legacyRetentionWatcherWG.Add(1)
 	go func() {
-		s.retentionWatcher()
-		s.retentionWatcherWG.Done()
+		s.legacyRetentionWatcher()
+		s.legacyRetentionWatcherWG.Done()
 	}()
 }
 
-func (s *Storage) retentionWatcher() {
+// TODO(@rtm0): Move to storage_legacy.go
+func (s *Storage) legacyRetentionWatcher() {
 	for {
-		d := s.nextRetentionSeconds()
+		d := s.legacyNextRetentionSeconds()
 		select {
 		case <-s.stopCh:
 			return
 		case currentTime := <-time.After(time.Second * time.Duration(d)):
-			s.mustRotateIndexDB(currentTime)
-			// TODO(@rtm0): Return if there is no previous or current IndexDB.
+			s.legacyMustRotateIndexDB(currentTime)
+			if !s.hasLegacyIDBs() {
+				return
+			}
 		}
 	}
 }
@@ -776,68 +781,22 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	}
 }
 
-// TODO(@rtm0): Do not rotate, just remove outdated previous and then current
-// idb.
-func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
-	// Create new indexdb table, which will be used as idbNext
-	newTableName := nextIndexDBTableName()
-	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
-	idbNew := mustOpenLegacyIndexDB(idbNewPath, s, &s.isReadOnly)
+// TODO(@rtm0): Move to storage_legacy.go
+func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
+	idbPrev, idbCurr := s.legacyIDBs()
+	if idbPrev == nil {
+		return
+	}
+
+	s.legacyIDBPrev.Store(idbCurr)
+	s.legacyIDBCurr.Store(nil)
+	idbPrev.scheduleToDrop()
+	idbPrev.decRef()
 
 	// Update nextRotationTimestamp
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
-	s.nextRotationTimestamp.Store(nextRotationTimestamp)
+	s.legacyNextRotationTimestamp.Store(nextRotationTimestamp)
 
-	// Set idbNext to idbNew
-	idbNext := s.idbNext.Load()
-	idbNew.SetExtDB(idbNext)
-	s.idbNext.Store(idbNew)
-
-	// Set idbCurr to idbNext
-	idbCurr := s.idb()
-	s.idbCurr.Store(idbNext)
-
-	// Schedule data removal for idbPrev
-	idbCurr.doExtDB(func(extDB *indexDB) {
-		extDB.scheduleToDrop()
-	})
-	idbCurr.SetExtDB(nil)
-
-	// Persist changes on the file system.
-	fs.MustSyncPath(s.path)
-
-	// Do not flush tsidCache to avoid read/write path slowdown.
-	// The cache is automatically re-populated with new TSID entries
-	// with the updated indexdb generation.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
-
-	// Flush metric id caches for the current and the previous hour,
-	// since they may contain entries missing in idbCurr after the rotation.
-	// This should prevent from missing data in queries when
-	// the following steps are performed for short -retentionPeriod (e.g. 1 day):
-	//
-	// 1. Add samples for some series between 3-4 UTC. These series are registered in currHourMetricIDs.
-	// 2. The indexdb rotation is performed at 4 UTC. currHourMetricIDs is moved to prevHourMetricIDs.
-	// 3. Continue adding samples for series from step 1 during time range 4-5 UTC.
-	//    These series are already registered in prevHourMetricIDs, so VM doesn't add per-day entries to the current indexdb.
-	// 4. Stop adding new samples for these series just before 5 UTC.
-	// 5. The next indexdb rotation is performed at 4 UTC next day.
-	//    The information about the series added at step 3 disappears from indexdb, since the old indexdb from step 1 is deleted,
-	//    while the current indexdb doesn't contain information about the series.
-	//    So queries for the last 24 hours stop returning samples added at step 3.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2698
-	s.pendingHourEntriesLock.Lock()
-	s.pendingHourEntries = &uint64set.Set{}
-	s.pendingHourEntriesLock.Unlock()
-	s.currHourMetricIDs.Store(&hourMetricIDs{})
-	s.prevHourMetricIDs.Store(&hourMetricIDs{})
-
-	// Do not flush dateMetricIDCache, since it contains entries prefixed with idb generation.
-
-	// There is no need in resetting nextDayMetricIDs, since it contains entries prefixed with idb generation.
-
-	// Do not flush metricIDCache and metricNameCache, since all the metricIDs
-	// from prev idb remain valid after the rotation.
 }
 
 func (s *Storage) resetAndSaveTSIDCache() {
@@ -855,12 +814,19 @@ func (s *Storage) MustClose() {
 	close(s.stopCh)
 
 	s.freeDiskSpaceWatcherWG.Wait()
-	s.retentionWatcherWG.Wait()
+	s.legacyRetentionWatcherWG.Wait()
 	s.currHourMetricIDsUpdaterWG.Wait()
 	s.nextDayMetricIDsUpdaterWG.Wait()
 
 	s.tb.MustClose()
-	s.idb().MustClose()
+
+	legacyIDBPrev, legacyIDBCurr := s.legacyIDBs()
+	if legacyIDBPrev != nil {
+		legacyIDBPrev.MustClose()
+	}
+	if legacyIDBCurr != nil {
+		legacyIDBCurr.MustClose()
+	}
 
 	// Save caches.
 	s.mustSaveCache(s.tsidCache, "metricName_tsid")
@@ -891,7 +857,9 @@ func (s *Storage) MustClose() {
 	}
 }
 
-func (s *Storage) mustLoadNextDayMetricIDs(generation, date uint64) *byDateMetricIDEntry {
+// TODO(@rtm0): Remove generation and use v3
+func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
+	generation := uint64(0)
 	e := &byDateMetricIDEntry{
 		k: generationDateKey{
 			generation: generation,
@@ -1088,15 +1056,21 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
 var saveCacheLock sync.Mutex
 
-// SetRetentionTimezoneOffset sets the offset, which is used for calculating the time for indexdb rotation.
+// LegacySetRetentionTimezoneOffset sets the offset, which is used for
+// calculating the time for legacy indexdb rotation.
+//
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2574
-func SetRetentionTimezoneOffset(offset time.Duration) {
-	retentionTimezoneOffsetSecs = int64(offset.Seconds())
+//
+// TODO(@rtm0): Move to storage_legacy.go
+func LegacySetRetentionTimezoneOffset(offset time.Duration) {
+	legacyRetentionTimezoneOffsetSecs = int64(offset.Seconds())
 }
 
-var retentionTimezoneOffsetSecs int64
+// TODO(@rtm0): Move to storage_legacy.go
+var legacyRetentionTimezoneOffsetSecs int64
 
-func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64 {
+// TODO(@rtm0): Move to storage_legacy.go
+func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64 {
 	// Round retentionSecs to days. This guarantees that per-day inverted index works as expected
 	const secsPerDay = 24 * 3600
 	retentionSecs = ((retentionSecs + secsPerDay - 1) / secsPerDay) * secsPerDay
@@ -1130,6 +1104,7 @@ func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr Time
 	}
 
 	idbs := s.tb.GetIndexDBs(tr)
+	// also add legacy to idbs
 	var wg sync.WaitGroup
 	results := make(chan *result, len(idbs))
 	defer close(results)
@@ -2870,7 +2845,8 @@ type byDateMetricIDEntry struct {
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
-	generation := s.idb().generation
+	// TODO(@rtm0): Remove generation.
+	generation := uint64(0)
 	e := s.nextDayMetricIDs.Load()
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
@@ -2960,11 +2936,19 @@ func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func (s *Storage) mustOpenLegacyIndexDBTables(path string) (next, curr, prev *indexDB) {
-	fs.MustMkdirIfNotExist(path)
+// TODO(@rtm0): Move to storage_legacy.go
+func (s *Storage) mustOpenLegacyIndexDBTables(path string) (prev, curr *indexDB) {
+	if !fs.IsPathExist(path) {
+		return nil, nil
+	}
+
 	fs.MustRemoveTemporaryDirs(path)
 
-	// Search for the three most recent tables - the prev, curr and next.
+	// Search for the two most recent tables: prev and curr.
+
+	// Placing the regexp inside the func in order to keep legacy code close to
+	// each other and because this function is called only once on startup.
+	indexDBTableNameRegexp := regexp.MustCompile("^[0-9A-F]{16}$")
 	des := fs.MustReadDir(path)
 	var tableNames []string
 	for _, de := range des {
@@ -2982,20 +2966,8 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) (next, curr, prev *in
 	sort.Slice(tableNames, func(i, j int) bool {
 		return tableNames[i] < tableNames[j]
 	})
-	switch len(tableNames) {
-	case 0:
-		prevName := nextIndexDBTableName()
-		currName := nextIndexDBTableName()
-		nextName := nextIndexDBTableName()
-		tableNames = append(tableNames, prevName, currName, nextName)
-	case 1:
-		currName := nextIndexDBTableName()
-		nextName := nextIndexDBTableName()
-		tableNames = append(tableNames, currName, nextName)
-	case 2:
-		nextName := nextIndexDBTableName()
-		tableNames = append(tableNames, nextName)
-	default:
+
+	if len(tableNames) > 3 {
 		// Remove all the tables except the last three tables.
 		for _, tn := range tableNames[:len(tableNames)-3] {
 			pathToRemove := filepath.Join(path, tn)
@@ -3004,34 +2976,32 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) (next, curr, prev *in
 			logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 		}
 		fs.MustSyncPath(path)
-
 		tableNames = tableNames[len(tableNames)-3:]
 	}
+	if len(tableNames) == 3 {
+		// Also remove next idb.
+		pathToRemove := filepath.Join(path, tableNames[2])
+		logger.Infof("removing next indexdb dir %q...", pathToRemove)
+		fs.MustRemoveAll(pathToRemove)
+		logger.Infof("removed next indexdb dir %q", pathToRemove)
+		fs.MustSyncPath(path)
+		tableNames = tableNames[:2]
+	}
 
-	// Open tables
-	nextPath := filepath.Join(path, tableNames[2])
-	currPath := filepath.Join(path, tableNames[1])
-	prevPath := filepath.Join(path, tableNames[0])
+	numIDBs := len(tableNames)
 
-	next = mustOpenLegacyIndexDB(nextPath, s, &s.isReadOnly)
-	curr = mustOpenLegacyIndexDB(currPath, s, &s.isReadOnly)
-	prev = mustOpenLegacyIndexDB(prevPath, s, &s.isReadOnly)
+	if numIDBs > 1 {
+		currPath := filepath.Join(path, tableNames[1])
+		curr = mustOpenLegacyIndexDBReadOnly(currPath, s)
+	}
 
-	return next, curr, prev
+	if numIDBs > 0 {
+		prevPath := filepath.Join(path, tableNames[0])
+		prev = mustOpenLegacyIndexDBReadOnly(prevPath, s)
+	}
+
+	return prev, curr
 }
-
-var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")
-
-func nextIndexDBTableName() string {
-	n := indexDBTableIdx.Add(1)
-	return fmt.Sprintf("%016X", n)
-}
-
-var indexDBTableIdx = func() *atomic.Uint64 {
-	var x atomic.Uint64
-	x.Store(uint64(time.Now().UnixNano()))
-	return &x
-}()
 
 // wasMetricIDMissingBefore checks if passed metricID was already registered as missing before.
 // It returns true if metricID was registered as missing for more than 60s.
