@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{field in (*)}` and `{field not_in (*)}` to be consistent with [`in(*)`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter). The `{field in (*)}` matches any [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), while the `{field not_in (*)}` matches zero log streams. This is needed for [this feature request for VictoriaLogs datasource in Grafana](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238).
+
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix endless group expansion loop bug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8347).
 
 ## [v1.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.17.0-victorialogs)
