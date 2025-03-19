@@ -84,6 +84,7 @@ func (m *manager) close() {
 func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
 	m.wg.Add(1)
 	id := g.GetID()
+	g.Init()
 	go func() {
 		defer m.wg.Done()
 		if restore {

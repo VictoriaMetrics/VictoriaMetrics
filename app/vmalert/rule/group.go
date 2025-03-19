@@ -71,7 +71,7 @@ type Group struct {
 	// evalCancel stores the cancel fn for interrupting
 	// rules evaluation. Used on groups update() and close().
 	evalCancel context.CancelFunc
-
+	// metrics contains metrics for group and its rules, will be created during Init()
 	metrics *groupMetrics
 	// evalAlignment will make the timestamp of group query
 	// requests be aligned with interval
@@ -85,29 +85,6 @@ type groupMetrics struct {
 	iterationDuration *metrics.Summary
 	iterationMissed   *metrics.Counter
 	iterationInterval *metrics.Gauge
-}
-
-func newGroupMetrics(g *Group) *groupMetrics {
-	m := &groupMetrics{}
-	m.set = metrics.NewSet()
-
-	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
-	m.iterationTotal = m.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
-	m.iterationDuration = m.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
-	m.iterationMissed = m.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
-	m.iterationInterval = m.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
-		i := g.Interval.Seconds()
-		return i
-	})
-	return m
-}
-
-func (m *groupMetrics) start() {
-	metrics.RegisterSet(m.set)
-}
-
-func (m *groupMetrics) close() {
-	metrics.UnregisterSet(m.set, true)
 }
 
 // merges group rule labels into result map
@@ -166,7 +143,6 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	for _, h := range cfg.NotifierHeaders {
 		g.NotifierHeaders[h.Key] = h.Value
 	}
-	g.metrics = newGroupMetrics(g)
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
 		var extraLabels map[string]string
@@ -283,7 +259,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	// add the rest of rules from registry
 	for _, nr := range rulesRegistry {
-		nr.registerMetrics(g)
+		nr.registerMetrics(g.metrics.set)
 		newRules = append(newRules, nr)
 	}
 
@@ -319,18 +295,37 @@ func (g *Group) Close() {
 	g.InterruptEval()
 	<-g.finishedCh
 
-	g.metrics.close()
+	g.closeGroupMetrics()
+}
+
+func (g *Group) closeGroupMetrics() {
+	metrics.UnregisterSet(g.metrics.set, true)
 }
 
 // SkipRandSleepOnGroupStart will skip random sleep delay in group first evaluation
 var SkipRandSleepOnGroupStart bool
 
+// Init must be called before group Start()
+func (g *Group) Init() {
+	ns := metrics.NewSet()
+	g.metrics = &groupMetrics{set: ns}
+	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
+	g.metrics.iterationTotal = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	g.metrics.iterationDuration = g.metrics.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	g.metrics.iterationMissed = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	g.metrics.iterationInterval = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
+		i := g.Interval.Seconds()
+		return i
+	})
+	for i := range g.Rules {
+		g.Rules[i].registerMetrics(g.metrics.set)
+	}
+	metrics.RegisterSet(g.metrics.set)
+}
+
 // Start starts group's evaluation
 func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
-
-	g.metrics.start()
-
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
 	// over time in order to reduce load on datasource.
