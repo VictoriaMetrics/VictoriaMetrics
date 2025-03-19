@@ -222,40 +222,67 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 	if durationMax := query.DurationMax; durationMax > 0 {
 		qStr += fmt.Sprintf("AND duration:<%d ", durationMax.Nanoseconds())
 	}
-	qStr = strings.TrimLeft(qStr+" | fields _time, "+jaeger.TraceID, "AND ")
+	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+jaeger.TraceID+") | fields _time, "+jaeger.TraceID+" | sort by (_time) desc", "AND ")
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, query.StartTimeMax.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(query.StartTimeMin.UnixNano(), query.StartTimeMax.UnixNano())
 	q.AddPipeLimit(uint64(query.NumTraces))
 
-	traceIDSet := make(map[string]struct{})
-	traceIDLock := sync.Mutex{}
+	traceIDSs, err := findTraceIDsSplitTimeRange(q, query.StartTimeMin, query.StartTimeMax, query.NumTraces)
+	if err != nil {
+		return nil, err
+	}
+
+	traceIDList := make([]model.TraceID, 0, query.NumTraces)
+	for _, v := range traceIDSs {
+		tid, err := model.TraceIDFromString(v)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal [%s]: %s", v, err)
+		}
+		traceIDList = append(traceIDList, tid)
+	}
+	return traceIDList, nil
+}
+
+// findTraceIDsSplitTimeRange try to search from the nearest time range of the end time.
+// if the result already met requirement of `limit`, return.
+// otherwise, amplify the time range to 5x and search again, until the start time exceed the input.
+func findTraceIDsSplitTimeRange(q *logstorage.Query, startTime, endTime time.Time, limit int) ([]string, error) {
+	step := time.Minute
+	startTimeCurrent := endTime.Add(-step)
+	traceIDList := make([]string, 0, 10)
 	writeBlock := func(_ uint, _ []int64, columns []logstorage.BlockColumn) {
 		for i := range columns {
 			if columns[i].Name == "trace_id" {
-				traceIDLock.Lock()
 				for _, v := range columns[i].Values {
-					traceIDSet[fmt.Sprintf("%s", v)] = struct{}{}
+					traceIDList = append(traceIDList, v)
 				}
-				traceIDLock.Unlock()
 
 			}
 		}
 	}
-	logger.Infof("FindTraces query: %s", q.String())
-	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
-		return nil, err
-	}
-	traceIDList := make([]model.TraceID, 0, 10)
-	for k := range traceIDSet {
-		tid, err := model.TraceIDFromString(k)
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal [%s]: %s", k, err)
+
+	for startTimeCurrent.After(startTime) {
+		qClone := q.CloneWithTimeFilter(endTime.UnixNano(), startTimeCurrent.UnixNano(), endTime.UnixNano())
+		logger.Infof("FindTraces query: %s", qClone.String())
+		if err := vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, qClone, writeBlock); err != nil {
+			return nil, err
 		}
-		traceIDList = append(traceIDList, tid)
+		if len(traceIDList) == limit {
+			return traceIDList, nil
+		}
+		traceIDList = traceIDList[:0]
+		step *= 5
+		startTimeCurrent = startTimeCurrent.Add(-step)
+	}
+
+	// one last try with input time range
+	qClone := q.CloneWithTimeFilter(endTime.UnixNano(), startTimeCurrent.UnixNano(), endTime.UnixNano())
+	logger.Infof("FindTraces query: %s", qClone.String())
+	if err := vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, qClone, writeBlock); err != nil {
+		return nil, err
 	}
 	return traceIDList, nil
 }
