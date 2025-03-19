@@ -71,7 +71,7 @@ type Group struct {
 	// evalCancel stores the cancel fn for interrupting
 	// rules evaluation. Used on groups update() and close().
 	evalCancel context.CancelFunc
-	// metrics contains metrics for group and its rules, will only be created after Group.Start().
+	// metrics contains metrics for group and its rules, will be created during Init()
 	metrics *groupMetrics
 	// evalAlignment will make the timestamp of group query
 	// requests be aligned with interval
