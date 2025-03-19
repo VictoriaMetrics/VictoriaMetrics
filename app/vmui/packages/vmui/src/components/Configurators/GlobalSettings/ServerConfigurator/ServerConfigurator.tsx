@@ -13,7 +13,6 @@ import { getTenantIdFromUrl } from "../../../../utils/tenants";
 
 interface ServerConfiguratorProps {
   onClose: () => void;
-  isDisabled?: boolean;
 }
 
 const tooltipSave = {
@@ -21,7 +20,7 @@ const tooltipSave = {
   disable: "Disable to stop saving the server URL to local storage, reverting to the default URL on page refresh."
 };
 
-const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorProps>(({ onClose, isDisabled }, ref) => {
+const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorProps>(({ onClose }, ref) => {
   const { serverUrl: stateServerUrl } = useAppState();
   const dispatch = useAppDispatch();
 
@@ -88,19 +87,16 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
           onChange={handleChange}
           onEnter={handleApply}
           inputmode="url"
-          disabled={isDisabled}
         />
-        {!isDisabled && (
-          <Tooltip title={enabledStorage ? tooltipSave.disable : tooltipSave.enable}>
-            <Button
-              className="vm-server-configurator-url__button"
-              variant="text"
-              color={enabledStorage ? "primary" : "gray"}
-              onClick={handleToggleStorage}
-              startIcon={<StorageIcon/>}
-            />
-          </Tooltip>
-        )}
+        <Tooltip title={enabledStorage ? tooltipSave.disable : tooltipSave.enable}>
+          <Button
+            className="vm-server-configurator-url__button"
+            variant="text"
+            color={enabledStorage ? "primary" : "gray"}
+            onClick={handleToggleStorage}
+            startIcon={<StorageIcon/>}
+          />
+        </Tooltip>
       </div>
     </div>
   );

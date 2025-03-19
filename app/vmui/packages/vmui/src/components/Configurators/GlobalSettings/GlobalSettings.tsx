@@ -44,11 +44,10 @@ const GlobalSettings: FC = () => {
 
   const controls = [
     {
-      show: !appModeEnable,
+      show: !appModeEnable && !APP_TYPE_LOGS,
       component: <ServerConfigurator
         ref={serverSettingRef}
         onClose={handleClose}
-        isDisabled={APP_TYPE_LOGS}
       />
     },
     {
