@@ -210,7 +210,7 @@ func (g *Group) GetID() uint64 {
 
 // CreateID returns the unique ID based on group basic fields.
 // Should only be called when creating new group,
-// use GetID() to afterward
+// and use GetID() afterward.
 func (g *Group) CreateID() uint64 {
 	hash := fnv.New64a()
 	hash.Write([]byte(g.File))
