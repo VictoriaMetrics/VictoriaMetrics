@@ -409,6 +409,14 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -insert.maxQueueDuration duration
     	The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+  -insert.httpListenAddr array
+    	TCP address to listen on for /insert/* handlers in addition to those provided with -httpListenAddr . See also -insert.httpListenAddr.useProxyProtocol
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -insert.httpListenAddr.useProxyProtocol array
+    	Whether to use proxy protocol for connections accepted at the given -insert.httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt .
+    	Supports array of values separated by comma or specified via multiple flags.
+    	Empty values are set to false.
   -internStringCacheExpireDuration duration
     	The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
