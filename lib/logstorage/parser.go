@@ -1851,6 +1851,9 @@ func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter
 	// Try parsing (arg1, ..., argN) at first
 	lexState := lex.backupState()
 	fi, err := parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
+		if len(args) == 1 && args[0] == "*" {
+			return &filterNoop{}, nil
+		}
 		iv.values = args
 		return f, nil
 	})
@@ -2241,6 +2244,10 @@ func parseArgsInParens(lex *lexer) ([]string, error) {
 			return nil, fmt.Errorf("unexpected '(' inside ()")
 		}
 		arg := getCompoundFuncArg(lex)
+		if arg == "" && lex.isKeyword("*") {
+			lex.nextToken()
+			arg = "*"
+		}
 		args = append(args, arg)
 		if lex.isKeyword(")") {
 			break
