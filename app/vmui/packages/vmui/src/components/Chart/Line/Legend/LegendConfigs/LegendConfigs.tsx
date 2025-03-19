@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import React, { FC, Fragment, useMemo } from "preact/compat";
 import Switch from "../../../../Main/Switch/Switch";
 import { LegendDisplayType, useLegendView } from "../hooks/useLegendView";
 import { useHideDuplicateFields } from "../hooks/useHideDuplicateFields";
@@ -14,6 +14,7 @@ import classNames from "classnames";
 import Button from "../../../../Main/Button/Button";
 import { SettingsIcon } from "../../../../Main/Icons";
 import { useGraphDispatch } from "../../../../../state/graph/GraphStateContext";
+import Tooltip from "../../../../Main/Tooltip/Tooltip";
 
 type Props = {
   data?: MetricResult[]
@@ -43,6 +44,29 @@ const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
     graphDispatch({ type: "SET_OPEN_SETTINGS", payload: true });
   };
 
+  const switchers = [
+    {
+      label: "Table View",
+      value: isTableView,
+      onChange: handleChangeView,
+      info: "If enabled, the legend will be displayed in a table format.",
+    },
+    {
+      label: "Hide Common Labels",
+      value: hideDuplicates,
+      onChange: onChangeDuplicates,
+      info: "If enabled, hides labels that are the same for all series.",
+    },
+    {
+      label: "Hide Statistics",
+      value: hideStats,
+      onChange: onChangeStats,
+      info: "If enabled, hides the display of min, median, and max values.",
+    }
+  ];
+
+  const SwitcherWrapper = isCompact ? Tooltip : Fragment;
+
   return (
     <div
       className={classNames({
@@ -50,41 +74,24 @@ const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
         "vm-legend-configs_compact": isCompact,
       })}
     >
-      <div className="vm-legend-configs-item vm-legend-configs-item_switch">
-        <span className="vm-legend-configs-item__label">Table View</span>
-        <Switch
-          label={`${isCompact ? "Table view" : isTableView ? "Enabled" : "Disabled"}`}
-          value={isTableView}
-          onChange={handleChangeView}
-        />
-        <span className="vm-legend-configs-item__info">
-          Switches between table and lines view.
-        </span>
-      </div>
-
-      <div className="vm-legend-configs-item vm-legend-configs-item_switch">
-        <span className="vm-legend-configs-item__label">Common Labels</span>
-        <Switch
-          label={`${isCompact ? "Common labels" : hideDuplicates ? "Hide" : "Show"}`}
-          value={!hideDuplicates}
-          onChange={onChangeDuplicates}
-        />
-        <span className="vm-legend-configs-item__info">
-          Shows or hides labels that are the same for all series.
-        </span>
-      </div>
-
-      <div className="vm-legend-configs-item vm-legend-configs-item_switch">
-        <span className="vm-legend-configs-item__label">Statistics</span>
-        <Switch
-          label={`${isCompact ? "Statistics" : hideStats ? "Hide" : "Show"}`}
-          value={!hideStats}
-          onChange={onChangeStats}
-        />
-        <span className="vm-legend-configs-item__info">
-          Displays min, median, and max values.
-        </span>
-      </div>
+      {switchers.map(({ label, value, onChange, info }) => (
+        <SwitcherWrapper
+          key={label}
+          title={info}
+        >
+          <div className="vm-legend-configs-item vm-legend-configs-item_switch">
+            <span className="vm-legend-configs-item__label">{label}</span>
+            <Switch
+              label={`${isCompact ? label : value ? "Enabled" : "Disabled"}`}
+              value={value}
+              onChange={onChange}
+            />
+            <span className="vm-legend-configs-item__info">
+              {info}
+            </span>
+          </div>
+        </SwitcherWrapper>
+      ))}
 
       {isCompact && (
         <Button
