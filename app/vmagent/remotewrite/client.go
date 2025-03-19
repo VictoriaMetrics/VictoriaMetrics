@@ -537,10 +537,6 @@ again:
 	goto again
 }
 
-func (c *client) isVMProto() bool {
-	return c.useVMProto.Load()
-}
-
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 
 // getRetryDuration returns retry duration.
