@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a toggle to handle ANSI escape sequences in log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6614).
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix the Group tab to display raw JSON when `_msg` is missing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8205).
+
 ## [v1.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.17.0-victorialogs)
 
 Released at 2025-03-16
