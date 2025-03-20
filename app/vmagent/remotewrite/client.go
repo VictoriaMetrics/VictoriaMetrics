@@ -10,9 +10,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -87,7 +89,12 @@ type client struct {
 	remoteWriteURL string
 
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
-	useVMProto bool
+	useVMProto atomic.Bool
+	// maybeUpgradeVMProto analyzes the response from remoteWriteURL to determine whether
+	// to switch to VM remote write protocol or revert to prometheus one.
+	// It evaluates status code and the response headers to make a decision
+	// and updates useVMProto property if needed.
+	maybeUpgradeVMProto func(resp *http.Response)
 
 	fq *persistentqueue.FastQueue
 	hc *http.Client
@@ -148,15 +155,16 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
 	c := &client{
-		sanitizedURL:     sanitizedURL,
-		remoteWriteURL:   remoteWriteURL,
-		authCfg:          authCfg,
-		awsCfg:           awsCfg,
-		fq:               fq,
-		hc:               hc,
-		retryMinInterval: retryMinInterval.GetOptionalArg(argIdx),
-		retryMaxTime:     retryMaxTime.GetOptionalArg(argIdx),
-		stopCh:           make(chan struct{}),
+		sanitizedURL:        sanitizedURL,
+		remoteWriteURL:      remoteWriteURL,
+		authCfg:             authCfg,
+		awsCfg:              awsCfg,
+		fq:                  fq,
+		hc:                  hc,
+		retryMinInterval:    retryMinInterval.GetOptionalArg(argIdx),
+		retryMaxTime:        retryMaxTime.GetOptionalArg(argIdx),
+		stopCh:              make(chan struct{}),
+		maybeUpgradeVMProto: func(_ *http.Response) {},
 	}
 	c.sendBlock = c.sendBlockHTTP
 
@@ -175,8 +183,49 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 			logger.Infof("the remote storage at %q doesn't support VictoriaMetrics remote write protocol. Switching to Prometheus remote write protocol. "+
 				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", sanitizedURL)
 		}
+
+		c.maybeUpgradeVMProto = func(resp *http.Response) {
+			// Prometheus will return 415 Unsupported Media Type if it receives zstd encoded data.
+			// In such cases, we should downgrade the protocol.
+			//
+			// See https://github.com/prometheus/prometheus/blob/c88d0b0e0a4a1c4281e04bc68c86bd37a950712f/storage/remote/write_handler.go#L157
+			if resp.StatusCode == http.StatusUnsupportedMediaType {
+				if prevVMProto := c.useVMProto.Swap(false); prevVMProto {
+					logger.Infof("protocol downgraded for remote storage at %q: switching from VictoriaMetrics to Prometheus remote write protocol. "+
+						"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				}
+			}
+
+			ac := resp.Header.Get(`Accept-Encoding`)
+			// If the Accept-Encoding header is empty, it could mean either:
+			// - the current compression is optimal
+			// - the remote write server doesn't return the header
+			// In either case, no action should be taken.
+			if ac == "" {
+				return
+			}
+
+			// Encoding priorities (quality values) in Accept-Encoding are not supported.
+			// Example: Accept-Encoding: br;q=1.0, gzip;q=0.8, *;q=0.1
+			if strings.Contains(ac, `=`) {
+				return
+			}
+
+			switch {
+			case strings.Contains(ac, "zstd"):
+				if prevVMProto := c.useVMProto.Swap(true); !prevVMProto {
+					logger.Infof("protocol upgraded for remote storage at %q: switching from Prometheus to VictoriaMetrics remote write protocol. "+
+						"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				}
+			case strings.Contains(ac, "snappy"):
+				if prevVMProto := c.useVMProto.Swap(false); prevVMProto {
+					logger.Infof("protocol downgraded for remote storage at %q: switching from VictoriaMetrics to Prometheus remote write protocol. "+
+						"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				}
+			}
+		}
 	}
-	c.useVMProto = useVMProto
+	c.useVMProto.Store(useVMProto)
 
 	return c
 }
@@ -384,7 +433,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	if c.useVMProto {
+	if encoding.IsZstd(body) {
 		h.Set("Content-Encoding", "zstd")
 		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
 	} else {
@@ -433,6 +482,7 @@ again:
 		c.retriesCount.Inc()
 		goto again
 	}
+	c.maybeUpgradeVMProto(resp)
 	statusCode := resp.StatusCode
 	if statusCode/100 == 2 {
 		_ = resp.Body.Close()
