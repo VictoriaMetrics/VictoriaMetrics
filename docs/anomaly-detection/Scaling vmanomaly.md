@@ -1,13 +1,14 @@
 ---
 weight: 3
-title: High Availability
+title: Scaling vmanomaly
 menu:
   docs:
-    identifier: "vmanomaly-high-availability"
+    identifier: "vmanomaly-scaling"
     parent: "anomaly-detection"
     weight: 3
 aliases:
 - /anomaly-detection/high-availability.html
+- /anomaly-detection/scaling-vmanomaly.html
 ---
 
 ## Overview
@@ -18,7 +19,7 @@ This document explains how `vmanomaly` achieves **scalability through sharding**
 
 ## Global Configuration
 
-`vmanomaly` service operations are defined in YAML configuration file(s), utilizing different [components](https://docs.victoriametrics.com/anomaly-detection/components/), e.g.
+`vmanomaly` service operations are configured using YAML files that define various [components](https://docs.victoriametrics.com/anomaly-detection/components/), as shown in the example below. These (global) configurations can be divided into smaller, fully functional [sub-configurations](#sub-configuration), which can be used for [horizontal scalability](#horizontal-scalability) through sharding or for [high availability](#high-availability) by enabling replication.
 
 ### Configuration example
 
@@ -78,9 +79,9 @@ Additionally, a replication factor `R ≥ 1` ensures [high availability](#high-a
 
 <img src="../vmanomaly-sharding-ha-diagram.webp" alt="vmanomaly-sharding-ha-diagram" width="800px"/>
 
-> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm).
+> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer).
 
-Sharding is supported in installations via Docker or Helm and is implemented through environment variables:
+Sharding configuration can be controlled by using the following environment variables:
 
 - **`VMANOMALY_MEMBERS_COUNT`**: Defines the total number of shards (i.e., available nodes to distribute [sub-configurations](#sub-configuration) to). <br>Defaults to `1` for backward compatibility.
 - **`VMANOMALY_MEMBER_NUM`**: Specifies the shard index (`0` to `VMANOMALY_MEMBERS_COUNT - 1`), determining the subset of [sub-configurations](#sub-configuration) to run on a specific node. Defaults to `0`. Supports automatic **pod name discovery** in Kubernetes [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) (e.g., if set to `vmanomaly-node-exporter-7`, shard `7` will be extracted).
@@ -130,7 +131,7 @@ When `VMANOMALY_REPLICATION_FACTOR` > 1, each [sub-config](#sub-configuration) `
 
 <img src="../vmanomaly-sharding-ha-diagram.webp" alt="vmanomaly-sharding-ha-diagram" width="800px"/>
 
-> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm).
+> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer).
 
 ### Example
 
@@ -240,6 +241,5 @@ To deploy `vmanomaly` with `N > 1` shards using Helm, ensure **chart version [1.
 
 - Set shard count **(`.Values.shardsCount`)**: Defines the number of shards (`N > 1`) to enable horizontal scaling. Configure it [here](https://github.com/VictoriaMetrics/helm-charts/blob/207dd54f90919f0159b950dbd29bf2f57abf38f1/charts/victoria-metrics-anomaly/values.yaml#L187).
 - *(Optional)* Enable [high availability](#high-availability) **(`.Values.replicationFactor`)**: If `R > 1`, each [sub-config](#sub-configuration) is assigned to exactly `R` shards. Configure it [here](https://github.com/VictoriaMetrics/helm-charts/blob/207dd54f90919f0159b950dbd29bf2f57abf38f1/charts/victoria-metrics-anomaly/values.yaml#L189).
-- Enable [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) **(`.Values.persistentVolume`)**: Required for persistent storage (e.g. to [dump models and data to disk](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode)) and automated pod name discovery. Configure it [here](https://github.com/VictoriaMetrics/helm-charts/blob/207dd54f90919f0159b950dbd29bf2f57abf38f1/charts/victoria-metrics-anomaly/values.yaml#L197).
 
 With **StatefulSet enabled**, `vmanomaly` automatically extracts shard numbers from pod names. For example, if the pod is named `vmanomaly-node-exporter-0`, then `VMANOMALY_MEMBER_NUM=0` is assigned automatically.

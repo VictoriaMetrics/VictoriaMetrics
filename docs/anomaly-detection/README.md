@@ -52,7 +52,7 @@ Get started with VictoriaMetrics Anomaly Detection by following our guides and i
     - **Docker Installation**: Ideal for containerized environments. Follow the [Docker Installation Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/#docker).
     - **Helm Chart Installation**: Recommended for Kubernetes deployments. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
 
-- **High Availability**: See how to enable [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/high-availability#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/high-availability#high-availability) for `vmanomaly` service [here](https://docs.victoriametrics.com/anomaly-detection/high-availability)
+- **High Availability**: See how to enable [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#high-availability) for `vmanomaly` service [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly)
 
 - **Self-Monitoring**: Ensure `vmanomaly` is functioning optimally, using provided Grafana dashboards and alerting rules to track service health and operational metrics. Find the guide [here](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
 

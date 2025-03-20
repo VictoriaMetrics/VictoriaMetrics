@@ -253,8 +253,8 @@ writer:
 
 Here are the links for further deep dive into Anomaly Detection in general and `vmanomaly` in particular:
 
-- [High Availability](https://docs.victoriametrics.com/anomaly-detection/high-availability/#high-availability)
-- [Horizontal Scalability](https://docs.victoriametrics.com/anomaly-detection/high-availability/#horizontal-scalability)
+- [High Availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability)
+- [Horizontal Scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability)
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
 - [CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/changelog/)

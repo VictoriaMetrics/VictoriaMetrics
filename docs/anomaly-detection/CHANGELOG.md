@@ -14,7 +14,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 ## v1.21.0
 Released: 2025-03-19
 
-- FEATURE: Introduced [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/high-availability#horizontal-scalability) via configuration sharding and [high availability](https://docs.victoriametrics.com/anomaly-detection/high-availability#high-availability) through sub-config replication in the `vmanomaly` service. For details on enabling these features, refer to the guide [here](https://docs.victoriametrics.com/anomaly-detection/faq#scaling-vmanomaly). Dedicated page can be found [here](https://docs.victoriametrics.com/anomaly-detection/high-availability).
+- FEATURE: Introduced [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#high-availability) in `vmanomaly` service. Dedicated page can be found [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly).
 
 ## v1.20.1
 Released: 2025-03-16

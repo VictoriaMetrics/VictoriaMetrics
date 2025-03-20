@@ -317,7 +317,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 <span style="white-space: nowrap;">`vmanomaly_config_entities`</span>
             </td>
             <td>Gauge</td>
-            <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/high-availability#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/high-availability#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
+            <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
         </tr>
     </tbody>
 </table>
