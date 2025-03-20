@@ -515,7 +515,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-	sw.prevLabelsLen = len(wc.labels)
+	sw.prevLabelsLen = cap(wc.labels)
 	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
@@ -576,7 +576,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 
-		if err == nil && int64(cap(wc.labels)) > labelsLen {
+		if int64(cap(wc.labels)) > labelsLen {
 			wcMaxLabelsLen.Store(int64(cap(wc.labels)))
 		}
 
@@ -613,7 +613,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	wc := writeRequestCtxPool.Get(1024)
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-	sw.prevLabelsLen = len(wc.labels)
+	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
