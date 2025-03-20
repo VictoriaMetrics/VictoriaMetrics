@@ -1,11 +1,11 @@
 ---
-weight: 4
+weight: 5
 title: FAQ
 menu:
   docs:
     identifier: "vmanomaly-faq"
     parent: "anomaly-detection"
-    weight: 4
+    weight: 5
 aliases:
 - /anomaly-detection/FAQ.html
 ---
@@ -224,7 +224,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.20.1
+    image: victoriametrics/vmanomaly:v1.21.0
     # ...
     ports:
       - "8490:8490"
@@ -319,7 +319,6 @@ P.s. `infer` data volume will remain the same for both models, so it does not af
 
 ## Handling large queries in vmanomaly
 
-
 If you're dealing with a large query in the `queries` argument of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) (especially when running [within a scheduler using a long](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=fit_window#periodic-scheduler) `fit_window`), you may encounter issues such as query timeouts (due to the `search.maxQueryDuration` server limit) or rejections (if the `search.maxPointsPerTimeseries` server limit is exceeded). 
 
 We recommend upgrading to [v1.17.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1171) (or newer), which introduced the `max_points_per_query` argument (both global and [query-specific](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters)) for the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This argument overrides how `search.maxPointsPerTimeseries` flag handling (introduced in [v1.14.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1141)) is used in `vmanomaly` for splitting long `fit_window` queries into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead.
@@ -389,7 +388,7 @@ Please note that this approach may not fully resolve the issue if subqueries are
 
 ## Scaling vmanomaly
 
-> **Note:** As of latest release we do not support cluster or auto-scaled version yet (though, it's in our roadmap for - better backends, more parallelization, etc.), so proposed workarounds should be addressed *manually*.
+> Note: {{% available_from "v1.21.0" anomaly %}} `vmanomaly` supports [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) via sub-config sharding and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#high-availability) through sub-config replication. Please find the instructions on [dedicated page](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly). Prior to [v1.21.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1210) it should be addressed *manually* e.g. with the help of `config_splitting` util, follow the intuition [below](#splitting-the-config).
 
 `vmanomaly` supports **vertical** scalability, benefiting from additional CPU cores (resulting in faster processing times) and increased RAM (allowing more models to be trained and larger volumes of timeseries data to be processed efficiently).
 
@@ -431,7 +430,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.20.1 && docker image tag victoriametrics/vmanomaly:v1.20.1 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.21.0 && docker image tag victoriametrics/vmanomaly:v1.21.0 vmanomaly
 ```
 
 ```sh
