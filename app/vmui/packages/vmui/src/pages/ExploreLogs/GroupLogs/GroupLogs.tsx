@@ -17,6 +17,7 @@ import Pagination from "../../../components/Main/Pagination/Pagination";
 import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
 import { usePaginateGroups } from "../hooks/usePaginateGroups";
 import { GroupLogsType } from "../../../types";
+import { getNanoTimestamp } from "../../../utils/time";
 
 interface Props {
   logs: Logs[];
@@ -42,8 +43,17 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = getStreamPairs(streamValue);
+
       // values sorting by time
-      const values = item.values.sort((a, b) => new Date(b._time).getTime() - new Date(a._time).getTime());
+      const values = item.values.sort((a, b) => {
+        const aTimestamp = getNanoTimestamp(a._time);
+        const bTimestamp = getNanoTimestamp(b._time);
+
+        if (aTimestamp > bTimestamp) return 1;
+        if (aTimestamp < bTimestamp) return -1;
+        return 0;
+      });
+
       return {
         keys: item.keys,
         keysString: item.keys.join(""),
