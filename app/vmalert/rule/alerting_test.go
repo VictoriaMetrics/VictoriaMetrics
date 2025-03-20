@@ -1329,6 +1329,7 @@ func TestAlertingRuleExec_Partial(t *testing.T) {
 	fq.SetPartialResponse(true)
 
 	ar := newTestAlertingRule("test", 0)
+	ar.Debug = true
 	ar.Labels = map[string]string{"job": "test"}
 	ar.q = fq
 	ar.For = time.Second
