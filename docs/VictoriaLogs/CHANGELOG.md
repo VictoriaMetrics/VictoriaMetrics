@@ -17,6 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{field in (*)}` and `{field not_in (*)}` to be consistent with [`in(*)`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter). The `{field in (*)}` matches any [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), while the `{field not_in (*)}` matches zero log streams. This is needed for [this feature request for VictoriaLogs datasource in Grafana](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238).
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support `-journald.priorityAsLevel` and `-syslog.severityAsLevel` command-line flags to convert Syslog `severity` and JournalD `PRIORITY` fields to `level`, which enhances user experience with log visualization tools like Grafana, that are providing [log level field highlighting](https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level).  
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix endless group expansion loop bug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8347).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect nanosecond precision when sorting logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8346).
