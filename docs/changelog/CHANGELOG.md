@@ -30,9 +30,13 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): expose `vmalert_alerts_send_duration_seconds` metric to measure the time taken to send alerts to the specified `-notifier.url`. Thanks to @eyazici90 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8468).
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176), [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683), [dashboards/vmalert](https://grafana.com/grafana/dashboards/14950): add panel `Memory allocations rate` to ResourceUsage tab, that shows the rate of allocations in memory and can help identifying issues with increased pressure on GC.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): improve resilience to network issues by retrying requests failing due to `IncompleteBody`. Previously, such requests were not retried and leaded to restore/backup process failure.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): move legend customization settings, such as `Hide common labels` and `Table view`, closer to the legend area. This change should improve UX and make it easier for users to adjust legend visualization. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8031)
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): prevent unexpected samples drop when [deduplication](https://docs.victoriametrics.com/stream-aggregation/#deduplication) and [aggregation windows](https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows) are enabled.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): fix metric that shows number of active time series when per-day index is disabled. Previously, once per-day index was disabled, the active time series metric would stop being populated and the `Active time series` chart would show 0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8411) for details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix graceful shutdown delay when stopping the backup manager. Previously, sending a `SIGINT` would lead to a long delay before the backup manager would stop. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8554) for details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): prevent a backup being scheduled 1 second after the previous one. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8499).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): prevent from `too big duration` panic when the query contains too big `Ni` durations because of too big `step` value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/), [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly apply TLS settings for URLs with scheme other than `https`. Previously, TLS settings were ignored for such URLs. That could lead to unexpected behavior when a request was receiving a redirect response to a URL with `https` scheme. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8494) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): prevent dropping persistent queue data when changes happened for `-remoteWrite.showURL` flag, query params or fragment in remote write URL. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477).
@@ -43,6 +47,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak when sending alerts with `-notifier.blackhole` enabled. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly compare rules `group.checksum` and statically define `group.id` at creation time. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8540) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak during rule group updates on reload. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8532).
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): fix the `vmgateway_ratelimit_refresh_duration_seconds` value, before it did not account for the actual time spent refreshing limits.
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
@@ -136,6 +141,10 @@ Released at 2025-02-10
 ## [v1.110.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.3)
 
 Released at 2025-03-07
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
@@ -281,7 +290,11 @@ See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
 
 Released at 2025-03-07
 
-BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly apply the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter) for the `rows_inserted` limit type. Previously, the rate limit for this type was ignored.
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly apply the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter) for the `rows_inserted` limit type. Previously, the rate limit for this type was ignored.
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly handle HTTP requests with path ending with a trailing `/` when using the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter). Previously, the trailing slash was removed and caused an incorrect redirect path when visiting VMUI. Thanks to @jindov for [the bug report issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8439).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent possible panic for `foo @ bar` expression when first sample in `bar` starts with `NaN` or starts long after first sample in `foo`. Now, VM will try to find first non-NaN value in `bar` and could yield an error `@ modifier must return a non-NaN value` if it won't find it. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): prevent panic when using with rules that have zero interval: `-downsampling.period=5m:5m,0s:0s`. Such rule configuration shouldn't be rejected and cause an error when used. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8454).
@@ -360,6 +373,10 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 ## [v1.102.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.10)
 
 Released at 2025-01-14
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
@@ -465,6 +482,10 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 ## [v1.97.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.15)
 
 Released at 2025-01-14
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
