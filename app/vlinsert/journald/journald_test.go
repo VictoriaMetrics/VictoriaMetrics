@@ -29,9 +29,9 @@ func TestPushJournaldOk(t *testing.T) {
 	)
 
 	// Multiple events
-	f("__REALTIME_TIMESTAMP=91723819283\nMESSAGE=Test message\n\n__REALTIME_TIMESTAMP=91723819284\nMESSAGE=Test message2\n",
+	f("__REALTIME_TIMESTAMP=91723819283\nPRIORITY=3\nMESSAGE=Test message\n\n__REALTIME_TIMESTAMP=91723819284\nMESSAGE=Test message2\n",
 		[]int64{91723819283000, 91723819284000},
-		"{\"_msg\":\"Test message\"}\n{\"_msg\":\"Test message2\"}",
+		"{\"level\":\"3\",\"_msg\":\"Test message\"}\n{\"_msg\":\"Test message2\"}",
 	)
 
 	// Parse binary data

@@ -81,7 +81,7 @@ func (pu *pipeUnpackSyslog) newPipeProcessor(_ int, _ <-chan struct{}, _ func(),
 		year := currentYear.Load()
 		p := GetSyslogParser(int(year), pu.offsetTimezone)
 
-		p.Parse(s)
+		p.Parse(s, false)
 		for _, f := range p.Fields {
 			uctx.addField(f.Name, f.Value)
 		}

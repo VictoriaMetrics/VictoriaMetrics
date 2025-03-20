@@ -94,7 +94,7 @@ func (p *SyslogParser) addField(name, value string) {
 // Parse parses syslog message from s into p.Fields.
 //
 // p.Fields is valid until s is modified or p state is changed.
-func (p *SyslogParser) Parse(s string) {
+func (p *SyslogParser) Parse(s string, severityAsLevel bool) {
 	p.resetFields()
 
 	if len(s) == 0 {
@@ -132,7 +132,11 @@ func (p *SyslogParser) Parse(s string) {
 
 	bufLen = len(p.buf)
 	p.buf = marshalUint64String(p.buf, severity)
-	p.addField("severity", bytesutil.ToUnsafeString(p.buf[bufLen:]))
+	if severityAsLevel {
+		p.addField("level", bytesutil.ToUnsafeString(p.buf[bufLen:]))
+	} else {
+		p.addField("severity", bytesutil.ToUnsafeString(p.buf[bufLen:]))
+	}
 
 	p.parseNoHeader(s)
 }

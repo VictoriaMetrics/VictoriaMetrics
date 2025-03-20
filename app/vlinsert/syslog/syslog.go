@@ -84,6 +84,7 @@ var (
 		"at the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
 	useLocalTimestampUDP = flagutil.NewArrayBool("syslog.useLocalTimestamp.udp", "Whether to use local timestamp instead of the original timestamp for the ingested syslog messages "+
 		"at the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
+	severityAsLevel = flag.Bool("syslog.severityAsLevel", true, "Store Syslog severity as level field.")
 )
 
 // MustInit initializes syslog parser at the given -syslog.listenAddr.tcp and -syslog.listenAddr.udp ports
@@ -529,7 +530,7 @@ var syslogLineReaderPool sync.Pool
 func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
 	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
-	p.Parse(lineStr)
+	p.Parse(lineStr, *severityAsLevel)
 
 	var ts int64
 	if useLocalTimestamp {
