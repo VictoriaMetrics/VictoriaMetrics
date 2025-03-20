@@ -3,6 +3,8 @@ package promscrape
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -122,7 +124,22 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 }
 
+// TestScrapeWorkScrapeInternalSuccess validates that the parsing functionality, relabeling,
+// sample limits, series limits, auto metrics and so on, works correctly and
+// consistently between streaming and one-shot modes.
+
+// The streaming concurrency is tested separately in TestScrapeWorkScrapeInternalStreamConcurrency.
 func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
+	t.Run("OneShot", func(t *testing.T) {
+		testScrapeWorkScrapeInternalSuccess(t, false)
+	})
+
+	t.Run("Stream", func(t *testing.T) {
+		testScrapeWorkScrapeInternalSuccess(t, true)
+	})
+}
+
+func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 	f := func(data string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
 
@@ -138,9 +155,13 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 			return nil
 		}
 
-		pushDataCalls := 0
+		var pushDataMu sync.Mutex
+		var pushDataCalls int
 		var pushDataErr error
 		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+			pushDataMu.Lock()
+			defer pushDataMu.Unlock()
+
 			pushDataCalls++
 			if len(wr.Timeseries) > len(timeseriesExpected) {
 				pushDataErr = fmt.Errorf("too many time series obtained; got %d; want %d\ngot\n%+v\nwant\n%+v",
@@ -153,6 +174,11 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%v\nwant\n%v", err, wr.Timeseries, tsExpected)
 				return
 			}
+		}
+
+		if streamParse {
+			protoparserutil.StartUnmarshalWorkers()
+			defer protoparserutil.StopUnmarshalWorkers()
 		}
 
 		timestamp := int64(123000)
@@ -178,6 +204,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	}
 
 	f(``, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 	}, `
 		up 1 123
@@ -192,6 +219,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz",empty_label=""} 34.45 3
 		abc -2
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 	}, `
 		foo{bar="baz"} 34.45 123
@@ -208,6 +236,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.45 3
 		abc -2
 	`, &ScrapeWork{
+		StreamParse:     streamParse,
 		ScrapeTimeout:   time.Second * 42,
 		HonorTimestamps: true,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -228,6 +257,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{job="orig",bar="baz"} 34.45
 		bar{y="2",job="aa",a="b",x="1"} -3e4 2345
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -249,6 +279,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		no_instance{instance="",job="some_job",label="val1",test=""} 5555
 		test_with_instance{instance="some_instance",job="some_job",label="val2",test=""} 1555
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -270,6 +301,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		no_instance{instance="",job="some_job",label="val1",test=""} 5555
 		test_with_instance{instance="some_instance",job="some_job",label="val2",test=""} 1555
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -291,6 +323,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{job="orig",bar="baz"} 34.45
 		bar{job="aa",a="b"} -3e4 2345
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -311,6 +344,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -342,6 +376,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		dropme{foo="bar"} 334
 		dropme{xxx="yy",ss="dsf"} 843
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
@@ -374,6 +409,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{a="b",c="d"} -3e4
 		scrape_series_added 3.435
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 	}, `
 		up{bar="baz"} 34.44 123
@@ -392,6 +428,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{a="b",c="d"} -3e4
 		scrape_series_added 3.435
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 	}, `
@@ -411,6 +448,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		SampleLimit:   2,
 	}, `
@@ -430,6 +468,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		SampleLimit:   1,
@@ -452,6 +491,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   123,
 	}, `
@@ -473,6 +513,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
 	`, &ScrapeWork{
+		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   1,
 	}, `
@@ -488,6 +529,91 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_series_limit_samples_dropped 1 123
 		scrape_timeout_seconds 42 123
 	`)
+}
+
+// TestScrapeWorkScrapeInternalStreamConcurrency ensures that streaming parsing with concurrency
+// functions correctly and is free of race conditions.
+//
+// The core parsing functionality is validated separately in TestScrapeWorkScrapeInternalSuccess.
+func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
+	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected int64) {
+		t.Helper()
+
+		var sw scrapeWork
+		sw.Config = cfg
+
+		readDataCalls := 0
+		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+			readDataCalls++
+			dst.B = append(dst.B, data...)
+			return nil
+		}
+
+		var pushDataCalls atomic.Int64
+		var pushedTimeseries atomic.Int64
+		var pushDataErr error
+		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+			pushDataCalls.Add(1)
+			pushedTimeseries.Add(int64(len(wr.Timeseries)))
+		}
+
+		protoparserutil.StartUnmarshalWorkers()
+		defer protoparserutil.StopUnmarshalWorkers()
+
+		timestamp := int64(123000)
+		tsmGlobal.Register(&sw)
+		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
+			if !strings.Contains(err.Error(), "sample_limit") {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		}
+		tsmGlobal.Unregister(&sw)
+		if pushDataErr != nil {
+			t.Fatalf("unexpected error: %s", pushDataErr)
+		}
+		if readDataCalls != 1 {
+			t.Fatalf("unexpected number of readData calls; got %d; want %d", readDataCalls, 1)
+		}
+		if pushDataCalls.Load() != pushDataCallsExpected {
+			t.Fatalf("unexpected number of pushData calls; got %d; want %d", pushDataCalls.Load(), pushDataCallsExpected)
+		}
+		if timeseriesExpected != pushedTimeseries.Load() {
+			t.Fatalf("unexpected number of pushed timeseries; got %d; want %d", pushedTimeseries.Load(), timeseriesExpected)
+		}
+	}
+
+	generateScrape := func(n int) string {
+		w := strings.Builder{}
+		for i := 0; i < n; i++ {
+			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
+		}
+		return w.String()
+	}
+
+	// process one serie: one batch of data, plus auto metrics pushed
+	f(generateScrape(1), &ScrapeWork{
+		StreamParse:   true,
+		ScrapeTimeout: time.Second * 42,
+	}, 2, 8)
+
+	// process 5k series: two batch of data, plus auto metrics pushed
+	f(generateScrape(5000), &ScrapeWork{
+		StreamParse:   true,
+		ScrapeTimeout: time.Second * 42,
+	}, 3, 5007)
+
+	// process 1M series: 246 batches of data, plus auto metrics pushed
+	f(generateScrape(1e6), &ScrapeWork{
+		StreamParse:   true,
+		ScrapeTimeout: time.Second * 42,
+	}, 246, 1000007)
+
+	// process 5k series: two batch of data, plus auto metrics pushed, with series limiters applied
+	f(generateScrape(5000), &ScrapeWork{
+		StreamParse:   true,
+		ScrapeTimeout: time.Second * 42,
+		SeriesLimit:   4000,
+	}, 3, 4015)
 }
 
 func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
@@ -727,7 +853,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 }
 
 func TestSendStaleSeries(t *testing.T) {
-	f := func(lastScrape, currScrape string, staleMarksExpected int) {
+	f := func(lastScrape, currScrape string, staleMarksExpected int64) {
 		t.Helper()
 		var sw scrapeWork
 		sw.Config = &ScrapeWork{
@@ -736,13 +862,13 @@ func TestSendStaleSeries(t *testing.T) {
 		protoparserutil.StartUnmarshalWorkers()
 		defer protoparserutil.StopUnmarshalWorkers()
 
-		var staleMarks int
+		var staleMarks atomic.Int64
 		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
-			staleMarks += len(wr.Timeseries)
+			staleMarks.Add(int64(len(wr.Timeseries)))
 		}
 		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
-		if staleMarks != staleMarksExpected {
-			t.Fatalf("unexpected number of stale marks; got %d; want %d", staleMarks, staleMarksExpected)
+		if staleMarks.Load() != staleMarksExpected {
+			t.Fatalf("unexpected number of stale marks; got %d; want %d", staleMarks.Load(), staleMarksExpected)
 		}
 	}
 	generateScrape := func(n int) string {
