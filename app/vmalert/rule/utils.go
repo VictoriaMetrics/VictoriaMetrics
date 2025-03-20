@@ -107,9 +107,8 @@ func isSecreteHeader(str string) bool {
 }
 
 func isPartialResponse(res datasource.Result) bool {
-	var v bool
 	if res.IsPartial != nil && *res.IsPartial {
-		v = true
+		return true
 	}
-	return v
+	return false
 }
