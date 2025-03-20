@@ -36,7 +36,8 @@
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "browserslist": {
     "production": [
@@ -56,6 +57,8 @@
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.19.0",
     "@preact/preset-vite": "^2.10.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/preact": "^3.2.4",
     "@types/node": "^22.13.0",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
     "@typescript-eslint/parser": "^8.22.0",
@@ -64,11 +67,13 @@
     "eslint-plugin-react": "^7.37.4",
     "globals": "^15.14.0",
     "http-proxy-middleware": "^3.0.3",
+    "jsdom": "^26.0.0",
     "postcss": "^8.5.1",
     "rollup-plugin-visualizer": "^5.14.0",
     "sass": "^1.83.4",
     "sass-embedded": "^1.83.4",
     "typescript": "^5.7.3",
+    "vitest": "^3.0.9",
     "webpack": "^5.97.1"
   }
 }
