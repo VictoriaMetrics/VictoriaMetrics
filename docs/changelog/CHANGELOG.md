@@ -137,6 +137,10 @@ Released at 2025-02-10
 
 Released at 2025-03-07
 
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): fix the incorrect caching of extMetricsIDs when a query timeout error occurs. This can lead to incorrect query results. Thanks to @changshun-shi for [the bug report issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8345).
@@ -281,7 +285,11 @@ See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
 
 Released at 2025-03-07
 
-BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly apply the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter) for the `rows_inserted` limit type. Previously, the rate limit for this type was ignored.
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly apply the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter) for the `rows_inserted` limit type. Previously, the rate limit for this type was ignored.
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly handle HTTP requests with path ending with a trailing `/` when using the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter). Previously, the trailing slash was removed and caused an incorrect redirect path when visiting VMUI. Thanks to @jindov for [the bug report issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8439).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent possible panic for `foo @ bar` expression when first sample in `bar` starts with `NaN` or starts long after first sample in `foo`. Now, VM will try to find first non-NaN value in `bar` and could yield an error `@ modifier must return a non-NaN value` if it won't find it. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): prevent panic when using with rules that have zero interval: `-downsampling.period=5m:5m,0s:0s`. Such rule configuration shouldn't be rejected and cause an error when used. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8454).
@@ -360,6 +368,10 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 ## [v1.102.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.10)
 
 Released at 2025-01-14
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
