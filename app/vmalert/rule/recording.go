@@ -30,6 +30,7 @@ type RecordingRule struct {
 	GroupID   uint64
 	GroupName string
 	File      string
+	Debug     bool
 
 	q datasource.Querier
 
@@ -91,6 +92,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
+		Debug:     cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
@@ -168,9 +170,8 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 		curState.Err = fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
 		return nil, curState.Err
 	}
-	if res.IsPartial != nil && *res.IsPartial {
-		logger.Infof("group %q %s; rule: %q", rr.GroupName, "response is partial", rr.Name)
-	}
+
+	rr.logDebugf(ts, "query returned %d samples (elapsed: %s) (isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
 
 	qMetrics := res.Data
 	numSeries := len(qMetrics)
@@ -203,6 +204,17 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 	}
 	rr.lastEvaluation = curEvaluation
 	return tss, nil
+}
+
+func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
+	if !rr.Debug {
+		return
+	}
+	prefix := fmt.Sprintf("DEBUG recording rule %q:%q (%d) at %v: ",
+		rr.GroupName, rr.Name, rr.RuleID, at.Format(time.RFC3339))
+
+	msg := fmt.Sprintf(format, args...)
+	logger.Infof("%s", prefix+msg)
 }
 
 func stringToLabels(s string) []prompbmarshal.Label {

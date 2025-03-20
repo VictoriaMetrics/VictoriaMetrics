@@ -105,3 +105,11 @@ func isSecreteHeader(str string) bool {
 	}
 	return false
 }
+
+func isPartialResponse(res datasource.Result) bool {
+	var v bool
+	if res.IsPartial != nil && *res.IsPartial {
+		v = true
+	}
+	return v
+}
