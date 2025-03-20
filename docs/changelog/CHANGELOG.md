@@ -285,9 +285,9 @@ See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
 
 Released at 2025-03-07
 
-**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly apply the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter) for the `rows_inserted` limit type. Previously, the rate limit for this type was ignored.
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly handle HTTP requests with path ending with a trailing `/` when using the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter). Previously, the trailing slash was removed and caused an incorrect redirect path when visiting VMUI. Thanks to @jindov for [the bug report issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8439).
@@ -369,9 +369,9 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2025-01-14
 
-**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
@@ -477,6 +477,10 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 ## [v1.97.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.15)
 
 Released at 2025-01-14
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
