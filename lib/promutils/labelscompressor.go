@@ -284,8 +284,10 @@ func (lm *labelsMap) cleanup(labelToIdx *sync.Map) {
 		// TODO: test sync.MAP reduce memory on delete.
 		labelToIdx.Delete(lm.mutable[i])
 	}
-	pReadOnly.idxToLabels = append(pReadOnly.idxToLabels[:0], pReadOnly.idxToLabels[:diff]...)
-	pReadOnly.offset += diff
+	newReadOnlyLabelsMap := &readOnlyLabelsMap{}
+	newReadOnlyLabelsMap.idxToLabels = append(newReadOnlyLabelsMap.idxToLabels, pReadOnly.idxToLabels[:diff]...)
+	newReadOnlyLabelsMap.offset += diff
+	lm.readOnly.Store(newReadOnlyLabelsMap)
 
 	lm.cleanupScheduled.Store(false)
 	lm.mutableLock.Unlock()
