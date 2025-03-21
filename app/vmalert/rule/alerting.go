@@ -137,7 +137,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:     group.Name,
 		File:          group.File,
 		EvalInterval:  group.Interval,
-		Debug:         cfg.Debug,
+		Debug:         cfg.Debug || group.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),

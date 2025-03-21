@@ -436,6 +436,7 @@ func TestRecordingRuleExec_Partial(t *testing.T) {
 			entries: make([]StateEntry, 10),
 		},
 	}
+	rule.Debug = true
 	rule.q = fq
 	got, err := rule.exec(context.TODO(), ts, 0)
 	want := []prompbmarshal.TimeSeries{
