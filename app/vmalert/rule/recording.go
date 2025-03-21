@@ -92,7 +92,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
-		Debug:     cfg.Debug,
+		Debug:     cfg.Debug || group.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),

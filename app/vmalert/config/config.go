@@ -50,6 +50,8 @@ type Group struct {
 	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// EvalAlignment will make the timestamp of group query requests be aligned with interval
 	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
+	// Debug enables debug logs for the group
+	Debug bool `yaml:"debug,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]any `yaml:",inline"`
 }
