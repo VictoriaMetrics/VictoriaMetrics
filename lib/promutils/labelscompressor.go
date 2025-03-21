@@ -11,6 +11,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+var reuseThreshold = uint64(100000)   // TODO: replace dummy value with a real one
+var accessThreshold = uint64(200000)  // TODO: replace dummy value with a real one
+var cleanupThreshold = uint64(300000) // TODO: replace dummy value with a real one
+
 // LabelsCompressor compresses []prompbmarshal.Label into short binary strings
 type LabelsCompressor struct {
 	labelToIdx sync.Map
@@ -49,13 +53,17 @@ func (lc *LabelsCompressor) Compress(dst []byte, labels []prompbmarshal.Label) [
 }
 
 func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label) {
+	nextID := lc.nextIdx.Load()
+	lowestReusableID := nextID - reuseThreshold
+
 	if len(labels) == 0 {
 		return
 	}
 	_ = dst[len(labels)-1]
 	for i, label := range labels {
 		v, ok := lc.labelToIdx.Load(label)
-		if !ok {
+		// TODO: if the label idx is too low (below lowestReusableID), we consider it missing and generate new one
+		if !ok || v.(uint64) < lowestReusableID {
 			idx := lc.nextIdx.Add(1)
 			v = idx
 			labelCopy := cloneLabel(label)
@@ -79,6 +87,10 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label)
 			lc.totalSizeBytes.Add(entrySizeBytes)
 		}
 		dst[i] = v.(uint64)
+	}
+
+	if lc.idxToLabel.needCleanup() {
+		lc.idxToLabel.cleanup(&lc.labelToIdx)
 	}
 }
 
@@ -130,7 +142,15 @@ func (lc *LabelsCompressor) Decompress(dst []prompbmarshal.Label, src []byte) []
 }
 
 func (lc *LabelsCompressor) decompress(dst []prompbmarshal.Label, src []uint64) []prompbmarshal.Label {
+	nextID := lc.nextIdx.Load()
+	lowestAccessibleID := nextID - accessThreshold
+
 	for _, idx := range src {
+		if idx < lowestAccessibleID {
+			// TODO: should only happen in extreme cases
+			logger.Panicf("TODO: hint that the unique labels rate is too high, or there is aggreaget interval is too high")
+		}
+
 		label, ok := lc.idxToLabel.Load(idx)
 		if !ok {
 			logger.Panicf("BUG: missing label for idx=%d", idx)
@@ -144,11 +164,13 @@ func (lc *LabelsCompressor) decompress(dst []prompbmarshal.Label, src []uint64) 
 //
 // uint64 keys must be packed close to 0. Otherwise the labelsMap structure will consume too much memory.
 type labelsMap struct {
-	readOnly atomic.Pointer[[]*prompbmarshal.Label]
+	readOnly atomic.Pointer[readOnlyLabelsMap]
 
 	mutableLock sync.Mutex
 	mutable     map[uint64]*prompbmarshal.Label
 	misses      uint64
+
+	cleanupScheduled atomic.Bool
 }
 
 // Store stores label under the given idx.
@@ -160,6 +182,7 @@ func (lm *labelsMap) Store(idx uint64, label prompbmarshal.Label) {
 		lm.mutable = make(map[uint64]*prompbmarshal.Label)
 	}
 	lm.mutable[idx] = &label
+
 	lm.mutableLock.Unlock()
 }
 
@@ -171,8 +194,8 @@ func (lm *labelsMap) Store(idx uint64, label prompbmarshal.Label) {
 //
 // The performance of Load() scales linearly with CPU cores.
 func (lm *labelsMap) Load(idx uint64) (prompbmarshal.Label, bool) {
-	if pReadOnly := lm.readOnly.Load(); pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
-		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
+	if pReadOnly := lm.readOnly.Load(); pReadOnly != nil && (idx-pReadOnly.offset) < uint64(len(pReadOnly.idxToLabels)) {
+		if pLabel := pReadOnly.idxToLabels[idx-pReadOnly.offset]; pLabel != nil {
 			// Fast path - the label for the given idx has been found in lm.readOnly.
 			return *pLabel, true
 		}
@@ -187,9 +210,9 @@ func (lm *labelsMap) loadSlow(idx uint64) (prompbmarshal.Label, bool) {
 
 	// Try loading label from readOnly, since it could be updated while acquiring mutableLock.
 	pReadOnly := lm.readOnly.Load()
-	if pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
-		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
-			lm.mutableLock.Unlock()
+	if pReadOnly != nil && (idx-pReadOnly.offset) < uint64(len(pReadOnly.idxToLabels)) {
+		if pLabel := pReadOnly.idxToLabels[idx-pReadOnly.offset]; pLabel != nil {
+			// Fast path - the label for the given idx has been found in lm.readOnly.
 			return *pLabel, true
 		}
 	}
@@ -197,7 +220,7 @@ func (lm *labelsMap) loadSlow(idx uint64) (prompbmarshal.Label, bool) {
 	// The label for the idx wasn't found in readOnly. Search it in mutable.
 	lm.misses++
 	pLabel := lm.mutable[idx]
-	if pReadOnly == nil || lm.misses > uint64(len(*pReadOnly)) {
+	if pReadOnly == nil || lm.misses > uint64(len(pReadOnly.idxToLabels)) {
 		lm.moveMutableToReadOnlyLocked(pReadOnly)
 		lm.misses = 0
 	}
@@ -209,26 +232,66 @@ func (lm *labelsMap) loadSlow(idx uint64) (prompbmarshal.Label, bool) {
 	return *pLabel, true
 }
 
-func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompbmarshal.Label) {
+func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *readOnlyLabelsMap) {
 	if len(lm.mutable) == 0 {
 		// Nothing to move
 		return
 	}
 
-	var labels []*prompbmarshal.Label
+	newReadOnlyLabelsMap := &readOnlyLabelsMap{}
 	if pReadOnly != nil {
-		labels = append(labels, *pReadOnly...)
+		newReadOnlyLabelsMap.idxToLabels = append(newReadOnlyLabelsMap.idxToLabels, pReadOnly.idxToLabels...)
 	}
 	for idx, pLabel := range lm.mutable {
-		if idx < uint64(len(labels)) {
-			labels[idx] = pLabel
+		if idx < uint64(len(newReadOnlyLabelsMap.idxToLabels)) {
+			newReadOnlyLabelsMap.idxToLabels[idx] = pLabel
 		} else {
-			for idx > uint64(len(labels)) {
-				labels = append(labels, nil)
+			for idx > uint64(len(newReadOnlyLabelsMap.idxToLabels)) {
+				newReadOnlyLabelsMap.idxToLabels = append(newReadOnlyLabelsMap.idxToLabels, nil)
 			}
-			labels = append(labels, pLabel)
+			newReadOnlyLabelsMap.idxToLabels = append(newReadOnlyLabelsMap.idxToLabels, pLabel)
 		}
 	}
+
 	clear(lm.mutable)
-	lm.readOnly.Store(&labels)
+	lm.readOnly.Store(newReadOnlyLabelsMap)
+}
+
+func (lm *labelsMap) needCleanup() bool {
+	pReadOnly := lm.readOnly.Load()
+	if pReadOnly == nil {
+		return false
+	}
+	if len(pReadOnly.idxToLabels) < 300000 {
+		return false
+	}
+
+	return lm.cleanupScheduled.CompareAndSwap(false, true)
+}
+
+func (lm *labelsMap) cleanup(labelToIdx *sync.Map) {
+	lm.mutableLock.Lock()
+
+	pReadOnly := lm.readOnly.Load()
+	if pReadOnly == nil {
+		logger.Panicf("TODO: bug")
+	}
+
+	lm.moveMutableToReadOnlyLocked(pReadOnly)
+
+	diff := cleanupThreshold - accessThreshold
+	for i := uint64(0); i < diff; i++ {
+		// TODO: test sync.MAP reduce memory on delete.
+		labelToIdx.Delete(lm.mutable[i])
+	}
+	pReadOnly.idxToLabels = append(pReadOnly.idxToLabels[:0], pReadOnly.idxToLabels[:diff]...)
+	pReadOnly.offset += diff
+
+	lm.cleanupScheduled.Store(false)
+	lm.mutableLock.Unlock()
+}
+
+type readOnlyLabelsMap struct {
+	idxToLabels []*prompbmarshal.Label
+	offset      uint64
 }
