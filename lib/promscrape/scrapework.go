@@ -354,7 +354,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// Too big jitter. Adjust timestamp
 				timestamp = t
 			}
-			sw.scrapeAndLogError(timestamp, t)
+			sw.scrapeAndLogError(timestamp, time.Now().UnixNano()/1e6)
 		}
 	}
 }
