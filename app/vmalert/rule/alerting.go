@@ -137,7 +137,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:     group.Name,
 		File:          group.File,
 		EvalInterval:  group.Interval,
-		Debug:         cfg.Debug,
+		Debug:         cfg.Debug || group.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
@@ -408,8 +408,8 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
-	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.Samples, curState.Duration)
 
+	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s) (isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err
