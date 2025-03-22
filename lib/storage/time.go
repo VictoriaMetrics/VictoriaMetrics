@@ -79,6 +79,16 @@ func timestampToPartitionName(timestamp int64) string {
 	return t.Format("2006_01")
 }
 
+// partitionNameToTimestamp returns time for the given partition name.
+// TODO(@rtm0): Reuse in fromPartitionName()
+func partitionNameToTime(name string) (time.Time, error) {
+	t, err := time.Parse("2006_01", name)
+	if err != nil {
+		return t, fmt.Errorf("cannot parse partition name %q: %w", name, err)
+	}
+	return t, nil
+}
+
 // fromPartitionName initializes tr from the given partition name.
 func (tr *TimeRange) fromPartitionName(name string) error {
 	t, err := time.Parse("2006_01", name)
@@ -102,6 +112,12 @@ func (tr *TimeRange) fromPartitionTime(t time.Time) {
 	maxTime := time.Date(y, m+1, 1, 0, 0, 0, 0, time.UTC)
 	tr.MinTimestamp = minTime.Unix() * 1e3
 	tr.MaxTimestamp = maxTime.Unix()*1e3 - 1
+}
+
+// overlapsWith returns true if the time range overlaps with the given time
+// range.
+func (tr *TimeRange) overlapsWith(v TimeRange) bool {
+	return tr.MinTimestamp <= v.MaxTimestamp && tr.MaxTimestamp >= v.MinTimestamp
 }
 
 const msecPerDay = 24 * 3600 * 1000
