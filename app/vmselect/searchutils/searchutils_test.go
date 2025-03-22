@@ -30,7 +30,7 @@ func TestGetExtraTagFilters(t *testing.T) {
 		}
 		got := tagFilterssToStrings(result)
 		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("unxpected result for GetExtraTagFilters\ngot:  %s\nwant: %s", got, want)
+			t.Fatalf("unexpected result for GetExtraTagFilters\ngot:  %s\nwant: %s", got, want)
 		}
 	}
 	f(t, httpReqWithForm("extra_label=label=value"),
@@ -99,7 +99,8 @@ func TestParseMetricSelectorSuccess(t *testing.T) {
 	f(`{foo="bar"}`)
 	f(`{:f:oo=~"bar.+"}`)
 	f(`foo {bar != "baz"}`)
-	f(` foo { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
+	f(` { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
+	f(` { bar !~ "^ddd(x+)$", a="ss", "foo"}  `)
 	f(`(foo)`)
 	f(`\п\р\и\в\е\т{\ы="111"}`)
 }
@@ -132,7 +133,7 @@ func TestJoinTagFilterss(t *testing.T) {
 		result := JoinTagFilterss(src, etfs)
 		got := tagFilterssToStrings(result)
 		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("unxpected result for JoinTagFilterss\ngot:  %s\nwant: %v", got, want)
+			t.Fatalf("unexpected result for JoinTagFilterss\ngot:  %s\nwant: %v", got, want)
 		}
 	}
 	// Single tag filter
@@ -141,7 +142,7 @@ func TestJoinTagFilterss(t *testing.T) {
 	), nil, []string{
 		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
 	})
-	// Miltiple tag filters
+	// Multiple tag filters
 	f(t, joinTagFilters(
 		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),

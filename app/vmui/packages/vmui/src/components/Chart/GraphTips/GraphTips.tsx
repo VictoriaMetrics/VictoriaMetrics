@@ -5,7 +5,7 @@ import { TipIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Modal from "../../Main/Modal/Modal";
 import useBoolean from "../../../hooks/useBoolean";
-import tips from "./contants/tips";
+import tips from "./constants/tips";
 
 const GraphTips: FC = () => {
   const {

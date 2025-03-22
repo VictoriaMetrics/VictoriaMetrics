@@ -8,7 +8,6 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -792,7 +791,7 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 	if err != nil {
 		return nil, err
 	}
-	labels, err := vmstorage.SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
+	labels, err := vmstorage.SearchLabelNames(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search on time range: %w", err)
 	}
@@ -865,7 +864,7 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 	if err != nil {
 		return nil, err
 	}
-	labelValues, err := vmstorage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, sq.MaxMetrics, deadline.Deadline())
+	labelValues, err := vmstorage.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search on time range for labelName=%q: %w", labelName, err)
 	}
@@ -1002,9 +1001,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
-	startTime := time.Now()
 	sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
-	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
 	workCh := make(chan *exportWork, gomaxprocs*8)
@@ -1142,9 +1139,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	startTime := time.Now()
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
-	indexSearchDuration.UpdateDuration(startTime)
 	type blockRefs struct {
 		brs []blockRef
 	}
@@ -1296,8 +1291,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	return &rss, nil
 }
 
-var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds`)
-
 type blockRef struct {
 	partRef storage.PartRef
 	addr    tmpBlockAddr
@@ -1374,3 +1367,18 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
+
+// GetMetricNamesStats returns statistic for timeseries metric names usage.
+func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+	qt = qt.NewChild("get metric names usage statistics with limit: %d, less or equal to: %d, match pattern=%q", limit, le, matchPattern)
+	defer qt.Done()
+	return vmstorage.GetMetricNamesStats(qt, limit, le, matchPattern)
+}
+
+// ResetMetricNamesStats resets state of metric names usage
+func ResetMetricNamesStats(qt *querytracer.Tracer) error {
+	qt = qt.NewChild("reset metric names usage stats")
+	defer qt.Done()
+	vmstorage.ResetMetricNamesStats(qt)
+	return nil
+}

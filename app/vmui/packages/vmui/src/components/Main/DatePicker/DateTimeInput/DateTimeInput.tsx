@@ -46,7 +46,7 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
     onChange(maskedValue);
   };
 
-  const handleKeyUp = (e: KeyboardEvent) => {
+  const handleKeyUp = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       onChange(maskedValue);
       setAwaitChangeForEnter(true);

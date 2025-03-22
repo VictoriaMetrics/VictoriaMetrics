@@ -266,7 +266,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	des := fs.MustReadDir(partitionsPath)
 	ptws := make([]*partitionWrapper, len(des))
 
-	// Open partitions in parallel. This should improve VictoriaLogs initializiation duration
+	// Open partitions in parallel. This should improve VictoriaLogs initialization duration
 	// when it opens many partitions.
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
@@ -544,22 +544,22 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	for i, ts := range lr.timestamps {
 		day := ts / nsecsPerDay
 		if day < minAllowedDay {
-			rf := RowFormatter(lr.rows[i])
+			line := MarshalFieldsToJSON(nil, lr.rows[i])
 			tsf := TimeFormatter(ts)
 			minAllowedTsf := TimeFormatter(minAllowedDay * nsecsPerDay)
 			tooSmallTimestampLogger.Warnf("skipping log entry with too small timestamp=%s; it must be bigger than %s according "+
 				"to the configured -retentionPeriod=%dd. See https://docs.victoriametrics.com/victorialogs/#retention ; "+
-				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), &rf)
+				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), line)
 			s.rowsDroppedTooSmallTimestamp.Add(1)
 			continue
 		}
 		if day > maxAllowedDay {
-			rf := RowFormatter(lr.rows[i])
+			line := MarshalFieldsToJSON(nil, lr.rows[i])
 			tsf := TimeFormatter(ts)
 			maxAllowedTsf := TimeFormatter(maxAllowedDay * nsecsPerDay)
 			tooBigTimestampLogger.Warnf("skipping log entry with too big timestamp=%s; it must be smaller than %s according "+
 				"to the configured -futureRetention=%dd; see https://docs.victoriametrics.com/victorialogs/#retention ; "+
-				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), &rf)
+				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), line)
 			s.rowsDroppedTooBigTimestamp.Add(1)
 			continue
 		}

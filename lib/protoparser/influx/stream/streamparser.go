@@ -10,8 +10,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -21,6 +21,8 @@ var (
 	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 	trimTimestamp  = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
+	forceStreamMode = flag.Bool("influx.forceStreamMode", false, "Force stream mode parsing for ingested data. "+
+		"See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 )
 
 // Parse parses r with the given args and calls callback for the parsed rows.
@@ -28,55 +30,46 @@ var (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
+func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
+	tsMultiplier := getTimestampMultiplier(precision)
 
-	if isGzipped {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped influx line protocol data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+	if *forceStreamMode || isStreamMode {
+		// Process lines in a streaming fashion. Invalid lines are skipped.
+		return parseStreamMode(r, encoding, tsMultiplier, db, callback)
 	}
 
-	tsMultiplier := int64(0)
-	switch precision {
-	case "ns":
-		tsMultiplier = 1e6
-	case "u", "us", "µ":
-		tsMultiplier = 1e3
-	case "ms":
-		tsMultiplier = 1
-	case "s":
-		tsMultiplier = -1e3
-	case "m":
-		tsMultiplier = -1e3 * 60
-	case "h":
-		tsMultiplier = -1e3 * 3600
-	}
-
-	// processing payload altogether
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
-	if !isStreamMode {
-		ctx := getBatchContext(r)
+	// Process the whole request in one go.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
+	readCalls.Inc()
+	err := protoparserutil.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
+		ctx := getBatchContext()
 		defer putBatchContext(ctx)
-		err := ctx.Read()
+
+		err := unmarshal(&ctx.rows, data, tsMultiplier)
 		if err != nil {
 			return err
 		}
-		err = unmarshal(&ctx.rows, ctx.reqBuf.B, tsMultiplier)
-		if err != nil {
-			return fmt.Errorf("cannot parse influx line protocol data: %s; To skip invalid lines switch to stream mode by passing Stream-Mode: \"1\" header with each request", err)
-		}
 		return callback(db, ctx.rows.Rows)
+	})
+	if err != nil {
+		readErrors.Inc()
+		return fmt.Errorf("cannot process influx line protocol data: %w; see https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
 	}
+	return nil
+}
 
-	// processing in a streaming fashion, line-by-line
-	// invalid lines are skipped
-	ctx := getStreamContext(r)
+func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string, callback func(db string, rows []influx.Row) error) error {
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
+	}
+	defer protoparserutil.PutUncompressedReader(reader)
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
@@ -86,7 +79,7 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		uw.tsMultiplier = tsMultiplier
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
-		common.ScheduleUnmarshalWork(uw)
+		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
@@ -96,6 +89,25 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 	return ctx.callbackErr
 }
 
+func getTimestampMultiplier(precision string) int64 {
+	switch precision {
+	case "ns":
+		return 1e6
+	case "u", "us", "µ":
+		return 1e3
+	case "ms":
+		return 1
+	case "s":
+		return -1e3
+	case "m":
+		return -1e3 * 60
+	case "h":
+		return -1e3 * 3600
+	default:
+		return 0
+	}
+}
+
 var (
 	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="influx"}`)
 	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
@@ -103,40 +115,19 @@ var (
 )
 
 type batchContext struct {
-	br     *bufio.Reader
-	reqBuf bytesutil.ByteBuffer
-	rows   influx.Rows
-}
-
-func (ctx *batchContext) Read() error {
-	readCalls.Inc()
-	lr := io.LimitReader(ctx.br, int64(maxRequestSize.IntN()))
-	reqLen, err := ctx.reqBuf.ReadFrom(lr)
-	if err != nil {
-		readErrors.Inc()
-		return err
-	} else if reqLen > int64(maxRequestSize.IntN()) {
-		readErrors.Inc()
-		return fmt.Errorf("too big request; mustn't exceed -influx.maxRequestSize=%d bytes", maxRequestSize.N)
-	}
-	return nil
+	rows influx.Rows
 }
 
 func (ctx *batchContext) reset() {
-	ctx.br.Reset(nil)
-	ctx.reqBuf.Reset()
 	ctx.rows.Reset()
 }
 
-func getBatchContext(r io.Reader) *batchContext {
+func getBatchContext() *batchContext {
 	if v := batchContextPool.Get(); v != nil {
 		ctx := v.(*batchContext)
-		ctx.br.Reset(r)
 		return ctx
 	}
-	return &batchContext{
-		br: bufio.NewReaderSize(r, 64*1024),
-	}
+	return &batchContext{}
 }
 
 func putBatchContext(ctx *batchContext) {
@@ -162,7 +153,7 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
+	ctx.reqBuf, ctx.tailBuf, ctx.err = protoparserutil.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -244,7 +235,7 @@ func (uw *unmarshalWork) runCallback() {
 	ctx.wg.Done()
 }
 
-// Unmarshal implements common.UnmarshalWork
+// Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	_ = unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier)
 	uw.runCallback()

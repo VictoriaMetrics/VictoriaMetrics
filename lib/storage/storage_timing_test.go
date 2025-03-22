@@ -2,22 +2,24 @@ package storage
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
 	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
 )
 
 func BenchmarkStorageAddRows(b *testing.B) {
-	defer fs.MustRemoveAll(b.Name())
+	defer vmfs.MustRemoveAll(b.Name())
 
 	f := func(b *testing.B, numRows int) {
 		b.Helper()
 
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		defer s.MustClose()
 
 		var globalOffset atomic.Uint64
@@ -67,7 +69,7 @@ func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
 				{[]byte("instance"), []byte("1.2.3.4")},
 			},
 		}
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 
 		// Reset timer to exclude expensive initialization from measurement.
 		b.ResetTimer()
@@ -90,7 +92,7 @@ func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
 		b.StopTimer()
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		vmfs.MustRemoveAll(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -122,7 +124,7 @@ func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 			want[i] = name
 		}
 		slices.Sort(want)
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -162,7 +164,7 @@ func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		vmfs.MustRemoveAll(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -198,7 +200,7 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		}
 		want = append(want, "__name__")
 		slices.Sort(want)
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -211,7 +213,7 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		)
 
 		for range b.N {
-			got, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 1e9, 1e9, noDeadline)
+			got, err = s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
 			if err != nil {
 				b.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
 			}
@@ -227,7 +229,7 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		vmfs.MustRemoveAll(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -262,7 +264,7 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 			want[i] = labelValue
 		}
 		slices.Sort(want)
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -274,7 +276,7 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 			err error
 		)
 		for range b.N {
-			got, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
+			got, err = s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
 			if err != nil {
 				b.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
 			}
@@ -290,7 +292,7 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		vmfs.MustRemoveAll(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -317,7 +319,7 @@ func BenchmarkStorageSearchTagValueSuffixes_VariousTimeRanges(b *testing.B) {
 		}
 		slices.Sort(want)
 
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -345,7 +347,7 @@ func BenchmarkStorageSearchTagValueSuffixes_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		vmfs.MustRemoveAll(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -372,7 +374,7 @@ func BenchmarkStorageSearchGraphitePaths_VariousTimeRanges(b *testing.B) {
 		}
 		slices.Sort(want)
 
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -400,7 +402,7 @@ func BenchmarkStorageSearchGraphitePaths_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		vmfs.MustRemoveAll(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -486,4 +488,109 @@ func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, t
 			MaxTimestamp: time.Date(2003, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
+}
+
+func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
+	const (
+		numBatches      = 100
+		numRowsPerBatch = 10000
+		concurrency     = 1
+		splitBatches    = true
+	)
+
+	// Each batch corresponds to a unique date and has a unique set of metric
+	// names.
+	highChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
+		numBatches:           numBatches,
+		numRowsPerBatch:      numRowsPerBatch,
+		sameBatchMetricNames: false, // Each batch has unique set of metric names.
+		sameRowMetricNames:   false, // Within a batch, each metric name is unique.
+		sameBatchDates:       false, // Each batch has a unique date.
+		sameRowDates:         true,  // Within a batch, the date is the same.
+	})
+
+	// Each batch corresponds to a unique date but has the same set of metric
+	// names.
+	noChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
+		numBatches:           numBatches,
+		numRowsPerBatch:      numRowsPerBatch,
+		sameBatchMetricNames: true,  // Each batch has the same set of metric names.
+		sameRowMetricNames:   false, // Within a batch, each metric name is unique.
+		sameBatchDates:       false, // Each batch has a unique date.
+		sameRowDates:         true,  // Within a batch, the date is the same.
+	})
+
+	addRows := func(b *testing.B, disablePerDayIndex bool, batches [][]MetricRow) {
+		b.Helper()
+
+		var (
+			rowsAddedTotal int
+			dataSize       int64
+		)
+
+		path := b.Name()
+		for range b.N {
+			s := MustOpenStorage(path, OpenOptions{
+				DisablePerDayIndex: disablePerDayIndex,
+			})
+			s.AddRows(slices.Concat(batches...), defaultPrecisionBits)
+			s.DebugFlush()
+			if err := s.ForceMergePartitions(""); err != nil {
+				b.Fatalf("ForceMergePartitions() failed unexpectedly: %v", err)
+			}
+
+			// Reopen storage to ensure that index has been written to disk.
+			s.MustClose()
+			s = MustOpenStorage(path, OpenOptions{
+				DisablePerDayIndex: disablePerDayIndex,
+			})
+
+			rowsAddedTotal = numBatches * numRowsPerBatch
+			dataSize = benchmarkDirSize(path + "/data")
+
+			s.MustClose()
+			vmfs.MustRemoveAll(path)
+		}
+
+		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
+		b.ReportMetric(float64(dataSize)/(1024*1024), "data-MiB")
+	}
+
+	b.Run("HighChurnRate/perDayIndexes", func(b *testing.B) {
+		addRows(b, false, highChurnRateData)
+	})
+
+	b.Run("HighChurnRate/noPerDayIndexes", func(b *testing.B) {
+		addRows(b, true, highChurnRateData)
+	})
+
+	b.Run("NoChurnRate/perDayIndexes", func(b *testing.B) {
+		addRows(b, false, noChurnRateData)
+	})
+
+	b.Run("NoChurnRate/noPerDayIndexes", func(b *testing.B) {
+		addRows(b, true, noChurnRateData)
+	})
+}
+
+// benchmarkDirSize calculates the size of a directory.
+func benchmarkDirSize(path string) int64 {
+	var size int64
+	err := fs.WalkDir(os.DirFS(path), ".", func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			panic(err)
+		}
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				panic(err)
+			}
+			size += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	return size
 }

@@ -1361,7 +1361,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -2355,7 +2355,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or missconfiguration errors.",
+          "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or misconfiguration errors.",
           "fieldConfig": {
             "defaults": {
               "color": {

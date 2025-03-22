@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -928,7 +930,7 @@ func TestGroup_Restore(t *testing.T) {
 			},
 		})
 
-	// one active alert with restore labels missmatch
+	// one active alert with restore labels mismatch
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))
@@ -973,7 +975,7 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 		t.Fatalf("expected to get err; got nil")
 	}
 	if !strings.Contains(err.Error(), expErr) {
-		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
+		t.Fatalf("expected to get err %q; got %q instead", expErr, err)
 	}
 }
 
@@ -1248,11 +1250,15 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 		EvalInterval: waitFor,
 		alerts:       make(map[uint64]*notifier.Alert),
 		state:        &ruleState{entries: make([]StateEntry, 10)},
-		metrics: &alertingRuleMetrics{
-			errors: utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name)),
-		},
+		metrics:      getTestAlertingRuleMetrics(name),
 	}
 	return &rule
+}
+
+func getTestAlertingRuleMetrics(name string) *alertingRuleMetrics {
+	m := &alertingRuleMetrics{}
+	m.errors = utils.NewCounter(metrics.NewSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
+	return m
 }
 
 func newTestAlertingRuleWithCustomFields(name string, waitFor, evalInterval, keepFiringFor time.Duration, annotation map[string]string) *AlertingRule {

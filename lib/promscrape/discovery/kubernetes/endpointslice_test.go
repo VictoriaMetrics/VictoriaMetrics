@@ -15,7 +15,7 @@ func TestParseEndpointSliceListFail(t *testing.T) {
 			t.Fatalf("unexpected result, test must fail! data: %s", data)
 		}
 		if len(objectsByKey) != 0 {
-			t.Fatalf("EndpointSliceList must be emptry, got: %v", objectsByKey)
+			t.Fatalf("EndpointSliceList must be empty, got: %v", objectsByKey)
 		}
 	}
 

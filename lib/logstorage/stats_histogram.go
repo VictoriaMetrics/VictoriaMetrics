@@ -154,7 +154,7 @@ func (shp *statsHistogramProcessor) updateStatsForRow(sf statsFunc, br *blockRes
 	return 0
 }
 
-func (shp *statsHistogramProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (shp *statsHistogramProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsHistogramProcessor)
 	shp.h.Merge(&src.h)
 }

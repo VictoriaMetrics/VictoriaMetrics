@@ -97,8 +97,17 @@ type Search struct {
 
 	// storage is used for finding data blocks and MetricName lookup for those
 	// data blocks.
-	// TODO(@rtm0): Or use a list of idbs with refs increased?
 	storage *Storage
+
+	// Partition indexDBs that correspond to the search time range.
+	// These are used for searching metric names by metricID.
+	idbs []*indexDB
+
+	// Legacy indexDBs.
+	// These are used for searching metric names by metricID if searching
+	// partition indexDBs returned no results.
+	legacyIDBPrev *indexDB
+	legacyIDBCurr *indexDB
 
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
@@ -121,6 +130,9 @@ type Search struct {
 	loops int
 
 	prevMetricID uint64
+
+	// metricGroupBuf holds metricGroup used for metric names tracker
+	metricGroupBuf []byte
 }
 
 func (s *Search) reset() {
@@ -128,6 +140,9 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.storage = nil
+	s.idbs = nil
+	s.legacyIDBPrev = nil
+	s.legacyIDBCurr = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -137,6 +152,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricGroupBuf = nil
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -147,6 +163,7 @@ func (s *Search) reset() {
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
+
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -154,6 +171,8 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 
 	s.reset()
 	s.storage = storage
+	s.idbs = storage.tb.GetIndexDBs(tr)
+	s.legacyIDBPrev, s.legacyIDBCurr = storage.getLegacyIndexDBs()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -161,6 +180,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.needClosing = true
 
 	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
@@ -226,6 +246,8 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
+	s.storage.tb.PutIndexDBs(s.idbs)
+	s.storage.putLegacyIndexDBs(s.legacyIDBPrev, s.legacyIDBCurr)
 	s.reset()
 }
 
@@ -266,6 +288,18 @@ func (s *Search) NextMetricBlock() bool {
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
 			}
+			// for performance reasons parse metricGroup conditionally
+			if s.storage.metricsTracker != nil {
+				var err error
+				// MetricName must be sorted and marshalled with MetricName.Marshal()
+				// it guarantees that first tag is metricGroup
+				_, s.metricGroupBuf, err = unmarshalTagValue(s.metricGroupBuf[:0], s.MetricBlockRef.MetricName)
+				if err != nil {
+					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
+					return false
+				}
+				s.storage.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
+			}
 			s.prevMetricID = tsid.MetricID
 		}
 		s.MetricBlockRef.BlockRef = s.ts.BlockRef
@@ -281,15 +315,34 @@ func (s *Search) NextMetricBlock() bool {
 }
 
 func (s *Search) searchMetricName(metricName []byte, metricID uint64, tr TimeRange) ([]byte, bool) {
-	idbs := s.storage.tb.GetIndexDBs(tr)
-	if len(idbs) == 0 {
-		return metricName, false
+	for _, idb := range s.idbs {
+		if idb.tr.overlapsWith(tr) {
+			mn, found := idb.searchMetricName(metricName, metricID, false)
+			if found {
+				return mn, true
+			}
+			// Do not continue, since only one partition indexDB can contain the time range.
+			break
+		}
 	}
-	if len(idbs) > 1 {
-		// The expected time range must fit a single partition.
-		logger.Fatalf("BUG: more than one IndexDB is covered by time range %v", &tr)
+
+	// Fallback to legacy current indexDB if it exists.
+	if s.legacyIDBCurr != nil {
+		mn, found := s.legacyIDBCurr.searchMetricName(metricName, metricID, false)
+		if found {
+			return mn, true
+		}
 	}
-	return idbs[0].searchMetricName(metricName, metricID, false)
+
+	// Fallback to legacy previous indexDB if it exists.
+	if s.legacyIDBPrev != nil {
+		mn, found := s.legacyIDBPrev.searchMetricName(metricName, metricID, false)
+		if found {
+			return mn, true
+		}
+	}
+
+	return metricName, false
 }
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.

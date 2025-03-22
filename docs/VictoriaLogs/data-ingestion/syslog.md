@@ -115,6 +115,7 @@ It is possible configuring VictoriaLogs to accept compressed log messages via `-
 The following compression methods are supported:
 
 - `none` - no compression
+- `zstd` - [zstd compression](https://en.wikipedia.org/wiki/Zstd)
 - `gzip` - [gzip compression](https://en.wikipedia.org/wiki/Gzip)
 - `deflate` - [deflate compression](https://en.wikipedia.org/wiki/Deflate)
 
@@ -139,7 +140,7 @@ For example, the following command starts VictoriaLogs, which writes syslog mess
 
 VictoriaLogs uses `(hostname, app_name, proc_id)` fields as labels for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default.
 It is possible setting other set of labels via `-syslog.streamFields.tcp` and `-syslog.streamFields.udp` command-line flags
-for logs insted via the corresponding `-syslog.listenAddr.tcp` and `-syslog.listenAddr.dup` addresses.
+for logs instead via the corresponding `-syslog.listenAddr.tcp` and `-syslog.listenAddr.dup` addresses.
 For example, the following command starts VictoriaLogs, which uses `(hostname, app_name)` fields as log stream labels
 for logs received at TCP port 514:
 
@@ -157,6 +158,9 @@ For example, the following command starts VictoriaLogs, which drops `proc_id` an
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.ignoreFields.tcp='["prod_id","msg_id"]'
 ```
+
+The list may contain field name prefixes ending with `*` such as `some-prefix*`. In this case all the log fields starting with this prefix
+are ignored during data ingestion.
 
 ## Adding extra fields
 

@@ -8,7 +8,7 @@ as apposed to a unit test that verifies the behavior of a building block of an
 application.
 
 To achieve that an integration test starts an application in a separate process
-and then issues HTTP requets to it and verifies the responses, examines the
+and then issues HTTP requests to it and verifies the responses, examines the
 metrics the app exposes and/or files it creates, etc.
 
 Note that an object of testing may be not just a single app, but several apps
@@ -44,4 +44,4 @@ only from `cluster` branch. Hence, not all test cases suitable to run in both br
 - If test is using binaries from `cluster` branch, then test name should be prefixed 
   with `TestCluster` word
 - If test is using binaries from `master` branch, then test name should be prefixed
-  with `TestVmsingle` word.
+  with `TestSingle` word.

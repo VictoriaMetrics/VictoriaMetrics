@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
@@ -14,20 +14,21 @@ type inmemoryPart struct {
 	// ph contains partHeader information for the given in-memory part.
 	ph partHeader
 
-	columnNames        bytesutil.ByteBuffer
-	metaindex          bytesutil.ByteBuffer
-	index              bytesutil.ByteBuffer
-	columnsHeaderIndex bytesutil.ByteBuffer
-	columnsHeader      bytesutil.ByteBuffer
-	timestamps         bytesutil.ByteBuffer
+	columnNames        chunkedbuffer.Buffer
+	columnIdxs         chunkedbuffer.Buffer
+	metaindex          chunkedbuffer.Buffer
+	index              chunkedbuffer.Buffer
+	columnsHeaderIndex chunkedbuffer.Buffer
+	columnsHeader      chunkedbuffer.Buffer
+	timestamps         chunkedbuffer.Buffer
 
 	messageBloomValues bloomValuesBuffer
 	fieldBloomValues   bloomValuesBuffer
 }
 
 type bloomValuesBuffer struct {
-	bloom  bytesutil.ByteBuffer
-	values bytesutil.ByteBuffer
+	bloom  chunkedbuffer.Buffer
+	values chunkedbuffer.Buffer
 }
 
 func (b *bloomValuesBuffer) reset() {
@@ -49,11 +50,12 @@ func (b *bloomValuesBuffer) NewStreamWriter() bloomValuesStreamWriter {
 	}
 }
 
-// reset resets mp, so it can be re-used
+// reset resets mp, so it can be reused
 func (mp *inmemoryPart) reset() {
 	mp.ph.reset()
 
 	mp.columnNames.Reset()
+	mp.columnIdxs.Reset()
 	mp.metaindex.Reset()
 	mp.index.Reset()
 	mp.columnsHeaderIndex.Reset()
@@ -69,6 +71,7 @@ func (mp *inmemoryPart) mustInitFromRows(lr *LogRows) {
 	mp.reset()
 
 	sort.Sort(lr)
+	lr.sortFieldsInRows()
 
 	bsw := getBlockStreamWriter()
 	bsw.MustInitForInmemoryPart(mp)
@@ -107,6 +110,7 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
+	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
@@ -115,21 +119,22 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
-	fs.MustWriteSync(columnNamesPath, mp.columnNames.B)
-	fs.MustWriteSync(metaindexPath, mp.metaindex.B)
-	fs.MustWriteSync(indexPath, mp.index.B)
-	fs.MustWriteSync(columnsHeaderIndexPath, mp.columnsHeaderIndex.B)
-	fs.MustWriteSync(columnsHeaderPath, mp.columnsHeader.B)
-	fs.MustWriteSync(timestampsPath, mp.timestamps.B)
+	fs.MustWriteStreamSync(columnNamesPath, &mp.columnNames)
+	fs.MustWriteStreamSync(columnIdxsPath, &mp.columnIdxs)
+	fs.MustWriteStreamSync(metaindexPath, &mp.metaindex)
+	fs.MustWriteStreamSync(indexPath, &mp.index)
+	fs.MustWriteStreamSync(columnsHeaderIndexPath, &mp.columnsHeaderIndex)
+	fs.MustWriteStreamSync(columnsHeaderPath, &mp.columnsHeader)
+	fs.MustWriteStreamSync(timestampsPath, &mp.timestamps)
 
-	fs.MustWriteSync(messageBloomFilterPath, mp.messageBloomValues.bloom.B)
-	fs.MustWriteSync(messageValuesPath, mp.messageBloomValues.values.B)
+	fs.MustWriteStreamSync(messageBloomFilterPath, &mp.messageBloomValues.bloom)
+	fs.MustWriteStreamSync(messageValuesPath, &mp.messageBloomValues.values)
 
 	bloomPath := getBloomFilePath(path, 0)
-	fs.MustWriteSync(bloomPath, mp.fieldBloomValues.bloom.B)
+	fs.MustWriteStreamSync(bloomPath, &mp.fieldBloomValues.bloom)
 
 	valuesPath := getValuesFilePath(path, 0)
-	fs.MustWriteSync(valuesPath, mp.fieldBloomValues.values.B)
+	fs.MustWriteStreamSync(valuesPath, &mp.fieldBloomValues.values)
 
 	mp.ph.mustWriteMetadata(path)
 

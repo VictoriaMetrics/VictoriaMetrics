@@ -56,11 +56,16 @@ func (pl *pipeLen) visitSubqueries(_ func(q *Query)) {
 }
 
 func (pl *pipeLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	shards := make([]pipeLenProcessorShard, workersCount)
+	for i := range shards {
+		shards[i].reset()
+	}
+
 	return &pipeLenProcessor{
 		pl:     pl,
 		ppNext: ppNext,
 
-		shards: make([]pipeLenProcessorShard, workersCount),
+		shards: shards,
 	}
 }
 
@@ -103,9 +108,12 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 		br.addResultColumnConst(&shard.rc)
 	} else {
 		// Slow path for other columns
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-			v := c.getValueAtRow(br, rowIdx)
-			vEncoded := shard.getEncodedLen(v)
+		values := c.getValues(br)
+		vEncoded := ""
+		for rowIdx := range values {
+			if rowIdx == 0 || values[rowIdx] != values[rowIdx-1] {
+				vEncoded = shard.getEncodedLen(values[rowIdx])
+			}
 			shard.rc.addValue(vEncoded)
 		}
 		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)

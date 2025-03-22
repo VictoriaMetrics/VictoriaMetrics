@@ -1,8 +1,7 @@
 import { getAppModeParams } from "./app-mode";
 import { replaceTenantId } from "./tenants";
-import { AppType } from "../types/appType";
+import { APP_TYPE, AppType } from "../constants/appType";
 import { getFromStorage } from "./storage";
-const { REACT_APP_TYPE } = process.env;
 
 export const getDefaultServer = (tenantId?: string): string => {
   const { serverURL } = getAppModeParams();
@@ -12,10 +11,10 @@ export const getDefaultServer = (tenantId?: string): string => {
   const defaultURL = window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
   const url = serverURL || storageURL || defaultURL;
 
-  switch (REACT_APP_TYPE) {
-    case AppType.logs:
+  switch (APP_TYPE) {
+    case AppType.victorialogs:
       return logsURL;
-    case AppType.anomaly:
+    case AppType.vmanomaly:
       return storageURL || anomalyURL;
     default:
       return tenantId ? replaceTenantId(url, tenantId) : url;

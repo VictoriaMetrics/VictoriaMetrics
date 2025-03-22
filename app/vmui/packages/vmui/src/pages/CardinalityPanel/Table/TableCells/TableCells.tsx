@@ -23,18 +23,21 @@ const TableCells: FC<CardinalityTableCells> = ({
   const progressPrev = totalSeriesPrev > 0 ? row.valuePrev / totalSeriesPrev * 100 : -1;
   const hasProgresses = [progress, progressPrev].some(p => p === -1);
 
-  const diffPercent = progress - progressPrev;
-  const relationPrevDay = hasProgresses ? "" : `${diffPercent.toFixed(2)}%`;
+  const formattedValue = row.value.toLocaleString("en-US");
+  const formattedPrevValue = row.valuePrev.toLocaleString("en-US");
+  const formattedDiff = Math.abs(row.diff).toLocaleString("en-US");
+
+  const diffPercentByTotal = progress - progressPrev;
+  const relationPrevDay = hasProgresses ? "" : `${Math.abs(diffPercentByTotal).toFixed(2)}%`;
+
+  const diffPercent = `${Math.abs(row.diffPercent).toFixed(2)}%`;
 
   const handleActionClick = () => {
     onActionClick(row.name);
   };
 
   return <>
-    <td
-      className="vm-table-cell"
-      key={row.name}
-    >
+    <td className="vm-table-cell">
       <span
         className={"vm-link vm-link_colored"}
         onClick={handleActionClick}
@@ -42,62 +45,71 @@ const TableCells: FC<CardinalityTableCells> = ({
         {row.name}
       </span>
     </td>
-    <td
-      className="vm-table-cell"
-      key={row.value}
-    >
-      {row.value}
-
-      {!!row.diff && (
-        <Tooltip title={`in relation to the previous day: ${row.valuePrev}`}>
-          <span
-            className={classNames({
-              "vm-dynamic-number": true,
-              "vm-dynamic-number_positive": row.diff < 0,
-              "vm-dynamic-number_negative": row.diff > 0,
-            })}
-          >
-          &nbsp;{row.diff > 0 ? "+" : ""}{row.diff}
-          </span>
-        </Tooltip>
-      )}
+    <td className="vm-table-cell vm-table-cell_compact">
+      {formattedValue}
+    </td>
+    <td className="vm-table-cell vm-table-cell_compact">
+      <Tooltip title={`in relation to the previous day: ${formattedPrevValue}`}>
+        <span
+          className={classNames({
+            "vm-dynamic-number": true,
+            "vm-dynamic-number_positive vm-dynamic-number_down": row.diff < 0,
+            "vm-dynamic-number_negative vm-dynamic-number_up": row.diff > 0,
+          })}
+        >
+          {formattedDiff}
+        </span>
+      </Tooltip>
+    </td>
+    <td className="vm-table-cell vm-table-cell_compact">
+      <Tooltip title={`in relation to the previous day: ${formattedPrevValue}`}>
+        <div
+          className={classNames({
+            "vm-dynamic-number": true,
+            "vm-dynamic-number_positive vm-dynamic-number_down": row.diff < 0,
+            "vm-dynamic-number_negative vm-dynamic-number_up": row.diff > 0,
+          })}
+        >
+          {diffPercent}
+        </div>
+      </Tooltip>
     </td>
     {progress > 0 && (
-      <td
-        className="vm-table-cell"
-        key={row.progressValue}
-      >
+      <td className="vm-table-cell">
         <div className="vm-cardinality-panel-table__progress">
-          <LineProgress value={progress}/>
-          {relationPrevDay && (
-            <Tooltip title={"in relation to the previous day"}>
-              <span
-                className={classNames({
-                  "vm-dynamic-number": true,
-                  "vm-dynamic-number_positive vm-dynamic-number_down": diffPercent < 0,
-                  "vm-dynamic-number_negative vm-dynamic-number_up": diffPercent > 0,
-                })}
-              >
-                {relationPrevDay}
-              </span>
-            </Tooltip>
-          )}
+          <LineProgress
+            value={progress}
+            hideValue
+          />
+          <span className="vm-dynamic-number vm-dynamic-number_static">
+            {progress.toFixed(2)}%
+          </span>
+          <Tooltip title={"in relation to the previous day"}>
+            <span
+              className={classNames({
+                "vm-dynamic-number": true,
+                "vm-dynamic-number_no-change": diffPercentByTotal === 0,
+                "vm-dynamic-number_positive vm-dynamic-number_down": diffPercentByTotal < 0,
+                "vm-dynamic-number_negative vm-dynamic-number_up": diffPercentByTotal > 0,
+              })}
+            >
+              {relationPrevDay}
+            </span>
+          </Tooltip>
         </div>
       </td>
     )}
     <td
       className="vm-table-cell vm-table-cell_right"
-      key={"action"}
     >
       <div className="vm-table-cell__content">
-        <Tooltip title={`Filter by ${row.name}`}>
+        <Tooltip title={<span>Filter by <code>`{row.name}`</code></span>}>
           <Button
             variant="text"
             size="small"
             onClick={handleActionClick}
-          >
-            <PlayCircleOutlineIcon/>
-          </Button>
+            startIcon={<PlayCircleOutlineIcon/>}
+          />
         </Tooltip>
       </div>
     </td>

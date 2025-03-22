@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -65,7 +64,6 @@ func SetDataFlushInterval(d time.Duration) {
 	}
 
 	dataFlushInterval = d
-	mergeset.SetDataFlushInterval(d)
 }
 
 // The maximum number of rawRow items in rawRowsShard.
@@ -919,7 +917,7 @@ func incRefForParts(pws []*partWrapper) {
 // The pt must be detached from table before calling pt.MustClose.
 func (pt *partition) MustClose() {
 	// Notify the background workers to stop.
-	// The pt.partsLock is aquired in order to guarantee that pt.wg.Add() isn't called
+	// The pt.partsLock is acquired in order to guarantee that pt.wg.Add() isn't called
 	// after pt.stopCh is closed and pt.wg.Wait() is called below.
 	pt.partsLock.Lock()
 	close(pt.stopCh)

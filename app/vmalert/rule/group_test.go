@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -41,6 +42,7 @@ func TestUpdateWith(t *testing.T) {
 		g := &Group{
 			Name: "test",
 		}
+		g.metrics = newGroupMetrics(g)
 		qb := &datasource.FakeQuerier{}
 		for _, r := range currentRules {
 			r.ID = config.HashRule(r)
@@ -50,6 +52,7 @@ func TestUpdateWith(t *testing.T) {
 		ng := &Group{
 			Name: "test",
 		}
+		ng.metrics = newGroupMetrics(ng)
 		for _, r := range newRules {
 			r.ID = config.HashRule(r)
 			ng.Rules = append(ng.Rules, ng.newRule(qb, r))
@@ -195,6 +198,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Interval: 100 * time.Hour,
 		updateCh: make(chan *Group),
 	}
+	g.metrics = newGroupMetrics(g)
 	go g.Start(context.Background(), nil, nil, nil)
 
 	rule1 := AlertingRule{
@@ -209,6 +213,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 			&rule1,
 		},
 	}
+	g1.metrics = newGroupMetrics(g1)
 	g.updateCh <- g1
 	time.Sleep(10 * time.Millisecond)
 	g.mu.RLock()
@@ -218,8 +223,9 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 	g.mu.RUnlock()
 
 	rule2 := AlertingRule{
-		Name: "jobDown",
-		Expr: "up{job=\"vmagent\"}==0",
+		RuleID: 1,
+		Name:   "jobDown",
+		Expr:   "up{job=\"vmagent\"}==0",
 		Labels: map[string]string{
 			"foo": "bar",
 			"baz": "qux",
@@ -227,16 +233,31 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 	}
 	g2 := &Group{
 		Rules: []Rule{
+			&rule1,
 			&rule2,
 		},
 	}
+	g2.metrics = newGroupMetrics(g2)
 	g.updateCh <- g2
 	time.Sleep(10 * time.Millisecond)
 	g.mu.RLock()
-	if len(g.Rules[0].(*AlertingRule).Labels) != 2 {
+	if len(g.Rules) != 2 {
+		t.Fatalf("expected to have updated rules")
+	}
+
+	if len(g.Rules[1].(*AlertingRule).Labels) != 2 {
 		t.Fatalf("expected to have updated labels")
 	}
 	g.mu.RUnlock()
+
+	metricsAfter := metrics.GetDefaultSet().ListMetricNames()
+	metricsRegistry := make(map[string]struct{}, len(metricsAfter))
+	for _, m := range metricsAfter {
+		if _, ok := metricsRegistry[m]; ok {
+			t.Fatalf("duplicate metric name %q", m)
+		}
+		metricsRegistry[m] = struct{}{}
+	}
 
 	g.Close()
 }
@@ -512,34 +533,14 @@ func TestGroupStartDelay(t *testing.T) {
 	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:00:30.000+00:00")
 	f("2023-01-01T00:00:31.000+00:00", "2023-01-01T00:05:30.000+00:00")
 
-	// test group with offset smaller than above fixed randSleep,
-	// this way randSleep will always be enough
-	offset := 20 * time.Second
+	// test group with offset
+	offset := 3 * time.Minute
 	g.EvalOffset = &offset
 
-	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:00:30.000+00:00")
-	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:00:30.000+00:00")
-	f("2023-01-01T00:00:31.000+00:00", "2023-01-01T00:05:30.000+00:00")
-
-	// test group with offset bigger than above fixed randSleep,
-	// this way offset will be added to delay
-	offset = 3 * time.Minute
-	g.EvalOffset = &offset
-
-	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:03:30.000+00:00")
-	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:03:30.000+00:00")
-	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:08:30.000+00:00")
-	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:30.000+00:00")
-	f("2023-01-01T00:07:30.000+00:00", "2023-01-01T00:13:30.000+00:00")
-
-	offset = 10 * time.Minute
-	g.EvalOffset = &offset
-	// interval of 1h and key generate a static delay of 6m
-	g.Interval = time.Hour
-
-	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:16:00.000+00:00")
-	f("2023-01-01T00:05:00.000+00:00", "2023-01-01T00:16:00.000+00:00")
-	f("2023-01-01T00:30:00.000+00:00", "2023-01-01T01:16:00.000+00:00")
+	f("2023-01-01T00:00:15.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
+	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
 }
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {
@@ -569,17 +570,11 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		evalAlignment: &disableAlign,
 	}, "2023-08-28T11:11:00+00:00", "2023-08-28T11:10:30+00:00")
 
-	// with eval_offset, find previous offset point + default evalDelay
+	// with eval_offset
 	f(&Group{
 		EvalOffset: &offset,
 		Interval:   time.Hour,
-	}, "2023-08-28T11:11:00+00:00", "2023-08-28T10:30:00+00:00")
-
-	// with eval_offset + default evalDelay
-	f(&Group{
-		EvalOffset: &offset,
-		Interval:   time.Hour,
-	}, "2023-08-28T11:41:00+00:00", "2023-08-28T11:30:00+00:00")
+	}, "2023-08-28T11:30:00+00:00", "2023-08-28T11:30:00+00:00")
 
 	// 1h interval with eval_delay
 	f(&Group{

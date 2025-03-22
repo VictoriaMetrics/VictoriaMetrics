@@ -16,8 +16,134 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix endless group expansion loop bug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8347).
+
+## [v1.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.17.0-victorialogs)
+
+Released at 2025-03-16
+
+**Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
+It is safe upgrading to this release and all the future releases from older releases.**
+
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support zstd compression for all HTTP-based ingestion protocols. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): allow specifying prefixes for log fields, which must be ignored during data ingestion, at `ignore_fields` HTTP query arg and at `VL-Ignore-Fields` HTTP header. For example, `ignore_fields=foo.*,bar.baz.*` will ignore all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), which start from `foo.` or from `bar.baz.`. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+* FEATURE: [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{label in ("v1", ..., "vN")}` and `{label not_in ("v1", ..., "vN")}` syntax. It is equivalent to `{label=~"v1|...|vN"}` and `{label!~"v1|...|vN"}` respectively, where `v1`, ... , `vN` are properly escaped inside regexp. For example, `{app in ("foo.bar","baz")}` is equivalent to `{app=~"foo\\.bar|baz"}` - note that the `.` char is properly escaped inside the regexp.
+* FEATURE: improve performance when processing constant log fields with length exceeding 256 bytes. For example, repeated stack traces.
+
+* BUGFIX: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): return `204 No Content` HTTP response code from `/insert/loki/api/v1/push` endpoint. Previously `200 Success` code was sent. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505).
+* BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly parse `trace_id` and `span_id` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) as hex numbers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8502) for details. Thanks to @forgethub for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8511).
+
+## [v1.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.16.0-victorialogs)
+
+Released at 2025-03-12
+
+* FEATURE: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): automatically parse JSON-encoded log fields from the plaintext log message and store them as separate [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). This behavior allows achieving lower disk space usage and higher query performance comparing to the case when the JSON-encoded log fields were stored in VictoriaLogs as a plaintext log message, which should be parsed at query time with [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe). The previous behaviour can be restored if needed by passing `-loki.disableMessageParsing` command-line flag to VictoriaLogs (the previous behavior isn't recommended because it is less efficient). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8486).
+
+* BUGFIX: [querying](https://docs.victoriametrics.com/victorialogs/querying/): properly parse floating-point numbers with leading zeroes in fractional part (for example, `12.03` or `1.0002`). Parsing for these numbers has been broken in [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8464).
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support floating-point timestamps for [Elasticsearch data ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/#elasticsearch-bulk-api). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8470).
+* BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly convert nested OpenTelemetry attributes into JSON. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8384).
+
+## [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs)
+
+Released at 2025-02-27
+
+* FEATURE: [`pack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_json-pipe): allow packing fields, which start with the given prefixes. For example, `pack_json fields (foo.*, bar.*)` creates a JSON containing all the fields, which start with either `foo.` or `bar.`.
+* FEATURE: [`pack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_logfmt-pipe): allow packing fields, which start with the given prefixes. For example, `pack_logfmt fields (foo.*, bar.*)` creates [logfmt](https://brandur.org/logfmt) message containing all the fields, which start with either `foo.` or `bar.`.
+* FEATURE: expose `vl_http_request_duration_seconds` [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) for [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) at the [/metrics](https://docs.victoriametrics.com/victorialogs/#monitoring) page.
+* FEATURE: allow passing `*` as a subquery inside [`in(*)`, `contains_any(*)` and `contains_all(*)` filters](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter). Such filters are treated as `match all` aka `*`. This is going to be used by [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238#issuecomment-2685447673).
+* FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084-victorialogs/): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
+* FEATURE: provide alternative registry for all VictoriaLogs components at [Quay.io](https://quay.io/organization/victoriametrics): [VictoriaLogs](https://quay.io/repository/victoriametrics/victoria-logs?tab=tags) and [vlogscli](https://quay.io/repository/victoriametrics/vlogscli?tab=tags).
+
+* BUGFIX: do not treat a string containing leading zeros as a number during data ingestion and querying. For example, `00123` string shouldn't be treated as `123` number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361).
+
+## [v1.14.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.14.0-victorialogs)
+
+Released at 2025-02-25
+
+* FEATURE: add [`lt_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#lt_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
+* FEATURE: add [`le_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#le_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller or equal to the other field value.
+
+* BUGFIX: [elasticsearch data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#elasticsearch-bulk-api): support health-check endpoint requested by Jaeger v2. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353).
+* BUGFIX: [`stats_query_range` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats): fix inconsistent result of `stats_query_range` API. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312).
+
+## [v1.13.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.13.0-victorialogs)
+
+Released at 2025-02-22
+
+* FEATURE: add [`contains_all` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_all-filter), which matches logs containing all the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`contains_any` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_any-filter), which matches logs containing at least one of the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`eq_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#eq_field-filter), which can be used for obtaining logs with identical values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`unpack_words` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_words-pipe) for unpacking individual [words](https://docs.victoriametrics.com/victorialogs/logsql/#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into the given destination field as JSON array.
+* FEATURE: add [`json_array_len` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#json_array_len-pipe) for calculating the length of JSON array stored in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+## [v1.12.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.12.0-victorialogs)
+
+Released at 2025-02-20
+
+* FEATURE: [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter): allow using `>`, `>=`, `<` and `<=`. For example, `_time:<2025-02-24Z` selects all the logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) less than `2025-02-24` by UTC. Another example: `_time:>1d` selects all the logs with `_time` field older than one day from the current time. This simplifies querying VictoriaLogs.
+* FEATURE: [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe): allow specifying the list of log fields without parens. For example, `top 5 foo` is equivalent to `top 5 by (foo)`.
+* FEATURE: [`uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe): allow specifying the list of log fields without parens. For example, `uniq foo` is equivalent to `uniq (foo)`.
+* FEATURE: [`unroll` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unroll-pipe): allow specifying the list of log fields without parens. For example, `unroll foo` is equivalent to `unroll (foo)`.
+
+## [v1.11.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.11.0-victorialogs)
+
+Released at 2025-02-19
+
+**Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
+It is safe upgrading to this release and all the future releases from older releases.**
+
+* FEATURE: improve per-field data locality on disk. This reduces overhead related to reading data from unrelated fields during queries. This improves query performance over structured logs with big number of fields (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)) when only a small portion of fields are used in the query.
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce memory usage by up to 4x when ingesting [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/) at high rate into VictoriaLogs.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to limit the number of logs per page in the Group view (client-side). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8334).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to disable the hover effect in the Group view to reduce load when viewing many records. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8135).
+
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): Fixed journald ingestion to support entities with single-character names. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8314).
+
+## [v1.10.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.1-victorialogs)
+
+Released at 2025-02-14
+
+* BUGFIX: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): fix possible `concurrent map writes` panic when using [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions over big number of unique `stats by (...)` groups. The bug has been introduced in [v1.9.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs).
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate `<q> | len(f) f_len | min(f_len)`. Previously it incorrectly returned `0` if the minimum value length for `f` field is bigger than `0`.
+* BUGFIX: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): properly calculate [stats functions with additional filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters). Previously some [stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) could return incorrect results if the additional filter filters out all the values in the processed data block.
+
+## [v1.10.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.0-victorialogs)
+
+Released at 2025-02-12
+
+* FEATURE: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): support parsing of [`span_id`](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-spanid) and [`trace_id`](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-traceid) log fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8255) for details.
+* FEATURE: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): add support for data compression at journald side. See [this pull request](https://github.com/systemd/systemd/pull/34822).
+* FEATURE: [`stats` by time buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets), [`stats` by field buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-field-buckets), [`stats` by IPv4 buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-ipv4-buckets): improve performance for large buckets.
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect the selected tenant for autocomplete suggestions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8042).
+* BUGFIX: [`stats` by time buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets): properly align start of the week to Monday at `stats by (_time:week) ...`. Previously the week was started on Wednesday. The start of the week can be adjusted with [offset](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets-with-timezone-offset). For example, the following query aligns the start of the week to Sunday: `_time:30d | stats by (_time:week offset -1d) count() | sort by (_time)`.
+* BUGFIX: [`stats` by field value buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-field-buckets): properly calculate buckets for negative values.
+* BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with allowed in rfc5424 `\]` character. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8282).
+
+## [v1.9.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.1-victorialogs)
+
+Released at 2025-02-10
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly apply [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8152) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8153) bugfixes. They weren't applied to [`v1.9.0-victorialogs`](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs) by an accident.
+
+## [v1.9.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs)
+
+Released at 2025-02-10
+
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`stats by (...) ...`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) by up to 30% when it is applied to big number of `by (...)` groups.
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) by up to 30% when it is applied to big number of unique values.
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): improve performance for [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions by up to 30% when they are applied to big number of unique values.
 * FEATURE: [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe): return the path to the part where every data block is stored. The path to the part is returned in the `part_path` field. This allows investigating the distribution of data blocks among parts.
 * FEATURE: reduce VictoriaLogs startup time by multiple times when it opens a large datastore with big [retention](https://docs.victoriametrics.com/victorialogs/#retention).
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): accept timestamps with microsecond and nanosecond precision at [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+* FEATURE: [JSON lines data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api): continue parsing lines after encountering parse errors for some lines. Previously the input JSON lines' stream was closed after the first parse error.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the `_msg` field to the list of fields for the group view, allowing users to select multiple fields, including `_msg`, for log display.
+
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly limit [`concurrency` query option](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for [`stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe), [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) and [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe). This prevents from `runtime error: index out of range` panic. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201).
+* BUGFIX: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): properly sort [RFC3339 timestamps](https://www.rfc-editor.org/rfc/rfc3339) with variable sub-second precision. Previously such timestamps were sorted using [natural sorting](https://en.wikipedia.org/wiki/Natural_sort_order), and this could lead to unexpected results. For example, `2025-02-21T10:20:30.9Z` was incorrectly considered smaller than `2025-02-21T10:20:30.012Z`, since the last one had higher decimal value after the last dot.
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): drop log entries with too long field names and log the dropped log entries with the `ignoring log entry with too long field name` message, so human operators could notice and fix the ingestion of incorrect logs ASAP. Previously too long field names were silently truncated to shorter values. This isn't what most users expect. See [why VictoriaLogs has a limit on the field name length](https://docs.victoriametrics.com/victorialogs/faq/#what-is-the-maximum-supported-field-name-length).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix transparency for bars in the hits bar chart to improve visibility. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8152).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix `Group by field` dropdown menu not displaying any options in Group View settings. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8153).
 
 ## [v1.8.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.8.0-victorialogs)
 
@@ -126,7 +252,7 @@ Released at 2024-12-08
 
 Released at 2024-12-06
 
-* FEATURE: add [`rate`](https://docs.victoriametrics.com/victorialogs/logsql/#rate-stats) and [`rate_sum`](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats) stats functions, which can be used for calculating the average per-second rate of matching logs and the average per-second rate of sum over the given numberic [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7415).
+* FEATURE: add [`rate`](https://docs.victoriametrics.com/victorialogs/logsql/#rate-stats) and [`rate_sum`](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats) stats functions, which can be used for calculating the average per-second rate of matching logs and the average per-second rate of sum over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7415).
 * FEATURE: add [`facets` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe), which can be used for returning the most frequent values across all the fields seen in the selected logs. This pipe simplifies logs' exploration.
 * FEATURE: add [`/select/logsql/facets` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-facets), which returns the most frequent values across all the fields seen in the selected logs. This endpoint is going to be used for building faceted search over logs in the [VictoriaLogs web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 
@@ -143,8 +269,8 @@ Released at 2024-12-05
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add frontend-only pagination for table view.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improve memory consumption during data processing. This enhancement reduces the overall memory footprint, leading to better performance and stability.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce memory usage across all tabs for improved performance and stability. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7185).
-* FEATURE: [Grafana Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): use Loki [stream labels](https://grafana.com/docs/loki/latest/get-started/labels/) as VictoriaLogs [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default. The set of stream fields can be overriden via `_stream_fields` query arg or via `VL-Stream-Fields` header as described [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
-* FEATURE: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): use [resource labels](https://opentelemetry.io/docs/concepts/resources/) as VictoriaLogs [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default. The set of stream fields can be overriden via `_stream_fields` query arg or via `VL-Stream-Fields` header as described [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
+* FEATURE: [Grafana Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): use Loki [stream labels](https://grafana.com/docs/loki/latest/get-started/labels/) as VictoriaLogs [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default. The set of stream fields can be overridden via `_stream_fields` query arg or via `VL-Stream-Fields` header as described [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
+* FEATURE: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): use [resource labels](https://opentelemetry.io/docs/concepts/resources/) as VictoriaLogs [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default. The set of stream fields can be overridden via `_stream_fields` query arg or via `VL-Stream-Fields` header as described [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): expose `vl_bytes_ingested_total` [counter](https://docs.victoriametrics.com/keyconcepts/#counter) at `/metrics` page. This counter tracks an estimated number of bytes processed when parsing the ingested logs. This counter is exposed individually per every [supported data ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/) - the protocol name is exposed in the `type` label. For example, `vl_bytes_ingested_total{type="jsonline"}` tracks an estimated number of bytes processed when reading the ingested logs via [json line protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api). Thanks to @tenmozes for the idea and [the initial implementation](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7682).
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): expose `vl_too_long_lines_skipped_total` [counter](https://docs.victoriametrics.com/keyconcepts/#counter) at `/metrics` page. This counter tracks the number of the ingested lines with the length bigger than the value of `-insert.maxLineSizeBytes` command-line flag. Such lines are ignored.
 
@@ -265,7 +391,7 @@ Released at 2024-10-09
 Released at 2024-10-08
 
 * FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): add ability to display results in `logfmt` mode, single-line and multi-line JSON modes according [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#output-modes).
-* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): preserve `less` output after the exit from scrolling mode. This should help re-using previous query results in subsequent queries.
+* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): preserve `less` output after the exit from scrolling mode. This should help reusing previous query results in subsequent queries.
 * FEATURE: add [`len` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#len-pipe) for calculating the length for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value in bytes.
 
 ## [v0.33.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.33.0-victorialogs)

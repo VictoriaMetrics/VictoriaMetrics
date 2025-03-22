@@ -37,12 +37,9 @@ type partHeader struct {
 
 	// BloomValuesShardsCount is the number of (bloom, values) shards in the part.
 	BloomValuesShardsCount uint64
-
-	// BloomValuesFieldsCount is the number of fields with (bloom, values) pairs in the given part.
-	BloomValuesFieldsCount uint64
 }
 
-// reset resets ph for subsequent re-use
+// reset resets ph for subsequent reuse
 func (ph *partHeader) reset() {
 	ph.FormatVersion = 0
 	ph.CompressedSizeBytes = 0
@@ -52,15 +49,14 @@ func (ph *partHeader) reset() {
 	ph.MinTimestamp = 0
 	ph.MaxTimestamp = 0
 	ph.BloomValuesShardsCount = 0
-	ph.BloomValuesFieldsCount = 0
 }
 
-// String returns string represenation for ph.
+// String returns string representation for ph.
 func (ph *partHeader) String() string {
 	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, "+
-		"MinTimestamp=%s, MaxTimestamp=%s, BloomValuesShardsCount=%d, BloomValuesFieldsCount=%d}",
+		"MinTimestamp=%s, MaxTimestamp=%s, BloomValuesShardsCount=%d}",
 		ph.FormatVersion, ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount,
-		timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp), ph.BloomValuesShardsCount, ph.BloomValuesFieldsCount)
+		timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp), ph.BloomValuesShardsCount)
 }
 
 func (ph *partHeader) mustReadMetadata(partPath string) {
@@ -77,26 +73,22 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 
 	if ph.FormatVersion <= 1 {
 		if ph.BloomValuesShardsCount != 0 {
-			logger.Panicf("FATAL: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesShardsCount)
-		}
-		if ph.BloomValuesFieldsCount != 0 {
-			logger.Panicf("FATAL: unexpected BloomValuesFieldsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesFieldsCount)
+			logger.Panicf("FATAL: %s: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", metadataPath, ph.BloomValuesShardsCount)
 		}
 		if ph.FormatVersion == 1 {
 			ph.BloomValuesShardsCount = 8
-			ph.BloomValuesFieldsCount = bloomValuesMaxShardsCount
 		}
 	}
 
 	// Perform various checks
 	if ph.FormatVersion > partFormatLatestVersion {
-		logger.Panicf("FATAL: unsupported part format version; got %d; mustn't exceed %d", partFormatLatestVersion)
+		logger.Panicf("FATAL: %s: unsupported part format version; got %d; mustn't exceed %d", metadataPath, ph.FormatVersion, partFormatLatestVersion)
 	}
 	if ph.MinTimestamp > ph.MaxTimestamp {
-		logger.Panicf("FATAL: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", ph.MinTimestamp, ph.MaxTimestamp)
+		logger.Panicf("FATAL: %s: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", metadataPath, ph.MinTimestamp, ph.MaxTimestamp)
 	}
 	if ph.BlocksCount > ph.RowsCount {
-		logger.Panicf("FATAL: BlocksCount=%d cannot exceed RowsCount=%d", ph.BlocksCount, ph.RowsCount)
+		logger.Panicf("FATAL: %s: BlocksCount=%d cannot exceed RowsCount=%d", metadataPath, ph.BlocksCount, ph.RowsCount)
 	}
 }
 

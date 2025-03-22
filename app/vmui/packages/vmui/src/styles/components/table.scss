@@ -31,6 +31,7 @@
     vertical-align: top;
     line-height: 1.5;
     overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
 
     &__content {
       display: flex;
@@ -87,6 +88,16 @@
       line-height: 1.2;
       width: 100%;
       overflow-wrap: normal;
+    }
+
+    &_compact {
+      white-space: nowrap;
+      width: 100px;
+    }
+
+    &_empty {
+      color: $color-text-secondary;
+      font-style: italic;
     }
   }
 

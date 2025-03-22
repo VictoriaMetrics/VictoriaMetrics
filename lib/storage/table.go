@@ -185,6 +185,11 @@ func (tb *table) addPartitionNolock(pt *partition) {
 		pt: pt,
 	}
 	ptw.incRef()
+
+	// An ugly hack to know which partitions need its ref counter decremented.
+	// See Table.PutIndexDBs().
+	pt.idb.ptw = ptw
+
 	tb.ptws = append(tb.ptws, ptw)
 }
 
@@ -395,26 +400,46 @@ func (tb *table) MustAddRows(rows []rawRow) {
 // corresponds to the given date.
 //
 // If the partition does not exist yet, it will be created.
+//
+// The function increments the ref counter for the found indexDB and the
+// partition it belongs to.
 func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
 	tb.ptwsLock.Lock()
 	defer tb.ptwsLock.Unlock()
 
+	var idb *indexDB
+
 	for _, ptw := range tb.ptws {
 		if ptw.pt.HasTimestamp(timestamp) {
-			// TODO(@rtm0): Icrement partition and idb refs?
-			return ptw.pt.idb
+			idb = ptw.pt.idb
+			break
 		}
 	}
 
-	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
-	tb.addPartitionNolock(pt)
+	if idb == nil {
+		pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
+		tb.addPartitionNolock(pt)
+		idb = pt.idb
+	}
 
-	// TODO(@rtm0): Icrement partition and idb refs?
-	return pt.idb
+	idb.ptw.incRef()
+	idb.incRef()
+
+	return idb
+}
+
+// PutIndexDB decrements the ref counter for the given indexDB and the
+// partition it belongs to.
+func (tb *table) PutIndexDB(idb *indexDB) {
+	idb.decRef()
+	idb.ptw.decRef()
 }
 
 // GetIndexDBs returns the list of IndexDBs whose time ranges overlap with the
 // given time range.
+//
+// The function increments the ref counter for the found indexDBs and the
+// partitions they belong to.
 func (tb *table) GetIndexDBs(tr TimeRange) []*indexDB {
 	tb.ptwsLock.Lock()
 	defer tb.ptwsLock.Unlock()
@@ -423,12 +448,22 @@ func (tb *table) GetIndexDBs(tr TimeRange) []*indexDB {
 
 	for _, ptw := range tb.ptws {
 		if ptw.pt.tr.overlapsWith(tr) {
-			// TODO(@rtm0): Icrement partition and idb refs?
-			idbs = append(idbs, ptw.pt.idb)
+			ptw.incRef()
+			idb := ptw.pt.idb
+			idb.incRef()
+			idbs = append(idbs, idb)
 		}
 	}
 
 	return idbs
+}
+
+// PutIndexDBs decrements the ref counter for the given indexDBs and the
+// partitions they belong to.
+func (tb *table) PutIndexDBs(idbs []*indexDB) {
+	for _, idb := range idbs {
+		tb.PutIndexDB(idb)
+	}
 }
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
@@ -515,6 +550,11 @@ func (tb *table) finalDedupWatcher() {
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
 				// Do not run final dedup for the current month.
+				// For the current month, the samples are countinously
+				// deduplicated by the background in-memory, small, and big part
+				// merge tasks. See:
+				// - partition.mergeParts() in paritiont.go and
+				// - Block.deduplicateSamplesDuringMerge() in block.go.
 				continue
 			}
 			if !ptw.pt.isFinalDedupNeeded() {

@@ -119,7 +119,7 @@ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/chang
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be useful when rules are retrieved via HTTP URL where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent): add service discovery support for [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources. See [these docs](https://docs.victoriametrics.com/sd_configs/#puppetdb_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5744).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): support scraping from Kubernetes Native Sidecars. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7287).
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `metric_relabel_configs` and `relabel_configs` to the `global` section of [scrape configuration](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format). Relabeling configuration specified in `global` section will be pre-pended to relabeling configs of all jobs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6966) and [these docs](https://docs.victoriametrics.com/vmagent/#relabeling) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `metric_relabel_configs` and `relabel_configs` to the `global` section of [scrape configuration](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format). Relabeling configuration specified in `global` section will be prepended to relabeling configs of all jobs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6966) and [these docs](https://docs.victoriametrics.com/vmagent/#relabeling) for details.
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards) for VM single-node, cluster, vmalert, vmagent, VictoriaLogs: add `Restarts` panel to show the events of process restarts. This panel should help correlate events of restart with unexpected behavior of processes.
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `RemoteWriteDroppingData` to track number of dropped samples that weren't sent to remote write URL.
 * FEATURE: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): use `evaluation_interval` as default `interval` value in [test_group](https://docs.victoriametrics.com/vmalert-tool/index.html#lttest_groupgt). This change aligns with promtool behavior.
@@ -728,7 +728,7 @@ Released at 2024-12-13
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.20.3 to 3.21.0. See [alpine 3.21.0 release notes](https://alpinelinux.org/posts/Alpine-3.21.0-released.html).
 * SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
@@ -748,7 +748,7 @@ Released at 2024-11-29
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
@@ -762,7 +762,7 @@ Released at 2024-11-15
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
@@ -776,7 +776,7 @@ Released at 2024-11-04
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outside of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
@@ -787,7 +787,7 @@ Released at 2024-10-21
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): properly add metrics tags for `opentsdb` migration source. Previously it could have empty values. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
@@ -800,7 +800,7 @@ Released at 2024-10-02
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the first non-`NaN` value from [`range_first`](https://docs.victoriametrics.com/metricsql/#range_first) function across all the returned data points. Previously `NaN` data points weren't replaced with the first non-`NaN` value.
 
@@ -830,7 +830,7 @@ Released at 2024-08-28
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fixes `proxy_url` authorization for scrape targets. Previously proxy authorization configuration was ignored for `https` targets. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6771) issue for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6784).

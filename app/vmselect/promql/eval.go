@@ -12,6 +12,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -25,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -814,7 +815,19 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 			Err: fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt)),
 		}
 	}
-	atTimestamp := int64(tssAt[0].Values[0] * 1000)
+	atValue := math.NaN()
+	for _, v := range tssAt[0].Values {
+		if !math.IsNaN(v) {
+			atValue = v
+			break
+		}
+	}
+	if math.IsNaN(atValue) {
+		return nil, &httpserver.UserReadableError{
+			Err: fmt.Errorf("`@` modifier must return a non-NaN value"),
+		}
+	}
+	atTimestamp := int64(atValue * 1000)
 	ecNew := copyEvalConfig(ec)
 	ecNew.Start = atTimestamp
 	ecNew.End = atTimestamp
@@ -1821,7 +1834,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 			samplesScannedTotal.Add(samplesScanned)
 			iafc.updateTimeseries(ts, workerID)
 
-			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be re-used.
+			// ts.Timestamps points to sharedTimestamps. Zero it, so it can be reused.
 			ts.Timestamps = nil
 			ts.denyReuse = false
 		}

@@ -142,6 +142,9 @@ func (c *Client) addOperationDeleteBucketTaggingMiddlewares(stack *middleware.St
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteBucketTaggingValidationMiddleware(stack); err != nil {
 		return err
 	}

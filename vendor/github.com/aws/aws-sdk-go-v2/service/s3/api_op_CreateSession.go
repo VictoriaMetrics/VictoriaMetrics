@@ -179,7 +179,7 @@ type CreateSessionInput struct {
 
 	// Specifies the Amazon Web Services KMS Encryption Context as an additional
 	// encryption context to use for object encryption. The value of this header is a
-	// Base64-encoded string of a UTF-8 encoded JSON, which contains the encryption
+	// Base64 encoded string of a UTF-8 encoded JSON, which contains the encryption
 	// context as key-value pairs. This value is stored as object metadata and
 	// automatically gets passed on to Amazon Web Services KMS for future GetObject
 	// operations on this object.
@@ -203,8 +203,8 @@ type CreateSessionInput struct {
 	// in the same account that't issuing the command, you must use the full Key ARN
 	// not the Key ID.
 	//
-	// Your SSE-KMS configuration can only support 1 [customer managed key] per directory bucket for the
-	// lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// Your SSE-KMS configuration can only support 1 [customer managed key] per directory bucket's lifetime.
+	// The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
@@ -219,7 +219,7 @@ type CreateSessionInput struct {
 	// Amazon S3 encrypts data with SSE-S3. For more information, see [Protecting data with server-side encryption]in the Amazon S3
 	// User Guide.
 	//
-	// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
+	// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Specifies the mode of the session that will be created, either ReadWrite or
@@ -251,7 +251,7 @@ type CreateSessionOutput struct {
 	BucketKeyEnabled *bool
 
 	// If present, indicates the Amazon Web Services KMS Encryption Context to use for
-	// object encryption. The value of this header is a Base64-encoded string of a
+	// object encryption. The value of this header is a Base64 encoded string of a
 	// UTF-8 encoded JSON, which contains the encryption context as key-value pairs.
 	// This value is stored as object metadata and automatically gets passed on to
 	// Amazon Web Services KMS for future GetObject operations on this object.
@@ -340,6 +340,9 @@ func (c *Client) addOperationCreateSessionMiddlewares(stack *middleware.Stack, o
 		return err
 	}
 	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateSessionValidationMiddleware(stack); err != nil {

@@ -1,7 +1,6 @@
 ---
 title: VictoriaMetrics Cloud
 weight: 40
-disableToc: true
 menu:
   docs:
     weight: 40

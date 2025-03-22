@@ -2,10 +2,7 @@ package loki
 
 import (
 	"fmt"
-	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -14,35 +11,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
+
+var maxRequestSize = flagutil.NewBytes("loki.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single Loki request")
 
 var parserPool fastjson.ParserPool
 
 func handleJSON(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsJSONTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
-	}
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
 
 	cp, err := getCommonParams(r)
 	if err != nil {
@@ -53,12 +34,17 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.NewLogMessageProcessor("loki_json")
-	useDefaultStreamFields := len(cp.StreamFields) == 0
-	err = parseJSONRequest(data, lmp, useDefaultStreamFields)
-	lmp.MustClose()
+
+	encoding := r.Header.Get("Content-Encoding")
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.cp.NewLogMessageProcessor("loki_json", false)
+		useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+		err := parseJSONRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
+		httpserver.Errorf(w, r, "cannot read Loki json data: %s", err)
 		return
 	}
 
@@ -66,6 +52,9 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 	// There is no need in updating requestJSONDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	requestJSONDuration.UpdateDuration(startTime)
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505
+	w.WriteHeader(http.StatusNoContent)
 }
 
 var (
@@ -73,9 +62,10 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
+func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
+
 	v, err := p.ParseBytes(data)
 	if err != nil {
 		return fmt.Errorf("cannot parse JSON request body: %w", err)
@@ -90,11 +80,20 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 		return fmt.Errorf("`streams` item in the parsed JSON must contain an array; got %q", streamsV)
 	}
 
+	fields := getFields()
+	defer putFields(fields)
+
+	var msgParser *logstorage.JSONParser
+	if parseMessage {
+		msgParser = logstorage.GetJSONParser()
+		defer logstorage.PutJSONParser(msgParser)
+	}
+
 	currentTimestamp := time.Now().UnixNano()
-	var commonFields []logstorage.Field
+
 	for _, stream := range streams {
 		// populate common labels from `stream` dict
-		commonFields = commonFields[:0]
+		fields.fields = fields.fields[:0]
 		labelsV := stream.Get("stream")
 		var labels *fastjson.Object
 		if labelsV != nil {
@@ -110,7 +109,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 				err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
 				return
 			}
-			commonFields = append(commonFields, logstorage.Field{
+			fields.fields = append(fields.fields, logstorage.Field{
 				Name:  bytesutil.ToUnsafeString(k),
 				Value: bytesutil.ToUnsafeString(vStr),
 			})
@@ -129,8 +128,10 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 			return fmt.Errorf("`values` item in the parsed JSON must contain an array; got %q", linesV)
 		}
 
-		fields := commonFields
+		commonFieldsLen := len(fields.fields)
 		for _, line := range lines {
+			fields.fields = fields.fields[:commonFieldsLen]
+
 			lineA, err := line.Array()
 			if err != nil {
 				return fmt.Errorf("unexpected contents of `values` item; want array; got %q", line)
@@ -152,17 +153,6 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 				ts = currentTimestamp
 			}
 
-			// parse log message
-			msg, err := lineA[1].StringBytes()
-			if err != nil {
-				return fmt.Errorf("unexpected log message type for %q; want string", lineA[1])
-			}
-
-			fields = append(fields[:len(commonFields)], logstorage.Field{
-				Name:  "_msg",
-				Value: bytesutil.ToUnsafeString(msg),
-			})
-
 			// parse structured metadata - see https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
 			if len(lineA) > 2 {
 				structuredMetadata, err := lineA[2].Object()
@@ -177,7 +167,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 						return
 					}
 
-					fields = append(fields, logstorage.Field{
+					fields.fields = append(fields.fields, logstorage.Field{
 						Name:  bytesutil.ToUnsafeString(k),
 						Value: bytesutil.ToUnsafeString(vStr),
 					})
@@ -186,15 +176,45 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 					return fmt.Errorf("error when parsing `structuredMetadata` object: %w", err)
 				}
 			}
+
+			// parse log message
+			msg, err := lineA[1].StringBytes()
+			if err != nil {
+				return fmt.Errorf("unexpected log message type for %q; want string", lineA[1])
+			}
+			allowMsgRenaming := false
+			fields.fields, allowMsgRenaming = addMsgField(fields.fields, msgParser, bytesutil.ToUnsafeString(msg))
+
 			var streamFields []logstorage.Field
 			if useDefaultStreamFields {
-				streamFields = commonFields
+				streamFields = fields.fields[:commonFieldsLen]
 			}
-			lmp.AddRow(ts, fields, streamFields)
+			if allowMsgRenaming {
+				logstorage.RenameField(fields.fields[commonFieldsLen:], msgFields, "_msg")
+			}
+			lmp.AddRow(ts, fields.fields, streamFields)
 		}
 	}
 
 	return nil
+}
+
+func addMsgField(dst []logstorage.Field, msgParser *logstorage.JSONParser, msg string) ([]logstorage.Field, bool) {
+	if msgParser == nil || len(msg) < 2 || msg[0] != '{' || msg[len(msg)-1] != '}' {
+		return append(dst, logstorage.Field{
+			Name:  "_msg",
+			Value: msg,
+		}), false
+	}
+	if msgParser != nil && len(msg) >= 2 && msg[0] == '{' && msg[len(msg)-1] == '}' {
+		if err := msgParser.ParseLogMessage(bytesutil.ToUnsafeBytes(msg)); err == nil {
+			return append(dst, msgParser.Fields...), true
+		}
+	}
+	return append(dst, logstorage.Field{
+		Name:  "_msg",
+		Value: msg,
+	}), false
 }
 
 func parseLokiTimestamp(s string) (int64, error) {
@@ -202,23 +222,5 @@ func parseLokiTimestamp(s string) (int64, error) {
 		// Special case - an empty timestamp must be substituted with the current time by the caller.
 		return 0, nil
 	}
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		// Fall back to parsing floating-point value
-		f, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return 0, err
-		}
-		if f > math.MaxInt64 {
-			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, int64(math.MaxInt64))
-		}
-		if f < math.MinInt64 {
-			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, int64(math.MinInt64))
-		}
-		n = int64(f)
-	}
-	if n < 0 {
-		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than 0", n)
-	}
-	return n, nil
+	return insertutils.ParseUnixTimestamp(s)
 }

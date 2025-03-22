@@ -18,13 +18,13 @@ It has the following features:
 - It supports live tailing - see [these docs](#live-tailing).
 
 This tool can be obtained from the linked release pages at the [changelog](https://docs.victoriametrics.com/victorialogs/changelog/)
-or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags).
+or from docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/vlogscli/tags) and [Quay](https://quay.io/repository/victoriametrics/vlogscli?tab=tags).
 
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.8.0-victorialogs/vlogscli-linux-amd64-v1.8.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v1.8.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.17.0-victorialogs/vlogscli-linux-amd64-v1.17.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v1.17.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
@@ -147,7 +147,7 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
 `vlogscli` supports the following output modes:
 
 * A single JSON line per every result. Type `\s` and press `enter` for this mode.
-* Multline JSON per every result. Type `\m` and press `enter` for this mode.
+* Multiline JSON per every result. Type `\m` and press `enter` for this mode.
 * Compact output. Type `\c` and press `enter` for this mode.
   This mode shows field values as is if the response contains a single field
   (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)

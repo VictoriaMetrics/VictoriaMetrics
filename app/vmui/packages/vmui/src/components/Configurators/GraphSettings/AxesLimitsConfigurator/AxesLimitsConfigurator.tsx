@@ -36,35 +36,43 @@ const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYax
       "vm-axes-limits_mobile": isMobile
     })}
   >
-    <Switch
-      value={yaxis.limits.enable}
-      onChange={toggleEnableLimits}
-      label="Fix the limits for y-axis"
-      fullWidth={isMobile}
-    />
-    <div className="vm-axes-limits-list">
-      {axes.map(axis => (
-        <div
-          className="vm-axes-limits-list__inputs"
-          key={axis}
-        >
-          <TextField
-            label={`Min ${axis}`}
-            type="number"
-            disabled={!yaxis.limits.enable}
-            value={yaxis.limits.range[axis][0]}
-            onChange={createHandlerOnchangeAxis(axis, 0)}
-          />
-          <TextField
-            label={`Max ${axis}`}
-            type="number"
-            disabled={!yaxis.limits.enable}
-            value={yaxis.limits.range[axis][1]}
-            onChange={createHandlerOnchangeAxis(axis, 1)}
-          />
-        </div>
-      ))}
+    <div className="vm-graph-settings-row">
+      <span className="vm-graph-settings-row__label">Fixed Y-axis limits</span>
+      <Switch
+        value={yaxis.limits.enable}
+        onChange={toggleEnableLimits}
+        label={yaxis.limits.enable ? "Enabled" : "Disabled"}
+        fullWidth={isMobile}
+      />
     </div>
+    <span className="vm-legend-configs-item__info">
+      Enables manual setting of min and max values for the y-axis.
+    </span>
+    {yaxis.limits.enable && (
+      <div className="vm-axes-limits-list">
+        {axes.map(axis => (
+          <div
+            className="vm-axes-limits-list__inputs"
+            key={axis}
+          >
+            <TextField
+              label={`Min ${axis}`}
+              type="number"
+              disabled={!yaxis.limits.enable}
+              value={yaxis.limits.range[axis][0]}
+              onChange={createHandlerOnchangeAxis(axis, 0)}
+            />
+            <TextField
+              label={`Max ${axis}`}
+              type="number"
+              disabled={!yaxis.limits.enable}
+              value={yaxis.limits.range[axis][1]}
+              onChange={createHandlerOnchangeAxis(axis, 1)}
+            />
+          </div>
+        ))}
+      </div>
+    )}
   </div>;
 };
 

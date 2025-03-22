@@ -47,7 +47,7 @@ type pipeProcessor interface {
 	// It is in the range 0 ... workersCount-1 .
 	//
 	// It is OK to modify br contents inside writeBlock. The caller mustn't rely on br contents after writeBlock call.
-	// It is forbidden to hold references to br after returning from writeBlock, since the caller may re-use it.
+	// It is forbidden to hold references to br after returning from writeBlock, since the caller may reuse it.
 	//
 	// If any error occurs at writeBlock, then cancel() must be called by pipeProcessor in order to notify worker goroutines
 	// to stop sending new data. The occurred error must be returned from flush().
@@ -162,7 +162,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 	case lex.isKeyword("field_values"):
 		pf, err := parsePipeFieldValues(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot pase 'field_values' pipe: %w", err)
+			return nil, fmt.Errorf("cannot parse 'field_values' pipe: %w", err)
 		}
 		return pf, nil
 	case lex.isKeyword("fields", "keep"):
@@ -195,6 +195,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'join' pipe: %w", err)
 		}
 		return pj, nil
+	case lex.isKeyword("json_array_len"):
+		pl, err := parsePipeJSONArrayLen(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'json_array_len' pipe: %w", err)
+		}
+		return pl, nil
 	case lex.isKeyword("hash"):
 		ph, err := parsePipeHash(lex)
 		if err != nil {
@@ -315,6 +321,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'unpack_syslog' pipe: %w", err)
 		}
 		return pu, nil
+	case lex.isKeyword("unpack_words"):
+		pu, err := parsePipeUnpackWords(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_words' pipe: %w", err)
+		}
+		return pu, nil
 	case lex.isKeyword("unroll"):
 		pu, err := parsePipeUnroll(lex)
 		if err != nil {
@@ -360,6 +372,7 @@ var pipeNames = func() map[string]struct{} {
 		"first",
 		"format",
 		"join",
+		"json_array_len",
 		"hash",
 		"last",
 		"len",
@@ -380,6 +393,7 @@ var pipeNames = func() map[string]struct{} {
 		"unpack_json",
 		"unpack_logfmt",
 		"unpack_syslog",
+		"unpack_words",
 		"unroll",
 	}
 

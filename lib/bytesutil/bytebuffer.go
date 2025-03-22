@@ -6,19 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-)
-
-var (
-	// Verify ByteBuffer implements the given interfaces.
-	_ io.Writer           = &ByteBuffer{}
-	_ fs.MustReadAtCloser = &ByteBuffer{}
-	_ io.ReaderFrom       = &ByteBuffer{}
-
-	// Verify reader implement filestream.ReadCloser interface.
-	_ filestream.ReadCloser = &reader{}
 )
 
 // ByteBuffer implements a simple byte buffer.
@@ -41,19 +29,6 @@ func (bb *ByteBuffer) Reset() {
 func (bb *ByteBuffer) Write(p []byte) (int, error) {
 	bb.B = append(bb.B, p...)
 	return len(p), nil
-}
-
-// MustReadAt reads len(p) bytes starting from the given offset.
-func (bb *ByteBuffer) MustReadAt(p []byte, offset int64) {
-	if offset < 0 {
-		logger.Panicf("BUG: cannot read at negative offset=%d", offset)
-	}
-	if offset > int64(len(bb.B)) {
-		logger.Panicf("BUG: too big offset=%d; cannot exceed len(bb.B)=%d", offset, len(bb.B))
-	}
-	if n := copy(p, bb.B[offset:]); n < len(p) {
-		logger.Panicf("BUG: EOF occurred after reading %d bytes out of %d bytes at offset %d", n, len(p), offset)
-	}
 }
 
 // ReadFrom reads all the data from r to bb until EOF.
@@ -81,11 +56,6 @@ func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 			return int64(offset - bLen), err
 		}
 	}
-}
-
-// MustClose closes bb for subsequent re-use.
-func (bb *ByteBuffer) MustClose() {
-	// Do nothing, since certain code rely on bb reading after MustClose call.
 }
 
 // NewReader returns new reader for the given bb.
@@ -118,7 +88,7 @@ func (r *reader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// MustClose closes bb for subsequent re-use.
+// MustClose closes bb for subsequent reuse.
 func (r *reader) MustClose() {
 	r.bb = nil
 	r.readOffset = 0

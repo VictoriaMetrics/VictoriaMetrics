@@ -19,4 +19,5 @@ export const LOGS_URL_PARAMS = {
   NO_WRAP_LINES: "noWrapLines",
   COMPACT_GROUP_HEADER: "compactGroupHeader",
   DATE_FORMAT: "dateFormat",
+  ROWS_PER_PAGE: "rows_per_page",
 };

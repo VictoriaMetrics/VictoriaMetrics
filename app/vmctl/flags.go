@@ -344,7 +344,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  influxSkipDatabaseLabel,
-			Usage: "Wether to skip adding the label 'db' to timeseries.",
+			Usage: "Whether to skip adding the label 'db' to timeseries.",
 			Value: false,
 		},
 		&cli.BoolFlag{
@@ -596,7 +596,8 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases. \n" +
+				"Rate limit is applied per worker, see `--vm-concurrency`.",
 		},
 		&cli.BoolFlag{
 			Name: vmInterCluster,

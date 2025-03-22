@@ -29,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -38,7 +39,7 @@ var (
 		"It can be overridden on per-query basis via latency_offset arg. "+
 		"Too small value can result in incomplete last points for query results")
 	maxQueryLen = flagutil.NewBytes("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
-	maxLookback = flag.Duration("search.maxLookback", 0, "Synonym to -search.lookback-delta from Prometheus. "+
+	maxLookback = flag.Duration("search.maxLookback", 0, "Synonym to -query.lookback-delta from Prometheus. "+
 		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. "+
 		"See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons")
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
@@ -52,12 +53,13 @@ var (
 
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
 		"When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional).")
-	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
-	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
-	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
-	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
-	maxDeleteSeries     = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
-	maxLabelsAPISeries  = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
+	maxFederateSeries       = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
+	maxExportSeries         = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
+	maxTSDBStatusSeries     = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
+	maxSeriesLimit          = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxDeleteSeries         = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
+	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of `topN` argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/readme/#tsdb-stats")
+	maxLabelsAPISeries      = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
@@ -142,10 +144,13 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		WriteFederate(bb, rs)
 		return sw.maybeFlushBuffer(bb)
 	})
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
@@ -226,10 +231,13 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 		}()
 	}
 	err = <-doneCh
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending the exported csv data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/csv"}`)
@@ -281,10 +289,13 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		bb.B = dst
 		return sw.maybeFlushBuffer(bb)
 	})
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending native data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var exportNativeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/native"}`)
@@ -441,16 +452,19 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		}()
 	}
 	err := <-doneCh
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err == nil {
+		if format == "promapi" {
+			WriteExportPromAPIFooter(bw, qt)
+		}
+		err = bw.Flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("cannot send data to remote client: %w", err)
 	}
-	if err := sw.flush(); err != nil {
-		return fmt.Errorf("cannot send data to remote client: %w", err)
-	}
-	if format == "promapi" {
-		WriteExportPromAPIFooter(bw, qt)
-	}
-	return bw.Flush()
+	return nil
 }
 
 type exportBlock struct {
@@ -524,7 +538,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	defer bufferedwriter.Put(bw)
 	WriteLabelValuesResponse(bw, labelValues, qt)
 	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("canot flush label values to remote client: %w", err)
+		return fmt.Errorf("cannot flush label values to remote client: %w", err)
 	}
 	return nil
 }
@@ -571,8 +585,8 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		if n <= 0 {
 			n = 1
 		}
-		if n > 1000 {
-			n = 1000
+		if n > *maxTSDBStatusTopNSeries {
+			n = *maxTSDBStatusTopNSeries
 		}
 		topN = n
 	}
@@ -972,7 +986,7 @@ func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result
 		// Slow path: remove NaNs.
 		srcTimestamps := ts.Timestamps
 		dstValues := ts.Values[:0]
-		// Do not re-use ts.Timestamps for dstTimestamps, since ts.Timestamps
+		// Do not reuse ts.Timestamps for dstTimestamps, since ts.Timestamps
 		// may be shared among multiple time series.
 		dstTimestamps := make([]int64, 0, len(ts.Timestamps))
 		for j, v := range ts.Values {

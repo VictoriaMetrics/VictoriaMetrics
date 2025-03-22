@@ -181,7 +181,7 @@ make docker-victorialogs-up
 ```
 
 VictoriaLogs will be accessible on the `--httpListenAddr=:9428` port.
-In addition to VictoriaLogs server, the docker compose contains the following componetns:
+In addition to VictoriaLogs server, the docker compose contains the following components:
 * [vector](https://vector.dev/guides/) service for collecting docker logs and sending them to VictoriaLogs;
 * VictoriaMetrics single server to collect metrics from `VictoriaLogs` and `vector`;
 * [grafana](#grafana) is configured with [VictoriaLogs datasource](https://github.com/VictoriaMetrics/victorialogs-datasource).
@@ -209,5 +209,5 @@ Please see more examples on integration of VictoriaLogs with other log shippers 
 * [journald](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/journald)
 * [opentelemetry-collector](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/opentelemetry-collector)
 * [telegraf](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/telegraf)
-* [fluentd]((https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentd)
+* [fluentd](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentd)
 * [datadog-serverless](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-serverless)

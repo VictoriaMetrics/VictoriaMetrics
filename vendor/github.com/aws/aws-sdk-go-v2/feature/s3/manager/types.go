@@ -15,7 +15,7 @@ import (
 // requires payload signing.
 //
 // Note: If using with S3 PutObject to stream an object upload. The SDK's S3
-// Upload Manager(s3manager.Uploader) provides support for streaming
+// Upload Manager(manager.Uploader) provides support for streaming
 // with the ability to retry network errors.
 func ReadSeekCloser(r io.Reader) *ReaderSeekerCloser {
 	return &ReaderSeekerCloser{r}
@@ -137,7 +137,7 @@ func (r *ReaderSeekerCloser) Close() error {
 }
 
 // A WriteAtBuffer provides a in memory buffer supporting the io.WriterAt interface
-// Can be used with the s3manager.Downloader to download content to a buffer
+// Can be used with the manager.Downloader to download content to a buffer
 // in memory. Safe to use concurrently.
 type WriteAtBuffer struct {
 	buf []byte

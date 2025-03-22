@@ -145,10 +145,10 @@ func (pt *partition) mustAddRows(lr *LogRows) {
 	}
 }
 
-func (pt *partition) logNewStream(streamTagsCanonical []byte, fields []Field) {
+func (pt *partition) logNewStream(streamTagsCanonical string, fields []Field) {
 	streamTags := getStreamTagsString(streamTagsCanonical)
-	rf := RowFormatter(fields)
-	logger.Infof("partition %s: new stream %s for log entry %s", pt.path, streamTags, &rf)
+	line := MarshalFieldsToJSON(nil, fields)
+	logger.Infof("partition %s: new stream %s for log entry %s", pt.path, streamTags, line)
 }
 
 func (pt *partition) logIngestedRows(lr *LogRows) {

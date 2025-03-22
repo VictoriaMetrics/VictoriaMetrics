@@ -9,36 +9,176 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
-type hitsMap struct {
+type hitsMapAdaptive struct {
 	stateSizeBudget *int
 
-	u64        map[uint64]*uint64
-	negative64 map[uint64]*uint64
-	strings    map[string]*uint64
+	// concurrency is the number of parallel workers to use when merging shards.
+	//
+	// this field must be updated by the caller before using statsCountUniqProcessor.
+	concurrency uint
+
+	// hm tracks hits until the number of unique values reaches hitsMapAdaptiveMaxLen.
+	// After that hits are tracked by shards.
+	hm hitsMap
+
+	// shards tracks hits for big number of unique values.
+	//
+	// Every shard contains hits for a share of unique values.
+	shards []hitsMap
 
 	// a reduces memory allocations when counting the number of hits over big number of unique values.
 	a chunkedAllocator
 }
 
+// the maximum number of values to track in hitsMapAdaptive.hm before switching to hitsMapAdaptive.shards
+//
+// Too big value may slow down hitsMapMergeParallel() across big number of CPU cores.
+// Too small value may significantly increase RAM usage when hits for big number of unique values are counted.
+const hitsMapAdaptiveMaxLen = 4 << 10
+
+func (hma *hitsMapAdaptive) reset() {
+	*hma = hitsMapAdaptive{}
+}
+
+func (hma *hitsMapAdaptive) init(concurrency uint, stateSizeBudget *int) {
+	hma.reset()
+	hma.stateSizeBudget = stateSizeBudget
+	hma.concurrency = concurrency
+}
+
+func (hma *hitsMapAdaptive) clear() {
+	*hma.stateSizeBudget += hma.stateSize()
+	hma.init(hma.concurrency, hma.stateSizeBudget)
+}
+
+func (hma *hitsMapAdaptive) stateSize() int {
+	n := hma.hm.stateSize()
+	for i := range hma.shards {
+		n += hma.shards[i].stateSize()
+	}
+	return n
+}
+
+func (hma *hitsMapAdaptive) entriesCount() uint64 {
+	if hma.shards == nil {
+		return hma.hm.entriesCount()
+	}
+
+	shards := hma.shards
+	n := uint64(0)
+	for i := range shards {
+		n += shards[i].entriesCount()
+	}
+	return n
+}
+
+func (hma *hitsMapAdaptive) updateStateGeneric(key string, hits uint64) {
+	if n, ok := tryParseUint64(key); ok {
+		hma.updateStateUint64(n, hits)
+		return
+	}
+	if len(key) > 0 && key[0] == '-' {
+		if n, ok := tryParseInt64(key); ok {
+			hma.updateStateNegativeInt64(n, hits)
+			return
+		}
+	}
+	hma.updateStateString(bytesutil.ToUnsafeBytes(key), hits)
+}
+
+func (hma *hitsMapAdaptive) updateStateInt64(n int64, hits uint64) {
+	if n >= 0 {
+		hma.updateStateUint64(uint64(n), hits)
+	} else {
+		hma.updateStateNegativeInt64(n, hits)
+	}
+}
+
+func (hma *hitsMapAdaptive) updateStateUint64(n, hits uint64) {
+	if hma.shards == nil {
+		stateSize := hma.hm.updateStateUint64(&hma.a, n, hits)
+		if stateSize > 0 {
+			*hma.stateSizeBudget -= stateSize
+			hma.probablyMoveToShards(&hma.a)
+		}
+		return
+	}
+	hm := hma.getShardByUint64(n)
+	*hma.stateSizeBudget -= hm.updateStateUint64(&hma.a, n, hits)
+}
+
+func (hma *hitsMapAdaptive) updateStateNegativeInt64(n int64, hits uint64) {
+	if hma.shards == nil {
+		stateSize := hma.hm.updateStateNegativeInt64(&hma.a, n, hits)
+		if stateSize > 0 {
+			*hma.stateSizeBudget -= stateSize
+			hma.probablyMoveToShards(&hma.a)
+		}
+		return
+	}
+	hm := hma.getShardByUint64(uint64(n))
+	*hma.stateSizeBudget -= hm.updateStateNegativeInt64(&hma.a, n, hits)
+}
+
+func (hma *hitsMapAdaptive) updateStateString(key []byte, hits uint64) {
+	if hma.shards == nil {
+		stateSize := hma.hm.updateStateString(&hma.a, key, hits)
+		if stateSize > 0 {
+			*hma.stateSizeBudget -= stateSize
+			hma.probablyMoveToShards(&hma.a)
+		}
+		return
+	}
+	hm := hma.getShardByString(key)
+	*hma.stateSizeBudget -= hm.updateStateString(&hma.a, key, hits)
+}
+
+func (hma *hitsMapAdaptive) probablyMoveToShards(a *chunkedAllocator) {
+	if hma.hm.entriesCount() < hitsMapAdaptiveMaxLen {
+		return
+	}
+	hma.moveToShards(a)
+}
+
+func (hma *hitsMapAdaptive) moveToShards(a *chunkedAllocator) {
+	hma.shards = a.newHitsMaps(hma.concurrency)
+
+	for n, pHits := range hma.hm.u64 {
+		hm := hma.getShardByUint64(n)
+		hm.setStateUint64(n, pHits)
+	}
+	for n, pHits := range hma.hm.negative64 {
+		hm := hma.getShardByUint64(n)
+		hm.setStateNegativeInt64(int64(n), pHits)
+	}
+	for s, pHits := range hma.hm.strings {
+		hm := hma.getShardByString(bytesutil.ToUnsafeBytes(s))
+		hm.setStateString(s, pHits)
+	}
+
+	hma.hm.reset()
+}
+
+func (hma *hitsMapAdaptive) getShardByUint64(n uint64) *hitsMap {
+	h := fastHashUint64(n)
+	shardIdx := h % uint64(len(hma.shards))
+	return &hma.shards[shardIdx]
+}
+
+func (hma *hitsMapAdaptive) getShardByString(v []byte) *hitsMap {
+	h := xxhash.Sum64(v)
+	shardIdx := h % uint64(len(hma.shards))
+	return &hma.shards[shardIdx]
+}
+
+type hitsMap struct {
+	u64        map[uint64]*uint64
+	negative64 map[uint64]*uint64
+	strings    map[string]*uint64
+}
+
 func (hm *hitsMap) reset() {
-	hm.stateSizeBudget = nil
-
-	hm.u64 = nil
-	hm.negative64 = nil
-	hm.strings = nil
-}
-
-func (hm *hitsMap) clear() {
-	*hm.stateSizeBudget += hm.stateSize()
-	hm.init(hm.stateSizeBudget)
-}
-
-func (hm *hitsMap) init(stateSizeBudget *int) {
-	hm.stateSizeBudget = stateSizeBudget
-
-	hm.u64 = make(map[uint64]*uint64)
-	hm.negative64 = make(map[uint64]*uint64)
-	hm.strings = make(map[string]*uint64)
+	*hm = hitsMap{}
 }
 
 func (hm *hitsMap) entriesCount() uint64 {
@@ -47,76 +187,89 @@ func (hm *hitsMap) entriesCount() uint64 {
 }
 
 func (hm *hitsMap) stateSize() int {
-	n := 24*(len(hm.u64)+len(hm.negative64)) + 40*len(hm.strings)
-	for k := range hm.strings {
-		n += len(k)
+	size := 0
+
+	for n, pHits := range hm.u64 {
+		size += int(unsafe.Sizeof(n) + unsafe.Sizeof(pHits) + unsafe.Sizeof(*pHits))
 	}
-	return n
+	for n, pHits := range hm.negative64 {
+		size += int(unsafe.Sizeof(n) + unsafe.Sizeof(pHits) + unsafe.Sizeof(*pHits))
+	}
+	for k, pHits := range hm.strings {
+		size += len(k) + int(unsafe.Sizeof(k)+unsafe.Sizeof(pHits)+unsafe.Sizeof(*pHits))
+	}
+
+	return size
 }
 
-func (hm *hitsMap) updateStateGeneric(key string, hits uint64) {
-	if n, ok := tryParseUint64(key); ok {
-		hm.updateStateUint64(n, hits)
-		return
-	}
-	if len(key) > 0 && key[0] == '-' {
-		if n, ok := tryParseInt64(key); ok {
-			hm.updateStateNegativeInt64(n, hits)
-			return
-		}
-	}
-	hm.updateStateString(bytesutil.ToUnsafeBytes(key), hits)
-}
-
-func (hm *hitsMap) updateStateInt64(n int64, hits uint64) {
-	if n >= 0 {
-		hm.updateStateUint64(uint64(n), hits)
-	} else {
-		hm.updateStateNegativeInt64(n, hits)
-	}
-}
-
-func (hm *hitsMap) updateStateUint64(n, hits uint64) {
+func (hm *hitsMap) updateStateUint64(a *chunkedAllocator, n, hits uint64) int {
 	pHits := hm.u64[n]
 	if pHits != nil {
 		*pHits += hits
-		return
+		return 0
 	}
 
-	pHits = hm.a.newUint64()
+	pHits = a.newUint64()
 	*pHits = hits
-	hm.u64[n] = pHits
-
-	*hm.stateSizeBudget -= 24
+	return int(unsafe.Sizeof(*pHits)) + hm.setStateUint64(n, pHits)
 }
 
-func (hm *hitsMap) updateStateNegativeInt64(n int64, hits uint64) {
+func (hm *hitsMap) setStateUint64(n uint64, pHits *uint64) int {
+	if hm.u64 == nil {
+		hm.u64 = map[uint64]*uint64{
+			n: pHits,
+		}
+		return int(unsafe.Sizeof(hm.u64) + unsafe.Sizeof(n) + unsafe.Sizeof(pHits))
+	}
+	hm.u64[n] = pHits
+	return int(unsafe.Sizeof(n) + unsafe.Sizeof(pHits))
+}
+
+func (hm *hitsMap) updateStateNegativeInt64(a *chunkedAllocator, n int64, hits uint64) int {
 	pHits := hm.negative64[uint64(n)]
 	if pHits != nil {
 		*pHits += hits
-		return
+		return 0
 	}
 
-	pHits = hm.a.newUint64()
+	pHits = a.newUint64()
 	*pHits = hits
-	hm.negative64[uint64(n)] = pHits
-
-	*hm.stateSizeBudget -= 24
+	return int(unsafe.Sizeof(*pHits)) + hm.setStateNegativeInt64(n, pHits)
 }
 
-func (hm *hitsMap) updateStateString(key []byte, hits uint64) {
+func (hm *hitsMap) setStateNegativeInt64(n int64, pHits *uint64) int {
+	if hm.negative64 == nil {
+		hm.negative64 = map[uint64]*uint64{
+			uint64(n): pHits,
+		}
+		return int(unsafe.Sizeof(hm.negative64) + unsafe.Sizeof(uint64(n)) + unsafe.Sizeof(pHits))
+	}
+	hm.negative64[uint64(n)] = pHits
+	return int(unsafe.Sizeof(n) + unsafe.Sizeof(pHits))
+}
+
+func (hm *hitsMap) updateStateString(a *chunkedAllocator, key []byte, hits uint64) int {
 	pHits := hm.strings[string(key)]
 	if pHits != nil {
 		*pHits += hits
-		return
+		return 0
 	}
 
-	keyCopy := hm.a.cloneBytesToString(key)
-	pHits = hm.a.newUint64()
+	keyCopy := a.cloneBytesToString(key)
+	pHits = a.newUint64()
 	*pHits = hits
-	hm.strings[keyCopy] = pHits
+	return len(keyCopy) + int(unsafe.Sizeof(*pHits)) + hm.setStateString(keyCopy, pHits)
+}
 
-	*hm.stateSizeBudget -= len(keyCopy) + 40
+func (hm *hitsMap) setStateString(v string, pHits *uint64) int {
+	if hm.strings == nil {
+		hm.strings = map[string]*uint64{
+			v: pHits,
+		}
+		return int(unsafe.Sizeof(hm.strings) + unsafe.Sizeof(v) + unsafe.Sizeof(pHits))
+	}
+	hm.strings[v] = pHits
+	return int(unsafe.Sizeof(v) + unsafe.Sizeof(pHits))
 }
 
 func (hm *hitsMap) mergeState(src *hitsMap, stopCh <-chan struct{}) {
@@ -126,7 +279,7 @@ func (hm *hitsMap) mergeState(src *hitsMap, stopCh <-chan struct{}) {
 		}
 		pHitsDst := hm.u64[n]
 		if pHitsDst == nil {
-			hm.u64[n] = pHitsSrc
+			hm.setStateUint64(n, pHitsSrc)
 		} else {
 			*pHitsDst += *pHitsSrc
 		}
@@ -137,7 +290,7 @@ func (hm *hitsMap) mergeState(src *hitsMap, stopCh <-chan struct{}) {
 		}
 		pHitsDst := hm.negative64[n]
 		if pHitsDst == nil {
-			hm.negative64[n] = pHitsSrc
+			hm.setStateNegativeInt64(int64(n), pHitsSrc)
 		} else {
 			*pHitsDst += *pHitsSrc
 		}
@@ -148,89 +301,54 @@ func (hm *hitsMap) mergeState(src *hitsMap, stopCh <-chan struct{}) {
 		}
 		pHitsDst := hm.strings[k]
 		if pHitsDst == nil {
-			hm.strings[k] = pHitsSrc
+			hm.setStateString(k, pHitsSrc)
 		} else {
 			*pHitsDst += *pHitsSrc
 		}
 	}
 }
 
-// hitsMapMergeParallel merges hms in parallel on the given cpusCount
+// hitsMapMergeParallel merges hmas in parallel
 //
-// The mered disjoint parts of hms are passed to f.
+// The merged disjoint parts of hmas are passed to f.
 // The function may be interrupted by closing stopCh.
 // The caller must check for closed stopCh after returning from the function.
-func hitsMapMergeParallel(hms []*hitsMap, cpusCount int, stopCh <-chan struct{}, f func(hm *hitsMap)) {
-	srcLen := len(hms)
-	if srcLen < 2 {
-		// Nothing to merge
-		if len(hms) == 1 {
-			f(hms[0])
-		}
+func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f func(hm *hitsMap)) {
+	if len(hmas) == 0 {
 		return
 	}
 
 	var wg sync.WaitGroup
-	perShardMaps := make([][]hitsMap, srcLen)
-	for i := range hms {
+	for i := range hmas {
+		hma := hmas[i]
+		if hma.shards != nil {
+			continue
+		}
 		wg.Add(1)
-		go func(idx int) {
+		go func() {
 			defer wg.Done()
 
-			stateSizeBudget := 0
-			perCPU := make([]hitsMap, cpusCount)
-			for i := range perCPU {
-				perCPU[i].init(&stateSizeBudget)
-			}
-
-			hm := hms[idx]
-
-			for n, pHits := range hm.u64 {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].u64[n] = pHits
-			}
-			for n, pHits := range hm.negative64 {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].negative64[n] = pHits
-			}
-			for k, pHits := range hm.strings {
-				if needStop(stopCh) {
-					return
-				}
-				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].strings[k] = pHits
-			}
-
-			perShardMaps[idx] = perCPU
-			hm.reset()
-		}(i)
+			var a chunkedAllocator
+			hma.moveToShards(&a)
+		}()
 	}
 	wg.Wait()
 	if needStop(stopCh) {
 		return
 	}
 
-	// Merge per-shard entries into perShardMaps[0]
+	cpusCount := len(hmas[0].shards)
+
 	for i := 0; i < cpusCount; i++ {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			hm := &perShardMaps[0][cpuIdx]
-			for _, perCPU := range perShardMaps[1:] {
-				hm.mergeState(&perCPU[cpuIdx], stopCh)
-				perCPU[cpuIdx].reset()
+			hm := &hmas[0].shards[cpuIdx]
+			for j := range hmas[1:] {
+				src := &hmas[1+j].shards[cpuIdx]
+				hm.mergeState(src, stopCh)
+				src.reset()
 			}
 			f(hm)
 		}(i)

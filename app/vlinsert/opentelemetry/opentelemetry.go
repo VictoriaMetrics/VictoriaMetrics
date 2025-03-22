@@ -2,20 +2,21 @@ package opentelemetry
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry request")
 
 // RequestHandler processes Opentelemetry insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
@@ -37,24 +38,6 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
-	}
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
 
 	cp, err := insertutils.GetCommonParams(r)
 	if err != nil {
@@ -66,12 +49,16 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
-	useDefaultStreamFields := len(cp.StreamFields) == 0
-	err = pushProtobufRequest(data, lmp, useDefaultStreamFields)
-	lmp.MustClose()
+	encoding := r.Header.Get("Content-Encoding")
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf", false)
+		useDefaultStreamFields := len(cp.StreamFields) == 0
+		err := pushProtobufRequest(data, lmp, useDefaultStreamFields)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse OpenTelemetry protobuf request: %s", err)
+		httpserver.Errorf(w, r, "cannot read OpenTelemetry protocol data: %s", err)
 		return
 	}
 
@@ -101,7 +88,7 @@ func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDe
 		commonFields = slicesutil.SetLength(commonFields, len(attributes))
 		for i, attr := range attributes {
 			commonFields[i].Name = attr.Key
-			commonFields[i].Value = attr.Value.FormatString()
+			commonFields[i].Value = attr.Value.FormatString(true)
 		}
 		commonFieldsLen := len(commonFields)
 		for _, sc := range rl.ScopeLogs {
@@ -118,12 +105,24 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 		fields = fields[:len(commonFields)]
 		fields = append(fields, logstorage.Field{
 			Name:  "_msg",
-			Value: lr.Body.FormatString(),
+			Value: lr.Body.FormatString(true),
 		})
 		for _, attr := range lr.Attributes {
 			fields = append(fields, logstorage.Field{
 				Name:  attr.Key,
-				Value: attr.Value.FormatString(),
+				Value: attr.Value.FormatString(true),
+			})
+		}
+		if len(lr.TraceID) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "trace_id",
+				Value: lr.TraceID,
+			})
+		}
+		if len(lr.SpanID) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "span_id",
+				Value: lr.SpanID,
 			})
 		}
 		fields = append(fields, logstorage.Field{

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"math"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
@@ -20,7 +21,11 @@ func mustOpenLegacyIndexDBReadOnly(path string, s *Storage) *indexDB {
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
 
+	tr := TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: math.MaxInt64,
+	}
 	var alwaysReadOnly atomic.Bool
 	alwaysReadOnly.Store(true)
-	return mustOpenIndexDB(TimeRange{}, gen, name, path, s, &alwaysReadOnly)
+	return mustOpenIndexDB(tr, gen, name, path, s, &alwaysReadOnly)
 }

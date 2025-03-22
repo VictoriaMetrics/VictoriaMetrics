@@ -34,9 +34,6 @@ type statsRowAnyProcessor struct {
 
 func (sap *statsRowAnyProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sa := sf.(*statsRowAny)
-	if br.rowsLen == 0 {
-		return 0
-	}
 	if sap.captured {
 		return 0
 	}
@@ -55,7 +52,7 @@ func (sap *statsRowAnyProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	return sap.updateState(sa, br, rowIdx)
 }
 
-func (sap *statsRowAnyProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (sap *statsRowAnyProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowAnyProcessor)
 	if !sap.captured {
 		sap.captured = src.captured

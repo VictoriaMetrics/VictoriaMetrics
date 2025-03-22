@@ -307,7 +307,8 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 	}
 
 	wctx.rowsCount++
-	if wctx.valuesLen >= 1_000_000 {
+	// The 64_000 limit provides the best performance results.
+	if wctx.valuesLen >= 64_000 {
 		wctx.flush()
 	}
 }

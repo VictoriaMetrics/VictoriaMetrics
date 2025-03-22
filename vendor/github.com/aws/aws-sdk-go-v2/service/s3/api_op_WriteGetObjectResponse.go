@@ -108,12 +108,12 @@ type WriteGetObjectResponseInput struct {
 	CacheControl *string
 
 	// This header can be used as a data integrity check to verify that the data
-	// received is the same data that was originally sent. This specifies the
-	// base64-encoded, 32-bit CRC-32 checksum of the object returned by the Object
-	// Lambda function. This may not match the checksum for the object stored in Amazon
-	// S3. Amazon S3 will perform validation of the checksum values only when the
-	// original GetObject request required checksum validation. For more information
-	// about checksums, see [Checking object integrity]in the Amazon S3 User Guide.
+	// received is the same data that was originally sent. This specifies the Base64
+	// encoded, 32-bit CRC32 checksum of the object returned by the Object Lambda
+	// function. This may not match the checksum for the object stored in Amazon S3.
+	// Amazon S3 will perform validation of the checksum values only when the original
+	// GetObject request required checksum validation. For more information about
+	// checksums, see [Checking object integrity]in the Amazon S3 User Guide.
 	//
 	// Only one checksum header can be specified at a time. If you supply multiple
 	// checksum headers, this request will fail.
@@ -122,12 +122,12 @@ type WriteGetObjectResponseInput struct {
 	ChecksumCRC32 *string
 
 	// This header can be used as a data integrity check to verify that the data
-	// received is the same data that was originally sent. This specifies the
-	// base64-encoded, 32-bit CRC-32C checksum of the object returned by the Object
-	// Lambda function. This may not match the checksum for the object stored in Amazon
-	// S3. Amazon S3 will perform validation of the checksum values only when the
-	// original GetObject request required checksum validation. For more information
-	// about checksums, see [Checking object integrity]in the Amazon S3 User Guide.
+	// received is the same data that was originally sent. This specifies the Base64
+	// encoded, 32-bit CRC32C checksum of the object returned by the Object Lambda
+	// function. This may not match the checksum for the object stored in Amazon S3.
+	// Amazon S3 will perform validation of the checksum values only when the original
+	// GetObject request required checksum validation. For more information about
+	// checksums, see [Checking object integrity]in the Amazon S3 User Guide.
 	//
 	// Only one checksum header can be specified at a time. If you supply multiple
 	// checksum headers, this request will fail.
@@ -136,8 +136,16 @@ type WriteGetObjectResponseInput struct {
 	ChecksumCRC32C *string
 
 	// This header can be used as a data integrity check to verify that the data
-	// received is the same data that was originally sent. This specifies the
-	// base64-encoded, 160-bit SHA-1 digest of the object returned by the Object Lambda
+	// received is the same data that was originally sent. This header specifies the
+	// Base64 encoded, 64-bit CRC64NVME checksum of the part. For more information,
+	// see [Checking object integrity]in the Amazon S3 User Guide.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+	ChecksumCRC64NVME *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This specifies the Base64
+	// encoded, 160-bit SHA1 digest of the object returned by the Object Lambda
 	// function. This may not match the checksum for the object stored in Amazon S3.
 	// Amazon S3 will perform validation of the checksum values only when the original
 	// GetObject request required checksum validation. For more information about
@@ -150,12 +158,12 @@ type WriteGetObjectResponseInput struct {
 	ChecksumSHA1 *string
 
 	// This header can be used as a data integrity check to verify that the data
-	// received is the same data that was originally sent. This specifies the
-	// base64-encoded, 256-bit SHA-256 digest of the object returned by the Object
-	// Lambda function. This may not match the checksum for the object stored in Amazon
-	// S3. Amazon S3 will perform validation of the checksum values only when the
-	// original GetObject request required checksum validation. For more information
-	// about checksums, see [Checking object integrity]in the Amazon S3 User Guide.
+	// received is the same data that was originally sent. This specifies the Base64
+	// encoded, 256-bit SHA256 digest of the object returned by the Object Lambda
+	// function. This may not match the checksum for the object stored in Amazon S3.
+	// Amazon S3 will perform validation of the checksum values only when the original
+	// GetObject request required checksum validation. For more information about
+	// checksums, see [Checking object integrity]in the Amazon S3 User Guide.
 	//
 	// Only one checksum header can be specified at a time. If you supply multiple
 	// checksum headers, this request will fail.
@@ -184,7 +192,9 @@ type WriteGetObjectResponseInput struct {
 	ContentType *string
 
 	// Specifies whether an object stored in Amazon S3 is ( true ) or is not ( false )
-	// a delete marker.
+	// a delete marker. To learn more about delete markers, see [Working with delete markers].
+	//
+	// [Working with delete markers]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeleteMarker.html
 	DeleteMarker *bool
 
 	// An opaque identifier assigned by a web server to a specific version of a
@@ -407,6 +417,9 @@ func (c *Client) addOperationWriteGetObjectResponseMiddlewares(stack *middleware
 		return err
 	}
 	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addEndpointPrefix_opWriteGetObjectResponseMiddleware(stack); err != nil {

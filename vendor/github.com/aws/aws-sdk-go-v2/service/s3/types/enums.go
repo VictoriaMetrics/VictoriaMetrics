@@ -94,17 +94,22 @@ const (
 	BucketLocationConstraintApSoutheast1 BucketLocationConstraint = "ap-southeast-1"
 	BucketLocationConstraintApSoutheast2 BucketLocationConstraint = "ap-southeast-2"
 	BucketLocationConstraintApSoutheast3 BucketLocationConstraint = "ap-southeast-3"
+	BucketLocationConstraintApSoutheast4 BucketLocationConstraint = "ap-southeast-4"
+	BucketLocationConstraintApSoutheast5 BucketLocationConstraint = "ap-southeast-5"
 	BucketLocationConstraintCaCentral1   BucketLocationConstraint = "ca-central-1"
 	BucketLocationConstraintCnNorth1     BucketLocationConstraint = "cn-north-1"
 	BucketLocationConstraintCnNorthwest1 BucketLocationConstraint = "cn-northwest-1"
 	BucketLocationConstraintEu           BucketLocationConstraint = "EU"
 	BucketLocationConstraintEuCentral1   BucketLocationConstraint = "eu-central-1"
+	BucketLocationConstraintEuCentral2   BucketLocationConstraint = "eu-central-2"
 	BucketLocationConstraintEuNorth1     BucketLocationConstraint = "eu-north-1"
 	BucketLocationConstraintEuSouth1     BucketLocationConstraint = "eu-south-1"
 	BucketLocationConstraintEuSouth2     BucketLocationConstraint = "eu-south-2"
 	BucketLocationConstraintEuWest1      BucketLocationConstraint = "eu-west-1"
 	BucketLocationConstraintEuWest2      BucketLocationConstraint = "eu-west-2"
 	BucketLocationConstraintEuWest3      BucketLocationConstraint = "eu-west-3"
+	BucketLocationConstraintIlCentral1   BucketLocationConstraint = "il-central-1"
+	BucketLocationConstraintMeCentral1   BucketLocationConstraint = "me-central-1"
 	BucketLocationConstraintMeSouth1     BucketLocationConstraint = "me-south-1"
 	BucketLocationConstraintSaEast1      BucketLocationConstraint = "sa-east-1"
 	BucketLocationConstraintUsEast2      BucketLocationConstraint = "us-east-2"
@@ -130,17 +135,22 @@ func (BucketLocationConstraint) Values() []BucketLocationConstraint {
 		"ap-southeast-1",
 		"ap-southeast-2",
 		"ap-southeast-3",
+		"ap-southeast-4",
+		"ap-southeast-5",
 		"ca-central-1",
 		"cn-north-1",
 		"cn-northwest-1",
 		"EU",
 		"eu-central-1",
+		"eu-central-2",
 		"eu-north-1",
 		"eu-south-1",
 		"eu-south-2",
 		"eu-west-1",
 		"eu-west-2",
 		"eu-west-3",
+		"il-central-1",
+		"me-central-1",
 		"me-south-1",
 		"sa-east-1",
 		"us-east-2",
@@ -212,10 +222,11 @@ type ChecksumAlgorithm string
 
 // Enum values for ChecksumAlgorithm
 const (
-	ChecksumAlgorithmCrc32  ChecksumAlgorithm = "CRC32"
-	ChecksumAlgorithmCrc32c ChecksumAlgorithm = "CRC32C"
-	ChecksumAlgorithmSha1   ChecksumAlgorithm = "SHA1"
-	ChecksumAlgorithmSha256 ChecksumAlgorithm = "SHA256"
+	ChecksumAlgorithmCrc32     ChecksumAlgorithm = "CRC32"
+	ChecksumAlgorithmCrc32c    ChecksumAlgorithm = "CRC32C"
+	ChecksumAlgorithmSha1      ChecksumAlgorithm = "SHA1"
+	ChecksumAlgorithmSha256    ChecksumAlgorithm = "SHA256"
+	ChecksumAlgorithmCrc64nvme ChecksumAlgorithm = "CRC64NVME"
 )
 
 // Values returns all known values for ChecksumAlgorithm. Note that this can be
@@ -228,6 +239,7 @@ func (ChecksumAlgorithm) Values() []ChecksumAlgorithm {
 		"CRC32C",
 		"SHA1",
 		"SHA256",
+		"CRC64NVME",
 	}
 }
 
@@ -245,6 +257,25 @@ const (
 func (ChecksumMode) Values() []ChecksumMode {
 	return []ChecksumMode{
 		"ENABLED",
+	}
+}
+
+type ChecksumType string
+
+// Enum values for ChecksumType
+const (
+	ChecksumTypeComposite  ChecksumType = "COMPOSITE"
+	ChecksumTypeFullObject ChecksumType = "FULL_OBJECT"
+)
+
+// Values returns all known values for ChecksumType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ChecksumType) Values() []ChecksumType {
+	return []ChecksumType{
+		"COMPOSITE",
+		"FULL_OBJECT",
 	}
 }
 

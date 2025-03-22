@@ -191,7 +191,7 @@ func TestPipeExtract(t *testing.T) {
 		},
 	})
 
-	// single row, overwirte existing column
+	// single row, overwrite existing column
 	f(`extract "foo=<bar> baz=<xx>" from x`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},

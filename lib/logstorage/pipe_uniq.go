@@ -8,7 +8,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -78,7 +77,7 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 				pu: pu,
 			},
 		}
-		shards[i].m.init(&shards[i].stateSizeBudget)
+		shards[i].m.init(uint(workersCount), &shards[i].stateSizeBudget)
 	}
 
 	pup := &pipeUniqProcessor{
@@ -120,7 +119,7 @@ type pipeUniqProcessorShardNopad struct {
 	pu *pipeUniq
 
 	// m holds per-row hits.
-	m hitsMap
+	m hitsMapAdaptive
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -463,18 +462,17 @@ func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHi
 }
 
 func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
-	hms := make([]*hitsMap, 0, len(pup.shards))
+	hmas := make([]*hitsMapAdaptive, 0, len(pup.shards))
 	for i := range pup.shards {
-		hm := &pup.shards[i].m
-		if hm.entriesCount() > 0 {
-			hms = append(hms, hm)
+		hma := &pup.shards[i].m
+		if hma.entriesCount() > 0 {
+			hmas = append(hmas, hma)
 		}
 	}
 
-	cpusCount := cgroup.AvailableCPUs()
-	hmsResult := make([]*hitsMap, 0, cpusCount)
+	var hmsResult []*hitsMap
 	var hmsLock sync.Mutex
-	hitsMapMergeParallel(hms, cpusCount, pup.stopCh, func(hm *hitsMap) {
+	hitsMapMergeParallel(hmas, pup.stopCh, func(hm *hitsMap) {
 		if hm.entriesCount() > 0 {
 			hmsLock.Lock()
 			hmsResult = append(hmsResult, hm)
@@ -575,19 +573,34 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	var pu pipeUniq
-	if lex.isKeyword("by", "(") {
-		if lex.isKeyword("by") {
-			lex.nextToken()
-		}
+	needFields := false
+	if lex.isKeyword("by") {
+		lex.nextToken()
+		needFields = true
+	}
+
+	var byFields []string
+	if lex.isKeyword("(") {
 		bfs, err := parseFieldNamesInParens(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
 		}
-		if slices.Contains(bfs, "*") {
-			bfs = nil
+		byFields = bfs
+	} else if !lex.isKeyword("with", "hits", "limit", ")", "|", "") {
+		bfs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
 		}
-		pu.byFields = bfs
+		byFields = bfs
+	} else if needFields {
+		return nil, fmt.Errorf("missing fields after 'by'")
+	}
+	if slices.Contains(byFields, "*") {
+		byFields = nil
+	}
+
+	pu := &pipeUniq{
+		byFields: byFields,
 	}
 
 	if lex.isKeyword("with") {
@@ -616,5 +629,5 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 		pu.limit = n
 	}
 
-	return &pu, nil
+	return pu, nil
 }

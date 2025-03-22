@@ -16,8 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/klauspost/compress/gzip"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -27,7 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -274,14 +272,14 @@ func runTCPListener(addr string, argIdx int) {
 
 func checkCompressMethod(compressMethod, addr, protocol string) {
 	switch compressMethod {
-	case "", "none", "gzip", "deflate":
+	case "", "none", "zstd", "gzip", "deflate":
 		return
 	default:
-		logger.Fatalf("unsupported -syslog.compressMethod.%s=%q for -syslog.listenAddr.%s=%q; supported values: 'none', 'gzip', 'deflate'", protocol, compressMethod, protocol, addr)
+		logger.Fatalf("unsupported -syslog.compressMethod.%s=%q for -syslog.listenAddr.%s=%q; supported values: 'none', 'zstd', 'gzip', 'deflate'", protocol, compressMethod, protocol, addr)
 	}
 }
 
-func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
+func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, encoding string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -314,7 +312,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 				}
 				bb.B = bb.B[:n]
 				udpRequestsTotal.Inc()
-				if err := processStream("udp", bb.NewReader(), compressMethod, useLocalTimestamp, cp); err != nil {
+				if err := processStream("udp", bb.NewReader(), encoding, useLocalTimestamp, cp); err != nil {
 					logger.Errorf("syslog: cannot process UDP data from %s at %s: %s", remoteAddr, localAddr, err)
 				}
 			}
@@ -323,7 +321,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
+func serveTCP(ln net.Listener, tenantID logstorage.TenantID, encoding string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -354,7 +352,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 		wg.Add(1)
 		go func() {
 			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
-			if err := processStream("tcp", c, compressMethod, useLocalTimestamp, cp); err != nil {
+			if err := processStream("tcp", c, encoding, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
 
@@ -369,49 +367,26 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 }
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
-func processStream(protocol string, r io.Reader, compressMethod string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
+func processStream(protocol string, r io.Reader, encoding string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
 	if err := vlstorage.CanWriteData(); err != nil {
 		return err
 	}
 
-	lmp := cp.NewLogMessageProcessor("syslog_" + protocol)
-	err := processStreamInternal(r, compressMethod, useLocalTimestamp, lmp)
+	lmp := cp.NewLogMessageProcessor("syslog_"+protocol, true)
+	err := processStreamInternal(r, encoding, useLocalTimestamp, lmp)
 	lmp.MustClose()
 
 	return err
 }
 
-func processStreamInternal(r io.Reader, compressMethod string, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
-	switch compressMethod {
-	case "", "none":
-	case "gzip":
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped data: %w", err)
-		}
-		r = zr
-	case "deflate":
-		zr, err := common.GetZlibReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read deflated data: %w", err)
-		}
-		r = zr
-	default:
-		logger.Panicf("BUG: unsupported compressMethod=%q; supported values: none, gzip, deflate", compressMethod)
+func processStreamInternal(r io.Reader, encoding string, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode syslog data: %w", err)
 	}
+	defer protoparserutil.PutUncompressedReader(reader)
 
-	err := processUncompressedStream(r, useLocalTimestamp, lmp)
-
-	switch compressMethod {
-	case "gzip":
-		zr := r.(*gzip.Reader)
-		common.PutGzipReader(zr)
-	case "deflate":
-		zr := r.(io.ReadCloser)
-		common.PutZlibReader(zr)
-	}
-
-	return err
+	return processUncompressedStream(reader, useLocalTimestamp, lmp)
 }
 
 func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
@@ -560,7 +535,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 	if useLocalTimestamp {
 		ts = time.Now().UnixNano()
 	} else {
-		nsecs, err := insertutils.ExtractTimestampRFC3339NanoFromFields("timestamp", p.Fields)
+		nsecs, err := insertutils.ExtractTimestampFromFields("timestamp", p.Fields)
 		if err != nil {
 			return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
 		}

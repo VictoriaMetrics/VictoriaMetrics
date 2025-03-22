@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"strings"
@@ -483,8 +484,11 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
 
-	for _, tss := range mLeft {
-		rvs = append(rvs, tss...)
+	for k, tss := range mLeft {
+		tssLeft := removeEmptySeries(tss)
+		// re-assign modified slice to map, since it can be referred later
+		mLeft[k] = tssLeft
+		rvs = append(rvs, tssLeft...)
 	}
 	// Sort left-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
@@ -497,7 +501,10 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssRight...)
 			continue
 		}
-		fillLeftNaNsWithRightValues(tssLeft, tssRight)
+		fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight)
+		// tssRight might be filled with NaNs after merge
+		tssRight = removeEmptySeries(tssRight)
+		rvs = append(rvs, tssRight...)
 	}
 	// Sort the added right-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
@@ -524,6 +531,65 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 			}
 		}
 	}
+}
+
+// fill gaps in tssLeft with values from tssRight when labels match
+// Set NaNs to tssRight when tssLeft has corresponding values
+// or if tssLeft and tssRight can be merged.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640
+func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
+	if isScalar(tssRight) {
+		// fast path: if tssRight is scalar then it can be merged
+		// with tssLeft only when tssLeft is also a scalar.
+		// If tssLeft is not a scalar, then no need in comparing MetricNames.
+		// Typical case is: metric_selector or on() vector(0)
+		canBeMerged := isScalar(tssLeft)
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesLeft {
+				leftIsNaN := math.IsNaN(v)
+				valueRight := valuesRight[i]
+				if leftIsNaN && canBeMerged {
+					// fill NaNs with valueRight if labels match
+					valuesLeft[i] = valueRight
+				}
+				if !leftIsNaN || canBeMerged {
+					// set NaN to valueRight if valueLeft is not NaN
+					// or if left and right can be merged
+					valuesRight[i] = nan
+				}
+			}
+		}
+		return
+	}
+
+	nameLeft, nameRight := bbPool.Get(), bbPool.Get()
+	for _, tsLeft := range tssLeft {
+		valuesLeft := tsLeft.Values
+		nameLeft.B = marshalMetricNameSorted(nameLeft.B[:0], &tsLeft.MetricName)
+		for i, v := range valuesLeft {
+			leftIsNaN := math.IsNaN(v)
+			for _, tsRight := range tssRight {
+				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tsRight.MetricName)
+				canBeMerged := bytes.Equal(nameLeft.B, nameRight.B)
+				valueRight := tsRight.Values[i]
+				if leftIsNaN && canBeMerged {
+					// fill NaNs with valueRight if labels match
+					valuesLeft[i] = valueRight
+				}
+				if !leftIsNaN || canBeMerged {
+					// set NaN to valueRight if valueLeft is not NaN
+					// or if left and right can be merged
+					tsRight.Values[i] = nan
+				}
+			}
+		}
+	}
+	bbPool.Put(nameLeft)
+	bbPool.Put(nameRight)
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {

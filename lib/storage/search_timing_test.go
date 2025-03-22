@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -29,7 +28,7 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 			want[i].Timestamp = tr.MinTimestamp + int64(i)*step
 			want[i].Value = float64(i)
 		}
-		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(want, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -87,12 +86,8 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 			}
 		}
 
-		sort.Slice(got, func(i, j int) bool {
-			return testMetricRowLess(&got[i], &got[j])
-		})
-		sort.Slice(want, func(i, j int) bool {
-			return testMetricRowLess(&want[i], &want[j])
-		})
+		testSortMetricRows(got)
+		testSortMetricRows(want)
 		if diff := cmp.Diff(mrsToString(want), mrsToString(got)); diff != "" {
 			b.Errorf("unexpected metric names (-want, +got):\n%s", diff)
 		}

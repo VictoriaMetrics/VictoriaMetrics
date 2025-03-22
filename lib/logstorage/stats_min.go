@@ -73,7 +73,7 @@ func (smp *statsMinProcessor) updateStatsForRow(sf statsFunc, br *blockResult, r
 	return minLen - len(smp.min)
 }
 
-func (smp *statsMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (smp *statsMinProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsMinProcessor)
 	if src.hasItems {
 		smp.updateStateString(src.min)
@@ -81,10 +81,6 @@ func (smp *statsMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 }
 
 func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
-	if br.rowsLen == 0 {
-		return
-	}
-
 	if c.isTime {
 		timestamp, ok := TryParseTimestampRFC3339Nano(smp.min)
 		if !ok {

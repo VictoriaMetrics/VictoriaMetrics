@@ -32,34 +32,30 @@ func (c *Client) CloseConnections() {
 	c.httpCli.CloseIdleConnections()
 }
 
-// Get sends a HTTP GET request. Once the function receives a response, it
-// checks whether the response status code matches the expected one and returns
-// the response body to the caller.
-func (c *Client) Get(t *testing.T, url string, wantStatusCode int) string {
+// Get sends a HTTP GET request, returns
+// the response body and status code to the caller.
+func (c *Client) Get(t *testing.T, url string) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodGet, url, "", nil, wantStatusCode)
+	return c.do(t, http.MethodGet, url, "", nil)
 }
 
-// Post sends a HTTP POST request. Once the function receives a response, it
-// checks whether the response status code matches the expected one and returns
-// the response body to the caller.
-func (c *Client) Post(t *testing.T, url, contentType string, data []byte, wantStatusCode int) string {
+// Post sends a HTTP POST request, returns
+// the response body and status code to the caller.
+func (c *Client) Post(t *testing.T, url, contentType string, data []byte) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodPost, url, contentType, data, wantStatusCode)
+	return c.do(t, http.MethodPost, url, contentType, data)
 }
 
-// PostForm sends a HTTP POST request containing the POST-form data. Once the
-// function receives a response, it checks whether the response status code
-// matches the expected one and returns the response body to the caller.
-func (c *Client) PostForm(t *testing.T, url string, data url.Values, wantStatusCode int) string {
+// PostForm sends a HTTP POST request containing the POST-form data, returns
+// the response body and status code to the caller.
+func (c *Client) PostForm(t *testing.T, url string, data url.Values) (string, int) {
 	t.Helper()
-	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()), wantStatusCode)
+	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()))
 }
 
 // do prepares a HTTP request, sends it to the server, receives the response
-// from the server, ensures then response code matches the expected one, reads
-// the rentire response body and returns it to the caller.
-func (c *Client) do(t *testing.T, method, url, contentType string, data []byte, wantStatusCode int) string {
+// from the server, returns the response body and status code to the caller.
+func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) (string, int) {
 	t.Helper()
 
 	req, err := http.NewRequest(method, url, bytes.NewReader(data))
@@ -77,11 +73,7 @@ func (c *Client) do(t *testing.T, method, url, contentType string, data []byte, 
 
 	body := readAllAndClose(t, res.Body)
 
-	if got, want := res.StatusCode, wantStatusCode; got != want {
-		t.Fatalf("unexpected response code: got %d, want %d (body: %s)", got, want, body)
-	}
-
-	return body
+	return body, res.StatusCode
 }
 
 // readAllAndClose reads everything from the response body and then closes it.
@@ -96,9 +88,9 @@ func readAllAndClose(t *testing.T, responseBody io.ReadCloser) string {
 	return string(b)
 }
 
-// ServesMetrics is used to retrive the app's metrics.
+// ServesMetrics is used to retrieve the app's metrics.
 //
-// This type is expected to be embdded by the apps that serve metrics.
+// This type is expected to be embedded by the apps that serve metrics.
 type ServesMetrics struct {
 	metricsURL string
 	cli        *Client
@@ -116,7 +108,10 @@ func (app *ServesMetrics) GetIntMetric(t *testing.T, metricName string) int {
 func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
 	t.Helper()
 
-	metrics := app.cli.Get(t, app.metricsURL, http.StatusOK)
+	metrics, statusCode := app.cli.Get(t, app.metricsURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
 	for _, metric := range strings.Split(metrics, "\n") {
 		value, found := strings.CutPrefix(metric, metricName)
 		if found {
@@ -139,7 +134,10 @@ func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []floa
 
 	values := []float64{}
 
-	metrics := app.cli.Get(t, app.metricsURL, http.StatusOK)
+	metrics, statusCode := app.cli.Get(t, app.metricsURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
 	for _, metric := range strings.Split(metrics, "\n") {
 		if !strings.HasPrefix(metric, prefix) {
 			continue

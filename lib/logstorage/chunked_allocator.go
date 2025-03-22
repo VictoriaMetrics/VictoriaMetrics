@@ -6,6 +6,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
+// chunkedAllocator reduces memory fragmentation when allocating pre-defined structs in a scoped fashion.
+//
+// It also reduces the number of memory allocations by amortizing them into 64Kb slice allocations.
+//
+// chunkedAllocator cannot be used from concurrently running goroutines.
 type chunkedAllocator struct {
 	avgProcessors           []statsAvgProcessor
 	countProcessors         []statsCountProcessor
@@ -27,7 +32,15 @@ type chunkedAllocator struct {
 	uniqValuesProcessors    []statsUniqValuesProcessor
 	valuesProcessors        []statsValuesProcessor
 
-	pipeStatsGroups []pipeStatsGroup
+	pipeStatsGroups    []pipeStatsGroup
+	pipeStatsGroupMaps []pipeStatsGroupMap
+
+	statsProcessors []statsProcessor
+
+	statsCountUniqSets     []statsCountUniqSet
+	statsCountUniqHashSets []statsCountUniqHashSet
+
+	hitsMaps []hitsMap
 
 	u64Buf []uint64
 
@@ -116,6 +129,26 @@ func (a *chunkedAllocator) newPipeStatsGroup() (p *pipeStatsGroup) {
 	return addNewItem(&a.pipeStatsGroups, a)
 }
 
+func (a *chunkedAllocator) newPipeStatsGroupMaps(itemsLen uint) []pipeStatsGroupMap {
+	return addNewItems(&a.pipeStatsGroupMaps, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newStatsProcessors(itemsLen uint) []statsProcessor {
+	return addNewItems(&a.statsProcessors, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newStatsCountUniqSets(itemsLen uint) []statsCountUniqSet {
+	return addNewItems(&a.statsCountUniqSets, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newStatsCountUniqHashSets(itemsLen uint) []statsCountUniqHashSet {
+	return addNewItems(&a.statsCountUniqHashSets, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newHitsMaps(itemsLen uint) []hitsMap {
+	return addNewItems(&a.hitsMaps, itemsLen, a)
+}
+
 func (a *chunkedAllocator) newUint64() (p *uint64) {
 	return addNewItem(&a.u64Buf, a)
 }
@@ -125,33 +158,32 @@ func (a *chunkedAllocator) cloneBytesToString(b []byte) string {
 }
 
 func (a *chunkedAllocator) cloneString(s string) string {
-	const maxChunkLen = 64 * 1024
-	if a.stringsBuf != nil && len(a.stringsBuf)+len(s) > maxChunkLen {
-		a.stringsBuf = nil
-	}
-	if a.stringsBuf == nil {
-		a.stringsBuf = make([]byte, 0, maxChunkLen)
-		a.bytesAllocated += maxChunkLen
-	}
-
-	sbLen := len(a.stringsBuf)
-	a.stringsBuf = append(a.stringsBuf, s...)
-	return bytesutil.ToUnsafeString(a.stringsBuf[sbLen:])
+	xs := addNewItems(&a.stringsBuf, uint(len(s)), a)
+	copy(xs, s)
+	return bytesutil.ToUnsafeString(xs)
 }
 
 func addNewItem[T any](dstPtr *[]T, a *chunkedAllocator) *T {
+	xs := addNewItems(dstPtr, 1, a)
+	return &xs[0]
+}
+
+func addNewItems[T any](dstPtr *[]T, itemsLen uint, a *chunkedAllocator) []T {
 	dst := *dstPtr
-	var maxItems = (64 * 1024) / int(unsafe.Sizeof(dst[0]))
-	if dst != nil && len(dst)+1 > maxItems {
+	var maxItems = (64 * 1024) / uint(unsafe.Sizeof(dst[0]))
+	if itemsLen > maxItems {
+		return make([]T, itemsLen)
+	}
+	if dst != nil && uint(len(dst))+itemsLen > maxItems {
 		dst = nil
 	}
 	if dst == nil {
 		dst = make([]T, 0, maxItems)
-		a.bytesAllocated += maxItems * int(unsafe.Sizeof(dst[0]))
+		a.bytesAllocated += int(maxItems * uint(unsafe.Sizeof(dst[0])))
 	}
-	var x T
-	dst = append(dst, x)
-	item := &dst[len(dst)-1]
+	dstLen := uint(len(dst))
+	dst = dst[:dstLen+itemsLen]
+	xs := dst[dstLen : dstLen+itemsLen : dstLen+itemsLen]
 	*dstPtr = dst
-	return item
+	return xs
 }

@@ -12,7 +12,8 @@ import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContex
 import { isHistogramData } from "../utils/metric";
 import { useGraphState } from "../state/graph/GraphStateContext";
 import { getStepFromDuration } from "../utils/time";
-import { AppType } from "../types/appType";
+import { getQueryStringValue } from "../utils/query-string";
+import { APP_TYPE_ANOMALY } from "../constants/appType";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -48,8 +49,6 @@ interface FetchDataParams {
   hideQuery?: number[]
 }
 
-const isAnomalyUI = AppType.anomaly === process.env.REACT_APP_TYPE;
-
 export const useFetchQuery = ({
   predefinedQuery,
   visible,
@@ -77,8 +76,8 @@ export const useFetchQuery = ({
 
   const defaultStep = useMemo(() => {
     const { end, start } = period;
-    return getStepFromDuration(end - start, isHistogramState);
-  }, [period, isHistogramState]);
+    return getStepFromDuration(end - start, isHistogramState, displayType);
+  }, [period, isHistogramState, displayType]);
 
   const fetchData = async ({
     fetchUrl,
@@ -132,7 +131,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          isHistogramResult = !isAnomalyUI && isDisplayChart && isHistogramData(resp.data.result);
+          const preventChangeType = !!getQueryStringValue("display_mode", null);
+          isHistogramResult = !APP_TYPE_ANOMALY && isDisplayChart && !preventChangeType && isHistogramData(resp.data.result);
           seriesLimit = isHistogramResult ? Infinity : defaultLimit;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {

@@ -40,7 +40,7 @@ type blockHeader struct {
 	columnsHeaderSize uint64
 }
 
-// reset resets bh, so it can be re-used.
+// reset resets bh, so it can be reused.
 func (bh *blockHeader) reset() {
 	bh.streamID.reset()
 	bh.uncompressedSizeBytes = 0
@@ -419,13 +419,13 @@ func (csh *columnsHeader) setColumnNames(cshIndex *columnsHeaderIndex, columnNam
 	return nil
 }
 
-func (csh *columnsHeader) mustWriteTo(bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
+func (csh *columnsHeader) mustWriteTo(bh *blockHeader, sw *streamWriters) {
 	bb := longTermBufPool.Get()
 	defer longTermBufPool.Put(bb)
 
 	cshIndex := getColumnsHeaderIndex()
 
-	bb.B = csh.marshal(bb.B, cshIndex, g)
+	bb.B = csh.marshal(bb.B, cshIndex, &sw.columnNameIDGenerator)
 	columnsHeaderData := bb.B
 
 	bb.B = cshIndex.marshal(bb.B)

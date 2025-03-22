@@ -1,0 +1,64 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-table {
+  table-layout: auto;
+  max-width: 100%;
+  font-size: $font-size-small;
+
+  &__wrapper {
+    width: 100%;
+    max-height: 50vh;
+    overflow: auto;
+  }
+
+  &-row {
+    &_tbody {
+      cursor: pointer;
+      transition: 0.3s ease;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+    }
+
+    &_exclude {
+      text-decoration: line-through;
+      opacity: 0.2;
+    }
+  }
+
+  &-col {
+    vertical-align: middle;
+    text-align: left;
+    padding: calc($padding-global / 2);
+    overflow-wrap: anywhere;
+
+    &_thead {
+      position: sticky;
+      top: 0;
+      left: calc(14px + $padding-global);
+      font-weight: bold;
+      z-index: 2;
+      white-space: nowrap;
+      background: $color-background-block;
+    }
+
+    &_marker {
+      position: sticky;
+      left: 0;
+      width: calc(14px + $padding-global);
+      padding: 0 calc($padding-global / 2);
+    }
+
+    &_marker:not(th) {
+      z-index: 1;
+    }
+
+    &__content {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

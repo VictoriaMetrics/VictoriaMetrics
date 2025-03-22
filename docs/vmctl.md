@@ -1080,7 +1080,8 @@ results such as `average`, `rate`, etc.
 ### Rate limiting
 
 Limiting the rate of data transfer could help to reduce pressure on disk or on destination database.
-The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
+The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag. Note that the rate limit is applied per worker,
+see `--vm-concurrency` flag.
 
 Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
@@ -1190,7 +1191,7 @@ Flags available only for the `opentsdb` command:
    --influx-measurement-field-separator value
      The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}. (default: "_")
    --influx-skip-database-label
-     Wether to skip adding the label 'db' to timeseries. (default: false)
+     Whether to skip adding the label 'db' to timeseries. (default: false)
    --influx-prometheus-mode
      Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write. (default: false)
    --influx-cert-file value
@@ -1399,7 +1400,8 @@ Flags available only for the `vm-native` command:
      Flag can be set multiple times, to add few additional labels.
    --vm-rate-limit value
      Optional data transfer rate limit in bytes per second.
-     By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases. (default: 0)
+     By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases.
+     Rate limit is applied per worker, see --vm-concurrency. (default: 0)
    --vm-intercluster  Enables cluster-to-cluster migration mode with automatic tenants data migration.
      In this mode --vm-native-src-addr flag format is: 'http://vmselect:8481/'. --vm-native-dst-addr flag format is: http://vminsert:8480/. 
      TenantID will be appended automatically after discovering tenants from src. (default: false)

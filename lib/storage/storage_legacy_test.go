@@ -124,41 +124,44 @@ func TestLegacyMustRotateIndexDBs(t *testing.T) {
 
 	assertPathsExist(t, prevPath, currPath)
 
-	s := MustOpenStorage(storagePath, 0, 0, 0)
+	s := MustOpenStorage(storagePath, OpenOptions{})
 	defer s.MustClose()
 
 	var prev, curr *indexDB
 
-	if !s.hasLegacyIDBs() {
+	if !s.hasLegacyIndexDBs() {
 		t.Fatalf("storage was expected to have legacy indexDBs but it doesn't")
 	}
-	prev, curr = s.legacyIDBs()
+	prev, curr = s.getLegacyIndexDBs()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertDirEntries(t, legacyIDBPath, 2, []string{prevName, currName})
+	s.putLegacyIndexDBs(prev, curr)
 
 	s.legacyMustRotateIndexDB(time.Now())
 
-	if !s.hasLegacyIDBs() {
+	if !s.hasLegacyIndexDBs() {
 		t.Fatalf("storage was expected to have legacy indexDBs but it doesn't")
 	}
-	prev, curr = s.legacyIDBs()
+	prev, curr = s.getLegacyIndexDBs()
 	assertIndexDBName(t, prev, currName)
 	assertIndexDBIsNil(t, curr)
 	assertPathsDoNotExist(t, prevPath)
 	assertPathsExist(t, currPath)
 	assertDirEntries(t, legacyIDBPath, 2, []string{currName})
+	s.putLegacyIndexDBs(prev, curr)
 
 	s.legacyMustRotateIndexDB(time.Now())
 
-	if s.hasLegacyIDBs() {
+	if s.hasLegacyIndexDBs() {
 		t.Fatalf("storage was expected to have no legacy indexDBs but it has them")
 	}
-	prev, curr = s.legacyIDBs()
+	prev, curr = s.getLegacyIndexDBs()
 	assertIndexDBIsNil(t, prev)
 	assertIndexDBIsNil(t, curr)
 	assertPathsDoNotExist(t, prevPath, currPath)
 	assertDirEntries(t, legacyIDBPath, 2, []string{})
+	s.putLegacyIndexDBs(prev, curr)
 }
 
 func assertPathsExist(t *testing.T, paths ...string) {

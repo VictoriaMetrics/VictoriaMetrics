@@ -1075,7 +1075,7 @@ func getObjectTypeByRole(role string) string {
 	case "ingress":
 		return "ingresses"
 	default:
-		logger.Panicf("BUG: unknonw role=%q", role)
+		logger.Panicf("BUG: unknown role=%q", role)
 		return ""
 	}
 }

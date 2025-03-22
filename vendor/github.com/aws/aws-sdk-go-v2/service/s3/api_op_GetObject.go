@@ -32,7 +32,7 @@ import (
 // Directory buckets - Only virtual-hosted-style requests are supported. For a
 // virtual hosted-style request example, if you have the object
 // photos/2006/February/sample.jpg in the bucket named
-// examplebucket--use1-az5--x-s3 , specify the object key name as
+// amzn-s3-demo-bucket--usw2-az1--x-s3 , specify the object key name as
 // /photos/2006/February/sample.jpg . Also, when you make requests to this API
 // operation, your requests are sent to the Zonal endpoint. These endpoints support
 // virtual-hosted-style requests in the format
@@ -188,7 +188,7 @@ type GetObjectInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -208,13 +208,12 @@ type GetObjectInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
-	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
-	// takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
-	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
+	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
+	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
+	// you use this action with S3 on Outposts, the destination bucket must be the
+	// Outposts access point ARN or the access point alias. For more information about
+	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
@@ -229,13 +228,6 @@ type GetObjectInput struct {
 	Key *string
 
 	// To retrieve the checksum, this mode must be enabled.
-	//
-	// General purpose buckets - In addition, if you enable checksum mode and the
-	// object is uploaded with a [checksum]and encrypted with an Key Management Service (KMS)
-	// key, you must have permission to use the kms:Decrypt action to retrieve the
-	// checksum.
-	//
-	// [checksum]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Checksum.html
 	ChecksumMode types.ChecksumMode
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -449,33 +441,48 @@ type GetObjectOutput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
-	// The base64-encoded, 32-bit CRC-32 checksum of the object. This will only be
-	// present if it was uploaded with the object. For more information, see [Checking object integrity]in the
-	// Amazon S3 User Guide.
+	// The Base64 encoded, 32-bit CRC32 checksum of the object. This checksum is only
+	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32 *string
 
-	// The base64-encoded, 32-bit CRC-32C checksum of the object. This will only be
-	// present if it was uploaded with the object. For more information, see [Checking object integrity]in the
-	// Amazon S3 User Guide.
+	// The Base64 encoded, 32-bit CRC32C checksum of the object. This will only be
+	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32C *string
 
-	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
-	// present if it was uploaded with the object. For more information, see [Checking object integrity]in the
-	// Amazon S3 User Guide.
+	// The Base64 encoded, 64-bit CRC64NVME checksum of the object. For more
+	// information, see [Checking object integrity in the Amazon S3 User Guide].
+	//
+	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+	ChecksumCRC64NVME *string
+
+	// The Base64 encoded, 160-bit SHA1 digest of the object. This will only be
+	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumSHA1 *string
 
-	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
-	// present if it was uploaded with the object. For more information, see [Checking object integrity]in the
-	// Amazon S3 User Guide.
+	// The Base64 encoded, 256-bit SHA256 digest of the object. This will only be
+	// present if the object was uploaded with the object. For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumSHA256 *string
+
+	// The checksum type, which determines how part-level checksums are combined to
+	// create an object-level checksum for multipart objects. You can use this header
+	// response to verify that the checksum type that is received is the same checksum
+	// type that was specified in the CreateMultipartUpload request. For more
+	// information, see [Checking object integrity]in the Amazon S3 User Guide.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+	ChecksumType types.ChecksumType
 
 	// Specifies presentational information for the object.
 	ContentDisposition *string
@@ -720,6 +727,12 @@ func (c *Client) addOperationGetObjectMiddlewares(stack *middleware.Stack, optio
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addResponseChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetObjectValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -796,13 +809,20 @@ func getGetObjectRequestValidationModeMember(input interface{}) (string, bool) {
 	return string(in.ChecksumMode), true
 }
 
+func setGetObjectRequestValidationModeMember(input interface{}, mode string) {
+	in := input.(*GetObjectInput)
+	in.ChecksumMode = types.ChecksumMode(mode)
+}
+
 func addGetObjectOutputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
 	return internalChecksum.AddOutputMiddleware(stack, internalChecksum.OutputMiddlewareOptions{
 		GetValidationMode:             getGetObjectRequestValidationModeMember,
-		ValidationAlgorithms:          []string{"CRC32", "CRC32C", "SHA256", "SHA1"},
+		SetValidationMode:             setGetObjectRequestValidationModeMember,
+		ResponseChecksumValidation:    options.ResponseChecksumValidation,
+		ValidationAlgorithms:          []string{"CRC64NVME", "CRC32", "CRC32C", "SHA256", "SHA1"},
 		IgnoreMultipartValidation:     true,
-		LogValidationSkipped:          true,
-		LogMultipartValidationSkipped: true,
+		LogValidationSkipped:          !options.DisableLogOutputChecksumValidationSkipped,
+		LogMultipartValidationSkipped: !options.DisableLogOutputChecksumValidationSkipped,
 	})
 }
 

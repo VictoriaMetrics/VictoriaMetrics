@@ -262,7 +262,8 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
-		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.Job()))
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343
+		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.jobNameOriginal))
 		fmt.Fprintf(w, `,"scrapeUrl":%s`, stringsutil.JSONString(ts.sw.Config.ScrapeURL))
 		errMsg := ""
 		if ts.err != nil {
@@ -344,7 +345,7 @@ const (
 	targetDropReasonRelabeling       = targetDropReason("relabeling")         // target dropped because of relabeling
 	targetDropReasonMissingScrapeURL = targetDropReason("missing scrape URL") // target dropped because of missing scrape URL
 	targetDropReasonDuplicate        = targetDropReason("duplicate")          // target with the given set of labels already exists
-	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped becase of sharding https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
+	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped because of sharding https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
 )
 
 func (dt *droppedTargets) getTargetsList() []droppedTarget {

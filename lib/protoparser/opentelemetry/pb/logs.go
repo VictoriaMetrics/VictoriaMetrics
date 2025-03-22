@@ -1,6 +1,7 @@
 package pb
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -169,6 +170,8 @@ type LogRecord struct {
 	SeverityText   string
 	Body           AnyValue
 	Attributes     []*KeyValue
+	TraceID        string
+	SpanID         string
 }
 
 func (lr *LogRecord) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -179,6 +182,19 @@ func (lr *LogRecord) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range lr.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(6))
 	}
+
+	traceID, err := hex.DecodeString(lr.TraceID)
+	if err != nil {
+		traceID = []byte(lr.TraceID)
+	}
+	mm.AppendBytes(9, traceID)
+
+	spanID, err := hex.DecodeString(lr.SpanID)
+	if err != nil {
+		spanID = []byte(lr.SpanID)
+	}
+	mm.AppendBytes(10, spanID)
+
 	mm.AppendFixed64(11, lr.ObservedTimeUnixNano)
 }
 
@@ -190,6 +206,8 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 	//   string severity_text = 3;
 	//   AnyValue body = 5;
 	//   repeated KeyValue attributes = 6;
+	//   bytes trace_id = 9;
+	//   bytes span_id = 10;
 	// }
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -240,6 +258,18 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
+		case 9:
+			traceID, ok := fc.Bytes()
+			if !ok {
+				return fmt.Errorf("cannot read trace id")
+			}
+			lr.TraceID = hex.EncodeToString(traceID)
+		case 10:
+			spanID, ok := fc.Bytes()
+			if !ok {
+				return fmt.Errorf("cannot read span id")
+			}
+			lr.SpanID = hex.EncodeToString(spanID)
 		}
 	}
 	return nil

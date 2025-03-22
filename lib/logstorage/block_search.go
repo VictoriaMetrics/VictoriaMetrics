@@ -223,9 +223,9 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns()
+		bs.br.initAllColumns(bsw.so.unneededColumnNames)
 	} else {
-		bs.br.initRequestedColumns()
+		bs.br.initRequestedColumns(bsw.so.neededColumnNames)
 	}
 }
 
@@ -578,7 +578,8 @@ func (bs *blockSearch) getStreamStrSlow() string {
 	}
 
 	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, bb.B)
+	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
+	mustUnmarshalStreamTags(st, streamTagsCanonical)
 	bb.B = st.marshalString(bb.B[:0])
 	PutStreamTags(st)
 

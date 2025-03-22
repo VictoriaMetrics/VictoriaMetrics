@@ -182,6 +182,9 @@ func (c *Client) addOperationDeleteBucketEncryptionMiddlewares(stack *middleware
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteBucketEncryptionValidationMiddleware(stack); err != nil {
 		return err
 	}

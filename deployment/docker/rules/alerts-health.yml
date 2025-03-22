@@ -128,3 +128,21 @@ groups:
           summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
           description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
             following reason: \"{{ $labels.reason }}\""
+
+      - alert: TooHighQueryLoad
+        expr: increase(vm_concurrent_select_limit_timeout_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Read queries fail with timeout for {{ $labels.job }} on instance {{ $labels.instance }}"
+          description: |
+            Instance {{ $labels.instance }} ({{ $labels.job }}) is failing to serve read queries during last 15m.
+            Concurrency limit `-search.maxConcurrentRequests` was reached on this instance and extra queries were
+            put into the queue for `-search.maxQueueDuration` interval. But even after waiting in the queue these queries weren't served.
+            This happens if instance is overloaded with the current workload, or datasource is too slow to respond.
+            Possible solutions are the following:
+            * reduce the query load;
+            * increase compute resources or number of replicas;
+            * adjust limits `-search.maxConcurrentRequests` and `-search.maxQueueDuration`.
+            See more at https://docs.victoriametrics.com/troubleshooting/#slow-queries.

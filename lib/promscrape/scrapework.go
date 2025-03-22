@@ -538,7 +538,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 	r := body.NewReader()
 	var mu sync.Mutex
-	err := stream.Parse(r, scrapeTimestamp, false, false, func(rows []parser.Row) error {
+	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
 		mu.Lock()
 		defer mu.Unlock()
 
@@ -757,7 +757,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		var mu sync.Mutex
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, false, false, func(rows []parser.Row) error {
+		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for i := range rows {

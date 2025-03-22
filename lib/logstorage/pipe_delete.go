@@ -75,26 +75,14 @@ func parsePipeDelete(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("delete", "del", "rm", "drop") {
 		return nil, fmt.Errorf("expecting 'delete', 'del', 'rm' or 'drop'; got %q", lex.token)
 	}
+	lex.nextToken()
 
-	var fields []string
-	for {
-		lex.nextToken()
-		field, err := parseFieldName(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse field name: %w", err)
-		}
-
-		fields = append(fields, field)
-
-		switch {
-		case lex.isKeyword("|", ")", ""):
-			pd := &pipeDelete{
-				fields: fields,
-			}
-			return pd, nil
-		case lex.isKeyword(","):
-		default:
-			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|' or ')'", lex.token)
-		}
+	fields, err := parseCommaSeparatedFields(lex)
+	if err != nil {
+		return nil, err
 	}
+	pd := &pipeDelete{
+		fields: fields,
+	}
+	return pd, nil
 }

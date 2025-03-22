@@ -67,10 +67,7 @@ const GroupLogsFieldRow: FC<Props> = ({ field, value }) => {
               ariaLabel="copy to clipboard"
             />
           </Tooltip>
-          <Tooltip
-            key={`${field}_${isSelectedField}_${isGroupByField}`}
-            title={isSelectedField ? "Hide this field" : "Show this field instead of the message"}
-          >
+          <Tooltip title={isSelectedField ? "Hide this field" : "Show this field instead of the message"}>
             <Button
               className="vm-group-logs-row-fields-item-controls__button"
               variant="text"
@@ -81,10 +78,7 @@ const GroupLogsFieldRow: FC<Props> = ({ field, value }) => {
               ariaLabel="copy to clipboard"
             />
           </Tooltip>
-          <Tooltip
-            key={`${field}_${isSelectedField}_${isGroupByField}`}
-            title={isGroupByField ? "Ungroup this field" : "Group by this field"}
-          >
+          <Tooltip title={isGroupByField ? "Ungroup this field" : "Group by this field"}>
             <Button
               className="vm-group-logs-row-fields-item-controls__button"
               variant="text"

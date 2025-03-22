@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -29,25 +31,36 @@ type AlertManager struct {
 	// stores already parsed RelabelConfigs object
 	relabelConfigs *promrelabel.ParsedConfigs
 
-	metrics *metrics
+	metrics *notifierMetrics
 }
 
-type metrics struct {
-	alertsSent       *utils.Counter
-	alertsSendErrors *utils.Counter
+type notifierMetrics struct {
+	set *metrics.Set
+
+	alertsSent         *metrics.Counter
+	alertsSendErrors   *metrics.Counter
+	alertsSendDuration *metrics.Histogram
 }
 
-func newMetrics(addr string) *metrics {
-	return &metrics{
-		alertsSent:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-		alertsSendErrors: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+func newNotifierMetrics(addr string) *notifierMetrics {
+	set := metrics.NewSet()
+	metrics.RegisterSet(set)
+
+	return &notifierMetrics{
+		set:                set,
+		alertsSent:         set.NewCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsSendErrors:   set.NewCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		alertsSendDuration: set.NewHistogram(fmt.Sprintf("vmalert_alerts_send_duration_seconds{addr=%q}", addr)),
 	}
+}
+
+func (nm *notifierMetrics) close() {
+	metrics.UnregisterSet(nm.set, true)
 }
 
 // Close is a destructor method for AlertManager
 func (am *AlertManager) Close() {
-	am.metrics.alertsSent.Unregister()
-	am.metrics.alertsSendErrors.Unregister()
+	am.metrics.close()
 }
 
 // Addr returns address where alerts are sent.
@@ -61,7 +74,9 @@ func (am AlertManager) Addr() string {
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
+	startTime := time.Now()
 	err := am.send(ctx, alerts, headers)
+	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}
@@ -70,7 +85,7 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[st
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	b := &bytes.Buffer{}
-	alertsToSend := alerts[:0]
+	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompbmarshal.Label, 0, len(alerts))
 	for _, a := range alerts {
 		lbls := a.applyRelabelingIfNeeded(am.relabelConfigs)
@@ -180,6 +195,6 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		relabelConfigs: relabelCfg,
 		client:         &http.Client{Transport: tr},
 		timeout:        timeout,
-		metrics:        newMetrics(alertManagerURL),
+		metrics:        newNotifierMetrics(alertManagerURL),
 	}, nil
 }

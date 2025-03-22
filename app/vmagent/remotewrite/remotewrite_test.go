@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -53,7 +54,7 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 }
 
 func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
-	f := func(streamAggrConfig, relabelConfig string, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
+	f := func(streamAggrConfig, relabelConfig string, enableWindows bool, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
 		t.Helper()
 		perURLRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
 		if err != nil {
@@ -77,12 +78,15 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
 		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "dedup-global")
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, enableWindows, dedupInterval, nil, "dedup-global")
 		}
 
 		if streamAggrConfig != "" {
 			pushNoop := func(_ []prompbmarshal.TimeSeries) {}
-			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), pushNoop, nil, "global")
+			opts := streamaggr.Options{
+				EnableWindows: enableWindows,
+			}
+			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), pushNoop, &opts, "global")
 			if err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}
@@ -91,7 +95,7 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		}
 
 		offsetMsecs := time.Now().UnixMilli()
-		inputTss := prompbmarshal.MustParsePromMetrics(input, offsetMsecs)
+		inputTss := prometheus.MustParsePromMetrics(input, offsetMsecs)
 		expectedTss := make([]prompbmarshal.TimeSeries, len(inputTss))
 
 		// copy inputTss to make sure it is not mutated during TryPush call
@@ -114,13 +118,13 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 0, false, false, `
+`, false, 0, false, false, `
 metric{env="dev"} 10
 metric{env="bar"} 20
 metric{env="dev"} 15
 metric{env="bar"} 25
 `)
-	f(``, ``, time.Hour, false, false, `
+	f(``, ``, true, time.Hour, false, false, `
 metric{env="dev"} 10
 metric{env="foo"} 20
 metric{env="dev"} 15
@@ -130,7 +134,7 @@ metric{env="foo"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, false, false, `
+`, true, time.Hour, false, false, `
 metric{env="dev"} 10
 metric{env="bar"} 20
 metric{env="dev"} 15
@@ -140,7 +144,7 @@ metric{env="bar"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, true, false, `
+`, true, time.Hour, true, false, `
 metric{env="test"} 10
 metric{env="dev"} 20
 metric{env="foo"} 15
@@ -150,7 +154,7 @@ metric{env="dev"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, false, true, `
+`, true, time.Hour, false, true, `
 metric{env="foo"} 10
 metric{env="dev"} 20
 metric{env="foo"} 15
@@ -160,7 +164,7 @@ metric{env="dev"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, true, true, `
+`, true, time.Hour, true, true, `
 metric{env="dev"} 10
 metric{env="test"} 20
 metric{env="dev"} 15
