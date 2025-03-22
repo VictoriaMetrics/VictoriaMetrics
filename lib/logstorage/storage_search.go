@@ -454,7 +454,7 @@ func (s *Storage) GetStreamFieldNames(ctx context.Context, tenantIDs []TenantID,
 
 // GetStreamFieldValues returns stream field values for the given fieldName from q results for the given tenantIDs.
 //
-// If limit > 9, then up to limit unique values are returned.
+// If limit > 0, then up to limit unique values are returned.
 func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]ValueWithHits, error) {
 	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
 	if err != nil {

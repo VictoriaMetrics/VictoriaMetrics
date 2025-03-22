@@ -8,6 +8,7 @@ import (
 	"math/bits"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -198,13 +199,11 @@ type scrapeWork struct {
 	tmpRow parser.Row
 
 	// This flag is set to true if series_limit is exceeded.
-	seriesLimitExceeded bool
-
-	// labelsHashBuf is used for calculating the hash on series labels
-	labelsHashBuf []byte
+	seriesLimitExceeded atomic.Bool
 
 	// Optional limiter on the number of unique series per scrape target.
-	seriesLimiter *bloomfilter.Limiter
+	seriesLimiter     *bloomfilter.Limiter
+	initSeriesLimiter sync.Once
 
 	// prevBodyLen contains the previous response body length for the given scrape work.
 	// It is used as a hint in order to reduce memory usage for body buffers.
@@ -246,6 +245,11 @@ func (sw *scrapeWork) loadLastScrape() string {
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrape []byte) {
+	if len(lastScrape) == 0 {
+		sw.lastScrape = nil
+		sw.lastScrapeCompressed = nil
+		return
+	}
 	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.IntN()
 	if mustCompress {
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
@@ -485,6 +489,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 	}
 	if up == 0 {
+		body = nil
 		bodyString = ""
 	}
 	seriesAdded := 0
@@ -495,7 +500,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	samplesDropped := 0
-	if sw.seriesLimitExceeded || !areIdenticalSeries {
+	if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
 		samplesDropped = sw.applySeriesLimit(wc)
 	}
 	responseSize := len(bodyString)
@@ -510,7 +515,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-	sw.prevLabelsLen = len(wc.labels)
+	sw.prevLabelsLen = cap(wc.labels)
 	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
@@ -527,51 +532,65 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 }
 
 func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int64, body *bytesutil.ByteBuffer, scrapeDurationSeconds float64) error {
-	samplesScraped := 0
-	samplesPostRelabeling := 0
-	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+	var samplesScraped atomic.Int64
+	var samplesPostRelabeling atomic.Int64
+	var samplesDroppedTotal atomic.Int64
+	var wcMaxLabelsLen atomic.Int64
 
+	wcMaxLabelsLen.Store(int64(sw.prevLabelsLen))
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
 	areIdenticalSeries := sw.areIdenticalSeries(lastScrape, bodyString)
-	samplesDropped := 0
 
 	r := body.NewReader()
-	var mu sync.Mutex
 	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
-		mu.Lock()
-		defer mu.Unlock()
+		var err error
 
-		samplesScraped += len(rows)
+		labelsLen := wcMaxLabelsLen.Load()
+		wc := writeRequestCtxPool.Get(int(labelsLen))
+		defer func() {
+			wc.resetNoRows()
+			writeRequestCtxPool.Put(wc)
+		}()
+
+		samplesScraped.Add(int64(len(rows)))
 		for i := range rows {
 			sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
 		}
-		samplesPostRelabeling += len(wc.writeRequest.Timeseries)
-		if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
+		newSamplesPostRelabeling := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
+		if sw.Config.SampleLimit > 0 && int(newSamplesPostRelabeling) > sw.Config.SampleLimit {
 			wc.resetNoRows()
 			scrapesSkippedBySampleLimit.Inc()
-			return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
+			err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 				"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 		}
-		if sw.seriesLimitExceeded || !areIdenticalSeries {
-			samplesDropped += sw.applySeriesLimit(wc)
+
+		if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
+			if samplesDropped := sw.applySeriesLimit(wc); samplesDropped > 0 {
+				samplesDroppedTotal.Add(int64(samplesDropped))
+			}
 		}
 
 		// Push the collected rows to sw before returning from the callback, since they cannot be held
 		// after returning from the callback - this will result in data race.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-		wc.resetNoRows()
-		return nil
+
+		if int64(cap(wc.labels)) > labelsLen {
+			wcMaxLabelsLen.Store(int64(cap(wc.labels)))
+		}
+
+		return err
 	}, sw.logError)
 
-	scrapedSamples.Update(float64(samplesScraped))
+	scrapedSamples.Update(float64(samplesScraped.Load()))
 	up := 1
 	if err != nil {
 		// Mark the scrape as failed even if it already read and pushed some samples
 		// to remote storage. This makes the logic compatible with Prometheus.
 		up = 0
 		scrapesFailed.Inc()
+		bodyString = ""
 	}
 	seriesAdded := 0
 	if !areIdenticalSeries {
@@ -581,18 +600,20 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	responseSize := len(bodyString)
+
 	am := &autoMetrics{
 		up:                        up,
 		scrapeDurationSeconds:     scrapeDurationSeconds,
 		scrapeResponseSize:        responseSize,
-		samplesScraped:            samplesScraped,
-		samplesPostRelabeling:     samplesPostRelabeling,
+		samplesScraped:            int(samplesScraped.Load()),
+		samplesPostRelabeling:     int(samplesPostRelabeling.Load()),
 		seriesAdded:               seriesAdded,
-		seriesLimitSamplesDropped: samplesDropped,
+		seriesLimitSamplesDropped: int(samplesDroppedTotal.Load()),
 	}
+	wc := writeRequestCtxPool.Get(1024)
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-	sw.prevLabelsLen = len(wc.labels)
+	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
@@ -603,12 +624,17 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, int(samplesScraped.Load()), err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err
 }
 
+// pushData sends timeseries collected in WriteRequest to a remote write server.
+//
+// This function is called concurrently in processDataInStreamMode and sendStaleSeries.
+// Since there is no mutex protecting `scrapeWork`, modifications must be done with care
+// to avoid race conditions.
 func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	startTime := time.Now()
 	sw.PushData(at, wr)
@@ -701,13 +727,24 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 	return strings.Count(bodyString, "\n")
 }
 
+// applySeriesLimit enforces the series limit on incoming time series data.
+//
+// It filters the time series in the writeRequestCtx (`wc`) based on a bloom filter-based
+// limiter to prevent exceeding `sw.Config.SeriesLimit`. The function initializes the limiter
+// once using a `sync.Once` construct and then checks each series against it.
+//
+// This function is called concurrently in processDataInStreamMode and sendStaleSeries. Since there is no mutex
+// protecting scrapeWork, modifications must be done with care to avoid race conditions.
+//
+// Returns the number of dropped time series due to the limit.
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	if sw.Config.SeriesLimit <= 0 {
 		return 0
 	}
-	if sw.seriesLimiter == nil {
+	sw.initSeriesLimiter.Do(func() {
 		sw.seriesLimiter = bloomfilter.NewLimiter(sw.Config.SeriesLimit, 24*time.Hour)
-	}
+	})
+
 	sl := sw.seriesLimiter
 	dstSeries := wc.writeRequest.Timeseries[:0]
 	samplesDropped := 0
@@ -721,8 +758,8 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	}
 	clear(wc.writeRequest.Timeseries[len(dstSeries):])
 	wc.writeRequest.Timeseries = dstSeries
-	if samplesDropped > 0 && !sw.seriesLimitExceeded {
-		sw.seriesLimitExceeded = true
+	if samplesDropped > 0 {
+		sw.seriesLimitExceeded.Store(true)
 	}
 	return samplesDropped
 }
@@ -745,35 +782,34 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	if currScrape != "" {
 		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
 	}
-	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-	defer func() {
-		wc.reset()
-		writeRequestCtxPool.Put(wc)
-	}()
 	if bodyString != "" {
 		// Send stale markers in streaming mode in order to reduce memory usage
 		// when stale markers for targets exposing big number of metrics must be generated.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
-		var mu sync.Mutex
 		br := bytes.NewBufferString(bodyString)
 		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row) error {
-			mu.Lock()
-			defer mu.Unlock()
+			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+			defer func() {
+				wc.resetNoRows()
+				writeRequestCtxPool.Put(wc)
+			}()
+
 			for i := range rows {
 				sw.addRowToTimeseries(wc, &rows[i], timestamp, true)
 			}
+
 			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
-			if sw.seriesLimitExceeded {
+			if sw.seriesLimitExceeded.Load() {
 				sw.applySeriesLimit(wc)
 			}
+
 			// Push the collected rows to sw before returning from the callback, since they cannot be held
 			// after returning from the callback - this will result in data race.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 			setStaleMarkersForRows(wc.writeRequest.Timeseries)
 			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-			wc.resetNoRows()
 			return nil
 		}, sw.logError)
 		if err != nil {
@@ -781,6 +817,11 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		}
 	}
 	if addAutoSeries {
+		wc := writeRequestCtxPool.Get(1024)
+		defer func() {
+			wc.resetNoRows()
+			writeRequestCtxPool.Put(wc)
+		}()
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
 		setStaleMarkersForRows(wc.writeRequest.Timeseries)
@@ -800,16 +841,19 @@ func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {
 
 var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)
 
+var labelsHashBufferPool = &bytesutil.ByteBufferPool{}
+
 func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
 	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
-	b := sw.labelsHashBuf[:0]
+	bb := labelsHashBufferPool.Get()
+	defer labelsHashBufferPool.Put(bb)
+
 	for _, label := range labels {
-		b = append(b, label.Name...)
-		b = append(b, label.Value...)
+		bb.B = append(bb.B, label.Name...)
+		bb.B = append(bb.B, label.Value...)
 	}
-	sw.labelsHashBuf = b
-	return xxhash.Sum64(b)
+	return xxhash.Sum64(bb.B)
 }
 
 type autoMetrics struct {
@@ -877,6 +921,10 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value 
 	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, false)
 }
 
+// addRowToTimeseries adds a parser.Row to the writeRequestCtx time series.
+//
+// This function is called concurrently in processDataInStreamMode and sendStaleSeries. Since there is no mutex
+// protecting scrapeWork, modifications must be done with care to avoid race conditions.
 func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, timestamp int64, needRelabel bool) {
 	metric := r.Metric
 

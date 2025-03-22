@@ -23,6 +23,11 @@ func TestBuffer(t *testing.T) {
 			totalSize += len(b)
 		}
 
+		cbLen := cb.Len()
+		if cbLen != totalSize {
+			t.Fatalf("nexpected Buffer.Len value; got %d; want %d", cbLen, totalSize)
+		}
+
 		size := cb.SizeBytes()
 		if size < totalSize {
 			t.Fatalf("too small SizeBytes; got %d; want at least %d", size, totalSize)

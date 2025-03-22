@@ -921,15 +921,12 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 //
 // If pushFunc is nil, then the aggregator state is just reset.
 func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentState, isLast bool) {
-	if a.dedupInterval > 0 {
-		a.minDeadline.Store(cs.maxDeadline)
-	}
-
 	startTime := time.Now()
 	ao := a.aggrOutputs
 
 	ctx := getFlushCtx(a, ao, pushFunc, flushTime.UnixMilli(), isLast)
 	if a.dedupInterval <= 0 {
+		a.minDeadline.Store(cs.maxDeadline)
 		ctx.isGreen = cs.isGreen
 	}
 	ao.flushState(ctx)
