@@ -131,3 +131,19 @@ func TestTimeRangeString(t *testing.T) {
 		MaxTimestamp: time.Date(2024, 9, 7, 0, 0, 0, 000, time.UTC).UnixMilli() - 1,
 	}, "[2024-09-06T00:00:00Z..2024-09-06T23:59:59.999Z]")
 }
+
+func TestTimeRange_fromPartitionTimestamp(t *testing.T) {
+	f := func(ts int64, want TimeRange) {
+		var got TimeRange
+		got.fromPartitionTimestamp(ts)
+		if got != want {
+			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
+		}
+	}
+
+	ts := time.Date(2025, 3, 23, 14, 07, 56, 999_999_999, time.UTC).UnixMilli()
+	f(ts, TimeRange{
+		MinTimestamp: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 3, 31, 23, 59, 59, 999_000_000, time.UTC).UnixMilli(),
+	})
+}
