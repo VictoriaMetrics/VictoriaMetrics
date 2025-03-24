@@ -966,6 +966,15 @@ func (pt *partition) MustClose() {
 	idb.MustClose()
 }
 
+// DebugFlush flushes pending raw index and data rows of this partition so they
+// become visible to search.
+//
+// This function is for debug purposes only.
+func (pt *partition) DebugFlush() {
+	pt.idb.tb.DebugFlush()
+	pt.flushPendingRows(true)
+}
+
 func (pt *partition) startInmemoryPartsMergers() {
 	pt.partsLock.Lock()
 	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {
@@ -1619,6 +1628,9 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 func (pt *partition) getDeletedMetricIDs() *uint64set.Set {
 	if pt.s.legacyDeletedMetricIDs == nil {
 		return pt.idb.getDeletedMetricIDs()
+	}
+	if pt.idb.getDeletedMetricIDs().Len() == 0 {
+		return pt.s.legacyDeletedMetricIDs
 	}
 	dmis := pt.idb.getDeletedMetricIDs().Clone()
 	dmis.Union(pt.s.legacyDeletedMetricIDs)

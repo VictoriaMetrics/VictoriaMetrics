@@ -120,6 +120,10 @@ type indexDB struct {
 	extDBLock sync.Mutex
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
+	//
+	// TODO(@rtm0): The cache occupies >30MB min even when empty. Consider
+	// changing the implementation to something simpler (such as a map under
+	// mutex)
 	tagFiltersToMetricIDsCache *workingsetcache.Cache
 	tagFiltersKeyGen           atomic.Uint64
 
@@ -194,11 +198,6 @@ func partitionNameToGeneration(partitionName string) (uint64, error) {
 }
 
 // mustOpenPartitionIndexDB opens a partition IndexDB from the given path.
-// Partition IndexDB is one that is a part of a data partition. This is the
-// current implementation of IndexDB.
-//
-// The last segment of the path should contain the name of the partition which
-// will be then used as indexDB.generation
 func mustOpenPartitionIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
 	name := filepath.Base(path)
 	gen, err := partitionNameToGeneration(name)

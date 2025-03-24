@@ -2202,8 +2202,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
 
-	// TODO(@rtm0): Sort mrs by timestamp, to get idb for each partition only once
-
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
@@ -2490,7 +2488,6 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 }
 
 func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
-	// TODO(@rtm0): Can we just use time.Now()?
 	now := time.Unix(int64(fasttime.UnixTimestamp()), 0)
 	nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 	d := nextMonth.Sub(now).Seconds()
@@ -2505,7 +2502,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	// The probability increases from 0% to 100% proportioinally to d=[3600 .. 0].
 	pMin := float64(d) / 3600
 
-	idbNext := s.tb.MustGetIndexDB(nextMonth.Unix())
+	idbNext := s.tb.MustGetIndexDB(nextMonth.UnixMilli())
 	defer s.tb.PutIndexDB(idbNext)
 
 	generation := idbNext.generation
@@ -2670,7 +2667,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 
 	s.slowPerDayIndexInserts.Add(uint64(len(pendingDateMetricIDs)))
 	// Sort pendingDateMetricIDs by (date, metricID) in order to speed up `is` search in the loop below.
-	// TODO(rtm0): Remove sorting, they must be already sorted in add()
 	sort.Slice(pendingDateMetricIDs, func(i, j int) bool {
 		a := pendingDateMetricIDs[i]
 		b := pendingDateMetricIDs[j]

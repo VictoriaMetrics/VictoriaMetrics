@@ -223,8 +223,7 @@ func (tb *table) DebugFlush() {
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
-		ptw.pt.idb.tb.DebugFlush()
-		ptw.pt.flushPendingRows(true)
+		ptw.pt.DebugFlush()
 	}
 }
 
