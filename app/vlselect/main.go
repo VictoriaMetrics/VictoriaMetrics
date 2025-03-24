@@ -306,5 +306,5 @@ var (
 	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
 
-	logsqlAdminTenantsRequests      = metrics.NewCounter(`vl_http_requests_total{path="/select/admin/tenants"}`)
+	logsqlAdminTenantsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/admin/tenants"}`)
 )
