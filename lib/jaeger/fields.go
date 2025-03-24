@@ -3,11 +3,14 @@ package jaeger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/jaegertracing/jaeger/model"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jaegertracing/jaeger/model"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
 // define the label name for span attributes
@@ -36,6 +39,219 @@ const (
 	TagVType string = "tag:%s:v_type" // e.g.: span_tag:otel.scope.name:v_type
 )
 
+func SpanToFieldsByteBuffer(bbuf *bytesutil.ByteBuffer, span *model.Span) ([]logstorage.Field, []logstorage.Field, error) {
+
+	fields := make([]logstorage.Field, 0)
+
+	fields = append(fields, logstorage.Field{Name: "_msg", Value: "span"},
+		logstorage.Field{Name: TraceID, Value: span.TraceID.String()},
+		logstorage.Field{Name: SpanID, Value: span.SpanID.String()},
+		logstorage.Field{Name: Flags, Value: strconv.FormatUint(uint64(span.Flags), 10)},
+		logstorage.Field{Name: StartTime, Value: strconv.FormatInt(span.StartTime.UnixNano(), 10)},
+		logstorage.Field{Name: EndTime, Value: strconv.FormatInt(span.StartTime.Add(span.Duration).UnixNano(), 10)},
+		logstorage.Field{Name: Duration, Value: strconv.FormatInt(span.Duration.Nanoseconds(), 10)}, logstorage.Field{Name: ProcessID, Value: span.ProcessID},
+		logstorage.Field{Name: ProcessServiceName, Value: span.GetProcess().GetServiceName()},
+		logstorage.Field{Name: OperationName, Value: span.GetOperationName()},
+	)
+
+	if tags := span.GetProcess().GetTags(); len(tags) > 0 {
+		for i := range tags {
+			var value string
+			switch tags[i].GetVType() {
+			case model.ValueType_STRING:
+				value = tags[i].GetVStr()
+			case model.ValueType_BOOL:
+				value = strconv.FormatBool(tags[i].GetVBool())
+			case model.ValueType_INT64:
+				value = strconv.FormatInt(tags[i].GetVInt64(), 10)
+			case model.ValueType_FLOAT64:
+				value = strconv.FormatFloat(tags[i].GetVFloat64(), 'f', -1, 64)
+			case model.ValueType_BINARY:
+				value = string(tags[i].GetVBinary())
+			}
+			startIdx := int64(len(bbuf.B))
+			bbuf.Write([]byte("process_tag:"))
+			bbuf.Write([]byte(tags[i].GetKey()))
+			fields = append(fields, logstorage.Field{Name: string(bbuf.B[startIdx:]), Value: value})
+			vType := int64(tags[i].GetVType())
+			if vType > 0 {
+				bbuf.Write([]byte(":v_type"))
+				//fields = append(fields, logstorage.Field{Name: string(bbuf.B[startIdx:]), Value: strconv.FormatInt(int64(tags[i].GetVType()), 10)})
+				fields = append(fields, logstorage.Field{Name: string(bbuf.B[startIdx:]), Value: "1"})
+			}
+		}
+	}
+	if len(span.Logs) > 0 {
+		logs, err := json.Marshal(span.Logs)
+		if err != nil {
+			return nil, nil, err
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  Logs,
+			Value: string(logs),
+		})
+	}
+
+	if len(span.Warnings) > 0 {
+		warnings, err := json.Marshal(span.Warnings)
+		if err != nil {
+			return nil, nil, err
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  Warnings,
+			Value: string(warnings),
+		})
+	}
+
+	if len(span.References) > 0 {
+		refs, err := json.Marshal(span.References)
+		if err != nil {
+			return nil, nil, err
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  References,
+			Value: string(refs),
+		})
+	}
+
+	tags := span.GetTags()
+	for i := range tags {
+		var value string
+		switch tags[i].GetVType() {
+		case model.ValueType_STRING:
+			value = tags[i].GetVStr()
+		case model.ValueType_BOOL:
+			value = strconv.FormatBool(tags[i].GetVBool())
+		case model.ValueType_INT64:
+			value = strconv.FormatInt(tags[i].GetVInt64(), 10)
+		case model.ValueType_FLOAT64:
+			value = strconv.FormatFloat(tags[i].GetVFloat64(), 'f', -1, 64)
+		case model.ValueType_BINARY:
+			value = string(tags[i].GetVBinary())
+		}
+		startIdx := int64(len(bbuf.B))
+		bbuf.Write([]byte("tag:"))
+		bbuf.Write([]byte(tags[i].GetKey()))
+		fields = append(fields, logstorage.Field{Name: string(bbuf.B[startIdx:]), Value: value})
+		vtype := int64(tags[i].GetVType())
+		if vtype > 0 {
+			bbuf.Write([]byte(":v_type"))
+			startVtype := int64(len(bbuf.B))
+			bbuf.Write([]byte(strconv.FormatInt(int64(tags[i].GetVType()), 10)))
+			fields = append(fields, logstorage.Field{Name: string(bbuf.B[startIdx:startVtype]), Value: string(bbuf.B[startVtype:])})
+		}
+
+	}
+	streamFields := make([]logstorage.Field, 0, 2)
+	streamFields = append(streamFields,
+		logstorage.Field{Name: ProcessServiceName, Value: span.GetProcess().GetServiceName()},
+		logstorage.Field{Name: OperationName, Value: span.GetOperationName()},
+	)
+
+	return fields, streamFields, nil
+}
+func SpanToFieldsStringBuilder(sb *strings.Builder, span *model.Span) ([]logstorage.Field, []logstorage.Field, error) {
+	fields := make([]logstorage.Field, 0)
+
+	fields = append(fields, logstorage.Field{Name: "_msg", Value: "span"},
+		logstorage.Field{Name: TraceID, Value: span.TraceID.String()},
+		logstorage.Field{Name: SpanID, Value: span.SpanID.String()},
+		logstorage.Field{Name: Flags, Value: strconv.FormatUint(uint64(span.Flags), 10)},
+		logstorage.Field{Name: StartTime, Value: strconv.FormatInt(span.StartTime.UnixNano(), 10)},
+		logstorage.Field{Name: EndTime, Value: strconv.FormatInt(span.StartTime.Add(span.Duration).UnixNano(), 10)},
+		logstorage.Field{Name: Duration, Value: strconv.FormatInt(span.Duration.Nanoseconds(), 10)}, logstorage.Field{Name: ProcessID, Value: span.ProcessID},
+		logstorage.Field{Name: ProcessServiceName, Value: span.GetProcess().GetServiceName()},
+		logstorage.Field{Name: OperationName, Value: span.GetOperationName()},
+	)
+
+	if tags := span.GetProcess().GetTags(); len(tags) > 0 {
+		for i := range tags {
+			var value string
+			switch tags[i].GetVType() {
+			case model.ValueType_STRING:
+				value = tags[i].GetVStr()
+			case model.ValueType_BOOL:
+				value = strconv.FormatBool(tags[i].GetVBool())
+			case model.ValueType_INT64:
+				value = strconv.FormatInt(tags[i].GetVInt64(), 10)
+			case model.ValueType_FLOAT64:
+				value = strconv.FormatFloat(tags[i].GetVFloat64(), 'f', -1, 64)
+			case model.ValueType_BINARY:
+				value = string(tags[i].GetVBinary())
+			}
+			sb.WriteString("process_tag:")
+			sb.WriteString(tags[i].GetKey())
+			var f1 = logstorage.Field{Name: sb.String(), Value: value}
+			sb.WriteString(":v_type")
+			var f2 = logstorage.Field{Name: sb.String(), Value: strconv.FormatInt(int64(tags[i].GetVType()), 10)}
+			sb.Reset()
+			fields = append(fields, f1, f2)
+		}
+	}
+	if len(span.Logs) > 0 {
+		logs, err := json.Marshal(span.Logs)
+		if err != nil {
+			return nil, nil, err
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  Logs,
+			Value: string(logs),
+		})
+	}
+
+	if len(span.Warnings) > 0 {
+		warnings, err := json.Marshal(span.Warnings)
+		if err != nil {
+			return nil, nil, err
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  Warnings,
+			Value: string(warnings),
+		})
+	}
+
+	if len(span.References) > 0 {
+		refs, err := json.Marshal(span.References)
+		if err != nil {
+			return nil, nil, err
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  References,
+			Value: string(refs),
+		})
+	}
+
+	tags := span.GetTags()
+	for i := range tags {
+		var value string
+		switch tags[i].GetVType() {
+		case model.ValueType_STRING:
+			value = tags[i].GetVStr()
+		case model.ValueType_BOOL:
+			value = strconv.FormatBool(tags[i].GetVBool())
+		case model.ValueType_INT64:
+			value = strconv.FormatInt(tags[i].GetVInt64(), 10)
+		case model.ValueType_FLOAT64:
+			value = strconv.FormatFloat(tags[i].GetVFloat64(), 'f', -1, 64)
+		case model.ValueType_BINARY:
+			value = string(tags[i].GetVBinary())
+		}
+		sb.WriteString("tag:")
+		sb.WriteString(tags[i].GetKey())
+		var f1 = logstorage.Field{Name: sb.String(), Value: value}
+		sb.WriteString(":v_type")
+		var f2 = logstorage.Field{Name: sb.String(), Value: strconv.FormatInt(int64(tags[i].GetVType()), 10)}
+		sb.Reset()
+		fields = append(fields, f1, f2)
+	}
+	streamFields := make([]logstorage.Field, 0, 2)
+	streamFields = append(streamFields,
+		logstorage.Field{Name: ProcessServiceName, Value: span.GetProcess().GetServiceName()},
+		logstorage.Field{Name: OperationName, Value: span.GetOperationName()},
+	)
+
+	return fields, streamFields, nil
+}
 func SpanToFields(span *model.Span) ([]logstorage.Field, []logstorage.Field, error) {
 	fields := make([]logstorage.Field, 0)
 
@@ -258,8 +474,12 @@ func mapToTags(tagMap map[string]string, tagVTypeMap map[string]model.ValueType)
 	tags := make([]model.KeyValue, 0, len(tagMap))
 	for name, vStr := range tagMap {
 		vType, ok := tagVTypeMap[name]
-		if !ok {
+		/*if !ok {
 			return nil, fmt.Errorf("cannot find tag value type for tag [%s]", name)
+		} */
+		if !ok {
+			// assume tag is of type string
+			vType = model.ValueType(0)
 		}
 		tag := model.KeyValue{
 			Key:   name,
