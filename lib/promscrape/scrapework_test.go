@@ -536,7 +536,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 //
 // The core parsing functionality is validated separately in TestScrapeWorkScrapeInternalSuccess.
 func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
-	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected int64) {
+	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected, timeseriesExpectedDelta int64) {
 		t.Helper()
 
 		var sw scrapeWork
@@ -577,8 +577,19 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		if pushDataCalls.Load() != pushDataCallsExpected {
 			t.Fatalf("unexpected number of pushData calls; got %d; want %d", pushDataCalls.Load(), pushDataCallsExpected)
 		}
-		if timeseriesExpected != pushedTimeseries.Load() {
-			t.Fatalf("unexpected number of pushed timeseries; got %d; want %d", pushedTimeseries.Load(), timeseriesExpected)
+
+		// series limiter rely on bloomfilter.Limiter which performs maxLimit checks in a way that may allow slight overflows.
+		// This condition verifies whether the actual number of pushed timeseries falls within
+		// an expected tolerance range, accounting for potential deviations.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515#issuecomment-2741063155
+		lowerExpectedDelta := pushedTimeseries.Load() - timeseriesExpectedDelta
+		upperExpectedDelta := pushedTimeseries.Load() + timeseriesExpectedDelta + 1
+		if !(timeseriesExpected >= lowerExpectedDelta && timeseriesExpected < upperExpectedDelta) {
+			t.Fatalf("unexpected number of pushed timeseries; got %d; want within range [%d, %d)",
+				pushedTimeseries.Load(),
+				lowerExpectedDelta,
+				upperExpectedDelta,
+			)
 		}
 	}
 
@@ -594,26 +605,26 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	f(generateScrape(1), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 2, 8)
+	}, 2, 8, 0)
 
 	// process 5k series: two batch of data, plus auto metrics pushed
 	f(generateScrape(5000), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 3, 5007)
+	}, 3, 5007, 0)
 
 	// process 1M series: 246 batches of data, plus auto metrics pushed
 	f(generateScrape(1e6), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 246, 1000007)
+	}, 246, 1000007, 0)
 
 	// process 5k series: two batch of data, plus auto metrics pushed, with series limiters applied
 	f(generateScrape(5000), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
-	}, 3, 4015)
+	}, 3, 4015, 2)
 }
 
 func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
