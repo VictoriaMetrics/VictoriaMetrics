@@ -153,7 +153,7 @@ func TestIfExpressionString(t *testing.T) {
 	// empty filters
 	f(`'{}'`, `{}`)
 
-	// multiple fiters
+	// multiple filters
 	f(`foo{bar="baz",a=~"bc.+",d!="e",g!~".*qwe"}`, `foo{bar="baz",a=~"bc.+",d!="e",g!~".*qwe"}`)
 
 	// multiple if expressions

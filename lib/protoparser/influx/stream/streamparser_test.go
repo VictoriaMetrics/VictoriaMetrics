@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 func TestDetectTimestamp(t *testing.T) {
@@ -37,8 +37,8 @@ func TestDetectTimestamp(t *testing.T) {
 }
 
 func TestParseStream(t *testing.T) {
-	common.StartUnmarshalWorkers()
-	defer common.StopUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
+	defer protoparserutil.StopUnmarshalWorkers()
 
 	f := func(data string, rowsExpected []influx.Row, isStreamMode bool, badData bool) {
 		t.Helper()
@@ -65,7 +65,7 @@ func TestParseStream(t *testing.T) {
 			return nil
 		}
 
-		err := Parse(buf, isStreamMode, false, "ns", "test", cb)
+		err := Parse(buf, "", isStreamMode, "ns", "test", cb)
 		wg.Wait()
 
 		if badData && !isStreamMode && err == nil {

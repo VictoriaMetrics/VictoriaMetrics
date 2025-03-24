@@ -26,8 +26,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 func main() {
@@ -293,7 +293,7 @@ func main() {
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
 						auth.WithHeaders(c.String(vmNativeSrcHeaders)))
 					if err != nil {
-						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
+						return fmt.Errorf("error initialize auth config for source: %s", srcAddr)
 					}
 
 					// create TLS config
@@ -320,7 +320,7 @@ func main() {
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
 						auth.WithHeaders(c.String(vmNativeDstHeaders)))
 					if err != nil {
-						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
+						return fmt.Errorf("error initialize auth config for destination: %s", dstAddr)
 					}
 
 					// create TLS config
@@ -382,9 +382,12 @@ func main() {
 				},
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
-					common.StartUnmarshalWorkers()
+					protoparserutil.StartUnmarshalWorkers()
 					blockPath := c.Args().First()
-					isBlockGzipped := c.Bool("gunzip")
+					encoding := ""
+					if c.Bool("gunzip") {
+						encoding = "gzip"
+					}
 					if len(blockPath) == 0 {
 						return cli.Exit("you must provide path for exported data block", 1)
 					}
@@ -395,7 +398,7 @@ func main() {
 					}
 					defer f.Close()
 					var blocksCount atomic.Uint64
-					if err := stream.Parse(f, isBlockGzipped, func(_ *stream.Block) error {
+					if err := stream.Parse(f, encoding, func(_ *stream.Block) error {
 						blocksCount.Add(1)
 						return nil
 					}); err != nil {

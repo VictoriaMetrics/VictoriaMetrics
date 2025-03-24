@@ -325,7 +325,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	g = g.DeepCopy()
 	ag := apiGroup{
 		// encode as string to avoid rounding
-		ID: fmt.Sprintf("%d", g.ID()),
+		ID: fmt.Sprintf("%d", g.GetID()),
 
 		Name:            g.Name,
 		Type:            g.Type.String(),

@@ -18,7 +18,7 @@ func (av *quantilesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ str
 	av.h.Update(sample.value)
 }
 
-func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
+func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ bool) {
 	ac := c.(*quantilesAggrConfig)
 	if av.h != nil {
 		ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)

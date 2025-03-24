@@ -159,7 +159,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 	}
 	tb.DebugFlush()
 	if itemsCount > 0 && flushes.Load() == 0 {
-		return nil, nil, fmt.Errorf("unexpeted zero flushes for itemsCount=%d", itemsCount)
+		return nil, nil, fmt.Errorf("unexpected zero flushes for itemsCount=%d", itemsCount)
 	}
 
 	sort.Strings(items)

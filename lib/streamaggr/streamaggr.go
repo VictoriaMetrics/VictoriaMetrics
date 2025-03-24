@@ -360,7 +360,7 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Otherwise matchIdxs[idx] is set to 0.
 //
 // Push returns matchIdxs with len equal to len(tss).
-// It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
+// It reuses the matchIdxs if it has enough capacity to hold len(tss) items.
 // Otherwise it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
@@ -921,15 +921,12 @@ func (a *aggregator) dedupFlush(dedupTime time.Time, cs *currentState) {
 //
 // If pushFunc is nil, then the aggregator state is just reset.
 func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time, cs *currentState, isLast bool) {
-	if a.dedupInterval > 0 {
-		a.minDeadline.Store(cs.maxDeadline)
-	}
-
 	startTime := time.Now()
 	ao := a.aggrOutputs
 
 	ctx := getFlushCtx(a, ao, pushFunc, flushTime.UnixMilli(), isLast)
 	if a.dedupInterval <= 0 {
+		a.minDeadline.Store(cs.maxDeadline)
 		ctx.isGreen = cs.isGreen
 	}
 	ao.flushState(ctx)
@@ -1097,7 +1094,7 @@ func (ctx *pushCtx) reset() {
 
 type pushSample struct {
 	// key identifies a sample that belongs to unique series
-	// key value can't be re-used
+	// key value can't be reused
 	key       string
 	value     float64
 	timestamp int64

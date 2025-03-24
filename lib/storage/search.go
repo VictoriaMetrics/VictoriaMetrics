@@ -97,6 +97,10 @@ type Search struct {
 	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
 
+	// putIndexDB decrements the idb ref counter. Must be called in
+	// Search.MustClose().
+	putIndexDB func()
+
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
 
@@ -118,6 +122,9 @@ type Search struct {
 	loops int
 
 	prevMetricID uint64
+
+	// metricGroupBuf holds metricGroup used for metric names tracker
+	metricGroupBuf []byte
 }
 
 func (s *Search) reset() {
@@ -125,6 +132,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.idb = nil
+	s.putIndexDB = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -134,6 +142,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricGroupBuf = nil
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -154,7 +163,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.idb = storage.idb()
+	s.idb, s.putIndexDB = storage.getCurrIndexDB()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -166,7 +175,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	if err == nil {
 		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 		if err == nil {
-			err = storage.prefetchMetricNames(qt, metricIDs, deadline)
+			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
 		}
 	}
 	// It is ok to call Init on non-nil err.
@@ -187,6 +196,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
+	s.putIndexDB()
 	s.reset()
 }
 
@@ -223,6 +233,18 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
+			}
+			// for performance reasons parse metricGroup conditionally
+			if s.idb.s.metricsTracker != nil {
+				var err error
+				// MetricName must be sorted and marshalled with MetricName.Marshal()
+				// it guarantees that first tag is metricGroup
+				_, s.metricGroupBuf, err = unmarshalTagValue(s.metricGroupBuf[:0], s.MetricBlockRef.MetricName)
+				if err != nil {
+					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
+					return false
+				}
+				s.idb.s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}

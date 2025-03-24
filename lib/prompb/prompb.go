@@ -15,25 +15,16 @@ type WriteRequest struct {
 	samplesPool []Sample
 }
 
-// Reset resets wr for subsequent re-use.
+// Reset resets wr for subsequent reuse.
 func (wr *WriteRequest) Reset() {
-	tss := wr.Timeseries
-	for i := range tss {
-		tss[i] = TimeSeries{}
-	}
-	wr.Timeseries = tss[:0]
+	clear(wr.Timeseries)
+	wr.Timeseries = wr.Timeseries[:0]
 
-	labelsPool := wr.labelsPool
-	for i := range labelsPool {
-		labelsPool[i] = Label{}
-	}
-	wr.labelsPool = labelsPool[:0]
+	clear(wr.labelsPool)
+	wr.labelsPool = wr.labelsPool[:0]
 
-	samplesPool := wr.samplesPool
-	for i := range samplesPool {
-		samplesPool[i] = Sample{}
-	}
-	wr.samplesPool = samplesPool[:0]
+	clear(wr.samplesPool)
+	wr.samplesPool = wr.samplesPool[:0]
 }
 
 // TimeSeries is a timeseries.

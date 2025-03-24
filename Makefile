@@ -18,7 +18,7 @@ TAR_OWNERSHIP ?= --owner=1000 --group=1000
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
-include cspell/Makefile
+include codespell/Makefile
 include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
@@ -567,7 +567,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.5
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.7
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`

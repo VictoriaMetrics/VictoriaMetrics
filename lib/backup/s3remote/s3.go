@@ -103,6 +103,11 @@ func (fs *FS) Init() error {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
 				o.MaxAttempts = 10
+				o.Retryables = append(retry.DefaultRetryables, retry.RetryableErrorCode{
+					Codes: map[string]struct{}{
+						"IncompleteBody": {},
+					},
+				})
 			})
 		}),
 	}

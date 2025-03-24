@@ -41,7 +41,7 @@ func TestSetOps(t *testing.T) {
 		// Verify sa.Union(sb)
 		sa.Union(sb)
 		if err := expectEqual(sa, mUnion); err != nil {
-			t.Fatalf("ivalid sa.Union(sb): %s", err)
+			t.Fatalf("invalid sa.Union(sb): %s", err)
 		}
 		if !sbOrig.Equal(sb) {
 			t.Fatalf("sbOrig must be equal to sb after sa.Union(sb); got\n%v\nvs\n%v", sbOrig, sb)

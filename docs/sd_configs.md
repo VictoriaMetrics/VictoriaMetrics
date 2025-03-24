@@ -1276,9 +1276,7 @@ The list of discovered Kuma targets is refreshed at the interval, which can be c
 
 ## marathon_sd_configs
 
-_Available from [CHANGEME](https://docs.victoriametrics.com/changelog/#vCHANGEME) version._
-
-Marathon SD configuration allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
+Marathon SD configuration {{% available_from "v1.109.0" %}} allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
 
 Configuration example:
 
@@ -1965,7 +1963,7 @@ scrape_configs:
 
   # disable_keepalive allows disabling HTTP keep-alive when scraping targets.
   # By default, HTTP keep-alive is enabled, so TCP connections to scrape targets
-  # could be re-used.
+  # could be reused.
   # See https://docs.victoriametrics.com/vmagent/#scrape_config-enhancements
   #
   # disable_keepalive: <boolean>

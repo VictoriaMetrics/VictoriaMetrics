@@ -169,7 +169,6 @@ groups:
 	checkCfg(nil)
 	groupsLen = lenLocked(m)
 	if groupsLen != 2 {
-		fmt.Println(m.groups)
 		t.Fatalf("expected to have exactly 2 groups loaded; got %d", groupsLen)
 	}
 

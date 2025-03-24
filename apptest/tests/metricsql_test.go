@@ -2,14 +2,16 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func millis(s string) int64 {
@@ -28,6 +30,8 @@ func TestSingleInstantQuery(t *testing.T) {
 
 	testInstantQueryWithUTFNames(t, sut)
 	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
+
+	testQueryRangeWithAtModifier(t, sut)
 }
 
 func TestClusterInstantQuery(t *testing.T) {
@@ -38,6 +42,8 @@ func TestClusterInstantQuery(t *testing.T) {
 
 	testInstantQueryWithUTFNames(t, sut)
 	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
+
+	testQueryRangeWithAtModifier(t, sut)
 }
 
 func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
@@ -171,5 +177,56 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	want.Data.Result[0].Samples = s
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+}
+
+// This test checks absence of panic after conversion of math.NaN to int64 in vmselect.
+// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444
+// However, conversion of math.NaN to int64 could behave differently depending on platform and Go version.
+// Hence, this test could succeed for some platforms even if fix is rolled back.
+func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+	data := []pb.TimeSeries{
+		{
+			Labels: []pb.Label{
+				{Name: "__name__", Value: "up"},
+			},
+			Samples: []pb.Sample{
+				{Value: 1, Timestamp: millis("2025-01-01T00:01:00Z")},
+			},
+		},
+		{
+			Labels: []pb.Label{
+				{Name: "__name__", Value: "metricNaN"},
+			},
+			Samples: []pb.Sample{
+				{Value: decimal.StaleNaN, Timestamp: millis("2025-01-01T00:01:00Z")},
+			},
+		},
+	}
+
+	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+
+	resp := sut.PrometheusAPIV1QueryRange(t, `vector(1) @ up`, apptest.QueryOpts{
+		Start: "2025-01-01T00:00:00Z",
+		End:   "2025-01-01T00:02:00Z",
+		Step:  "10s",
+	})
+
+	if resp.Status != "success" {
+		t.Fatalf("unexpected status: %q", resp.Status)
+	}
+
+	resp = sut.PrometheusAPIV1QueryRange(t, `vector(1) @ metricNaN`, apptest.QueryOpts{
+		Start: "2025-01-01T00:00:00Z",
+		End:   "2025-01-01T00:02:00Z",
+		Step:  "10s",
+	})
+
+	if resp.Status != "error" {
+		t.Fatalf("unexpected status: %q", resp.Status)
+	}
+	if !strings.Contains(resp.Error, "modifier must return a non-NaN value") {
+		t.Fatalf("unexpected error: %q", resp.Error)
 	}
 }

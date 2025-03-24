@@ -104,7 +104,7 @@ export const pipeList = [
   },
   {
     "value": "uniq",
-    "description": "<a href=\"#uniq-pipe\"><code>uniq</code></a> returns unique log entires."
+    "description": "<a href=\"#uniq-pipe\"><code>uniq</code></a> returns unique log entries."
   },
   {
     "value": "unpack_json",

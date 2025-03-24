@@ -1197,7 +1197,7 @@ func parseQueryInParens(lex *lexer) (*Query, error) {
 func parseQuery(lex *lexer) (*Query, error) {
 	opts, err := parseQueryOptions(lex)
 	if err != nil {
-		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+		return nil, fmt.Errorf("cannot parse query options: %w; context: [%s]; see https://docs.victoriametrics.com/victorialogs/logsql/#query-options", err, lex.context())
 	}
 	lex.pushQueryOptions(opts)
 	defer lex.popQueryOptions()
@@ -1287,7 +1287,7 @@ func parseQueryOptions(lex *lexer) (*queryOptions, error) {
 		case "concurrency":
 			n, ok := tryParseUint64(v)
 			if !ok {
-				return nil, fmt.Errorf("cannot parse 'concurrency=%q' option as unsinged interger", v)
+				return nil, fmt.Errorf("cannot parse 'concurrency=%q' option as unsigned integer", v)
 			}
 			if n > 1024 {
 				// There is zero sense in running too many workers.
@@ -1851,6 +1851,9 @@ func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter
 	// Try parsing (arg1, ..., argN) at first
 	lexState := lex.backupState()
 	fi, err := parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
+		if len(args) == 1 && args[0] == "*" {
+			return &filterNoop{}, nil
+		}
 		iv.values = args
 		return f, nil
 	})
@@ -2219,32 +2222,45 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 		phrase := funcName + getCompoundSuffix(lex, fieldName != "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing args for %s()", funcName)
+	args, err := parseArgsInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %s(): %w", funcName, err)
 	}
+	return callback(args)
+}
+
+func parseArgsInParens(lex *lexer) ([]string, error) {
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '('")
+	}
+	lex.nextToken()
+
 	var args []string
 	for !lex.isKeyword(")") {
 		if lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected ',' - missing arg in %s()", funcName)
+			return nil, fmt.Errorf("unexpected ',' inside ()")
 		}
 		if lex.isKeyword("(") {
-			return nil, fmt.Errorf("unexpected '(' - missing arg in %s()", funcName)
+			return nil, fmt.Errorf("unexpected '(' inside ()")
 		}
 		arg := getCompoundFuncArg(lex)
+		if arg == "" && lex.isKeyword("*") {
+			lex.nextToken()
+			arg = "*"
+		}
 		args = append(args, arg)
 		if lex.isKeyword(")") {
 			break
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("missing ',' after %q in %s()", arg, funcName)
+			return nil, fmt.Errorf("missing ',' after %q inside ()", arg)
 		}
 		if !lex.mustNextToken() {
-			return nil, fmt.Errorf("missing the next arg after %q in %s()", arg, funcName)
+			return nil, fmt.Errorf("missing the next arg after %q inside ()", arg)
 		}
 	}
 	lex.nextToken()
-
-	return callback(args)
+	return args, nil
 }
 
 // startsWithYear returns true if s starts with YYYY

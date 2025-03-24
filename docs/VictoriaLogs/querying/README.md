@@ -35,6 +35,10 @@ For example, the following query returns all the log entries with the `error` wo
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
+This command returns all the logs with the `error` word, which are stored in the VictoriaLogs running at `localhost:9428`.
+There are no limits on the number of returned logs - the command above may return billions of logs without any issues.
+See [these docs](#command-line) for details.
+
 The response by default contains all the [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for the selected logs.
 Use [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) for selecting only the needed fields.
 
@@ -393,7 +397,7 @@ returns the most frequent values across log fields containing values no longer t
 curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_value_len=100'
 ```
 
-By default the `/select/logsql/facets` endpoint doesn't return log fields, which contan the same constant value across all the logs matching the given `query`.
+By default the `/select/logsql/facets` endpoint doesn't return log fields, which contain the same constant value across all the logs matching the given `query`.
 Add `keep_const_fields=1` query arg if you need such log fields:
 
 ```sh
@@ -779,9 +783,7 @@ Below is an example JSON output returned from this endpoint:
 }
 ```
 
-The `/select/logsql/stream_field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
-The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
-When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
+The `/select/logsql/stream_field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N` with the biggest number of hits.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns stream field values stats

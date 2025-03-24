@@ -350,7 +350,7 @@ WITH (
 </pre>
 
 <p>
-    4. Put node_cpu_seconds_total{commonFilters} into its own varialbe with the name cpuSeconds:
+    4. Put node_cpu_seconds_total{commonFilters} into its own variable with the name cpuSeconds:
 </p>
 <pre>
 WITH (

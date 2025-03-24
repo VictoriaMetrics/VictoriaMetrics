@@ -1,9 +1,10 @@
 ---
 weight: 1
-title: VictoriaMetrics Anomaly Detection Quick Start
+title: Quick Start
 menu:
   docs:
     parent: "anomaly-detection"
+    identifier: "vmanomaly-quick-start"
     weight: 1
     title: Quick Start
 aliases:
@@ -92,6 +93,7 @@ groups:
           description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
             Please make sure to update the license before it expires."
 ```
+
 ### Docker
 
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/). <br><br>
@@ -110,13 +112,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.20.0
+docker pull victoriametrics/vmanomaly:v1.20.1
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.20.0 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.20.1 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -150,7 +152,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.20.0
+    image: victoriametrics/vmanomaly:v1.21.0
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -176,16 +178,14 @@ See also:
 
 > With the forthcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls) additional image registry was introduced (quay.io) for VictoriaMetric images, [vmanomaly images in particular](https://quay.io/repository/victoriametrics/vmanomaly).
 If hitting pull limits, try switching your `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z` to `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z`
-```
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).
 
-
 ## How to configure vmanomaly
 To run `vmanomaly` you need to set up configuration file in `yaml` format.
 
-Here is an example of config file that will run [Facebook Prophet](https://facebook.github.io/prophet/) model, that will be retrained every 2 hours on 14 days of previous data. It will generate inference (including `anomaly_score` metric) every 1 minute.
+Here is an example of config file that will run [Facebook Prophet](https://facebook.github.io/prophet/) model, that will be retrained every 2 hours on 14 days of previous data. It will generate [inference metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) (including `anomaly_score`) every 1 minute.
 
 
 ```yaml
@@ -228,7 +228,6 @@ writer:
   datasource_url:  "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
 ```
 
-
 ### Recommended steps
 
 **Schedulers**:
@@ -254,6 +253,8 @@ writer:
 
 Here are the links for further deep dive into Anomaly Detection in general and `vmanomaly` in particular:
 
+- [High Availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability)
+- [Horizontal Scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability)
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
 - [CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/changelog/)

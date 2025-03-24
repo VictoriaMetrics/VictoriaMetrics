@@ -10,7 +10,7 @@ func (av *uniqueSamplesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _
 	}
 }
 
-func (av *uniqueSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+func (av *uniqueSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 	if len(av.samples) > 0 {
 		ctx.appendSeries(key, "unique_samples", float64(len(av.samples)))
 		clear(av.samples)

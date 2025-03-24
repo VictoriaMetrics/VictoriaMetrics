@@ -22,7 +22,7 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 		AccountID: 123,
 		ProjectID: 567,
 	}
-	getStreamIDForTags := func(tags map[string]string) (streamID, []byte) {
+	getStreamIDForTags := func(tags map[string]string) (streamID, string) {
 		st := GetStreamTags()
 		for k, v := range tags {
 			st.Add(k, v)
@@ -34,7 +34,7 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 			tenantID: tenantID,
 			id:       id,
 		}
-		return sid, streamTagsCanonical
+		return sid, string(streamTagsCanonical)
 	}
 
 	// Create indexdb entries

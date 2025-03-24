@@ -1,13 +1,12 @@
 package pb
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/easyproto"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // ExportLogsServiceRequest represents the corresponding OTEL protobuf message
@@ -183,6 +182,19 @@ func (lr *LogRecord) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range lr.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(6))
 	}
+
+	traceID, err := hex.DecodeString(lr.TraceID)
+	if err != nil {
+		traceID = []byte(lr.TraceID)
+	}
+	mm.AppendBytes(9, traceID)
+
+	spanID, err := hex.DecodeString(lr.SpanID)
+	if err != nil {
+		spanID = []byte(lr.SpanID)
+	}
+	mm.AppendBytes(10, spanID)
+
 	mm.AppendFixed64(11, lr.ObservedTimeUnixNano)
 }
 
@@ -251,13 +263,13 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read trace id")
 			}
-			lr.TraceID = bytesutil.ToUnsafeString(traceID)
+			lr.TraceID = hex.EncodeToString(traceID)
 		case 10:
 			spanID, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read span id")
 			}
-			lr.SpanID = bytesutil.ToUnsafeString(spanID)
+			lr.SpanID = hex.EncodeToString(spanID)
 		}
 	}
 	return nil

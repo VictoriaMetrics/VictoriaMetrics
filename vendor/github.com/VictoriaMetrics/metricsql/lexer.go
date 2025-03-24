@@ -598,8 +598,13 @@ func DurationValue(s string, step int64) (int64, error) {
 			isMinus = true
 		}
 	}
-	if math.Abs(d) > 1<<63-1 {
-		return 0, fmt.Errorf("too big duration %.0fms", d)
+	if d > math.MaxInt64 {
+		// Truncate too big durations. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447
+		return math.MaxInt64, nil
+	}
+	if d < math.MinInt64 {
+		// Truncate too small durations. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447
+		return math.MinInt64, nil
 	}
 	return int64(d), nil
 }

@@ -17,7 +17,7 @@ type Request struct {
 
 func (req *Request) reset() {
 	// recursively reset all the fields in req in order to avoid field value
-	// re-use in json.Unmarshal() when the corresponding field is missing
+	// reuse in json.Unmarshal() when the corresponding field is missing
 	// in the unmarshaled JSON.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3432
 	series := req.Series

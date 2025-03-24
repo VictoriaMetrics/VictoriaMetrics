@@ -92,7 +92,7 @@ type ServeOptions struct {
 	// /health, /debug/pprof and few others
 	// In addition basic auth check and authKey checks will be disabled for the given addr
 	//
-	// Mostly required by http proxy servers, which peforms own authorization and requests routing
+	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
 }
 
@@ -479,7 +479,7 @@ func isProtectedByAuthFlag(path string) bool {
 	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
 		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
 		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/")
+		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid

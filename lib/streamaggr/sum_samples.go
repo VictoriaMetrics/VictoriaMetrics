@@ -8,7 +8,7 @@ func (av *sumSamplesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ st
 	av.sum += sample.value
 }
 
-func (av *sumSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+func (av *sumSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 	ctx.appendSeries(key, "sum_samples", av.sum)
 	av.sum = 0
 }

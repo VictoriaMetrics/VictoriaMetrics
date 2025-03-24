@@ -97,7 +97,7 @@ btn-primary
                     <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
                      {% if rNotOk[g.ID] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.ID] %}</span> {% endif %}
                      {% if rNoMatch[g.ID] > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d rNoMatch[g.ID] %}</span> {% endif %}
-                    <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.ID] %}</span>
+                    <span class="badge bg-success" title="Number of rules with status Ok">{%d rOk[g.ID] %}</span>
                     <p class="fs-6 fw-lighter">{%s g.File %}</p>
                     {% if len(g.Params) > 0 %}
                         <div class="fs-6 fw-lighter">Extra params

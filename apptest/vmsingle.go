@@ -1,6 +1,7 @@
 package apptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,6 +25,7 @@ type Vmsingle struct {
 
 	// vmstorage URLs.
 	forceFlushURL string
+	forceMergeURL string
 
 	// vminsert URLs.
 	influxLineWriteURL                 string
@@ -65,6 +67,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		httpListenAddr:  stderrExtracts[1],
 
 		forceFlushURL:                      fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
+		forceMergeURL:                      fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
@@ -81,6 +84,16 @@ func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
 	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// ForceMerge is a test helper function that forces the merging of parts.
+func (app *Vmsingle) ForceMerge(t *testing.T) {
+	t.Helper()
+
+	_, statusCode := app.cli.Get(t, app.forceMergeURL)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -186,6 +199,45 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
+}
+
+// APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
+// and returns the statistics response for given params.
+//
+// See https://docs.victoriametrics.com/#track-ingested-metrics-usage
+func (app *Vmsingle) APIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("limit", limit)
+	values.Add("le", le)
+	values.Add("match_pattern", matchPattern)
+	queryURL := fmt.Sprintf("http://%s/api/v1/status/metric_names_stats", app.httpListenAddr)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+	var resp MetricNamesStatsResponse
+	if err := json.Unmarshal([]byte(res), &resp); err != nil {
+		t.Fatalf("could not unmarshal metric names stats response data:\n%s\n err: %v", res, err)
+	}
+	return resp
+}
+
+// APIV1AdminStatusMetricNamesStatsReset sends a query to a /api/v1/admin/status/metric_names_stats/reset endpoint
+//
+// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts QueryOpts) {
+	t.Helper()
+
+	values := opts.asURLValues()
+	queryURL := fmt.Sprintf("http://%s/api/v1/admin/status/metric_names_stats/reset", app.httpListenAddr)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
+	}
 }
 
 // String returns the string representation of the vmsingle app state.
