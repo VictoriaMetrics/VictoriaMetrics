@@ -142,6 +142,26 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.4)
+
+Released at 2025-03-21
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade golang.org/x/net from v0.33.0 to v0.36.0 to address [CVE-2025-22870](https://github.com/advisories/GHSA-qxp5-gwg8-xv66).
+
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): do not set `vm_backup_last_run_failed` metric to `1` when running vmbackupmanager with an empty storage. Previously, the metrics was set to `1` even though backup was not created yet. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8490).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/), [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly apply TLS settings for URLs with scheme other than `https`. Previously, TLS settings were ignored for such URLs. That could lead to unexpected behavior when a request was receiving a redirect response to a URL with `https` scheme. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8494) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): prevent dropping persistent queue data when changes happened for `-remoteWrite.showURL` flag, query params or fragment in remote write URL. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly send staleness markers if scrape error occurs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8528) for details.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle `multitenant` query request on storage communication error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8461) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak when sending alerts with `-notifier.blackhole` enabled. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly compare rules `group.checksum` and statically define `group.id` at creation time. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8540) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak during rule group updates on reload. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8532).
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): fix the `vmgateway_ratelimit_refresh_duration_seconds` value, before it did not account for the actual time spent refreshing limits.
+
 ## [v1.110.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.3)
 
 Released at 2025-03-07
@@ -289,6 +309,25 @@ See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11040)
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
+
+## [v1.102.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.17)
+
+Released at 2025-03-21
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade golang.org/x/net from v0.33.0 to v0.36.0 to address [CVE-2025-22870](https://github.com/advisories/GHSA-qxp5-gwg8-xv66).
+
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): do not set `vm_backup_last_run_failed` metric to `1` when running vmbackupmanager with an empty storage. Previously, the metrics was set to `1` even though backup was not created yet. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8490).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/), [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly apply TLS settings for URLs with scheme other than `https`. Previously, TLS settings were ignored for such URLs. That could lead to unexpected behavior when a request was receiving a redirect response to a URL with `https` scheme. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8494) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): prevent dropping persistent queue data when changes happened for `-remoteWrite.showURL` flag, query params or fragment in remote write URL. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly send staleness markers if scrape error occurs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8528) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak when sending alerts with `-notifier.blackhole` enabled. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly compare rules `group.checksum` and statically define `group.id` at creation time. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8540) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak during rule group updates on reload. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8532).
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): fix the `vmgateway_ratelimit_refresh_duration_seconds` value, before it did not account for the actual time spent refreshing limits.
 
 ## [v1.102.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.16)
 
