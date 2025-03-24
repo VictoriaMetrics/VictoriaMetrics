@@ -41,7 +41,7 @@ jobs:
         id: update
         run: |
           find docs -type d -maxdepth 1 -mindepth 1 -exec \
-            sh -c 'rsync -zarv {} ../__vm-docs/content/$(basename {})' \;
+            sh -c 'rsync -zarv {}/ ../__vm-docs/content/$(basename {})' \;
           echo "SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_OUTPUT
         working-directory: __vm
 
