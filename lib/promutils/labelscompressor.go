@@ -283,6 +283,7 @@ func (lm *labelsMap) cleanup(labelToIdx *sync.Map) {
 	for i := uint64(0); i < diff; i++ {
 		// TODO: test sync.MAP reduce memory on delete.
 		labelToIdx.Delete(lm.mutable[i])
+		delete(lm.mutable, i)
 	}
 	newReadOnlyLabelsMap := &readOnlyLabelsMap{}
 	newReadOnlyLabelsMap.idxToLabels = append(newReadOnlyLabelsMap.idxToLabels, pReadOnly.idxToLabels[:diff]...)
