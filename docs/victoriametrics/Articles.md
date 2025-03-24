@@ -51,6 +51,7 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Percona: Tame Kubernetes Costs with Percona Monitoring and Management and Prometheus Operator](https://www.percona.com/blog/2021/02/12/tame-kubernetes-costs-with-percona-monitoring-and-management-and-prometheus-operator/)
 * [Making peace with Prometheus rate()](https://www.doit.com/making-peace-with-prometheus-rate/)
 * [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)
+* [VictoriaMetrics: Long-Term Storage of Home Assistant Data](https://helgeklein.com/blog/victoriametrics-long-term-storage-of-home-assistant-data/)
 * [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
 * [What are Open Source Time Series Databases?](https://www.iunera.com/kraken/fabric/time-series-database/)
 * [Evaluating performance and correctness](https://www.robustperception.io/evaluating-performance-and-correctness)
