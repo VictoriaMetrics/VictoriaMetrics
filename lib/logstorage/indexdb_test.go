@@ -270,7 +270,7 @@ func TestGetTenantsIds(t *testing.T) {
 		{AccountID: 1, ProjectID: 1},
 		{AccountID: 123, ProjectID: 567},
 	}
-	getStreamIDForTags := func(tags map[string]string) ([]streamID, []byte) {
+	getStreamIDForTags := func(tags map[string]string) ([]streamID, string) {
 		st := GetStreamTags()
 		for k, v := range tags {
 			st.Add(k, v)
@@ -288,7 +288,7 @@ func TestGetTenantsIds(t *testing.T) {
 			sids = append(sids, sid)
 		}
 
-		return sids, streamTagsCanonical
+		return sids, string(streamTagsCanonical)
 	}
 
 	// Create indexdb entries
