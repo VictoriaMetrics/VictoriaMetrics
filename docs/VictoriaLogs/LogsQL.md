@@ -458,7 +458,13 @@ This query is equivalent to the following [`exact` filter](#exact-filter) query,
 app:="nginx"
 ```
 
-It is allowed to add `_stream:` prefix in front of `{...}` filter. The following filter is equivalent to `{app="nginx"}`:
+The stream filter supports `{label in (v1,...,vN)}` and `{label not_in (v1,...,vN)}` syntax.
+It is equivalent to `{label=~"v1|...|vN"}` and `{label!~"v1|...|vN"}` respectively. The `v1`, ..., `vN` are properly escaped inside the regexp.
+For example, `{app in ("nginx", "foo.bar")}` is equivalent to `{app=~"nginx|foo\\.bar"}` - note that the `.` char is properly escaped.
+
+It is allowed to add `_stream:` prefix in front of `{...}` filter in order to make clear that the filtering is performed
+on the [`_stream` log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+The following filter is equivalent to `{app="nginx"}`:
 
 ```logsql
 _stream:{app="nginx"}
@@ -1517,7 +1523,7 @@ LogsQL supports the following pipes:
   per each [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`union`](#union-pipe) returns results from multiple LogsQL queries.
-- [`uniq`](#uniq-pipe) returns unique log entires.
+- [`uniq`](#uniq-pipe) returns unique log entries.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -4036,7 +4042,7 @@ VictoriaLogs supports the following options, which can be passed in the beginnin
   ```
 
   The `in(...)` [subquery](#subquery-filter) without `options(ignore_global_time_filter=true)`
-  takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range pased
+  takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range passed
   to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
 
   ```logsql

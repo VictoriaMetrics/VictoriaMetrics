@@ -2,7 +2,9 @@ package insertutils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -49,6 +51,35 @@ func parseTimestamp(s string) (int64, error) {
 
 // ParseUnixTimestamp parses s as unix timestamp in seconds, milliseconds, microseconds or nanoseconds and returns the parsed timestamp in nanoseconds.
 func ParseUnixTimestamp(s string) (int64, error) {
+	if strings.IndexByte(s, '.') >= 0 {
+		// Parse timestamp as floating-point value
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse unix timestamp from %q: %w", s, err)
+		}
+		if f < (1<<31) && f >= (-1<<31) {
+			// The timestamp is in seconds.
+			return int64(f * 1e9), nil
+		}
+		if f < 1e3*(1<<31) && f >= 1e3*(-1<<31) {
+			// The timestamp is in milliseconds.
+			return int64(f * 1e6), nil
+		}
+		if f < 1e6*(1<<31) && f >= 1e6*(-1<<31) {
+			// The timestamp is in microseconds.
+			return int64(f * 1e3), nil
+		}
+		// The timestamp is in nanoseconds
+		if f > math.MaxInt64 {
+			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, int64(math.MaxInt64))
+		}
+		if f < math.MinInt64 {
+			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, int64(math.MinInt64))
+		}
+		return int64(f), nil
+	}
+
+	// Parse timestamp as integer
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse unix timestamp from %q: %w", s, err)

@@ -40,7 +40,7 @@ type blockHeader struct {
 	columnsHeaderSize uint64
 }
 
-// reset resets bh, so it can be re-used.
+// reset resets bh, so it can be reused.
 func (bh *blockHeader) reset() {
 	bh.streamID.reset()
 	bh.uncompressedSizeBytes = 0

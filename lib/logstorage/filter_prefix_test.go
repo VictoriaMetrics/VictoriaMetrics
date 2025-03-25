@@ -893,7 +893,7 @@ func TestFilterPrefix(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, fp, "_msg", []int{1})
 
-		// mimatch
+		// mismatch
 		fp = &filterPrefix{
 			fieldName: "_msg",
 			prefix:    "bar",

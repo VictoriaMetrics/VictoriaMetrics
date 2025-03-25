@@ -197,7 +197,7 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 		t.Helper()
 		_, ok := TryParseTimestampRFC3339Nano(s)
 		if ok {
-			t.Fatalf("expecting faulure when parsing %q", s)
+			t.Fatalf("expecting failure when parsing %q", s)
 		}
 	}
 
@@ -267,7 +267,7 @@ func TestTryParseTimestampISO8601_Failure(t *testing.T) {
 		t.Helper()
 		_, ok := tryParseTimestampISO8601(s)
 		if ok {
-			t.Fatalf("expecting faulure when parsing %q", s)
+			t.Fatalf("expecting failure when parsing %q", s)
 		}
 	}
 
@@ -329,6 +329,7 @@ func TestTryParseDuration_Success(t *testing.T) {
 	// zero duration
 	f("0s", 0)
 	f("0.0w0d0h0s0.0ms", 0)
+	f("-0.0w0.00d0h0s0.0000ms", 0)
 	f("-0w", 0)
 
 	// positive duration
@@ -337,6 +338,8 @@ func TestTryParseDuration_Success(t *testing.T) {
 	f("1µs", nsecsPerMicrosecond)
 	f("1ns", 1)
 	f("1h", nsecsPerHour)
+	f("0.001h", 0.001*nsecsPerHour)
+	f("0.05h", 0.05*nsecsPerHour)
 	f("1.5d", 1.5*nsecsPerDay)
 	f("1.5w", 1.5*nsecsPerWeek)
 	f("2.5y", 2.5*nsecsPerYear)
@@ -383,7 +386,7 @@ func TestTryParseDuration_Failure(t *testing.T) {
 	f("3.43e")
 	f("3.43es")
 
-	// superflouous space
+	// superfluous space
 	f(" 2s")
 	f("2s ")
 	f("2s 3ms")
@@ -535,6 +538,8 @@ func TestTryParseFloat64_Success(t *testing.T) {
 
 	f("0.345", 0.345)
 	f("-0.345", -0.345)
+	f("1.0234", 1.0234)
+	f("-12.0098", -12.0098)
 
 	// The maximum integer
 	f("9007199254740991", (1<<53)-1)
@@ -564,7 +569,7 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 	// Empty value
 	f("")
 
-	// Plus in the value isn't allowed, since it cannot be convered back to the same string representation
+	// Plus in the value isn't allowed, since it cannot be converted back to the same string representation
 	f("+123")
 
 	// Dot at the beginning and the end of value isn't allowed, since it cannot converted back to the same string representation
@@ -630,7 +635,7 @@ func TestTryParseFloat64Exact_Failure(t *testing.T) {
 	// Empty value
 	f("")
 
-	// Plus in the value isn't allowed, since it cannot be convered back to the same string representation
+	// Plus in the value isn't allowed, since it cannot be converted back to the same string representation
 	f("+123")
 
 	// Dot at the beginning and the end of value isn't allowed, since it cannot converted back to the same string representation

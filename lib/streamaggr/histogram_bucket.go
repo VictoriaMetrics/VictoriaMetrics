@@ -14,7 +14,7 @@ func (av *histogramBucketAggrValue) pushSample(_ aggrConfig, sample *pushSample,
 	av.h.Update(sample.value)
 }
 
-func (av *histogramBucketAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
+func (av *histogramBucketAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ bool) {
 	ac := c.(*histogramBucketAggrConfig)
 	shared := av.shared
 	if ac.useSharedState {

@@ -12,7 +12,7 @@ func (av *lastAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, 
 	}
 }
 
-func (av *lastAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+func (av *lastAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 	if av.timestamp > 0 {
 		ctx.appendSeries(key, "last", av.last)
 		av.timestamp = 0

@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"strings"
@@ -539,13 +540,41 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759
 // https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640
 func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
+	if isScalar(tssRight) {
+		// fast path: if tssRight is scalar then it can be merged
+		// with tssLeft only when tssLeft is also a scalar.
+		// If tssLeft is not a scalar, then no need in comparing MetricNames.
+		// Typical case is: metric_selector or on() vector(0)
+		canBeMerged := isScalar(tssLeft)
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesLeft {
+				leftIsNaN := math.IsNaN(v)
+				valueRight := valuesRight[i]
+				if leftIsNaN && canBeMerged {
+					// fill NaNs with valueRight if labels match
+					valuesLeft[i] = valueRight
+				}
+				if !leftIsNaN || canBeMerged {
+					// set NaN to valueRight if valueLeft is not NaN
+					// or if left and right can be merged
+					valuesRight[i] = nan
+				}
+			}
+		}
+		return
+	}
+
+	nameLeft, nameRight := bbPool.Get(), bbPool.Get()
 	for _, tsLeft := range tssLeft {
 		valuesLeft := tsLeft.Values
-		nameLeft := tsLeft.MetricName.String()
+		nameLeft.B = marshalMetricNameSorted(nameLeft.B[:0], &tsLeft.MetricName)
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
 			for _, tsRight := range tssRight {
-				canBeMerged := nameLeft == tsRight.MetricName.String()
+				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tsRight.MetricName)
+				canBeMerged := bytes.Equal(nameLeft.B, nameRight.B)
 				valueRight := tsRight.Values[i]
 				if leftIsNaN && canBeMerged {
 					// fill NaNs with valueRight if labels match
@@ -559,6 +588,8 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 			}
 		}
 	}
+	bbPool.Put(nameLeft)
+	bbPool.Put(nameRight)
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {

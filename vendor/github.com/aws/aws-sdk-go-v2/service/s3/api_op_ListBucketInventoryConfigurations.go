@@ -185,6 +185,9 @@ func (c *Client) addOperationListBucketInventoryConfigurationsMiddlewares(stack 
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListBucketInventoryConfigurationsValidationMiddleware(stack); err != nil {
 		return err
 	}

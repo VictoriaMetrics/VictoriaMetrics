@@ -37,8 +37,9 @@ type AlertManager struct {
 type notifierMetrics struct {
 	set *metrics.Set
 
-	alertsSent       *metrics.Counter
-	alertsSendErrors *metrics.Counter
+	alertsSent         *metrics.Counter
+	alertsSendErrors   *metrics.Counter
+	alertsSendDuration *metrics.Histogram
 }
 
 func newNotifierMetrics(addr string) *notifierMetrics {
@@ -46,9 +47,10 @@ func newNotifierMetrics(addr string) *notifierMetrics {
 	metrics.RegisterSet(set)
 
 	return &notifierMetrics{
-		set:              set,
-		alertsSent:       set.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-		alertsSendErrors: set.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		set:                set,
+		alertsSent:         set.NewCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsSendErrors:   set.NewCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		alertsSendDuration: set.NewHistogram(fmt.Sprintf("vmalert_alerts_send_duration_seconds{addr=%q}", addr)),
 	}
 }
 
@@ -72,7 +74,9 @@ func (am AlertManager) Addr() string {
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
+	startTime := time.Now()
 	err := am.send(ctx, alerts, headers)
+	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}

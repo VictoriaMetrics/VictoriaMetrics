@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -38,18 +38,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			logger.Errorf("cannot read gzipped jsonline request: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
+	encoding := r.Header.Get("Content-Encoding")
+	reader, err := protoparserutil.GetUncompressedReader(r.Body, encoding)
+	if err != nil {
+		logger.Errorf("cannot decode jsonline request: %s", err)
+		return
 	}
+	defer protoparserutil.PutUncompressedReader(reader)
 
-	lmp := cp.NewLogMessageProcessor("jsonline")
+	lmp := cp.NewLogMessageProcessor("jsonline", true)
 	streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
 	processStreamInternal(streamName, reader, cp.TimeField, cp.MsgFields, lmp)
 	lmp.MustClose()

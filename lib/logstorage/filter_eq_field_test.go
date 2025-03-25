@@ -1003,7 +1003,7 @@ func TestFilterEqField(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, fe, "_msg", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 
-		// mimatch
+		// mismatch
 		fe = &filterEqField{
 			fieldName:      "_msg",
 			otherFieldName: "baz",

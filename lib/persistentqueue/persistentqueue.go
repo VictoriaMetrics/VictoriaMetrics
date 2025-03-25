@@ -201,9 +201,6 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		filepath := q.chunkFilePath(0)
 		fs.MustWriteAtomic(filepath, nil, false)
 	}
-	if mi.Name != q.name {
-		return nil, fmt.Errorf("unexpected queue name; got %q; want %q", mi.Name, q.name)
-	}
 
 	// Locate reader and writer chunks in the path.
 	des := fs.MustReadDir(path)

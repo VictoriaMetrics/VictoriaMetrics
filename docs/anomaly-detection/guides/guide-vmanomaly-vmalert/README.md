@@ -2,9 +2,9 @@
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.112.0)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.112.0)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.112.0)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.113.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.113.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.113.0)
 - [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
@@ -138,7 +138,7 @@ schedulers:
   periodic:
     infer_every: "1m"
     fit_every: "1h"
-    fit_window: "2d" # 2d-14d based on the presense of weekly seasonality in your data
+    fit_window: "2d" # 2d-14d based on the presence of weekly seasonality in your data
 
 models:
   prophet:
@@ -315,7 +315,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.112.0
+    image: victoriametrics/vmagent:v1.113.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -332,7 +332,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.112.0
+    image: victoriametrics/victoria-metrics:v1.113.0
     ports:
       - 8428:8428
     volumes:
@@ -365,7 +365,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.112.0
+    image: victoriametrics/vmalert:v1.113.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -387,7 +387,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.20.0
+    image: victoriametrics/vmanomaly:v1.21.0
     depends_on:
       - "victoriametrics"
     ports:

@@ -68,7 +68,7 @@ type startSUTFunc func(name string, disablePerDayIndex bool) at.PrometheusWriteQ
 // The data inserted with enabled per-day index must be searchable with disabled
 // per-day index.
 //
-// The data inserted with disabled per-day index is not searcheable with per-day
+// The data inserted with disabled per-day index is not searchable with per-day
 // index enabled unless the search time range is > 40 days.
 func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	t := tc.T()
@@ -113,7 +113,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	}
 
 	// Start vmsingle with enabled per-day index, insert sample1, and confirm it
-	// is searcheable.
+	// is searchable.
 	sut := start("with-per-day-index", false)
 	sample1 := []string{"metric1 111 1704067200000"} // 2024-01-01T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample1, at.QueryOpts{})
@@ -131,7 +131,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	})
 
 	// Restart vmsingle with disabled per-day index, insert sample2, and confirm
-	// that both sample1 and sample2 is searcheable.
+	// that both sample1 and sample2 is searchable.
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z
@@ -158,12 +158,12 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 
 	// Insert sample1 but for a different date, restart vmsingle with enabled
 	// per-day index and confirm that:
-	// - sample1 is searcheable within the time range of Jan 1st
-	// - sample1 is not searcheable within the time range of Jan 20th
-	// - sample1 is searcheable within the time range of Jan 1st-20th (because
+	// - sample1 is searchable within the time range of Jan 1st
+	// - sample1 is not searchable within the time range of Jan 20th
+	// - sample1 is searchable within the time range of Jan 1st-20th (because
 	//   the metric1 metricID will be found in the per-day index for Jan 1st).
-	// - sample2 is not searcheable when the time range is <= 40 days
-	// - sample2 becomes searcheable when the time range is > 40 days
+	// - sample2 is not searchable when the time range is <= 40 days
+	// - sample2 becomes searchable when the time range is > 40 days
 	sample3 := []string{"metric1 333 1705708800000"} // 2024-01-20T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample3, at.QueryOpts{})
 	sut.ForceFlush(t)
@@ -234,5 +234,81 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 				},
 			},
 		},
+	})
+}
+
+func TestSingleActiveTimeseriesMetric_enabledPerDayIndex(t *testing.T) {
+	testSingleActiveTimeseriesMetric(t, false)
+}
+
+func TestSingleActiveTimeseriesMetric_disabledPerDayIndex(t *testing.T) {
+	testSingleActiveTimeseriesMetric(t, true)
+}
+
+func testSingleActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	vmsingle := tc.MustStartVmsingle("vmsingle", []string{
+		fmt.Sprintf("-storageDataPath=%s/vmsingle-%t", tc.Dir(), disablePerDayIndex),
+		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+	})
+
+	testActiveTimeseriesMetric(tc, vmsingle, func() int {
+		return vmsingle.GetIntMetric(t, `vm_cache_entries{type="storage/hour_metric_ids"}`)
+	})
+}
+
+func TestClusterActiveTimeseriesMetric_enabledPerDayIndex(t *testing.T) {
+	testClusterActiveTimeseriesMetric(t, false)
+}
+
+func TestClusterActiveTimeseriesMetric_disabledPerDayIndex(t *testing.T) {
+	testClusterActiveTimeseriesMetric(t, true)
+}
+
+func testClusterActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	vmstorage1 := tc.MustStartVmstorage("vmstorage1", []string{
+		fmt.Sprintf("-storageDataPath=%s/vmstorage1-%t", tc.Dir(), disablePerDayIndex),
+		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage2", []string{
+		fmt.Sprintf("-storageDataPath=%s/vmstorage2-%t", tc.Dir(), disablePerDayIndex),
+		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+	})
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
+	})
+
+	vmcluster := &at.Vmcluster{
+		Vmstorages: []*at.Vmstorage{vmstorage1, vmstorage2},
+		Vminsert:   vminsert,
+	}
+
+	testActiveTimeseriesMetric(tc, vmcluster, func() int {
+		cnt1 := vmstorage1.GetIntMetric(t, `vm_cache_entries{type="storage/hour_metric_ids"}`)
+		cnt2 := vmstorage2.GetIntMetric(t, `vm_cache_entries{type="storage/hour_metric_ids"}`)
+		return cnt1 + cnt2
+	})
+}
+
+func testActiveTimeseriesMetric(tc *at.TestCase, sut at.PrometheusWriteQuerier, getActiveTimeseries func() int) {
+	t := tc.T()
+	const numSamples = 1000
+	samples := make([]string, numSamples)
+	for i := range numSamples {
+		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
+	}
+	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.ForceFlush(t)
+	tc.Assert(&at.AssertOptions{
+		Msg: `unexpected vm_cache_entries{type="storage/hour_metric_ids"} metric value`,
+		Got: func() any {
+			return getActiveTimeseries()
+		},
+		Want: numSamples,
 	})
 }

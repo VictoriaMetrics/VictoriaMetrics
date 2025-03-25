@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"slices"
 	"sort"
@@ -34,25 +35,33 @@ type StorageFlusher interface {
 	ForceFlush(t *testing.T)
 }
 
+// StorageMerger defines a method that forces the merging of data inserted
+// into the storage.
+type StorageMerger interface {
+	ForceMerge(t *testing.T)
+}
+
 // PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
 type PrometheusWriteQuerier interface {
 	PrometheusWriter
 	PrometheusQuerier
 	StorageFlusher
+	StorageMerger
 }
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant       string
-	Timeout      string
-	Start        string
-	End          string
-	Time         string
-	Step         string
-	ExtraFilters []string
-	ExtraLabels  []string
-	Trace        string
+	Tenant         string
+	Timeout        string
+	Start          string
+	End            string
+	Time           string
+	Step           string
+	ExtraFilters   []string
+	ExtraLabels    []string
+	Trace          string
+	ReduceMemUsage string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -73,6 +82,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_label", qos.ExtraLabels...)
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
+	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
 
 	return uv
 }
@@ -92,6 +102,7 @@ type PrometheusAPIV1QueryResponse struct {
 	Data      *QueryData
 	ErrorType string
 	Error     string
+	IsPartial bool
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
@@ -108,6 +119,10 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 
 // Sort performs data.Result sort by metric labels
 func (pqr *PrometheusAPIV1QueryResponse) Sort() {
+	if pqr.Data == nil {
+		return
+	}
+
 	sort.Slice(pqr.Data.Result, func(i, j int) bool {
 		leftS := make([]string, 0, len(pqr.Data.Result[i].Metric))
 		rightS := make([]string, 0, len(pqr.Data.Result[j].Metric))
@@ -123,6 +138,25 @@ func (pqr *PrometheusAPIV1QueryResponse) Sort() {
 		return strings.Join(leftS, ",") < strings.Join(rightS, ",")
 	})
 
+	for _, result := range pqr.Data.Result {
+		sort.Slice(result.Samples, func(i, j int) bool {
+			a := result.Samples[i]
+			b := result.Samples[j]
+			if a.Timestamp != b.Timestamp {
+				return a.Timestamp < b.Timestamp
+			}
+
+			// Put NaNs at the end of the slice.
+			if math.IsNaN(a.Value) {
+				return false
+			}
+			if math.IsNaN(b.Value) {
+				return true
+			}
+
+			return a.Value < b.Value
+		})
+	}
 }
 
 // QueryData holds the query result along with its type.

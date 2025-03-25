@@ -228,7 +228,20 @@ For example, the following command builds images on top of [scratch](https://hub
 ROOT_IMAGE=scratch make package
 ```
 
-## Operation
+## High availability
+
+The database is considered highly available if it continues accepting new data and processing incoming queries when some of its components are temporarily unavailable.
+VictoriaMetrics cluster is highly available according to this definition - see [cluster availability docs](#cluster-availability).
+
+It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
+This improves cluster performance and availability. It isn't recommended spreading components for a single cluster
+across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency and higher
+error rates comparing the network inside a single AZ.
+
+If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
+[vmagent](https://docs.victoriametrics.com/vmagent/) in front of these clusters, so it could replicate incoming data
+into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent/#multitenancy) for details.
+Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
 ## Cluster setup
 
@@ -265,24 +278,154 @@ It is possible manually setting up a toy cluster on a single host. In this case 
 - `-vminsertAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting data from `vminsert` nodes.
 - `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
 
-### Environment variables
+### Cluster availability
 
-All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
-For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
-if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
-This expansion is performed by VictoriaMetrics itself.
+VictoriaMetrics cluster architecture prioritizes availability over data consistency.
+This means that the cluster remains available for data ingestion and data querying
+if some of its components are temporarily unavailable.
 
-VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
-For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
+VictoriaMetrics cluster remains available if the following conditions are met:
 
-Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
+- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
+  ([vmauth](https://docs.victoriametrics.com/vmauth/) stops routing requests to unavailable nodes).
 
-- The `-envflag.enable` flag must be set
-- Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
-- For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
-- It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+- At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
+  The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
+  for handling the current data ingestion workload.
+  If the remaining active `vminsert` nodes have no enough resources for processing the data ingestion workload,
+  then arbitrary delays may occur during data ingestion.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
 
-## Automatic vmstorage discovery
+- At least a single `vmselect` node must remain available in the cluster for processing query workload.
+  The remaining active `vmselect` nodes must have enough compute capacity (CPU, RAM, network bandwidth, disk IO)
+  for handling the current query workload.
+  If the remaining active `vmselect` nodes have no enough resources for processing query workload,
+  then arbitrary failures and delays may occur during query processing.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+- At least a single `vmstorage` node must remain available in the cluster for accepting newly ingested data
+  and for processing incoming queries. The remaining active `vmstorage` nodes must have enough compute capacity
+  (CPU, RAM, network bandwidth, disk IO, free disk space) for  handling the current workload.
+  If the remaining active `vmstorage` nodes have no enough resources for processing query workload,
+  then arbitrary failures and delay may occur during data ingestion and query processing.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+The cluster works in the following way when some of `vmstorage` nodes are unavailable:
+
+- `vminsert` re-routes newly ingested data from unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes.
+  This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
+  for processing the increased data ingestion workload.
+  `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
+  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
+  and increase in number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
+
+- `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
+  It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
+  since such responses may miss historical data stored on the temporarily unavailable `vmstorage` nodes.
+  Every partial JSON response contains `"isPartial": true` option.
+  If you prefer consistency over availability, then run `vmselect` nodes with `-search.denyPartialResponse` command-line flag.
+  In this case `vmselect` returns an error if at least a single `vmstorage` node is unavailable.
+  Another option is to pass `deny_partial_response=1` query arg to requests to `vmselect` nodes.
+
+  `vmselect` also accepts `-replicationFactor=N` command-line flag. This flag instructs `vmselect` to return full response
+  if less than `-replicationFactor` vmstorage nodes are unavailable during querying, since it assumes that the remaining
+  `vmstorage` nodes contain the full data. See [these docs](#replication-and-data-safety) for details.
+
+  It is also possible to configure independent replication factor per distinct `vmstorage` groups - see [these docs](#vmstorage-groups-at-vmselect).
+
+`vmselect` doesn't serve partial responses for API handlers returning [raw datapoints](https://docs.victoriametrics.com/keyconcepts/#raw-samples),
+since users usually expect this data is always complete. The following handlers return raw samples:
+
+- [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series)
+- [`/api/v1/query`](https://docs.victoriametrics.com/url-examples/#apiv1query) when the `query` contains [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
+  ending with some duration in square brackets. For example, `/api/v1/query?query=up[1h]&time=2024-01-02T03:00:00Z`.
+  This query returns [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+  with the `up` name on the time range `(2024-01-02T02:00:00 .. 2024-01-02T03:00:00]`. See [this article](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
+  for details.
+
+Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
+
+### Multi-level cluster setup
+
+`vmselect` nodes can be queried by other `vmselect` nodes if they run with `-clusternativeListenAddr` command-line flag.
+For example, if `vmselect` is started with `-clusternativeListenAddr=:8401`, then it can accept queries from another `vmselect` nodes at TCP port 8401
+in the same way as `vmstorage` nodes do. This allows chaining `vmselect` nodes and building multi-level cluster topologies.
+For example, the top-level `vmselect` node can query second-level `vmselect` nodes in different availability zones (AZ),
+while the second-level `vmselect` nodes can query `vmstorage` nodes in local AZ. See also [vmstorage groups at vmselect](#vmstorage-groups-at-vmselect).
+
+`vminsert` nodes can accept data from another `vminsert` nodes if they run with `-clusternativeListenAddr` command-line flag.
+For example, if `vminsert` is started with `-clusternativeListenAddr=:8400`, then it can accept data from another `vminsert` nodes at TCP port 8400
+in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies.
+For example, the top-level `vminsert` node can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ),
+while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes in local AZ.
+
+The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
+
+* Data ingestion speed is limited by the slowest link to AZ.
+* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
+
+These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent/#multitenancy).
+`vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
+
+### vmstorage groups at vmselect
+
+`vmselect` can be configured to query multiple distinct groups of `vmstorage` nodes with individual `-replicationFactor` per each group.
+The following format for `-storageNode` command-line flag value should be used for assigning a particular `addr` of `vmstorage` to a particular `groupName` -
+`-storageNode=groupName/addr`. The `groupName` can contain arbitrary value. The only rule is that every `vmstorage` group must have an unique name.
+
+For example, the following command runs `vmselect`, which continues returning full responses if up to one node per each group is temporarily unavailable
+because the given `-replicationFactor=2` is applied individually per each group:
+
+```bash
+/path/to/vmselect \
+ -replicationFactor=2 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -storageNode=g3/host7,g3/host8,g3/host9
+```
+
+It is possible specifying distinct `-replicationFactor` per each group via the following format - `-replicationFactor=groupName:rf`.
+For example, the following command runs `vmselect`, which uses `-replicationFactor=3` for the group `g1`, `-replicationFactor=2` for the group `g2`
+and `-replicationFactor=1` for the group `g3`:
+
+```bash
+/path/to/vmselect \
+ -replicationFactor=g1:3 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -replicationFactor=g2:2 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -replicationFactor=g3:1 \
+ -storageNode=g3/host4,g3/host5,g3/host6
+```
+
+If every ingested sample is replicated across multiple `vmstorage` groups, then pass `-globalReplicationFactor=N` command-line flag to `vmselect`,
+so it could continue returning full responses if up to `N-1` `vmstorage` groups are temporarily unavailable.
+For example, the following command runs `vmselect`, which continues returning full responses if any number of `vmstorage` nodes
+in a single `vmstorage` group are temporarily unavailable:
+
+```bash
+/path/to/vmselect \
+ -globalReplicationFactor=2 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -storageNode=g3/host7,g3/host8,g3/host9
+```
+
+It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the following command runs `vmselect`, which continues returning full responses
+if any number of `vmstorage` nodes in a single `vmstorage` group are temporarily unavailable and the remaining groups contain up to two unavailable `vmstorage` node:
+
+```bash
+/path/to/vmselect \
+ -globalReplicationFactor=2 \
+ -replicationFactor=3 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -storageNode=g3/host7,g3/host8,g3/host9
+```
+
+See also [multi-level cluster setup](#multi-level-cluster-setup).
+
+### Automatic vmstorage discovery
 
 `vminsert` and `vmselect` components in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) support
 the following approaches for automatic discovery of `vmstorage` nodes:
@@ -313,6 +456,24 @@ for sending data from `vminsert` to `vmstorage` node according to `-vminsertAddr
 
 The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
+
+### Environment variables
+
+All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
+For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
+if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
+This expansion is performed by VictoriaMetrics itself.
+
+VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
+For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
+
+Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
+
+- The `-envflag.enable` flag must be set
+- Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
+- For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
+- It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+
 ## Security
 
 General security recommendations:
@@ -328,8 +489,7 @@ General security recommendations:
 See also [security recommendation for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
 
-
-## mTLS protection
+### mTLS protection
 
 By default `vminsert` and `vmselect` nodes accept http requests at `8480` and `8481` ports accordingly (these ports can be changed via `-httpListenAddr` command-line flags),
 since it is expected that [vmauth](https://docs.victoriametrics.com/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
@@ -342,7 +502,7 @@ For example, the following command runs `vmselect`, which accepts only mTLS requ
 ./vmselect -tls -mtls
 ```
 
-By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
 By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components [run in a protected environment](#security). [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
@@ -409,7 +569,6 @@ and start re-routing the data to the remaining `vmstorage` nodes.
 
 `vmstorage` sets `vm_storage_is_read_only` metric at `http://vmstorage:8482/metrics` to `1` when it enters read-only mode.
 The metric is set to `0` when the `vmstorage` isn't in read-only mode.
-
 
 ## URL format
 
@@ -536,7 +695,7 @@ Steps to add `vmstorage` node:
 
 In order to handle uneven disk space usage distribution after adding new `vmstorage` node it is possible to update `vminsert` configuration to route newly ingested metrics only to new storage nodes. Once disk usage will be similar configuration can be updated to include all nodes again. Note that `vmselect` nodes need to reference all storage nodes for querying.
 
-## Updating / reconfiguring cluster nodes
+### Updating / reconfiguring cluster nodes
 
 All the node types - `vminsert`, `vmselect` and `vmstorage` - may be updated via graceful shutdown.
 Send `SIGINT` signal to the corresponding process, wait until it finishes and then start new version
@@ -586,7 +745,7 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
 - It allows minimizing the duration of config update / version upgrade for clusters with big number of nodes
   of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
 
-## Improving re-routing performance during restart
+### Improving re-routing performance during restart
 
 `vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
 [rolling restarts](https://docs.victoriametrics.com/cluster-victoriametrics/#no-downtime-strategy),
@@ -607,74 +766,6 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
   (e.g. Docker, Kubernetes, systemd, etc.). Otherwise the system may kill `vmstorage` node before it finishes gradual closing of `vminsert` connections.
 
 See also [minimum downtime strategy](#minimum-downtime-strategy).
-
-
-## Cluster availability
-
-VictoriaMetrics cluster architecture prioritizes availability over data consistency.
-This means that the cluster remains available for data ingestion and data querying
-if some of its components are temporarily unavailable.
-
-VictoriaMetrics cluster remains available if the following conditions are met:
-
-- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
-  ([vmauth](https://docs.victoriametrics.com/vmauth/) stops routing requests to unavailable nodes).
-
-- At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
-  The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
-  for handling the current data ingestion workload.
-  If the remaining active `vminsert` nodes have no enough resources for processing the data ingestion workload,
-  then arbitrary delays may occur during data ingestion.
-  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
-
-- At least a single `vmselect` node must remain available in the cluster for processing query workload.
-  The remaining active `vmselect` nodes must have enough compute capacity (CPU, RAM, network bandwidth, disk IO)
-  for handling the current query workload.
-  If the remaining active `vmselect` nodes have no enough resources for processing query workload,
-  then arbitrary failures and delays may occur during query processing.
-  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
-
-- At least a single `vmstorage` node must remain available in the cluster for accepting newly ingested data
-  and for processing incoming queries. The remaining active `vmstorage` nodes must have enough compute capacity
-  (CPU, RAM, network bandwidth, disk IO, free disk space) for  handling the current workload.
-  If the remaining active `vmstorage` nodes have no enough resources for processing query workload,
-  then arbitrary failures and delay may occur during data ingestion and query processing.
-  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
-
-The cluster works in the following way when some of `vmstorage` nodes are unavailable:
-
-- `vminsert` re-routes newly ingested data from unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes.
-  This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
-  for processing the increased data ingestion workload.
-  `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
-  the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
-  and increase in number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
-
-- `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
-  It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
-  since such responses may miss historical data stored on the temporarily unavailable `vmstorage` nodes.
-  Every partial JSON response contains `"isPartial": true` option.
-  If you prefer consistency over availability, then run `vmselect` nodes with `-search.denyPartialResponse` command-line flag.
-  In this case `vmselect` returns an error if at least a single `vmstorage` node is unavailable.
-  Another option is to pass `deny_partial_response=1` query arg to requests to `vmselect` nodes.
-
-  `vmselect` also accepts `-replicationFactor=N` command-line flag. This flag instructs `vmselect` to return full response
-  if less than `-replicationFactor` vmstorage nodes are unavailable during querying, since it assumes that the remaining
-  `vmstorage` nodes contain the full data. See [these docs](#replication-and-data-safety) for details.
-
-  It is also possible to configure independent replication factor per distinct `vmstorage` groups - see [these docs](#vmstorage-groups-at-vmselect).
-
-`vmselect` doesn't serve partial responses for API handlers returning [raw datapoints](https://docs.victoriametrics.com/keyconcepts/#raw-samples),
-since users usually expect this data is always complete. The following handlers return raw samples:
-
-- [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series)
-- [`/api/v1/query`](https://docs.victoriametrics.com/url-examples/#apiv1query) when the `query` contains [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
-  ending with some duration in square brackets. For example, `/api/v1/query?query=up[1h]&time=2024-01-02T03:00:00Z`.
-  This query returns [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
-  with the `up` name on the time range `(2024-01-02T02:00:00 .. 2024-01-02T03:00:00]`. See [this article](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
-  for details.
-
-Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
 ## Capacity planning
 
@@ -765,6 +856,10 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.
+- `-search.maxTSDBStatusTopNSeries` at `vmselect` limits the number of unique time
+  series that can be queried with topN argument by a single
+  [/api/v1/status/tsdb?topN=N](https://docs.victoriametrics.com/readme/#tsdb-stats)
+  call. 
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
   [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels). This endpoint is used mostly by Grafana
   for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect`
@@ -804,102 +899,6 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   See [cardinality limiter docs](#cardinality-limiter).
 
 See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent/#cardinality-limiter).
-
-## High availability
-
-The database is considered highly available if it continues accepting new data and processing incoming queries when some of its components are temporarily unavailable.
-VictoriaMetrics cluster is highly available according to this definition - see [cluster availability docs](#cluster-availability).
-
-It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
-This improves cluster performance and availability. It isn't recommended spreading components for a single cluster
-across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency and higher
-error rates comparing the network inside a single AZ.
-
-If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
-[vmagent](https://docs.victoriametrics.com/vmagent/) in front of these clusters, so it could replicate incoming data
-into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent/#multitenancy) for details.
-Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
-
-
-## Multi-level cluster setup
-
-`vmselect` nodes can be queried by other `vmselect` nodes if they run with `-clusternativeListenAddr` command-line flag.
-For example, if `vmselect` is started with `-clusternativeListenAddr=:8401`, then it can accept queries from another `vmselect` nodes at TCP port 8401
-in the same way as `vmstorage` nodes do. This allows chaining `vmselect` nodes and building multi-level cluster topologies.
-For example, the top-level `vmselect` node can query second-level `vmselect` nodes in different availability zones (AZ),
-while the second-level `vmselect` nodes can query `vmstorage` nodes in local AZ. See also [vmstorage groups at vmselect](#vmstorage-groups-at-vmselect).
-
-`vminsert` nodes can accept data from another `vminsert` nodes if they run with `-clusternativeListenAddr` command-line flag.
-For example, if `vminsert` is started with `-clusternativeListenAddr=:8400`, then it can accept data from another `vminsert` nodes at TCP port 8400
-in the same way as `vmstorage` nodes do. This allows chaining `vminsert` nodes and building multi-level cluster topologies.
-For example, the top-level `vminsert` node can replicate data among the second level of `vminsert` nodes located in distinct availability zones (AZ),
-while the second-level `vminsert` nodes can spread the data among `vmstorage` nodes in local AZ.
-
-The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
-
-* Data ingestion speed is limited by the slowest link to AZ.
-* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
-
-These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent/#multitenancy).
-`vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
-
-## vmstorage groups at vmselect
-
-`vmselect` can be configured to query multiple distinct groups of `vmstorage` nodes with individual `-replicationFactor` per each group.
-The following format for `-storageNode` command-line flag value should be used for assigning a particular `addr` of `vmstorage` to a particular `groupName` -
-`-storageNode=groupName/addr`. The `groupName` can contain arbitrary value. The only rule is that every `vmstorage` group must have an unique name.
-
-For example, the following command runs `vmselect`, which continues returning full responses if up to one node per each group is temporarily unavailable
-because the given `-replicationFactor=2` is applied individually per each group:
-
-```bash
-/path/to/vmselect \
- -replicationFactor=2 \
- -storageNode=g1/host1,g1/host2,g1/host3 \
- -storageNode=g2/host4,g2/host5,g2/host6 \
- -storageNode=g3/host7,g3/host8,g3/host9
-```
-
-It is possible specifying distinct `-replicationFactor` per each group via the following format - `-replicationFactor=groupName:rf`.
-For example, the following command runs `vmselect`, which uses `-replicationFactor=3` for the group `g1`, `-replicationFactor=2` for the group `g2`
-and `-replicationFactor=1` for the group `g3`:
-
-```bash
-/path/to/vmselect \
- -replicationFactor=g1:3 \
- -storageNode=g1/host1,g1/host2,g1/host3 \
- -replicationFactor=g2:2 \
- -storageNode=g2/host4,g2/host5,g2/host6 \
- -replicationFactor=g3:1 \
- -storageNode=g3/host4,g3/host5,g3/host6
-```
-
-If every ingested sample is replicated across multiple `vmstorage` groups, then pass `-globalReplicationFactor=N` command-line flag to `vmselect`,
-so it could continue returning full responses if up to `N-1` `vmstorage` groups are temporarily unavailable.
-For example, the following command runs `vmselect`, which continues returning full responses if any number of `vmstorage` nodes
-in a single `vmstorage` group are temporarily unavailable:
-
-```bash
-/path/to/vmselect \
- -globalReplicationFactor=2 \
- -storageNode=g1/host1,g1/host2,g1/host3 \
- -storageNode=g2/host4,g2/host5,g2/host6 \
- -storageNode=g3/host7,g3/host8,g3/host9
-```
-
-It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the following command runs `vmselect`, which continues returning full responses
-if any number of `vmstorage` nodes in a single `vmstorage` group are temporarily unavailable and the remaining groups contain up to two unavailable `vmstorage` node:
-
-```bash
-/path/to/vmselect \
- -globalReplicationFactor=2 \
- -replicationFactor=3 \
- -storageNode=g1/host1,g1/host2,g1/host3 \
- -storageNode=g2/host4,g2/host5,g2/host6 \
- -storageNode=g3/host7,g3/host8,g3/host9
-```
-
-See also [multi-level cluster setup](#multi-level-cluster-setup).
 
 ## Helm
 
@@ -1265,7 +1264,7 @@ Below is the output for `/path/to/vminsert -help`:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricNamesStatsResetAuthKey value
-     AuthKey for reseting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*
+     AuthKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*
      See https://docs.victoriametrics.com/#track-ingested-metrics-usage
      Flag value can be read from the given file when using -metricNamesStatsResetAuthKey=file:///abs/path/to/file or -metricNamesStatsResetAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https
  url when using -metricNamesStatsResetAuthKey=http://host/path or -metricNamesStatsResetAuthKey=https://host/path
@@ -1591,6 +1590,8 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m)
   -search.maxDeleteSeries int
      The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
+  -search.maxTSDBStatusTopNSeries int
+     The maximum number of time series that can be returned from /api/v1/status/tsdb. This option allows limiting memory usage (default 1000)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int

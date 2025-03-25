@@ -240,7 +240,7 @@ func TestOauth2ConfigValidateFailure(t *testing.T) {
 		}
 	}
 
-	// emtpy client_id
+	// empty client_id
 	f(`
 client_secret: some-secret
 token_url: http://some-url

@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -817,14 +818,24 @@ func tryParseFloat64Internal(s string, isExact bool) (float64, bool) {
 	}
 	sInt := s[:n]
 	sFrac := s[n+1:]
+
 	nInt, ok := tryParseUint64(sInt)
 	if !ok {
 		return 0, false
 	}
-	nFrac, ok := tryParseUint64(sFrac)
+
+	// Skip leading zeroes at sFrac, since tryParseUint64 rejects them.
+	// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8464
+	n = 0
+	for n < len(sFrac)-1 && sFrac[n] == '0' {
+		n++
+	}
+
+	nFrac, ok := tryParseUint64(sFrac[n:])
 	if !ok {
 		return 0, false
 	}
+
 	p10 := math.Pow10(strings.Count(sFrac, "_") - len(sFrac))
 	f := math.FMA(float64(nFrac), p10, float64(nInt))
 	if minus {
@@ -1238,10 +1249,9 @@ func (vd *valuesDict) reset() {
 func (vd *valuesDict) copyFrom(a *arena, src *valuesDict) {
 	vd.reset()
 
-	dstValues := vd.values
-	for _, v := range src.values {
-		v = a.copyString(v)
-		dstValues = append(dstValues, v)
+	dstValues := slicesutil.SetLength(vd.values, len(src.values))
+	for i, v := range src.values {
+		dstValues[i] = a.copyString(v)
 	}
 	vd.values = dstValues
 }

@@ -118,7 +118,7 @@ type writeRequest struct {
 }
 
 func (wr *writeRequest) reset() {
-	// Do not reset lastFlushTime, fq, isVMRemoteWrite, significantFigures and roundDigits, since they are re-used.
+	// Do not reset lastFlushTime, fq, isVMRemoteWrite, significantFigures and roundDigits, since they are reused.
 
 	wr.wr.Timeseries = nil
 

@@ -18,7 +18,7 @@ func (av *countSeriesAggrValue) pushSample(_ aggrConfig, _ *pushSample, key stri
 	}
 }
 
-func (av *countSeriesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+func (av *countSeriesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 	if len(av.samples) > 0 {
 		ctx.appendSeries(key, "count_series", float64(len(av.samples)))
 		clear(av.samples)
