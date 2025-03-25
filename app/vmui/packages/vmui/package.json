@@ -22,7 +22,7 @@
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^7.1.5",
     "uplot": "^1.6.31",
-    "vite": "^6.0.11",
+    "vite": "^6.2.3",
     "web-vitals": "^4.2.4"
   },
   "scripts": {
