@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	storagePath     = "TestStorage"
-	retentionPeriod = "100y"
+	storagePath       = "TestStorage"
+	retentionPeriod   = "100y"
+	deleteSeriesLimit = 3e3
 )
 
 func TestVMNativeProcessorRun(t *testing.T) {
@@ -259,7 +260,7 @@ func deleteSeries(name, value string) (int, error) {
 	if err := tfs.Add([]byte(name), []byte(value), false, true); err != nil {
 		return 0, fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs}, 1e3)
+	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs}, deleteSeriesLimit)
 }
 
 func TestBuildMatchWithFilter_Failure(t *testing.T) {

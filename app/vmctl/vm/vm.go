@@ -69,7 +69,6 @@ type Importer struct {
 	user       string
 	password   string
 
-	close  chan struct{}
 	input  chan *TimeSeries
 	errors chan *ImportError
 
@@ -143,7 +142,6 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		user:       cfg.User,
 		password:   cfg.Password,
 		rl:         limiter.NewLimiter(cfg.RateLimit),
-		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
 		backoff:    cfg.Backoff,
@@ -189,10 +187,10 @@ func (im *Importer) Errors() chan *ImportError { return im.errors }
 
 // Input returns a channel for sending timeseries
 // that need to be imported
-func (im *Importer) Input(ts *TimeSeries) error {
+func (im *Importer) Input(ctx context.Context, ts *TimeSeries) error {
 	select {
-	case <-im.close:
-		return fmt.Errorf("importer is closed")
+	case <-ctx.Done():
+		return ctx.Err()
 	case im.input <- ts:
 		return nil
 	case err := <-im.errors:
@@ -207,7 +205,6 @@ func (im *Importer) Input(ts *TimeSeries) error {
 // and waits until they are finished
 func (im *Importer) Close() {
 	im.once.Do(func() {
-		close(im.close)
 		close(im.input)
 		im.wg.Wait()
 		close(im.errors)
@@ -220,24 +217,34 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize,
 	var waitForBatch time.Time
 	for {
 		select {
-		case <-im.close:
+		case <-ctx.Done():
 			for ts := range im.input {
 				ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
 				batch = append(batch, ts)
+				exitErr := &ImportError{
+					Batch: batch,
+				}
+				retryableFunc := func() error { return im.Import(batch) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				im.errors <- exitErr
 			}
-			exitErr := &ImportError{
-				Batch: batch,
-			}
-			retryableFunc := func() error { return im.Import(batch) }
-			_, err := im.backoff.Retry(ctx, retryableFunc)
-			if err != nil {
-				exitErr.Err = err
-			}
-			im.errors <- exitErr
 			return
 		case ts, ok := <-im.input:
 			if !ok {
-				continue
+				// drain all batches before exit
+				exitErr := &ImportError{
+					Batch: batch,
+				}
+				retryableFunc := func() error { return im.Import(batch) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				im.errors <- exitErr
+				return
 			}
 			// init waitForBatch when first
 			// value was received
@@ -247,13 +254,14 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize,
 
 			ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
 			batch = append(batch, ts)
-			dataPoints += len(ts.Values)
+			dataPoints = dataPoints + len(ts.Values)
 
 			bar.Add(len(ts.Values))
 
 			if dataPoints < batchSize {
 				continue
 			}
+
 			im.s.Lock()
 			im.s.idleDuration += time.Since(waitForBatch)
 			im.s.Unlock()
