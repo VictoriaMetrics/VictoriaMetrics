@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -129,7 +129,7 @@ type EvalConfig struct {
 	// QuotedRemoteAddr contains quoted remote address.
 	QuotedRemoteAddr string
 
-	Deadline searchutils.Deadline
+	Deadline searchutil.Deadline
 
 	// Whether the response can be cached.
 	MayCache bool
@@ -1740,8 +1740,8 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 
 	// Fetch the result.
-	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
-	tfss = searchutils.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
+	tfss := searchutil.ToTagFilterss(me.LabelFilterss)
+	tfss = searchutil.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
 	minTimestamp := ec.Start
 	if needSilenceIntervalForRollupFunc[funcName] {
 		minTimestamp -= maxSilenceInterval()

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -27,7 +27,7 @@ var (
 //
 // See https://graphite.readthedocs.io/en/stable/render_api.html
 func RenderHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	format := r.FormValue("format")
 	if format != "json" {
 		return fmt.Errorf("unsupported format=%q; supported values: json", format)
@@ -91,7 +91,7 @@ func RenderHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		}
 		maxDataPoints = int(n)
 	}
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}

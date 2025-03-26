@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -37,7 +37,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 		le = n
 	}
 	matchPattern := r.FormValue("match_pattern")
-	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
+	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
 	var tt *storage.TenantToken
 	if at != nil {
 		tt = &storage.TenantToken{
@@ -55,7 +55,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 
 // ResetMetricNamesStatsHandler resets metric names usage state
 func ResetMetricNamesStatsHandler(startTime time.Time, qt *querytracer.Tracer, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
+	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
 	if err := netstorage.ResetMetricNamesStats(qt, deadline); err != nil {
 		return err
 	}

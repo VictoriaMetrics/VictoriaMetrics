@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -21,7 +21,7 @@ var (
 )
 
 // TenantsCached returns the list of tenants available in the storage.
-func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]storage.TenantToken, error) {
+func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.Deadline) ([]storage.TenantToken, error) {
 	qt.Printf("fetching tenants on timeRange=%s", tr.String())
 
 	initTenantsCacheVOnce.Do(func() {

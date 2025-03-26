@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -49,26 +49,26 @@ type vmstorageAPI struct{}
 
 func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	bi := newBlockIterator(qt, denyPartialResponse, sq, dl)
 	return bi, nil
 }
 
 func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	return netstorage.Tenants(qt, tr, dl)
 }
 
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	metricNames, _, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, dl)
 	return metricNames, err
 }
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	labelValues, _, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, maxLabelValues, dl)
 	return labelValues, err
 }
@@ -76,49 +76,49 @@ func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQ
 func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	suffixes, _, err := netstorage.TagValueSuffixes(qt, accountID, projectID, denyPartialResponse, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, dl)
 	return suffixes, err
 }
 
 func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	labelNames, _, err := netstorage.LabelNames(qt, denyPartialResponse, sq, maxLabelNames, dl)
 	return labelNames, err
 }
 
 func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	seriesCount, _, err := netstorage.SeriesCount(qt, accountID, projectID, denyPartialResponse, dl)
 	return seriesCount, err
 }
 
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	tsdbStatus, _, err := netstorage.TSDBStatus(qt, denyPartialResponse, sq, focusLabel, topN, dl)
 	return tsdbStatus, err
 }
 
 func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	return netstorage.DeleteSeries(qt, sq, dl)
 }
 
 func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	return netstorage.RegisterMetricNames(qt, mrs, dl)
 }
 
 func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error {
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	return netstorage.ResetMetricNamesStats(qt, dl)
 }
 
 func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, le, limit int, matchPattern string, deadline uint64) (storage.MetricNamesStatsResponse, error) {
-	dl := searchutils.DeadlineFromTimestamp(deadline)
+	dl := searchutil.DeadlineFromTimestamp(deadline)
 	return netstorage.GetMetricNamesStats(qt, tt, le, limit, matchPattern, dl)
 }
 
@@ -134,7 +134,7 @@ type workItem struct {
 	doneCh chan struct{}
 }
 
-func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutils.Deadline) *blockIterator {
+func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) *blockIterator {
 	var bi blockIterator
 	bi.workCh = make(chan workItem, 16)
 	bi.wg.Add(1)

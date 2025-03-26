@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -204,7 +204,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := searchutils.GetMaxQueryDuration(r)
+		d := searchutil.GetMaxQueryDuration(r)
 		if d > *maxQueueDuration {
 			d = *maxQueueDuration
 		}

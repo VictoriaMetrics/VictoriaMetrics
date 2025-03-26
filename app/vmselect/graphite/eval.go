@@ -7,7 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -24,7 +24,7 @@ type evalConfig struct {
 	endTime             int64
 	storageStep         int64
 	denyPartialResponse bool
-	deadline            searchutils.Deadline
+	deadline            searchutil.Deadline
 
 	currentTime time.Time
 

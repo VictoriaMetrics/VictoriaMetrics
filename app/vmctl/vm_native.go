@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -362,7 +362,7 @@ func byteCountSI(b int64) string {
 }
 
 func buildMatchWithFilter(filter string, metricName string) (string, error) {
-	tfss, err := searchutils.ParseMetricSelector(filter)
+	tfss, err := searchutil.ParseMetricSelector(filter)
 	if err != nil {
 		return "", err
 	}
