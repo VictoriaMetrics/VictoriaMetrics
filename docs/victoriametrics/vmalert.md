@@ -214,6 +214,14 @@ labels:
 
 rules:
   [ - <rule> ... ]
+
+# Whether to print debug information into logs.
+# Applies to all rules in the group.
+# Information includes alerts state changes and requests sent to the datasource.
+# Please note, that if rule's query params contain sensitive
+# information - it will be printed to logs.
+# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
+[ debug: <bool> | default = false ]
 ```
 
 ### Rules
@@ -262,7 +270,6 @@ expr: <string>
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
-# Is applicable to alerting rules only. 
 # Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
 [ debug: <bool> | default = false ]
 
@@ -399,6 +406,11 @@ expr: <string>
 labels:
   [ <labelname>: <labelvalue> ]
 
+# Whether to print debug information into logs.
+# Information includes requests sent to the datasource.
+# information - it will be printed to logs.
+# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
+[ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
@@ -940,9 +952,9 @@ for more details.
 vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/changelog/#v1820).
 Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
 ```shell-session
-2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
+2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms, isPartial: false)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
-2022-09-15T13:35:56.178Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms)
+2022-09-15T13:35:56.178Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms, isPartial: false)
 2022-09-15T13:35:56.178Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29&step=15s&time=1663248945"
 2022-09-15T13:35:56.179Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} created in state PENDING
 ...
