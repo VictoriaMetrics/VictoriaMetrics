@@ -1,4 +1,4 @@
-package datadogutils
+package datadogutil
 
 import (
 	"flag"
