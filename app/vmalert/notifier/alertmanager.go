@@ -12,7 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -171,11 +171,11 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		oauth = authCfg.OAuth2
 	}
 
-	aCfg, err := utils.AuthConfig(
-		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
-		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
-		utils.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams),
-		utils.WithHeaders(strings.Join(authCfg.Headers, "^^")),
+	aCfg, err := vmalertutil.AuthConfig(
+		vmalertutil.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
+		vmalertutil.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
+		vmalertutil.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams),
+		vmalertutil.WithHeaders(strings.Join(authCfg.Headers, "^^")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)

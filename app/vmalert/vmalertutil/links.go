@@ -1,4 +1,4 @@
-package utils
+package vmalertutil
 
 import (
 	"net/url"
