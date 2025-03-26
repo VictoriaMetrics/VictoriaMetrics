@@ -308,10 +308,13 @@ func main() {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
 
-					srcHTTPClient := &http.Client{Transport: &http.Transport{
-						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig:   srcTC,
-					}}
+					trSrc := httputil.NewTransport(false)
+					trSrc.DisableKeepAlives = disableKeepAlive
+					trSrc.TLSClientConfig = srcTC
+
+					srcHTTPClient := &http.Client{
+						Transport: trSrc,
+					}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
@@ -335,10 +338,13 @@ func main() {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
 
-					dstHTTPClient := &http.Client{Transport: &http.Transport{
-						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig:   dstTC,
-					}}
+					trDst := httputil.NewTransport(false)
+					trDst.DisableKeepAlives = disableKeepAlive
+					trDst.TLSClientConfig = dstTC
+
+					dstHTTPClient := &http.Client{
+						Transport: trDst,
+					}
 
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),

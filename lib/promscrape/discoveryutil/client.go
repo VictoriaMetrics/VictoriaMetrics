@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -110,25 +111,28 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 
+	tr := httputil.NewTransport(false)
+	tr.Proxy = proxyURLFunc
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.MaxIdleConnsPerHost = *maxConcurrency
+	tr.ResponseHeaderTimeout = DefaultClientReadTimeout
+	tr.DialContext = dialFunc
+
 	client := &http.Client{
-		Timeout: DefaultClientReadTimeout,
-		Transport: ac.NewRoundTripper(&http.Transport{
-			Proxy:                 proxyURLFunc,
-			TLSHandshakeTimeout:   10 * time.Second,
-			MaxIdleConnsPerHost:   *maxConcurrency,
-			ResponseHeaderTimeout: DefaultClientReadTimeout,
-			DialContext:           dialFunc,
-		}),
+		Timeout:   DefaultClientReadTimeout,
+		Transport: ac.NewRoundTripper(tr),
 	}
+
+	trBlocking := httputil.NewTransport(false)
+	trBlocking.Proxy = proxyURLFunc
+	trBlocking.TLSHandshakeTimeout = 10 * time.Second
+	trBlocking.MaxIdleConnsPerHost = 1000
+	trBlocking.ResponseHeaderTimeout = BlockingClientReadTimeout
+	trBlocking.DialContext = dialFunc
+
 	blockingClient := &http.Client{
-		Timeout: BlockingClientReadTimeout,
-		Transport: ac.NewRoundTripper(&http.Transport{
-			Proxy:                 proxyURLFunc,
-			TLSHandshakeTimeout:   10 * time.Second,
-			MaxIdleConnsPerHost:   1000,
-			ResponseHeaderTimeout: BlockingClientReadTimeout,
-			DialContext:           dialFunc,
-		}),
+		Timeout:   BlockingClientReadTimeout,
+		Transport: ac.NewRoundTripper(trBlocking),
 	}
 
 	setHTTPHeaders := func(_ *http.Request) error { return nil }

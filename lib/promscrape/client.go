@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
@@ -77,18 +78,19 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		}
 	}
 
+	tr := httputil.NewTransport(false)
+	tr.Proxy = proxyURLFunc
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.IdleConnTimeout = 2 * sw.ScrapeInterval
+	tr.DisableCompression = *disableCompression || sw.DisableCompression
+	tr.DisableKeepAlives = *disableKeepAlive || sw.DisableKeepAlive
+	tr.DialContext = dialFunc
+	tr.MaxIdleConnsPerHost = 100
+	tr.MaxResponseHeaderBytes = int64(maxResponseHeadersSize.N)
+
 	hc := &http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{
-			Proxy:                  proxyURLFunc,
-			TLSHandshakeTimeout:    10 * time.Second,
-			IdleConnTimeout:        2 * sw.ScrapeInterval,
-			DisableCompression:     *disableCompression || sw.DisableCompression,
-			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            dialFunc,
-			MaxIdleConnsPerHost:    100,
-			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
-		}),
-		Timeout: sw.ScrapeTimeout,
+		Transport: ac.NewRoundTripper(tr),
+		Timeout:   sw.ScrapeTimeout,
 	}
 	if sw.DenyRedirects {
 		hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
