@@ -137,16 +137,18 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:     group.Name,
 		File:          group.File,
 		EvalInterval:  group.Interval,
-		Debug:         cfg.Debug || group.Debug,
+		Debug:         group.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
-			Debug:                     cfg.Debug,
 		}),
 		alerts: make(map[uint64]*notifier.Alert),
+	}
+	if cfg.Debug != nil {
+		ar.Debug = *cfg.Debug
 	}
 
 	entrySize := *ruleUpdateEntriesLimit

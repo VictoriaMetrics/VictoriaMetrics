@@ -92,7 +92,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
-		Debug:     cfg.Debug || group.Debug,
+		Debug:     group.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
@@ -100,6 +100,9 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
 		}),
+	}
+	if cfg.Debug != nil {
+		rr.Debug = *cfg.Debug
 	}
 
 	entrySize := *ruleUpdateEntriesLimit
