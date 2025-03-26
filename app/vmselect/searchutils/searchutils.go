@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -24,7 +24,7 @@ var (
 
 // GetMaxQueryDuration returns the maximum duration for query from r.
 func GetMaxQueryDuration(r *http.Request) time.Duration {
-	dms, err := httputils.GetDuration(r, "timeout", 0)
+	dms, err := httputil.GetDuration(r, "timeout", 0)
 	if err != nil {
 		dms = 0
 	}
@@ -66,7 +66,7 @@ func GetDeadlineForDelete(r *http.Request, startTime time.Time) Deadline {
 }
 
 func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {
-	d, err := httputils.GetDuration(r, "timeout", 0)
+	d, err := httputil.GetDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
 	}

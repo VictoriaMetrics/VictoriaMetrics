@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -47,7 +47,7 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if len(delimiter) > 1 {
 		return fmt.Errorf("`delimiter` query arg must contain only a single char")
 	}
-	if httputils.GetBool(r, "automatic_variants") {
+	if httputil.GetBool(r, "automatic_variants") {
 		// See https://github.com/graphite-project/graphite-web/blob/bb9feb0e6815faa73f538af6ed35adea0fb273fd/webapp/graphite/metrics/views.py#L152
 		query = addAutomaticVariants(query, delimiter)
 	}
@@ -58,19 +58,19 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 			query += "*"
 		}
 	}
-	leavesOnly := httputils.GetBool(r, "leavesOnly")
-	wildcards := httputils.GetBool(r, "wildcards")
+	leavesOnly := httputil.GetBool(r, "leavesOnly")
+	wildcards := httputil.GetBool(r, "wildcards")
 	label := r.FormValue("label")
 	if label == "__name__" {
 		label = ""
 	}
 	jsonp := r.FormValue("jsonp")
-	from, err := httputils.GetTime(r, "from", 0)
+	from, err := httputil.GetTime(r, "from", 0)
 	if err != nil {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	until, err := httputils.GetTime(r, "until", ct)
+	until, err := httputil.GetTime(r, "until", ct)
 	if err != nil {
 		return err
 	}
@@ -125,8 +125,8 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 	if len(queries) == 0 {
 		return fmt.Errorf("missing `query` arg")
 	}
-	groupByExpr := httputils.GetBool(r, "groupByExpr")
-	leavesOnly := httputils.GetBool(r, "leavesOnly")
+	groupByExpr := httputil.GetBool(r, "groupByExpr")
+	leavesOnly := httputil.GetBool(r, "leavesOnly")
 	label := r.FormValue("label")
 	if label == "__name__" {
 		label = ""
@@ -139,12 +139,12 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("`delimiter` query arg must contain only a single char")
 	}
 	jsonp := r.FormValue("jsonp")
-	from, err := httputils.GetTime(r, "from", 0)
+	from, err := httputil.GetTime(r, "from", 0)
 	if err != nil {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	until, err := httputils.GetTime(r, "until", ct)
+	until, err := httputil.GetTime(r, "until", ct)
 	if err != nil {
 		return err
 	}

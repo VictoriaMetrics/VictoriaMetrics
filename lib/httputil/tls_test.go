@@ -1,6 +1,8 @@
-package httputils
+package httputil
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestTLSConfig(t *testing.T) {
 	var certFile, keyFile, CAFile, serverName string
