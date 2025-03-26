@@ -10,14 +10,14 @@ import (
 	"io"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func TestReadBulkRequest_Failure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
 
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
 		rows, err := readBulkRequest("test", r, "", "_time", []string{"_msg"}, tlp)
 		if err == nil {
@@ -41,7 +41,7 @@ func TestReadBulkRequest_Success(t *testing.T) {
 		t.Helper()
 
 		msgFields := []string{"non_existing_foo", msgField, "non_exiting_bar"}
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 
 		// Read the request without compression
 		r := bytes.NewBufferString(data)
@@ -57,7 +57,7 @@ func TestReadBulkRequest_Success(t *testing.T) {
 		}
 
 		// Read the request with compression
-		tlp = &insertutils.TestLogMessageProcessor{}
+		tlp = &insertutil.TestLogMessageProcessor{}
 		if encoding != "" {
 			data = compressData(data, encoding)
 		}
