@@ -21,6 +21,12 @@ var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The 
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
+var deltaTolerationFactor = flag.Int("search.deltaTolerationFactor", 10, "The factor between the first value and the first delta used to infer the previous missing value. "+
+	"This flag could be useful for adjusting the calculation of the missing previous value in delta() and increase() functions . "+
+	"A negative value forces the assumption of a missing value of zero. "+
+	"A value of zero assumes the missing value is equal to the first recorded value. "+
+	"Higher values allow for greater toleration in assuming the counter starts at 0.")
+
 var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":        newRollupFuncOneArg(rollupAbsent),
 	"aggr_over_time":          newRollupFuncTwoArgs(rollupFake),
@@ -1872,7 +1878,7 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		} else if !math.IsNaN(rfa.realNextValue) {
 			d = rfa.realNextValue - values[0]
 		}
-		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
+		if math.Abs(values[0]) < float64(*deltaTolerationFactor)*(math.Abs(d)+1) {
 			prevValue = 0
 		} else {
 			prevValue = values[0]
