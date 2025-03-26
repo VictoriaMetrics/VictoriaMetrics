@@ -3,7 +3,7 @@ package kuma
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -121,7 +121,7 @@ func TestParseTargetsLabels(t *testing.T) {
 			"instance":                           "app",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabelss)
 
 	expectedVersionInfo := "5dc9a5dd-2091-4426-a886-dfdc24fc99d7"
 	if versionInfo != expectedVersionInfo {

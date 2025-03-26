@@ -6,7 +6,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -67,7 +67,7 @@ func (cfg *apiConfig) getHypervisors() ([]hypervisor, error) {
 func addHypervisorLabels(hvs []hypervisor, port int) []*promutil.Labels {
 	var ms []*promutil.Labels
 	for _, hv := range hvs {
-		addr := discoveryutils.JoinHostPort(hv.HostIP, port)
+		addr := discoveryutil.JoinHostPort(hv.HostIP, port)
 		m := promutil.NewLabels(8)
 		m.Add("__address__", addr)
 		m.Add("__meta_openstack_hypervisor_type", hv.Type)

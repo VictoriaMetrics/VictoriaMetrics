@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -27,7 +27,7 @@ type SDConfig struct {
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 // GetLabels returns Marathon labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
@@ -99,7 +99,7 @@ func getAppLabels(app *app) []*promutil.Labels {
 	}
 
 	for ln, lv := range app.Labels {
-		m.Add("__meta_marathon_app_label_"+discoveryutils.SanitizeLabelName(ln), lv)
+		m.Add("__meta_marathon_app_label_"+discoveryutil.SanitizeLabelName(ln), lv)
 	}
 
 	labelss := make([]*promutil.Labels, 0, len(app.Tasks))
@@ -137,7 +137,7 @@ func getAppLabels(app *app) []*promutil.Labels {
 			// it is inefficient to allocate a list of possibly hundreds of empty label maps per host port.
 			if len(labels) > 0 {
 				for ln, lv := range labels[i] {
-					mm.Add(prefix+discoveryutils.SanitizeLabelName(ln), lv)
+					mm.Add(prefix+discoveryutil.SanitizeLabelName(ln), lv)
 				}
 			}
 		}

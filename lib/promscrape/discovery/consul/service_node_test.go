@@ -3,7 +3,7 @@ package consul
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -131,5 +131,5 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 			"__meta_consul_tags":                           ",primary,foo=bar,",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabelss)
 }

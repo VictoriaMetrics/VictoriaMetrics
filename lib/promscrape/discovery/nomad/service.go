@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -57,7 +57,7 @@ func parseServices(data []byte) ([]Service, error) {
 }
 
 func (svc *Service) appendTargetLabels(ms []*promutil.Labels, tagSeparator string) []*promutil.Labels {
-	addr := discoveryutils.JoinHostPort(svc.Address, svc.Port)
+	addr := discoveryutil.JoinHostPort(svc.Address, svc.Port)
 	m := promutil.NewLabels(16)
 	m.Add("__address__", addr)
 	m.Add("__meta_nomad_address", svc.Address)
@@ -71,7 +71,7 @@ func (svc *Service) appendTargetLabels(ms []*promutil.Labels, tagSeparator strin
 	m.Add("__meta_nomad_service_job_id", svc.JobID)
 	m.Add("__meta_nomad_service_port", strconv.Itoa(svc.Port))
 
-	discoveryutils.AddTagsToLabels(m, svc.Tags, "__meta_nomad_", tagSeparator)
+	discoveryutil.AddTagsToLabels(m, svc.Tags, "__meta_nomad_", tagSeparator)
 
 	ms = append(ms, m)
 	return ms

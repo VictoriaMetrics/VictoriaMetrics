@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -336,5 +336,5 @@ func TestParseHCloudServerListResponse(t *testing.T) {
 			"__meta_hetzner_hcloud_private_ipv4_mynet":               "10.0.0.2",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -73,7 +73,7 @@ func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promu
 			if ips.privateIP == "" {
 				continue
 			}
-			addr := discoveryutils.JoinHostPort(ips.privateIP, port)
+			addr := discoveryutil.JoinHostPort(ips.privateIP, port)
 			m := promutil.NewLabels(16)
 			m.Add("__address__", addr)
 			m.Add("__meta_azure_subscription_id", sdc.SubscriptionID)
@@ -105,7 +105,7 @@ func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promu
 				m.Add("__meta_azure_machine_size", vm.Properties.HardwareProfile.VMSize)
 			}
 			for k, v := range vm.Tags {
-				m.Add(discoveryutils.SanitizeLabelName("__meta_azure_machine_tag_"+k), v)
+				m.Add(discoveryutil.SanitizeLabelName("__meta_azure_machine_tag_"+k), v)
 			}
 			ms = append(ms, m)
 		}

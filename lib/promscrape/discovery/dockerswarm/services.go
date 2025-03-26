@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -113,7 +113,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutil.L
 		commonLabels.Add("__meta_dockerswarm_service_task_container_image", service.Spec.TaskTemplate.ContainerSpec.Image)
 		commonLabels.Add("__meta_dockerswarm_service_updating_status", service.UpdateStatus.State)
 		for k, v := range service.Spec.Labels {
-			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_dockerswarm_service_label_"+k), v)
+			commonLabels.Add(discoveryutil.SanitizeLabelName("__meta_dockerswarm_service_label_"+k), v)
 		}
 		for _, vip := range service.Endpoint.VirtualIPs {
 			// skip services without virtual address.
@@ -132,7 +132,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutil.L
 					continue
 				}
 				m := promutil.NewLabels(24)
-				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort))
+				m.Add("__address__", discoveryutil.JoinHostPort(ip.String(), ep.PublishedPort))
 				m.Add("__meta_dockerswarm_service_endpoint_port_name", ep.Name)
 				m.Add("__meta_dockerswarm_service_endpoint_port_publish_mode", ep.PublishMode)
 				m.AddFrom(commonLabels)
@@ -144,7 +144,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutil.L
 			}
 			if !added {
 				m := promutil.NewLabels(24)
-				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), port))
+				m.Add("__address__", discoveryutil.JoinHostPort(ip.String(), port))
 				m.AddFrom(commonLabels)
 				m.AddFrom(networksLabels[vip.NetworkID])
 				// Remove possible duplicate labels, which can appear after AddFrom() calls

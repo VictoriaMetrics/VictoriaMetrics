@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -107,5 +107,5 @@ func TestParseRobotServerListResponse(t *testing.T) {
 			"__meta_hetzner_robot_cancelled":     "false",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
 }

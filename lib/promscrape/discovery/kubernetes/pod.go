@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -195,9 +195,9 @@ func appendPodLabels(ms []*promutil.Labels, gw *groupWatcher, p *Pod, cs []Conta
 func appendPodLabelsInternal(ms []*promutil.Labels, gw *groupWatcher, p *Pod, c *Container, cp *ContainerPort, isInit bool) []*promutil.Labels {
 	addr := p.Status.PodIP
 	if cp != nil {
-		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
-	} else if discoveryutils.IsIPv6Host(addr) {
-		addr = discoveryutils.EscapeIPv6Host(addr)
+		addr = discoveryutil.JoinHostPort(addr, cp.ContainerPort)
+	} else if discoveryutil.IsIPv6Host(addr) {
+		addr = discoveryutil.EscapeIPv6Host(addr)
 	}
 	m := promutil.GetLabels()
 	m.Add("__address__", addr)

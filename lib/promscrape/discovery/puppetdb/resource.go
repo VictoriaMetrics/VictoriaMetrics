@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -73,14 +73,14 @@ func (p *parameters) addToLabels(keyPrefix string, m *promutil.Labels) {
 			labelValue = strings.Join(values, separator)
 		case map[string]interface{}:
 			subParameter := parameters(value)
-			subParameter.addToLabels(keyPrefix+discoveryutils.SanitizeLabelName(k+"_"), m)
+			subParameter.addToLabels(keyPrefix+discoveryutil.SanitizeLabelName(k+"_"), m)
 		default:
 			continue
 		}
 		if labelValue == "" {
 			continue
 		}
-		name := discoveryutils.SanitizeLabelName(k)
+		name := discoveryutil.SanitizeLabelName(k)
 		m.Add(keyPrefix+name, labelValue)
 	}
 }
@@ -122,7 +122,7 @@ func getResourceLabels(resources []resource, cfg *apiConfig) []*promutil.Labels 
 	for _, res := range resources {
 		m := promutil.NewLabels(18)
 
-		m.Add("__address__", discoveryutils.JoinHostPort(res.Certname, cfg.port))
+		m.Add("__address__", discoveryutil.JoinHostPort(res.Certname, cfg.port))
 		m.Add("__meta_puppetdb_certname", res.Certname)
 		m.Add("__meta_puppetdb_environment", res.Environment)
 		m.Add("__meta_puppetdb_exported", fmt.Sprintf("%t", res.Exported))
@@ -133,7 +133,7 @@ func getResourceLabels(resources []resource, cfg *apiConfig) []*promutil.Labels 
 		m.Add("__meta_puppetdb_type", res.Type)
 
 		if len(res.Tags) > 0 {
-			//discoveryutils.AddTagsToLabels(m, resource.Tags, "__meta_puppetdb_tags", separator)
+			//discoveryutil.AddTagsToLabels(m, resource.Tags, "__meta_puppetdb_tags", separator)
 			m.Add("__meta_puppetdb_tags", separator+strings.Join(res.Tags, separator)+separator)
 		}
 

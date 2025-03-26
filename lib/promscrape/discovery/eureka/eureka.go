@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -116,7 +116,7 @@ func addInstanceLabels(apps *applications) []*promutil.Labels {
 			if instance.Port.Port != 0 {
 				instancePort = instance.Port.Port
 			}
-			targetAddress := discoveryutils.JoinHostPort(instance.HostName, instancePort)
+			targetAddress := discoveryutil.JoinHostPort(instance.HostName, instancePort)
 			m := promutil.NewLabels(24)
 			m.Add("__address__", targetAddress)
 			m.Add("instance", instance.InstanceID)
@@ -143,11 +143,11 @@ func addInstanceLabels(apps *applications) []*promutil.Labels {
 			if len(instance.DataCenterInfo.Name) > 0 {
 				m.Add("__meta_eureka_app_instance_datacenterinfo_name", instance.DataCenterInfo.Name)
 				for _, tag := range instance.DataCenterInfo.Metadata.Items {
-					m.Add(discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local), tag.Content)
+					m.Add(discoveryutil.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local), tag.Content)
 				}
 			}
 			for _, tag := range instance.Metadata.Items {
-				m.Add(discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local), tag.Content)
+				m.Add(discoveryutil.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local), tag.Content)
 			}
 			ms = append(ms, m)
 		}

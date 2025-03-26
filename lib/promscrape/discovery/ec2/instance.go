@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -141,7 +141,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 		// Cannot scrape instance without private IP address
 		return ms
 	}
-	addr := discoveryutils.JoinHostPort(inst.PrivateIPAddress, port)
+	addr := discoveryutil.JoinHostPort(inst.PrivateIPAddress, port)
 	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_ec2_architecture", inst.Architecture)
@@ -188,7 +188,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region 
 		if len(t.Key) == 0 || len(t.Value) == 0 {
 			continue
 		}
-		m.Add(discoveryutils.SanitizeLabelName("__meta_ec2_tag_"+t.Key), t.Value)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_ec2_tag_"+t.Key), t.Value)
 	}
 	ms = append(ms, m)
 	return ms

@@ -1,4 +1,4 @@
-package discoveryutils
+package discoveryutil
 
 import (
 	"sync"
@@ -20,7 +20,7 @@ type ConfigMap struct {
 func NewConfigMap() *ConfigMap {
 	return &ConfigMap{
 		m:            make(map[any]any),
-		entriesCount: metrics.GetOrCreateCounter(`vm_promscrape_discoveryutils_configmap_entries_count`),
+		entriesCount: metrics.GetOrCreateCounter(`vm_promscrape_discoveryutil_configmap_entries_count`),
 	}
 }
 

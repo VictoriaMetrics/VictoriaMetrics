@@ -3,7 +3,7 @@ package azure
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -11,7 +11,7 @@ func TestAppendMachineLabels(t *testing.T) {
 	f := func(name string, vms []virtualMachine, expectedLabels []*promutil.Labels) {
 		t.Run(name, func(t *testing.T) {
 			labelss := appendMachineLabels(vms, 80, &SDConfig{SubscriptionID: "some-id"})
-			discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
+			discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
 		})
 	}
 	f("single vm", []virtualMachine{

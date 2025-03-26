@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -128,7 +128,7 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 			if portSeen(cp.ContainerPort, seen) {
 				continue
 			}
-			addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
+			addr := discoveryutil.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
 			m := promutil.GetLabels()
 			m.Add("__address__", addr)
 			p.appendCommonLabels(m, gw)
@@ -221,7 +221,7 @@ func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod]
 }
 
 func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, ready string) *promutil.Labels {
-	addr := discoveryutils.JoinHostPort(ea.IP, epp.Port)
+	addr := discoveryutil.JoinHostPort(ea.IP, epp.Port)
 	m := promutil.GetLabels()
 	m.Add("__address__", addr)
 	m.Add("__meta_kubernetes_namespace", om.Namespace)

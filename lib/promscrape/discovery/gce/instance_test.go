@@ -3,7 +3,7 @@ package gce
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -169,5 +169,5 @@ func TestParseInstanceListSuccess(t *testing.T) {
 			"__meta_gce_zone":                               "https://www.googleapis.com/compute/v1/projects/victoriametrics-test/zones/us-east1-b",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabelss)
 }

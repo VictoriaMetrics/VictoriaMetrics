@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -84,7 +84,7 @@ func TestAddNodeLabels(t *testing.T) {
 		t.Helper()
 
 		result := addNodeLabels(nodes, port)
-		discoveryutils.TestEqualLabelss(t, result, resultExpected)
+		discoveryutil.TestEqualLabelss(t, result, resultExpected)
 	}
 
 	// add labels to one node

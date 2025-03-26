@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -51,7 +51,7 @@ func addInstanceLabels(instances []instance) []*promutil.Labels {
 		m.Add("__meta_yandexcloud_instance_resources_memory", server.Resources.Memory)
 		m.Add("__meta_yandexcloud_folder_id", server.FolderID)
 		for k, v := range server.Labels {
-			m.Add(discoveryutils.SanitizeLabelName("__meta_yandexcloud_instance_label_"+k), v)
+			m.Add(discoveryutil.SanitizeLabelName("__meta_yandexcloud_instance_label_"+k), v)
 		}
 		for _, ni := range server.NetworkInterfaces {
 			privateIPLabel := fmt.Sprintf("__meta_yandexcloud_instance_private_ip_%s", ni.Index)
