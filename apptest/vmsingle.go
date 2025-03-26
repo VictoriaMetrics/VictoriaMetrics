@@ -76,7 +76,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 
 		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
-		graphiteWriteURL:                   fmt.Sprintf("%s", stderrExtracts[2]),
+		graphiteWriteURL:                   stderrExtracts[2],
 		openTSDBHTTPURL:                    fmt.Sprintf("http://%s/api/put", stderrExtracts[3]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
