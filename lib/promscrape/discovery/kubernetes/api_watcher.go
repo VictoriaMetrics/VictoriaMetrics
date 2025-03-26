@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"golang.org/x/net/http2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -261,33 +259,25 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 		return c
 	}
 
-	var proxy func(*http.Request) (*url.URL, error)
-	if proxyURL != nil {
-		proxy = http.ProxyURL(proxyURL)
-	}
-	getTransport := func(cfg *tls.Config) http.RoundTripper {
-		return &http.Transport{
-			Proxy:               proxy,
-			DialContext:         netutil.Dialer.DialContext,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     *apiServerTimeout,
-			MaxIdleConnsPerHost: 100,
-			TLSClientConfig:     cfg,
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.DialContext = netutil.Dialer.DialContext
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.IdleConnTimeout = *apiServerTimeout
+	tr.MaxIdleConnsPerHost = 100
+	if !*useHTTP2Client {
+		// Disable http2.
+		tr.Protocols = nil
+
+		// Proxy is not supported for http2 client.
+		// See https://github.com/golang/go/issues/26479
+		var proxy func(*http.Request) (*url.URL, error)
+		if proxyURL != nil {
+			proxy = http.ProxyURL(proxyURL)
 		}
-	}
-	if *useHTTP2Client {
-		// proxy is not supported for http2 client
-		// see: https://github.com/golang/go/issues/26479
-		getTransport = func(cfg *tls.Config) http.RoundTripper {
-			return &http2.Transport{
-				IdleConnTimeout: *apiServerTimeout,
-				TLSClientConfig: cfg,
-				PingTimeout:     10 * time.Second,
-			}
-		}
+		tr.Proxy = proxy
 	}
 	c := &http.Client{
-		Transport: ac.NewRoundTripperFromGetter(getTransport),
+		Transport: ac.NewRoundTripper(tr),
 		Timeout:   *apiServerTimeout,
 	}
 	httpClientsCache[key] = c

@@ -461,34 +461,12 @@ func (ac *Config) GetTLSConfig() (*tls.Config, error) {
 	return tlsC, nil
 }
 
-type idleConnectionsCloser interface {
-	CloseIdleConnections()
-}
-
 // NewRoundTripper returns new http.RoundTripper for the given ac, which uses the given trBase as base transport.
 //
 // The caller shouldn't change the trBase, since the returned RoundTripper owns it.
 func (ac *Config) NewRoundTripper(trBase *http.Transport) http.RoundTripper {
 	rt := &roundTripper{
 		trBase: trBase,
-		trGetter: func(tls *tls.Config) http.RoundTripper {
-			tr := trBase.Clone()
-			if tls != nil {
-				tr.TLSClientConfig = tls
-			}
-			return tr
-		},
-	}
-	if ac != nil {
-		rt.getTLSConfigCached = ac.getTLSConfigCached
-	}
-	return rt
-}
-
-// NewRoundTripperFromGetter returns new http.RoundTripper for the given ac, which uses the given get as transport getter.
-func (ac *Config) NewRoundTripperFromGetter(get func(tls *tls.Config) http.RoundTripper) http.RoundTripper {
-	rt := &roundTripper{
-		trGetter: get,
 	}
 	if ac != nil {
 		rt.getTLSConfigCached = ac.getTLSConfigCached
@@ -497,13 +475,13 @@ func (ac *Config) NewRoundTripperFromGetter(get func(tls *tls.Config) http.Round
 }
 
 type roundTripper struct {
-	trBase             http.RoundTripper
+	trBase             *http.Transport
 	getTLSConfigCached getTLSConfigFunc
-	trGetter           func(tls *tls.Config) http.RoundTripper
 
-	rootCAPrev *x509.CertPool
-	trPrev     http.RoundTripper
+	// mu protects acces to rootCAPrev and trPrev
 	mu         sync.Mutex
+	rootCAPrev *x509.CertPool
+	trPrev     *http.Transport
 }
 
 // RoundTrip implements http.RoundTripper interface.
@@ -515,20 +493,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return tr.RoundTrip(req)
 }
 
-func (rt *roundTripper) getTransport() (http.RoundTripper, error) {
-	if rt.trBase == nil {
-		if rt.getTLSConfigCached != nil {
-			tlsCfg, err := rt.getTLSConfigCached()
-			if err != nil {
-				return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
-			}
-
-			rt.trBase = rt.trGetter(tlsCfg)
-		} else {
-			rt.trBase = rt.trGetter(nil)
-		}
-	}
-
+func (rt *roundTripper) getTransport() (*http.Transport, error) {
 	if rt.getTLSConfigCached == nil {
 		return rt.trBase, nil
 	}
@@ -549,12 +514,12 @@ func (rt *roundTripper) getTransport() (http.RoundTripper, error) {
 	// Slow path - tlsCfg has been changed.
 	// Close connections for the previous transport and create new transport for the updated tlsCfg.
 	if rt.trPrev != nil {
-		if ic, ok := rt.trPrev.(idleConnectionsCloser); ok {
-			ic.CloseIdleConnections()
-		}
+		rt.trPrev.CloseIdleConnections()
 	}
 
-	tr := rt.trGetter(tlsCfg)
+	tr := rt.trBase.Clone()
+	tr.TLSClientConfig = tlsCfg.Clone()
+
 	rt.trPrev = tr
 	rt.rootCAPrev = tlsCfg.RootCAs
 
