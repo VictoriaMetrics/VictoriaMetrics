@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAddInstanceLabels(t *testing.T) {
-	f := func(applications *applications, labelssExpected []*promutils.Labels) {
+	f := func(applications *applications, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addInstanceLabels(applications)
@@ -47,8 +47,8 @@ func TestAddInstanceLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "host-1:9100",
 			"instance":                                      "some-id",
 			"__meta_eureka_app_instance_hostname":           "host-1",

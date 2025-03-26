@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
@@ -44,9 +44,9 @@ func TestIsAutoMetric(t *testing.T) {
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(sourceLabels, extraLabels string, honorLabels bool, resultExpected string) {
 		t.Helper()
-		src := promutils.MustNewLabelsFromString(sourceLabels)
-		extra := promutils.MustNewLabelsFromString(extraLabels)
-		var labels promutils.Labels
+		src := promutil.MustNewLabelsFromString(sourceLabels)
+		extra := promutil.MustNewLabelsFromString(extraLabels)
+		var labels promutil.Labels
 		labels.Labels = appendExtraLabels(src.GetLabels(), extra.GetLabels(), 0, honorLabels)
 		result := labels.String()
 		if result != resultExpected {
@@ -239,7 +239,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:     streamParse,
 		ScrapeTimeout:   time.Second * 42,
 		HonorTimestamps: true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"foo": "x",
 		}),
 	}, `
@@ -260,7 +260,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job": "override",
 		}),
 	}, `
@@ -282,7 +282,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"instance": "foobar",
 			"job":      "xxx",
 		}),
@@ -304,7 +304,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"instance": "foobar",
 			"job":      "xxx",
 		}),
@@ -326,7 +326,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job": "override",
 		}),
 	}, `
@@ -347,7 +347,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job":         "xx",
 			"__address__": "foo.com",
 		}),
@@ -379,7 +379,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job":      "xx",
 			"instance": "foo.com",
 		}),
@@ -657,7 +657,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, non-empty Labels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -665,7 +665,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -674,7 +674,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, non-empty Labels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -682,7 +682,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -691,7 +691,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, non-empty ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -699,7 +699,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -708,7 +708,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, non-empty ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -716,7 +716,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -725,10 +725,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, non-empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -736,10 +736,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f",x="y"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -748,10 +748,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, non-empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -759,10 +759,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f",x="y"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -771,7 +771,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, clashing Labels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -780,7 +780,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, clashing Labels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -789,7 +789,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, clashing ExternalLabels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -798,7 +798,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, clashing ExternalLabels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -807,10 +807,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, clashing Labels and ExternalLAbels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -818,10 +818,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f",exported_a="e"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -830,10 +830,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, clashing Labels and ExternalLAbels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -841,10 +841,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="e"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,

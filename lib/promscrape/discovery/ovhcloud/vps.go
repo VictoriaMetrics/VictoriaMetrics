@@ -9,7 +9,7 @@ import (
 	"path"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // vpsModel struct from API.
@@ -46,7 +46,7 @@ type virtualPrivateServer struct {
 }
 
 // getVPSLabels get labels for VPS.
-func getVPSLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getVPSLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	vpsList, err := getVPSList(cfg)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func getVPSLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 		vpsDetailedList = append(vpsDetailedList, *vpsDetailed)
 	}
 
-	ms := make([]*promutils.Labels, 0, len(vpsDetailedList))
+	ms := make([]*promutil.Labels, 0, len(vpsDetailedList))
 	for _, server := range vpsDetailedList {
 		// convert IPs into string and select default IP.
 		var ipv4, ipv6 string
@@ -80,7 +80,7 @@ func getVPSLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 			defaultIP = ipv6
 		}
 
-		m := promutils.NewLabels(21)
+		m := promutil.NewLabels(21)
 		m.Add("__address__", defaultIP)
 		m.Add("instance", server.Name)
 		m.Add("__meta_ovhcloud_vps_offer", server.Model.Offer)

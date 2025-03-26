@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseServicesFailure(t *testing.T) {
@@ -57,8 +57,8 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 	// Check sn.appendTargetLabels()
 	tagSeparator := ","
 	labelss := sn.appendTargetLabels(nil, tagSeparator)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                   "192.168.29.76:23761",
 			"__meta_nomad_dc":               "dc1",
 			"__meta_nomad_node_id":          "9e02c85b-db59-45f1-ddee-40d0317bd33d",

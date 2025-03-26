@@ -8,7 +8,7 @@ package promrelabel
 import (
 	"fmt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 //line lib/promrelabel/debug.qtpl:9
@@ -236,8 +236,8 @@ func streamrelabelDebugSteps(qw422016 *qt422016.Writer, dss []DebugStep, targetU
 //line lib/promrelabel/debug.qtpl:101
 	for i, ds := range dss {
 //line lib/promrelabel/debug.qtpl:103
-		inLabels := promutils.MustNewLabelsFromString(ds.In)
-		outLabels := promutils.MustNewLabelsFromString(ds.Out)
+		inLabels := promutil.MustNewLabelsFromString(ds.In)
+		outLabels := promutil.MustNewLabelsFromString(ds.Out)
 		changedLabels := getChangedLabelNames(inLabels, outLabels)
 
 //line lib/promrelabel/debug.qtpl:106
@@ -368,8 +368,8 @@ func StreamRelabelDebugStepsJSON(qw422016 *qt422016.Writer, targetURL, targetID 
 //line lib/promrelabel/debug.qtpl:152
 		for i, ds := range dss {
 //line lib/promrelabel/debug.qtpl:154
-			inLabels := promutils.MustNewLabelsFromString(ds.In)
-			outLabels := promutils.MustNewLabelsFromString(ds.Out)
+			inLabels := promutil.MustNewLabelsFromString(ds.In)
+			outLabels := promutil.MustNewLabelsFromString(ds.Out)
 			changedLabels := getChangedLabelNames(inLabels, outLabels)
 
 //line lib/promrelabel/debug.qtpl:157
@@ -430,7 +430,7 @@ func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, 
 }
 
 //line lib/promrelabel/debug.qtpl:170
-func streamlabelsWithHighlight(qw422016 *qt422016.Writer, labels *promutils.Labels, highlight map[string]struct{}, color string) {
+func streamlabelsWithHighlight(qw422016 *qt422016.Writer, labels *promutil.Labels, highlight map[string]struct{}, color string) {
 //line lib/promrelabel/debug.qtpl:172
 	labelsList := labels.GetLabels()
 	metricName := ""
@@ -516,7 +516,7 @@ func streamlabelsWithHighlight(qw422016 *qt422016.Writer, labels *promutils.Labe
 }
 
 //line lib/promrelabel/debug.qtpl:200
-func writelabelsWithHighlight(qq422016 qtio422016.Writer, labels *promutils.Labels, highlight map[string]struct{}, color string) {
+func writelabelsWithHighlight(qq422016 qtio422016.Writer, labels *promutil.Labels, highlight map[string]struct{}, color string) {
 //line lib/promrelabel/debug.qtpl:200
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line lib/promrelabel/debug.qtpl:200
@@ -527,7 +527,7 @@ func writelabelsWithHighlight(qq422016 qtio422016.Writer, labels *promutils.Labe
 }
 
 //line lib/promrelabel/debug.qtpl:200
-func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}, color string) string {
+func labelsWithHighlight(labels *promutil.Labels, highlight map[string]struct{}, color string) string {
 //line lib/promrelabel/debug.qtpl:200
 	qb422016 := qt422016.AcquireByteBuffer()
 //line lib/promrelabel/debug.qtpl:200
@@ -544,7 +544,7 @@ func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}
 //line lib/promrelabel/debug.qtpl:202
 func streammustFormatLabels(qw422016 *qt422016.Writer, s string) {
 //line lib/promrelabel/debug.qtpl:203
-	labels := promutils.MustNewLabelsFromString(s)
+	labels := promutil.MustNewLabelsFromString(s)
 
 //line lib/promrelabel/debug.qtpl:204
 	streamlabelsWithHighlight(qw422016, labels, nil, "")

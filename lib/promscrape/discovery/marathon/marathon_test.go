@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestGetAppLabels(t *testing.T) {
@@ -158,8 +158,8 @@ func TestGetAppLabels(t *testing.T) {
 		t.Fatalf("unmarshal jsonResponse failed: %s", err)
 	}
 	result := getAppsLabels(appList)
-	expect := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expect := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":         "pre2:20651",
 			"__meta_marathon_app": "/app-test",
 			"__meta_marathon_app_label_HAPROXY_0_HTTP_BACKEND_PROXYPASS_GLUE": "  reqirep  \"^([^ :]*)\\ {proxypath}/?(.*)\" \"\\1\\ /\\2\"\n",
@@ -172,7 +172,7 @@ func TestGetAppLabels(t *testing.T) {
 			"__meta_marathon_port_index":                                      "0",
 			"__meta_marathon_task":                                            "app-test.b44e0f85-a586-11ef-b308-02429c08177d",
 			"__meta_marathon_port_mapping_label_portMappingsLabel1":           "portMappingsValue1",
-		}), promutils.NewLabelsFromMap(map[string]string{
+		}), promutil.NewLabelsFromMap(map[string]string{
 			"__address__":         "pre3:20681",
 			"__meta_marathon_app": "/app-test",
 			"__meta_marathon_app_label_HAPROXY_0_HTTP_BACKEND_PROXYPASS_GLUE": "  reqirep  \"^([^ :]*)\\ {proxypath}/?(.*)\" \"\\1\\ /\\2\"\n",
@@ -185,7 +185,7 @@ func TestGetAppLabels(t *testing.T) {
 			"__meta_marathon_port_index":                                      "0",
 			"__meta_marathon_task":                                            "app-test.7cbfcce5-a586-11ef-b308-02429c08177d",
 			"__meta_marathon_port_mapping_label_portMappingsLabel1":           "portMappingsValue1",
-		}), promutils.NewLabelsFromMap(map[string]string{
+		}), promutil.NewLabelsFromMap(map[string]string{
 			"__address__":         "pre1:20337",
 			"__meta_marathon_app": "/app-test",
 			"__meta_marathon_app_label_HAPROXY_0_HTTP_BACKEND_PROXYPASS_GLUE": "  reqirep  \"^([^ :]*)\\ {proxypath}/?(.*)\" \"\\1\\ /\\2\"\n",
@@ -198,7 +198,7 @@ func TestGetAppLabels(t *testing.T) {
 			"__meta_marathon_port_index":                                      "0",
 			"__meta_marathon_task":                                            "app-test.b0a7c3d4-a586-11ef-b308-02429c08177d",
 			"__meta_marathon_port_mapping_label_portMappingsLabel1":           "portMappingsValue1",
-		}), promutils.NewLabelsFromMap(map[string]string{
+		}), promutil.NewLabelsFromMap(map[string]string{
 			"__address__":         "pre2:20668",
 			"__meta_marathon_app": "/app-test",
 			"__meta_marathon_app_label_HAPROXY_0_HTTP_BACKEND_PROXYPASS_GLUE": "  reqirep  \"^([^ :]*)\\ {proxypath}/?(.*)\" \"\\1\\ /\\2\"\n",
@@ -211,7 +211,7 @@ func TestGetAppLabels(t *testing.T) {
 			"__meta_marathon_port_index":                                      "0",
 			"__meta_marathon_task":                                            "app-test.7c26c12c-a586-11ef-b308-02429c08177d",
 			"__meta_marathon_port_mapping_label_portMappingsLabel1":           "portMappingsValue1",
-		}), promutils.NewLabelsFromMap(map[string]string{
+		}), promutil.NewLabelsFromMap(map[string]string{
 			"__address__":         "pre2:20651",
 			"__meta_marathon_app": "/app-test-for-port-definition",
 			"__meta_marathon_app_label_HAPROXY_0_HTTP_BACKEND_PROXYPASS_GLUE": "  reqirep  \"^([^ :]*)\\ {proxypath}/?(.*)\" \"\\1\\ /\\2\"\n",

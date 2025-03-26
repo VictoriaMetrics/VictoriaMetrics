@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // dedicatedServer struct from API.
@@ -32,7 +32,7 @@ type dedicatedServer struct {
 }
 
 // getDedicatedServerLabels get labels for dedicated servers.
-func getDedicatedServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getDedicatedServerLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	dedicatedServerList, err := getDedicatedServerList(cfg)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func getDedicatedServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 		dedicatedServerDetailList = append(dedicatedServerDetailList, *dedicatedServer)
 	}
 
-	ms := make([]*promutils.Labels, 0, len(dedicatedServerDetailList))
+	ms := make([]*promutil.Labels, 0, len(dedicatedServerDetailList))
 	for _, server := range dedicatedServerDetailList {
 		// convert IPs into string and select default IP.
 		var ipv4, ipv6 string
@@ -66,7 +66,7 @@ func getDedicatedServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 			defaultIP = ipv6
 		}
 
-		m := promutils.NewLabels(15)
+		m := promutil.NewLabels(15)
 		m.Add("__address__", defaultIP)
 		m.Add("instance", server.Name)
 		m.Add("__meta_ovhcloud_dedicated_server_state", server.State)

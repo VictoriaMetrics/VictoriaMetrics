@@ -1,4 +1,4 @@
-package promutils
+package promutil
 
 import (
 	"sync/atomic"

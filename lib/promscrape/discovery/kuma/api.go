@@ -17,7 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -29,7 +29,7 @@ type apiConfig struct {
 	apiPath  string
 
 	// labels contains the latest discovered labels.
-	labels atomic.Pointer[[]*promutils.Labels]
+	labels atomic.Pointer[[]*promutil.Labels]
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -199,7 +199,7 @@ func (cfg *apiConfig) updateTargetsLabels(ctx context.Context) error {
 	return nil
 }
 
-func parseTargetsLabels(data []byte) ([]*promutils.Labels, string, string, error) {
+func parseTargetsLabels(data []byte) ([]*promutil.Labels, string, string, error) {
 	var dResp discoveryResponse
 	if err := json.Unmarshal(data, &dResp); err != nil {
 		return nil, "", "", err
@@ -207,11 +207,11 @@ func parseTargetsLabels(data []byte) ([]*promutils.Labels, string, string, error
 	return dResp.getTargetsLabels(), dResp.VersionInfo, dResp.Nonce, nil
 }
 
-func (dr *discoveryResponse) getTargetsLabels() []*promutils.Labels {
-	var ms []*promutils.Labels
+func (dr *discoveryResponse) getTargetsLabels() []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, r := range dr.Resources {
 		for _, t := range r.Targets {
-			m := promutils.NewLabels(8 + len(r.Labels) + len(t.Labels))
+			m := promutil.NewLabels(8 + len(r.Labels) + len(t.Labels))
 
 			m.Add("instance", t.Name)
 			m.Add("__address__", t.Address)
@@ -232,7 +232,7 @@ func (dr *discoveryResponse) getTargetsLabels() []*promutils.Labels {
 	return ms
 }
 
-func addLabels(dst *promutils.Labels, src map[string]string) {
+func addLabels(dst *promutil.Labels, src map[string]string) {
 	bb := bbPool.Get()
 	b := bb.B
 	for k, v := range src {

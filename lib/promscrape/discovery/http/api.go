@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -25,8 +25,8 @@ type apiConfig struct {
 // httpGroupTarget represent prometheus GroupTarget
 // https://prometheus.io/docs/prometheus/latest/http_sd/
 type httpGroupTarget struct {
-	Targets []string          `json:"targets"`
-	Labels  *promutils.Labels `json:"labels"`
+	Targets []string         `json:"targets"`
+	Labels  *promutil.Labels `json:"labels"`
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {

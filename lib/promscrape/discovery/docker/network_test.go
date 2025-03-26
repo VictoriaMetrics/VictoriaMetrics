@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAddNetworkLabels(t *testing.T) {
-	f := func(networks []network, labelssExpected []*promutils.Labels) {
+	f := func(networks []network, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		networkLabels := getNetworkLabelsByNetworkID(networks)
@@ -20,7 +20,7 @@ func TestAddNetworkLabels(t *testing.T) {
 			networkIDs = append(networkIDs, networkID)
 		}
 		sort.Strings(networkIDs)
-		var labelss []*promutils.Labels
+		var labelss []*promutil.Labels
 		for _, networkID := range networkIDs {
 			labelss = append(labelss, networkLabels[networkID])
 		}
@@ -39,8 +39,8 @@ func TestAddNetworkLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__meta_docker_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 			"__meta_docker_network_ingress":    "true",
 			"__meta_docker_network_internal":   "false",

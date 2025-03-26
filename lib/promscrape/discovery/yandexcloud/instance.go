@@ -5,10 +5,10 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getInstancesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	organizations, err := cfg.getOrganizations()
 	if err != nil {
 		return nil, err
@@ -36,10 +36,10 @@ func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	return addInstanceLabels(instances), nil
 }
 
-func addInstanceLabels(instances []instance) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addInstanceLabels(instances []instance) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, server := range instances {
-		m := promutils.NewLabels(24)
+		m := promutil.NewLabels(24)
 		m.Add("__address__", server.FQDN)
 		m.Add("__meta_yandexcloud_instance_name", server.Name)
 		m.Add("__meta_yandexcloud_instance_fqdn", server.FQDN)

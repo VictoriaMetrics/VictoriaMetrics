@@ -16,7 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // Config contains list of supported configuration settings
@@ -44,7 +44,7 @@ type Config struct {
 	// AlertRelabelConfigs contains list of relabeling rules alert labels
 	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 	// The timeout used when sending alerts.
-	Timeout *promutils.Duration `yaml:"timeout,omitempty"`
+	Timeout *promutil.Duration `yaml:"timeout,omitempty"`
 
 	// Checksum stores the hash of yaml definition for the config.
 	// May be used to detect any changes to the config file.
@@ -82,7 +82,7 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 		cfg.Scheme = "http"
 	}
 	if cfg.Timeout.Duration() == 0 {
-		cfg.Timeout = promutils.NewDuration(time.Second * 10)
+		cfg.Timeout = promutil.NewDuration(time.Second * 10)
 	}
 	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs)
 	if err != nil {
@@ -130,7 +130,7 @@ func parseConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
-func parseLabels(target string, metaLabels *promutils.Labels, cfg *Config) (string, *promutils.Labels, error) {
+func parseLabels(target string, metaLabels *promutil.Labels, cfg *Config) (string, *promutil.Labels, error) {
 	labels := mergeLabels(target, metaLabels, cfg)
 	labels.Labels = cfg.parsedRelabelConfigs.Apply(labels.Labels, 0)
 	labels.RemoveMetaLabels()
@@ -176,9 +176,9 @@ func addMissingPort(scheme, target string) string {
 	return target
 }
 
-func mergeLabels(target string, metaLabels *promutils.Labels, cfg *Config) *promutils.Labels {
+func mergeLabels(target string, metaLabels *promutil.Labels, cfg *Config) *promutil.Labels {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := promutils.NewLabels(3 + metaLabels.Len())
+	m := promutil.NewLabels(3 + metaLabels.Len())
 	address := target
 	scheme := cfg.Scheme
 	alertsPath := path.Join("/", cfg.PathPrefix, alertManagerPath)

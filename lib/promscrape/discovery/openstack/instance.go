@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // See https://docs.openstack.org/api-ref/compute/#list-servers
@@ -52,10 +52,10 @@ func parseServersDetail(data []byte) (*serversDetail, error) {
 	return &srvd, nil
 }
 
-func addInstanceLabels(servers []server, port int) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addInstanceLabels(servers []server, port int) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, server := range servers {
-		commonLabels := promutils.NewLabels(16)
+		commonLabels := promutil.NewLabels(16)
 		commonLabels.Add("__meta_openstack_instance_id", server.ID)
 		commonLabels.Add("__meta_openstack_instance_status", server.Status)
 		commonLabels.Add("__meta_openstack_instance_name", server.Name)
@@ -93,7 +93,7 @@ func addInstanceLabels(servers []server, port int) []*promutils.Labels {
 					continue
 				}
 				// copy labels
-				m := promutils.NewLabels(20)
+				m := promutil.NewLabels(20)
 				m.AddFrom(commonLabels)
 				m.Add("__meta_openstack_address_pool", pool)
 				m.Add("__meta_openstack_private_ip", ip.Address)
@@ -137,7 +137,7 @@ func (cfg *apiConfig) getServers() ([]server, error) {
 	}
 }
 
-func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getInstancesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	srv, err := cfg.getServers()
 	if err != nil {
 		return nil, err

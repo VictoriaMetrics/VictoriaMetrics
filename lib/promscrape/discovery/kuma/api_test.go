@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestGetAPIServerPathSuccess(t *testing.T) {
@@ -97,8 +97,8 @@ func TestParseTargetsLabels(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                        "127.0.0.1:5670",
 			"__meta_kuma_dataplane":              "redis",
 			"__meta_kuma_label_kuma_io_protocol": "tcp",
@@ -109,7 +109,7 @@ func TestParseTargetsLabels(t *testing.T) {
 			"__scheme__":                         "http",
 			"instance":                           "redis",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                        "127.0.0.1:5671",
 			"__meta_kuma_dataplane":              "app",
 			"__meta_kuma_label_kuma_io_protocol": "http",

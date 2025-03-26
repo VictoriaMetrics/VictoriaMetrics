@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestDescribeAvailabilityZonesResponse(t *testing.T) {
@@ -241,8 +241,8 @@ func TestParseInstancesResponse(t *testing.T) {
 	labelss := inst.appendTargetLabels(nil, ownerID, "region-a", port, map[string]string{
 		"eu-west-2c": "foobar-zone",
 	})
-	expectedLabels := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                     "172.31.11.152:423",
 			"__meta_ec2_architecture":         "x86_64",
 			"__meta_ec2_availability_zone":    "eu-west-2c",
