@@ -72,7 +72,6 @@ func setupPrometheusImport(t *testing.T, sut *at.Vmsingle) {
 	}, at.QueryOpts{})
 
 	sut.ForceFlush(t)
-	return
 }
 
 // setupGraphiteImport import data for each test cases using Graphite TCP conn.
