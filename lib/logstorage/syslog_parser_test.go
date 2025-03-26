@@ -13,7 +13,7 @@ func TestSyslogParser(t *testing.T) {
 		p := GetSyslogParser(currentYear, timezone)
 		defer PutSyslogParser(p)
 
-		p.Parse(s)
+		p.Parse(s, false)
 		result := MarshalFieldsToLogfmt(nil, p.Fields)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result when parsing [%s]; got\n%s\nwant\n%s\n", s, result, resultExpected)
