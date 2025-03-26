@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -79,11 +80,10 @@ type Param struct {
 // Provided extraParams will be added as GET params for
 // each request.
 func Init(extraParams url.Values) (QuerierBuilder, error) {
-	if *addr == "" {
-		return nil, fmt.Errorf("datasource.url is empty")
+	if err := httputil.CheckURL(*addr); err != nil {
+		return nil, fmt.Errorf("invalid -datasource.url: %w", err)
 	}
-
-	tr, err := httputil.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -datasource.url=%q: %w", *addr, err)
 	}

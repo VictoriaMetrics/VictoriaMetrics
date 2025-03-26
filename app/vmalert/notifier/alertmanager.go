@@ -152,11 +152,16 @@ const alertManagerPath = "/api/v2/alerts"
 func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig,
 	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration,
 ) (*AlertManager, error) {
+
+	if err := httputil.CheckURL(alertManagerURL); err != nil {
+		return nil, fmt.Errorf("invalid alertmanager URL: %w", err)
+	}
+
 	tls := &promauth.TLSConfig{}
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig
 	}
-	tr, err := httputil.Transport(alertManagerURL, tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for alertmanager URL=%q: %w", alertManagerURL, err)
 
