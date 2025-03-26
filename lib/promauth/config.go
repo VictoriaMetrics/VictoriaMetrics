@@ -17,6 +17,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
@@ -451,7 +452,7 @@ func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 // GetTLSConfig returns cached tls configuration
 func (ac *Config) GetTLSConfig() (*tls.Config, error) {
 	if ac.getTLSConfigCached == nil {
-		return nil, fmt.Errorf("BUG: config must be properly initialized with Options.NewConfig() call")
+		logger.Panicf("BUG: config must be properly initialized with Options.NewConfig() call")
 	}
 	tlsC, err := ac.getTLSConfigCached()
 	if err != nil {
