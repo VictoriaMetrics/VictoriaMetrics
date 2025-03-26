@@ -1,4 +1,4 @@
-package influxutils
+package influxutil
 
 import (
 	"fmt"
