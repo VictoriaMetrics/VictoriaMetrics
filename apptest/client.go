@@ -2,7 +2,9 @@ package apptest
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,9 +15,6 @@ import (
 )
 
 // Client is used for interacting with the apps over the network.
-//
-// At the moment it only supports HTTP protocol but may be exptended to support
-// RPCs, etc.
 type Client struct {
 	httpCli *http.Client
 }
@@ -83,6 +82,25 @@ func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) 
 	body := readAllAndClose(t, res.Body)
 
 	return body, res.StatusCode
+}
+
+func (c *Client) Write(t *testing.T, address string, data []string) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Fatalf("cannot dial %s: %s", address, err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	d := strings.Join(data, "\n")
+	n, err := conn.Write([]byte(d))
+	if err != nil {
+		t.Fatalf("cannot write %d bytes to %s: %s", len(data), address, err)
+	}
+	if n != len(d) {
+		panic(fmt.Errorf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(data)))
+	}
 }
 
 // readAllAndClose reads everything from the response body and then closes it.

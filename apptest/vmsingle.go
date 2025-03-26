@@ -29,6 +29,8 @@ type Vmsingle struct {
 
 	// vminsert URLs.
 	influxLineWriteURL                 string
+	graphiteWriteURL                   string
+	openTSDBHTTPURL                    string
 	prometheusAPIV1ImportPrometheusURL string
 	prometheusAPIV1WriteURL            string
 
@@ -45,12 +47,16 @@ type Vmsingle struct {
 func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, error) {
 	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-metrics", flags, &appOptions{
 		defaultFlags: map[string]string{
-			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
-			"-httpListenAddr":  "127.0.0.1:0",
+			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
+			"-httpListenAddr":     "127.0.0.1:0",
+			"-graphiteListenAddr": ":2003",
+			"-opentsdbListenAddr": "127.0.0.1:4242",
 		},
 		extractREs: []*regexp.Regexp{
 			storageDataPathRE,
 			httpListenAddrRE,
+			graphiteListenAddrRE,
+			openTSDBListenAddrRE,
 		},
 	})
 	if err != nil {
@@ -70,6 +76,8 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 
 		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
+		graphiteWriteURL:                   fmt.Sprintf("%s", stderrExtracts[2]),
+		openTSDBHTTPURL:                    fmt.Sprintf("http://%s/api/put", stderrExtracts[3]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
 		prometheusAPIV1ExportURL:           fmt.Sprintf("http://%s/prometheus/api/v1/export", stderrExtracts[1]),
@@ -109,7 +117,69 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, app.influxLineWriteURL, "text/plain", data)
+
+	url := app.influxLineWriteURL
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+
+	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
+// GraphiteWrite is a test helper function that sends a
+// collection of records to graphiteListenAddr port.
+//
+// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+func (app *Vmsingle) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
+	t.Helper()
+	app.cli.Write(t, app.graphiteWriteURL, records)
+}
+
+// CSVImport is a test helper function that inserts a
+// collection of records in CSV format for the given
+// tenant by sending an HTTP POST request to
+// /api/v1/import/csv vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data
+func (app *Vmsingle) CSVImport(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/api/v1/import/csv", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
+// OpenTSDBHTTPImport is a test helper function that inserts a
+// collection of records in OpenTSDB format for the given
+// tenant by sending an HTTP POST request to
+// /api/put vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests
+func (app *Vmsingle) OpenTSDBHTTPImport(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	// add extra label
+	url := app.openTSDBHTTPURL
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte("[" + strings.Join(records, ",") + "]")
+	_, statusCode := app.cli.Post(t, url, "text/plain", data)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
@@ -137,8 +207,16 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
+	// add extra label
+	url := app.prometheusAPIV1ImportPrometheusURL
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data)
+	_, statusCode := app.cli.Post(t, url, "text/plain", data)
 	if statusCode != http.StatusNoContent {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
