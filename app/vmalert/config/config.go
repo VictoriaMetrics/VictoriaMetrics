@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"gopkg.in/yaml.v2"
@@ -265,7 +265,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	errGroup := new(utils.ErrGroup)
+	errGroup := new(vmalertutil.ErrGroup)
 	var groups []Group
 	for file, data := range files {
 		uniqueGroups := map[string]struct{}{}
