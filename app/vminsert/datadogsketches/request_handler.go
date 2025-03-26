@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches/stream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -51,7 +51,7 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 				ctx.AddLabel(label.Name, label.Value)
 			}
 			for _, tag := range sketch.Tags {
-				name, value := datadogutils.SplitTag(tag)
+				name, value := datadogutil.SplitTag(tag)
 				if name == "host" {
 					name = "exported_host"
 				}
