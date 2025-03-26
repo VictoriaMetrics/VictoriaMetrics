@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -54,8 +55,8 @@ var (
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
-
-	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
+	shardByURLConsistent = flag.Bool("remoteWrite.shardByURL.consistent", false, "")
+	tmpDataPath          = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
@@ -97,6 +98,8 @@ var (
 var (
 	// rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
 	rwctxsGlobal []*remoteWriteCtx
+
+	rwctxConsistentHash *consistenthash.ConsistentHash
 
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
@@ -206,6 +209,13 @@ func Init() {
 	initStreamAggrConfigGlobal()
 
 	rwctxsGlobal = newRemoteWriteCtxs(*remoteWriteURLs)
+	if *shardByURL && *shardByURLConsistent {
+		consistentHashNodes := make([]string, 0, len(*remoteWriteURLs))
+		for i := range *remoteWriteURLs {
+			consistentHashNodes = append(consistentHashNodes, fmt.Sprintf("%d:%s", i+1, (*remoteWriteURLs)[i]))
+		}
+		rwctxConsistentHash = consistenthash.NewConsistentHash(consistentHashNodes, 0)
+	}
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -412,13 +422,13 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	// Quick check whether writes to configured remote storage systems are blocked.
 	// This allows saving CPU time spent on relabeling and block compression
 	// if some of remote storage systems cannot keep up with the data ingestion rate.
-	rwctxs, ok := getEligibleRemoteWriteCtxs(tss, forceDropSamplesOnFailure)
+	rwctxs, healthyIdx, unhealthyIdx, ok := getEligibleRemoteWriteCtxs(tss, forceDropSamplesOnFailure)
 	if !ok {
 		// At least a single remote write queue is blocked and dropSamplesOnFailure isn't set.
 		// Return false to the caller, so it could re-send samples again.
 		return false
 	}
-	if len(rwctxs) == 0 {
+	if len(healthyIdx) == 0 {
 		// All the remote write queues are skipped because they are blocked and dropSamplesOnFailure is set to true.
 		// Return true to the caller, so it doesn't re-send the samples again.
 		return true
@@ -494,54 +504,59 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 			deduplicatorGlobal.Push(tssBlock)
 			tssBlock = tssBlock[:0]
 		}
-		if !tryPushBlockToRemoteStorages(rwctxs, tssBlock, forceDropSamplesOnFailure) {
+		if !tryPushBlockToRemoteStorages(rwctxs, healthyIdx, unhealthyIdx, tssBlock, forceDropSamplesOnFailure) {
 			return false
 		}
 	}
 	return true
 }
 
-func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
+func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, []int, []int, bool) {
+	healthyIdx := make([]int, 0, len(rwctxsGlobal))
 	if !disableOnDiskQueueAny {
-		return rwctxsGlobal, true
+		for i := range rwctxsGlobal {
+			healthyIdx = append(healthyIdx, i)
+		}
+		return rwctxsGlobal, healthyIdx, nil, true
 	}
 
 	// This code is applicable if at least a single remote storage has -disableOnDiskQueue
-	rwctxs := make([]*remoteWriteCtx, 0, len(rwctxsGlobal))
-	for _, rwctx := range rwctxsGlobal {
-		if !rwctx.fq.IsWriteBlocked() {
-			rwctxs = append(rwctxs, rwctx)
-		} else {
+	unhealthyIdx := make([]int, 0, len(rwctxsGlobal))
+	for idx, rwctx := range rwctxsGlobal {
+		if rwctx.fq.IsWriteBlocked() {
+			unhealthyIdx = append(unhealthyIdx, idx)
 			rwctx.pushFailures.Inc()
 			if !forceDropSamplesOnFailure {
-				return nil, false
+				return nil, nil, nil, false
 			}
 			rowsCount := getRowsCount(tss)
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
+		} else {
+			healthyIdx = append(healthyIdx, idx)
 		}
 	}
-	return rwctxs, true
+	return rwctxsGlobal, healthyIdx, unhealthyIdx, true
 }
 
 func pushToRemoteStoragesTrackDropped(tss []prompbmarshal.TimeSeries) {
-	rwctxs, _ := getEligibleRemoteWriteCtxs(tss, true)
-	if len(rwctxs) == 0 {
+	rwctxs, healthyIdx, unhealthyIdx, _ := getEligibleRemoteWriteCtxs(tss, true)
+	if len(healthyIdx) == 0 {
 		return
 	}
-	if !tryPushBlockToRemoteStorages(rwctxs, tss, true) {
+	if !tryPushBlockToRemoteStorages(rwctxs, healthyIdx, unhealthyIdx, tss, true) {
 		logger.Panicf("BUG: tryPushBlockToRemoteStorages() must return true when forceDropSamplesOnFailure=true")
 	}
 }
 
-func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
+func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, healthyIdx, unhealthyIdx []int, tssBlock []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	if len(tssBlock) == 0 {
 		// Nothing to push
 		return true
 	}
 
-	if len(rwctxs) == 1 {
+	if len(healthyIdx) == 1 {
 		// Fast path - just push data to the configured single remote storage
-		return rwctxs[0].TryPush(tssBlock, forceDropSamplesOnFailure)
+		return rwctxs[healthyIdx[0]].TryPush(tssBlock, forceDropSamplesOnFailure)
 	}
 
 	// We need to push tssBlock to multiple remote storages.
@@ -552,66 +567,35 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 		if replicas <= 0 {
 			replicas = 1
 		}
-		return tryShardingBlockAmongRemoteStorages(rwctxs, tssBlock, replicas, forceDropSamplesOnFailure)
+		return tryShardingBlockAmongRemoteStorages(rwctxs, healthyIdx, unhealthyIdx, tssBlock, replicas, forceDropSamplesOnFailure)
 	}
 
 	// Replicate tssBlock samples among rwctxs.
 	// Push tssBlock to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
-	wg.Add(len(rwctxs))
+	wg.Add(len(healthyIdx))
 	var anyPushFailed atomic.Bool
-	for _, rwctx := range rwctxs {
+	for _, idx := range healthyIdx {
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
 			if !rwctx.TryPush(tssBlock, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx)
+		}(rwctxs[idx])
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
 }
 
-func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
-	x := getTSSShards(len(rwctxs))
+func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, healthyIdx, unhealthyIdx []int, tssBlock []prompbmarshal.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
+	x := getTSSShards(len(healthyIdx))
 	defer putTSSShards(x)
 
 	shards := x.shards
 	tmpLabels := promutils.GetLabels()
 	for _, ts := range tssBlock {
-		hashLabels := ts.Labels
-		if len(shardByURLLabelsMap) > 0 {
-			hashLabels = tmpLabels.Labels[:0]
-			for _, label := range ts.Labels {
-				if _, ok := shardByURLLabelsMap[label.Name]; ok {
-					hashLabels = append(hashLabels, label)
-				}
-			}
-			tmpLabels.Labels = hashLabels
-		} else if len(shardByURLIgnoreLabelsMap) > 0 {
-			hashLabels = tmpLabels.Labels[:0]
-			for _, label := range ts.Labels {
-				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
-					hashLabels = append(hashLabels, label)
-				}
-			}
-			tmpLabels.Labels = hashLabels
-		}
-		h := getLabelsHash(hashLabels)
-		idx := h % uint64(len(shards))
-		i := 0
-		for {
-			shards[idx] = append(shards[idx], ts)
-			i++
-			if i >= replicas {
-				break
-			}
-			idx++
-			if idx >= uint64(len(shards)) {
-				idx = 0
-			}
-		}
+		shardAmountRemoteWriteCtx(shards, healthyIdx, unhealthyIdx, tmpLabels, ts, replicas)
 	}
 	promutils.PutLabels(tmpLabels)
 
@@ -619,7 +603,8 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	var anyPushFailed atomic.Bool
-	for i, rwctx := range rwctxs {
+
+	for i := range healthyIdx {
 		shard := shards[i]
 		if len(shard) == 0 {
 			continue
@@ -630,10 +615,58 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 			if !rwctx.TryPush(tss, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx, shard)
+		}(rwctxs[healthyIdx[i]], shard)
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
+}
+
+func shardAmountRemoteWriteCtx(shards [][]prompbmarshal.TimeSeries, healthyIdx, unhealthyIdx []int, tmpLabels *promutils.Labels, ts prompbmarshal.TimeSeries, replicas int) {
+	hashLabels := ts.Labels
+	if len(shardByURLLabelsMap) > 0 {
+		hashLabels = tmpLabels.Labels[:0]
+		for _, label := range ts.Labels {
+			if _, ok := shardByURLLabelsMap[label.Name]; ok {
+				hashLabels = append(hashLabels, label)
+			}
+		}
+		tmpLabels.Labels = hashLabels
+	} else if len(shardByURLIgnoreLabelsMap) > 0 {
+		hashLabels = tmpLabels.Labels[:0]
+		for _, label := range ts.Labels {
+			if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
+				hashLabels = append(hashLabels, label)
+			}
+		}
+		tmpLabels.Labels = hashLabels
+	}
+	h := getLabelsHash(hashLabels)
+
+	// rwctx index
+	idx := int(h % uint64(len(shards)))
+	if *shardByURLConsistent {
+		hashIdx := rwctxConsistentHash.GetNodeIdx(h, unhealthyIdx)
+		// the index for healthy rwctxs
+		for i := range healthyIdx {
+			if healthyIdx[i] == hashIdx {
+				idx = i
+				break
+			}
+		}
+	}
+
+	replicated := 0
+	for {
+		shards[idx] = append(shards[idx], ts)
+		replicated++
+		if replicated >= replicas {
+			break
+		}
+		idx++
+		if idx >= len(shards) {
+			idx = 0
+		}
+	}
 }
 
 type tssShards struct {
