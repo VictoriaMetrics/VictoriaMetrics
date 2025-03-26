@@ -35,7 +35,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
 	clusternativeserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/clusternative"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
@@ -297,11 +297,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "influx/query":
 		influxQueryRequests.Inc()
 		addInfluxResponseHeaders(w)
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
