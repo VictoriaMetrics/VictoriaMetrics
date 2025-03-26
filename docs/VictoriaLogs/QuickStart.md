@@ -58,7 +58,7 @@ Here is the command to run VictoriaLogs in a Docker container:
 
 ```sh
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
-  docker.io/victoriametrics/victoria-logs:v1.17.0-victorialogs -syslog.listenAddr.udp=:514 -syslog.listenAddr.tcp=:29514
+  docker.io/victoriametrics/victoria-logs:v1.17.0-victorialogs
 ```
 #### Run docker image with tcp and udp flags
 ```sh
