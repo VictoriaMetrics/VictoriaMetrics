@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -124,7 +124,7 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 					continue
 				}
 				m := promutil.NewLabels(16)
-				m.Add("__address__", discoveryutils.JoinHostPort(n.IPAddress, p.PrivatePort))
+				m.Add("__address__", discoveryutil.JoinHostPort(n.IPAddress, p.PrivatePort))
 				m.Add("__meta_docker_network_ip", n.IPAddress)
 				m.Add("__meta_docker_port_private", strconv.Itoa(p.PrivatePort))
 				if p.PublicPort > 0 {
@@ -141,7 +141,7 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 				// Use fallback port when no exposed ports are available or if all are non-TCP
 				addr := hostNetworkingHost
 				if c.HostConfig.NetworkMode != "host" {
-					addr = discoveryutils.JoinHostPort(n.IPAddress, defaultPort)
+					addr = discoveryutil.JoinHostPort(n.IPAddress, defaultPort)
 				}
 				m := promutil.NewLabels(16)
 				m.Add("__address__", addr)
@@ -161,7 +161,7 @@ func addCommonLabels(m *promutil.Labels, c *container, networkLabels *promutil.L
 	m.Add("__meta_docker_container_name", c.Names[0])
 	m.Add("__meta_docker_container_network_mode", c.HostConfig.NetworkMode)
 	for k, v := range c.Labels {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_docker_container_label_"+k), v)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_docker_container_label_"+k), v)
 	}
 	m.AddFrom(networkLabels)
 }

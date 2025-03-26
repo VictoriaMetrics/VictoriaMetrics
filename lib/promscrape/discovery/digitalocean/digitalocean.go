@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -132,7 +132,7 @@ func addDropletLabels(droplets []droplet, defaultPort int) []*promutil.Labels {
 		publicIPv4 := droplet.getIPByNet("v4", "public")
 		publicIPv6 := droplet.getIPByNet("v6", "public")
 
-		addr := discoveryutils.JoinHostPort(publicIPv4, defaultPort)
+		addr := discoveryutil.JoinHostPort(publicIPv4, defaultPort)
 		m := promutil.NewLabels(16)
 		m.Add("__address__", addr)
 		m.Add("__meta_digitalocean_droplet_id", fmt.Sprintf("%d", droplet.ID))

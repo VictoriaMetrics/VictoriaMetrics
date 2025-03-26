@@ -3,7 +3,7 @@ package digitalocean
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -12,7 +12,7 @@ func TestAddDropletLabels(t *testing.T) {
 		t.Helper()
 
 		labelss := addDropletLabels(droplets, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// base labels add test

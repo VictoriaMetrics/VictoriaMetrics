@@ -3,7 +3,7 @@ package vultr
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -92,5 +92,5 @@ func TestGetInstanceLabels(t *testing.T) {
 		}),
 	}
 	labels := getInstanceLabels(input, 8080)
-	discoveryutils.TestEqualLabelss(t, labels, expect)
+	discoveryutil.TestEqualLabelss(t, labels, expect)
 }

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -130,7 +130,7 @@ func TestAddServicesLabels(t *testing.T) {
 		t.Helper()
 
 		labelss := addServicesLabels(services, networksLabels, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// add 2 services with network labels join

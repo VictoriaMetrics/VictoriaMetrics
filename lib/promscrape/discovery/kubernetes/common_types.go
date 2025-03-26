@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -34,20 +34,20 @@ func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m *promutil.La
 	for _, lb := range om.Labels.GetLabels() {
 		b = appendThreeStrings(b[:0], prefix, "_label_", lb.Name)
 		labelName := bytesutil.ToUnsafeString(b)
-		m.Add(discoveryutils.SanitizeLabelName(labelName), lb.Value)
+		m.Add(discoveryutil.SanitizeLabelName(labelName), lb.Value)
 
 		b = appendThreeStrings(b[:0], prefix, "_labelpresent_", lb.Name)
 		labelName = bytesutil.ToUnsafeString(b)
-		m.Add(discoveryutils.SanitizeLabelName(labelName), "true")
+		m.Add(discoveryutil.SanitizeLabelName(labelName), "true")
 	}
 	for _, a := range om.Annotations.GetLabels() {
 		b = appendThreeStrings(b[:0], prefix, "_annotation_", a.Name)
 		labelName := bytesutil.ToUnsafeString(b)
-		m.Add(discoveryutils.SanitizeLabelName(labelName), a.Value)
+		m.Add(discoveryutil.SanitizeLabelName(labelName), a.Value)
 
 		b = appendThreeStrings(b[:0], prefix, "_annotationpresent_", a.Name)
 		labelName = bytesutil.ToUnsafeString(b)
-		m.Add(discoveryutils.SanitizeLabelName(labelName), "true")
+		m.Add(discoveryutil.SanitizeLabelName(labelName), "true")
 	}
 	bb.B = b
 	bbPool.Put(bb)

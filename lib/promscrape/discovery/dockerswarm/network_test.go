@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -24,7 +24,7 @@ func TestAddNetworkLabels(t *testing.T) {
 		for _, networkID := range networkIDs {
 			labelss = append(labelss, networkLabels[networkID])
 		}
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// ingress network

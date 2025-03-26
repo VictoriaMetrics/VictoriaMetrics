@@ -7,15 +7,15 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 type apiConfig struct {
-	client *discoveryutils.Client
+	client *discoveryutil.Client
 	path   string
 
 	fetchErrors *metrics.Counter
@@ -44,7 +44,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
+	client, err := discoveryutil.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}

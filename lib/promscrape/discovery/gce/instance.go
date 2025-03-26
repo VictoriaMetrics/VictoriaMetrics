@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -137,7 +137,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSepa
 		return ms
 	}
 	iface := inst.NetworkInterfaces[0]
-	addr := discoveryutils.JoinHostPort(iface.NetworkIP, port)
+	addr := discoveryutil.JoinHostPort(iface.NetworkIP, port)
 	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_gce_instance_id", inst.ID)
@@ -150,7 +150,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSepa
 	m.Add("__meta_gce_subnetwork", iface.Subnetwork)
 	m.Add("__meta_gce_zone", inst.Zone)
 	for _, iface := range inst.NetworkInterfaces {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_interface_ipv4_"+iface.Name), iface.NetworkIP)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_gce_interface_ipv4_"+iface.Name), iface.NetworkIP)
 	}
 	if len(inst.Tags.Items) > 0 {
 		// We surround the separated list with the separator as well. This way regular expressions
@@ -158,10 +158,10 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSepa
 		m.Add("__meta_gce_tags", tagSeparator+strings.Join(inst.Tags.Items, tagSeparator)+tagSeparator)
 	}
 	for _, item := range inst.Metadata.Items {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_metadata_"+item.Key), item.Value)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_gce_metadata_"+item.Key), item.Value)
 	}
 	for _, label := range inst.Labels.GetLabels() {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_label_"+label.Name), label.Value)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_gce_label_"+label.Name), label.Value)
 	}
 	if len(iface.AccessConfigs) > 0 {
 		ac := iface.AccessConfigs[0]

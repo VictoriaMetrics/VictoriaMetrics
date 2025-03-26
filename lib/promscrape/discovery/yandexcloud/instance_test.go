@@ -3,7 +3,7 @@ package yandexcloud
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -12,7 +12,7 @@ func TestAddInstanceLabels(t *testing.T) {
 		t.Helper()
 
 		labelss := addInstanceLabels(instances)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// empty response

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -191,7 +191,7 @@ func TestAddContainerLabels(t *testing.T) {
 		t.Helper()
 
 		labelss := addContainersLabels([]container{c}, networkLabels, 8012, "foobar", false)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	data := []byte(`[
@@ -642,7 +642,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 		}),
 	}
 	labelss := addContainersLabels(containers, networkLabels, 80, "localhost", false)
-	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+	discoveryutil.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 
 	// matchFirstNetwork = true, so labels of `dockersd_private1` are removed
 	labelssExpected = []*promutil.Labels{
@@ -680,7 +680,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 		}),
 	}
 	labelss = addContainersLabels(containers, networkLabels, 80, "localhost", true)
-	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+	discoveryutil.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 }
 
 // TestDockerLinkedNetworkSettings test the case when `NetworkMode` of a container linked to another container:
@@ -959,7 +959,7 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 	}
 	labelss := addContainersLabels(containers, networkLabels, 80, "localhost", false)
 
-	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+	discoveryutil.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 
 }
 

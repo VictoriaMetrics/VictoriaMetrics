@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -25,7 +25,7 @@ func Test_getDedicatedServerLabels(t *testing.T) {
 			return []byte{}, errors.New("invalid request")
 		}
 	})
-	c, _ := discoveryutils.NewClient(mockSvr.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+	c, _ := discoveryutil.NewClient(mockSvr.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 	td := atomic.Value{}
 	td.Store(time.Duration(1))
 	cfg := &apiConfig{

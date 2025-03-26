@@ -6,7 +6,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -78,7 +78,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 			if portSeen(cp.ContainerPort, seen) {
 				continue
 			}
-			addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
+			addr := discoveryutil.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
 			m := promutil.GetLabels()
 			m.Add("__address__", addr)
 			p.appendCommonLabels(m, gw)
@@ -158,7 +158,7 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 
 // //getEndpointSliceLabels builds labels for given EndpointSlice
 func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp EndpointPort) *promutil.Labels {
-	addr = discoveryutils.JoinHostPort(addr, epp.Port)
+	addr = discoveryutil.JoinHostPort(addr, epp.Port)
 	m := promutil.GetLabels()
 	m.Add("__address__", addr)
 	m.Add("__meta_kubernetes_namespace", eps.Metadata.Namespace)
@@ -179,8 +179,8 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 		m.Add("__meta_kubernetes_endpointslice_endpoint_hostname", ea.Hostname)
 	}
 	for k, v := range ea.Topology {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_"+k), v)
-		m.Add(discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_present_"+k), "true")
+		m.Add(discoveryutil.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_"+k), v)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_present_"+k), "true")
 	}
 	return m
 }

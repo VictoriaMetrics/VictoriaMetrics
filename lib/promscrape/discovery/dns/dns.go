@@ -11,7 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -176,7 +176,7 @@ func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]*p
 }
 
 func appendMXLabels(ms []*promutil.Labels, name, target string, port int) []*promutil.Labels {
-	addr := discoveryutils.JoinHostPort(target, port)
+	addr := discoveryutil.JoinHostPort(target, port)
 	m := promutil.NewLabels(3)
 	m.Add("__address__", addr)
 	m.Add("__meta_dns_name", name)
@@ -185,7 +185,7 @@ func appendMXLabels(ms []*promutil.Labels, name, target string, port int) []*pro
 }
 
 func appendAddrLabels(ms []*promutil.Labels, name, target string, port int) []*promutil.Labels {
-	addr := discoveryutils.JoinHostPort(target, port)
+	addr := discoveryutil.JoinHostPort(target, port)
 	m := promutil.NewLabels(4)
 	m.Add("__address__", addr)
 	m.Add("__meta_dns_name", name)

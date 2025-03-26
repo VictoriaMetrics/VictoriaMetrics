@@ -16,15 +16,15 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 type apiConfig struct {
-	client   *discoveryutils.Client
+	client   *discoveryutil.Client
 	clientID string
 	apiPath  string
 
@@ -62,7 +62,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
+	client, err := discoveryutil.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
@@ -237,7 +237,7 @@ func addLabels(dst *promutil.Labels, src map[string]string) {
 	b := bb.B
 	for k, v := range src {
 		b = append(b[:0], "__meta_kuma_label_"...)
-		b = append(b, discoveryutils.SanitizeLabelName(k)...)
+		b = append(b, discoveryutil.SanitizeLabelName(k)...)
 		labelName := bytesutil.InternBytes(b)
 		dst.Add(labelName, v)
 	}

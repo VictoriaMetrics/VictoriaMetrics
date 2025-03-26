@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -226,5 +226,5 @@ func TestGetAppLabels(t *testing.T) {
 			"__meta_marathon_port_definition_label_metrics":                   "/metrics",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, result, expect)
+	discoveryutil.TestEqualLabelss(t, result, expect)
 }

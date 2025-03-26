@@ -3,7 +3,7 @@ package http
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -12,7 +12,7 @@ func TestAddHTTPTargetLabels(t *testing.T) {
 		t.Helper()
 
 		labelss := addHTTPTargetLabels(src, "http://foo.bar/baz?aaa=bb")
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// add ok

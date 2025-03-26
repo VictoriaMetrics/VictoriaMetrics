@@ -3,7 +3,7 @@ package nomad
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -77,5 +77,5 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 			"__meta_nomad_tags":             ",doggo,web,",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabelss)
 }

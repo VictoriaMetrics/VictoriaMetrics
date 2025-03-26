@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -99,7 +99,7 @@ func addServicesLabelsForTask(services []service) []*promutil.Labels {
 		commonLabels.Add("__meta_dockerswarm_service_name", svc.Spec.Name)
 		commonLabels.Add("__meta_dockerswarm_service_mode", getServiceMode(svc))
 		for k, v := range svc.Spec.Labels {
-			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_dockerswarm_service_label_"+k), v)
+			commonLabels.Add(discoveryutil.SanitizeLabelName("__meta_dockerswarm_service_label_"+k), v)
 		}
 		ms = append(ms, commonLabels)
 	}
@@ -116,7 +116,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutil.Labels
 		commonLabels.Add("__meta_dockerswarm_task_slot", strconv.Itoa(task.Slot))
 		commonLabels.Add("__meta_dockerswarm_task_state", task.Status.State)
 		for k, v := range task.Spec.ContainerSpec.Labels {
-			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_dockerswarm_container_label_"+k), v)
+			commonLabels.Add(discoveryutil.SanitizeLabelName("__meta_dockerswarm_container_label_"+k), v)
 		}
 		var svcPorts []portConfig
 		for i, v := range services {
@@ -134,7 +134,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutil.Labels
 			}
 			m := promutil.NewLabels(10)
 			m.AddFrom(commonLabels)
-			m.Add("__address__", discoveryutils.JoinHostPort(commonLabels.Get("__meta_dockerswarm_node_address"), port.PublishedPort))
+			m.Add("__address__", discoveryutil.JoinHostPort(commonLabels.Get("__meta_dockerswarm_node_address"), port.PublishedPort))
 			m.Add("__meta_dockerswarm_task_port_publish_mode", port.PublishMode)
 			// Remove possible duplicate labels, which can appear after AddFrom() call
 			m.RemoveDuplicates()
@@ -156,7 +156,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutil.Labels
 					m := promutil.NewLabels(20)
 					m.AddFrom(commonLabels)
 					m.AddFrom(networkLabels)
-					m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort))
+					m.Add("__address__", discoveryutil.JoinHostPort(ip.String(), ep.PublishedPort))
 					m.Add("__meta_dockerswarm_task_port_publish_mode", ep.PublishMode)
 					// Remove possible duplicate labels, which can appear after AddFrom() calls
 					m.RemoveDuplicates()
@@ -167,7 +167,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutil.Labels
 					m := promutil.NewLabels(20)
 					m.AddFrom(commonLabels)
 					m.AddFrom(networkLabels)
-					m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), port))
+					m.Add("__address__", discoveryutil.JoinHostPort(ip.String(), port))
 					// Remove possible duplicate labels, which can appear after AddFrom() calls
 					m.RemoveDuplicates()
 					ms = append(ms, m)

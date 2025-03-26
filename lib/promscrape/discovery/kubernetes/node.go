@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -91,7 +91,7 @@ func (n *Node) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
 		// Skip node without address
 		return nil
 	}
-	addr = discoveryutils.JoinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
+	addr = discoveryutil.JoinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
 	m := promutil.GetLabels()
 	m.Add("__address__", addr)
 	m.Add("instance", n.Metadata.Name)
@@ -104,7 +104,7 @@ func (n *Node) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
 			continue
 		}
 		addrTypesUsed[a.Type] = true
-		m.Add(discoveryutils.SanitizeLabelName("__meta_kubernetes_node_address_"+a.Type), a.Address)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_kubernetes_node_address_"+a.Type), a.Address)
 	}
 	return []*promutil.Labels{m}
 }

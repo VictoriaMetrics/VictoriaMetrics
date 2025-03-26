@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -53,7 +53,7 @@ func getNetworkLabelsByNetworkID(networks []network) map[string]*promutil.Labels
 		m.Add("__meta_docker_network_ingress", strconv.FormatBool(network.Ingress))
 		m.Add("__meta_docker_network_scope", network.Scope)
 		for k, v := range network.Labels {
-			m.Add(discoveryutils.SanitizeLabelName("__meta_docker_network_label_"+k), v)
+			m.Add(discoveryutil.SanitizeLabelName("__meta_docker_network_label_"+k), v)
 		}
 		ms[network.ID] = m
 	}

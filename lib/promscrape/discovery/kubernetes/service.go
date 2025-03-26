@@ -6,7 +6,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -77,7 +77,7 @@ func (s *Service) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
 	var ms []*promutil.Labels
 	for _, sp := range s.Spec.Ports {
-		addr := discoveryutils.JoinHostPort(host, sp.Port)
+		addr := discoveryutil.JoinHostPort(host, sp.Port)
 		m := promutil.GetLabels()
 		m.Add("__address__", addr)
 		m.Add("__meta_kubernetes_service_port_name", sp.Name)

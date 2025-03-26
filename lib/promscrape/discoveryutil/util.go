@@ -1,4 +1,4 @@
-package discoveryutils
+package discoveryutil
 
 import (
 	"reflect"

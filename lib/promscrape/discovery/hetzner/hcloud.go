@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -29,7 +29,7 @@ func getHCloudServerLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 func appendHCloudTargetLabels(ms []*promutil.Labels, server *HCloudServer, networks []HCloudNetwork, port int) []*promutil.Labels {
 	m := promutil.NewLabels(24)
 
-	addr := discoveryutils.JoinHostPort(server.PublicNet.IPv4.IP, port)
+	addr := discoveryutil.JoinHostPort(server.PublicNet.IPv4.IP, port)
 	m.Add("__address__", addr)
 
 	m.Add("__meta_hetzner_role", "hcloud")
@@ -61,17 +61,17 @@ func appendHCloudTargetLabels(ms []*promutil.Labels, server *HCloudServer, netwo
 		networkID := privateNet.ID
 		for _, network := range networks {
 			if networkID == network.ID {
-				labelName := discoveryutils.SanitizeLabelName("__meta_hetzner_hcloud_private_ipv4_" + network.Name)
+				labelName := discoveryutil.SanitizeLabelName("__meta_hetzner_hcloud_private_ipv4_" + network.Name)
 				m.Add(labelName, privateNet.IP)
 			}
 		}
 	}
 
 	for labelKey, labelValue := range server.Labels {
-		labelName := discoveryutils.SanitizeLabelName("__meta_hetzner_hcloud_labelpresent_" + labelKey)
+		labelName := discoveryutil.SanitizeLabelName("__meta_hetzner_hcloud_labelpresent_" + labelKey)
 		m.Add(labelName, "true")
 
-		labelName = discoveryutils.SanitizeLabelName("__meta_hetzner_hcloud_label_" + labelKey)
+		labelName = discoveryutil.SanitizeLabelName("__meta_hetzner_hcloud_label_" + labelKey)
 		m.Add(labelName, labelValue)
 	}
 

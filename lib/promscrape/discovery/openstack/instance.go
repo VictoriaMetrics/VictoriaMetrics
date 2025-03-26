@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -63,7 +63,7 @@ func addInstanceLabels(servers []server, port int) []*promutil.Labels {
 		commonLabels.Add("__meta_openstack_user_id", server.UserID)
 		commonLabels.Add("__meta_openstack_instance_flavor", server.Flavor.ID)
 		for k, v := range server.Metadata {
-			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_openstack_tag_"+k), v)
+			commonLabels.Add(discoveryutil.SanitizeLabelName("__meta_openstack_tag_"+k), v)
 		}
 		// Traverse server.Addresses in alphabetical order of pool name
 		// in order to return targets in deterministic order.
@@ -100,7 +100,7 @@ func addInstanceLabels(servers []server, port int) []*promutil.Labels {
 				if len(publicIP) > 0 {
 					m.Add("__meta_openstack_public_ip", publicIP)
 				}
-				m.Add("__address__", discoveryutils.JoinHostPort(ip.Address, port))
+				m.Add("__address__", discoveryutil.JoinHostPort(ip.Address, port))
 				ms = append(ms, m)
 			}
 		}
