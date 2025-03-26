@@ -28,7 +28,7 @@ The expected output is:
 
 ```sh
 NAME: vmoperator
-LAST DEPLOYED: Thu Sep 30 17:30:30 2021
+LAST DEPLOYED: Fri Mar 21 12:01:52 2025
 NAMESPACE: default
 STATUS: deployed
 REVISION: 1
@@ -38,7 +38,7 @@ victoria-metrics-operator has been installed. Check its status by running:
   kubectl --namespace default get pods -l "app.kubernetes.io/instance=vmoperator"
 
 Get more information on https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator.
-See "Getting started guide for VM Operator" on https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html.
+See "Getting started guide for VM Operator" on https://docs.victoriametrics.com/guides/getting-started-with-vm-operator
 ```
 
 Run the following command to check that VM Operator is up and running:

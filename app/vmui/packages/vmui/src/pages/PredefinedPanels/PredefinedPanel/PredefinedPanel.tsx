@@ -131,6 +131,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       {error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">{warning}</Alert>}
       {graphData && <GraphView
+        isPredefinedPanel
         data={graphData}
         period={period}
         customStep={customStep}

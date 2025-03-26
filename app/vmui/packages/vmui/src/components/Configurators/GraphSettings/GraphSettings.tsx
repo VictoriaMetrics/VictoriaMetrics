@@ -12,8 +12,10 @@ import { MetricResult } from "../../../api/types";
 import { isHistogramData } from "../../../utils/metric";
 import LegendConfigs from "../../Chart/Line/Legend/LegendConfigs/LegendConfigs";
 import Modal from "../../Main/Modal/Modal";
+import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
+import { useEffect } from "react";
 
-const title = "Graph settings";
+const title = "Graph & Legend Settings";
 
 interface GraphSettingsProps {
   data: MetricResult[],
@@ -28,6 +30,9 @@ interface GraphSettingsProps {
 }
 
 const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, toggleEnableLimits, spanGaps }) => {
+  const { openSettings } = useGraphState();
+  const graphDispatch = useGraphDispatch();
+
   const popperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
   const displayHistogramMode = isHistogramData(data);
@@ -37,6 +42,13 @@ const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, to
     setTrue: handleOpen,
     setFalse: handleClose,
   } = useBoolean(false);
+
+  useEffect(() => {
+    if (openSettings) {
+      handleOpen();
+      graphDispatch({ type: "SET_OPEN_SETTINGS", payload: false });
+    }
+  }, [openSettings]);
 
   return (
     <div className="vm-graph-settings">
@@ -61,7 +73,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, to
             ref={popperRef}
           >
             <div className="vm-graph-settings-body-section">
-              <h3 className="vm-graph-settings-body-section__title">Chart Options</h3>
+              <h3 className="vm-graph-settings-body-section__title">Graph Options</h3>
               <div className="vm-graph-settings-body-section-content">
                 <AxesLimitsConfigurator
                   yaxis={yaxis}

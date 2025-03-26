@@ -9,14 +9,14 @@ export const useShowStats = () => {
   const valueFromUrl = searchParams.get(urlKey) === "true";
   const [hideStats, setHideStats] = useState(valueFromUrl);
 
-  const onChange = (showName: boolean) => {
-    if (!showName) {
+  const onChange = (isHide: boolean) => {
+    if (isHide) {
       searchParams.set(urlKey, "true");
     } else {
       searchParams.delete(urlKey);
     }
 
-    setHideStats(!showName);
+    setHideStats(isHide);
     setSearchParams(searchParams);
   };
 

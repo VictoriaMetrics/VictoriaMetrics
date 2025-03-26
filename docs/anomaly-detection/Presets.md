@@ -1,10 +1,10 @@
 ---
-weight: 1
+weight: 2
 title: Presets
 menu:
   docs:
     parent: "anomaly-detection"
-    weight: 1
+    weight: 2
     title: Presets
 ---
 > Please check the [Quick Start Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/) to install and run `vmanomaly`

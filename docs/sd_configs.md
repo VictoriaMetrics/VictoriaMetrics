@@ -1276,9 +1276,7 @@ The list of discovered Kuma targets is refreshed at the interval, which can be c
 
 ## marathon_sd_configs
 
-_Available from [CHANGEME](https://docs.victoriametrics.com/changelog/#vCHANGEME) version._
-
-Marathon SD configuration allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
+Marathon SD configuration {{% available_from "v1.109.0" %}} allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
 
 Configuration example:
 

@@ -10,14 +10,14 @@ export const useHideDuplicateFields = (labels?: LegendItemType[]) => {
   const valueFromUrl = searchParams.get(urlKey) === "true";
   const [hideDuplicates, setHideDuplicates] = useState(valueFromUrl);
 
-  const onChange = (show: boolean) => {
-    if (!show) {
+  const onChange = (isHide: boolean) => {
+    if (isHide) {
       searchParams.set(urlKey, "true");
     } else {
       searchParams.delete(urlKey);
     }
 
-    setHideDuplicates(!show);
+    setHideDuplicates(isHide);
     setSearchParams(searchParams);
   };
 
