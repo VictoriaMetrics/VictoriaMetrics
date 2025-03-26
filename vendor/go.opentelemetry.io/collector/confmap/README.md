@@ -93,6 +93,91 @@ The `Resolve` method proceeds in the following steps:
 4. For each "Converter", call "Convert" for the "result".
 5. Return the "result", aka effective, configuration.
 
+#### (Experimental) Append merging strategy for lists
+
+You can opt-in to experimentally combine slices instead of discarding the existing ones by enabling the `confmap.enableMergeAppendOption` feature flag. Lists are appended in the order in which they appear in their configuration sources.
+This will **not** become the default in the future, we are still deciding how this should be configured and want your feedback on [this issue](https://github.com/open-telemetry/opentelemetry-collector/issues/8754).
+
+##### Example
+Consider the following configs,
+
+```yaml
+# main.yaml
+receivers:
+  otlp/in:
+processors:
+  attributes/example:
+    actions:
+      - key: key
+        value: "value"
+        action: upsert
+
+exporters:
+  otlp/out:
+extensions:
+  file_storage:
+
+service:
+  pipelines:
+    traces:
+      receivers: [ otlp/in ]
+      processors: [ attributes/example ]
+      exporters: [ otlp/out ]
+  extensions: [ file_storage ]
+```
+
+
+```yaml
+# extra_extension.yaml
+processors:
+  batch:
+extensions:
+  healthcheckv2:
+
+service:
+  extensions: [ healthcheckv2 ]
+  pipelines:
+    traces:
+      processors: [ batch ]
+```
+
+If you run the Collector with following command,
+```
+otelcol --config=main.yaml --config=extra_extension.yaml --feature-gates=confmap.enableMergeAppendOption
+```
+then the final configuration after config resolution will look like following:
+
+```yaml
+# main.yaml
+receivers:
+  otlp/in:
+processors:
+  attributes/example:
+    actions:
+      - key: key
+        value: "value"
+        action: upsert
+  batch:
+exporters:
+  otlp/out:
+extensions:
+  file_storage:
+  healthcheckv2:
+
+service:
+  pipelines:
+    traces:
+      receivers: [ otlp/in ]
+      processors: [ attributes/example, batch ]
+      exporters: [ otlp/out ]
+  extensions: [ file_storage, healthcheckv2 ]
+```
+
+Notice that the `service::extensions` list is a combination of both configurations. By default, the value of the last configuration source passed, `extra_extension`, would be used, so the extensions list would be: `service::extensions: [healthcheckv2]`.
+
+> [!NOTE]
+> By enabling this feature gate, all the lists in the given configuration will be merged. 
+
 ### Watching for Updates
 After the configuration was processed, the `Resolver` can be used as a single point to watch for updates in the
 configuration retrieved via the `Provider` used to retrieve the “initial” configuration and to generate the “effective” one.
