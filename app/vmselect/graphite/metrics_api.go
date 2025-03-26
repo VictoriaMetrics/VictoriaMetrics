@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -26,7 +26,7 @@ var maxTagValueSuffixes = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3,
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	format := r.FormValue("format")
 	if format == "" {
 		format = "treejson"
@@ -120,7 +120,7 @@ func deduplicatePaths(paths []string) []string {
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
 func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	queries := r.Form["query"]
 	if len(queries) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -200,7 +200,7 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 //
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json
 func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	jsonp := r.FormValue("jsonp")
 	sq := storage.NewSearchQuery(0, 0, nil, 0)
 	metricNames, err := netstorage.LabelValues(nil, "__name__", sq, 0, deadline)
@@ -220,7 +220,7 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 }
 
 // metricsFind searches for label values that match the given qHead and qTail.
-func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byte, isExpand bool, deadline searchutils.Deadline) ([]string, error) {
+func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byte, isExpand bool, deadline searchutil.Deadline) ([]string, error) {
 	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
 		query := qHead + qTail

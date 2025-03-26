@@ -19,7 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -495,7 +495,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	cp.deadline = searchutils.GetDeadlineForDelete(r, startTime)
+	cp.deadline = searchutil.GetDeadlineForDelete(r, startTime)
 
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
@@ -559,7 +559,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if err != nil {
 		return err
 	}
-	cp.deadline = searchutils.GetDeadlineForStatusRequest(r, startTime)
+	cp.deadline = searchutil.GetDeadlineForStatusRequest(r, startTime)
 
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
@@ -646,7 +646,7 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesCountDuration.UpdateDuration(startTime)
 
-	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
+	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
 	n, err := netstorage.SeriesCount(nil, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
@@ -710,7 +710,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	defer queryDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	mayCache := !httputil.GetBool(r, "nocache")
 	query := r.FormValue("query")
 	if len(query) == 0 {
@@ -735,7 +735,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
@@ -758,7 +758,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		filterss := searchutils.JoinTagFilterss(tagFilterss, etfs)
+		filterss := searchutil.JoinTagFilterss(tagFilterss, etfs)
 
 		cp := &commonParams{
 			deadline: deadline,
@@ -881,7 +881,7 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if err != nil {
 		return err
 	}
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return err
 	}
@@ -893,7 +893,7 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 
 func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, query string,
 	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	mayCache := !httputil.GetBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
@@ -1062,7 +1062,7 @@ func getMaxLookback(r *http.Request) (int64, error) {
 func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {
 	tfss := make([][]storage.TagFilter, 0, len(matches))
 	for _, match := range matches {
-		tfssLocal, err := searchutils.ParseMetricSelector(match)
+		tfssLocal, err := searchutil.ParseMetricSelector(match)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse matches[]=%s: %w", match, err)
 		}
@@ -1123,7 +1123,7 @@ func QueryStatsHandler(w http.ResponseWriter, r *http.Request) error {
 //
 // timeout, start, end, match[], extra_label, extra_filters[]
 type commonParams struct {
-	deadline         searchutils.Deadline
+	deadline         searchutil.Deadline
 	start            int64
 	end              int64
 	currentTimestamp int64
@@ -1147,7 +1147,7 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 	if err != nil {
 		return nil, err
 	}
-	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
+	cp.deadline = searchutil.GetDeadlineForExport(r, startTime)
 	return cp, nil
 }
 
@@ -1159,7 +1159,7 @@ func getCommonParamsForLabelsAPI(r *http.Request, startTime time.Time, requireNo
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
-	cp.deadline = searchutils.GetDeadlineForLabelsAPI(r, startTime)
+	cp.deadline = searchutil.GetDeadlineForLabelsAPI(r, startTime)
 	return cp, nil
 }
 
@@ -1176,7 +1176,7 @@ func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch 
 }
 
 func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmptyMatch, isLabelsAPI bool) (*commonParams, error) {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	start, err := httputil.GetTime(r, "start", 0)
 	if err != nil {
 		return nil, err
@@ -1212,11 +1212,11 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 		// even if ignoreExtraLabelsAtLabelsAPI is set, since extra filters won't slow down
 		// the query - they can only improve query performance by reducing the number
 		// of matching series at the storage level.
-		etfs, err := searchutils.GetExtraTagFilters(r)
+		etfs, err := searchutil.GetExtraTagFilters(r)
 		if err != nil {
 			return nil, err
 		}
-		filterss = searchutils.JoinTagFilterss(filterss, etfs)
+		filterss = searchutil.JoinTagFilterss(filterss, etfs)
 	}
 
 	cp := &commonParams{
