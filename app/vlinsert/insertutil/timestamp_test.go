@@ -1,4 +1,4 @@
-package insertutils
+package insertutil
 
 import (
 	"testing"

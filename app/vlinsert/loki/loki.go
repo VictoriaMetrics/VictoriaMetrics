@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
@@ -42,7 +42,7 @@ func handleInsert(r *http.Request, w http.ResponseWriter) {
 }
 
 type commonParams struct {
-	cp *insertutils.CommonParams
+	cp *insertutil.CommonParams
 
 	// Whether to parse JSON inside plaintext log message.
 	//
@@ -51,7 +51,7 @@ type commonParams struct {
 }
 
 func getCommonParams(r *http.Request) (*commonParams, error) {
-	cp, err := insertutils.GetCommonParams(r)
+	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
 		return nil, err
 	}
