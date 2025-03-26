@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -136,10 +137,13 @@ func (fs *FS) Init() error {
 	}
 
 	if fs.TLSInsecureSkipVerify {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		tr := httputil.NewTransport(false)
+		tr.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
 		}
-		cfg.HTTPClient = &http.Client{Transport: tr}
+		cfg.HTTPClient = &http.Client{
+			Transport: tr,
+		}
 	}
 
 	var outerErr error

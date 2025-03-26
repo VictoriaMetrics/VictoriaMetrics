@@ -17,6 +17,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
@@ -232,10 +233,10 @@ func urlValuesFromMap(m map[string]string) url.Values {
 }
 
 func (oi *oauth2ConfigInternal) initTokenSource() error {
+	tr := httputil.NewTransport(false)
+	tr.Proxy = oi.proxyURLFunc
 	c := &http.Client{
-		Transport: oi.ac.NewRoundTripper(&http.Transport{
-			Proxy: oi.proxyURLFunc,
-		}),
+		Transport: oi.ac.NewRoundTripper(tr),
 	}
 	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
 	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)

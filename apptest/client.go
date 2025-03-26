@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
 // Client is used for interacting with the apps over the network.
@@ -22,7 +24,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		httpCli: &http.Client{
-			Transport: &http.Transport{},
+			Transport: httputil.NewTransport(false),
 		},
 	}
 }

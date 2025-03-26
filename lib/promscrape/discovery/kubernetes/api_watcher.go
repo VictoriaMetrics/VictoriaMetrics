@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -259,7 +260,7 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 		return c
 	}
 
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := httputil.NewTransport(true)
 	tr.DialContext = netutil.Dialer.DialContext
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = *apiServerTimeout

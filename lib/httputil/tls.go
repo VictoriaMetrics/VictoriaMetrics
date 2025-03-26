@@ -15,13 +15,13 @@ func Transport(URL, certFile, keyFile, caFile, serverName string, insecureSkipVe
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
-	t := http.DefaultTransport.(*http.Transport).Clone()
+	tr := NewTransport(false)
 	tlsCfg, err := TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 	if err != nil {
 		return nil, err
 	}
-	t.TLSClientConfig = tlsCfg
-	return t, nil
+	tr.TLSClientConfig = tlsCfg
+	return tr, nil
 }
 
 // TLSConfig creates tls.Config object from provided arguments

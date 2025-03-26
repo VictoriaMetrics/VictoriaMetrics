@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
@@ -47,10 +48,10 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	tr := &http.Transport{
-		MaxIdleConnsPerHost: 100,
-	}
+	tr := httputil.NewTransport(false)
+	tr.MaxIdleConnsPerHost = 100
 	rt := http.RoundTripper(tr)
+
 	if sdc.TLSConfig != nil {
 		opts := &promauth.Options{
 			BaseDir:   baseDir,
