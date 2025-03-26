@@ -240,11 +240,14 @@ Released at 2025-01-24
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
 * BUGFIX: [export API](https://docs.victoriametrics.com/#how-to-export-time-series): cancel export process on client connection close. Previously client connection close was ignored and VictoriaMetrics started to hog CPU by exporting metrics to nowhere until it export all of them.
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): Use `now()` as the real scrape timestamp. Previously, the real scrape timestamp could have a time gap with `now()`, resulting in inaccurate scrape durations for the `vm_promscrape_scrape_duration_seconds` and `scrape_duration_seconds` metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7760). Thanks to @tIGO for reporting.
+
 ## [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
 
 Released at 2025-01-17
 
 * SECURITY: upgrade base docker image (Alpine) from 3.21.0 to 3.21.2. See [Alpine 3.21.1 release notes](https://alpinelinux.org/posts/Alpine-3.21.1-released.html) and [Alpine 3.21.2 release notes](https://alpinelinux.org/posts/Alpine-3.18.11-3.19.6-3.20.5-3.21.2-released.html).
+
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix incorrect behavior of increase, increase_pure, delta caused by [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002). This fix reverts to the previous behavior before [v1.109.0](https://docs.victoriametrics.com/changelog/#v11090). But allows controlling staleness detection for these functions explicitly via `-search.maxStalenessInterval`.
