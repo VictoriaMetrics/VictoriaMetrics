@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -36,7 +36,7 @@ func Create(createSnapshotURL string) (string, error) {
 	}
 
 	// create Transport
-	tr, err := httputils.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := httputil.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return "", fmt.Errorf("failed to create transport for createSnapshotURL=%q: %s", createSnapshotURL, err)
 	}
@@ -81,7 +81,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	// create Transport
-	tr, err := httputils.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := httputil.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return fmt.Errorf("failed to create transport for deleteSnapshotURL=%q: %s", deleteSnapshotURL, err)
 

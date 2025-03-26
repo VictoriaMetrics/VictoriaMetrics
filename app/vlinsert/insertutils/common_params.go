@@ -13,7 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -49,13 +49,13 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	}
 
 	timeField := "_time"
-	if tf := httputils.GetRequestValue(r, "_time_field", "VL-Time-Field"); tf != "" {
+	if tf := httputil.GetRequestValue(r, "_time_field", "VL-Time-Field"); tf != "" {
 		timeField = tf
 	}
 
-	msgFields := httputils.GetArray(r, "_msg_field", "VL-Msg-Field")
-	streamFields := httputils.GetArray(r, "_stream_fields", "VL-Stream-Fields")
-	ignoreFields := httputils.GetArray(r, "ignore_fields", "VL-Ignore-Fields")
+	msgFields := httputil.GetArray(r, "_msg_field", "VL-Msg-Field")
+	streamFields := httputil.GetArray(r, "_stream_fields", "VL-Stream-Fields")
+	ignoreFields := httputil.GetArray(r, "ignore_fields", "VL-Ignore-Fields")
 
 	extraFields, err := getExtraFields(r)
 	if err != nil {
@@ -63,7 +63,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	}
 
 	debug := false
-	if dv := httputils.GetRequestValue(r, "debug", "VL-Debug"); dv != "" {
+	if dv := httputil.GetRequestValue(r, "debug", "VL-Debug"); dv != "" {
 		debug, err = strconv.ParseBool(dv)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse debug=%q: %w", dv, err)
@@ -92,7 +92,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 }
 
 func getExtraFields(r *http.Request) ([]logstorage.Field, error) {
-	efs := httputils.GetArray(r, "extra_fields", "VL-Extra-Fields")
+	efs := httputil.GetArray(r, "extra_fields", "VL-Extra-Fields")
 	if len(efs) == 0 {
 		return nil, nil
 	}

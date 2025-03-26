@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/logsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -253,7 +253,7 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 // getMaxQueryDuration returns the maximum duration for query from r.
 func getMaxQueryDuration(r *http.Request) time.Duration {
-	dms, err := httputils.GetDuration(r, "timeout", 0)
+	dms, err := httputil.GetDuration(r, "timeout", 0)
 	if err != nil {
 		dms = 0
 	}

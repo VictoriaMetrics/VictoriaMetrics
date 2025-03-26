@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
+	nethttputil "net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -27,7 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -194,7 +194,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Handle non-trivial dynamic requests, which may take big amounts of time and resources.
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
-	tracerEnabled := httputils.GetBool(r, "trace")
+	tracerEnabled := httputil.GetBool(r, "trace")
 	qt := querytracer.New(tracerEnabled, "%s", r.URL.Path)
 
 	// Limit the number of concurrent queries.
@@ -954,7 +954,7 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 
 var (
 	vmalertProxyHost string
-	vmalertProxy     *httputil.ReverseProxy
+	vmalertProxy     *nethttputil.ReverseProxy
 )
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
@@ -967,7 +967,7 @@ func initVMAlertProxy() {
 		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
 	}
 	vmalertProxyHost = proxyURL.Host
-	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+	vmalertProxy = nethttputil.NewSingleHostReverseProxy(proxyURL)
 }
 
 func checkDuplicates(arr []string) string {

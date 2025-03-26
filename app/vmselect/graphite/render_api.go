@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -95,7 +95,7 @@ func RenderHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	denyPartialResponse := httputils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 	var nextSeriess []nextSeriesFunc
 	targets := r.Form["target"]
 	for _, target := range targets {
