@@ -18,7 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -219,7 +219,7 @@ func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork
 	return nil
 }
 
-func getLabelsID(labels *promutils.Labels) string {
+func getLabelsID(labels *promutil.Labels) string {
 	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(labels)))
 }
 
@@ -285,7 +285,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 	fmt.Fprintf(w, `]`)
 }
 
-func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
+func writeLabelsJSON(w io.Writer, labels *promutil.Labels) {
 	fmt.Fprintf(w, `{`)
 	labelsList := labels.GetLabels()
 	for i, label := range labelsList {
@@ -333,7 +333,7 @@ type droppedTargets struct {
 }
 
 type droppedTarget struct {
-	originalLabels    *promutils.Labels
+	originalLabels    *promutil.Labels
 	relabelConfigs    *promrelabel.ParsedConfigs
 	dropReason        targetDropReason
 	clusterMemberNums []int
@@ -368,7 +368,7 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 //
 // The relabelConfigs must contain relabel configs, which were applied to originalLabels.
 // The reason must contain the reason why the target has been dropped.
-func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
+func (dt *droppedTargets) Register(originalLabels *promutil.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
 	if originalLabels == nil {
 		// Do not register target without originalLabels. This is the case when *dropOriginalLabels is set to true.
 		return
@@ -403,7 +403,7 @@ func (dt *droppedTargets) getTotalTargets() int {
 	return n
 }
 
-func labelsHash(labels *promutils.Labels) uint64 {
+func labelsHash(labels *promutil.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
 	for _, label := range labels.GetLabels() {
 		_, _ = d.WriteString(label.Name)
@@ -619,8 +619,8 @@ type targetsStatusResult struct {
 
 type targetLabels struct {
 	up                bool
-	originalLabels    *promutils.Labels
-	labels            *promutils.Labels
+	originalLabels    *promutil.Labels
+	labels            *promutil.Labels
 	dropReason        targetDropReason
 	clusterMemberNums []int
 }
@@ -631,7 +631,7 @@ type targetLabelsByJob struct {
 	droppedTargets int
 }
 
-func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutil.Labels, bool) {
 	tsmGlobal.mu.Lock()
 	defer tsmGlobal.mu.Unlock()
 
@@ -644,9 +644,9 @@ func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConf
 	return nil, nil, false
 }
 
-func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutil.Labels, bool) {
 	var relabelConfigs *promrelabel.ParsedConfigs
-	var labels *promutils.Labels
+	var labels *promutil.Labels
 	found := false
 
 	// Search for relabel context in tsmGlobal (aka active targets)

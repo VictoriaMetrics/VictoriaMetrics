@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 const (
@@ -33,7 +33,7 @@ type parameters map[string]interface{}
 
 // addToLabels add Parameters map to existing labels.
 // See: https://github.com/prometheus/prometheus/blob/685493187ec5f5734777769f595cf8418d49900d/discovery/puppetdb/resources.go#L39
-func (p *parameters) addToLabels(keyPrefix string, m *promutils.Labels) {
+func (p *parameters) addToLabels(keyPrefix string, m *promutil.Labels) {
 	if p == nil {
 		return
 	}
@@ -116,11 +116,11 @@ func getResourceList(cfg *apiConfig) ([]resource, error) {
 	return resources, nil
 }
 
-func getResourceLabels(resources []resource, cfg *apiConfig) []*promutils.Labels {
-	ms := make([]*promutils.Labels, 0, len(resources))
+func getResourceLabels(resources []resource, cfg *apiConfig) []*promutil.Labels {
+	ms := make([]*promutil.Labels, 0, len(resources))
 
 	for _, res := range resources {
-		m := promutils.NewLabels(18)
+		m := promutil.NewLabels(18)
 
 		m.Add("__address__", discoveryutils.JoinHostPort(res.Certname, cfg.port))
 		m.Add("__meta_puppetdb_certname", res.Certname)

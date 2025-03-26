@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAddInstanceLabels(t *testing.T) {
-	f := func(instances []instance, labelssExpected []*promutils.Labels) {
+	f := func(instances []instance, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addInstanceLabels(instances)
@@ -42,8 +42,8 @@ func TestAddInstanceLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                         "server-1.ru-central1.internal",
 			"__meta_yandexcloud_instance_name":                    "server-1",
 			"__meta_yandexcloud_instance_fqdn":                    "server-1.ru-central1.internal",
@@ -86,8 +86,8 @@ func TestAddInstanceLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                         "server-1.ru-central1.internal",
 			"__meta_yandexcloud_instance_fqdn":                    "server-1.ru-central1.internal",
 			"__meta_yandexcloud_instance_name":                    "server-1",
@@ -141,8 +141,8 @@ func TestAddInstanceLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                         "server-1.ru-central1.internal",
 			"__meta_yandexcloud_instance_name":                    "server-1",
 			"__meta_yandexcloud_instance_fqdn":                    "server-1.ru-central1.internal",

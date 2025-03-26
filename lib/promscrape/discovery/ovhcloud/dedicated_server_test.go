@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func Test_getDedicatedServerLabels(t *testing.T) {
@@ -36,7 +36,7 @@ func Test_getDedicatedServerLabels(t *testing.T) {
 		timeDelta:         td,
 	}
 
-	expectLabels := &promutils.Labels{}
+	expectLabels := &promutil.Labels{}
 	expectLabels.Add("__address__", "50.75.126.113")
 	expectLabels.Add("instance", "ns0000000.ip-00-00-000.eu")
 	expectLabels.Add("__meta_ovhcloud_dedicated_server_state", "ok")
@@ -52,7 +52,7 @@ func Test_getDedicatedServerLabels(t *testing.T) {
 	expectLabels.Add("__meta_ovhcloud_dedicated_server_name", "ns0000000.ip-00-00-000.eu")
 	expectLabels.Add("__meta_ovhcloud_dedicated_server_ipv4", "50.75.126.113")
 	expectLabels.Add("__meta_ovhcloud_dedicated_server_ipv6", "")
-	expect := []*promutils.Labels{
+	expect := []*promutil.Labels{
 		expectLabels,
 	}
 

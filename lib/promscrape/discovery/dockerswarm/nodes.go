@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // See https://docs.docker.com/engine/api/v1.40/#tag/Node
@@ -50,7 +50,7 @@ type nodeManagerStatus struct {
 	Addr         string
 }
 
-func getNodesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getNodesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	nodes, err := getNodes(cfg)
 	if err != nil {
 		return nil, err
@@ -78,10 +78,10 @@ func parseNodes(data []byte) ([]node, error) {
 	return nodes, nil
 }
 
-func addNodeLabels(nodes []node, port int) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addNodeLabels(nodes []node, port int) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, node := range nodes {
-		m := promutils.NewLabels(16)
+		m := promutil.NewLabels(16)
 		m.Add("__address__", discoveryutils.JoinHostPort(node.Status.Addr, port))
 		m.Add("__meta_dockerswarm_node_address", node.Status.Addr)
 		m.Add("__meta_dockerswarm_node_availability", node.Spec.Availability)

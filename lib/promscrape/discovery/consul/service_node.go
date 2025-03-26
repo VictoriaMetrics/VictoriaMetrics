@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // getServiceNodesLabels returns labels for Consul service nodes with given cfg.
-func getServiceNodesLabels(cfg *apiConfig) []*promutils.Labels {
+func getServiceNodesLabels(cfg *apiConfig) []*promutil.Labels {
 	sns := cfg.consulWatcher.getServiceNodesSnapshot()
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for svc, sn := range sns {
 		for i := range sn {
 			ms = sn[i].appendTargetLabels(ms, svc, cfg.tagSeparator)
@@ -83,14 +83,14 @@ func ParseServiceNodes(data []byte) ([]ServiceNode, error) {
 	return sns, nil
 }
 
-func (sn *ServiceNode) appendTargetLabels(ms []*promutils.Labels, serviceName, tagSeparator string) []*promutils.Labels {
+func (sn *ServiceNode) appendTargetLabels(ms []*promutil.Labels, serviceName, tagSeparator string) []*promutil.Labels {
 	var addr string
 	if sn.Service.Address != "" {
 		addr = discoveryutils.JoinHostPort(sn.Service.Address, sn.Service.Port)
 	} else {
 		addr = discoveryutils.JoinHostPort(sn.Node.Address, sn.Service.Port)
 	}
-	m := promutils.NewLabels(16)
+	m := promutil.NewLabels(16)
 	m.Add("__address__", addr)
 	m.Add("__meta_consul_address", sn.Node.Address)
 	m.Add("__meta_consul_dc", sn.Node.Datacenter)

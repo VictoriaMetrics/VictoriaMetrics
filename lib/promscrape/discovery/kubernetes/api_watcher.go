@@ -23,7 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
@@ -49,7 +49,7 @@ type object interface {
 	key() string
 
 	// getTargetLabels must be called under gw.mu lock.
-	getTargetLabels(gw *groupWatcher) []*promutils.Labels
+	getTargetLabels(gw *groupWatcher) []*promutil.Labels
 }
 
 // parseObjectFunc must parse object from the given data.
@@ -154,7 +154,7 @@ func (aw *apiWatcher) updateScrapeWorks(uw *urlWatcher, swosByKey map[string][]a
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labelss []*promutils.Labels) {
+func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labelss []*promutil.Labels) {
 	swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 	aw.swosByURLWatcherLock.Lock()
 	swosByKey := aw.swosByURLWatcher[uw]
@@ -181,7 +181,7 @@ func (aw *apiWatcher) removeScrapeWorks(uw *urlWatcher, key string) {
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []*promutils.Labels) []any {
+func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []*promutil.Labels) []any {
 	// Do not pre-allocate swos, since it is likely the swos will be empty because of relabeling
 	var swos []any
 	for _, labels := range labelss {
@@ -404,7 +404,7 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 		labelss := o.getTargetLabels(gw)
 		wg.Add(1)
 		limiterCh <- struct{}{}
-		go func(key string, labelss []*promutils.Labels) {
+		go func(key string, labelss []*promutil.Labels) {
 			for aw, e := range swosByAPIWatcher {
 				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 				e.mu.Lock()
@@ -420,9 +420,9 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 	return swosByAPIWatcher
 }
 
-func putLabelssToPool(labelss []*promutils.Labels) {
+func putLabelssToPool(labelss []*promutil.Labels) {
 	for _, labels := range labelss {
-		promutils.PutLabels(labels)
+		promutil.PutLabels(labels)
 	}
 }
 

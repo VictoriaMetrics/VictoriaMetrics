@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // SanitizeLabelName replaces anything that doesn't match
@@ -68,9 +68,9 @@ func EscapeIPv6Host(host string) string {
 var bbPool bytesutil.ByteBufferPool
 
 // TestEqualLabelss tests whether got are equal to want.
-func TestEqualLabelss(t *testing.T, got, want []*promutils.Labels) {
+func TestEqualLabelss(t *testing.T, got, want []*promutil.Labels) {
 	t.Helper()
-	var gotCopy []*promutils.Labels
+	var gotCopy []*promutil.Labels
 	for _, labels := range got {
 		labels = labels.Clone()
 		labels.Sort()
@@ -89,7 +89,7 @@ func TestEqualLabelss(t *testing.T, got, want []*promutils.Labels) {
 //     regex: <prefix>_tag_(.+)
 //
 // This solves https://stackoverflow.com/questions/44339461/relabeling-in-prometheus
-func AddTagsToLabels(m *promutils.Labels, tags []string, prefix, tagSeparator string) {
+func AddTagsToLabels(m *promutil.Labels, tags []string, prefix, tagSeparator string) {
 	// We surround the separated list with the separator as well. This way regular expressions
 	// in relabeling rules don't have to consider tag positions.
 	m.Add(prefix+"tags", tagSeparator+strings.Join(tags, tagSeparator)+tagSeparator)

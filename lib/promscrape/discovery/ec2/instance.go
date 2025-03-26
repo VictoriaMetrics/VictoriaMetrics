@@ -7,18 +7,18 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // getInstancesLabels returns labels for ec2 instances obtained from the given cfg
-func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getInstancesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	rs, err := getReservations(cfg)
 	if err != nil {
 		return nil, err
 	}
 	azMap := getAZMap(cfg)
 	region := cfg.awsConfig.GetRegion()
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for _, r := range rs {
 		for _, inst := range r.InstanceSet.Items {
 			ms = inst.appendTargetLabels(ms, r.OwnerID, region, cfg.port, azMap)
@@ -136,13 +136,13 @@ func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	return &v, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, ownerID, region string, port int, azMap map[string]string) []*promutils.Labels {
+func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, ownerID, region string, port int, azMap map[string]string) []*promutil.Labels {
 	if len(inst.PrivateIPAddress) == 0 {
 		// Cannot scrape instance without private IP address
 		return ms
 	}
 	addr := discoveryutils.JoinHostPort(inst.PrivateIPAddress, port)
-	m := promutils.NewLabels(24)
+	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_ec2_architecture", inst.Architecture)
 	m.Add("__meta_ec2_ami", inst.ImageID)

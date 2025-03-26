@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // ObjectMeta represents ObjectMeta from k8s API.
@@ -13,8 +13,8 @@ type ObjectMeta struct {
 	Name            string
 	Namespace       string
 	UID             string
-	Labels          *promutils.Labels
-	Annotations     *promutils.Labels
+	Labels          *promutil.Labels
+	Annotations     *promutil.Labels
 	OwnerReferences []OwnerReference
 }
 
@@ -28,7 +28,7 @@ type ListMeta struct {
 	ResourceVersion string
 }
 
-func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m *promutils.Labels) {
+func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m *promutil.Labels) {
 	bb := bbPool.Get()
 	b := bb.B
 	for _, lb := range om.Labels.GetLabels() {

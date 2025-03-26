@@ -7,7 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // https://docs.docker.com/engine/api/v1.40/#tag/Service
@@ -60,7 +60,7 @@ type portConfig struct {
 	PublishedPort int
 }
 
-func getServicesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getServicesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	services, err := getServices(cfg)
 	if err != nil {
 		return nil, err
@@ -102,10 +102,10 @@ func getServiceMode(svc service) string {
 	return ""
 }
 
-func addServicesLabels(services []service, networksLabels map[string]*promutils.Labels, port int) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addServicesLabels(services []service, networksLabels map[string]*promutil.Labels, port int) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, service := range services {
-		commonLabels := promutils.NewLabels(10)
+		commonLabels := promutil.NewLabels(10)
 		commonLabels.Add("__meta_dockerswarm_service_id", service.ID)
 		commonLabels.Add("__meta_dockerswarm_service_name", service.Spec.Name)
 		commonLabels.Add("__meta_dockerswarm_service_mode", getServiceMode(service))
@@ -131,7 +131,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutils.
 				if ep.Protocol != "tcp" {
 					continue
 				}
-				m := promutils.NewLabels(24)
+				m := promutil.NewLabels(24)
 				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort))
 				m.Add("__meta_dockerswarm_service_endpoint_port_name", ep.Name)
 				m.Add("__meta_dockerswarm_service_endpoint_port_publish_mode", ep.PublishMode)
@@ -143,7 +143,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutils.
 				ms = append(ms, m)
 			}
 			if !added {
-				m := promutils.NewLabels(24)
+				m := promutil.NewLabels(24)
 				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), port))
 				m.AddFrom(commonLabels)
 				m.AddFrom(networksLabels[vip.NetworkID])

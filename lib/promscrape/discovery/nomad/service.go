@@ -6,13 +6,13 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // getServiceLabels returns labels for Nomad services with given cfg.
-func getServiceLabels(cfg *apiConfig) []*promutils.Labels {
+func getServiceLabels(cfg *apiConfig) []*promutil.Labels {
 	svcs := cfg.nomadWatcher.getServiceSnapshot()
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for _, s := range svcs {
 		for i := range s {
 			ms = s[i].appendTargetLabels(ms, cfg.tagSeparator)
@@ -56,9 +56,9 @@ func parseServices(data []byte) ([]Service, error) {
 	return sns, nil
 }
 
-func (svc *Service) appendTargetLabels(ms []*promutils.Labels, tagSeparator string) []*promutils.Labels {
+func (svc *Service) appendTargetLabels(ms []*promutil.Labels, tagSeparator string) []*promutil.Labels {
 	addr := discoveryutils.JoinHostPort(svc.Address, svc.Port)
-	m := promutils.NewLabels(16)
+	m := promutil.NewLabels(16)
 	m.Add("__address__", addr)
 	m.Add("__meta_nomad_address", svc.Address)
 	m.Add("__meta_nomad_dc", svc.Datacenter)

@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -83,7 +83,7 @@ type DataCenterInfo struct {
 }
 
 // GetLabels returns Eureka labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -108,8 +108,8 @@ func (sdc *SDConfig) MustStop() {
 	}
 }
 
-func addInstanceLabels(apps *applications) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addInstanceLabels(apps *applications) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, app := range apps.Applications {
 		for _, instance := range app.Instances {
 			instancePort := 80
@@ -117,7 +117,7 @@ func addInstanceLabels(apps *applications) []*promutils.Labels {
 				instancePort = instance.Port.Port
 			}
 			targetAddress := discoveryutils.JoinHostPort(instance.HostName, instancePort)
-			m := promutils.NewLabels(24)
+			m := promutil.NewLabels(24)
 			m.Add("__address__", targetAddress)
 			m.Add("instance", instance.InstanceID)
 			m.Add("__meta_eureka_app_name", app.Name)

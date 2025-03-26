@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 var (
@@ -189,7 +189,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 // list of labels added during discovery.
 type Target struct {
 	Notifier
-	Labels *promutils.Labels
+	Labels *promutil.Labels
 }
 
 // TargetType defines how the Target was discovered

@@ -8,13 +8,13 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // getInstancesLabels returns labels for gce instances obtained from the given cfg
-func getInstancesLabels(cfg *apiConfig) []*promutils.Labels {
+func getInstancesLabels(cfg *apiConfig) []*promutil.Labels {
 	insts := getInstances(cfg)
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for _, inst := range insts {
 		ms = inst.appendTargetLabels(ms, cfg.project, cfg.tagSeparator, cfg.port)
 	}
@@ -89,7 +89,7 @@ type Instance struct {
 	NetworkInterfaces []NetworkInterface
 	Tags              TagList
 	Metadata          MetadataList
-	Labels            *promutils.Labels
+	Labels            *promutil.Labels
 }
 
 // NetworkInterface is network interface from https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
@@ -132,13 +132,13 @@ func parseInstanceList(data []byte) (*InstanceList, error) {
 	return &il, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, project, tagSeparator string, port int) []*promutils.Labels {
+func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSeparator string, port int) []*promutil.Labels {
 	if len(inst.NetworkInterfaces) == 0 {
 		return ms
 	}
 	iface := inst.NetworkInterfaces[0]
 	addr := discoveryutils.JoinHostPort(iface.NetworkIP, port)
-	m := promutils.NewLabels(24)
+	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_gce_instance_id", inst.ID)
 	m.Add("__meta_gce_instance_status", inst.Status)
