@@ -35,7 +35,7 @@ For example, the following commands download VictoriaLogs archive for Linux/amd6
 ```sh
 curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.17.0-victorialogs/victoria-logs-linux-amd64-v1.17.0-victorialogs.tar.gz
 tar xzf victoria-logs-linux-amd64-v1.17.0-victorialogs.tar.gz
-./victoria-logs-prod
+./victoria-logs-prod -storageDataPath=victoria-logs-data
 ```
 
 VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
@@ -58,7 +58,7 @@ Here is the command to run VictoriaLogs in a Docker container:
 
 ```sh
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
-  docker.io/victoriametrics/victoria-logs:v1.17.0-victorialogs
+  docker.io/victoriametrics/victoria-logs:v1.17.0-victorialogs -storageDataPath=victoria-logs-data
 ```
 
 See also:
@@ -92,7 +92,7 @@ Follow the following steps in order to build VictoriaLogs from source code:
 - Run the built binary:
 
   ```sh
-  bin/victoria-logs
+  bin/victoria-logs -storageDataPath=victoria-logs-data
   ```
 
 VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
