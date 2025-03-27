@@ -8,13 +8,13 @@ import (
 )
 
 // NewTLSTransport creates a new http.Transport from the provided args.
-func NewTLSTransport(certFile, keyFile, caFile, serverName string, insecureSkipVerify bool) (*http.Transport, error) {
+func NewTLSTransport(certFile, keyFile, caFile, serverName string, insecureSkipVerify bool, metricsPrefix string) (*http.Transport, error) {
 	tlsCfg, err := NewTLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 	if err != nil {
 		return nil, err
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, metricsPrefix)
 	tr.TLSClientConfig = tlsCfg
 
 	return tr, nil

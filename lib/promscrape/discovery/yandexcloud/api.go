@@ -48,7 +48,7 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "vm_promscrape_discovery_yandex")
 	tr.MaxIdleConnsPerHost = 100
 	rt := http.RoundTripper(tr)
 

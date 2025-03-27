@@ -111,7 +111,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "vm_promscrape_discovery")
 	tr.Proxy = proxyURLFunc
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.MaxIdleConnsPerHost = *maxConcurrency
@@ -123,7 +123,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		Transport: ac.NewRoundTripper(tr),
 	}
 
-	trBlocking := httputil.NewTransport(false)
+	trBlocking := httputil.NewTransport(false, "vm_promscrape_discovery")
 	trBlocking.Proxy = proxyURLFunc
 	trBlocking.TLSHandshakeTimeout = 10 * time.Second
 	trBlocking.MaxIdleConnsPerHost = 1000

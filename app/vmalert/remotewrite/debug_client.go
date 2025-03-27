@@ -33,7 +33,7 @@ func NewDebugClient() (*DebugClient, error) {
 	if err := httputil.CheckURL(*addr); err != nil {
 		return nil, fmt.Errorf("invalid -remoteWrite.url: %w", err)
 	}
-	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vmalert_remotewrite_debug")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -remoteWrite.url=%q: %w", *addr, err)
 	}

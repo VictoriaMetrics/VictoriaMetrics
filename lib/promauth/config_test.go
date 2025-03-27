@@ -645,7 +645,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 		t.Fatalf("unexpected error when parsing config: %s", err)
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "test_client")
 	client := http.Client{
 		Transport: ac.NewRoundTripper(tr),
 	}

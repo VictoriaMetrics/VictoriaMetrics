@@ -136,14 +136,14 @@ func (fs *FS) Init() error {
 		return err
 	}
 
+	tr := httputil.NewTransport(false, "vmbackup_s3_client")
 	if fs.TLSInsecureSkipVerify {
-		tr := httputil.NewTransport(false)
 		tr.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true,
 		}
-		cfg.HTTPClient = &http.Client{
-			Transport: tr,
-		}
+	}
+	cfg.HTTPClient = &http.Client{
+		Transport: tr,
 	}
 
 	var outerErr error

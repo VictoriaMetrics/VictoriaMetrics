@@ -75,7 +75,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		port = 80
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "vm_promscrape_discovery_openstack")
 	tr.MaxIdleConnsPerHost = 100
 
 	cfg := &apiConfig{
