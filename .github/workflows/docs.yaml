@@ -40,9 +40,8 @@ jobs:
       - name: Copy docs
         id: update
         run: |
-          rsync -zarv \
-            --exclude="Makefile" \
-            docs/ ../__vm-docs/content/victoriametrics
+          find docs -type d -maxdepth 1 -mindepth 1 -exec \
+            sh -c 'rsync -zarv {} ../__vm-docs/content/$(basename {})' \;
           echo "SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_OUTPUT
         working-directory: __vm
 
