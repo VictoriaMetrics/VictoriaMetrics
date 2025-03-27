@@ -337,5 +337,5 @@ Here is the list of log collectors and their ingestion formats supported by Vict
 | [Telegraf](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/elasticsearch) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/http) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/loki) | [Yes](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/syslog) | Yes | No | No |
 | [Fluentd](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentd/) | [Yes](https://github.com/uken/fluent-plugin-elasticsearch) | [Yes](https://docs.fluentd.org/output/http) | [Yes](https://grafana.com/docs/loki/latest/send-data/fluentd/) | [Yes](https://github.com/fluent-plugins-nursery/fluent-plugin-remote_syslog) | No | No | No |
 | [Journald](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/) | No | No | No | No | No | Yes | No |
-| [DataDog Agent](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/datadog-agent) | No | No | No | No | No | No | Yes |
+| [DataDog Agent](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent) | No | No | No | No | No | No | Yes |
 

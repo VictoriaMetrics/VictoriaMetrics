@@ -8,7 +8,7 @@ menu:
     weight: 1
     title: Quick Start
 aliases:
-- /VictoriaLogs/QuickStart.html
+- /victorialogs/QuickStart.html
 - /victorialogs/quick-start.html
 - /victorialogs/quick-start/
 ---

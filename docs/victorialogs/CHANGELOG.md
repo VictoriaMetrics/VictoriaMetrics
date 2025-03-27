@@ -8,7 +8,7 @@ menu:
     weight: 7
     title: CHANGELOG
 aliases:
-- /VictoriaLogs/CHANGELOG.html
+- /victorialogs/CHANGELOG.html
 ---
 
 The following `tip` changes can be tested by building VictoriaLogs from the latest commit of [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/) repository

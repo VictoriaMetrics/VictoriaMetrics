@@ -7,7 +7,6 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 1
 aliases:
-  - /VictoriaLogs/data-ingestion/Filebeat.html
   - /victorialogs/data-ingestion/Filebeat.html
   - /victorialogs/data-ingestion/filebeat.html
 ---

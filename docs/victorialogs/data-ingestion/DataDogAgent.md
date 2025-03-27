@@ -8,7 +8,7 @@ menu:
     weight: 5
 url: /victorialogs/data-ingestion/datadog-agent/
 aliases:
-  - /VictoriaLogs/data-ingestion/DataDogAgent.html
+  - /victorialogs/data-ingestion/DataDogAgent.html
 ---
 
 Datadog Agent doesn't support custom path prefix, so for this reason it's required to use [VMAuth](https://docs.victoriametrics.com/vmauth/) or any other
@@ -34,7 +34,7 @@ unauthorized_user:
       url_prefix: `<victoria-metrics-base-url>`/datadog/
 ```
 
-To start ingesting logs from DataDog agent please specify a custom URL instead of default one for sending collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+To start ingesting logs from DataDog agent please specify a custom URL instead of default one for sending collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```yaml
 logs_enabled: true

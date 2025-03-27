@@ -7,7 +7,7 @@ menu:
     identifier: victorialogs
     pageRef: /victorialogs/
 aliases:
-- /VictoriaLogs/
-- /VictoriaLogs/index.html
+- /victorialogs/
+- /victorialogs/index.html
 ---
 {{% content "README.md" %}}
