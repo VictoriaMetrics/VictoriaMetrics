@@ -7,7 +7,7 @@ menu:
     parent: "victorialogs"
     weight: 3
 aliases:
-  - /VictoriaLogs/data-ingestion/
-  - /VictoriaLogs/data-ingestion/index.html
+  - /victorialogs/data-ingestion/
+  - /victorialogs/data-ingestion/index.html
 ---
 {{% content "README.md" %}}
