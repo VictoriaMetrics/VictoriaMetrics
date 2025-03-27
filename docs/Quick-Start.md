@@ -11,15 +11,16 @@ aliases:
 ---
 ## How to install
 
-VictoriaMetrics is distributed in the following forms:
+VictoriaMetrics is available in the following distributions:
 
 * [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
-  binary, which is very easy to use and maintain.
-  Single-server-VictoriaMetrics perfectly scales vertically and easily handles millions of metrics/s;
+  binary that is easy to run and maintain. Single-server-VictoriaMetrics perfectly scales vertically and easily handles
+  millions of metrics;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
   for building horizontally scalable clusters.
-* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) - allows 
-  users to run VictoriaMetrics, hosted on AWS, without the need to perform typical DevOps tasks such as proper configuration, monitoring, logs collection, access protection, software updates, backups, etc. 
+* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) -  
+  VictoriaMetrics installation in the cloud. Users can pick a suitable installation size and don't think of typical DevOps 
+  tasks such as configuration tuning, monitoring, logs collection, access protection, software updates, backups, etc. 
 
 VictoriaMetrics is available as:
 
@@ -37,7 +38,8 @@ Just download VictoriaMetrics and follow
 Then read [Prometheus setup](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup)
 and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup) docs.
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) 
+and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
 ### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
 
@@ -48,43 +50,55 @@ The following steps will guide you through starting VictoriaMetrics on VictoriaM
 
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
-The following commands download the latest available
-[Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics)
+Download the latest available [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics)
 and start it at port 8428, while storing the ingested data at `victoria-metrics-data` subdirectory
 under the current directory:
-
-
 ```sh
 docker pull victoriametrics/victoria-metrics:v1.114.0
-docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.114.0
+docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
+ victoriametrics/victoria-metrics:v1.114.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
+You should see:
+```sh
+ started server at http://0.0.0.0:8428/
+ partition "2025_03" has been created
+```
 
-Open `http://localhost:8428` in web browser
-and read [these docs](https://docs.victoriametrics.com/#operation).
+Open `http://localhost:8428/vmui` in WEB browser to see graphical interface [vmui](https://docs.victoriametrics.com/#vmui).
+With `--selfScrapeInterval=5s` VictoriaMetrics scrapes its own metrics, and they should become queryable 30s after start.
+Visit `http://localhost:8428/vmui/#/metrics` to explore available metrics or run an arbitrary query at 
+`http://localhost:8428/vmui` (i.e. `process_cpu_cores_available`).
+Other available HTTP endpoints are listed on `http://localhost:8428` page.
 
-There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
-- horizontally scalable installation, which scales to multiple nodes.
+See more about [writing](https://docs.victoriametrics.com/quick-start/#write-data) or [reading](https://docs.victoriametrics.com/quick-start/#query-data).
 
 ### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
 
-The following commands clone the latest available
-[VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
-and start the docker container via 'make docker-cluster-up'. Further customization is possible by editing
-the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
-file.
-
-
+Clone [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docker environment 
+via `make docker-cluster-up` command:
 ```sh
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
 make docker-cluster-up
 ```
 
+You should see:
+```sh
+ ✔ Container vmstorage-1        Started                                                                                                                                                0.4s
+ ✔ Container vmselect-1         Started                                                                                                                                                0.4s
+ ✔ Container vminsert           Started                                                                                                                                                0.4s
+ ✔ Container vmagent            Started
+```
 
-See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
+The command starts a set of VictoriaMetrics components for metrics collection, storing, alerting and Grafana for user
+interface. See the full description [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster).
 
-* [Cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup)
+Visit Grafana `http://localhost:3000/` (admin:admin) or vmui `http://localhost:8427/select/0/vmui` to start exploring metrics.
 
+_Further customization is possible by editing the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
+file._
+
+See more details about [cluster architecture](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup).
 
 ### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
 
@@ -339,37 +353,31 @@ It should open [vmui](https://docs.victoriametrics.com/#vmui) page.
 
 ## Write data
 
-There are two main models in monitoring for data collection: 
-[push](https://docs.victoriametrics.com/keyconcepts/#push-model) 
-and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). 
-Both are used in modern monitoring and both are supported by VictoriaMetrics.
+There are two main models in monitoring for data collection: [push](https://docs.victoriametrics.com/keyconcepts/#push-model) 
+and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Both are used in modern monitoring and both are 
+supported by VictoriaMetrics.
 
 See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
 See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/data-ingestion/).
 
-
 ## Query data
 
-VictoriaMetrics provides an 
-[HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
-for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
-The same API is also used by
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical User Interface
-for querying and visualizing metrics.
+VictoriaMetrics has built-in [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical
+User Interface for querying and visualizing metrics. [MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the
+query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/keyconcepts/#metricsql).
 
-[MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the query language for executing read queries
-in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
--like query language with a powerful set of functions and features for working specifically with time series data.
+VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
+for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
 
 See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data).
 
-
 ## Alerting
 
-It is not possible to physically trace all changes on graphs all the time, that is why alerting exists.
-In [vmalert](https://docs.victoriametrics.com/vmalert/) it is possible to create a set of conditions
-based on PromQL and MetricsQL queries that will send a notification when such conditions are met.
+To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/vmalert/). 
+It allows creating set of conditions using MetricsQL expressions and send notifications to [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+when such conditions are met.
+
+See [vmalert quick start](https://docs.victoriametrics.com/vmalert/#quickstart).
 
 ## Data migration
 
@@ -395,16 +403,15 @@ and health state. Docs for the components also contain a `Monitoring` section wi
 of what and how should be monitored. For example,
 [Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring).
 
-VictoriaMetric team prepared a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards)
-for the main components. Each dashboard contains a lot of useful information and tips. It is recommended
-to have these dashboards installed and up to date.
+VictoriaMetrics has a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
+Each dashboard contains a lot of useful information and tips. It is recommended to have these dashboards installed and up to date.
 
 Using the [recommended alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
-versions would also help to identify and notify about issues with the system.
+will help to identify unwanted issues.
 
-The rule of thumb is to have a separate installation of VictoriaMetrics or any other monitoring system
-to monitor the production installation of VictoriaMetrics. This would make monitoring independent and
-will help identify problems with the main monitoring installation.
+The rule of thumb is to have a separate installation of VictoriaMetrics or any other monitoring system to monitor the
+production installation of VictoriaMetrics. This would make monitoring independent and will help identify problems with
+the main monitoring installation.
 
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
@@ -422,13 +429,11 @@ Understanding resource usage and performance of VictoriaMetrics also requires kn
 [slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert).
 All of them are present in [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 
-
 ### Data safety
 
 It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
 and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#backups).
-
 
 ### Configuring limits
 
