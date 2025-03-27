@@ -7,6 +7,8 @@ menu:
     weight: 10
     identifier: "victorialogs-vmalert"
 aliases:
+- /VictoriaLogs/vmalert/
+- /VictoriaLogs/vmalert.html
 - /victorialogs/vmalert.html
 ---
 

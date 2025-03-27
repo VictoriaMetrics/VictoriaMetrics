@@ -7,6 +7,7 @@ menu:
     identifier: 'data-ingestion'
     weight: 26
 aliases:
+- /data-ingestion/
 - /data-ingestion.html
 - /data-ingestion.html
 - /data-ingestion/index.html

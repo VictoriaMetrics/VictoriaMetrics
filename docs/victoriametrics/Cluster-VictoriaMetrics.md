@@ -7,6 +7,8 @@ menu:
     weight: 2
 title: Cluster version
 aliases:
+  - /cluster-victoriametrics
+  - /Cluster-VictoriaMetrics
   - /Cluster-VictoriaMetrics.html
   - /cluster-victoriametrics/index.html
   - /cluster-victoriametrics/

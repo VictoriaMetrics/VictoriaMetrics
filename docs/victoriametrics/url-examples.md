@@ -8,6 +8,7 @@ menu:
     identifier: vm-api-examples
 
 aliases:
+  - /url-examples/
   - /url-examples.html
   - /url-examples/index.html
   - /url-examples/

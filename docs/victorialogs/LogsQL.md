@@ -6,6 +6,8 @@ menu:
     parent: "victorialogs"
     weight: 5
 aliases:
+- /VictoriaLogs/logsql
+- /VictoriaLogs/LogsQL.html
 - /victorialogs/LogsQL.html
 ---
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).

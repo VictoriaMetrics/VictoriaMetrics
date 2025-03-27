@@ -8,6 +8,8 @@ menu:
     weight: 8
     title: Roadmap
 aliases:
+- /VictoriaLogs/Roadmap.html
+- /VictoriaLogs/roadmap/
 - /victorialogs/Roadmap.html
 ---
 

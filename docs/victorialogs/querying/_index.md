@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs"
     weight: 4
 aliases:
+  - /VictoriaLogs/querying/
+  - /VictoriaLogs/querying/index.html
   - /victorialogs/querying/
   - /victorialogs/querying/index.html
 ---

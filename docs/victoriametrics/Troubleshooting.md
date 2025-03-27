@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 35
 aliases:
+- /troubleshooting
+- /Troubleshooting
 - /Troubleshooting.html
 - /troubleshooting/index.html
 - /troubleshooting/

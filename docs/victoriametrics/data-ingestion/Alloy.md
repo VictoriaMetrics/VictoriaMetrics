@@ -7,6 +7,7 @@ menu:
     parent: "data-ingestion"
     weight: 3
 aliases:
+  - /data-ingestion/grafana-alloy/
   - /data-ingestion/Grafana-Alloy.html
   - /data-ingestion/grafana-alloy.html
   - /data-ingestion/Grafana-Agent.html

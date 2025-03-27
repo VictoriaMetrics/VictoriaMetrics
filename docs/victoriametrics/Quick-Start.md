@@ -7,6 +7,9 @@ menu:
     parent: victoriametrics
     weight: 1
 aliases:
+- /quickstart
+- /quick-start
+- /Quick-Start
 - /Quick-Start.html
 - /quick-start/index.html
 - /quick-start/

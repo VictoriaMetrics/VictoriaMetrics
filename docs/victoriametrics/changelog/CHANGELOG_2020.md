@@ -9,6 +9,7 @@ menu:
     parent: vm-changelog
     weight: 7
 aliases:
+- /CHANGELOG_2020
 - /CHANGELOG_2020.html
 - /changelog_2020
 - /changelog/changelog_2020/index.html

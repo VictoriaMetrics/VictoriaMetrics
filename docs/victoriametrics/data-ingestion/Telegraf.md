@@ -7,6 +7,7 @@ menu:
     parent: "data-ingestion"
     weight: 5
 aliases:
+  - /data-ingestion/telegraf/
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
   - /data-ingestion/telegraf/index.html

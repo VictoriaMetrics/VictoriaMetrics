@@ -7,6 +7,7 @@ menu:
     parent: "data-ingestion"
     weight: 1
 aliases:
+  - /data-ingestion/prometheus/
   - /data-ingestion/prometheus.html
   - /data-ingestion/Prometheus.html
   - /data-ingestion/prometheus/index.html

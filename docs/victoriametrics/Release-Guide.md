@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 501
 aliases:
+- /release-guide
+- /Release-Guide
 - /Release-Guide.html
 - /release-guide/index.html
 - /release-guide/

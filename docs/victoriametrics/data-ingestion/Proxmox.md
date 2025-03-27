@@ -7,6 +7,7 @@ menu:
     parent: "data-ingestion"
     weight: 6
 aliases:
+  - /data-ingestion/proxmox/
   - /data-ingestion/proxmox.html
   - /data-ingestion/Proxmox.html
   - /data-ingestion/proxmox/index.html

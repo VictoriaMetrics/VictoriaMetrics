@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 23
 aliases:
+- /metricsql
+- /MetricsQL
 - /ExtendedPromQL.html
 - /MetricsQL.html
 - /metricsql/index.html

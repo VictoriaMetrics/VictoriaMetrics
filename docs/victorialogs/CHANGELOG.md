@@ -8,6 +8,8 @@ menu:
     weight: 7
     title: CHANGELOG
 aliases:
+- /VictoriaLogs/changelog
+- /VictoriaLogs/CHANGELOG.html
 - /victorialogs/CHANGELOG.html
 ---
 

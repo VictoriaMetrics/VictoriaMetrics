@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 39
 aliases:
+- /stream-aggregation/
 - /stream-aggregation.html
 - /stream-aggregation/index.html
 - /stream-aggregation/

@@ -6,6 +6,7 @@ menu:
     weight: 10
 title: vmbackupmanager
 aliases:
+  - /vmbackupmanager/
   - /vmbackupmanager.html
   - /vmbackupmanager/index.html
   - /vmbackupmanager/

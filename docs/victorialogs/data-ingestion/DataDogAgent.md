@@ -8,6 +8,8 @@ menu:
     weight: 5
 url: /victorialogs/data-ingestion/datadog-agent/
 aliases:
+  - /VictoriaLogs/data-ingestion/DataDogAgent.html
+  - /VictoriaLogs/data-ingestion/datadog-agent/
   - /victorialogs/data-ingestion/DataDogAgent.html
 ---
 

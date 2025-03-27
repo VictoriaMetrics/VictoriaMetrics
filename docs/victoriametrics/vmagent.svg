@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1136.884 897.69">
+  <defs>
+    <style>
+      foreignObject {
+        text-align: center;
+      }
+      .block, .main-block {
+        stroke: var(--bs-dark, #1e1e1e);
+        stroke-width: 2;
+        fill: #a5d8ff;
+      }
+      .block-text-md, .block-text-sm {
+        font-family: Lato;
+        color: var(--bs-dark, #1e1e1e);
+        fill: var(--bs-dark, #1e1e1e);
+        text-anchor: middle;
+        line-height: 1.4;
+      }
+      .block-text-sm {
+        font-size: 20px;
+      }
+      .block-text-md {
+        font-size: 28px;
+      }
+      .line {
+        stroke: var(--bs-secondary-color, #1e1e1e);
+        fill: var(--bs-secondary-color, #1e1e1e);
+      }
+      .line-text-sm, .line-text-lg {
+        font-family: Lato;
+        color: var(--bs-body-color, #1e1e1e);
+        text-anchor: middle;
+        line-height: 1.4;
+      }
+      .line-text-sm {
+        font-size: 20px;
+      }
+      .line-text-lg {
+        font-size: 36px;
+      }
+      .main-block {
+        fill: white;
+      }
+    </style>
+  </defs>
+  <marker id="arrow" class="line" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="15" markerHeight="15" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z"/>
+  </marker>
+  <symbol id="ingestion">
+    <rect width="170" x="5" y="5" height="70" rx="15" class="block"/>
+    <rect x="15" y="15" width="170" height="70" rx="15" class="block"/>
+  </symbol>
+  <symbol id="component">
+    <rect width="290" x="5" y="5" height="120" rx="15" class="block"/>
+  </symbol>
+  <use href="#ingestion" x="10" y="60"/>
+  <foreignObject x="35" y="95" width="150" height="100">
+    <text class="block-text-sm">node_exporter</text>
+  </foreignObject>
+  <use href="#ingestion" x="320" y="20"/>
+  <foreignObject x="345" y="55" width="150" height="100">
+    <text class="block-text-sm">Graphite agent</text>
+  </foreignObject>
+  <use href="#ingestion" x="640" y="20"/>
+  <foreignObject x="665" y="55" width="150" height="100">
+    <text class="block-text-sm">InfluxDB agent</text>
+  </foreignObject>
+  <use href="#ingestion" x="950" y="60"/>
+  <foreignObject x="975" y="80" width="150" height="100">
+    <text class="block-text-sm">OpenTSDB agent</text>
+  </foreignObject>
+  <rect width="680" x="220" y="250" height="430" rx="15" class="main-block"/>
+  <foreignObject x="560" y="640">
+    <text class="line-text-lg">VMAgent</text>
+  </foreignObject>
+  <use x="580" y="270" href="#component" class="block"/>
+  <foreignObject x="650" y="320" width="180" height="50">
+    <text class="block-text-md">Relabeling</text>
+  </foreignObject>
+  <use x="240" y="270" href="#component" class="block"/>
+  <foreignObject x="250" y="300" width="280" height="80">
+    <text class="block-text-md">Reading Prometheus configs</text>
+  </foreignObject>
+  <use x="240" y="415" href="#component" class="block"/>
+  <foreignObject x="300" y="440" width="180" height="100">
+    <text class="block-text-md">Adding global labels</text>
+  </foreignObject>
+  <use x="580" y="415" href="#component" class="block"/>
+  <foreignObject x="590" y="440" width="280" height="80">
+    <text class="block-text-md">Persisting pending data to disk</text>
+  </foreignObject>
+  <line x1="120" y1="145" x2="550" y2="240" class="line" marker-end="url(#arrow)"/>
+  <line x1="420" y1="105" x2="555" y2="230" class="line" marker-end="url(#arrow)"/>
+  <line x1="740" y1="105" x2="570" y2="230" class="line" marker-end="url(#arrow)"/>
+  <line x1="1050" y1="145" x2="575" y2="240" class="line" marker-end="url(#arrow)"/>
+  <foreignObject x="160" y="180" width="120" height="100">
+    <text class="line-text-sm">scrape (pull)</text>
+  </foreignObject>
+  <foreignObject x="330" y="130" width="120" height="100">
+    <text class="line-text-sm">push (tcp, udp)</text>
+  </foreignObject>
+  <foreignObject x="690" y="130" width="120" height="100">
+    <text class="line-text-sm">push (Influx line protocol)</text>
+  </foreignObject>
+  <foreignObject x="900" y="180" width="120" height="100">
+    <text class="line-text-sm">push (telnet, http)</text>
+  </foreignObject>
+  <use x="90" y="770" href="#component" class="block"/>
+  <foreignObject x="120" y="815" width="240" height="40">
+    <text class="block-text-md">VictoriaMetrics</text>
+  </foreignObject>
+  <use x="700" y="770" href="#component" class="block"/>
+  <foreignObject x="730" y="780" width="240" height="150">
+    <text class="block-text-md">Other Prometheus-compatible remote storage</text>
+  </foreignObject>
+  <line x1="550" y1="680" x2="250" y2="770" class="line" marker-end="url(#arrow)"/>
+  <line x1="550" y1="680" x2="850" y2="770" class="line" marker-end="url(#arrow)"/>
+  <foreignObject x="250" y="690" width="120" height="100">
+    <text class="line-text-sm">remote_write protocol</text>
+  </foreignObject>
+  <foreignObject x="775" y="690" width="120" height="100">
+    <text class="line-text-sm">remote_write protocol</text>
+  </foreignObject>
+</svg>

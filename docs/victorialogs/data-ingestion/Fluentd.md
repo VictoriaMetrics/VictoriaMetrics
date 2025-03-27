@@ -7,6 +7,9 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 2
 aliases:
+  - /VictoriaLogs/data-ingestion/fluentd/
+  - /VictoriaLogs/data-ingestion/fluentd.html
+  - /VictoriaLogs/data-ingestion/Fluentd.html
   - /victorialogs/data-ingestion/fluentd.html
   - /victorialogs/data-ingestion/Fluentd.html
 ---

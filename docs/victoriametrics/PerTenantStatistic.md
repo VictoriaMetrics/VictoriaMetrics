@@ -7,6 +7,8 @@ menu:
     parent: victoriametrics
     weight: 81
 aliases:
+  - /pertenantstatistic
+  - /PerTenantStatistic
   - /PerTenantStatistic.html
   - /pertenantstatistic
   - /pertenantstatistic/index.html

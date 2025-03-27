@@ -6,6 +6,7 @@ menu:
     weight: 3
 title: vmagent
 aliases:
+  - /vmagent/
   - /vmagent.html
   - /vmagent/index.html
   - /vmagent/
@@ -18,7 +19,7 @@ or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-p
 
 See [Quick Start](#quick-start) for details.
 
-![vmagent](vmagent.webp)
+![vmagent](vmagent.svg)
 
 ## Motivation
 

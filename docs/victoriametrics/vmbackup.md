@@ -6,6 +6,7 @@ menu:
     weight: 6
 title: vmbackup
 aliases:
+  - /vmbackup/
   - /vmbackup.html
   - /vmbackup/index.html
   - /vmbackup/

@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 36
 aliases:
+- /sd_configs/
 - /sd_configs.html
 - /sd_configs/index.html
 - /sd_configs/
