@@ -1,6 +1,8 @@
 ---
 weight: 3
 title: Year 2024
+search:
+  weight: 0.1
 menu:
   docs:
     identifier: vm-changelog-2024
