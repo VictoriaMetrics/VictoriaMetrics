@@ -7,7 +7,6 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 20
 aliases:
-  - /VictoriaLogs/data-ingestion/Vector.html
   - /victorialogs/data-ingestion/Vector.html
   - /victorialogs/data-ingestion/vector.html
 ---

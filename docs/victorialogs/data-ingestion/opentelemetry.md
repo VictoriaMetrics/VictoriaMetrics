@@ -7,7 +7,7 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 4
 aliases:
-  - /VictoriaLogs/data-ingestion/OpenTelemetry.html
+  - /victorialogs/data-ingestion/OpenTelemetry.html
 ---
 VictoriaLogs supports both client open-telemetry [SDK](https://opentelemetry.io/docs/languages/) and [collector](https://opentelemetry.io/docs/collector/).
 
@@ -38,7 +38,7 @@ logExporter, err := otlploghttp.New(ctx,
 
 VictoriaLogs supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
 
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 ## Collector configuration
 

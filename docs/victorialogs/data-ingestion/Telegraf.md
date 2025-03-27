@@ -7,7 +7,7 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 5
 aliases:
-  - /VictoriaLogs/data-ingestion/Telegraf.html
+  - /victorialogs/data-ingestion/Telegraf.html
 ---
 VictoriaLogs supports given below Telegraf outputs:
 - [Elasticsearch](#elasticsearch)

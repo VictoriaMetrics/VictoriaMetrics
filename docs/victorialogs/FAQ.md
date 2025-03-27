@@ -8,8 +8,8 @@ menu:
     weight: 6
     title: FAQ
 aliases:
-- /VictoriaLogs/FAQ.html
-- /VictoriaLogs/faq.html
+- /victorialogs/FAQ.html
+- /victorialogs/faq.html
 ---
 
 ## Is VictoriaLogs ready for production use?

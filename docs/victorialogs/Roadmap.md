@@ -8,7 +8,7 @@ menu:
     weight: 8
     title: Roadmap
 aliases:
-- /VictoriaLogs/Roadmap.html
+- /victorialogs/Roadmap.html
 ---
 The following functionality is available in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 

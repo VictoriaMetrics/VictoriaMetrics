@@ -7,7 +7,7 @@ menu:
     weight: 10
     identifier: "victorialogs-vmalert"
 aliases:
-- /VictoriaLogs/vmalert.html
+- /victorialogs/vmalert.html
 ---
 
 [vmalert](https://docs.victoriametrics.com/vmalert/){{% available_from "v1.106.0" %}} integrates with VictoriaLogs {{% available_from "v0.36.0" "logs" %}} via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
