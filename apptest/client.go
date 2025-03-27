@@ -24,7 +24,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		httpCli: &http.Client{
-			Transport: httputil.NewTransport(false),
+			Transport: httputil.NewTransport(false, "apptest_client"),
 		},
 	}
 }

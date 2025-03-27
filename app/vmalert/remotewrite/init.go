@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -73,12 +72,11 @@ func Init(ctx context.Context) (*Client, error) {
 	if err := httputil.CheckURL(*addr); err != nil {
 		return nil, fmt.Errorf("invalid -remoteWrite.url: %w", err)
 	}
-	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vmalert_remotewrite")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -remoteWrite.url=%q: %w", *addr, err)
 	}
 	tr.IdleConnTimeout = *idleConnectionTimeout
-	tr.DialContext = netutil.NewStatDialFunc("vmalert_remotewrite")
 
 	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)
 	if err != nil {

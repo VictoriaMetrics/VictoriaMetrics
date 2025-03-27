@@ -70,7 +70,7 @@ func main() {
 						return fmt.Errorf("invalid -%s: %w", otsdbAddr, err)
 					}
 
-					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_opentsdb")
 					if err != nil {
 						return fmt.Errorf("failed to create transport for -%s=%q: %s", otsdbAddr, addr, err)
 					}
@@ -185,7 +185,7 @@ func main() {
 					serverName := c.String(remoteReadServerName)
 					insecureSkipVerify := c.Bool(remoteReadInsecureSkipVerify)
 
-					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_remoteread")
 					if err != nil {
 						return fmt.Errorf("failed to create transport for -%s=%q: %s", remoteReadSrcAddr, addr, err)
 					}
@@ -315,7 +315,7 @@ func main() {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
 
-					trSrc := httputil.NewTransport(false)
+					trSrc := httputil.NewTransport(false, "vmctl_src")
 					trSrc.DisableKeepAlives = disableKeepAlive
 					trSrc.TLSClientConfig = srcTC
 
@@ -345,7 +345,7 @@ func main() {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
 
-					trDst := httputil.NewTransport(false)
+					trDst := httputil.NewTransport(false, "vmctl_dst")
 					trDst.DisableKeepAlives = disableKeepAlive
 					trDst.TLSClientConfig = dstTC
 
@@ -455,7 +455,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	serverName := c.String(vmServerName)
 	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
 
-	tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_client")
 	if err != nil {
 		return vm.Config{}, fmt.Errorf("failed to create transport for -%s=%q: %s", vmAddr, addr, err)
 	}

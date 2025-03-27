@@ -67,7 +67,7 @@ func TestVMNativeProcessorRun(t *testing.T) {
 			t.Fatalf("cannot add series to storage: %s", err)
 		}
 
-		tr := httputil.NewTransport(false)
+		tr := httputil.NewTransport(false, "test_client")
 		tr.DisableKeepAlives = false
 
 		srcClient := &native.Client{

@@ -87,7 +87,7 @@ func (tps *testProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "test_client")
 	resp, err := tr.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)

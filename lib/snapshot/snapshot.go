@@ -36,7 +36,7 @@ func Create(createSnapshotURL string) (string, error) {
 	}
 
 	// create Transport
-	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
 	if err != nil {
 		return "", fmt.Errorf("failed to create transport for -snapshot.createURL=%q: %s", createSnapshotURL, err)
 	}
@@ -83,7 +83,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return fmt.Errorf("cannot parse -snapshot.deleteURL: %w", err)
 	}
 	// create Transport
-	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
 	if err != nil {
 		return fmt.Errorf("failed to create transport for -snapshot.deleteURL=%q: %s", deleteSnapshotURL, err)
 

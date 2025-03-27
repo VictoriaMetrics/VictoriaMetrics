@@ -233,7 +233,7 @@ func urlValuesFromMap(m map[string]string) url.Values {
 }
 
 func (oi *oauth2ConfigInternal) initTokenSource() error {
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "vm_oauth_client")
 	tr.Proxy = oi.proxyURLFunc
 	c := &http.Client{
 		Transport: oi.ac.NewRoundTripper(tr),

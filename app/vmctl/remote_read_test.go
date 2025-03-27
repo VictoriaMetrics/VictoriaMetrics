@@ -73,7 +73,7 @@ func TestRemoteRead(t *testing.T) {
 			vmCfg: vm.Config{
 				Addr:        "",
 				Concurrency: 1,
-				Transport:   httputil.NewTransport(false),
+				Transport:   httputil.NewTransport(false, "vmctl_test_read"),
 			},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",

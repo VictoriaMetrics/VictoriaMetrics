@@ -50,7 +50,7 @@ func TestNewTLSTransport(t *testing.T) {
 	var certFile, keyFile, caFile, serverName string
 	var insecureSkipVerify bool
 
-	tr, err := NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify)
+	tr, err := NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "test_client")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -508,7 +508,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 		return nil, fmt.Errorf("cannot initialize promauth.Config: %w", err)
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "vmauth_backend")
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
@@ -517,7 +517,6 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
-	tr.DialContext = netutil.NewStatDialFunc("vmauth_backend")
 
 	rt := cfg.NewRoundTripper(tr)
 	return rt, nil

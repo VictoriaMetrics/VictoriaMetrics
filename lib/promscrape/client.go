@@ -78,7 +78,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		}
 	}
 
-	tr := httputil.NewTransport(false)
+	tr := httputil.NewTransport(false, "vm_promscrape")
 	tr.Proxy = proxyURLFunc
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = 2 * sw.ScrapeInterval

@@ -161,7 +161,7 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig
 	}
-	tr, err := promauth.NewTLSTransport(tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify, "vmalert_notifier")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for alertmanager URL=%q: %w", alertManagerURL, err)
 
@@ -198,8 +198,10 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		argFunc:        fn,
 		authCfg:        aCfg,
 		relabelConfigs: relabelCfg,
-		client:         &http.Client{Transport: tr},
-		timeout:        timeout,
-		metrics:        newNotifierMetrics(alertManagerURL),
+		client: &http.Client{
+			Transport: tr,
+		},
+		timeout: timeout,
+		metrics: newNotifierMetrics(alertManagerURL),
 	}, nil
 }

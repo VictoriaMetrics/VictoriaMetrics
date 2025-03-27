@@ -93,7 +93,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		cfg.FlushInterval = defaultFlushInterval
 	}
 	if cfg.Transport == nil {
-		cfg.Transport = httputil.NewTransport(false)
+		cfg.Transport = httputil.NewTransport(false, "vmalert_remotewrite")
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {

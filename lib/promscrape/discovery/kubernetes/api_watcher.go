@@ -260,15 +260,8 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 		return c
 	}
 
-	tr := httputil.NewTransport(true)
-	tr.DialContext = netutil.Dialer.DialContext
-	tr.TLSHandshakeTimeout = 10 * time.Second
-	tr.IdleConnTimeout = *apiServerTimeout
-	tr.MaxIdleConnsPerHost = 100
+	tr := newHTTPTransport(*useHTTP2Client)
 	if !*useHTTP2Client {
-		// Disable http2.
-		tr.Protocols = nil
-
 		// Proxy is not supported for http2 client.
 		// See https://github.com/golang/go/issues/26479
 		var proxy func(*http.Request) (*url.URL, error)
@@ -284,6 +277,15 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 	httpClientsCache[key] = c
 	httpClientsLock.Unlock()
 	return c
+}
+
+func newHTTPTransport(enableHTTP2 bool) *http.Transport {
+	tr := httputil.NewTransport(enableHTTP2, "vm_promscrape_discovery_kubernetes")
+	tr.DialContext = netutil.Dialer.DialContext
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.IdleConnTimeout = *apiServerTimeout
+	tr.MaxIdleConnsPerHost = 100
+	return tr
 }
 
 func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
