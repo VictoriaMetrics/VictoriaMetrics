@@ -237,8 +237,8 @@ func newREExtractor(re *regexp.Regexp, timeout <-chan time.Time) *reExtractor {
 }
 
 // extractRE is a line processor that extracts some information from a line
-// based on a regular expression. The function returns true (to request the
-// caller to not to be called again) either when the match is found or due to
+// based on a regular expression. The function returns true to indicate that
+// it should not be called again, either when the match is found or due to
 // the timeout. The found match is written to the x.result channel and it is
 // important that this channel is monitored by a separate goroutine, otherwise
 // the function will block.
