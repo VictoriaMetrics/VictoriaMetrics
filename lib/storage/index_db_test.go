@@ -572,7 +572,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	path := filepath.Join(t.Name(), "2025_01")
 	for i := 0; i < 5; i++ {
 		var isReadOnly atomic.Bool
-		db := mustOpenPartitionIndexDB(path, &s, &isReadOnly)
+		db := mustOpenIndexDB(123, TimeRange{}, "name", path, &s, &isReadOnly)
 		db.MustClose()
 	}
 }
@@ -675,14 +675,14 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
 		// Create tsid for the metricName.
-		var genTSID generationTSID
-		if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
-			generateTSID(&genTSID.TSID, &mn)
-			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		var tsid TSID
+		if !is.getTSIDByMetricNameNoExtDB(&tsid, metricNameBuf, date) {
+			generateTSID(&tsid, &mn)
+			createAllIndexesForMetricName(is, &mn, &tsid, date)
 		}
 
 		mns = append(mns, mn)
-		tsids = append(tsids, genTSID.TSID)
+		tsids = append(tsids, tsid)
 	}
 	db.putIndexSearch(is)
 
@@ -703,7 +703,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 	}
 
 	timeseriesCounters := make(map[uint64]bool)
-	var genTSID generationTSID
+	var tsidLocal TSID
 	var metricNameCopy []byte
 	allLabelNames := make(map[string]bool)
 	for i := range mns {
@@ -717,7 +717,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		metricName := mn.Marshal(nil)
 
 		is := db.getIndexSearch(noDeadline)
-		if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricName, uint64(timestamp)/msecPerDay) {
+		if !is.getTSIDByMetricNameNoExtDB(&tsidLocal, metricName, uint64(timestamp)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
 		db.putIndexSearch(is)
@@ -725,20 +725,20 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		if isConcurrent {
 			// Copy tsid.MetricID, since multiple TSIDs may match
 			// the same mn in concurrent mode.
-			genTSID.TSID.MetricID = tsid.MetricID
+			tsidLocal.MetricID = tsid.MetricID
 		}
-		if !reflect.DeepEqual(tsid, &genTSID.TSID) {
-			return fmt.Errorf("unexpected tsid for mn:\n%s\ngot\n%+v\nwant\n%+v", mn, &genTSID.TSID, tsid)
+		if !reflect.DeepEqual(tsid, &tsidLocal) {
+			return fmt.Errorf("unexpected tsid for mn:\n%s\ngot\n%+v\nwant\n%+v", mn, &tsidLocal, tsid)
 		}
 
 		// Search for metric name for the given metricID.
 		var ok bool
-		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], genTSID.TSID.MetricID, false)
+		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], tsidLocal.MetricID, false)
 		if !ok {
-			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", genTSID.TSID.MetricID, i)
+			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", tsidLocal.MetricID, i)
 		}
 		if !bytes.Equal(metricName, metricNameCopy) {
-			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", genTSID.TSID.MetricID, metricNameCopy, metricName)
+			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", tsidLocal.MetricID, metricNameCopy, metricName)
 		}
 
 		// Try searching metric name for non-existent MetricID.
@@ -1554,12 +1554,12 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for metric := 0; metric < metricsPerDay; metric++ {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
-			var genTSID generationTSID
-			if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
-				generateTSID(&genTSID.TSID, &mn)
-				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+			var tsid TSID
+			if !is.getTSIDByMetricNameNoExtDB(&tsid, metricNameBuf, date) {
+				generateTSID(&tsid, &mn)
+				createAllIndexesForMetricName(is, &mn, &tsid, date)
 			}
-			metricIDs.Add(genTSID.TSID.MetricID)
+			metricIDs.Add(tsid.MetricID)
 		}
 
 		allMetricIDs.Union(&metricIDs)
@@ -1604,14 +1604,14 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	)
 	mn.sortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
-	var genTSID generationTSID
-	if !is3.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
-		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is3, &mn, &genTSID.TSID, date)
+	var tsid TSID
+	if !is3.getTSIDByMetricNameNoExtDB(&tsid, metricNameBuf, date) {
+		generateTSID(&tsid, &mn)
+		createAllIndexesForMetricName(is3, &mn, &tsid, date)
 	}
 	// delete the added metric. It is expected it won't be returned during searches
 	deletedSet := &uint64set.Set{}
-	deletedSet.Add(genTSID.TSID.MetricID)
+	deletedSet.Add(tsid.MetricID)
 	db.setDeletedMetricIDs(deletedSet)
 	db.putIndexSearch(is3)
 	db.tb.DebugFlush()

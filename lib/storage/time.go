@@ -79,16 +79,6 @@ func timestampToPartitionName(timestamp int64) string {
 	return t.Format("2006_01")
 }
 
-// partitionNameToTimestamp returns time for the given partition name.
-// TODO(@rtm0): Reuse in fromPartitionName()
-func partitionNameToTime(name string) (time.Time, error) {
-	t, err := time.Parse("2006_01", name)
-	if err != nil {
-		return t, fmt.Errorf("cannot parse partition name %q: %w", name, err)
-	}
-	return t, nil
-}
-
 // fromPartitionName initializes tr from the given partition name.
 func (tr *TimeRange) fromPartitionName(name string) error {
 	t, err := time.Parse("2006_01", name)

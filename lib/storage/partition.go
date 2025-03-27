@@ -202,7 +202,10 @@ func (pw *partWrapper) decRef() {
 // mustCreatePartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
 func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath, indexDBPath string, s *Storage) *partition {
+	var tr TimeRange
+	tr.fromPartitionTimestamp(timestamp)
 	name := timestampToPartitionName(timestamp)
+
 	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
 	bigPartsPath := filepath.Join(filepath.Clean(bigPartitionsPath), name)
 	indexDBPartsPath := filepath.Join(filepath.Clean(indexDBPath), name)
@@ -211,9 +214,13 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
 	fs.MustMkdirFailIfExist(indexDBPartsPath)
+	// Create parts.json file. Since we are creating a new partition, there
+	// will be no parts, i.e. the smallPartsPath and bigPartPath dirs will be
+	// empty. This is guaranteed by the code above: if eirher directory exists,
+	// there will be panic.
+	mustWritePartNames(nil, nil, smallPartsPath)
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
-	pt.tr.fromPartitionTimestamp(timestamp)
+	pt := newPartition(tr, name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 	pt.startBackgroundWorkers()
 
 	logger.Infof("partition %q has been created", name)
@@ -251,6 +258,11 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 	indexDBPartsPath = filepath.Clean(indexDBPartsPath)
 
 	name := filepath.Base(smallPartsPath)
+	var tr TimeRange
+	if err := tr.fromPartitionName(name); err != nil {
+		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
+	}
+
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
@@ -267,26 +279,25 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 
 	if !fs.IsPathExist(partsFile) {
 		// Create parts.json file if it doesn't exist yet.
-		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// This should protect from possible crashloops just after the migration from versions below v1.90.0
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
+	pt := newPartition(tr, name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
-	if err := pt.tr.fromPartitionName(name); err != nil {
-		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
-	}
 	pt.startBackgroundWorkers()
 
 	return pt
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
-	idb := mustOpenPartitionIndexDB(indexDBPartsPath, s, &s.isReadOnly)
+func newPartition(tr TimeRange, name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
+	id := uint64(tr.MinTimestamp)
+	idb := mustOpenIndexDB(id, tr, name, indexDBPartsPath, s, &s.isReadOnly)
 
 	p := &partition{
+		tr:               tr,
 		name:             name,
 		smallPartsPath:   smallPartsPath,
 		bigPartsPath:     bigPartsPath,

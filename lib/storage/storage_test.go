@@ -18,6 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
@@ -96,25 +97,25 @@ func TestDateMetricIDCacheConcurrent(t *testing.T) {
 
 func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	type dmk struct {
-		generation uint64
-		date       uint64
-		metricID   uint64
+		idbID    uint64
+		date     uint64
+		metricID uint64
 	}
 	m := make(map[dmk]bool)
 	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
+		idbID := uint64(i) % 2
 		date := uint64(i) % 2
 		metricID := uint64(i) % 1237
-		if !concurrent && c.Has(generation, date, metricID) {
-			if !m[dmk{generation, date, metricID}] {
-				return fmt.Errorf("c.Has(%d, %d, %d) must return false, but returned true", generation, date, metricID)
+		if !concurrent && c.Has(idbID, date, metricID) {
+			if !m[dmk{idbID, date, metricID}] {
+				return fmt.Errorf("c.Has(%d, %d, %d) must return false, but returned true", idbID, date, metricID)
 			}
 			continue
 		}
-		c.Set(generation, date, metricID)
-		m[dmk{generation, date, metricID}] = true
-		if !concurrent && !c.Has(generation, date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d, %d) must return true, but returned false", generation, date, metricID)
+		c.Set(idbID, date, metricID)
+		m[dmk{idbID, date, metricID}] = true
+		if !concurrent && !c.Has(idbID, date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d, %d) must return true, but returned false", idbID, date, metricID)
 		}
 		if i%11234 == 0 {
 			c.mu.Lock()
@@ -131,20 +132,20 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 
 	// Verify fast path after sync.
 	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
+		idbID := uint64(i) % 2
 		date := uint64(i) % 2
 		metricID := uint64(i) % 123
-		c.Set(generation, date, metricID)
+		c.Set(idbID, date, metricID)
 	}
 	c.mu.Lock()
 	c.syncLocked()
 	c.mu.Unlock()
 	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
+		idbID := uint64(i) % 2
 		date := uint64(i) % 2
 		metricID := uint64(i) % 123
-		if !concurrent && !c.Has(generation, date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d, %d) must return true after sync", generation, date, metricID)
+		if !concurrent && !c.Has(idbID, date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d, %d) must return true after sync", idbID, date, metricID)
 		}
 	}
 
@@ -163,7 +164,7 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 
 func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 	const (
-		generation  = 1
+		idbID       = 1
 		date        = 1
 		concurrency = 2
 		numMetrics  = 100000
@@ -175,8 +176,8 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 		go func() {
 			defer wg.Done()
 			for id := uint64(i * numMetrics); id < uint64((i+1)*numMetrics); id++ {
-				dmc.Set(generation, date, id)
-				if !dmc.Has(generation, date, id) {
+				dmc.Set(idbID, date, id)
+				if !dmc.Has(idbID, date, id) {
 					panic(fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id))
 				}
 			}
@@ -968,8 +969,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 
 	assertMetricNameCached := func(metricNameRaw []byte, want bool) {
 		t.Helper()
-		var genTSID generationTSID
-		if got := s.getTSIDFromCache(&genTSID, metricNameRaw); got != want {
+		var v legacyTSID
+		if got := s.getTSIDFromCache(&v, metricNameRaw); got != want {
 			t.Errorf("unexpected %q metric name in TSID cache: got %t, want %t", string(metricNameRaw), got, want)
 		}
 	}
@@ -1993,6 +1994,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	defer s.MustClose()
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
+
 	snapshotName, err := s.CreateSnapshot()
 	if err != nil {
 		t.Fatalf("cannot create snapshot from the storage: %v", err)
@@ -2026,7 +2028,9 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	assertDirEntries := func(srcDir, snapshotDir string, excludePath ...string) {
 		t.Helper()
 		dataDirEntries := testListDirEntries(t, srcDir, excludePath...)
+		logger.Errorf("dataDirEntries: %s", dataDirEntries)
 		snapshotDirEntries := testListDirEntries(t, snapshotDir)
+		logger.Errorf("snapshotDirEntries: %s", snapshotDirEntries)
 		if diff := cmp.Diff(dataDirEntries, snapshotDirEntries); diff != "" {
 			t.Fatalf("unexpected snapshot dir entries (-want, +got):\n%s", diff)
 		}

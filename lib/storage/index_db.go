@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -106,9 +105,9 @@ type indexDB struct {
 	// protects minMissingTimestampByKey
 	minMissingTimestampByKeyLock sync.RWMutex
 
-	// generation identifies the index generation ID
-	// and is used for syncing items from different indexDBs
-	generation uint64
+	// id identifies the indexDB. It is used for in various caches to know which
+	// indexDB contains a metricID and which does not.
+	id uint64
 
 	// Time range covered by this IndexDB.
 	tr TimeRange
@@ -179,41 +178,7 @@ func getTagFiltersCacheSize() int {
 	return maxTagFiltersCacheSize
 }
 
-// partitionNameToGeneration converts the partition name to the IndexDB generation.
-//
-// IndexDB generation is Unix nanos since 1970-01-01. Earlier dates (negative
-// Unix nanos) are currenly not supported.
-//
-// For example 2024_01 will be converted to 1704067200000000000.
-func partitionNameToGeneration(partitionName string) (uint64, error) {
-	t, err := partitionNameToTime(partitionName)
-	if err != nil {
-		return 0, nil
-	}
-	nanos := t.UnixNano()
-	if nanos < 0 {
-		return 0, fmt.Errorf("unsupported partition: got %q, want > 1970_01", partitionName)
-	}
-	return uint64(nanos), nil
-}
-
-// mustOpenPartitionIndexDB opens a partition IndexDB from the given path.
-func mustOpenPartitionIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
-	name := filepath.Base(path)
-	gen, err := partitionNameToGeneration(name)
-	if err != nil {
-		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
-	}
-
-	var tr TimeRange
-	if err := tr.fromPartitionName(name); err != nil {
-		logger.Panicf("FATAL: cannot parse indexdb time range from partition name %q: %s", name, err)
-	}
-
-	return mustOpenIndexDB(tr, gen, name, path, s, isReadOnly)
-}
-
-func mustOpenIndexDB(tr TimeRange, gen uint64, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
+func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must not be nil")
 	}
@@ -223,9 +188,9 @@ func mustOpenIndexDB(tr TimeRange, gen uint64, name, path string, s *Storage, is
 	tagFiltersCacheSize := getTagFiltersCacheSize()
 
 	db := &indexDB{
-		generation: gen,
-		tr:         tr,
-		name:       name,
+		id:   id,
+		tr:   tr,
+		name: name,
 
 		minMissingTimestampByKey:   make(map[string]int64),
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),

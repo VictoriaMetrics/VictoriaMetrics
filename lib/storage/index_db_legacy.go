@@ -16,7 +16,7 @@ import (
 // will be then used as indexDB.generation
 func mustOpenLegacyIndexDBReadOnly(path string, s *Storage) *indexDB {
 	name := filepath.Base(path)
-	gen, err := strconv.ParseUint(name, 16, 64)
+	id, err := strconv.ParseUint(name, 16, 64)
 	if err != nil {
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
@@ -27,5 +27,5 @@ func mustOpenLegacyIndexDBReadOnly(path string, s *Storage) *indexDB {
 	}
 	var alwaysReadOnly atomic.Bool
 	alwaysReadOnly.Store(true)
-	return mustOpenIndexDB(tr, gen, name, path, s, &alwaysReadOnly)
+	return mustOpenIndexDB(id, tr, name, path, s, &alwaysReadOnly)
 }
