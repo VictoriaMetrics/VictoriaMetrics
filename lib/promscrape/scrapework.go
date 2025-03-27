@@ -423,7 +423,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 
 	// Read the scrape response into body.
-	// It is OK to do for stream parsing parsing mode, since the most of RAM
+	// It is OK to do for stream parsing mode, since the most of RAM
 	// is occupied during parsing of the read response body below.
 	// This also allows measuring the real scrape duration, which doesn't include
 	// the time needed for processing of the read response.
