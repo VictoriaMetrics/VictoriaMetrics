@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 300
 aliases:
+- /lts-releases
+- /LTS-releases
 - /LTS-releases.html
 - /lts-releases/index.html
 - /lts-releases/

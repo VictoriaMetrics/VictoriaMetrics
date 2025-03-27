@@ -7,6 +7,9 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 3
 aliases:
+  - /VictoriaLogs/data-ingestion/logstash/
+  - /VictoriaLogs/data-ingestion/logstash.html
+  - /VictoriaLogs/data-ingestion/Logstash.html
   - /victorialogs/data-ingestion/logstash.html
   - /victorialogs/data-ingestion/Logstash.html
 ---

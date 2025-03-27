@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 38
 aliases:
+- /relabeling/
 - /relabeling.html
 - /relabeling/index.html
 - /relabeling/

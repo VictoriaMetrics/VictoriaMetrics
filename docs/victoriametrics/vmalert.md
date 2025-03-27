@@ -6,6 +6,7 @@ menu:
     weight: 4
 title: vmalert
 aliases:
+  - /vmalert/
   - /vmalert.html
   - /vmalert/index.html
   - /vmalert/

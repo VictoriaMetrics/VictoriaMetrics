@@ -7,6 +7,7 @@ menu:
     parent: data-ingestion
     weight: 2
 aliases:
+  - /data-ingestion/vmagent/
   - /data-ingestion/vmagent.html
   - /data-ingestion/vmagent/index.html
   - /data-ingestion/vmagent/

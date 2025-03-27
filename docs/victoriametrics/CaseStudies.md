@@ -6,6 +6,8 @@ menu:
     parent: "victoriametrics"
     weight: 25
 aliases:
+  - /casestudies
+  - /CaseStudies
   - /CaseStudies.html
   - /casestudies/index.html
   - /casestudies/

@@ -6,6 +6,7 @@ menu:
     weight: 8
 title: vmctl
 aliases:
+  - /vmctl/
   - /vmctl.html
   - /vmctl/index.html
   - /vmctl/

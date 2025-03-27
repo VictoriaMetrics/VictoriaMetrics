@@ -6,6 +6,7 @@ menu:
     weight: 7
 title: vmrestore
 aliases:
+  - /vmrestore/
   - /vmrestore.html
   - /vmrestore/index.html
   - /vmrestore/

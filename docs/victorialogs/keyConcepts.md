@@ -8,6 +8,8 @@ menu:
     weight: 2
     title: Key concepts
 aliases:
+- /VictoriaLogs/keyConcepts/
+- /VictoriaLogs/keyConcepts.html
 - /victorialogs/keyConcepts.html
 ---
 ## Data model

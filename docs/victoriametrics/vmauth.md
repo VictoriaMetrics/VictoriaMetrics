@@ -6,6 +6,7 @@ menu:
     weight: 5
 title: vmauth
 aliases:
+  - /vmauth/
   - /vmauth.html
   - /vmauth/index.html
   - /vmauth/
