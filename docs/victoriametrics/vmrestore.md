@@ -6,6 +6,7 @@ menu:
     weight: 7
 title: vmrestore
 aliases:
+  - /vmrestore/
   - /vmrestore.html
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup/).

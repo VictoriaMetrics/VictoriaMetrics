@@ -7,6 +7,8 @@ menu:
     parent: victoriametrics
     weight: 100
 aliases:
+  - /changelog/
+  - /CHANGELOG/
   - /CHANGELOG.html
 ---
 {{% content "CHANGELOG.md" %}}

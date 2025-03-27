@@ -6,6 +6,7 @@ menu:
     weight: 4
 title: vmalert
 aliases:
+  - /vmalert/
   - /vmalert.html
 ---
 `vmalert` executes a list of the given [alerting](https://docs.victoriametrics.com/vmalert/#alerting-rules)

@@ -6,6 +6,7 @@ menu:
     weight: 3
 title: vmagent
 aliases:
+  - /vmagent/
   - /vmagent.html
 ---
 `vmagent` is a tiny agent which helps you collect metrics from various sources,

@@ -8,6 +8,7 @@ menu:
     identifier: vm-api-examples
 
 aliases:
+  - /url-examples/
   - /url-examples.html
 ---
 ### /api/v1/admin/tsdb/delete_series

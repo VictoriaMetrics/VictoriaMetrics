@@ -6,6 +6,7 @@ menu:
     weight: 6
 title: vmbackup
 aliases:
+  - /vmbackup/
   - /vmbackup.html
 ---
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
