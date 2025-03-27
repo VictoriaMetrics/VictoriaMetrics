@@ -213,8 +213,8 @@ func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
 	if !rr.Debug {
 		return
 	}
-	prefix := fmt.Sprintf("DEBUG recording rule %q:%q (%d) at %v: ",
-		rr.GroupName, rr.Name, rr.RuleID, at.Format(time.RFC3339))
+	prefix := fmt.Sprintf("DEBUG recording rule %q, %q:%q (%d) at %v: ",
+		rr.File, rr.GroupName, rr.Name, rr.RuleID, at.Format(time.RFC3339))
 
 	msg := fmt.Sprintf(format, args...)
 	logger.Infof("%s", prefix+msg)
