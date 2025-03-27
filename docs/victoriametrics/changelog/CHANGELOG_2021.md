@@ -1,6 +1,8 @@
 ---
 weight: 6
 title: Year 2021
+search:
+  weight: 0.1
 menu:
   docs:
     identifier: vm-changelog-2021

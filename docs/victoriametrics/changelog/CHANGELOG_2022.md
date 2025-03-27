@@ -1,6 +1,8 @@
 ---
 weight: 5
 title: Year 2022
+search:
+  weight: 0.1
 menu:
   docs:
     identifier: vm-changelog-2022

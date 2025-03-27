@@ -1,6 +1,8 @@
 ---
 weight: 7
 title: Year 2020
+search:
+  weight: 0.1
 menu:
   docs:
     identifier: vm-changelog-2020
