@@ -2,7 +2,7 @@ package promscrape
 
 import (
 	"fmt"
-	"strings"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -78,27 +78,8 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
-		dst.B = append(dst.B, data...)
-		return nil
-	}
-	b.ReportAllocs()
-	b.SetBytes(int64(len(data)))
-	b.RunParallel(func(pb *testing.PB) {
-		var sw scrapeWork
-		sw.Config = &ScrapeWork{}
-		sw.ReadData = readDataFunc
-		sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
-		tsmGlobal.Register(&sw)
-		timestamp := int64(0)
-		for pb.Next() {
-			if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-				panic(fmt.Errorf("unexpected error: %w", err))
-			}
-			timestamp++
-		}
-		tsmGlobal.Unregister(&sw)
-	})
+	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+	benchmarkScrapeWorkScrapeInternal(b, []byte(data), false, pushData)
 }
 
 func BenchmarkScrapeWorkScrapeInternalStream(b *testing.B) {
@@ -124,10 +105,35 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
+	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+	benchmarkScrapeWorkScrapeInternal(b, []byte(data), true, pushData)
+}
+
+func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
+	generateScrape := func(n int) []byte {
+		var b []byte
+		for i := 0; i < n; i++ {
+			b = append(b, "fooooo_"...)
+			b = strconv.AppendInt(b, int64(i), 10)
+			b = append(b, " 1\n"...)
+		}
+		return b
+	}
+
+	data := generateScrape(200_000)
+	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {
+		// simulates a delay to highlight the difference between lock-based and lock-free algorithms.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515
+		time.Sleep(time.Millisecond)
+	}
+	benchmarkScrapeWorkScrapeInternal(b, data, true, pushData)
+}
+
+func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bool, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
 	protoparserutil.StartUnmarshalWorkers()
 	defer protoparserutil.StopUnmarshalWorkers()
 
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
+	readData := func(dst *bytesutil.ByteBuffer) error {
 		dst.B = append(dst.B, data...)
 		return nil
 	}
@@ -136,10 +142,10 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 	b.RunParallel(func(pb *testing.PB) {
 		var sw scrapeWork
 		sw.Config = &ScrapeWork{
-			StreamParse: true,
+			StreamParse: streamParse,
 		}
-		sw.ReadData = readDataFunc
-		sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+		sw.ReadData = readData
+		sw.PushData = pushData
 		tsmGlobal.Register(&sw)
 		timestamp := int64(0)
 		for pb.Next() {
@@ -150,49 +156,6 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 		}
 		tsmGlobal.Unregister(&sw)
 	})
-}
-
-func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
-	generateScrape := func(n int) string {
-		w := strings.Builder{}
-		for i := 0; i < n; i++ {
-			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
-		}
-		return w.String()
-	}
-
-	data := generateScrape(200000)
-	protoparserutil.StartUnmarshalWorkers()
-	defer protoparserutil.StopUnmarshalWorkers()
-
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
-		dst.B = append(dst.B, data...)
-		return nil
-	}
-
-	var sw scrapeWork
-	sw.Config = &ScrapeWork{
-		StreamParse: true,
-	}
-	sw.ReadData = readDataFunc
-	sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {
-		// simulates a delay to highlight the difference between lock-based and lock-free algorithms.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515
-		time.Sleep(time.Millisecond)
-	}
-	tsmGlobal.Register(&sw)
-	defer tsmGlobal.Unregister(&sw)
-
-	b.ReportAllocs()
-	b.SetBytes(int64(len(data)))
-
-	timestamp := int64(0)
-	for b.Loop() {
-		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-			panic(fmt.Errorf("unexpected error: %w", err))
-		}
-		timestamp++
-	}
 }
 
 func BenchmarkScrapeWorkGetLabelsHash(b *testing.B) {
