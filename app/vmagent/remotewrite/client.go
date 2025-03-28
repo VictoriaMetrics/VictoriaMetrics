@@ -478,6 +478,7 @@ again:
 				return true
 			}
 
+			c.retriesCount.Inc()
 			goto again
 		}
 
