@@ -209,7 +209,7 @@ func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string
 	if !ar.Debug {
 		return
 	}
-	prefix := fmt.Sprintf("DEBUG rule %q, %q:%q (%d) at %v: ",
+	prefix := fmt.Sprintf("DEBUG alerting rule %q, %q:%q (%d) at %v: ",
 		ar.File, ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
 
 	if a != nil {
