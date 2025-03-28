@@ -4,7 +4,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
-// See the following docs:
+// ConsistentHash See the following docs:
 // - https://www.eecs.umich.edu/techreports/cse/96/CSE-TR-316-96.pdf
 // - https://github.com/dgryski/go-rendezvous
 // - https://dgryski.medium.com/consistent-hashing-algorithmic-tradeoffs-ef6b8e2fcae8
@@ -13,6 +13,7 @@ type ConsistentHash struct {
 	nodeHashes []uint64
 }
 
+// NewConsistentHash creates a consistent hash based on the nodes.
 func NewConsistentHash(nodes []string, hashSeed uint64) *ConsistentHash {
 	nodeHashes := make([]uint64, len(nodes))
 	for i, node := range nodes {
@@ -24,6 +25,7 @@ func NewConsistentHash(nodes []string, hashSeed uint64) *ConsistentHash {
 	}
 }
 
+// GetNodeIdx returns the node index that the input hash value should belong to.
 func (rh *ConsistentHash) GetNodeIdx(h uint64, excludeIdxs []int) int {
 	var mMax uint64
 	var idx int
