@@ -749,7 +749,7 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	dstSeries := wc.writeRequest.Timeseries[:0]
 	samplesDropped := 0
 	for _, ts := range wc.writeRequest.Timeseries {
-		h := sw.getLabelsHash(ts.Labels)
+		h := getLabelsHash(ts.Labels)
 		if !sl.Add(h) {
 			samplesDropped++
 			continue
@@ -843,7 +843,7 @@ var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_create
 
 var labelsHashBufferPool = &bytesutil.ByteBufferPool{}
 
-func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
+func getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
 	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
 	bb := labelsHashBufferPool.Get()
