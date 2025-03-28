@@ -156,10 +156,7 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	scrapesOK.Inc()
 
 	// Read the data from resp.Body
-	r := &io.LimitedReader{
-		R: resp.Body,
-		N: c.maxScrapeSize,
-	}
+	r := io.LimitReader(resp.Body, c.maxScrapeSize)
 	_, err = dst.ReadFrom(r)
 	_ = resp.Body.Close()
 	cancel()
