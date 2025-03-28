@@ -7,6 +7,10 @@ go 1.24.1
 // TODO: remove this entry after https://github.com/googleapis/google-cloud-go/issues/11448 is fixed
 replace cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
 
+// This is needed in order to avoid breaking builds as Prometheus with v0.63.0
+// version is not released yet.
+replace github.com/prometheus/common => github.com/prometheus/common v0.62.0
+
 require (
 	cloud.google.com/go/storage v1.51.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.1
@@ -17,8 +21,8 @@ require (
 	github.com/VictoriaMetrics/metrics v1.35.2
 	github.com/VictoriaMetrics/metricsql v0.84.3
 	github.com/aws/aws-sdk-go-v2 v1.36.3
-	github.com/aws/aws-sdk-go-v2/config v1.29.11
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.68
+	github.com/aws/aws-sdk-go-v2/config v1.29.12
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.69
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.78.2
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -39,7 +43,7 @@ require (
 	github.com/valyala/gozstd v1.21.2
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.8.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/oauth2 v0.28.0
 	golang.org/x/sys v0.31.0
 	google.golang.org/api v0.228.0
@@ -58,7 +62,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/aws/aws-sdk-go v1.55.6 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.64 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.65 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 // indirect
@@ -69,7 +73,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.25.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.29.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.17 // indirect
 	github.com/aws/smithy-go v1.22.3 // indirect
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
@@ -111,7 +115,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.21.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
+	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/prometheus/sigv4 v0.1.2 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
