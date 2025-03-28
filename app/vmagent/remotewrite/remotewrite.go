@@ -99,7 +99,7 @@ var (
 	// rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
 	rwctxsGlobal []*remoteWriteCtx
 
-	rwctxConsistentHash *consistenthash.ConsistentHash
+	rwctxConsistentHashGlobal *consistenthash.ConsistentHash
 
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
@@ -214,7 +214,7 @@ func Init() {
 		for i := range *remoteWriteURLs {
 			consistentHashNodes = append(consistentHashNodes, fmt.Sprintf("%d:%s", i+1, (*remoteWriteURLs)[i]))
 		}
-		rwctxConsistentHash = consistenthash.NewConsistentHash(consistentHashNodes, 0)
+		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(consistentHashNodes, 0)
 	}
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
@@ -593,11 +593,8 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, healthyIdx, u
 	defer putTSSShards(x)
 
 	shards := x.shards
-	tmpLabels := promutils.GetLabels()
-	for _, ts := range tssBlock {
-		shardAmountRemoteWriteCtx(shards, healthyIdx, unhealthyIdx, tmpLabels, ts, replicas)
-	}
-	promutils.PutLabels(tmpLabels)
+
+	shardAmountRemoteWriteCtx(tssBlock, shards, healthyIdx, unhealthyIdx, replicas)
 
 	// Push sharded samples to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
@@ -621,50 +618,60 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, healthyIdx, u
 	return !anyPushFailed.Load()
 }
 
-func shardAmountRemoteWriteCtx(shards [][]prompbmarshal.TimeSeries, healthyIdx, unhealthyIdx []int, tmpLabels *promutils.Labels, ts prompbmarshal.TimeSeries, replicas int) {
-	hashLabels := ts.Labels
-	if len(shardByURLLabelsMap) > 0 {
-		hashLabels = tmpLabels.Labels[:0]
-		for _, label := range ts.Labels {
-			if _, ok := shardByURLLabelsMap[label.Name]; ok {
-				hashLabels = append(hashLabels, label)
-			}
-		}
-		tmpLabels.Labels = hashLabels
-	} else if len(shardByURLIgnoreLabelsMap) > 0 {
-		hashLabels = tmpLabels.Labels[:0]
-		for _, label := range ts.Labels {
-			if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
-				hashLabels = append(hashLabels, label)
-			}
-		}
-		tmpLabels.Labels = hashLabels
-	}
-	h := getLabelsHash(hashLabels)
+func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]prompbmarshal.TimeSeries, healthyIdx, unhealthyIdx []int, replicas int) {
+	tmpLabels := promutils.GetLabels()
+	defer promutils.PutLabels(tmpLabels)
 
-	// rwctx index
-	idx := int(h % uint64(len(shards)))
+	// shardsIdxMap is a map to find which the shard idx by rwctxs idx.
+	// rwctxConsistentHashGlobal will tell which the rwctxs idx a time series should be written to.
+	// And this time series should be appended to the shards by correct shard idx.
+	var shardsIdxMap map[int]int
 	if *shardByURLConsistent {
-		hashIdx := rwctxConsistentHash.GetNodeIdx(h, unhealthyIdx)
-		// the index for healthy rwctxs
-		for i := range healthyIdx {
-			if healthyIdx[i] == hashIdx {
-				idx = i
+		shardsIdxMap = make(map[int]int, len(healthyIdx))
+		for idx, rwctxsIdx := range healthyIdx {
+			shardsIdxMap[rwctxsIdx] = idx
+		}
+	}
+
+	for _, ts := range tssBlock {
+		hashLabels := ts.Labels
+		if len(shardByURLLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLLabelsMap[label.Name]; ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		} else if len(shardByURLIgnoreLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		}
+		h := getLabelsHash(hashLabels)
+
+		// rwctx index
+		idx := int(h % uint64(len(shards)))
+		if *shardByURLConsistent {
+			hashIdx := rwctxConsistentHashGlobal.GetNodeIdx(h, unhealthyIdx)
+			idx = shardsIdxMap[hashIdx]
+		}
+
+		replicated := 0
+		for {
+			shards[idx] = append(shards[idx], ts)
+			replicated++
+			if replicated >= replicas {
 				break
 			}
-		}
-	}
-
-	replicated := 0
-	for {
-		shards[idx] = append(shards[idx], ts)
-		replicated++
-		if replicated >= replicas {
-			break
-		}
-		idx++
-		if idx >= len(shards) {
-			idx = 0
+			idx++
+			if idx >= len(shards) {
+				idx = 0
+			}
 		}
 	}
 }
