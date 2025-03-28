@@ -846,14 +846,20 @@ var labelsHashBufferPool = &bytesutil.ByteBufferPool{}
 func getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
 	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
+
 	bb := labelsHashBufferPool.Get()
-	defer labelsHashBufferPool.Put(bb)
+	b := bb.B
 
 	for _, label := range labels {
-		bb.B = append(bb.B, label.Name...)
-		bb.B = append(bb.B, label.Value...)
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
 	}
-	return xxhash.Sum64(bb.B)
+	h := xxhash.Sum64(b)
+
+	bb.B = b
+	labelsHashBufferPool.Put(bb)
+
+	return h
 }
 
 type autoMetrics struct {
