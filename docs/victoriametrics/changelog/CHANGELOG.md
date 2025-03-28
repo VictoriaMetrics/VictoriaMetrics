@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): remove panel `Storage full ETA` as it could have showing incorrect predictions and result in user's confusion. See more details in [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix auto-suggestion functionality inside functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8379).
+
 ## [v1.114.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.114.0)
 
 Released at 2025-03-21
@@ -56,7 +58,6 @@ Released at 2025-03-21
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly compare rules `group.checksum` and statically define `group.id` at creation time. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8540) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix memory leak during rule group updates on reload. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8532).
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): fix the `vmgateway_ratelimit_refresh_duration_seconds` value, before it did not account for the actual time spent refreshing limits.
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic in case [subquery](https://docs.victoriametrics.com/metricsql/#subqueries) step value exceeds max allowed value. Previously, the following query would lead to panic `rate(sum(up)[11i:922335359011637780i])`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447).
  
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
