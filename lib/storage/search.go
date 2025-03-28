@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // BlockRef references a Block.
@@ -217,17 +218,17 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 
 	merge := func(data []any) any {
 		var all []TSID
-		seen := make(map[TSID]struct{})
+		seen := &uint64set.Set{}
 		for _, tsids := range data {
 			if tsids == nil {
 				continue
 			}
 			for _, tsid := range tsids.([]TSID) {
-				if _, ok := seen[tsid]; ok {
+				if seen.Has(tsid.MetricID) {
 					continue
 				}
 				all = append(all, tsid)
-				seen[tsid] = struct{}{}
+				seen.Add(tsid.MetricID)
 			}
 		}
 		return all
