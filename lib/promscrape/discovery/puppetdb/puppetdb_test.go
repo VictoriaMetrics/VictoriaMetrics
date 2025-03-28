@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 var jsonResponse = `[
@@ -82,7 +82,7 @@ func TestSDConfig_GetLabels(t *testing.T) {
 		IncludeParameters: true,
 	}
 
-	expectLabels := &promutils.Labels{}
+	expectLabels := &promutil.Labels{}
 	expectLabels.Add("__address__", "edinburgh.example.com:9100")
 	expectLabels.Add("__meta_puppetdb_query", "vhosts")
 	expectLabels.Add("__meta_puppetdb_certname", "edinburgh.example.com")

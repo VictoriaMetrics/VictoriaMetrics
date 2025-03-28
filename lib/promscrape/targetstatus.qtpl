@@ -4,7 +4,7 @@
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 ) %}
 
 {% stripspace %}
@@ -410,7 +410,7 @@
 	{%s qa.Encode() %}
 {% endfunc %}
 
-{% func formatLabels(labels *promutils.Labels) %}
+{% func formatLabels(labels *promutil.Labels) %}
 {% code labelsList := labels.GetLabels() %}
 {
   {% for i, label := range labelsList %}

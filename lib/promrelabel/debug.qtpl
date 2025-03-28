@@ -1,7 +1,7 @@
 {% import (
         "fmt"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
-        "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+        "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 ) %}
 
 {% stripspace %}
@@ -100,8 +100,8 @@ function submitRelabelDebugForm(e) {
   <tbody>
         {% for i, ds := range dss %}
         {% code
-                inLabels := promutils.MustNewLabelsFromString(ds.In)
-                outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                inLabels := promutil.MustNewLabelsFromString(ds.In)
+                outLabels := promutil.MustNewLabelsFromString(ds.Out)
                 changedLabels := getChangedLabelNames(inLabels, outLabels)
         %}
         <tr>
@@ -151,8 +151,8 @@ function submitRelabelDebugForm(e) {
         "steps": [
             {% for i, ds := range dss %}
                 {% code
-                    inLabels := promutils.MustNewLabelsFromString(ds.In)
-                    outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                    inLabels := promutil.MustNewLabelsFromString(ds.In)
+                    outLabels := promutil.MustNewLabelsFromString(ds.Out)
                     changedLabels := getChangedLabelNames(inLabels, outLabels)
                 %}
                 {
@@ -167,7 +167,7 @@ function submitRelabelDebugForm(e) {
 }
 {% endfunc %}
 
-{% func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}, color string) %}
+{% func labelsWithHighlight(labels *promutil.Labels, highlight map[string]struct{}, color string) %}
         {% code
                 labelsList := labels.GetLabels()
                 metricName := ""
@@ -200,7 +200,7 @@ function submitRelabelDebugForm(e) {
 {% endfunc %}
 
 {% func mustFormatLabels(s string) %}
-        {% code labels := promutils.MustNewLabelsFromString(s) %}
+        {% code labels := promutil.MustNewLabelsFromString(s) %}
         {%= labelsWithHighlight(labels, nil, "") %}
 {% endfunc %}
 

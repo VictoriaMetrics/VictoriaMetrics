@@ -26,7 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
@@ -595,7 +595,6 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, healthyIdx, u
 	defer putTSSShards(x)
 
 	shards := x.shards
-
 	shardAmountRemoteWriteCtx(tssBlock, shards, healthyIdx, unhealthyIdx, replicas)
 
 	// Push sharded samples to remote storage systems in parallel in order to reduce
@@ -621,8 +620,8 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, healthyIdx, u
 }
 
 func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]prompbmarshal.TimeSeries, healthyIdx, unhealthyIdx []int, replicas int) {
-	tmpLabels := promutils.GetLabels()
-	defer promutils.PutLabels(tmpLabels)
+	tmpLabels := promutil.GetLabels()
+	defer promutil.PutLabels(tmpLabels)
 
 	// shardsIdxMap is a map to find which the shard idx by rwctxs idx.
 	// rwctxConsistentHashGlobal will tell which the rwctxs idx a time series should be written to.

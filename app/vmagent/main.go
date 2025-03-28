@@ -34,7 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -331,11 +331,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -587,11 +587,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/query":
 		influxQueryRequests.Inc()
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()

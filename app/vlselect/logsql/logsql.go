@@ -19,7 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -35,22 +35,22 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	maxValuesPerField, err := httputils.GetInt(r, "max_values_per_field")
+	maxValuesPerField, err := httputil.GetInt(r, "max_values_per_field")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	maxValueLen, err := httputils.GetInt(r, "max_value_len")
+	maxValueLen, err := httputil.GetInt(r, "max_value_len")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	keepConstFields := httputils.GetBool(r, "keep_const_fields")
+	keepConstFields := httputil.GetBool(r, "keep_const_fields")
 
 	q.DropAllPipes()
 	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen, keepConstFields)
@@ -141,7 +141,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	fields := r.Form["field"]
 
 	// Obtain limit on the number of top fields entries.
-	fieldsLimit, err := httputils.GetInt(r, "fields_limit")
+	fieldsLimit, err := httputil.GetInt(r, "fields_limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -310,7 +310,7 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -370,7 +370,7 @@ func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -401,7 +401,7 @@ func ProcessStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -432,7 +432,7 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -470,21 +470,21 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		return
 	}
 
-	refreshIntervalMsecs, err := httputils.GetDuration(r, "refresh_interval", 1000)
+	refreshIntervalMsecs, err := httputil.GetDuration(r, "refresh_interval", 1000)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 	refreshInterval := time.Millisecond * time.Duration(refreshIntervalMsecs)
 
-	startOffsetMsecs, err := httputils.GetDuration(r, "start_offset", 5*1000)
+	startOffsetMsecs, err := httputil.GetDuration(r, "start_offset", 5*1000)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 	startOffset := startOffsetMsecs * 1e6
 
-	offsetMsecs, err := httputils.GetDuration(r, "offset", 1000)
+	offsetMsecs, err := httputil.GetDuration(r, "offset", 1000)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -863,7 +863,7 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return

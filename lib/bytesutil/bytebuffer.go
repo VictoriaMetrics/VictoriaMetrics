@@ -35,18 +35,20 @@ func (bb *ByteBuffer) Write(p []byte) (int, error) {
 func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	b := bb.B
 	bLen := len(b)
-	b = ResizeWithCopyMayOverallocate(b, 4*1024)
-	b = b[:cap(b)]
+	if cap(b) < 4*1024 {
+		// Pre-allocate at least 4KiB
+		b = slicesutil.SetLength(b, 4*1024)
+	}
 	offset := bLen
 	for {
-		if free := len(b) - offset; free < offset {
+		if free := cap(b) - offset; free < (cap(b) / 16) {
 			// grow slice by 30% similar to how Go does this
 			// https://go.googlesource.com/go/+/2dda92ff6f9f07eeb110ecbf0fc2d7a0ddd27f9d
 			// higher growth rates could consume excessive memory when reading big amounts of data.
-			n := 1.3 * float64(len(b))
-			b = slicesutil.SetLength(b, int(n))
+			n := int(1.3 * float64(cap(b)))
+			b = slicesutil.SetLength(b, n)
 		}
-		n, err := r.Read(b[offset:])
+		n, err := r.Read(b[offset:cap(b)])
 		offset += n
 		if err != nil {
 			bb.B = b[:offset]

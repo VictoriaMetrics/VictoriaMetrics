@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // SDCheckInterval defines interval for targets refresh.
@@ -62,7 +62,7 @@ func (z ZoneYAML) MarshalYAML() (any, error) {
 }
 
 // GetLabels returns gce labels according to sdc.
-func (sdc *SDConfig) GetLabels(_ string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(_ string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

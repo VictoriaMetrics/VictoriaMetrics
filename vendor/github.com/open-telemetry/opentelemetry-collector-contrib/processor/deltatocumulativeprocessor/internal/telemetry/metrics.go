@@ -25,7 +25,7 @@ func New(set component.TelemetrySettings) (Metrics, error) {
 	if err != nil {
 		return Metrics{}, err
 	}
-	err = telb.RegisterDeltatocumulativeStreamsTrackedLinearCallback(func(_ context.Context, observer metric.Int64Observer) error {
+	err = telb.RegisterDeltatocumulativeStreamsTrackedCallback(func(_ context.Context, observer metric.Int64Observer) error {
 		observer.Observe(int64((*m.tracked)()))
 		return nil
 	})
@@ -44,7 +44,7 @@ type Metrics struct {
 }
 
 func (m *Metrics) Datapoints() Counter {
-	return Counter{Int64Counter: m.DeltatocumulativeDatapointsLinear}
+	return Counter{Int64Counter: m.DeltatocumulativeDatapoints}
 }
 
 func (m *Metrics) WithTracked(streams func() int) {

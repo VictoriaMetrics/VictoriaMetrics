@@ -16,10 +16,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAlertingRuleToTimeSeries(t *testing.T) {
@@ -841,7 +841,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert, no previous state
 	fn(
-		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
@@ -855,7 +855,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
 	fn(
-		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
@@ -869,8 +869,8 @@ func TestGroup_Restore(t *testing.T) {
 		stateMetric("bar", ts))
 	fn(
 		[]config.Rule{
-			{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)},
-			{Alert: "bar", Expr: "bar", For: promutils.NewDuration(time.Second)},
+			{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutil.NewDuration(time.Second)},
 		},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
@@ -891,8 +891,8 @@ func TestGroup_Restore(t *testing.T) {
 		stateMetric("bar", ts))
 	fn(
 		[]config.Rule{
-			{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)},
-			{Alert: "bar", Expr: "bar", For: promutils.NewDuration(time.Second)},
+			{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutil.NewDuration(time.Second)},
 		},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
@@ -910,7 +910,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
 		stateMetric("wrong alert", ts))
 	fn(
-		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
 				Name:     "foo",
@@ -923,7 +923,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev"))
 	fn(
-		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
@@ -936,7 +936,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))
 	fn(
-		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
@@ -1258,7 +1258,7 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 
 func getTestAlertingRuleMetrics(name string) *alertingRuleMetrics {
 	m := &alertingRuleMetrics{}
-	m.errors = utils.NewCounter(metrics.NewSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
+	m.errors = vmalertutil.NewCounter(metrics.NewSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
 	return m
 }
 

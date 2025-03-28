@@ -23,7 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -81,7 +81,7 @@ type ScrapeWork struct {
 	// These labels are needed for relabeling troubleshooting at /targets page.
 	//
 	// OriginalLabels are sorted by name.
-	OriginalLabels *promutils.Labels
+	OriginalLabels *promutil.Labels
 
 	// Labels to add to the scraped metrics.
 	//
@@ -94,7 +94,7 @@ type ScrapeWork struct {
 	// See also https://prometheus.io/docs/concepts/jobs_instances/
 	//
 	// Labels are sorted by name.
-	Labels *promutils.Labels
+	Labels *promutil.Labels
 
 	// ExternalLabels contains labels from global->external_labels section of -promscrape.config
 	//
@@ -102,7 +102,7 @@ type ScrapeWork struct {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3137
 	//
 	// ExternalLabels are sorted by name.
-	ExternalLabels *promutils.Labels
+	ExternalLabels *promutil.Labels
 
 	// ProxyURL HTTP proxy url
 	ProxyURL *proxy.URL
@@ -423,7 +423,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 
 	// Read the scrape response into body.
-	// It is OK to do for stream parsing parsing mode, since the most of RAM
+	// It is OK to do for stream parsing mode, since the most of RAM
 	// is occupied during parsing of the read response body below.
 	// This also allows measuring the real scrape duration, which doesn't include
 	// the time needed for processing of the read response.
