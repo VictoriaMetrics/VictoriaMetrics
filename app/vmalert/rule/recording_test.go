@@ -11,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -26,20 +25,15 @@ func TestNewRecordingRule(t *testing.T) {
 		}
 	}
 
-	f(&Group{Name: "foo", TenantID: tenant.NewID("123:456")},
+	f(&Group{Name: "foo"},
 		config.Rule{
-			Alert: "health",
-			Expr:  "up == 0",
-			Labels: map[string]string{
-				"vm_account_id": "0",
-			},
+			Alert:  "health",
+			Expr:   "up == 0",
+			Labels: map[string]string{},
 		}, &AlertingRule{
-			Name: "health",
-			Expr: "up == 0",
-			Labels: map[string]string{
-				"vm_account_id": "123",
-				"vm_project_id": "456",
-			},
+			Name:   "health",
+			Expr:   "up == 0",
+			Labels: map[string]string{},
 		})
 }
 
