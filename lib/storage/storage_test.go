@@ -3772,14 +3772,14 @@ func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetric
 	}
 	merge := func(data []any) any {
 		var all []uint64
-		seen := make(map[uint64]bool)
+		seen := make(map[uint64]struct{})
 		for _, ids := range data {
 			for _, id := range ids.([]uint64) {
-				if seen[id] {
+				if _, ok := seen[id]; ok {
 					continue
 				}
 				all = append(all, id)
-				seen[id] = true
+				seen[id] = struct{}{}
 			}
 		}
 		slices.Sort(all)

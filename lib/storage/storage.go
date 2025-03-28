@@ -1192,17 +1192,17 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	}
 	merge := func(data []any) any {
 		all := []string{}
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, names := range data {
 			if names == nil {
 				continue
 			}
 			for _, name := range names.([]string) {
-				if seen[name] {
+				if _, ok := seen[name]; ok {
 					continue
 				}
 				all = append(all, name)
-				seen[name] = true
+				seen[name] = struct{}{}
 			}
 		}
 		return all
@@ -1404,6 +1404,8 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	for i, idb := range idbs {
 		metricIDs := metricIDss[i]
 		if len(metricIDs) == 0 {
+			// Do not call idb.deleteMetricIDs for empty metricIDs to avoid
+			// unnecessary resetting of tfss cache.
 			continue
 		}
 		wg.Add(1)
@@ -1426,17 +1428,17 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 	}
 	merge := func(data []any) any {
 		all := []string{}
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, names := range data {
 			if names == nil {
 				continue
 			}
 			for _, name := range names.([]string) {
-				if seen[name] {
+				if _, ok := seen[name]; ok {
 					continue
 				}
 				all = append(all, name)
-				seen[name] = true
+				seen[name] = struct{}{}
 			}
 		}
 		return all
@@ -1460,17 +1462,17 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 	}
 	merge := func(data []any) any {
 		all := []string{}
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, values := range data {
 			if values == nil {
 				continue
 			}
 			for _, value := range values.([]string) {
-				if seen[value] {
+				if _, ok := seen[value]; ok {
 					continue
 				}
 				all = append(all, value)
-				seen[value] = true
+				seen[value] = struct{}{}
 			}
 		}
 		return all
@@ -1560,17 +1562,17 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 	}
 	merge := func(data []any) any {
 		all := []string{}
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, names := range data {
 			if names == nil {
 				continue
 			}
 			for _, name := range names.([]string) {
-				if seen[name] {
+				if _, ok := seen[name]; ok {
 					continue
 				}
 				all = append(all, name)
-				seen[name] = true
+				seen[name] = struct{}{}
 			}
 		}
 		return all
@@ -1594,17 +1596,17 @@ func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, quer
 	}
 	merge := func(data []any) any {
 		all := []string{}
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for _, paths := range data {
 			if paths == nil {
 				continue
 			}
 			for _, path := range paths.([]string) {
-				if seen[path] {
+				if _, ok := seen[path]; ok {
 					continue
 				}
 				all = append(all, path)
-				seen[path] = true
+				seen[path] = struct{}{}
 			}
 		}
 		return all

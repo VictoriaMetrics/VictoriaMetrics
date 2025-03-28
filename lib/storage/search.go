@@ -217,17 +217,17 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 
 	merge := func(data []any) any {
 		var all []TSID
-		seen := make(map[TSID]bool)
+		seen := make(map[TSID]struct{})
 		for _, tsids := range data {
 			if tsids == nil {
 				continue
 			}
 			for _, tsid := range tsids.([]TSID) {
-				if seen[tsid] {
+				if _, ok := seen[tsid]; ok {
 					continue
 				}
 				all = append(all, tsid)
-				seen[tsid] = true
+				seen[tsid] = struct{}{}
 			}
 		}
 		return all
