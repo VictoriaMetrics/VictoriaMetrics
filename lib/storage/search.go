@@ -232,9 +232,8 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		}
 		return all
 	}
-	stopOnError := false
 	var tsids []TSID
-	result, err := s.storage.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.storage.searchAndMerge(tr, search, merge)
 	if result != nil {
 		tsids = result.([]TSID)
 		// Sort the found tsids, since they must be passed to TSID search

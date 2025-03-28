@@ -3786,8 +3786,7 @@ func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetric
 		return all
 	}
 
-	stopOnError := true
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}

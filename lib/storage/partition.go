@@ -2062,7 +2062,7 @@ func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath, indexDBPath string
 	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
 
 	if err := pt.idb.tb.CreateSnapshotAt(indexDBPath); err != nil {
-		logger.Panicf("FATAL: cannot create paritition indexDB snapshot of %v at %v: %v", pt.indexDBPartsPath, indexDBPath, err)
+		logger.Panicf("FATAL: cannot create paritition indexDB snapshot of %q at %q: %s", pt.indexDBPartsPath, indexDBPath, err)
 	}
 
 	logger.Infof("created partition snapshot of %q, %q, and %q at %q, %q, and %q in %.3f seconds",

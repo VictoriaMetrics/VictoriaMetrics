@@ -1143,47 +1143,31 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 // and previous IndexDBs. The individual search results are then merged. If
 // stopOnError is true, the function returns the error of the first failed
 // individual result and merge op is skipped.
-func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr TimeRange) (any, error), merge func([]any) any, stopOnError bool) (any, error) {
-	type result struct {
-		data any
-		err  error
-	}
-
+func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr TimeRange) (any, error), merge func([]any) any) (any, error) {
 	idbs := s.tb.GetIndexDBs(tr)
 	defer s.tb.PutIndexDBs(idbs)
 	// also add legacy to idbs
 
 	var wg sync.WaitGroup
-	results := make(chan *result, len(idbs))
-	defer close(results)
-	for _, idb := range idbs {
+	data := make([]any, len(idbs))
+	errs := make([]error, len(idbs))
+	for i, idb := range idbs {
 		wg.Add(1)
-		go func() {
+		go func(i int, idb *indexDB) {
+			defer wg.Done()
 			searchTR := s.adjustTimeRange(tr, idb.tr)
-			data, err := search(idb, searchTR)
-			results <- &result{data, err}
-			wg.Done()
-		}()
+			data[i], errs[i] = search(idb, searchTR)
+		}(i, idb)
 	}
 	wg.Wait()
 
-	var data []any
-	var firstErr error
-	for range len(idbs) {
-		result := <-results
-		if result.err != nil {
-			if stopOnError {
-				return nil, result.err
-			}
-			if firstErr != nil {
-				firstErr = result.err
-			}
-			continue
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
 		}
-		data = append(data, result.data)
 	}
 
-	return merge(data), firstErr
+	return merge(data), nil
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on
@@ -1223,9 +1207,8 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 		}
 		return all
 	}
-	stopOnError := true
 	var metricNames []string
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 	if result != nil {
 		metricNames = result.([]string)
 	}
@@ -1379,12 +1362,6 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	// Not using Storage.searchAndMerge because this method does not follow the
 	// same search-then-merge pattern as most other public methods.
 
-	type result struct {
-		idb       *indexDB
-		metricIDs []uint64
-		err       error
-	}
-
 	// Get all IndexDBs.
 	idbs := s.tb.GetIndexDBs(TimeRange{
 		MinTimestamp: 0,
@@ -1395,35 +1372,26 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	// TODO(@rtm0): Should we also delete from legacy idbs? They are read-only.
 
 	var wg sync.WaitGroup
-	results := make(chan *result, len(idbs))
-	defer close(results)
-	for _, idb := range idbs {
+	metricIDss := make([][]uint64, len(idbs))
+	errs := make([]error, len(idbs))
+	for i, idb := range idbs {
 		wg.Add(1)
-		go func() {
+		go func(i int, idb *indexDB) {
+			defer wg.Done()
 			is := idb.getIndexSearch(noDeadline)
+			defer idb.putIndexSearch(is)
 			// Unconditionally search global index since a given day in per-day
 			// index may not contain the full set of metricIDs that correspond
 			// to the tfss.
-			metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
-			idb.putIndexSearch(is)
-			results <- &result{idb, metricIDs, err}
-			wg.Done()
-		}()
+			metricIDss[i], errs[i] = is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
+		}(i, idb)
 	}
 	wg.Wait()
 
-	deletedMetricIDs := &uint64set.Set{}
-	metricIDsByIDB := make(map[*indexDB][]uint64)
-	for range len(idbs) {
-		result := <-results
-		if result.err != nil {
-			return 0, result.err
+	for _, err := range errs {
+		if err != nil {
+			return 0, err
 		}
-		if len(result.metricIDs) == 0 {
-			continue
-		}
-		deletedMetricIDs.AddMulti(result.metricIDs)
-		metricIDsByIDB[result.idb] = result.metricIDs
 	}
 
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
@@ -1432,12 +1400,18 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
-	for idb, metricIDs := range metricIDsByIDB {
+	deletedMetricIDs := &uint64set.Set{}
+	for i, idb := range idbs {
+		metricIDs := metricIDss[i]
+		if len(metricIDs) == 0 {
+			continue
+		}
 		wg.Add(1)
-		go func() {
+		go func(idb *indexDB, metricIDs []uint64) {
+			defer wg.Done()
 			idb.deleteMetricIDs(metricIDs)
-			wg.Done()
-		}()
+		}(idb, metricIDs)
+		deletedMetricIDs.AddMulti(metricIDs)
 	}
 	wg.Wait()
 
@@ -1467,9 +1441,8 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 		}
 		return all
 	}
-	stopOnError := true
 	var labelNames []string
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 	if result != nil {
 		labelNames = result.([]string)
 	}
@@ -1502,9 +1475,8 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 		}
 		return all
 	}
-	stopOnError := true
 	var labelValues []string
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 	if result != nil {
 		labelValues = result.([]string)
 	}
@@ -1603,9 +1575,8 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 		}
 		return all
 	}
-	stopOnError := true
 	var tagValueSuffixes []string
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 	if result != nil {
 		tagValueSuffixes = result.([]string)
 	}
@@ -1638,9 +1609,8 @@ func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, quer
 		}
 		return all
 	}
-	stopOnError := true
 	var paths []string
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 	if result != nil {
 		paths = result.([]string)
 	}
@@ -1843,8 +1813,7 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 		}
 		return total
 	}
-	stopOnError := true
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	result, err := s.searchAndMerge(tr, search, merge)
 
 	var cnt uint64
 	if result != nil {

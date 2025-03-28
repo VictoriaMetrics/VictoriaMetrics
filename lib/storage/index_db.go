@@ -1631,6 +1631,27 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	return deletedCount, nil
 }
 
+func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
+	// atomically add deleted metricIDs to an inmemory map.
+	db.updateDeletedMetricIDs(metricIDs)
+	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
+	db.invalidateTagFiltersCache()
+
+	// Store the metricIDs as deleted.
+	// Make this after updating the deletedMetricIDs and resetting caches
+	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
+	// remain available in the tsidCache after unclean shutdown.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
+	ii := getIndexItems()
+	defer putIndexItems(ii)
+	for _, metricID := range metricIDs {
+		ii.B = append(ii.B, nsPrefixDeletedMetricID)
+		ii.B = encoding.MarshalUint64(ii.B, metricID)
+		ii.Next()
+	}
+	db.tb.AddItems(ii.Items)
+}
+
 func (db *indexDB) getDeletedMetricIDs() *uint64set.Set {
 	return db.deletedMetricIDs.Load()
 }
@@ -1681,27 +1702,6 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 		return nil, err
 	}
 	return dmis, nil
-}
-
-func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
-	// atomically add deleted metricIDs to an inmemory map.
-	db.updateDeletedMetricIDs(metricIDs)
-	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	db.invalidateTagFiltersCache()
-
-	// Store the metricIDs as deleted.
-	// Make this after updating the deletedMetricIDs and resetting caches
-	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
-	// remain available in the tsidCache after unclean shutdown.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
-	ii := getIndexItems()
-	defer putIndexItems(ii)
-	for _, metricID := range metricIDs {
-		ii.B = append(ii.B, nsPrefixDeletedMetricID)
-		ii.B = encoding.MarshalUint64(ii.B, metricID)
-		ii.Next()
-	}
-	db.tb.AddItems(ii.Items)
 }
 
 // searchMetricIDs returns metricIDs for the given tfss and tr.
