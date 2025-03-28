@@ -159,6 +159,17 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	ar.state = &ruleState{
 		entries: make([]StateEntry, entrySize),
 	}
+	if group.TenantID != nil {
+		clusterID, err := group.TenantID.AsClusterID()
+		if err != nil {
+			logger.Panicf("BUG: tenant must be validated correctly, err: %s", err)
+		}
+		if ar.Labels == nil {
+			ar.Labels = make(map[string]string)
+		}
+		ar.Labels["vm_account_id"] = fmt.Sprintf("%d", clusterID.AccountID)
+		ar.Labels["vm_project_id"] = fmt.Sprintf("%d", clusterID.ProjectID)
+	}
 	return ar
 }
 
