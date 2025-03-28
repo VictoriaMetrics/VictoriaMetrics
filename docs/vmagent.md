@@ -2265,6 +2265,10 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Empty values are set to default value.
   -remoteWrite.shardByURL
      Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . See also -remoteWrite.shardByURLReplicas
+  -remoteWrite.shardByURL.consistent
+     Whether to use consistent hashing when sharding outgoing series among remote storage systems. (default false)
+     If set to true, the same series will always be routed to the same remote storage system, which can help minimize changes in active time series when adding or removing remote write destinations.
+     The consistent hash will be based on the remote write URLs and their sequence. Changing either of these will result in a different consistent hash node.
   -remoteWrite.shardByURL.ignoreLabels array
      Optional list of labels, which must be ignored when sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels
      Supports an array of values separated by comma or specified via multiple flags.

@@ -44,7 +44,7 @@ var (
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
 		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
 
-	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
+	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url. "+
 		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
 		"See also -remoteWrite.shardByURLReplicas")
 	shardByURLReplicas = flag.Int("remoteWrite.shardByURLReplicas", 1, "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
@@ -55,8 +55,10 @@ var (
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
-	shardByURLConsistent = flag.Bool("remoteWrite.shardByURL.consistent", false, "")
-	tmpDataPath          = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
+	shardByURLConsistent = flag.Bool("remoteWrite.shardByURL.consistent", false, "Whether to use consistent hashing when sharding outgoing series among remote storage systems. "+
+		"If set to true, the same series will always be routed to the same remote storage system, which can help minimize changes in active time series when adding or removing remote write destinations. "+
+		"The consistent hash will be based on the remote write URLs and their sequence. Changing either of these will result in a different consistent hash node.")
+	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
