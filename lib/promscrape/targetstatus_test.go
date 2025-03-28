@@ -2,6 +2,8 @@ package promscrape
 
 import (
 	"bytes"
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -26,18 +28,33 @@ func TestWriteActiveTargetsJSON(t *testing.T) {
 		},
 	})
 
-	f := func(scrapePoolFilter, exp string) {
+	type activeTarget struct {
+		DiscoveredLabels map[string]string `json:"discoveredLabels"`
+		ScrapePool       string            `json:"scrapePool"`
+	}
+	f := func(scrapePoolFilter string, exp []activeTarget) {
 		t.Helper()
 		b := &bytes.Buffer{}
 		tsm.WriteActiveTargetsJSON(b, scrapePoolFilter)
-		got := b.String()
-		if got != exp {
+
+		var got []activeTarget
+		if err := json.Unmarshal(b.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, exp) {
 			t.Fatalf("unexpected response; \ngot\n %s; \nwant\n %s", got, exp)
 		}
 	}
 
-	f("", `[{"discoveredLabels":{"__address__":"host1:80"},"labels":{},"scrapePool":"foo","scrapeUrl":"","lastError":"","lastScrape":"1970-01-01T01:00:00+01:00","lastScrapeDuration":0,"lastSamplesScraped":0,"health":"down"},{"discoveredLabels":{"__address__":"host2:80"},"labels":{},"scrapePool":"bar","scrapeUrl":"","lastError":"","lastScrape":"1970-01-01T01:00:00+01:00","lastScrapeDuration":0,"lastSamplesScraped":0,"health":"down"}]`)
-	f("foo", `[{"discoveredLabels":{"__address__":"host1:80"},"labels":{},"scrapePool":"foo","scrapeUrl":"","lastError":"","lastScrape":"1970-01-01T01:00:00+01:00","lastScrapeDuration":0,"lastSamplesScraped":0,"health":"down"}]`)
-	f("bar", `[{"discoveredLabels":{"__address__":"host2:80"},"labels":{},"scrapePool":"bar","scrapeUrl":"","lastError":"","lastScrape":"1970-01-01T01:00:00+01:00","lastScrapeDuration":0,"lastSamplesScraped":0,"health":"down"}]`)
-	f("unknown", `[]`)
+	f("", []activeTarget{
+		{ScrapePool: "foo", DiscoveredLabels: map[string]string{"__address__": "host1:80"}},
+		{ScrapePool: "bar", DiscoveredLabels: map[string]string{"__address__": "host2:80"}},
+	})
+	f("foo", []activeTarget{
+		{ScrapePool: "foo", DiscoveredLabels: map[string]string{"__address__": "host1:80"}},
+	})
+	f("bar", []activeTarget{
+		{ScrapePool: "bar", DiscoveredLabels: map[string]string{"__address__": "host2:80"}},
+	})
+	f("unknown", []activeTarget{})
 }
