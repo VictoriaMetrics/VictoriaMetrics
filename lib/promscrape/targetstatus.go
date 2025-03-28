@@ -68,13 +68,13 @@ func WriteServiceDiscovery(w http.ResponseWriter, r *http.Request) {
 }
 
 // WriteAPIV1Targets writes /api/v1/targets to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
-func WriteAPIV1Targets(w io.Writer, state string) {
+func WriteAPIV1Targets(w io.Writer, state, scrapePool string) {
 	if state == "" {
 		state = "any"
 	}
 	fmt.Fprintf(w, `{"status":"success","data":{"activeTargets":`)
 	if state == "active" || state == "any" {
-		tsmGlobal.WriteActiveTargetsJSON(w)
+		tsmGlobal.WriteActiveTargetsJSON(w, scrapePool)
 	} else {
 		fmt.Fprintf(w, `[]`)
 	}
@@ -254,16 +254,24 @@ func (tsm *targetStatusMap) getActiveTargetStatuses() []targetStatus {
 }
 
 // WriteActiveTargetsJSON writes `activeTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
-func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
+func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer, scrapePoolFilter string) {
 	tss := tsm.getActiveTargetStatuses()
 	fmt.Fprintf(w, `[`)
-	for i, ts := range tss {
+	var needComma bool
+	for _, ts := range tss {
+		scrapePool := ts.sw.Config.jobNameOriginal
+		if scrapePoolFilter != "" && scrapePool != scrapePoolFilter {
+			continue
+		}
+		if needComma {
+			fmt.Fprintf(w, `,`)
+		}
 		fmt.Fprintf(w, `{"discoveredLabels":`)
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343
-		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.jobNameOriginal))
+		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(scrapePool))
 		fmt.Fprintf(w, `,"scrapeUrl":%s`, stringsutil.JSONString(ts.sw.Config.ScrapeURL))
 		errMsg := ""
 		if ts.err != nil {
@@ -278,9 +286,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 			state = "down"
 		}
 		fmt.Fprintf(w, `,"health":%s}`, stringsutil.JSONString(state))
-		if i+1 < len(tss) {
-			fmt.Fprintf(w, `,`)
-		}
+		needComma = true
 	}
 	fmt.Fprintf(w, `]`)
 }
