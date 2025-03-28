@@ -526,6 +526,9 @@ func marshalMetricNameWithTags(dst []byte, r *Row) []byte {
 //
 // This function is optimized for speed.
 func AreIdenticalSeriesFast(s1, s2 string) bool {
+	if s1 == s2 {
+		return true
+	}
 	for {
 		if len(s1) == 0 {
 			// The last byte on the line reached.
