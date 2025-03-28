@@ -93,6 +93,7 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 	})
 
 	// TODO: assert dropped metric
+	// TODO assert retries metric
 }
 
 // TestSingleVMAgentDowngradeRemoteWriteProtocol verifies that the remote write process:
@@ -146,4 +147,6 @@ func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
 		Want:       []string{`zstd`, `snappy`, `snappy`},
 		DoNotRetry: true,
 	})
+
+	// TODO assert retries metric
 }
