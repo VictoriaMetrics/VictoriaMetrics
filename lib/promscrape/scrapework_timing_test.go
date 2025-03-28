@@ -3,6 +3,7 @@ package promscrape
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -195,18 +196,25 @@ func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
 }
 
 func BenchmarkScrapeWorkGetLabelsHash(b *testing.B) {
-	labels := []prompbmarshal.Label{}
-	for i := 0; i < 100; i++ {
-		labels = append(labels, prompbmarshal.Label{
+	labels := make([]prompbmarshal.Label, 100)
+	for i := range labels {
+		labels[i] = prompbmarshal.Label{
 			Name:  fmt.Sprintf("name%d", i),
 			Value: fmt.Sprintf("value%d", i),
-		})
+		}
 	}
-
-	var sw scrapeWork
 
 	b.ReportAllocs()
-	for b.Loop() {
-		sw.getLabelsHash(labels)
-	}
+	b.SetBytes(1)
+
+	b.RunParallel(func(pb *testing.PB) {
+		var hSum uint64
+		for pb.Next() {
+			h := getLabelsHash(labels)
+			hSum += h
+		}
+		Sink.Add(hSum)
+	})
 }
+
+var Sink atomic.Uint64
