@@ -9,10 +9,39 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
+
+func TestNewRecordingRule(t *testing.T) {
+	f := func(group *Group, rule config.Rule, expectRule *AlertingRule) {
+		t.Helper()
+
+		r := NewAlertingRule(&datasource.FakeQuerier{}, group, rule)
+		if err := CompareRules(t, expectRule, r); err != nil {
+			t.Fatalf("unexpected rule mismatch: %s", err)
+		}
+	}
+
+	f(&Group{Name: "foo", TenantID: tenant.NewID("123:456")},
+		config.Rule{
+			Alert: "health",
+			Expr:  "up == 0",
+			Labels: map[string]string{
+				"vm_account_id": "0",
+			},
+		}, &AlertingRule{
+			Name: "health",
+			Expr: "up == 0",
+			Labels: map[string]string{
+				"vm_account_id": "123",
+				"vm_project_id": "456",
+			},
+		})
+}
 
 func TestRecordingRule_Exec(t *testing.T) {
 	ts, _ := time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
@@ -307,7 +336,8 @@ func TestRecordingRuleLimit_Failure(t *testing.T) {
 
 		fq := &datasource.FakeQuerier{}
 		fq.Add(testMetrics...)
-		rule := &RecordingRule{Name: "job:foo",
+		rule := &RecordingRule{
+			Name:  "job:foo",
 			state: &ruleState{entries: make([]StateEntry, 10)},
 			Labels: map[string]string{
 				"source": "test_limit",
@@ -342,7 +372,8 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 
 		fq := &datasource.FakeQuerier{}
 		fq.Add(testMetrics...)
-		rule := &RecordingRule{Name: "job:foo",
+		rule := &RecordingRule{
+			Name:  "job:foo",
 			state: &ruleState{entries: make([]StateEntry, 10)},
 			Labels: map[string]string{
 				"source": "test_limit",

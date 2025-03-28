@@ -16,11 +16,41 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
+
+func TestNewAlertingRule(t *testing.T) {
+	f := func(group *Group, rule config.Rule, expectRule *AlertingRule) {
+		t.Helper()
+
+		r := NewAlertingRule(&datasource.FakeQuerier{}, group, rule)
+		if err := CompareRules(t, expectRule, r); err != nil {
+			t.Fatalf("unexpected rule mismatch: %s", err)
+		}
+	}
+
+	f(&Group{Name: "foo", TenantID: tenant.NewID("123:456")},
+		config.Rule{
+			Alert: "health",
+			Expr:  "up == 0",
+			Labels: map[string]string{
+				"foo":           "bar",
+				"vm_account_id": "0",
+			},
+		}, &AlertingRule{
+			Name: "health",
+			Expr: "up == 0",
+			Labels: map[string]string{
+				"foo":           "bar",
+				"vm_account_id": "123",
+				"vm_project_id": "456",
+			},
+		})
+}
 
 func TestAlertingRuleToTimeSeries(t *testing.T) {
 	timestamp := time.Now()
