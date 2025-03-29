@@ -391,29 +391,23 @@ func (s *Storage) DebugFlush() {
 	s.updateCurrHourMetricIDs(hour)
 }
 
-// CreateSnapshot creates snapshot for s and returns the snapshot name.
-func (s *Storage) CreateSnapshot() (string, error) {
+// MustCreateSnapshot creates snapshot for s and returns the snapshot name.
+//
+// The method panics in case of any error since it does not accept any user
+// input and therefore the error is not recoverable.
+func (s *Storage) MustCreateSnapshot() string {
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
 
 	s.snapshotLock.Lock()
 	defer s.snapshotLock.Unlock()
 
-	var dirsToRemoveOnError []string
-	defer func() {
-		for _, dir := range dirsToRemoveOnError {
-			fs.MustRemoveAll(dir)
-		}
-	}()
-
 	snapshotName := snapshotutil.NewName()
 	srcDir := s.path
 	dstDir := filepath.Join(srcDir, snapshotsDirname, snapshotName)
 	fs.MustMkdirFailIfExist(dstDir)
-	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
 
 	smallDir, bigDir := s.tb.MustCreateSnapshot(snapshotName)
-	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
 
 	dstDataDir := filepath.Join(dstDir, dataDirname)
 	fs.MustMkdirFailIfExist(dstDataDir)
@@ -435,49 +429,40 @@ func (s *Storage) CreateSnapshot() (string, error) {
 
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	currSnapshot := filepath.Join(idbSnapshot, idb.name)
-	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
-		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
-	}
-	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
-
-	var err error
+	idb.tb.MustCreateSnapshotAt(currSnapshot)
 	idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
-		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
+		extDB.tb.MustCreateSnapshotAt(prevSnapshot)
 	})
-	if err != nil {
-		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
-	}
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
 	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 
 	fs.MustSyncPath(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
-	dirsToRemoveOnError = nil
-	return snapshotName, nil
+	return snapshotName
 }
 
 func (s *Storage) mustGetSnapshotsCount() int {
-	snapshotNames, err := s.ListSnapshots()
-	if err != nil {
-		logger.Panicf("FATAL: cannot list snapshots: %s", err)
-	}
+	snapshotNames := s.MustListSnapshots()
 	return len(snapshotNames)
 }
 
-// ListSnapshots returns sorted list of existing snapshots for s.
-func (s *Storage) ListSnapshots() ([]string, error) {
+// MustListSnapshots returns sorted list of existing snapshots for s.
+//
+// The method panics in case of any error since it does not accept any user
+// input and therefore the error is not recoverable.
+func (s *Storage) MustListSnapshots() []string {
 	snapshotsPath := filepath.Join(s.path, snapshotsDirname)
 	d, err := os.Open(snapshotsPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open snapshots directory: %w", err)
+		logger.Panicf("FATAL: cannot open snapshots directory: %v", err)
 	}
 	defer fs.MustClose(d)
 
 	fnames, err := d.Readdirnames(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read snapshots directory at %q: %w", snapshotsPath, err)
+		logger.Panicf("FATAL: cannot read snapshots directory at %q: %v", snapshotsPath, err)
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
@@ -487,7 +472,7 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 		snapshotNames = append(snapshotNames, fname)
 	}
 	sort.Strings(snapshotNames)
-	return snapshotNames, nil
+	return snapshotNames
 }
 
 // DeleteSnapshot deletes the given snapshot.
@@ -510,25 +495,30 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 	return nil
 }
 
-// DeleteStaleSnapshots deletes snapshot older than given maxAge
-func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
-	list, err := s.ListSnapshots()
-	if err != nil {
-		return err
-	}
+// MustDeleteStaleSnapshots deletes snapshot older than given maxAge
+//
+// The method panics in case of any error since it is unrelated to the user
+// input and indicates a bug in storage or a problem with the underlying file
+// system.
+func (s *Storage) MustDeleteStaleSnapshots(maxAge time.Duration) {
+	list := s.MustListSnapshots()
 	expireDeadline := time.Now().UTC().Add(-maxAge)
 	for _, snapshotName := range list {
 		t, err := snapshotutil.Time(snapshotName)
 		if err != nil {
-			return fmt.Errorf("cannot parse snapshot date from %q: %w", snapshotName, err)
+			// Panic because MustListSnapshots() is expected to return valid
+			// snapshot names only.
+			logger.Panicf("BUG: cannot parse snapshot date from %q: %v", snapshotName, err)
 		}
 		if t.Before(expireDeadline) {
 			if err := s.DeleteSnapshot(snapshotName); err != nil {
-				return fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
+				// Panic because MustListSnapshots() is expected to return valid
+				// snapshot names only and DeleteSnapshot() fails only if the
+				// snapshot name is invalid.
+				logger.Panicf("BUG: cannot delete snapshot %q: %v", snapshotName, err)
 			}
 		}
 	}
-	return nil
 }
 
 // getCurrAndNextIndexDBs increments refcount for the current and next indexDBs

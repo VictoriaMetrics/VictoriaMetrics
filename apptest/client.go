@@ -55,6 +55,13 @@ func (c *Client) PostForm(t *testing.T, url string, data url.Values) (string, in
 	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()))
 }
 
+// Delete sends a HTTP DELETE request and returns the response body and status code
+// to the caller.
+func (c *Client) Delete(t *testing.T, url string) (string, int) {
+	t.Helper()
+	return c.do(t, http.MethodDelete, url, "", nil)
+}
+
 // do prepares a HTTP request, sends it to the server, receives the response
 // from the server, returns the response body and status code to the caller.
 func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) (string, int) {

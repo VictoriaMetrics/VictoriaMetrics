@@ -304,3 +304,43 @@ type MetricNamesStatsRecord struct {
 	MetricName         string
 	QueryRequestsCount uint64
 }
+
+// SnapshotCreateResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/create endpoint.
+type SnapshotCreateResponse struct {
+	Status   string
+	Snapshot string
+}
+
+// APIV1AdminTSDBSnapshotResponse is an in-memory reprensentation of the json
+// response returned by the /api/v1/admin/tsdb/snapshot endpoint.
+type APIV1AdminTSDBSnapshotResponse struct {
+	Status string
+	Data   *SnapshotData
+}
+
+// SnapshotData holds the info about the snapshot created via
+// /api/v1/admin/tsdb/snapshot endpoint.
+type SnapshotData struct {
+	Name string
+}
+
+// SnapshotListResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/list endpoint.
+type SnapshotListResponse struct {
+	Status    string
+	Snapshots []string
+}
+
+// SnapshotDeleteResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/delete endpoint.
+type SnapshotDeleteResponse struct {
+	Status string
+	Msg    string
+}
+
+// SnapshotDeleteAllResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/delete_all endpoint.
+type SnapshotDeleteAllResponse struct {
+	Status string
+}
