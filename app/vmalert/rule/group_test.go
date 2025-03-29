@@ -134,6 +134,7 @@ func TestUpdateWith(t *testing.T) {
 	})
 
 	// update recording rule
+	debug := true
 	f([]config.Rule{{
 		Record: "foo",
 		Expr:   "max(up)",
@@ -143,6 +144,7 @@ func TestUpdateWith(t *testing.T) {
 	}}, []config.Rule{{
 		Record: "foo",
 		Expr:   "min(up)",
+		Debug:  &debug,
 		Labels: map[string]string{
 			"baz": "bar",
 		},

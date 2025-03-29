@@ -34,6 +34,9 @@ type Result struct {
 	// If nil, then this feature is not supported by the datasource.
 	// SeriesFetched is supported by VictoriaMetrics since v1.90.
 	SeriesFetched *int
+	// IsPartial is used by VictoriaMetrics to indicate
+	// whether response data is partial.
+	IsPartial *bool
 }
 
 // QuerierBuilder builds Querier with given params.
