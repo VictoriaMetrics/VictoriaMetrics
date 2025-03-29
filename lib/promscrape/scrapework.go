@@ -322,7 +322,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 	case <-timer.C:
 		timerpool.Put(timer)
 		ticker = time.NewTicker(scrapeInterval)
-		timestamp = time.Now().UnixNano() / 1e6
+		timestamp = time.Now().UnixMilli()
 		sw.scrapeAndLogError(timestamp, timestamp)
 	}
 	defer ticker.Stop()
@@ -330,7 +330,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		timestamp += scrapeInterval.Milliseconds()
 		select {
 		case <-stopCh:
-			t := time.Now().UnixNano() / 1e6
+			t := time.Now().UnixMilli()
 			lastScrape := sw.loadLastScrape()
 			select {
 			case <-globalStopCh:
@@ -349,7 +349,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 			}
 			return
 		case tt := <-ticker.C:
-			t := tt.UnixNano() / 1e6
+			t := tt.UnixMilli()
 			if d := math.Abs(float64(t - timestamp)); d > 0 && d/float64(scrapeInterval.Milliseconds()) > 0.1 {
 				// Too big jitter. Adjust timestamp
 				timestamp = t
@@ -430,7 +430,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	err := sw.ReadData(body)
 
 	// Measure scrape duration.
-	endTimestamp := time.Now().UnixNano() / 1e6
+	endTimestamp := time.Now().UnixMilli()
 	scrapeDurationSeconds := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(scrapeDurationSeconds)
 	scrapeResponseSize.Update(float64(len(body.B)))
