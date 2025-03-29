@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"testing"
 	"testing/quick"
@@ -71,14 +71,10 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	path := "TestSearch"
-	st := MustOpenStorage(path, OpenOptions{})
-	defer func() {
-		st.MustClose()
-		if err := os.RemoveAll(path); err != nil {
-			t.Fatalf("cannot remove storage %q: %s", path, err)
-		}
-	}()
+	defer testRemoveAll(t)
+
+	st := MustOpenStorage(t.Name(), OpenOptions{})
+	defer st.MustClose()
 
 	// Add rows to storage.
 	const rowsCount = 2e4
@@ -109,11 +105,8 @@ func TestSearch(t *testing.T) {
 		}
 	}
 	st.AddRows(mrs[rowsCount-blockRowsCount:], defaultPrecisionBits)
+	st.DebugFlush()
 	endTimestamp := mrs[len(mrs)-1].Timestamp
-
-	// Re-open the storage in order to flush all the pending cached data.
-	st.MustClose()
-	st = MustOpenStorage(path, OpenOptions{})
 
 	// Run search.
 	tr := TimeRange{
@@ -149,6 +142,40 @@ func TestSearch(t *testing.T) {
 			t.Fatalf("unexpected error: %s", firstError)
 		}
 	})
+}
+
+func TestSearch_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMetrics = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("metric_%d", i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = name
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		if err := testSearchInternal(s, tr, mrs); err != nil {
+			t.Fatalf("search test failed: %v", err)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
 }
 
 func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow) error {

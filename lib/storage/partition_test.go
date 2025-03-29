@@ -2,6 +2,7 @@ package storage
 
 import (
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -152,13 +153,17 @@ func newTestPartWrappersForSizes(sizes []uint64) []*partWrapper {
 }
 
 func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
-	pt := &partition{}
+	defer testRemoveAll(t)
+
 	s := newTestStorage()
 	s.retentionMsecs = 1000
 	defer stopTestStorage(s)
-	pt.s = s
-	var pws []*partWrapper
 
+	timestamp := int64(0)
+	pt := testCreatePartition(t, timestamp, s)
+	defer pt.MustClose()
+
+	var pws []*partWrapper
 	const (
 		inMemoryPartsCount = 5
 		rowsCount          = 10
@@ -171,7 +176,7 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 				MetricID: uint64(i),
 			}
 			rows[i].Value = float64(i)
-			rows[i].Timestamp = int64(i)
+			rows[i].Timestamp = timestamp + int64(i)
 			rows[i].PrecisionBits = 64
 		}
 
@@ -185,4 +190,12 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 	if len(pwsNew) != 0 {
 		t.Fatalf("unexpected non-empty pwsNew: %d", len(pwsNew))
 	}
+}
+
+func testCreatePartition(t *testing.T, timestamp int64, s *Storage) *partition {
+	t.Helper()
+	small := filepath.Join(t.Name(), smallDirname)
+	big := filepath.Join(t.Name(), bigDirname)
+	indexdb := filepath.Join(t.Name(), indexdbDirname)
+	return mustCreatePartition(timestamp, small, big, indexdb, s)
 }
