@@ -7,6 +7,8 @@ menu:
     parent: victoriametrics
     weight: 31
 aliases:
+  - /pertenantstatistic
+  - /PerTenantStatistic
   - /PerTenantStatistic.html
 ---
 ![cluster-per-tenant-stat](PerTenantStatistic-stats.webp)

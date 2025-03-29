@@ -6,6 +6,7 @@ menu:
     weight: 9
 title: vmgateway
 aliases:
+  - /vmgateway/
   - /vmgateway.html
 ---
 ***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). 

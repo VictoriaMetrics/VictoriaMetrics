@@ -6,6 +6,7 @@ menu:
     weight: 8
 title: vmctl
 aliases:
+  - /vmctl/
   - /vmctl.html
 ---
 VictoriaMetrics command-line tool (vmctl) provides the following list of actions:

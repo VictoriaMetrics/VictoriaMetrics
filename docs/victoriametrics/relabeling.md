@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 37
 aliases:
+- /relabeling/
 - /relabeling.html
 ---
 VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) support

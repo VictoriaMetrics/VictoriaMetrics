@@ -7,6 +7,7 @@ menu:
     parent: 'victoriametrics'
     weight: 99
 aliases:
+- /enterprise/
 - /enterprise.html
 ---
 VictoriaMetrics components are provided in two kinds - [Community edition](https://victoriametrics.com/products/open-source/)

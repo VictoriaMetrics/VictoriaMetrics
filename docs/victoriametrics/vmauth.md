@@ -6,6 +6,7 @@ menu:
     weight: 5
 title: vmauth
 aliases:
+  - /vmauth/
   - /vmauth.html
 ---
 `vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/vmauth/#authorization), [route](https://docs.victoriametrics.com/vmauth/#routing)
