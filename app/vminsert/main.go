@@ -174,6 +174,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/prometheus/api/v1/import", "/api/v1/import":

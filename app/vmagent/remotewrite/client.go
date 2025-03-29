@@ -10,19 +10,23 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/golang/snappy"
 )
 
 var (
@@ -87,7 +91,7 @@ type client struct {
 	remoteWriteURL string
 
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
-	useVMProto bool
+	useVMProto atomic.Bool
 
 	fq *persistentqueue.FastQueue
 	hc *http.Client
@@ -157,6 +161,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		retryMinInterval: retryMinInterval.GetOptionalArg(argIdx),
 		retryMaxTime:     retryMaxTime.GetOptionalArg(argIdx),
 		stopCh:           make(chan struct{}),
+		//maybeUpgradeVMProto: func(_ *http.Response) {},
 	}
 	c.sendBlock = c.sendBlockHTTP
 
@@ -166,17 +171,10 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		logger.Fatalf("-remoteWrite.useVMProto and -remoteWrite.usePromProto cannot be set simultaneously for -remoteWrite.url=%s", sanitizedURL)
 	}
 	if !useVMProto && !usePromProto {
-		// Auto-detect whether the remote storage supports VictoriaMetrics remote write protocol.
-		doRequest := func(url string) (*http.Response, error) {
-			return c.doRequest(url, nil)
-		}
-		useVMProto = protoparserutil.HandleVMProtoClientHandshake(c.remoteWriteURL, doRequest)
-		if !useVMProto {
-			logger.Infof("the remote storage at %q doesn't support VictoriaMetrics remote write protocol. Switching to Prometheus remote write protocol. "+
-				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", sanitizedURL)
-		}
+		// The VM protocol could be downgraded later at runtime if unsupported media type response status is received.
+		useVMProto = true
 	}
-	c.useVMProto = useVMProto
+	c.useVMProto.Store(useVMProto)
 
 	return c
 }
@@ -384,7 +382,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	if c.useVMProto {
+	if encoding.IsZstd(body) {
 		h.Set("Content-Encoding", "zstd")
 		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
 	} else {
@@ -433,6 +431,7 @@ again:
 		c.retriesCount.Inc()
 		goto again
 	}
+
 	statusCode := resp.StatusCode
 	if statusCode/100 == 2 {
 		_ = resp.Body.Close()
@@ -441,8 +440,9 @@ again:
 		c.blocksSent.Inc()
 		return true
 	}
+
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
-	if statusCode == 409 || statusCode == 400 {
+	if statusCode == http.StatusConflict || statusCode == http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
@@ -456,6 +456,35 @@ again:
 		// Just drop block on 409 and 400 status codes like Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
+		_ = resp.Body.Close()
+		c.packetsDropped.Inc()
+		return true
+	} else if statusCode == http.StatusUnsupportedMediaType {
+		if c.useVMProto.Swap(false) {
+			logger.Infof("received unsupported media type from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
+				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+		}
+
+		if encoding.IsZstd(block) {
+			logger.Infof("received unsupported media type from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
+				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+
+			block, err = repackBlockFromZstdToSnappy(block)
+			if err != nil {
+				logger.Errorf("cannot re-pack block with size %d bytes from Zstd to Snappy for %q: %s; the block will be dropped",
+					len(block), c.sanitizedURL, err)
+				_ = resp.Body.Close()
+				c.packetsDropped.Inc()
+				return true
+			}
+
+			c.retriesCount.Inc()
+			goto again
+		}
+
+		logger.Errorf("received unsupported media type from remote storage at %q. The block is already in Snappy format and cannot be re-packed, so it will be dropped." +
+			c.sanitizedURL)
+
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
 		return true
@@ -508,6 +537,25 @@ func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.D
 	}
 
 	return retryDuration
+}
+
+var (
+	repackBufPool bytesutil.ByteBufferPool
+)
+
+// TODO: add unit tests
+func repackBlockFromZstdToSnappy(block []byte) ([]byte, error) {
+	var err error
+
+	rbb := repackBufPool.Get()
+	defer repackBufPool.Put(rbb)
+
+	rbb.B, err = zstd.Decompress(rbb.B, block)
+	if err != nil {
+		return nil, err
+	}
+
+	return snappy.Encode(block[:0], rbb.B), nil
 }
 
 // parseRetryAfterHeader parses `Retry-After` value retrieved from HTTP response header.
