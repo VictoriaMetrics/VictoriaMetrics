@@ -465,6 +465,8 @@ func streamlabelsWithHighlight(qw422016 *qt422016.Writer, labels *promutil.Label
 //line lib/promrelabel/debug.qtpl:188
 		if len(labelsList) == 0 {
 //line lib/promrelabel/debug.qtpl:188
+			qw422016.N().S(`{}`)
+//line lib/promrelabel/debug.qtpl:188
 			return
 //line lib/promrelabel/debug.qtpl:188
 		}
@@ -547,7 +549,7 @@ func streammustFormatLabels(qw422016 *qt422016.Writer, s string) {
 	labels := promutil.MustNewLabelsFromString(s)
 
 //line lib/promrelabel/debug.qtpl:204
-	streamlabelsWithHighlight(qw422016, labels, nil, "")
+	streamlabelsWithHighlight(qw422016, labels, map[string]struct{}{"__name__": {}}, "")
 //line lib/promrelabel/debug.qtpl:205
 }
 
