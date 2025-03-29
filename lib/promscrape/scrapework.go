@@ -244,18 +244,19 @@ func (sw *scrapeWork) loadLastScrape() string {
 	return bytesutil.ToUnsafeString(sw.lastScrape)
 }
 
-func (sw *scrapeWork) storeLastScrape(lastScrape []byte) {
-	if len(lastScrape) == 0 {
+func (sw *scrapeWork) storeLastScrape(lastScrapeStr string) {
+	if lastScrapeStr == "" {
 		sw.lastScrape = nil
 		sw.lastScrapeCompressed = nil
 		return
 	}
-	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.IntN()
+	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrapeStr) >= minResponseSizeForStreamParse.IntN()
 	if mustCompress {
+		lastScrape := bytesutil.ToUnsafeBytes(lastScrapeStr)
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
 		sw.lastScrape = nil
 	} else {
-		sw.lastScrape = append(sw.lastScrape[:0], lastScrape...)
+		sw.lastScrape = append(sw.lastScrape[:0], lastScrapeStr...)
 		sw.lastScrapeCompressed = nil
 	}
 }
@@ -489,7 +490,6 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 	}
 	if up == 0 {
-		body = nil
 		bodyString = ""
 	}
 	seriesAdded := 0
@@ -519,12 +519,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
-	// body must be released only after wc is released, since wc refers to body.
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
-		sw.storeLastScrape(body)
+		sw.storeLastScrape(bodyString)
 	}
 	sw.finalizeLastScrape()
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, samplesScraped, err)
@@ -589,8 +588,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// Mark the scrape as failed even if it already read and pushed some samples
 		// to remote storage. This makes the logic compatible with Prometheus.
 		up = 0
-		scrapesFailed.Inc()
 		bodyString = ""
+		scrapesFailed.Inc()
 	}
 	seriesAdded := 0
 	if !areIdenticalSeries {
@@ -621,7 +620,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
 		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
-		sw.storeLastScrape(body.B)
+		sw.storeLastScrape(bodyString)
 	}
 	sw.finalizeLastScrape()
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, int(samplesScraped.Load()), err)
