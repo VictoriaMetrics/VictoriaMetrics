@@ -97,7 +97,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		tmpBlock.Reset()
 		tmpBlock.bh.TSID = b.bh.TSID
 		tmpBlock.bh.Scale = b.bh.Scale
-		tmpBlock.bh.PrecisionBits = minUint8(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
+		tmpBlock.bh.PrecisionBits = min(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
 		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, rowsDeleted)
 		if len(tmpBlock.timestamps) <= maxRowsPerBlock {
 			// More entries may be added to tmpBlock. Swap it with pendingBlock,
@@ -211,11 +211,4 @@ func unmarshalAndCalibrateScale(b1, b2 *Block) error {
 	b1.bh.Scale = scale
 	b2.bh.Scale = scale
 	return nil
-}
-
-func minUint8(a, b uint8) uint8 {
-	if a < b {
-		return a
-	}
-	return b
 }
