@@ -203,7 +203,7 @@ type scrapeWork struct {
 
 	// Optional limiter on the number of unique series per scrape target.
 	seriesLimiter     *bloomfilter.Limiter
-	initSeriesLimiter sync.Once
+	seriesLimiterOnce sync.Once
 
 	// prevBodyLen contains the previous response body length for the given scrape work.
 	// It is used as a hint in order to reduce memory usage for body buffers.
@@ -344,8 +344,8 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// stop returning data just after the time the target disappears.
 				sw.sendStaleSeries(lastScrape, "", t, true)
 			}
-			if sw.seriesLimiter != nil {
-				sw.seriesLimiter.MustStop()
+			if sl := sw.getSeriesLimiter(); sl != nil {
+				sl.MustStop()
 				sw.seriesLimiter = nil
 			}
 			return
@@ -726,6 +726,17 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 	return strings.Count(bodyString, "\n")
 }
 
+func (sw *scrapeWork) initSeriesLimiter() {
+	if sw.Config.SeriesLimit > 0 {
+		sw.seriesLimiter = bloomfilter.NewLimiter(sw.Config.SeriesLimit, 24*time.Hour)
+	}
+}
+
+func (sw *scrapeWork) getSeriesLimiter() *bloomfilter.Limiter {
+	sw.seriesLimiterOnce.Do(sw.initSeriesLimiter)
+	return sw.seriesLimiter
+}
+
 // applySeriesLimit enforces the series limit on incoming time series data.
 //
 // It filters the time series in the writeRequestCtx (`wc`) based on a bloom filter-based
@@ -737,14 +748,10 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 //
 // Returns the number of dropped time series due to the limit.
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
-	if sw.Config.SeriesLimit <= 0 {
+	sl := sw.getSeriesLimiter()
+	if sl == nil {
 		return 0
 	}
-	sw.initSeriesLimiter.Do(func() {
-		sw.seriesLimiter = bloomfilter.NewLimiter(sw.Config.SeriesLimit, 24*time.Hour)
-	})
-
-	sl := sw.seriesLimiter
 	dstSeries := wc.writeRequest.Timeseries[:0]
 	samplesDropped := 0
 	for _, ts := range wc.writeRequest.Timeseries {
@@ -906,7 +913,7 @@ func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, times
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
-	if sl := sw.seriesLimiter; sl != nil {
+	if sl := sw.getSeriesLimiter(); sl != nil {
 		sw.addAutoTimeseries(wc, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
 		sw.addAutoTimeseries(wc, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
 		sw.addAutoTimeseries(wc, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
