@@ -214,14 +214,6 @@ labels:
 
 rules:
   [ - <rule> ... ]
-
-# Whether to print debug information into logs.
-# Applies to all rules in the group.
-# Information includes alerts state changes and requests sent to the datasource.
-# Please note, that if rule's query params contain sensitive
-# information - it will be printed to logs.
-# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
-[ debug: <bool> | default = false ]
 ```
 
 ### Rules
