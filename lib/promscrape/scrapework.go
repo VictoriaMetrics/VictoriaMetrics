@@ -27,6 +27,7 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
@@ -197,8 +198,6 @@ type scrapeWork struct {
 	// ScrapeGroup is name of ScrapeGroup that
 	// scrapeWork belongs to
 	ScrapeGroup string
-
-	tmpRow parser.Row
 
 	// This flag is set to true if series_limit is exceeded.
 	seriesLimitExceeded atomic.Bool
@@ -481,9 +480,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	srcRows := wc.rows.Rows
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
-	for i := range srcRows {
-		sw.addRowToTimeseries(wc, &srcRows[i], scrapeTimestamp, true)
-	}
+	wc.addRows(cfg, srcRows, scrapeTimestamp, true)
 	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
 	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
 		wc.resetNoRows()
@@ -516,7 +513,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		seriesAdded:               seriesAdded,
 		seriesLimitSamplesDropped: samplesDropped,
 	}
-	sw.addAutoMetrics(am, wc, scrapeTimestamp)
+	wc.addAutoMetrics(sw, am, scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = cap(wc.labels)
 	sw.prevBodyLen = responseSize
@@ -554,9 +551,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		defer writeRequestCtxPool.Put(wc)
 
 		samplesScraped.Add(int64(len(rows)))
-		for i := range rows {
-			sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
-		}
+		wc.addRows(cfg, rows, scrapeTimestamp, true)
 		newSamplesPostRelabeling := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
 		if cfg.SampleLimit > 0 && int(newSamplesPostRelabeling) > cfg.SampleLimit {
 			wc.resetNoRows()
@@ -611,7 +606,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		seriesLimitSamplesDropped: int(samplesDroppedTotal.Load()),
 	}
 	wc := writeRequestCtxPool.Get(1024)
-	sw.addAutoMetrics(am, wc, scrapeTimestamp)
+	wc.addAutoMetrics(sw, am, scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
@@ -799,9 +794,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
-			for i := range rows {
-				sw.addRowToTimeseries(wc, &rows[i], timestamp, true)
-			}
+			wc.addRows(sw.Config, rows, timestamp, true)
 
 			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
@@ -824,7 +817,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		wc := writeRequestCtxPool.Get(1024)
 		defer writeRequestCtxPool.Put(wc)
 		am := &autoMetrics{}
-		sw.addAutoMetrics(am, wc, timestamp)
+		wc.addAutoMetrics(sw, am, timestamp)
 		setStaleMarkersForRows(wc.writeRequest.Timeseries)
 		sw.pushData(&wc.writeRequest)
 	}
@@ -897,42 +890,88 @@ func isAutoMetric(s string) bool {
 	}
 }
 
-func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, timestamp int64) {
-	sw.addAutoTimeseries(wc, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
-	sw.addAutoTimeseries(wc, "scrape_response_size_bytes", float64(am.scrapeResponseSize), timestamp)
+// addAutoMetrics adds am to wc.
+//
+// See https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics
+//
+// sw is used as read-only config source.
+func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, timestamp int64) {
+	rows := getAutoRows()
+	dst := slicesutil.SetLength(rows.Rows, 11)[:0]
+
+	dst = appendRow(dst, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
+	dst = appendRow(dst, "scrape_response_size_bytes", float64(am.scrapeResponseSize), timestamp)
+
 	if sampleLimit := sw.Config.SampleLimit; sampleLimit > 0 {
 		// Expose scrape_samples_limit metric if sample_limit config is set for the target.
 		// See https://github.com/VictoriaMetrics/operator/issues/497
-		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sampleLimit), timestamp)
+		dst = appendRow(dst, "scrape_samples_limit", float64(sampleLimit), timestamp)
 	}
-	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
+	dst = appendRow(dst, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
+	dst = appendRow(dst, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
+	dst = appendRow(dst, "scrape_series_added", float64(am.seriesAdded), timestamp)
 	if sl := sw.getSeriesLimiter(); sl != nil {
-		sw.addAutoTimeseries(wc, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
-		sw.addAutoTimeseries(wc, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
-		sw.addAutoTimeseries(wc, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
+		dst = appendRow(dst, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
+		dst = appendRow(dst, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
+		dst = appendRow(dst, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
 	}
-	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
-	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
+	dst = appendRow(dst, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
+	dst = appendRow(dst, "up", float64(am.up), timestamp)
+
+	wc.addRows(sw.Config, dst, timestamp, false)
+
+	rows.Rows = dst
+	putAutoRows(rows)
 }
 
-// addAutoTimeseries adds automatically generated time series with the given name, value and timestamp.
-//
-// See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
-func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value float64, timestamp int64) {
-	sw.tmpRow.Metric = name
-	sw.tmpRow.Tags = nil
-	sw.tmpRow.Value = value
-	sw.tmpRow.Timestamp = timestamp
-	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, false)
+func getAutoRows() *parser.Rows {
+	v := autoRowsPool.Get()
+	if v == nil {
+		return &parser.Rows{}
+	}
+	return v.(*parser.Rows)
 }
 
-// addRowToTimeseries adds a parser.Row to the writeRequestCtx time series.
+func putAutoRows(rows *parser.Rows) {
+	rows.Reset()
+	autoRowsPool.Put(rows)
+}
+
+var autoRowsPool sync.Pool
+
+func appendRow(dst []parser.Row, metric string, value float64, timestamp int64) []parser.Row {
+	return append(dst, parser.Row{
+		Metric:    metric,
+		Value:     value,
+		Timestamp: timestamp,
+	})
+}
+
+func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) {
+	// pre-allocate buffers
+	labelsLen := 0
+	for i := range rows {
+		labelsLen += len(rows[i].Tags) + 1
+	}
+	labelsLenPrev := len(wc.labels)
+	wc.labels = slicesutil.SetLength(wc.labels, labelsLenPrev+labelsLen)[:labelsLenPrev]
+
+	samplesLenPrev := len(wc.samples)
+	wc.samples = slicesutil.SetLength(wc.samples, samplesLenPrev+len(rows))[:samplesLenPrev]
+
+	timeseriesLenPrev := len(wc.writeRequest.Timeseries)
+	wc.writeRequest.Timeseries = slicesutil.SetLength(wc.writeRequest.Timeseries, timeseriesLenPrev+len(rows))[:timeseriesLenPrev]
+
+	// add rows
+	for i := range rows {
+		wc.addRow(cfg, &rows[i], timestamp, needRelabel)
+	}
+}
+
+// addRow adds r with the given timestamp to wc.
 //
-// This function is called concurrently in processDataInStreamMode and sendStaleSeries. Since there is no mutex
-// protecting scrapeWork, modifications must be done with care to avoid race conditions.
-func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, timestamp int64, needRelabel bool) {
+// The cfg is used as a read-only configuration source.
+func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel bool) {
 	metric := r.Metric
 
 	// Add `exported_` prefix to metrics, which clash with the automatically generated
@@ -946,7 +985,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	//
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3557
 	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
-	if needRelabel && !sw.Config.HonorLabels && len(r.Tags) == 0 && isAutoMetric(metric) {
+	if needRelabel && !cfg.HonorLabels && len(r.Tags) == 0 && isAutoMetric(metric) {
 		bb := bbPool.Get()
 		bb.B = append(bb.B, "exported_"...)
 		bb.B = append(bb.B, metric...)
@@ -954,10 +993,10 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		bbPool.Put(bb)
 	}
 	labelsLen := len(wc.labels)
-	targetLabels := sw.Config.Labels.GetLabels()
-	wc.labels = appendLabels(wc.labels, metric, r.Tags, targetLabels, sw.Config.HonorLabels)
+	targetLabels := cfg.Labels.GetLabels()
+	wc.labels = appendLabels(wc.labels, metric, r.Tags, targetLabels, cfg.HonorLabels)
 	if needRelabel {
-		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen)
+		wc.labels = cfg.MetricRelabelConfigs.Apply(wc.labels, labelsLen)
 	}
 	wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
 	if len(wc.labels) == labelsLen {
@@ -966,10 +1005,10 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	}
 	// Add labels from `global->external_labels` section after the relabeling like Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3137
-	externalLabels := sw.Config.ExternalLabels.GetLabels()
-	wc.labels = appendExtraLabels(wc.labels, externalLabels, labelsLen, sw.Config.HonorLabels)
+	externalLabels := cfg.ExternalLabels.GetLabels()
+	wc.labels = appendExtraLabels(wc.labels, externalLabels, labelsLen, cfg.HonorLabels)
 	sampleTimestamp := r.Timestamp
-	if !sw.Config.HonorTimestamps || sampleTimestamp == 0 {
+	if !cfg.HonorTimestamps || sampleTimestamp == 0 {
 		sampleTimestamp = timestamp
 	}
 	wc.samples = append(wc.samples, prompbmarshal.Sample{
