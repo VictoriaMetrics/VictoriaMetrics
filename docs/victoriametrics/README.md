@@ -2852,7 +2852,7 @@ To update the documentation follow the steps below:
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
-  with proposed changes and wait for it to be merged. See [contributing](https://docs.victoriametrics.com/contributing/).
+  with proposed changes and wait for it to be merged. See [pull request checklist](https://docs.victoriametrics.com/contributing/#pull-request-checklist).
 
 Requirements for changes to docs:
 
