@@ -23,14 +23,10 @@ type Rows struct {
 func (rs *Rows) Reset() {
 	// Reset items, so they can be GC'ed
 
-	for i := range rs.Rows {
-		rs.Rows[i].reset()
-	}
+	clear(rs.Rows)
 	rs.Rows = rs.Rows[:0]
 
-	for i := range rs.tagsPool {
-		rs.tagsPool[i].reset()
-	}
+	clear(rs.tagsPool)
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
@@ -66,10 +62,7 @@ type Row struct {
 }
 
 func (r *Row) reset() {
-	r.Metric = ""
-	r.Tags = nil
-	r.Value = 0
-	r.Timestamp = 0
+	*r = Row{}
 }
 
 func skipTrailingComment(s string) string {
@@ -301,11 +294,6 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 type Tag struct {
 	Key   string
 	Value string
-}
-
-func (t *Tag) reset() {
-	t.Key = ""
-	t.Value = ""
 }
 
 func findClosingQuote(s string) int {
