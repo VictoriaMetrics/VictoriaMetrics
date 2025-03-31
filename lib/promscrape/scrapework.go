@@ -468,7 +468,8 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body)
-	areIdenticalSeries := sw.areIdenticalSeries(lastScrape, bodyString)
+	cfg := sw.Config
+	areIdenticalSeries := cfg.areIdenticalSeries(lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -482,12 +483,12 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		sw.addRowToTimeseries(wc, &srcRows[i], scrapeTimestamp, true)
 	}
 	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
-	if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
+	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
 		wc.resetNoRows()
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
 		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
-			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
+			"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
 	}
 	if up == 0 {
 		bodyString = ""
@@ -514,7 +515,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+	sw.pushData(cfg.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = cap(wc.labels)
 	sw.prevBodyLen = responseSize
 	wc.reset()
@@ -539,7 +540,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	wcMaxLabelsLen.Store(int64(sw.prevLabelsLen))
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
-	areIdenticalSeries := sw.areIdenticalSeries(lastScrape, bodyString)
+	cfg := sw.Config
+	areIdenticalSeries := cfg.areIdenticalSeries(lastScrape, bodyString)
 
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
@@ -557,11 +559,11 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 			sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
 		}
 		newSamplesPostRelabeling := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
-		if sw.Config.SampleLimit > 0 && int(newSamplesPostRelabeling) > sw.Config.SampleLimit {
+		if cfg.SampleLimit > 0 && int(newSamplesPostRelabeling) > cfg.SampleLimit {
 			wc.resetNoRows()
 			scrapesSkippedBySampleLimit.Inc()
 			err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
-				"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
+				"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
 		}
 
 		if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
@@ -573,7 +575,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// Push the collected rows to sw before returning from the callback, since they cannot be held
 		// after returning from the callback - this will result in data race.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
-		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+		sw.pushData(cfg.AuthToken, &wc.writeRequest)
 
 		if int64(cap(wc.labels)) > labelsLen {
 			wcMaxLabelsLen.Store(int64(cap(wc.labels)))
@@ -611,7 +613,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	}
 	wc := writeRequestCtxPool.Get(1024)
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+	sw.pushData(cfg.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
 	wc.reset()
@@ -640,8 +642,8 @@ func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	pushDataDuration.UpdateDuration(startTime)
 }
 
-func (sw *scrapeWork) areIdenticalSeries(prevData, currData string) bool {
-	if sw.Config.NoStaleMarkers && sw.Config.SeriesLimit <= 0 {
+func (cfg *ScrapeWork) areIdenticalSeries(prevData, currData string) bool {
+	if cfg.NoStaleMarkers && cfg.SeriesLimit <= 0 {
 		// Do not spend CPU time on tracking the changes in series if stale markers are disabled.
 		// The check for series_limit is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
 		return true
