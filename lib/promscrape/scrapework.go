@@ -623,11 +623,9 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	return err
 }
 
-// pushData sends timeseries collected in WriteRequest to a remote write server.
+// pushData sends wr to the remote storage.
 //
-// This function is called concurrently in processDataInStreamMode and sendStaleSeries.
-// Since there is no mutex protecting `scrapeWork`, modifications must be done with care
-// to avoid race conditions.
+// sw is used as a read-only configuration source.
 func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
 	startTime := time.Now()
 	sw.PushData(sw.Config.AuthToken, wr)
