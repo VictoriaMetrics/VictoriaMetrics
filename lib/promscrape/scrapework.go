@@ -517,7 +517,6 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = cap(wc.labels)
 	sw.prevBodyLen = responseSize
-	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
@@ -610,7 +609,6 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
-	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
