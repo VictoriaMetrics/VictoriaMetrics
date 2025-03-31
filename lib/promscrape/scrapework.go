@@ -551,10 +551,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 		labelsLen := wcMaxLabelsLen.Load()
 		wc := writeRequestCtxPool.Get(int(labelsLen))
-		defer func() {
-			wc.resetNoRows()
-			writeRequestCtxPool.Put(wc)
-		}()
+		defer writeRequestCtxPool.Put(wc)
 
 		samplesScraped.Add(int64(len(rows)))
 		for i := range rows {
@@ -800,10 +797,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		br := bytes.NewBufferString(bodyString)
 		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row) error {
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-			defer func() {
-				wc.resetNoRows()
-				writeRequestCtxPool.Put(wc)
-			}()
+			defer writeRequestCtxPool.Put(wc)
 
 			for i := range rows {
 				sw.addRowToTimeseries(wc, &rows[i], timestamp, true)
@@ -828,10 +822,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	if addAutoSeries {
 		wc := writeRequestCtxPool.Get(1024)
-		defer func() {
-			wc.resetNoRows()
-			writeRequestCtxPool.Put(wc)
-		}()
+		defer writeRequestCtxPool.Put(wc)
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
 		setStaleMarkersForRows(wc.writeRequest.Timeseries)
