@@ -1690,7 +1690,9 @@
   ],
   "refresh": "1m",
   "schemaVersion": 39,
-  "tags": [],
+  "tags": [
+    "victoriametrics"
+  ],
   "templating": {
     "list": [
       {

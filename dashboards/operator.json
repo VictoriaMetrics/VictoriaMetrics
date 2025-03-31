@@ -2052,8 +2052,7 @@
   "refresh": "",
   "schemaVersion": 39,
   "tags": [
-    "operator",
-    "VictoriaMetrics"
+    "victoriametrics"
   ],
   "templating": {
     "list": [

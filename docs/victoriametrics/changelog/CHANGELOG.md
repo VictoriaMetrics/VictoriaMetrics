@@ -19,6 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): remove panel `Storage full ETA` as it could have showing incorrect predictions and result in user's confusion. See more details in [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
+* FEATURE: [dashboards/all](https://grafana.com/orgs/victoriametrics/dashboards): drop all dashboards tags except `victoriametrics` or `victorialogs` tags for consistency. Having `victoriametrics` or `victorialogs` tags should be enough for filtering dashboards related to VictoriaMetrics components.
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly set the `Host` header when routing requests to `-write.url` and `-read.url`, which is needed for reverse proxies like Traefik.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/) for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html): properly attach tenant labels `vm_account_id` and `vm_project_id` to alerting rules when enabling `-clusterMode`. Previously, these labels were lost in alert messages to Alertmanager. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0).
