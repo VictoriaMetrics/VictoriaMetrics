@@ -190,6 +190,8 @@ type scrapeWork struct {
 	ReadData func(dst *bytesutil.ByteBuffer) error
 
 	// PushData is called for pushing collected data.
+	//
+	// The PushData must be safe for calling from multiple concurrent goroutines.
 	PushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
 
 	// ScrapeGroup is name of ScrapeGroup that
@@ -515,7 +517,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(cfg.AuthToken, &wc.writeRequest)
+	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = cap(wc.labels)
 	sw.prevBodyLen = responseSize
 	wc.reset()
@@ -575,7 +577,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// Push the collected rows to sw before returning from the callback, since they cannot be held
 		// after returning from the callback - this will result in data race.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
-		sw.pushData(cfg.AuthToken, &wc.writeRequest)
+		sw.pushData(&wc.writeRequest)
 
 		if int64(cap(wc.labels)) > labelsLen {
 			wcMaxLabelsLen.Store(int64(cap(wc.labels)))
@@ -613,7 +615,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	}
 	wc := writeRequestCtxPool.Get(1024)
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(cfg.AuthToken, &wc.writeRequest)
+	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
 	wc.reset()
@@ -636,9 +638,9 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 // This function is called concurrently in processDataInStreamMode and sendStaleSeries.
 // Since there is no mutex protecting `scrapeWork`, modifications must be done with care
 // to avoid race conditions.
-func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
 	startTime := time.Now()
-	sw.PushData(at, wr)
+	sw.PushData(sw.Config.AuthToken, wr)
 	pushDataDuration.UpdateDuration(startTime)
 }
 
@@ -817,7 +819,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			// after returning from the callback - this will result in data race.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 			setStaleMarkersForRows(wc.writeRequest.Timeseries)
-			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+			sw.pushData(&wc.writeRequest)
 			return nil
 		}, sw.logError)
 		if err != nil {
@@ -833,7 +835,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
 		setStaleMarkersForRows(wc.writeRequest.Timeseries)
-		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+		sw.pushData(&wc.writeRequest)
 	}
 }
 
