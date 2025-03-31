@@ -483,7 +483,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	wc.addRows(cfg, srcRows, scrapeTimestamp, true)
 	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
 	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
-		wc.resetNoRows()
+		wc.reset()
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
 		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
@@ -553,7 +553,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		wc.addRows(cfg, rows, scrapeTimestamp, true)
 		newSamplesPostRelabeling := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
 		if cfg.SampleLimit > 0 && int(newSamplesPostRelabeling) > cfg.SampleLimit {
-			wc.resetNoRows()
+			wc.reset()
 			scrapesSkippedBySampleLimit.Inc()
 			err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 				"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
@@ -689,6 +689,7 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 
 type writeRequestCtx struct {
 	rows         parser.Rows
+
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
 	samples      []prompbmarshal.Sample
@@ -696,10 +697,7 @@ type writeRequestCtx struct {
 
 func (wc *writeRequestCtx) reset() {
 	wc.rows.Reset()
-	wc.resetNoRows()
-}
 
-func (wc *writeRequestCtx) resetNoRows() {
 	wc.writeRequest.Reset()
 
 	clear(wc.labels)
