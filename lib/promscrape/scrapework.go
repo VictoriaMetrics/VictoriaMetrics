@@ -497,7 +497,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
+		seriesAdded = getSeriesAdded(lastScrape, bodyString)
 	}
 	samplesDropped := 0
 	if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
@@ -596,7 +596,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
+		seriesAdded = getSeriesAdded(lastScrape, bodyString)
 	}
 	responseSize := len(bodyString)
 
@@ -718,7 +718,7 @@ func (wc *writeRequestCtx) resetNoRows() {
 
 var writeRequestCtxPool leveledWriteRequestCtxPool
 
-func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
+func getSeriesAdded(lastScrape, currScrape string) int {
 	if currScrape == "" {
 		return 0
 	}
