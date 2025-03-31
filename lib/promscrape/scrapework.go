@@ -210,6 +210,10 @@ type scrapeWork struct {
 	// It is used as a hint in order to reduce memory usage for body buffers.
 	prevBodyLen int
 
+	// autoMetricsLabelsLen contains the number of automatically generated labels during the previous stream parsing scrape.
+	// It is used as a hint in order to reduce memory usage when generating auto metrics in stream parsing mode.
+	autoMetricsLabelsLen int
+
 	// prevLabelsLen contains the number labels scraped during the previous scrape.
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
 	prevLabelsLen int
@@ -515,7 +519,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	}
 	wc.addAutoMetrics(sw, am, scrapeTimestamp)
 	sw.pushData(&wc.writeRequest)
-	sw.prevLabelsLen = cap(wc.labels)
+	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = responseSize
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
@@ -569,8 +573,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 		sw.pushData(&wc.writeRequest)
 
-		if int64(cap(wc.labels)) > labelsLen {
-			wcMaxLabelsLen.Store(int64(cap(wc.labels)))
+		if int64(len(wc.labels)) > labelsLen {
+			wcMaxLabelsLen.Store(int64(len(wc.labels)))
 		}
 
 		return err
@@ -603,12 +607,10 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		seriesAdded:               seriesAdded,
 		seriesLimitSamplesDropped: int(samplesDroppedTotal.Load()),
 	}
-	wc := writeRequestCtxPool.Get(1024)
-	wc.addAutoMetrics(sw, am, scrapeTimestamp)
-	sw.pushData(&wc.writeRequest)
+	sw.pushAutoMetrics(am, scrapeTimestamp)
+
 	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
-	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
@@ -620,6 +622,15 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err
+}
+
+// pushAutoMetrics pushes am with the given timestamp to sw.
+func (sw *scrapeWork) pushAutoMetrics(am *autoMetrics, timestamp int64) {
+	wc := writeRequestCtxPool.Get(sw.autoMetricsLabelsLen)
+	wc.addAutoMetrics(sw, am, timestamp)
+	sw.pushData(&wc.writeRequest)
+	sw.autoMetricsLabelsLen = len(wc.labels)
+	writeRequestCtxPool.Put(wc)
 }
 
 // pushData sends wr to the remote storage.
@@ -802,10 +813,9 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		}
 	}
 	if addAutoSeries {
-		wc := writeRequestCtxPool.Get(1024)
-		defer writeRequestCtxPool.Put(wc)
-		am := &autoMetrics{}
-		wc.addAutoMetrics(sw, am, timestamp)
+		var wc writeRequestCtx
+		var am autoMetrics
+		wc.addAutoMetrics(sw, &am, timestamp)
 		setStaleMarkersForRows(wc.writeRequest.Timeseries)
 		sw.pushData(&wc.writeRequest)
 	}
