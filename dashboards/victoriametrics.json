@@ -6193,8 +6193,7 @@
   "refresh": "",
   "schemaVersion": 40,
   "tags": [
-    "victoriametrics",
-    "vmsingle"
+    "victoriametrics"
   ],
   "templating": {
     "list": [
