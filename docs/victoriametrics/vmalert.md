@@ -949,7 +949,7 @@ for more details.
 
 ### Debug mode
 
-vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/changelog/#v1820).
+vmalert allows configuring more detailed logging for specific alerting or recording rule starting from {{% available_from "#" %}}.
 Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
 ```shell-session
 2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms, isPartial: false)
