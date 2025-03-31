@@ -501,7 +501,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	}
 	samplesDropped := 0
 	if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
-		samplesDropped = sw.applySeriesLimit(wc)
+		samplesDropped = wc.applySeriesLimit(sw)
 	}
 	responseSize := len(bodyString)
 	am := &autoMetrics{
@@ -560,9 +560,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		}
 
 		if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
-			if samplesDropped := sw.applySeriesLimit(wc); samplesDropped > 0 {
-				samplesDroppedTotal.Add(int64(samplesDropped))
-			}
+			samplesDropped := wc.applySeriesLimit(sw)
+			samplesDroppedTotal.Add(int64(samplesDropped))
 		}
 
 		// Push the collected rows to sw before returning from the callback, since they cannot be held
@@ -688,7 +687,7 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 }
 
 type writeRequestCtx struct {
-	rows         parser.Rows
+	rows parser.Rows
 
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
@@ -727,17 +726,12 @@ func (sw *scrapeWork) getSeriesLimiter() *bloomfilter.Limiter {
 	return sw.seriesLimiter
 }
 
-// applySeriesLimit enforces the series limit on incoming time series data.
+// applySeriesLimit enforces the series limit on wc according to sw.Config.SeriesLimit
 //
-// It filters the time series in the writeRequestCtx (`wc`) based on a bloom filter-based
-// limiter to prevent exceeding `sw.Config.SeriesLimit`. The function initializes the limiter
-// once using a `sync.Once` construct and then checks each series against it.
-//
-// This function is called concurrently in processDataInStreamMode and sendStaleSeries. Since there is no mutex
-// protecting scrapeWork, modifications must be done with care to avoid race conditions.
+// If the series limit is exceeded, then sw.seriesLimitExceeded is set to true.
 //
 // Returns the number of dropped time series due to the limit.
-func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
+func (wc *writeRequestCtx) applySeriesLimit(sw *scrapeWork) int {
 	sl := sw.getSeriesLimiter()
 	if sl == nil {
 		return 0
@@ -793,7 +787,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
 			if sw.seriesLimitExceeded.Load() {
-				sw.applySeriesLimit(wc)
+				wc.applySeriesLimit(sw)
 			}
 
 			// Push the collected rows to sw before returning from the callback, since they cannot be held
