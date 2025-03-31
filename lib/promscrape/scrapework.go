@@ -470,7 +470,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body)
 	cfg := sw.Config
-	areIdenticalSeries := cfg.areIdenticalSeries(lastScrape, bodyString)
+	areIdenticalSeries := areIdenticalSeries(cfg, lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -540,7 +540,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
 	cfg := sw.Config
-	areIdenticalSeries := cfg.areIdenticalSeries(lastScrape, bodyString)
+	areIdenticalSeries := areIdenticalSeries(cfg, lastScrape, bodyString)
 
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
@@ -636,7 +636,7 @@ func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
 	pushDataDuration.UpdateDuration(startTime)
 }
 
-func (cfg *ScrapeWork) areIdenticalSeries(prevData, currData string) bool {
+func areIdenticalSeries(cfg *ScrapeWork, prevData, currData string) bool {
 	if cfg.NoStaleMarkers && cfg.SeriesLimit <= 0 {
 		// Do not spend CPU time on tracking the changes in series if stale markers are disabled.
 		// The check for series_limit is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
