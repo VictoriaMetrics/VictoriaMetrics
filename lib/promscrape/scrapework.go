@@ -656,11 +656,11 @@ func areIdenticalSeries(cfg *ScrapeWork, prevData, currData string) bool {
 //
 // Its logic has been copied from leveledbytebufferpool.
 type leveledWriteRequestCtxPool struct {
-	pools [13]sync.Pool
+	pools [8]sync.Pool
 }
 
-func (lwp *leveledWriteRequestCtxPool) Get(labelsCapacity int) *writeRequestCtx {
-	id, capacityNeeded := lwp.getPoolIDAndCapacity(labelsCapacity)
+func (lwp *leveledWriteRequestCtxPool) Get(labelsLen int) *writeRequestCtx {
+	id, _ := lwp.getPoolIDAndCapacity(labelsLen)
 	for i := 0; i < 2; i++ {
 		if id < 0 || id >= len(lwp.pools) {
 			break
@@ -670,9 +670,8 @@ func (lwp *leveledWriteRequestCtxPool) Get(labelsCapacity int) *writeRequestCtx 
 		}
 		id++
 	}
-	return &writeRequestCtx{
-		labels: make([]prompbmarshal.Label, 0, capacityNeeded),
-	}
+
+	return &writeRequestCtx{}
 }
 
 func (lwp *leveledWriteRequestCtxPool) Put(wc *writeRequestCtx) {
@@ -689,12 +688,12 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 	if size < 0 {
 		size = 0
 	}
-	size >>= 3
+	size >>= 8
 	id := bits.Len(uint(size))
 	if id >= len(lwp.pools) {
 		id = len(lwp.pools) - 1
 	}
-	return id, (1 << (id + 3))
+	return id, (1 << (id + 8))
 }
 
 type writeRequestCtx struct {
