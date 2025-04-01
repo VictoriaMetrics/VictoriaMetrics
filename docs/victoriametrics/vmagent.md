@@ -1666,7 +1666,7 @@ The following options may help improving `vmagent` performance and reducing its'
 Example command, which runs `vmagent` in an optimized mode:
 
 ```
-GOGC=50 GOMAXPROCS=2 ./vmagent -promscrape.disableCompression -promscrape.dropOriginalLabels -promscrape.noStaleMarkers -memory.allowedBytes=1GiB ...
+GOGC=100 GOMAXPROCS=2 ./vmagent -promscrape.disableCompression -promscrape.dropOriginalLabels -promscrape.noStaleMarkers -memory.allowedBytes=1GiB ...
 ```
 
 ## How to build from sources
