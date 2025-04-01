@@ -510,7 +510,59 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]string,
 		tenants := pt.idb.searchTenants()
 		tenantIDs[workerID] = append(tenantIDs[workerID], tenants...)
 	}
-	s.searchPartitions(workersCount, stopCh, processPartitions, start, end)
+
+	// Spin up workers
+	var wgWorkers sync.WaitGroup
+	workCh := make(chan *partition, workersCount)
+	wgWorkers.Add(workersCount)
+	for i := 0; i < workersCount; i++ {
+		go func(workerID uint) {
+			for pt := range workCh {
+				if needStop(stopCh) {
+					// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
+					continue
+				}
+				processPartitions(pt, workerID)
+			}
+			wgWorkers.Done()
+		}(uint(i))
+	}
+
+	// Select partitions according to the selected time range
+	s.partitionsLock.Lock()
+	ptws := s.partitions
+	minDay := start / nsecsPerDay
+	n := sort.Search(len(ptws), func(i int) bool {
+		return ptws[i].day >= minDay
+	})
+	ptws = ptws[n:]
+	maxDay := end / nsecsPerDay
+	n = sort.Search(len(ptws), func(i int) bool {
+		return ptws[i].day > maxDay
+	})
+	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
+	for _, ptw := range ptws {
+		ptw.incRef()
+	}
+	s.partitionsLock.Unlock()
+
+	// Schedule concurrent search across matching partitions.
+	for _, ptw := range ptws {
+		workCh <- ptw.pt
+	}
+
+	// Wait until workers finish their work
+	close(workCh)
+	wgWorkers.Wait()
+
+	// Decrement references to partitions
+	for _, ptw := range ptws {
+		ptw.decRef()
+	}
 
 	m := make(map[string]struct{})
 	for _, tids := range tenantIDs {
@@ -967,69 +1019,6 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	for _, psf := range psfs {
 		psf()
 	}
-
-	// Decrement references to partitions
-	for _, ptw := range ptws {
-		ptw.decRef()
-	}
-}
-
-func (s *Storage) searchPartitions(workersCount int, stopCh <-chan struct{}, process func(*partition, uint), start, end int64) {
-	// Spin up workers
-	var wgWorkers sync.WaitGroup
-	workCh := make(chan *partition, workersCount)
-	wgWorkers.Add(workersCount)
-	for i := 0; i < workersCount; i++ {
-		go func(workerID uint) {
-			for pt := range workCh {
-				if needStop(stopCh) {
-					// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
-					continue
-				}
-				process(pt, workerID)
-			}
-			wgWorkers.Done()
-		}(uint(i))
-	}
-
-	// Select partitions according to the selected time range
-	s.partitionsLock.Lock()
-	ptws := s.partitions
-	minDay := start / nsecsPerDay
-	n := sort.Search(len(ptws), func(i int) bool {
-		return ptws[i].day >= minDay
-	})
-	ptws = ptws[n:]
-	maxDay := end / nsecsPerDay
-	n = sort.Search(len(ptws), func(i int) bool {
-		return ptws[i].day > maxDay
-	})
-	ptws = ptws[:n]
-
-	// Copy the selected partitions, so they don't interfere with s.partitions.
-	ptws = append([]*partitionWrapper{}, ptws...)
-
-	for _, ptw := range ptws {
-		ptw.incRef()
-	}
-	s.partitionsLock.Unlock()
-
-	// Schedule concurrent search across matching partitions.
-	var wgSearchers sync.WaitGroup
-	for _, ptw := range ptws {
-		partitionSearchConcurrencyLimitCh <- struct{}{}
-		wgSearchers.Add(1)
-		go func(pt *partition) {
-			workCh <- pt
-			wgSearchers.Done()
-			<-partitionSearchConcurrencyLimitCh
-		}(ptw.pt)
-	}
-	wgSearchers.Wait()
-
-	// Wait until workers finish their work
-	close(workCh)
-	wgWorkers.Wait()
 
 	// Decrement references to partitions
 	for _, ptw := range ptws {
