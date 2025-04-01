@@ -218,15 +218,14 @@ type scrapeWork struct {
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
 	prevLabelsLen int
 
-	// lastScrape holds the last response from scrape target.
+	// lastScrapeCompressed holds the last response from scrape target in the compressed form.
 	// It is used for staleness tracking and for populating scrape_series_added metric.
-	// The lastScrape isn't populated if -promscrape.noStaleMarkers is set. This reduces memory usage.
-	lastScrape []byte
-
-	// lastScrapeCompressed is used for storing the compressed lastScrape between scrapes
-	// in stream parsing mode in order to reduce memory usage when the lastScrape size
-	// equals to or exceeds -promscrape.minResponseSizeForStreamParse
+	// The lastScrapeCompressed isn't populated if -promscrape.noStaleMarkers is set. This reduces memory usage.
 	lastScrapeCompressed []byte
+
+	// lastScrapeLen contains the length of the last response from scrape target.
+	// It is used as a hint in order to reduce memory usage when working with the last scraped response.
+	lastScrapeLen int
 
 	// nextErrorLogTime is the timestamp in millisecond when the next scrape error should be logged.
 	nextErrorLogTime int64
@@ -238,43 +237,25 @@ type scrapeWork struct {
 	successRequestsCount int
 }
 
-func (sw *scrapeWork) loadLastScrape() string {
-	if len(sw.lastScrapeCompressed) > 0 {
-		b, err := encoding.DecompressZSTD(sw.lastScrape[:0], sw.lastScrapeCompressed)
-		if err != nil {
-			logger.Panicf("BUG: cannot unpack compressed previous response: %s", err)
-		}
-		sw.lastScrape = b
+// loadLastScrape appends last scrape response to dst and returns the result.
+func (sw *scrapeWork) loadLastScrape(dst []byte) []byte {
+	if len(sw.lastScrapeCompressed) == 0 {
+		// Nothing to decompress.
+		return dst
 	}
-	return bytesutil.ToUnsafeString(sw.lastScrape)
+	b, err := encoding.DecompressZSTD(dst, sw.lastScrapeCompressed)
+	if err != nil {
+		logger.Panicf("BUG: cannot unpack compressed previous response: %s", err)
+	}
+	return b
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrapeStr string) {
 	if lastScrapeStr == "" {
-		sw.lastScrape = nil
-		sw.lastScrapeCompressed = nil
-		return
-	}
-	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrapeStr) >= minResponseSizeForStreamParse.IntN()
-	if mustCompress {
+		sw.lastScrapeCompressed = sw.lastScrapeCompressed[:0]
+	} else {
 		lastScrape := bytesutil.ToUnsafeBytes(lastScrapeStr)
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
-		sw.lastScrape = nil
-	} else {
-		sw.lastScrape = append(sw.lastScrape[:0], lastScrapeStr...)
-		sw.lastScrapeCompressed = nil
-	}
-}
-
-func (sw *scrapeWork) finalizeLastScrape() {
-	if len(sw.lastScrapeCompressed) > 0 {
-		// The compressed lastScrape is available in sw.lastScrapeCompressed.
-		// Release the memory occupied by sw.lastScrape, so it won't be occupied between scrapes.
-		sw.lastScrape = nil
-	}
-	if len(sw.lastScrape) > 0 {
-		// Release the memory occupied by sw.lastScrapeCompressed, so it won't be occupied between scrapes.
-		sw.lastScrapeCompressed = nil
 	}
 }
 
@@ -337,7 +318,6 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		select {
 		case <-stopCh:
 			t := time.Now().UnixMilli()
-			lastScrape := sw.loadLastScrape()
 			select {
 			case <-globalStopCh:
 				// Do not send staleness markers on graceful shutdown as Prometheus does.
@@ -347,7 +327,11 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				// when the given target disappears as Prometheus does.
 				// Use the current real timestamp for staleness markers, so queries
 				// stop returning data just after the time the target disappears.
-				sw.sendStaleSeries(lastScrape, "", t, true)
+				bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
+				bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
+				lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+				sw.sendStaleSeries(lastScrapeStr, "", t, true)
+				leveledbytebufferpool.Put(bbLastScrape)
 			}
 			if sl := sw.getSeriesLimiter(); sl != nil {
 				sl.MustStop()
@@ -470,11 +454,16 @@ var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableC
 
 func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, body []byte, scrapeDurationSeconds float64, err error) error {
 	up := 1
-	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-	lastScrape := sw.loadLastScrape()
+
+	bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
+	bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
+	lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+
 	bodyString := bytesutil.ToUnsafeString(body)
 	cfg := sw.Config
-	areIdenticalSeries := areIdenticalSeries(cfg, lastScrape, bodyString)
+	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
+
+	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -501,7 +490,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = getSeriesAdded(lastScrape, bodyString)
+		seriesAdded = getSeriesAdded(lastScrapeStr, bodyString)
 	}
 	samplesDropped := 0
 	if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
@@ -526,10 +515,12 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
 		sw.storeLastScrape(bodyString)
+		sw.lastScrapeLen = len(bodyString)
 	}
-	sw.finalizeLastScrape()
+	leveledbytebufferpool.Put(bbLastScrape)
+
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, samplesScraped, err)
 	return err
 }
@@ -541,10 +532,14 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	var maxLabelsLen atomic.Int64
 
 	maxLabelsLen.Store(int64(sw.prevLabelsLen))
-	lastScrape := sw.loadLastScrape()
+
+	bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
+	bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
+	lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+
 	bodyString := bytesutil.ToUnsafeString(body.B)
 	cfg := sw.Config
-	areIdenticalSeries := areIdenticalSeries(cfg, lastScrape, bodyString)
+	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
@@ -598,7 +593,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = getSeriesAdded(lastScrape, bodyString)
+		seriesAdded = getSeriesAdded(lastScrapeStr, bodyString)
 	}
 	responseSize := len(bodyString)
 
@@ -617,10 +612,12 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
 		sw.storeLastScrape(bodyString)
+		sw.lastScrapeLen = len(bodyString)
 	}
-	sw.finalizeLastScrape()
+	leveledbytebufferpool.Put(bbLastScrape)
+
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, int(samplesScraped.Load()), err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
