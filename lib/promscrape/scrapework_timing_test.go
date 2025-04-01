@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
@@ -133,12 +133,14 @@ func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bo
 	protoparserutil.StartUnmarshalWorkers()
 	defer protoparserutil.StopUnmarshalWorkers()
 
-	readData := func(dst *bytesutil.ByteBuffer) error {
-		dst.B = append(dst.B, data...)
-		return nil
+	readData := func(dst *chunkedbuffer.Buffer) (bool, error) {
+		dst.MustWrite(data)
+		return false, nil
 	}
+
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
+
 	b.RunParallel(func(pb *testing.PB) {
 		var sw scrapeWork
 		sw.Config = &ScrapeWork{
