@@ -202,7 +202,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 
 	// Pre-allocate memory for labels.
 	labelsLen := len(wr.labels)
-	wr.labels = slicesutil.SetLength(wr.labels, labelsLen + len(labelsSrc))
+	wr.labels = slicesutil.SetLength(wr.labels, labelsLen+len(labelsSrc))
 	labelsDst := wr.labels[labelsLen:]
 
 	// Pre-allocate memory for byte slice needed for storing label names and values.
@@ -212,7 +212,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 		neededBufLen += len(label.Name) + len(label.Value)
 	}
 	bufLen := len(wr.buf)
-	wr.buf = slicesutil.SetLength(wr.buf, bufLen + neededBufLen)
+	wr.buf = slicesutil.SetLength(wr.buf, bufLen+neededBufLen)
 	buf := wr.buf[:bufLen]
 
 	// Copy labels
