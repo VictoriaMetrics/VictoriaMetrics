@@ -1639,7 +1639,7 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 The following options may help improving `vmagent` performance and reducing its' RAM usage when it scrapes thousands of targets:
 
-- Set [GOGC](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to `50` or to `100`. This reduces CPU usage at the cost of higher RAM usage.
+- Set [GOGC](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to `100`. This reduces CPU usage at the cost of higher RAM usage.
 
 - Set [GOMAXPROCS](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to the value slightly bigger than the number of CPU cores used by `vmagent`.
   Another option is to set CPU limit in Kubernetes / Docker to the integer value bigger than the number of CPU cores used by `vmagent`.
