@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"math"
@@ -1140,16 +1141,14 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 
 // searchAndMerge concurrently performs a search operation on all partition
 // IndexDBs that overlap with the given time range and optionally legacy current
-// and previous IndexDBs. The individual search results are then merged. If
-// stopOnError is true, the function returns the error of the first failed
-// individual result and merge op is skipped.
-func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr TimeRange) (any, error), merge func([]any) any) (any, error) {
+// and previous IndexDBs. The individual search results are then merged.
+func searchAndMerge[T any](s *Storage, tr TimeRange, search func(idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
 	idbs := s.tb.GetIndexDBs(tr)
 	defer s.tb.PutIndexDBs(idbs)
 	// also add legacy to idbs
 
 	var wg sync.WaitGroup
-	data := make([]any, len(idbs))
+	data := make([]T, len(idbs))
 	errs := make([]error, len(idbs))
 	for i, idb := range idbs {
 		wg.Add(1)
@@ -1163,11 +1162,32 @@ func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr Time
 
 	for _, err := range errs {
 		if err != nil {
-			return nil, err
+			var zeroValue T
+			return zeroValue, err
 		}
 	}
 
 	return merge(data), nil
+}
+
+// mergeUniq combines the values of several slices into once slice, duplicate
+// values are ignored.
+func mergeUniq[T cmp.Ordered](data [][]T) []T {
+	all := []T{}
+	seen := make(map[T]struct{})
+	for _, s := range data {
+		if s == nil {
+			continue
+		}
+		for _, v := range s {
+			if _, ok := seen[v]; ok {
+				continue
+			}
+			all = append(all, v)
+			seen[v] = struct{}{}
+		}
+	}
+	return all
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on
@@ -1187,31 +1207,10 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]string, error) {
 		return s.searchMetricNames(qt, idb, tfss, tr, maxMetrics, deadline)
 	}
-	merge := func(data []any) any {
-		all := []string{}
-		seen := make(map[string]struct{})
-		for _, names := range data {
-			if names == nil {
-				continue
-			}
-			for _, name := range names.([]string) {
-				if _, ok := seen[name]; ok {
-					continue
-				}
-				all = append(all, name)
-				seen[name] = struct{}{}
-			}
-		}
-		return all
-	}
-	var metricNames []string
-	result, err := s.searchAndMerge(tr, search, merge)
-	if result != nil {
-		metricNames = result.([]string)
-	}
+	metricNames, err := searchAndMerge(s, tr, search, mergeUniq)
 
 	qt.Printf("loaded %d metric names", len(metricNames))
 
@@ -1423,32 +1422,10 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 // SearchLabelNames searches for label names matching the given tfss on tr.
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]string, error) {
 		return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 	}
-	merge := func(data []any) any {
-		all := []string{}
-		seen := make(map[string]struct{})
-		for _, names := range data {
-			if names == nil {
-				continue
-			}
-			for _, name := range names.([]string) {
-				if _, ok := seen[name]; ok {
-					continue
-				}
-				all = append(all, name)
-				seen[name] = struct{}{}
-			}
-		}
-		return all
-	}
-	var labelNames []string
-	result, err := s.searchAndMerge(tr, search, merge)
-	if result != nil {
-		labelNames = result.([]string)
-	}
-
+	labelNames, err := searchAndMerge(s, tr, search, mergeUniq)
 	qt.Printf("found %d label names", len(labelNames))
 	return labelNames, err
 }
@@ -1457,32 +1434,10 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]string, error) {
 		return s.searchLabelValues(qt, idb, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	}
-	merge := func(data []any) any {
-		all := []string{}
-		seen := make(map[string]struct{})
-		for _, values := range data {
-			if values == nil {
-				continue
-			}
-			for _, value := range values.([]string) {
-				if _, ok := seen[value]; ok {
-					continue
-				}
-				all = append(all, value)
-				seen[value] = struct{}{}
-			}
-		}
-		return all
-	}
-	var labelValues []string
-	result, err := s.searchAndMerge(tr, search, merge)
-	if result != nil {
-		labelValues = result.([]string)
-	}
-
+	labelValues, err := searchAndMerge(s, tr, search, mergeUniq)
 	qt.Donef("found %d label values", len(labelValues))
 	return labelValues, err
 }
@@ -1557,33 +1512,10 @@ func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
 // If more than maxTagValueSuffixes suffixes is found, then only the first
 // maxTagValueSuffixes suffixes is returned.
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]string, error) {
 		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	}
-	merge := func(data []any) any {
-		all := []string{}
-		seen := make(map[string]struct{})
-		for _, names := range data {
-			if names == nil {
-				continue
-			}
-			for _, name := range names.([]string) {
-				if _, ok := seen[name]; ok {
-					continue
-				}
-				all = append(all, name)
-				seen[name] = struct{}{}
-			}
-		}
-		return all
-	}
-	var tagValueSuffixes []string
-	result, err := s.searchAndMerge(tr, search, merge)
-	if result != nil {
-		tagValueSuffixes = result.([]string)
-	}
-
-	return tagValueSuffixes, err
+	return searchAndMerge(s, tr, search, mergeUniq)
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
@@ -1591,33 +1523,10 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]string, error) {
 		return s.searchGraphitePaths(qt, idb, tr, nil, query, maxPaths, deadline)
 	}
-	merge := func(data []any) any {
-		all := []string{}
-		seen := make(map[string]struct{})
-		for _, paths := range data {
-			if paths == nil {
-				continue
-			}
-			for _, path := range paths.([]string) {
-				if _, ok := seen[path]; ok {
-					continue
-				}
-				all = append(all, path)
-				seen[path] = struct{}{}
-			}
-		}
-		return all
-	}
-	var paths []string
-	result, err := s.searchAndMerge(tr, search, merge)
-	if result != nil {
-		paths = result.([]string)
-	}
-
-	return paths, err
+	return searchAndMerge(s, tr, search, mergeUniq)
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -1802,26 +1711,17 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 		MinTimestamp: 0,
 		MaxTimestamp: time.Now().UnixMilli(),
 	}
-	search := func(idb *indexDB, _ TimeRange) (any, error) {
+	search := func(idb *indexDB, _ TimeRange) (uint64, error) {
 		return idb.GetSeriesCount(deadline)
 	}
-	merge := func(data []any) any {
+	merge := func(data []uint64) uint64 {
 		var total uint64
 		for _, cnt := range data {
-			if cnt == nil {
-				continue
-			}
-			total += cnt.(uint64)
+			total += cnt
 		}
 		return total
 	}
-	result, err := s.searchAndMerge(tr, search, merge)
-
-	var cnt uint64
-	if result != nil {
-		cnt = result.(uint64)
-	}
-	return cnt, err
+	return searchAndMerge(s, tr, search, merge)
 }
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb

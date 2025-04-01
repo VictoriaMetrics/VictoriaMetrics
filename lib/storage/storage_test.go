@@ -3767,30 +3767,15 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 // The function is not a part of Storage beause it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]uint64, error) {
 		return idb.searchMetricIDs(nil, tfss, tr, maxMetrics, deadline)
 	}
-	merge := func(data []any) any {
-		var all []uint64
-		seen := make(map[uint64]struct{})
-		for _, ids := range data {
-			for _, id := range ids.([]uint64) {
-				if _, ok := seen[id]; ok {
-					continue
-				}
-				all = append(all, id)
-				seen[id] = struct{}{}
-			}
-		}
-		slices.Sort(all)
-		return all
-	}
-
-	result, err := s.searchAndMerge(tr, search, merge)
+	metricIDs, err := searchAndMerge(s, tr, search, mergeUniq)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
-	return result.([]uint64)
+	slices.Sort(metricIDs)
+	return metricIDs
 }
 
 // testCountAllMetricIDs is a test helper function that counts the IDs of

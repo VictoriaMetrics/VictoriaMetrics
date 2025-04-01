@@ -204,7 +204,7 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	search := func(idb *indexDB, tr TimeRange) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) ([]TSID, error) {
 		var tsids []TSID
 		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 		if err == nil {
@@ -216,14 +216,14 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		return tsids, err
 	}
 
-	merge := func(data []any) any {
+	merge := func(data [][]TSID) []TSID {
 		var all []TSID
 		seen := &uint64set.Set{}
 		for _, tsids := range data {
 			if tsids == nil {
 				continue
 			}
-			for _, tsid := range tsids.([]TSID) {
+			for _, tsid := range tsids {
 				if seen.Has(tsid.MetricID) {
 					continue
 				}
@@ -233,17 +233,18 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		}
 		return all
 	}
-	var tsids []TSID
-	result, err := s.storage.searchAndMerge(tr, search, merge)
-	if result != nil {
-		tsids = result.([]TSID)
-		// Sort the found tsids, since they must be passed to TSID search
-		// in the sorted order.
-		sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
-		qt.Printf("sort %d TSIDs", len(tsids))
+
+	tsids, err := searchAndMerge(s.storage, tr, search, merge)
+	if err != nil {
+		return nil, err
 	}
 
-	return tsids, err
+	// Sort the found tsids, since they must be passed to TSID search
+	// in the sorted order.
+	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
+	qt.Printf("sort %d TSIDs", len(tsids))
+
+	return tsids, nil
 }
 
 // MustClose closes the Search.
