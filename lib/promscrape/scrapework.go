@@ -481,10 +481,10 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	} else {
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 	}
-	srcRows := wc.rows.Rows
-	samplesScraped := len(srcRows)
+	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
-	wc.addRows(cfg, srcRows, scrapeTimestamp, true)
+	wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
+
 	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
 	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
 		wc.reset()
@@ -522,6 +522,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = responseSize
 	writeRequestCtxPool.Put(wc)
+
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
@@ -537,9 +538,9 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	var samplesScraped atomic.Int64
 	var samplesPostRelabeling atomic.Int64
 	var samplesDroppedTotal atomic.Int64
-	var wcMaxLabelsLen atomic.Int64
+	var maxLabelsLen atomic.Int64
 
-	wcMaxLabelsLen.Store(int64(sw.prevLabelsLen))
+	maxLabelsLen.Store(int64(sw.prevLabelsLen))
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
 	cfg := sw.Config
@@ -547,19 +548,29 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
-		var err error
-
-		labelsLen := wcMaxLabelsLen.Load()
+		labelsLen := maxLabelsLen.Load()
 		wc := writeRequestCtxPool.Get(int(labelsLen))
-		defer writeRequestCtxPool.Put(wc)
+		defer func() {
+			newLabelsLen := len(wc.labels)
+			for {
+				n := maxLabelsLen.Load()
+				if int64(newLabelsLen) <= n {
+					break
+				}
+				if maxLabelsLen.CompareAndSwap(n, int64(newLabelsLen)) {
+					break
+				}
+			}
+			writeRequestCtxPool.Put(wc)
+		}()
 
 		samplesScraped.Add(int64(len(rows)))
 		wc.addRows(cfg, rows, scrapeTimestamp, true)
-		newSamplesPostRelabeling := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
-		if cfg.SampleLimit > 0 && int(newSamplesPostRelabeling) > cfg.SampleLimit {
-			wc.reset()
+
+		n := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
+		if cfg.SampleLimit > 0 && int(n) > cfg.SampleLimit {
 			scrapesSkippedBySampleLimit.Inc()
-			err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
+			return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 				"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
 		}
 
@@ -568,18 +579,11 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 			samplesDroppedTotal.Add(int64(samplesDropped))
 		}
 
-		// Push the collected rows to sw before returning from the callback, since they cannot be held
-		// after returning from the callback - this will result in data race.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 		sw.pushData(&wc.writeRequest)
-
-		if int64(len(wc.labels)) > labelsLen {
-			wcMaxLabelsLen.Store(int64(len(wc.labels)))
-		}
-
-		return err
+		return nil
 	}, sw.logError)
 
+	sw.prevLabelsLen = int(maxLabelsLen.Load())
 	scrapedSamples.Update(float64(samplesScraped.Load()))
 	up := 1
 	if err != nil {
@@ -608,9 +612,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		seriesLimitSamplesDropped: int(samplesDroppedTotal.Load()),
 	}
 	sw.pushAutoMetrics(am, scrapeTimestamp)
-
-	sw.prevLabelsLen = int(wcMaxLabelsLen.Load())
 	sw.prevBodyLen = responseSize
+
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
@@ -651,7 +654,7 @@ func areIdenticalSeries(cfg *ScrapeWork, prevData, currData string) bool {
 	return parser.AreIdenticalSeriesFast(prevData, currData)
 }
 
-// leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
+// leveledWriteRequestCtxPool allows reducing memory usage when writeRequestCtx
 // structs contain mixed number of labels.
 //
 // Its logic has been copied from leveledbytebufferpool.
@@ -800,9 +803,6 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 				wc.applySeriesLimit(sw)
 			}
 
-			// Push the collected rows to sw before returning from the callback, since they cannot be held
-			// after returning from the callback - this will result in data race.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 			setStaleMarkersForRows(wc.writeRequest.Timeseries)
 			sw.pushData(&wc.writeRequest)
 			return nil
@@ -887,7 +887,7 @@ func isAutoMetric(s string) bool {
 	}
 }
 
-// addAutoMetrics adds am to wc.
+// addAutoMetrics adds am with the given timestamp to wc.
 //
 // See https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics
 //
