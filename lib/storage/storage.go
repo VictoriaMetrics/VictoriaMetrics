@@ -1699,13 +1699,11 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 	}
 }
 
-// GetSeriesCount returns the approximate number of unique time series.
+// GetSeriesCount returns the total number of time series registered in all
+// indexDBs. It can return inflated value if the same time series are stored in
+// more than one indexDB.
 //
-// It includes the deleted series too and may count the same series
-// several times - in each parition and legacy IndexDB.
-//
-// TODO(@rtm0): As the number of partitions can be high, the resulting count may
-// contain a lot of duplicates. Make the count more accurate?
+// It also includes the deleted series.
 func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 	tr := TimeRange{
 		MinTimestamp: 0,
@@ -1725,6 +1723,10 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 }
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
+//
+// The method does not provide status for legacy IDBs because merging partition
+// indexDB and legacy indexDB statuses is not-trivial and not many users use
+// this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	idbs := s.tb.GetIndexDBs(TimeRange{
 		MinTimestamp: int64(date) * msecPerDay,
@@ -1735,8 +1737,6 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 	if len(idbs) == 0 {
 		return &TSDBStatus{}, nil
 	}
-	// TODO(@rtm0): Merge TSDB status collected from both partition index and
-	// legacy index.
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}

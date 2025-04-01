@@ -150,7 +150,10 @@ type indexDB struct {
 	// The cache is used solely for creating new index entries during the data
 	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
 	//
-	// TODO(@rtm0): Change implementation? Clear on metric deletion?
+	// TODO(@rtm0): Consider using uint64set and otate and drop it every 5
+	// minutes. Use Mutex instead RWMutex or even get rid of mutex (fast path
+	// without lock, lock only in slow path, see other caches, such as
+	// dateMetricIDCache)
 	metricIDCache     map[uint64]struct{}
 	metricIDCacheLock sync.RWMutex
 
