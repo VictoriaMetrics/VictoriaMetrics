@@ -1637,7 +1637,8 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 ## Performance optimizations
 
-The following options may help improving `vmagent` performance and reducing its' RAM usage when it scrapes thousands of targets:
+`vmagent` is optimized for low CPU usage and low RAM usage without the need to tune any configs. Sometimes it is needed to optimize CPU / RAM usage of `vmagent` even more.
+For example, if `vmagent` needs to scrape thousands of targets in resource-constrained environments. Then the following options may help reducing CPU usage and RAM usage of `vmagent`:
 
 - Set [GOGC](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to `100`. This reduces CPU usage at the cost of higher RAM usage.
 
@@ -1663,10 +1664,12 @@ The following options may help improving `vmagent` performance and reducing its'
   to the value 50% bigger than the actual memory usage of `vmagent`. This should reduce memory usage spikes for `vmagent` running in the environment with bigger available memory
   when the remote storage cannot keep up with the data ingestion rate. Increasing `-remoteWrite.queues` command-line flag value may help in this case too.
 
+- In extreme cases it may be useful to set `-promscrape.disableKeepAlive` command-line flag in order to save RAM on HTTP keep-alive connections to thousands of scrape targets.
+
 Example command, which runs `vmagent` in an optimized mode:
 
 ```
-GOGC=100 GOMAXPROCS=2 ./vmagent -promscrape.disableCompression -promscrape.dropOriginalLabels -promscrape.noStaleMarkers -memory.allowedBytes=1GiB ...
+GOGC=100 GOMAXPROCS=1 ./vmagent -promscrape.disableCompression -promscrape.dropOriginalLabels -promscrape.noStaleMarkers -memory.allowedBytes=1GiB -promscrape.disableKeepAlive ...
 ```
 
 ## How to build from sources
