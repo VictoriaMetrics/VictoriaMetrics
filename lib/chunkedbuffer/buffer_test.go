@@ -8,7 +8,9 @@ import (
 )
 
 func TestBuffer(t *testing.T) {
-	var cb Buffer
+	cb := Get()
+	defer Put(cb)
+
 	for i := 0; i < 10; i++ {
 		cb.Reset()
 
@@ -84,8 +86,8 @@ func TestBuffer(t *testing.T) {
 		}
 
 		// Copy the data to another chunked buffer via WriteTo.
-		var cb2 Buffer
-		n, err = cb.WriteTo(&cb2)
+		cb2 := Get()
+		n, err = cb.WriteTo(cb2)
 		if err != nil {
 			t.Fatalf("error when writing data to another chunked buffer: %s", err)
 		}
@@ -111,6 +113,40 @@ func TestBuffer(t *testing.T) {
 
 		// Verify MustClose at chunked buffer
 		cb2.MustClose()
+
+		Put(cb2)
+	}
+}
+
+func TestBuffer_ReadFrom(t *testing.T) {
+	cb := Get()
+	defer Put(cb)
+
+	bb := bytes.NewBufferString("foo")
+	n, err := cb.ReadFrom(bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if n != 3 {
+		t.Fatalf("unexpected number of bytes written: %d; want 3", n)
+	}
+
+	bb = bytes.NewBufferString("bar")
+	n, err = cb.ReadFrom(bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if n != 3 {
+		t.Fatalf("unexpected number of bytes written: %d; want 3", n)
+	}
+
+	var bbResult bytes.Buffer
+	cb.MustWriteTo(&bbResult)
+
+	result := bbResult.String()
+	resultExpected := "foobar"
+	if result != resultExpected {
+		t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
 	}
 }
 
@@ -164,13 +200,7 @@ func TestBuffer_ReaderSingleChunk(t *testing.T) {
 func TestBuffer_WriteToZeroData(t *testing.T) {
 	var cb Buffer
 	var bb bytes.Buffer
-	n, err := cb.WriteTo(&bb)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if n != 0 {
-		t.Fatalf("unexpected data written from cb with len=%d", n)
-	}
+	cb.MustWriteTo(&bb)
 	if bbLen := bb.Len(); bbLen != 0 {
 		t.Fatalf("unexpected data written to bb with len=%d; data=%q", bbLen, bb.Bytes())
 	}

@@ -25,6 +25,13 @@ func (bb *ByteBuffer) Reset() {
 	bb.B = bb.B[:0]
 }
 
+// Grow grows bb capacity, so it can accept n bytes without additional allocations.
+func (bb *ByteBuffer) Grow(n int) {
+	bLen := len(bb.B)
+	bb.B = slicesutil.SetLength(bb.B, bLen+n)
+	bb.B = bb.B[:bLen]
+}
+
 // Write appends p to bb.
 func (bb *ByteBuffer) Write(p []byte) (int, error) {
 	bb.B = append(bb.B, p...)
