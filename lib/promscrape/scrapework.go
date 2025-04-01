@@ -2,6 +2,8 @@ package promscrape
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -384,8 +386,10 @@ func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 		return
 	}
 	totalRequests := sw.failureRequestsCount + sw.successRequestsCount
-	logger.Warnf("cannot scrape target %q (%s) %d out of %d times during -promscrape.suppressScrapeErrorsDelay=%s; the last error: %s",
-		sw.Config.ScrapeURL, sw.Config.Labels.String(), sw.failureRequestsCount, totalRequests, *suppressScrapeErrorsDelay, err)
+	if !errors.Is(err, context.Canceled) {
+		logger.Warnf("cannot scrape target %q (%s) %d out of %d times during -promscrape.suppressScrapeErrorsDelay=%s; the last error: %s",
+			sw.Config.ScrapeURL, sw.Config.Labels.String(), sw.failureRequestsCount, totalRequests, *suppressScrapeErrorsDelay, err)
+	}
 	sw.nextErrorLogTime = realTimestamp + suppressScrapeErrorsDelay.Milliseconds()
 	sw.failureRequestsCount = 0
 	sw.successRequestsCount = 0
