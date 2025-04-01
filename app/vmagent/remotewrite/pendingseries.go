@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
@@ -197,28 +198,43 @@ func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
 }
 
 func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
-	labelsDst := wr.labels
+	labelsSrc := src.Labels
+
+	// Pre-allocate memory for labels.
 	labelsLen := len(wr.labels)
-	samplesDst := wr.samples
-	buf := wr.buf
-	for i := range src.Labels {
-		labelsDst = append(labelsDst, prompbmarshal.Label{})
-		dstLabel := &labelsDst[len(labelsDst)-1]
-		srcLabel := &src.Labels[i]
+	wr.labels = slicesutil.SetLength(wr.labels, labelsLen + len(labelsSrc))
+	labelsDst := wr.labels[labelsLen:]
 
-		buf = append(buf, srcLabel.Name...)
-		dstLabel.Name = bytesutil.ToUnsafeString(buf[len(buf)-len(srcLabel.Name):])
-		buf = append(buf, srcLabel.Value...)
-		dstLabel.Value = bytesutil.ToUnsafeString(buf[len(buf)-len(srcLabel.Value):])
+	// Pre-allocate memory for byte slice needed for storing label names and values.
+	neededBufLen := 0
+	for i := range labelsSrc {
+		label := &labelsSrc[i]
+		neededBufLen += len(label.Name) + len(label.Value)
 	}
-	dst.Labels = labelsDst[labelsLen:]
+	bufLen := len(wr.buf)
+	wr.buf = slicesutil.SetLength(wr.buf, bufLen + neededBufLen)
+	buf := wr.buf[:bufLen]
 
-	samplesDst = append(samplesDst, src.Samples...)
-	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
+	// Copy labels
+	for i := range labelsSrc {
+		dstLabel := &labelsDst[i]
+		srcLabel := &labelsSrc[i]
 
-	wr.samples = samplesDst
-	wr.labels = labelsDst
+		bufLen := len(buf)
+		buf = append(buf, srcLabel.Name...)
+		dstLabel.Name = bytesutil.ToUnsafeString(buf[bufLen:])
+
+		bufLen = len(buf)
+		buf = append(buf, srcLabel.Value...)
+		dstLabel.Value = bytesutil.ToUnsafeString(buf[bufLen:])
+	}
 	wr.buf = buf
+	dst.Labels = labelsDst
+
+	// Copy samples
+	samplesLen := len(wr.samples)
+	wr.samples = append(wr.samples, src.Samples...)
+	dst.Samples = wr.samples[samplesLen:]
 }
 
 // marshalConcurrency limits the maximum number of concurrent workers, which marshal and compress WriteRequest.
