@@ -1042,7 +1042,8 @@ Additionally, VictoriaMetrics provides the following handlers:
 
 * `/vmui` - Basic Web UI. See [these docs](#vmui).
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
-  * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
+  * the handler scans all the all [IndexDBs](#indexdb) entirely, so it can be slow if the database contains tens of millions of time series;
+  * it can return inflated value if the same time series are stored in more than one IndexDB.
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
 * `/api/v1/status/active_queries` - returns the list of currently running queries. This list is also available at [`active queries` page at VMUI](#active-queries).
 * `/api/v1/status/top_queries` - returns the following query lists:
