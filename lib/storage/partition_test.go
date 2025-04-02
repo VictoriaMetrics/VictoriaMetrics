@@ -2,8 +2,12 @@ package storage
 
 import (
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestPartitionGetMaxOutBytes(t *testing.T) {
@@ -185,4 +189,126 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 	if len(pwsNew) != 0 {
 		t.Fatalf("unexpected non-empty pwsNew: %d", len(pwsNew))
 	}
+}
+
+func TestMustCreatePartition(t *testing.T) {
+	defer testRemoveAll(t)
+
+	ts := time.Date(2025, 3, 23, 14, 07, 56, 999_999_999, time.UTC).UnixMilli()
+	smallPath := filepath.Join(t.Name(), "small")
+	if fs.IsPathExist(smallPath) {
+		t.Errorf("small parition directory must not exist: %s", smallPath)
+	}
+	bigPath := filepath.Join(t.Name(), "big")
+	if fs.IsPathExist(bigPath) {
+		t.Errorf("big parition directory must not exist: %s", bigPath)
+	}
+	s := &Storage{}
+
+	got := mustCreatePartition(ts, smallPath, bigPath, s)
+	defer got.MustClose()
+
+	wantSmallPartsPath := filepath.Join(smallPath, "2025_03")
+	if got.smallPartsPath != wantSmallPartsPath {
+		t.Errorf("unexpected small parts path: got %s, want %s", got.smallPartsPath, wantSmallPartsPath)
+	}
+	if !fs.IsPathExist(wantSmallPartsPath) {
+		t.Errorf("small parts directory hasn't been created: %s", wantSmallPartsPath)
+	}
+	wantBigPartsPath := filepath.Join(bigPath, "2025_03")
+	if got.bigPartsPath != wantBigPartsPath {
+		t.Errorf("unexpected big parts path: got %s, want %s", got.bigPartsPath, wantBigPartsPath)
+	}
+	if !fs.IsPathExist(wantBigPartsPath) {
+		t.Errorf("big parts directory hasn't been created: %s", wantBigPartsPath)
+	}
+	wantStorage := s
+	if got.s != wantStorage {
+		t.Errorf("unexpected storage: got %v, want %v", got.s, wantStorage)
+	}
+	wantName := "2025_03"
+	if got.name != wantName {
+		t.Errorf("unexpected name: got %s, want %s", got.name, wantName)
+	}
+	wantTR := TimeRange{
+		MinTimestamp: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 3, 31, 23, 59, 59, 999_000_000, time.UTC).UnixMilli(),
+	}
+	if got.tr != wantTR {
+		t.Errorf("unexpected time range: got %v, want %v", &got.tr, &wantTR)
+	}
+
+}
+
+func TestMustOpenPartition(t *testing.T) {
+	defer testRemoveAll(t)
+
+	smallPartsPath := filepath.Join(t.Name(), "small", "2025_03")
+	bigPartsPath := filepath.Join(t.Name(), "big", "2025_03")
+
+	s := &Storage{}
+
+	got := mustOpenPartition(smallPartsPath, bigPartsPath, s)
+	defer got.MustClose()
+
+	if got.smallPartsPath != smallPartsPath {
+		t.Errorf("unexpected small parts path: got %s, want %s", got.smallPartsPath, smallPartsPath)
+	}
+	if !fs.IsPathExist(smallPartsPath) {
+		t.Errorf("small parts directory hasn't been created: %s", smallPartsPath)
+	}
+	if got.bigPartsPath != bigPartsPath {
+		t.Errorf("unexpected big parts path: got %s, want %s", got.bigPartsPath, bigPartsPath)
+	}
+	if !fs.IsPathExist(bigPartsPath) {
+		t.Errorf("big parts directory hasn't been created: %s", bigPartsPath)
+	}
+	if got.s != s {
+		t.Errorf("unexpected storage: got %v, want %v", got.s, s)
+	}
+	wantName := "2025_03"
+	if got.name != wantName {
+		t.Errorf("unexpected name: got %s, want %s", got.name, wantName)
+	}
+	wantTR := TimeRange{
+		MinTimestamp: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 3, 31, 23, 59, 59, 999_000_000, time.UTC).UnixMilli(),
+	}
+	if got.tr != wantTR {
+		t.Errorf("unexpected time range: got %v, want %v", &got.tr, &wantTR)
+	}
+
+}
+
+func TestMustOpenPartition_invalidPartitionName(t *testing.T) {
+	defer testRemoveAll(t)
+
+	smallPartsPath := filepath.Join(t.Name(), "small", "2025_03_invalid")
+	bigPartsPath := filepath.Join(t.Name(), "big", "2025_03_invalid")
+
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatalf("expected panic on invalid partition name in smallPartsPath but it did not happen: %v", smallPartsPath)
+		}
+	}()
+
+	s := &Storage{}
+	_ = mustOpenPartition(smallPartsPath, bigPartsPath, s)
+
+}
+
+func TestMustOpenPartition_smallAndBigPartsPathsAreNotTheSame(t *testing.T) {
+	defer testRemoveAll(t)
+
+	smallPartsPath := filepath.Join(t.Name(), "small", "2025_03")
+	bigPartsPath := filepath.Join(t.Name(), "big", "2025_04")
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatalf("expected panic on different partition name in smallPartsPath=%v and bigPartsPath=%v but it did not happen", smallPartsPath, bigPartsPath)
+		}
+	}()
+
+	s := &Storage{}
+	_ = mustOpenPartition(smallPartsPath, bigPartsPath, s)
+
 }
