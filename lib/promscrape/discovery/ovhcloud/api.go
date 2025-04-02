@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 )
 
 // mapping for endpoint names to their URI for external configuration
@@ -18,10 +18,10 @@ var availableEndpoints = map[string]string{
 	"soyoustart-ca": "https://ca.api.soyoustart.com/1.0",
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 type apiConfig struct {
-	client *discoveryutils.Client
+	client *discoveryutil.Client
 
 	applicationKey    string `yaml:"application_key"`
 	applicationSecret string `yaml:"application_secret"`
@@ -61,7 +61,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
 
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
+	client, err := discoveryutil.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}

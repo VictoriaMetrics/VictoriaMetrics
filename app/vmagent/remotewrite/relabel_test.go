@@ -6,7 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestApplyRelabeling(t *testing.T) {
@@ -63,7 +63,7 @@ func TestAppendExtraLabels(t *testing.T) {
 func parseSeries(data string) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	tss = append(tss, prompbmarshal.TimeSeries{
-		Labels: promutils.MustNewLabelsFromString(data).GetLabels(),
+		Labels: promutil.MustNewLabelsFromString(data).GetLabels(),
 	})
 	return tss
 }

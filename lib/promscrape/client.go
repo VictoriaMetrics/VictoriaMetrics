@@ -12,8 +12,9 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
@@ -39,6 +40,7 @@ type client struct {
 	setHeaders              func(req *http.Request) error
 	setProxyHeaders         func(req *http.Request) error
 	maxScrapeSize           int64
+	disableCompression      bool
 }
 
 func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
@@ -77,18 +79,22 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		}
 	}
 
+	tr := httputil.NewTransport(false, "vm_promscrape")
+	tr.Proxy = proxyURLFunc
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.IdleConnTimeout = 2 * sw.ScrapeInterval
+	tr.DisableKeepAlives = *disableKeepAlive || sw.DisableKeepAlive
+	tr.DialContext = dialFunc
+	tr.MaxIdleConnsPerHost = 100
+	tr.MaxResponseHeaderBytes = int64(maxResponseHeadersSize.N)
+
+	// The client handles response compression manually in order to optimize it.
+	// See client.ReadData
+	tr.DisableCompression = true
+
 	hc := &http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{
-			Proxy:                  proxyURLFunc,
-			TLSHandshakeTimeout:    10 * time.Second,
-			IdleConnTimeout:        2 * sw.ScrapeInterval,
-			DisableCompression:     *disableCompression || sw.DisableCompression,
-			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            dialFunc,
-			MaxIdleConnsPerHost:    100,
-			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
-		}),
-		Timeout: sw.ScrapeTimeout,
+		Transport: ac.NewRoundTripper(tr),
+		Timeout:   sw.ScrapeTimeout,
 	}
 	if sw.DenyRedirects {
 		hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
@@ -104,17 +110,19 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		setHeaders:              setHeaders,
 		setProxyHeaders:         setProxyHeaders,
 		maxScrapeSize:           sw.MaxScrapeSize,
+		disableCompression:      *disableCompression || sw.DisableCompression,
 	}
 	return c, nil
 }
 
-func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
+func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 	deadline := time.Now().Add(c.c.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
 	if err != nil {
-		cancel()
-		return fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
+		return false, fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
 	}
 	// The following `Accept` header has been copied from Prometheus sources.
 	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
@@ -127,53 +135,54 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	req.Header.Set("User-Agent", "vm_promscrape")
 	if err := c.setHeaders(req); err != nil {
-		cancel()
-		return fmt.Errorf("failed to set request headers for %q: %w", c.scrapeURL, err)
+		return false, fmt.Errorf("failed to set request headers for %q: %w", c.scrapeURL, err)
 	}
 	if err := c.setProxyHeaders(req); err != nil {
-		cancel()
-		return fmt.Errorf("failed to set proxy request headers for %q: %w", c.scrapeURL, err)
+		return false, fmt.Errorf("failed to set proxy request headers for %q: %w", c.scrapeURL, err)
 	}
+	if !c.disableCompression {
+		req.Header.Set("Accept-Encoding", "gzip")
+	}
+
 	scrapeRequests.Inc()
 	resp, err := c.c.Do(req)
 	if err != nil {
-		cancel()
 		if ue, ok := err.(*url.Error); ok && ue.Timeout() {
 			scrapesTimedout.Inc()
 		}
-		return fmt.Errorf("cannot perform request to %q: %w", c.scrapeURL, err)
+		return false, fmt.Errorf("cannot perform request to %q: %w", c.scrapeURL, err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, resp.StatusCode)).Inc()
-		respBody, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		cancel()
-		return fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			respBody = []byte(err.Error())
+		}
+		return false, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
 			c.scrapeURL, resp.StatusCode, http.StatusOK, respBody)
 	}
 	scrapesOK.Inc()
 
 	// Read the data from resp.Body
-	r := &io.LimitedReader{
-		R: resp.Body,
-		N: c.maxScrapeSize,
-	}
+	r := io.LimitReader(resp.Body, c.maxScrapeSize)
 	_, err = dst.ReadFrom(r)
-	_ = resp.Body.Close()
-	cancel()
 	if err != nil {
 		if ue, ok := err.(*url.Error); ok && ue.Timeout() {
 			scrapesTimedout.Inc()
 		}
-		return fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
+		return false, fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
 	}
-	if int64(len(dst.B)) >= c.maxScrapeSize {
+	if int64(dst.Len()) >= c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
-		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
+		return false, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
 			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
 			"increase max_scrape_size value in scrape config for the given target", c.scrapeURL, c.maxScrapeSize)
 	}
-	return nil
+
+	isGzipped := resp.Header.Get("Content-Encoding") == "gzip"
+	return isGzipped, nil
 }
 
 var (

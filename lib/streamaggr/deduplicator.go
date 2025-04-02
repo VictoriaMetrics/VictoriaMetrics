@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
 )
@@ -249,7 +249,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 type deduplicatorPushCtx struct {
 	blue   []pushSample
 	green  []pushSample
-	labels promutils.Labels
+	labels promutil.Labels
 	buf    []byte
 }
 
