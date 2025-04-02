@@ -204,7 +204,7 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	search := func(idb *indexDB, tr TimeRange) ([]TSID, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
 		var tsids []TSID
 		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 		if err == nil {
@@ -234,7 +234,7 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		return all
 	}
 
-	tsids, err := searchAndMerge(s.storage, tr, search, merge)
+	tsids, err := searchAndMerge(qt, s.storage, tr, search, merge)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
@@ -3767,10 +3768,10 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 // The function is not a part of Storage beause it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(idb *indexDB, tr TimeRange) ([]uint64, error) {
-		return idb.searchMetricIDs(nil, tfss, tr, maxMetrics, deadline)
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
+		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
-	metricIDs, err := searchAndMerge(s, tr, search, mergeUniq)
+	metricIDs, err := searchAndMerge(nil, s, tr, search, mergeUniq)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
