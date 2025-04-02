@@ -1564,8 +1564,9 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	if err != nil {
 		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", dstDir, err)
 	}
-	if strings.HasPrefix(dstDir, srcDir+string(filepath.Separator)) {
-		logger.Panicf("FATAL: cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
+	prefix := srcDir + string(filepath.Separator)
+	if strings.HasPrefix(dstDir, prefix) {
+		logger.Panicf("BUG: cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
 	}
 
 	// Flush inmemory items to disk.
