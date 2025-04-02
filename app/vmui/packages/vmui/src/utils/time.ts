@@ -250,3 +250,33 @@ export const getBrowserTimezone = () => {
     region: isValid ? timezone : "UTC",
   };
 };
+
+export const getNanoTimestamp = (dateStr: string): bigint => {
+  if (!dateStr) return 0n;
+
+  // Get the millisecond timestamp using dayjs
+  const baseMs = dayjs(dateStr).valueOf(); // milliseconds
+
+  // If the date string doesn't contain a fractional part, return the timestamp in nanoseconds directly
+  if (!dateStr.includes(".")) {
+    return BigInt(baseMs) * 1000000n;
+  }
+
+  // Extract the fractional part between the decimal point and the "Z" character
+  const match = dateStr.match(/\.(\d+)Z/);
+  if (!match) {
+    return BigInt(baseMs) * 1000000n;
+  }
+
+  let fraction = match[1];
+  // Pad with trailing zeros to represent nanoseconds if necessary
+  fraction = fraction.padEnd(9, "0");
+
+  // The first 3 digits are already included in baseMs,
+  // the remaining 6 digits represent additional nanoseconds
+  const extraNano = parseInt(fraction.slice(3), 10);
+
+  // Return the full timestamp in nanoseconds as a BigInt
+  return BigInt(baseMs) * 1000000n + BigInt(extraNano);
+};
+

@@ -1,11 +1,11 @@
 ---
-weight: 5
+weight: 4
 title: Self-monitoring
 menu:
   docs:
     identifier: "vmanomaly-self-monitoring"
     parent: "anomaly-detection"
-    weight: 5
+    weight: 4
 aliases:
 - /anomaly-detection/self-monitoring.html
 ---

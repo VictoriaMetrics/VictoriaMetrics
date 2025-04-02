@@ -1,15 +1,20 @@
 ---
-weight: 5
+weight: 6
 title: CHANGELOG
 menu:
   docs:
     identifier: "vmanomaly-changelog"
     parent: "anomaly-detection"
-    weight: 5
+    weight: 6
 aliases:
 - /anomaly-detection/CHANGELOG.html
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
+
+## v1.21.0
+Released: 2025-03-19
+
+- FEATURE: Introduced [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#high-availability) in `vmanomaly` service. Dedicated page can be found [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly).
 
 ## v1.20.1
 Released: 2025-03-16

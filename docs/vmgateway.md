@@ -102,12 +102,12 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
+Rate limiting only works for the [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/). It supports read and write limiting by tenant.
+
 ![vmgateway-rl](vmgateway-rate-limiting.webp)
 
-Limits incoming requests by given, pre-configured limits. It supports read and write limiting by tenant.
-
 `vmgateway` needs a datasource for rate limit queries. It can be either single-node or cluster version of `victoria-metrics`.
-The metrics that you want to rate limit must be scraped from the cluster.
+The datasource needs to have metrics of the vmcluster that you want to rate limit.
 
 List of supported limit types:
 
@@ -142,10 +142,8 @@ limits:
 
 ## QuickStart
 
-cluster version of VictoriaMetrics is required for rate limiting.
-
 ```sh
-# start datasource for cluster metrics
+# start a vmsingle instance as the datasource, and scrape metrics from vmcluster components.
 
 cat << EOF > cluster.yaml
 scrape_configs:
@@ -180,7 +178,7 @@ limits:
     account_id: 15
 EOF
 
-# start gateway with clusterMoe
+# start gateway with `-clusterMode`
 ./bin/vmgateway -eula -enable.rateLimit -ratelimit.config limit.yaml -datasource.url http://localhost:8428 -enable.auth -clusterMode -write.url=http://localhost:8480 --read.url=http://localhost:8481
 
 # ingest simple metric to tenant 1:5

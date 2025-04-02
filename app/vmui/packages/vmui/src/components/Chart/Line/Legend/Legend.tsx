@@ -1,10 +1,10 @@
 import React, { FC } from "preact/compat";
 import { LegendItemType } from "../../../../types";
-import Accordion from "../../../Main/Accordion/Accordion";
 import "./style.scss";
 import LegendGroup from "./LegendGroup";
 import { useLegendGroup } from "./hooks/useLegendGroup";
 import { useGroupSeries } from "./hooks/useGroupSeries";
+import LegendConfigs from "./LegendConfigs/LegendConfigs";
 
 export type QueryGroup = {
   group: number | string;
@@ -15,40 +15,31 @@ interface LegendProps {
   labels: LegendItemType[];
   query: string[];
   isAnomalyView?: boolean;
+  isPredefinedPanel?: boolean;
   onChange: (item: LegendItemType, metaKey: boolean) => void;
 }
 
-const Legend: FC<LegendProps> = ({ labels, query, isAnomalyView, onChange }) => {
+const Legend: FC<LegendProps> = ({ labels, query, isAnomalyView, isPredefinedPanel, onChange }) => {
   const { groupByLabel } = useLegendGroup();
   const groupSeries = useGroupSeries({ labels, query, groupByLabel });
 
-  return <>
+  return (
     <div className="vm-legend">
+      {!isPredefinedPanel && <LegendConfigs isCompact/>}
+
       <div>
         {groupSeries.map(({ group, items }) => (
-          <div
-            className="vm-legend-group"
+          <LegendGroup
             key={group}
-          >
-            <Accordion
-              defaultExpanded={true}
-              title={(
-                <div className="vm-legend-group-title">
-                  Group by{groupByLabel ? "" : " query"}: <b>{group}</b>
-                </div>
-              )}
-            >
-              <LegendGroup
-                labels={items}
-                isAnomalyView={isAnomalyView}
-                onChange={onChange}
-              />
-            </Accordion>
-          </div>
+            labels={items}
+            group={group}
+            isAnomalyView={isAnomalyView}
+            onChange={onChange}
+          />
         ))}
       </div>
     </div>
-  </>;
+  );
 };
 
 export default Legend;
