@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -62,7 +62,7 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
+func parseJSONRequest(data []byte, lmp insertutil.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 
@@ -222,5 +222,5 @@ func parseLokiTimestamp(s string) (int64, error) {
 		// Special case - an empty timestamp must be substituted with the current time by the caller.
 		return 0, nil
 	}
-	return insertutils.ParseUnixTimestamp(s)
+	return insertutil.ParseUnixTimestamp(s)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -92,7 +93,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		cfg.FlushInterval = defaultFlushInterval
 	}
 	if cfg.Transport == nil {
-		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+		cfg.Transport = httputil.NewTransport(false, "vmalert_remotewrite")
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -42,10 +42,10 @@ type SDConfig struct {
 	// refresh_interval is obtained from `-promscrape.vultrSDCheckInterval` command-line option.
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 // GetLabels returns Vultr instances' labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -63,12 +63,12 @@ func (sdc *SDConfig) MustStop() {
 }
 
 // getInstanceLabels returns labels for Vultr instances obtained from the given cfg
-func getInstanceLabels(instances []Instance, port int) []*promutils.Labels {
-	ms := make([]*promutils.Labels, 0, len(instances))
+func getInstanceLabels(instances []Instance, port int) []*promutil.Labels {
+	ms := make([]*promutil.Labels, 0, len(instances))
 
 	for _, instance := range instances {
-		m := promutils.NewLabels(18)
-		m.Add("__address__", discoveryutils.JoinHostPort(instance.MainIP, port))
+		m := promutil.NewLabels(18)
+		m.Add("__address__", discoveryutil.JoinHostPort(instance.MainIP, port))
 		m.Add("__meta_vultr_instance_allowed_bandwidth_gb", strconv.Itoa(instance.AllowedBandwidth))
 		m.Add("__meta_vultr_instance_disk_gb", strconv.Itoa(instance.Disk))
 		m.Add("__meta_vultr_instance_hostname", instance.Hostname)

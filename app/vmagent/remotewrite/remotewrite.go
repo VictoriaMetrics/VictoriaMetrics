@@ -25,7 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
@@ -578,7 +578,7 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 	defer putTSSShards(x)
 
 	shards := x.shards
-	tmpLabels := promutils.GetLabels()
+	tmpLabels := promutil.GetLabels()
 	for _, ts := range tssBlock {
 		hashLabels := ts.Labels
 		if len(shardByURLLabelsMap) > 0 {
@@ -613,7 +613,7 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 			}
 		}
 	}
-	promutils.PutLabels(tmpLabels)
+	promutil.PutLabels(tmpLabels)
 
 	// Push sharded samples to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.

@@ -1574,7 +1574,8 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
+	dmis := pt.s.getDeletedMetricIDs()
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {
@@ -1934,7 +1935,7 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 

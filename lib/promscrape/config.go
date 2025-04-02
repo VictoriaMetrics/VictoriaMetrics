@@ -46,7 +46,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/puppetdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
@@ -265,9 +265,9 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels       *promutils.Labels           `yaml:"external_labels,omitempty"`
+	ScrapeInterval       *promutil.Duration          `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        *promutil.Duration          `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels       *promutil.Labels            `yaml:"external_labels,omitempty"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 }
@@ -276,12 +276,12 @@ type GlobalConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
-	JobName        string              `yaml:"job_name"`
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	MaxScrapeSize  string              `yaml:"max_scrape_size,omitempty"`
-	MetricsPath    string              `yaml:"metrics_path,omitempty"`
-	HonorLabels    bool                `yaml:"honor_labels,omitempty"`
+	JobName        string             `yaml:"job_name"`
+	ScrapeInterval *promutil.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  *promutil.Duration `yaml:"scrape_timeout,omitempty"`
+	MaxScrapeSize  string             `yaml:"max_scrape_size,omitempty"`
+	MetricsPath    string             `yaml:"metrics_path,omitempty"`
+	HonorLabels    bool               `yaml:"honor_labels,omitempty"`
 
 	// HonorTimestamps is set to false by default contrary to Prometheus, which sets it to true by default,
 	// because of the issue with gaps on graphs when scraping cadvisor or similar targets, which export invalid timestamps.
@@ -330,8 +330,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
+	ScrapeAlignInterval *promutil.Duration         `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        *promutil.Duration         `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         *int                       `yaml:"series_limit,omitempty"`
 	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
@@ -341,7 +341,7 @@ type ScrapeConfig struct {
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
-	swosFunc := func(metaLabels *promutils.Labels) any {
+	swosFunc := func(metaLabels *promutil.Labels) any {
 		target := metaLabels.Get("__address__")
 		sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 		if err != nil {
@@ -430,8 +430,8 @@ type FileSDConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config
 type StaticConfig struct {
-	Targets []string          `yaml:"targets"`
-	Labels  *promutils.Labels `yaml:"labels,omitempty"`
+	Targets []string         `yaml:"targets"`
+	Labels  *promutil.Labels `yaml:"labels,omitempty"`
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
@@ -824,7 +824,7 @@ func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 }
 
 type targetLabelsGetter interface {
-	GetLabels(baseDir string) ([]*promutils.Labels, error)
+	GetLabels(baseDir string) ([]*promutil.Labels, error)
 }
 
 func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)), discoveryType string, prev []*ScrapeWork) []*ScrapeWork {
@@ -1014,7 +1014,7 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
-	externalLabels       *promutils.Labels
+	externalLabels       *promutil.Labels
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
@@ -1027,7 +1027,7 @@ type scrapeWorkConfig struct {
 	noStaleMarkers       bool
 }
 
-func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutils.Labels, discoveryType string) []*ScrapeWork {
+func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutil.Labels, discoveryType string) []*ScrapeWork {
 	startTime := time.Now()
 	// Process targetLabels in parallel in order to reduce processing time for big number of targetLabels.
 	type result struct {
@@ -1036,7 +1036,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 	}
 	goroutines := cgroup.AvailableCPUs()
 	resultCh := make(chan result, len(targetLabels))
-	workCh := make(chan *promutils.Labels, goroutines)
+	workCh := make(chan *promutil.Labels, goroutines)
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			for metaLabels := range workCh {
@@ -1071,8 +1071,8 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 }
 
 func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
-	metaLabels := promutils.GetLabels()
-	defer promutils.PutLabels(metaLabels)
+	metaLabels := promutil.GetLabels()
+	defer promutil.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
 		pathPattern := fscore.GetFilepath(baseDir, file)
 		paths := []string{pathPattern}
@@ -1109,7 +1109,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc
 	return dst
 }
 
-func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, metaLabels *promutils.Labels) []*ScrapeWork {
+func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, metaLabels *promutil.Labels) []*ScrapeWork {
 	for _, target := range stc.Targets {
 		if target == "" {
 			// Do not return this error, since other targets may be valid
@@ -1129,7 +1129,7 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func appendScrapeWorkKey(dst []byte, labels *promutils.Labels) []byte {
+func appendScrapeWorkKey(dst []byte, labels *promutil.Labels) []byte {
 	for _, label := range labels.GetLabels() {
 		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
 		dst = append(dst, label.Name...)
@@ -1162,12 +1162,12 @@ func getClusterMemberNumsForScrapeWork(key string, membersCount, replicasCount i
 
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
-func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels *promutils.Labels) (*ScrapeWork, error) {
-	labels := promutils.GetLabels()
-	defer promutils.PutLabels(labels)
+func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels *promutil.Labels) (*ScrapeWork, error) {
+	labels := promutil.GetLabels()
+	defer promutil.PutLabels(labels)
 
 	mergeLabels(labels, swc, target, extraLabels, metaLabels)
-	var originalLabels *promutils.Labels
+	var originalLabels *promutil.Labels
 	if !*dropOriginalLabels {
 		originalLabels = labels.Clone()
 	}
@@ -1315,7 +1315,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	return sw, nil
 }
 
-func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Labels {
+func sortOriginalLabelsIfNeeded(originalLabels *promutil.Labels) *promutil.Labels {
 	if originalLabels == nil {
 		return nil
 	}
@@ -1325,7 +1325,7 @@ func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Lab
 	return originalLabels
 }
 
-func mergeLabels(dst *promutils.Labels, swc *scrapeWorkConfig, target string, extraLabels, metaLabels *promutils.Labels) {
+func mergeLabels(dst *promutil.Labels, swc *scrapeWorkConfig, target string, extraLabels, metaLabels *promutil.Labels) {
 	if n := dst.Len(); n > 0 {
 		logger.Panicf("BUG: len(dst.Labels) must be 0; got %d", n)
 	}

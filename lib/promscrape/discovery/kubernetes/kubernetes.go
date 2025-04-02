@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -70,7 +70,7 @@ type Selector struct {
 }
 
 // ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
-type ScrapeWorkConstructorFunc func(metaLabels *promutils.Labels) any
+type ScrapeWorkConstructorFunc func(metaLabels *promutil.Labels) any
 
 // GetScrapeWorkObjects returns ScrapeWork objects for the given sdc.
 //
