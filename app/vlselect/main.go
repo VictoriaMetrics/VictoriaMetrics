@@ -99,9 +99,17 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	ctx := r.Context()
+	if path == "/select/logsql/tail" {
+		logsqlTailRequests.Inc()
+		// Process live tailing request without timeout, since it is OK to run live tailing requests for very long time.
+		// Also do not apply concurrency limit to tail requests, since these limits are intended for non-tail requests.
+		logsql.ProcessLiveTailRequest(ctx, w, r)
+		return true
+	}
+
 	// Limit the number of concurrent queries, which can consume big amounts of CPU time.
 	startTime := time.Now()
-	ctx := r.Context()
 	d := getMaxQueryDuration(r)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
@@ -110,14 +118,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	defer decRequestConcurrency()
-
-	if path == "/select/logsql/tail" {
-		logsqlTailRequests.Inc()
-		// Process live tailing request without timeout (e.g. use ctx instead of ctxWithTimeout),
-		// since it is OK to run live tailing requests for very long time.
-		logsql.ProcessLiveTailRequest(ctx, w, r)
-		return true
-	}
 
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {
