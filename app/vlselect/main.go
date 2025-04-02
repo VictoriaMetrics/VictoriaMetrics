@@ -129,10 +129,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case nil:
 		// nothing to do
 	case context.Canceled:
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-			time.Since(startTime).Seconds(), remoteAddr, requestURI)
+		// do not log canceled requests, since they are expected and legal.
 	case context.DeadlineExceeded:
 		err = &httpserver.ErrorWithStatusCode{
 			Err: fmt.Errorf("the request couldn't be executed in %.3f seconds; possible solutions: "+
