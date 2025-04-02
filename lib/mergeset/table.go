@@ -491,6 +491,9 @@ func getFilePartsConcurrency() int {
 }
 
 // MustClose closes the table.
+//
+// This func must be called only when there are no goroutines using the the
+// table, such as ones that ingest or retrieve index data.
 func (tb *Table) MustClose() {
 	// Notify background workers to stop.
 	// The tb.partsLock is acquired in order to guarantee that tb.wg.Add() isn't called
@@ -1501,7 +1504,7 @@ func mustOpenParts(path string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 
