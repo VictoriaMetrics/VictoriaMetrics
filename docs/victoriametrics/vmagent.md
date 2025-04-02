@@ -1666,6 +1666,9 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
 
 - In extreme cases it may be useful to set `-promscrape.disableKeepAlive` command-line flag in order to save RAM on HTTP keep-alive connections to thousands of scrape targets.
 
+- Increase `scrape_interval` option in the `global` section of the `-promscrape.config` and/or at every [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs)
+  for reducing CPU usage. For example, increasing the `scrape_interval` from `10s` to `30s` across all the targets decreases CPU usage at `vmagent` by up to 3x.
+
 Example command, which runs `vmagent` in an optimized mode:
 
 ```
