@@ -7647,7 +7647,6 @@
   "refresh": "",
   "schemaVersion": 40,
   "tags": [
-    "vmagent",
     "victoriametrics"
   ],
   "templating": {

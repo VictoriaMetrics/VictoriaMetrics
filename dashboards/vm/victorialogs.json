@@ -3495,7 +3495,10 @@
   "preload": false,
   "refresh": "",
   "schemaVersion": 40,
-  "tags": [],
+  "tags": [
+    "victoriametrics",
+    "victorialogs"
+  ],
   "templating": {
     "list": [
       {

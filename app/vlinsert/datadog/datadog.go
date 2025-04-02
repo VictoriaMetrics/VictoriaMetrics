@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -61,7 +61,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		ts = startTime.UnixNano()
 	}
 
-	cp, err := insertutils.GetCommonParams(r)
+	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return true
@@ -170,7 +170,7 @@ func appendMsgFields(fields []logstorage.Field, v *fastjson.Value) ([]logstorage
 
 // readLogsRequest parses data according to DataDog logs format
 // https://docs.datadoghq.com/api/latest/logs/#send-logs
-func readLogsRequest(ts int64, data []byte, lmp insertutils.LogMessageProcessor) error {
+func readLogsRequest(ts int64, data []byte, lmp insertutil.LogMessageProcessor) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)

@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 type fakeReplayQuerier struct {
@@ -88,7 +88,7 @@ func TestReplay(t *testing.T) {
 
 	// datapoints per step
 	f("2021-01-01T12:00:00.000Z", "2021-01-01T15:02:30.000Z", 60, []config.Group{
-		{Interval: promutils.NewDuration(time.Minute), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
+		{Interval: promutil.NewDuration(time.Minute), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
 		registry: map[string]map[string]struct{}{
 			"sum(up)": {

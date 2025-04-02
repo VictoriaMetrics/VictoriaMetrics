@@ -14,8 +14,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -124,14 +124,14 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	if err != nil {
 		logger.Fatalf("cannot initialize AWS Config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
-	tr := &http.Transport{
-		DialContext:         netutil.NewStatDialFunc("vmagent_remotewrite"),
-		TLSHandshakeTimeout: tlsHandshakeTimeout.GetOptionalArg(argIdx),
-		MaxConnsPerHost:     2 * concurrency,
-		MaxIdleConnsPerHost: 2 * concurrency,
-		IdleConnTimeout:     time.Minute,
-		WriteBufferSize:     64 * 1024,
-	}
+
+	tr := httputil.NewTransport(false, "vmagent_remotewrite")
+	tr.TLSHandshakeTimeout = tlsHandshakeTimeout.GetOptionalArg(argIdx)
+	tr.MaxConnsPerHost = 2 * concurrency
+	tr.MaxIdleConnsPerHost = 2 * concurrency
+	tr.IdleConnTimeout = time.Minute
+	tr.WriteBufferSize = 64 * 1024
+
 	pURL := proxyURL.GetOptionalArg(argIdx)
 	if len(pURL) > 0 {
 		if !strings.Contains(pURL, "://") {

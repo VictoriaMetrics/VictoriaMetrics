@@ -1,7 +1,7 @@
 # All these commands must run from repository root.
 
 copy-metricsql-docs:
-	cp docs/MetricsQL.md app/vmui/packages/vmui/src/assets/MetricsQL.md
+	cp docs/victoriametrics/MetricsQL.md app/vmui/packages/vmui/src/assets/MetricsQL.md
 
 vmui-package-base-image:
 	docker build -t vmui-builder-image -f app/vmui/Dockerfile-build ./app/vmui

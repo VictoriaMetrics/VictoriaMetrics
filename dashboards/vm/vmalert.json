@@ -3733,8 +3733,7 @@
   "refresh": "",
   "schemaVersion": 40,
   "tags": [
-    "victoriametrics",
-    "vmalert"
+    "victoriametrics"
   ],
   "templating": {
     "list": [

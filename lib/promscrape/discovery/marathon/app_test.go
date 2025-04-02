@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 )
 
 func TestGetAppsList_Success(t *testing.T) {
@@ -78,12 +78,12 @@ func TestGetAppsList_Success(t *testing.T) {
 	})
 
 	// Prepare a discovery HTTP client who calls mock server.
-	client, err := discoveryutils.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+	client, err := discoveryutil.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 	if err != nil {
 		t.Fatalf("unexpected error wen creating http client: %s", err)
 	}
 	ac := &apiConfig{
-		cs: []*discoveryutils.Client{client},
+		cs: []*discoveryutil.Client{client},
 	}
 
 	apps, err := GetAppsList(ac)

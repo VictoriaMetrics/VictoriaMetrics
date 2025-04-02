@@ -5,7 +5,7 @@ import CodeExample from "../../../components/Main/CodeExample/CodeExample";
 const MetricsQL = () => (
   <a
     className="vm-link vm-link_colored"
-    href="https://docs.victoriametrics.com/MetricsQL.html"
+    href="https://docs.victoriametrics.com/metricsql/"
     target="_blank"
     rel="help noreferrer"
   >

@@ -1851,8 +1851,7 @@
   "refresh": false,
   "schemaVersion": 39,
   "tags": [
-    "VictoriaMetrics",
-    "monitoring"
+    "victoriametrics"
   ],
   "templating": {
     "list": [

@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.119.0
+# cloud.google.com/go v0.120.0
 ## explicit; go 1.23.0
 cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
@@ -21,13 +21,13 @@ cloud.google.com/go/auth/internal/credsfile
 cloud.google.com/go/auth/internal/jwt
 cloud.google.com/go/auth/internal/transport
 cloud.google.com/go/auth/internal/transport/cert
-# cloud.google.com/go/auth/oauth2adapt v0.2.7
-## explicit; go 1.22
+# cloud.google.com/go/auth/oauth2adapt v0.2.8
+## explicit; go 1.23.0
 cloud.google.com/go/auth/oauth2adapt
 # cloud.google.com/go/compute/metadata v0.6.0
 ## explicit; go 1.21
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/iam v1.4.1
+# cloud.google.com/go/iam v1.4.2
 ## explicit; go 1.23.0
 cloud.google.com/go/iam
 cloud.google.com/go/iam/apiv1/iampb
@@ -37,8 +37,8 @@ cloud.google.com/go/storage
 cloud.google.com/go/storage/internal
 cloud.google.com/go/storage/internal/apiv2
 cloud.google.com/go/storage/internal/apiv2/storagepb
-# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
-## explicit; go 1.18
+# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.1
+## explicit; go 1.23.0
 github.com/Azure/azure-sdk-for-go/sdk/azcore
 github.com/Azure/azure-sdk-for-go/sdk/azcore/arm/internal/resource
 github.com/Azure/azure-sdk-for-go/sdk/azcore/arm/policy
@@ -87,7 +87,7 @@ github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/pageblob
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service
-# github.com/AzureAD/microsoft-authentication-library-for-go v1.4.1
+# github.com/AzureAD/microsoft-authentication-library-for-go v1.4.2
 ## explicit; go 1.18
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/cache
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/confidential
@@ -205,10 +205,10 @@ github.com/aws/aws-sdk-go-v2/internal/timeconv
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
-# github.com/aws/aws-sdk-go-v2/config v1.29.9
+# github.com/aws/aws-sdk-go-v2/config v1.29.12
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/config
-# github.com/aws/aws-sdk-go-v2/credentials v1.17.62
+# github.com/aws/aws-sdk-go-v2/credentials v1.17.65
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/credentials
 github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds
@@ -221,7 +221,7 @@ github.com/aws/aws-sdk-go-v2/credentials/stscreds
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.66
+# github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.69
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/feature/s3/manager
 # github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34
@@ -259,12 +259,12 @@ github.com/aws/aws-sdk-go-v2/service/s3/internal/arn
 github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations
 github.com/aws/aws-sdk-go-v2/service/s3/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/s3/types
-# github.com/aws/aws-sdk-go-v2/service/sso v1.25.1
+# github.com/aws/aws-sdk-go-v2/service/sso v1.25.2
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/service/sso
 github.com/aws/aws-sdk-go-v2/service/sso/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/sso/types
-# github.com/aws/aws-sdk-go-v2/service/ssooidc v1.29.1
+# github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.0
 ## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/service/ssooidc
 github.com/aws/aws-sdk-go-v2/service/ssooidc/internal/endpoints
@@ -361,7 +361,7 @@ github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
-# github.com/golang-jwt/jwt/v5 v5.2.1
+# github.com/golang-jwt/jwt/v5 v5.2.2
 ## explicit; go 1.18
 github.com/golang-jwt/jwt/v5
 # github.com/golang/snappy v1.0.0
@@ -401,7 +401,7 @@ github.com/google/s2a-go/stream
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/enterprise-certificate-proxy v0.3.5
+# github.com/googleapis/enterprise-certificate-proxy v0.3.6
 ## explicit; go 1.23.0
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
@@ -418,6 +418,9 @@ github.com/googleapis/gax-go/v2/internallog/internal
 ## explicit; go 1.21
 github.com/grafana/regexp
 github.com/grafana/regexp/syntax
+# github.com/hashicorp/go-version v1.7.0
+## explicit
+github.com/hashicorp/go-version
 # github.com/influxdata/influxdb v1.11.8
 ## explicit; go 1.22
 github.com/influxdata/influxdb/client/v2
@@ -493,19 +496,19 @@ github.com/mwitkow/go-conntrack
 # github.com/oklog/ulid v1.3.1
 ## explicit
 github.com/oklog/ulid
-# github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics v0.121.0
+# github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics v0.122.0
 ## explicit; go 1.23.0
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics/identity
-github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics/staleness
-# github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil v0.121.0
+# github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil v0.122.0
 ## explicit; go 1.23.0
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil
-# github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor v0.121.0
+# github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor v0.122.0
 ## explicit; go 1.23.0
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/data
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/data/expo
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/delta
+github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/maps
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/metadata
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/metrics
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor/internal/putil/pslice
@@ -527,15 +530,15 @@ github.com/prometheus/client_golang/prometheus/testutil/promlint/validations
 # github.com/prometheus/client_model v0.6.1
 ## explicit; go 1.19
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.62.0
+# github.com/prometheus/common v0.63.0 => github.com/prometheus/common v0.62.0
 ## explicit; go 1.21
 github.com/prometheus/common/config
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
 github.com/prometheus/common/promslog
 github.com/prometheus/common/version
-# github.com/prometheus/procfs v0.15.1
-## explicit; go 1.20
+# github.com/prometheus/procfs v0.16.0
+## explicit; go 1.21
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -587,6 +590,9 @@ github.com/prometheus/prometheus/util/zeropool
 # github.com/prometheus/sigv4 v0.1.2
 ## explicit; go 1.21
 github.com/prometheus/sigv4
+# github.com/puzpuzpuz/xsync/v3 v3.5.1
+## explicit; go 1.18
+github.com/puzpuzpuz/xsync/v3
 # github.com/rivo/uniseg v0.4.7
 ## explicit; go 1.18
 github.com/rivo/uniseg
@@ -630,21 +636,24 @@ github.com/xrash/smetrics
 ## explicit; go 1.22.0
 go.opentelemetry.io/auto/sdk
 go.opentelemetry.io/auto/sdk/internal/telemetry
-# go.opentelemetry.io/collector/component v1.27.0
+# go.opentelemetry.io/collector/component v1.28.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/component
-# go.opentelemetry.io/collector/confmap v1.27.0
+# go.opentelemetry.io/collector/confmap v1.28.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/confmap
 go.opentelemetry.io/collector/confmap/internal/mapstructure
-# go.opentelemetry.io/collector/confmap/xconfmap v0.121.0
+# go.opentelemetry.io/collector/confmap/xconfmap v0.122.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/confmap/xconfmap
-# go.opentelemetry.io/collector/consumer v1.27.0
+# go.opentelemetry.io/collector/consumer v1.28.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/consumer
 go.opentelemetry.io/collector/consumer/internal
-# go.opentelemetry.io/collector/pdata v1.27.0
+# go.opentelemetry.io/collector/featuregate v1.28.1
+## explicit; go 1.23.0
+go.opentelemetry.io/collector/featuregate
+# go.opentelemetry.io/collector/pdata v1.28.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/pdata/internal
 go.opentelemetry.io/collector/pdata/internal/data
@@ -665,15 +674,15 @@ go.opentelemetry.io/collector/pdata/plog
 go.opentelemetry.io/collector/pdata/pmetric
 go.opentelemetry.io/collector/pdata/pmetric/pmetricotlp
 go.opentelemetry.io/collector/pdata/ptrace
-# go.opentelemetry.io/collector/pipeline v0.121.0
+# go.opentelemetry.io/collector/pipeline v0.122.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/pipeline
 go.opentelemetry.io/collector/pipeline/internal/globalsignal
-# go.opentelemetry.io/collector/processor v0.121.0
+# go.opentelemetry.io/collector/processor v0.122.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/processor
 go.opentelemetry.io/collector/processor/internal
-# go.opentelemetry.io/collector/semconv v0.121.0
+# go.opentelemetry.io/collector/semconv v0.122.1
 ## explicit; go 1.23.0
 go.opentelemetry.io/collector/semconv/v1.6.1
 # go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
@@ -752,7 +761,7 @@ golang.org/x/crypto/pkcs12/internal/rc2
 # golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 ## explicit; go 1.23.0
 golang.org/x/exp/constraints
-# golang.org/x/net v0.37.0
+# golang.org/x/net v0.38.0
 ## explicit; go 1.23.0
 golang.org/x/net/http/httpguts
 golang.org/x/net/http/httpproxy
@@ -798,7 +807,7 @@ golang.org/x/text/width
 # golang.org/x/time v0.11.0
 ## explicit; go 1.23.0
 golang.org/x/time/rate
-# google.golang.org/api v0.225.0
+# google.golang.org/api v0.228.0
 ## explicit; go 1.23.0
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -815,15 +824,15 @@ google.golang.org/api/storage/v1
 google.golang.org/api/transport
 google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
-# google.golang.org/genproto v0.0.0-20250311190419-81fb87f6b8bf
+# google.golang.org/genproto v0.0.0-20250324211829-b45e905df463
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/type/date
 google.golang.org/genproto/googleapis/type/expr
-# google.golang.org/genproto/googleapis/api v0.0.0-20250311190419-81fb87f6b8bf
+# google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250311190419-81fb87f6b8bf
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails
@@ -904,8 +913,8 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.36.5
-## explicit; go 1.21
+# google.golang.org/protobuf v1.36.6
+## explicit; go 1.22
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
@@ -965,7 +974,8 @@ k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
 k8s.io/klog/v2/internal/sloghandler
-# k8s.io/utils v0.0.0-20241210054802-24370beab758
+# k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
 ## explicit; go 1.18
 k8s.io/utils/clock
 # cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
+# github.com/prometheus/common => github.com/prometheus/common v0.62.0

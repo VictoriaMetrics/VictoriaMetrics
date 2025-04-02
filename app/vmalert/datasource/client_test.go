@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -753,7 +753,7 @@ func TestHeaders(t *testing.T) {
 
 	// basic auth
 	f(func() *Client {
-		cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBasicAuth("foo", "bar", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}
@@ -766,7 +766,7 @@ func TestHeaders(t *testing.T) {
 
 	// bearer auth
 	f(func() *Client {
-		cfg, err := utils.AuthConfig(utils.WithBearer("foo", ""))
+		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBearer("foo", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}
@@ -798,7 +798,7 @@ func TestHeaders(t *testing.T) {
 
 	// custom header overrides basic auth
 	f(func() *Client {
-		cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+		cfg, err := vmalertutil.AuthConfig(vmalertutil.WithBasicAuth("foo", "bar", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}

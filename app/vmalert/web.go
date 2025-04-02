@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
@@ -242,7 +242,7 @@ func extractRulesFilter(r *http.Request) rulesFilter {
 	}
 	rf.ruleType = ruleType
 
-	rf.excludeAlerts = httputils.GetBool(r, "exclude_alerts")
+	rf.excludeAlerts = httputil.GetBool(r, "exclude_alerts")
 	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
 	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
 	rf.files = append([]string{}, r.Form["file[]"]...)

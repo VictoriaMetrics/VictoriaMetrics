@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // GetScrapeURL makes scrape url and __address_ labels for the given labels and extraParams.
-func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (string, string) {
+func GetScrapeURL(labels *promutil.Labels, extraParams map[string][]string) (string, string) {
 	// See https://www.robustperception.io/life-of-a-label
 	scheme := labels.Get("__scheme__")
 	if len(scheme) == 0 {
@@ -61,7 +61,7 @@ func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (st
 	return scrapeURL, addressMustWithPort
 }
 
-func getParamsFromLabels(labels *promutils.Labels, extraParams map[string][]string) map[string][]string {
+func getParamsFromLabels(labels *promutil.Labels, extraParams map[string][]string) map[string][]string {
 	// See https://www.robustperception.io/life-of-a-label
 	var m map[string][]string
 	for _, label := range labels.GetLabels() {

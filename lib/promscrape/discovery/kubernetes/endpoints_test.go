@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseEndpointsListFailure(t *testing.T) {
@@ -90,8 +90,8 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 	}
 
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "172.17.0.2:8443",
 			"__meta_kubernetes_endpoint_address_target_kind":  "Pod",
 			"__meta_kubernetes_endpoint_address_target_name":  "coredns-6955765f44-lnp6t",
@@ -119,7 +119,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 		initContainerPorts map[string][]ContainerPort
 		endpointPorts      []EndpointPort
 	}
-	f := func(t *testing.T, args testArgs, wantLabels []*promutils.Labels) {
+	f := func(t *testing.T, args testArgs, wantLabels []*promutil.Labels) {
 		t.Helper()
 		eps := Endpoints{
 			Metadata: ObjectMeta{
@@ -175,7 +175,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 		}
 		node := Node{
 			Metadata: ObjectMeta{
-				Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
+				Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
 		}
 		for cn, ports := range args.initContainerPorts {
@@ -215,7 +215,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 			},
 		}
 		gw.attachNodeMetadata = true
-		var sortedLabelss []*promutils.Labels
+		var sortedLabelss []*promutil.Labels
 		gotLabels := eps.getTargetLabels(&gw)
 		for _, lbs := range gotLabels {
 			lbs.Sort()
@@ -235,8 +235,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "foobar",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
@@ -276,8 +276,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "https",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
@@ -300,7 +300,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 				"__meta_kubernetes_service_name":                 "test-eps",
 				"__meta_kubernetes_service_type":                 "service-type",
 			}),
-			promutils.NewLabelsFromMap(map[string]string{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "192.168.15.1:8428",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
@@ -343,8 +343,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "xabc",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
@@ -390,8 +390,8 @@ func TestGetEndpointsLabels(t *testing.T) {
 					Protocol: "xabc",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
 				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
 				"__meta_kubernetes_endpoint_address_target_name": "test-pod",

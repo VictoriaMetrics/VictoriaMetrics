@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func TestSyslogLineReader_Success(t *testing.T) {
@@ -84,7 +84,7 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 		globalTimezone = time.UTC
 		globalCurrentYear.Store(int64(currentYear))
 
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
 		if err := processStreamInternal(r, "", false, tlp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -113,7 +113,7 @@ func TestProcessStreamInternal_Failure(t *testing.T) {
 		MustInit()
 		defer MustStop()
 
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
 		if err := processStreamInternal(r, "", false, tlp); err == nil {
 			t.Fatalf("expecting non-nil error")

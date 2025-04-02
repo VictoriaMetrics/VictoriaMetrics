@@ -10,7 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -43,16 +43,16 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *utils.Counter
-	samples *utils.Gauge
+	errors  *vmalertutil.Counter
+	samples *vmalertutil.Gauge
 }
 
 func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRuleMetrics {
 	rmr := &recordingRuleMetrics{}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, rr.GroupName, rr.File, rr.ID())
-	rmr.errors = utils.NewCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
-	rmr.samples = utils.NewGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+	rmr.errors = vmalertutil.NewCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
+	rmr.samples = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
 			return float64(e.Samples)

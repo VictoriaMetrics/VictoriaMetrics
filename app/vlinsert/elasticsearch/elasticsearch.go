@@ -10,7 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -90,7 +90,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		startTime := time.Now()
 		bulkRequestsTotal.Inc()
 
-		cp, err := insertutils.GetCommonParams(r)
+		cp, err := insertutil.GetCommonParams(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -131,7 +131,7 @@ var (
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(streamName string, r io.Reader, encoding string, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
+func readBulkRequest(streamName string, r io.Reader, encoding string, timeField string, msgFields []string, lmp insertutil.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
@@ -143,7 +143,7 @@ func readBulkRequest(streamName string, r io.Reader, encoding string, timeField 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	lr := insertutils.NewLineReader(streamName, wcr)
+	lr := insertutil.NewLineReader(streamName, wcr)
 
 	n := 0
 	for {
@@ -156,7 +156,7 @@ func readBulkRequest(streamName string, r io.Reader, encoding string, timeField 
 	}
 }
 
-func readBulkLine(lr *insertutils.LineReader, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (bool, error) {
+func readBulkLine(lr *insertutil.LineReader, timeField string, msgFields []string, lmp insertutil.LogMessageProcessor) (bool, error) {
 	var line []byte
 
 	// Read the command, must be "create" or "index"
@@ -228,7 +228,7 @@ func parseElasticsearchTimestamp(s string) (int64, error) {
 	}
 	if len(s) < len("YYYY-MM-DD") || s[len("YYYY")] != '-' {
 		// Try parsing timestamp in seconds or milliseconds
-		return insertutils.ParseUnixTimestamp(s)
+		return insertutil.ParseUnixTimestamp(s)
 	}
 	if len(s) == len("YYYY-MM-DD") {
 		t, err := time.Parse("2006-01-02", s)

@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
 func TestOptionsNewConfigFailure(t *testing.T) {
@@ -643,8 +645,9 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 		t.Fatalf("unexpected error when parsing config: %s", err)
 	}
 
+	tr := httputil.NewTransport(false, "test_client")
 	client := http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{}),
+		Transport: ac.NewRoundTripper(tr),
 	}
 
 	resp, err := client.Do(&http.Request{

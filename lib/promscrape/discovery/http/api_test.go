@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseAPIResponse(t *testing.T) {
@@ -28,7 +28,7 @@ func TestParseAPIResponse(t *testing.T) {
 	path := "/ok"
 	resultExpected := []httpGroupTarget{
 		{
-			Labels:  promutils.NewLabelsFromMap(map[string]string{"label-1": "value-1"}),
+			Labels:  promutil.NewLabelsFromMap(map[string]string{"label-1": "value-1"}),
 			Targets: []string{"http://target-1:9100", "http://target-2:9150"},
 		},
 	}

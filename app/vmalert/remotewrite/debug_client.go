@@ -11,7 +11,8 @@ import (
 
 	"github.com/golang/snappy"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -29,15 +30,17 @@ func NewDebugClient() (*DebugClient, error) {
 	if *addr == "" {
 		return nil, nil
 	}
-
-	t, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	if err := httputil.CheckURL(*addr); err != nil {
+		return nil, fmt.Errorf("invalid -remoteWrite.url: %w", err)
+	}
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vmalert_remotewrite_debug")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -remoteWrite.url=%q: %w", *addr, err)
 	}
 	c := &DebugClient{
 		c: &http.Client{
 			Timeout:   *sendTimeout,
-			Transport: t,
+			Transport: tr,
 		},
 		addr: strings.TrimSuffix(*addr, "/"),
 	}

@@ -27,12 +27,12 @@ using VictoriaMetrics Cloud.
 Start your registration process by visiting the [Sign Up](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart) page.
 VictoriaMetrics Cloud supports registration via Sign up with Google Auth service or Email and password.
 
-<details>
-<summary>How to restore your password</summary>
+{{% collapse name="How to restore your password" %}}
 
 > If you forgot your password, it can always be restored by clicking the `Forgot password?` link on the [Sign In](https://console.victoriametrics.cloud/signIn?utm_source=website&utm_campaign=docs_quickstart) page.
 If you need assistance or have any questions, don't hesitate to contact our support team at support-cloud@victoriametrics.com.
-</details>
+
+{{% /collapse %}}
 
 ## Creating deployments
 
@@ -65,8 +65,7 @@ When creating a deployment, the following options are available:
 After selecting your desired configuration, you are set to `Create` your deployment. Once created, it will remain for a few seconds in `Provisioning` status while spinning-up. 
 You'll also be notified via email once your deployment is ready to use.
 
-<details>
-<summary>Expand to learn more about retention and storage considerations</summary>
+{{% collapse name="Expand to learn more about retention and storage considerations" %}}
 
 ### About storage
 * **Data point sizes** are approximated to 0.8 bytes, based on our own experience managing VictoriaMetrics Cloud. This magnitude is increases with **cardinality**. For high cardinality data, more storage is expected.
@@ -77,7 +76,7 @@ You'll also be notified via email once your deployment is ready to use.
 
 > Feel free to adjust your deployment based on these recommendations.
 
-</details>
+{{% /collapse %}}
 
 ## Start writing and reading data
 
@@ -91,8 +90,7 @@ In brief, you will **only need to perform 2 steps**:
 1. Obtain the **`Access endpoint`** for your deployment, which can be found in the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) overview. Typically, it looks like: `https://<xxxx>.cloud.victoriametrics.com`.
 2. Create or reuse an **`Access token`** to allow any application to read or write data into VictoriaMetrics Cloud. Just pick a `Name`, select read and/or write `Permission` and `Generate` it. For every deployment, you can `Generate tokens` in the `Access tokens` tab.
 
-<details>
-<summary>Expand to discover examples for vmagent, Prometheus, Grafana or any other software</summary>
+{{% collapse name="Expand to discover examples for vmagent, Prometheus, Grafana or any other software" %}}
 
 ### Examples for Reading and Writing data into VictoriaMetrics Cloud
 
@@ -128,7 +126,7 @@ remote_write:
 <figcaption style="text-align: center; font-style: italic;">Write configuration examples</figcaption>
 
 
-</details>
+{{% /collapse %}}
 
 
 ## Modifying an existing deployment
@@ -157,10 +155,6 @@ page, and go to the `Payment methods` tab. There, you'll be able to add a paymen
 
 If you add both payment methods, you can easily switch between them by selecting your preferred option.
 
-<details>
-<summary>IMPORTANT: What happens if a payment method is not configured?</summary>
-
+> [!NOTE] What happens if a payment method is not configured?
 > After the trial period expires, deployments will be stopped and deleted if no payment methods are found for your account.
 > If you need assistance or have any questions, don't hesitate to contact our support team at support-cloud@victoriametrics.com.
-
-</details>

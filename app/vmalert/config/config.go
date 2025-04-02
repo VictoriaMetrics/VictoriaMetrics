@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,15 +27,15 @@ var (
 type Group struct {
 	Type       Type `yaml:"type,omitempty"`
 	File       string
-	Name       string              `yaml:"name"`
-	Interval   *promutils.Duration `yaml:"interval,omitempty"`
-	EvalOffset *promutils.Duration `yaml:"eval_offset,omitempty"`
+	Name       string             `yaml:"name"`
+	Interval   *promutil.Duration `yaml:"interval,omitempty"`
+	EvalOffset *promutil.Duration `yaml:"eval_offset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
-	EvalDelay   *promutils.Duration `yaml:"eval_delay,omitempty"`
-	Limit       int                 `yaml:"limit,omitempty"`
-	Rules       []Rule              `yaml:"rules"`
-	Concurrency int                 `yaml:"concurrency"`
+	EvalDelay   *promutil.Duration `yaml:"eval_delay,omitempty"`
+	Limit       int                `yaml:"limit,omitempty"`
+	Rules       []Rule             `yaml:"rules"`
+	Concurrency int                `yaml:"concurrency"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	// It has priority over the external labels.
 	Labels map[string]string `yaml:"labels"`
@@ -135,15 +135,15 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 // recording rule or alerting rule.
 type Rule struct {
 	ID     uint64
-	Record string              `yaml:"record,omitempty"`
-	Alert  string              `yaml:"alert,omitempty"`
-	Expr   string              `yaml:"expr"`
-	For    *promutils.Duration `yaml:"for,omitempty"`
+	Record string             `yaml:"record,omitempty"`
+	Alert  string             `yaml:"alert,omitempty"`
+	Expr   string             `yaml:"expr"`
+	For    *promutil.Duration `yaml:"for,omitempty"`
 	// Alert will continue firing for this long even when the alerting expression no longer has results.
-	KeepFiringFor *promutils.Duration `yaml:"keep_firing_for,omitempty"`
-	Labels        map[string]string   `yaml:"labels,omitempty"`
-	Annotations   map[string]string   `yaml:"annotations,omitempty"`
-	Debug         bool                `yaml:"debug,omitempty"`
+	KeepFiringFor *promutil.Duration `yaml:"keep_firing_for,omitempty"`
+	Labels        map[string]string  `yaml:"labels,omitempty"`
+	Annotations   map[string]string  `yaml:"annotations,omitempty"`
+	Debug         bool               `yaml:"debug,omitempty"`
 	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
 	// Overrides `-rule.updateEntriesLimit`.
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
@@ -265,7 +265,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	errGroup := new(utils.ErrGroup)
+	errGroup := new(vmalertutil.ErrGroup)
 	var groups []Group
 	for file, data := range files {
 		uniqueGroups := map[string]struct{}{}

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 )
 
 type apiConfig struct {
@@ -18,7 +18,7 @@ type apiConfig struct {
 	azMapLock sync.Mutex
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 func getAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc) })

@@ -7,14 +7,14 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // getInstancesLabels returns labels for gce instances obtained from the given cfg
-func getInstancesLabels(cfg *apiConfig) []*promutils.Labels {
+func getInstancesLabels(cfg *apiConfig) []*promutil.Labels {
 	insts := getInstances(cfg)
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for _, inst := range insts {
 		ms = inst.appendTargetLabels(ms, cfg.project, cfg.tagSeparator, cfg.port)
 	}
@@ -89,7 +89,7 @@ type Instance struct {
 	NetworkInterfaces []NetworkInterface
 	Tags              TagList
 	Metadata          MetadataList
-	Labels            *promutils.Labels
+	Labels            *promutil.Labels
 }
 
 // NetworkInterface is network interface from https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
@@ -132,13 +132,13 @@ func parseInstanceList(data []byte) (*InstanceList, error) {
 	return &il, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, project, tagSeparator string, port int) []*promutils.Labels {
+func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSeparator string, port int) []*promutil.Labels {
 	if len(inst.NetworkInterfaces) == 0 {
 		return ms
 	}
 	iface := inst.NetworkInterfaces[0]
-	addr := discoveryutils.JoinHostPort(iface.NetworkIP, port)
-	m := promutils.NewLabels(24)
+	addr := discoveryutil.JoinHostPort(iface.NetworkIP, port)
+	m := promutil.NewLabels(24)
 	m.Add("__address__", addr)
 	m.Add("__meta_gce_instance_id", inst.ID)
 	m.Add("__meta_gce_instance_status", inst.Status)
@@ -150,7 +150,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, project, tagSep
 	m.Add("__meta_gce_subnetwork", iface.Subnetwork)
 	m.Add("__meta_gce_zone", inst.Zone)
 	for _, iface := range inst.NetworkInterfaces {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_interface_ipv4_"+iface.Name), iface.NetworkIP)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_gce_interface_ipv4_"+iface.Name), iface.NetworkIP)
 	}
 	if len(inst.Tags.Items) > 0 {
 		// We surround the separated list with the separator as well. This way regular expressions
@@ -158,10 +158,10 @@ func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, project, tagSep
 		m.Add("__meta_gce_tags", tagSeparator+strings.Join(inst.Tags.Items, tagSeparator)+tagSeparator)
 	}
 	for _, item := range inst.Metadata.Items {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_metadata_"+item.Key), item.Value)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_gce_metadata_"+item.Key), item.Value)
 	}
 	for _, label := range inst.Labels.GetLabels() {
-		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_label_"+label.Name), label.Value)
+		m.Add(discoveryutil.SanitizeLabelName("__meta_gce_label_"+label.Name), label.Value)
 	}
 	if len(iface.AccessConfigs) > 0 {
 		ac := iface.AccessConfigs[0]

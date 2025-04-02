@@ -10,15 +10,15 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
 // metricsqlTestCase holds metricsql_expr_test cases defined in test file
 type metricsqlTestCase struct {
-	Expr       string              `yaml:"expr"`
-	EvalTime   *promutils.Duration `yaml:"eval_time"`
-	ExpSamples []expSample         `yaml:"exp_samples"`
+	Expr       string             `yaml:"expr"`
+	EvalTime   *promutil.Duration `yaml:"eval_time"`
+	ExpSamples []expSample        `yaml:"exp_samples"`
 }
 
 type expSample struct {
@@ -95,7 +95,7 @@ Outer:
 	return
 }
 
-func durationToTime(pd *promutils.Duration) time.Time {
+func durationToTime(pd *promutil.Duration) time.Time {
 	if pd == nil {
 		return time.Time{}
 	}

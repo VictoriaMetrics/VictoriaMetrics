@@ -3,8 +3,8 @@ package vultr
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestGetInstanceLabels(t *testing.T) {
@@ -49,8 +49,8 @@ func TestGetInstanceLabels(t *testing.T) {
 		},
 	}
 
-	expect := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expect := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                "64.176.84.27:8080",
 			"__meta_vultr_instance_id":                   "fake-id-07f7-4b68-88ac-fake-id",
 			"__meta_vultr_instance_label":                "vultr-sd",
@@ -70,7 +70,7 @@ func TestGetInstanceLabels(t *testing.T) {
 			"__meta_vultr_instance_features":             ",ipv6,",
 			"__meta_vultr_instance_tags":                 ",mock tags,",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                "64.176.84.27:8080",
 			"__meta_vultr_instance_id":                   "fake-id-07f7-4b68-88ac-fake-id",
 			"__meta_vultr_instance_label":                "vultr-sd",
@@ -92,5 +92,5 @@ func TestGetInstanceLabels(t *testing.T) {
 		}),
 	}
 	labels := getInstanceLabels(input, 8080)
-	discoveryutils.TestEqualLabelss(t, labels, expect)
+	discoveryutil.TestEqualLabelss(t, labels, expect)
 }

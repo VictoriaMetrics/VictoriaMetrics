@@ -6,8 +6,8 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func (s *Service) key() string {
@@ -73,12 +73,12 @@ type ServicePort struct {
 // getTargetLabels returns labels for each port of the given s.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#service
-func (s *Service) getTargetLabels(_ *groupWatcher) []*promutils.Labels {
+func (s *Service) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for _, sp := range s.Spec.Ports {
-		addr := discoveryutils.JoinHostPort(host, sp.Port)
-		m := promutils.GetLabels()
+		addr := discoveryutil.JoinHostPort(host, sp.Port)
+		m := promutil.GetLabels()
 		m.Add("__address__", addr)
 		m.Add("__meta_kubernetes_service_port_name", sp.Name)
 		m.Add("__meta_kubernetes_service_port_number", strconv.Itoa(sp.Port))
@@ -89,7 +89,7 @@ func (s *Service) getTargetLabels(_ *groupWatcher) []*promutils.Labels {
 	return ms
 }
 
-func (s *Service) appendCommonLabels(m *promutils.Labels) {
+func (s *Service) appendCommonLabels(m *promutil.Labels) {
 	m.Add("__meta_kubernetes_namespace", s.Metadata.Namespace)
 	m.Add("__meta_kubernetes_service_name", s.Metadata.Name)
 	m.Add("__meta_kubernetes_service_type", s.Spec.Type)

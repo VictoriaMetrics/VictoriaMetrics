@@ -11,7 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -162,7 +162,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 		Rules: []Rule{
 			{
 				Expr: "sum(up == 0 ) by (host)",
-				For:  promutils.NewDuration(10 * time.Millisecond),
+				For:  promutil.NewDuration(10 * time.Millisecond),
 			},
 			{
 				Expr: "sumSeries(time('foo.bar',10))",
@@ -172,13 +172,13 @@ func TestGroupValidate_Failure(t *testing.T) {
 
 	f(&Group{
 		Name:     "negative interval",
-		Interval: promutils.NewDuration(-1),
+		Interval: promutil.NewDuration(-1),
 	}, false, "interval shouldn't be lower than 0")
 
 	f(&Group{
 		Name:       "wrong eval_offset",
-		Interval:   promutils.NewDuration(time.Minute),
-		EvalOffset: promutils.NewDuration(2 * time.Minute),
+		Interval:   promutil.NewDuration(time.Minute),
+		EvalOffset: promutil.NewDuration(2 * time.Minute),
 	}, false, "eval_offset should be smaller than interval")
 
 	f(&Group{
@@ -309,7 +309,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 				Record: "r1",
 				ID:     1,
 				Expr:   "sumSeries(time('foo.bar',10))",
-				For:    promutils.NewDuration(10 * time.Millisecond),
+				For:    promutil.NewDuration(10 * time.Millisecond),
 			},
 			{
 				Record: "r2",
@@ -326,7 +326,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 			{
 				Record: "r1",
 				Expr:   "sum(up == 0 ) by (host)",
-				For:    promutils.NewDuration(10 * time.Millisecond),
+				For:    promutil.NewDuration(10 * time.Millisecond),
 			},
 		},
 	}, true, "bad LogsQL expr")
@@ -338,7 +338,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 			{
 				Record: "r1",
 				Expr:   "* | stats by (path) count()",
-				For:    promutils.NewDuration(10 * time.Millisecond),
+				For:    promutil.NewDuration(10 * time.Millisecond),
 			},
 		},
 	}, true, "bad prometheus expr")
@@ -488,7 +488,7 @@ func TestHashRule_Equal(t *testing.T) {
 	f(Rule{Alert: "record", Expr: "up == 1"}, Rule{Alert: "record", Expr: "up == 1"})
 
 	f(Rule{
-		Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute), KeepFiringFor: promutils.NewDuration(time.Minute),
+		Alert: "alert", Expr: "up == 1", For: promutil.NewDuration(time.Minute), KeepFiringFor: promutil.NewDuration(time.Minute),
 	}, Rule{Alert: "alert", Expr: "up == 1"})
 }
 

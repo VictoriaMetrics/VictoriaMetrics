@@ -3,14 +3,14 @@ package journald
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func TestPushJournaldOk(t *testing.T) {
 	f := func(src string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
-		tlp := &insertutils.TestLogMessageProcessor{}
-		cp := &insertutils.CommonParams{
+		tlp := &insertutil.TestLogMessageProcessor{}
+		cp := &insertutil.CommonParams{
 			TimeField: "__REALTIME_TIMESTAMP",
 			MsgFields: []string{"MESSAGE"},
 		}
@@ -44,8 +44,8 @@ func TestPushJournaldOk(t *testing.T) {
 func TestPushJournald_Failure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
-		tlp := &insertutils.TestLogMessageProcessor{}
-		cp := &insertutils.CommonParams{
+		tlp := &insertutil.TestLogMessageProcessor{}
+		cp := &insertutil.CommonParams{
 			TimeField: "__REALTIME_TIMESTAMP",
 			MsgFields: []string{"MESSAGE"},
 		}

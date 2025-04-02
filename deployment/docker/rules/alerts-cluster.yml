@@ -22,7 +22,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=113&var-instance={{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will run out of disk space in 3 days"
           description: "Taking into account current ingestion rate, free disk space will be enough only
               for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
@@ -41,7 +41,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=113&var-instance={{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
           description: "Taking into account current ingestion rate, free disk space and -storage.minFreeDiskSpaceBytes
               instance {{ $labels.instance }} will remain writable for {{ $value | humanizeDuration }}.\n
@@ -58,7 +58,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=200&var-instance={{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merges processes and overall performance.

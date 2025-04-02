@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -27,10 +27,10 @@ type SDConfig struct {
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 // GetLabels returns Marathon labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -49,16 +49,16 @@ func (sdc *SDConfig) MustStop() {
 }
 
 // getAppsLabels takes an array of Marathon apps and converts them into labels.
-func getAppsLabels(apps *AppList) []*promutils.Labels {
-	ms := make([]*promutils.Labels, 0, len(apps.Apps))
+func getAppsLabels(apps *AppList) []*promutil.Labels {
+	ms := make([]*promutil.Labels, 0, len(apps.Apps))
 	for _, a := range apps.Apps {
 		ms = append(ms, getAppLabels(&a)...)
 	}
 	return ms
 }
 
-func getAppLabels(app *app) []*promutils.Labels {
-	m := promutils.NewLabels(5)
+func getAppLabels(app *app) []*promutil.Labels {
+	m := promutil.NewLabels(5)
 
 	m.Add("__meta_marathon_app", app.ID)
 	m.Add("__meta_marathon_image", app.Container.Docker.Image)
@@ -99,10 +99,10 @@ func getAppLabels(app *app) []*promutils.Labels {
 	}
 
 	for ln, lv := range app.Labels {
-		m.Add("__meta_marathon_app_label_"+discoveryutils.SanitizeLabelName(ln), lv)
+		m.Add("__meta_marathon_app_label_"+discoveryutil.SanitizeLabelName(ln), lv)
 	}
 
-	labelss := make([]*promutils.Labels, 0, len(app.Tasks))
+	labelss := make([]*promutil.Labels, 0, len(app.Tasks))
 
 	// Gather info about the app's 'tasks'. Each instance (container) is considered a task
 	// and can be reachable at one or more host:port endpoints.
@@ -137,7 +137,7 @@ func getAppLabels(app *app) []*promutils.Labels {
 			// it is inefficient to allocate a list of possibly hundreds of empty label maps per host port.
 			if len(labels) > 0 {
 				for ln, lv := range labels[i] {
-					mm.Add(prefix+discoveryutils.SanitizeLabelName(ln), lv)
+					mm.Add(prefix+discoveryutil.SanitizeLabelName(ln), lv)
 				}
 			}
 		}
