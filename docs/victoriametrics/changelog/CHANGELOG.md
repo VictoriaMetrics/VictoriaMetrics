@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.24.1 to Go1.24.2. See the list of issues addressed in [Go1.24.2](https://github.com/golang/go/issues?q=milestone%3AGo1.24.2+label%3ACherryPickApproved).
+
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): remove panel `Storage full ETA` as it could have showing incorrect predictions and result in user's confusion. See more details in [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
 * FEATURE: [dashboards/all](https://grafana.com/orgs/victoriametrics/dashboards): drop all dashboards tags except `victoriametrics` or `victorialogs` tags for consistency. Having `victoriametrics` or `victorialogs` tags should be enough for filtering dashboards related to VictoriaMetrics components.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): support filtering targets via `scrapePool` GET param in `/api/v1/targets` API.
