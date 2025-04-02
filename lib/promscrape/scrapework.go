@@ -2,6 +2,8 @@ package promscrape
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -15,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -26,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -188,7 +192,7 @@ type scrapeWork struct {
 	Config *ScrapeWork
 
 	// ReadData is called for reading the scrape response data into dst.
-	ReadData func(dst *bytesutil.ByteBuffer) error
+	ReadData func(dst *chunkedbuffer.Buffer) (bool, error)
 
 	// PushData is called for pushing collected data.
 	//
@@ -218,15 +222,14 @@ type scrapeWork struct {
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
 	prevLabelsLen int
 
-	// lastScrape holds the last response from scrape target.
+	// lastScrapeCompressed holds the last response from scrape target in the compressed form.
 	// It is used for staleness tracking and for populating scrape_series_added metric.
-	// The lastScrape isn't populated if -promscrape.noStaleMarkers is set. This reduces memory usage.
-	lastScrape []byte
-
-	// lastScrapeCompressed is used for storing the compressed lastScrape between scrapes
-	// in stream parsing mode in order to reduce memory usage when the lastScrape size
-	// equals to or exceeds -promscrape.minResponseSizeForStreamParse
+	// The lastScrapeCompressed isn't populated if -promscrape.noStaleMarkers is set. This reduces memory usage.
 	lastScrapeCompressed []byte
+
+	// lastScrapeLen contains the length of the last response from scrape target.
+	// It is used as a hint in order to reduce memory usage when working with the last scraped response.
+	lastScrapeLen int
 
 	// nextErrorLogTime is the timestamp in millisecond when the next scrape error should be logged.
 	nextErrorLogTime int64
@@ -238,43 +241,25 @@ type scrapeWork struct {
 	successRequestsCount int
 }
 
-func (sw *scrapeWork) loadLastScrape() string {
-	if len(sw.lastScrapeCompressed) > 0 {
-		b, err := encoding.DecompressZSTD(sw.lastScrape[:0], sw.lastScrapeCompressed)
-		if err != nil {
-			logger.Panicf("BUG: cannot unpack compressed previous response: %s", err)
-		}
-		sw.lastScrape = b
+// loadLastScrape appends last scrape response to dst and returns the result.
+func (sw *scrapeWork) loadLastScrape(dst []byte) []byte {
+	if len(sw.lastScrapeCompressed) == 0 {
+		// Nothing to decompress.
+		return dst
 	}
-	return bytesutil.ToUnsafeString(sw.lastScrape)
+	b, err := encoding.DecompressZSTD(dst, sw.lastScrapeCompressed)
+	if err != nil {
+		logger.Panicf("BUG: cannot unpack compressed previous response: %s", err)
+	}
+	return b
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrapeStr string) {
 	if lastScrapeStr == "" {
-		sw.lastScrape = nil
-		sw.lastScrapeCompressed = nil
-		return
-	}
-	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrapeStr) >= minResponseSizeForStreamParse.IntN()
-	if mustCompress {
+		sw.lastScrapeCompressed = sw.lastScrapeCompressed[:0]
+	} else {
 		lastScrape := bytesutil.ToUnsafeBytes(lastScrapeStr)
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
-		sw.lastScrape = nil
-	} else {
-		sw.lastScrape = append(sw.lastScrape[:0], lastScrapeStr...)
-		sw.lastScrapeCompressed = nil
-	}
-}
-
-func (sw *scrapeWork) finalizeLastScrape() {
-	if len(sw.lastScrapeCompressed) > 0 {
-		// The compressed lastScrape is available in sw.lastScrapeCompressed.
-		// Release the memory occupied by sw.lastScrape, so it won't be occupied between scrapes.
-		sw.lastScrape = nil
-	}
-	if len(sw.lastScrape) > 0 {
-		// Release the memory occupied by sw.lastScrapeCompressed, so it won't be occupied between scrapes.
-		sw.lastScrapeCompressed = nil
 	}
 }
 
@@ -337,17 +322,28 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		select {
 		case <-stopCh:
 			t := time.Now().UnixMilli()
-			lastScrape := sw.loadLastScrape()
 			select {
 			case <-globalStopCh:
 				// Do not send staleness markers on graceful shutdown as Prometheus does.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2013#issuecomment-1006994079
 			default:
+				// The code below is CPU-bound, while it may allocate big amounts of memory.
+				// That's why it is a good idea to limit the number of concurrent goroutines,
+				// which may execute this code, in order to limit memory usage under high load
+				// without sacrificing the performance.
+				processScrapedDataConcurrencyLimitCh <- struct{}{}
+
 				// Send staleness markers to all the metrics scraped last time from the target
 				// when the given target disappears as Prometheus does.
 				// Use the current real timestamp for staleness markers, so queries
 				// stop returning data just after the time the target disappears.
-				sw.sendStaleSeries(lastScrape, "", t, true)
+				bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
+				bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
+				lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+				sw.sendStaleSeries(lastScrapeStr, "", t, true)
+				leveledbytebufferpool.Put(bbLastScrape)
+
+				<-processScrapedDataConcurrencyLimitCh
 			}
 			if sl := sw.getSeriesLimiter(); sl != nil {
 				sl.MustStop()
@@ -390,8 +386,10 @@ func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 		return
 	}
 	totalRequests := sw.failureRequestsCount + sw.successRequestsCount
-	logger.Warnf("cannot scrape target %q (%s) %d out of %d times during -promscrape.suppressScrapeErrorsDelay=%s; the last error: %s",
-		sw.Config.ScrapeURL, sw.Config.Labels.String(), sw.failureRequestsCount, totalRequests, *suppressScrapeErrorsDelay, err)
+	if !errors.Is(err, context.Canceled) {
+		logger.Warnf("cannot scrape target %q (%s) %d out of %d times during -promscrape.suppressScrapeErrorsDelay=%s; the last error: %s",
+			sw.Config.ScrapeURL, sw.Config.Labels.String(), sw.failureRequestsCount, totalRequests, *suppressScrapeErrorsDelay, err)
+	}
 	sw.nextErrorLogTime = realTimestamp + suppressScrapeErrorsDelay.Milliseconds()
 	sw.failureRequestsCount = 0
 	sw.successRequestsCount = 0
@@ -418,28 +416,33 @@ func (sw *scrapeWork) needStreamParseMode(responseSize int) bool {
 
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
 func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
-	var bb bytesutil.ByteBuffer
-	if err := sw.ReadData(&bb); err != nil {
+	cb := chunkedbuffer.Get()
+	defer chunkedbuffer.Put(cb)
+
+	isGzipped, err := sw.ReadData(cb)
+	if err != nil {
 		return nil, err
 	}
-	return bb.B, nil
+
+	var bb bytesutil.ByteBuffer
+	err = readFromBuffer(&bb, cb, isGzipped)
+	chunkedbuffer.Put(cb)
+	return bb.B, err
 }
 
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
-	body := leveledbytebufferpool.Get(sw.prevBodyLen)
-
-	// Read the scrape response into body.
-	// It is OK to do for stream parsing mode, since the most of RAM
+	// Read the whole scrape response into cb.
+	// It is OK to do this for stream parsing mode, since the most of RAM
 	// is occupied during parsing of the read response body below.
 	// This also allows measuring the real scrape duration, which doesn't include
 	// the time needed for processing of the read response.
-	err := sw.ReadData(body)
+	cb := chunkedbuffer.Get()
+	isGzipped, err := sw.ReadData(cb)
 
 	// Measure scrape duration.
 	endTimestamp := time.Now().UnixMilli()
 	scrapeDurationSeconds := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(scrapeDurationSeconds)
-	scrapeResponseSize.Update(float64(len(body.B)))
 
 	// The code below is CPU-bound, while it may allocate big amounts of memory.
 	// That's why it is a good idea to limit the number of concurrent goroutines,
@@ -447,7 +450,19 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// without sacrificing the performance.
 	processScrapedDataConcurrencyLimitCh <- struct{}{}
 
-	if err == nil && sw.needStreamParseMode(len(body.B)) {
+	// Copy the read scrape response to body in order to parse it and send
+	// the parsed results to remote storage.
+	body := leveledbytebufferpool.Get(sw.prevBodyLen)
+	if err == nil {
+		err = readFromBuffer(body, cb, isGzipped)
+	}
+	chunkedbuffer.Put(cb)
+
+	bodyLen := len(body.B)
+	sw.prevBodyLen = bodyLen
+	scrapeResponseSize.Update(float64(bodyLen))
+
+	if err == nil && sw.needStreamParseMode(bodyLen) {
 		// Process response body from scrape target in streaming manner.
 		// This case is optimized for targets exposing more than ten thousand of metrics per target,
 		// such as kube-state-metrics.
@@ -459,22 +474,45 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		err = sw.processDataOneShot(scrapeTimestamp, realTimestamp, body.B, scrapeDurationSeconds, err)
 	}
 
-	<-processScrapedDataConcurrencyLimitCh
-
 	leveledbytebufferpool.Put(body)
+
+	<-processScrapedDataConcurrencyLimitCh
 
 	return err
 }
 
 var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
+func readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzipped bool) error {
+	if !isGzipped {
+		src.MustWriteTo(dst)
+		return nil
+	}
+
+	reader, err := protoparserutil.GetUncompressedReader(src.NewReader(), "gzip")
+	if err != nil {
+		return fmt.Errorf("cannot decompress response body: %w", err)
+	}
+	_, err = dst.ReadFrom(reader)
+	protoparserutil.PutUncompressedReader(reader)
+	if err != nil {
+		return fmt.Errorf("cannot read gzipped response body: %w", err)
+	}
+	return nil
+}
+
 func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, body []byte, scrapeDurationSeconds float64, err error) error {
 	up := 1
-	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-	lastScrape := sw.loadLastScrape()
+
+	bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
+	bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
+	lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+
 	bodyString := bytesutil.ToUnsafeString(body)
 	cfg := sw.Config
-	areIdenticalSeries := areIdenticalSeries(cfg, lastScrape, bodyString)
+	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
+
+	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -501,13 +539,14 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = getSeriesAdded(lastScrape, bodyString)
+		seriesAdded = getSeriesAdded(lastScrapeStr, bodyString)
 	}
 	samplesDropped := 0
 	if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
 		samplesDropped = wc.applySeriesLimit(sw)
 	}
 	responseSize := len(bodyString)
+
 	am := &autoMetrics{
 		up:                        up,
 		scrapeDurationSeconds:     scrapeDurationSeconds,
@@ -518,18 +557,20 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		seriesLimitSamplesDropped: samplesDropped,
 	}
 	wc.addAutoMetrics(sw, am, scrapeTimestamp)
+
 	sw.pushData(&wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
-	sw.prevBodyLen = responseSize
 	writeRequestCtxPool.Put(wc)
 
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
 		sw.storeLastScrape(bodyString)
+		sw.lastScrapeLen = len(bodyString)
 	}
-	sw.finalizeLastScrape()
+	leveledbytebufferpool.Put(bbLastScrape)
+
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, samplesScraped, err)
 	return err
 }
@@ -541,10 +582,14 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	var maxLabelsLen atomic.Int64
 
 	maxLabelsLen.Store(int64(sw.prevLabelsLen))
-	lastScrape := sw.loadLastScrape()
+
+	bbLastScrape := leveledbytebufferpool.Get(sw.lastScrapeLen)
+	bbLastScrape.B = sw.loadLastScrape(bbLastScrape.B)
+	lastScrapeStr := bytesutil.ToUnsafeString(bbLastScrape.B)
+
 	bodyString := bytesutil.ToUnsafeString(body.B)
 	cfg := sw.Config
-	areIdenticalSeries := areIdenticalSeries(cfg, lastScrape, bodyString)
+	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
@@ -598,7 +643,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = getSeriesAdded(lastScrape, bodyString)
+		seriesAdded = getSeriesAdded(lastScrapeStr, bodyString)
 	}
 	responseSize := len(bodyString)
 
@@ -612,15 +657,16 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		seriesLimitSamplesDropped: int(samplesDroppedTotal.Load()),
 	}
 	sw.pushAutoMetrics(am, scrapeTimestamp)
-	sw.prevBodyLen = responseSize
 
 	if !areIdenticalSeries {
 		// Send stale markers for disappeared metrics with the real scrape timestamp
 		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		sw.sendStaleSeries(lastScrapeStr, bodyString, realTimestamp, false)
 		sw.storeLastScrape(bodyString)
+		sw.lastScrapeLen = len(bodyString)
 	}
-	sw.finalizeLastScrape()
+	leveledbytebufferpool.Put(bbLastScrape)
+
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, int(samplesScraped.Load()), err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.

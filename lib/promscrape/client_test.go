@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -149,20 +149,25 @@ func TestClientProxyReadOk(t *testing.T) {
 			// bump timeout for slow CIs
 			ScrapeTimeout: 5 * time.Second,
 			// force connection re-creating to avoid broken conns in slow CIs
-			DisableKeepAlive: true,
-			AuthConfig:       newTestAuthConfig(t, isBackendTLS, backendAuth),
-			ProxyAuthConfig:  newTestAuthConfig(t, isProxyTLS, proxyAuth),
-			MaxScrapeSize:    16000,
+			DisableKeepAlive:   true,
+			AuthConfig:         newTestAuthConfig(t, isBackendTLS, backendAuth),
+			ProxyAuthConfig:    newTestAuthConfig(t, isProxyTLS, proxyAuth),
+			MaxScrapeSize:      16000,
+			DisableCompression: true,
 		})
 		if err != nil {
 			t.Fatalf("failed to create client: %s", err)
 		}
 
-		var bb bytesutil.ByteBuffer
-		if err = c.ReadData(&bb); err != nil {
+		var cb chunkedbuffer.Buffer
+		isGzipped, err := c.ReadData(&cb)
+		if err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
-		got, err := io.ReadAll(bb.NewReader())
+		if isGzipped {
+			t.Fatalf("the response musn't be gzipped")
+		}
+		got, err := io.ReadAll(cb.NewReader())
 		if err != nil {
 			t.Fatalf("err read: %s", err)
 		}

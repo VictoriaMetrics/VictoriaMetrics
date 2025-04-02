@@ -336,13 +336,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotPath, err := Storage.CreateSnapshot()
-		if err != nil {
-			err = fmt.Errorf("cannot create snapshot: %w", err)
-			jsonResponseError(w, err)
-			snapshotsCreateErrorsTotal.Inc()
-			return true
-		}
+		snapshotPath := Storage.MustCreateSnapshot()
 		if prometheusCompatibleResponse {
 			fmt.Fprintf(w, `{"status":"success","data":{"name":%s}}`, stringsutil.JSONString(snapshotPath))
 		} else {
@@ -352,13 +346,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots, err := Storage.ListSnapshots()
-		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %w", err)
-			jsonResponseError(w, err)
-			snapshotsListErrorsTotal.Inc()
-			return true
-		}
+		snapshots := Storage.MustListSnapshots()
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
 		if len(snapshots) > 0 {
 			for _, snapshot := range snapshots[:len(snapshots)-1] {
@@ -373,13 +361,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 
-		snapshots, err := Storage.ListSnapshots()
-		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %w", err)
-			jsonResponseError(w, err)
-			snapshotsDeleteErrorsTotal.Inc()
-			return true
-		}
+		snapshots := Storage.MustListSnapshots()
 		for _, snName := range snapshots {
 			if snName == snapshotName {
 				if err := Storage.DeleteSnapshot(snName); err != nil {
@@ -393,19 +375,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			}
 		}
 
-		err = fmt.Errorf("cannot find snapshot %q", snapshotName)
+		err := fmt.Errorf("cannot find snapshot %q", snapshotName)
 		jsonResponseError(w, err)
 		return true
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots, err := Storage.ListSnapshots()
-		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %w", err)
-			jsonResponseError(w, err)
-			snapshotsDeleteAllErrorsTotal.Inc()
-			return true
-		}
+		snapshots := Storage.MustListSnapshots()
 		for _, snapshotName := range snapshots {
 			if err := Storage.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
@@ -439,10 +415,7 @@ func initStaleSnapshotsRemover(strg *storage.Storage) {
 				return
 			case <-t.C:
 			}
-			if err := strg.DeleteStaleSnapshots(snapshotsMaxAgeDur); err != nil {
-				// Use logger.Errorf instead of logger.Fatalf in the hope the error is temporary.
-				logger.Errorf("cannot delete stale snapshots: %s", err)
-			}
+			strg.MustDeleteStaleSnapshots(snapshotsMaxAgeDur)
 		}
 	}()
 }
@@ -460,11 +433,9 @@ var (
 var (
 	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
 
-	snapshotsCreateTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
-	snapshotsCreateErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/create"}`)
+	snapshotsCreateTotal = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
 
-	snapshotsListTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/list"}`)
-	snapshotsListErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/list"}`)
+	snapshotsListTotal = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/list"}`)
 
 	snapshotsDeleteTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/delete"}`)
 	snapshotsDeleteErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete"}`)
