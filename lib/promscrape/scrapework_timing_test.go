@@ -2,12 +2,13 @@ package promscrape
 
 import (
 	"fmt"
-	"strings"
+	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
@@ -77,27 +78,8 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
-		dst.B = append(dst.B, data...)
-		return nil
-	}
-	b.ReportAllocs()
-	b.SetBytes(int64(len(data)))
-	b.RunParallel(func(pb *testing.PB) {
-		var sw scrapeWork
-		sw.Config = &ScrapeWork{}
-		sw.ReadData = readDataFunc
-		sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
-		tsmGlobal.Register(&sw)
-		timestamp := int64(0)
-		for pb.Next() {
-			if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-				panic(fmt.Errorf("unexpected error: %w", err))
-			}
-			timestamp++
-		}
-		tsmGlobal.Unregister(&sw)
-	})
+	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+	benchmarkScrapeWorkScrapeInternal(b, []byte(data), false, pushData)
 }
 
 func BenchmarkScrapeWorkScrapeInternalStream(b *testing.B) {
@@ -123,22 +105,49 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
+	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+	benchmarkScrapeWorkScrapeInternal(b, []byte(data), true, pushData)
+}
+
+func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
+	generateScrape := func(n int) []byte {
+		var b []byte
+		for i := 0; i < n; i++ {
+			b = append(b, "fooooo_"...)
+			b = strconv.AppendInt(b, int64(i), 10)
+			b = append(b, " 1\n"...)
+		}
+		return b
+	}
+
+	data := generateScrape(200_000)
+	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {
+		// simulates a delay to highlight the difference between lock-based and lock-free algorithms.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515
+		time.Sleep(time.Millisecond)
+	}
+	benchmarkScrapeWorkScrapeInternal(b, data, true, pushData)
+}
+
+func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bool, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
 	protoparserutil.StartUnmarshalWorkers()
 	defer protoparserutil.StopUnmarshalWorkers()
 
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
-		dst.B = append(dst.B, data...)
-		return nil
+	readData := func(dst *chunkedbuffer.Buffer) (bool, error) {
+		dst.MustWrite(data)
+		return false, nil
 	}
+
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
+
 	b.RunParallel(func(pb *testing.PB) {
 		var sw scrapeWork
 		sw.Config = &ScrapeWork{
-			StreamParse: true,
+			StreamParse: streamParse,
 		}
-		sw.ReadData = readDataFunc
-		sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+		sw.ReadData = readData
+		sw.PushData = pushData
 		tsmGlobal.Register(&sw)
 		timestamp := int64(0)
 		for pb.Next() {
@@ -151,62 +160,26 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 	})
 }
 
-func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
-	generateScrape := func(n int) string {
-		w := strings.Builder{}
-		for i := 0; i < n; i++ {
-			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
-		}
-		return w.String()
-	}
-
-	data := generateScrape(200000)
-	protoparserutil.StartUnmarshalWorkers()
-	defer protoparserutil.StopUnmarshalWorkers()
-
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
-		dst.B = append(dst.B, data...)
-		return nil
-	}
-
-	var sw scrapeWork
-	sw.Config = &ScrapeWork{
-		StreamParse: true,
-	}
-	sw.ReadData = readDataFunc
-	sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {
-		// simulates a delay to highlight the difference between lock-based and lock-free algorithms.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515
-		time.Sleep(time.Millisecond)
-	}
-	tsmGlobal.Register(&sw)
-	defer tsmGlobal.Unregister(&sw)
-
-	b.ReportAllocs()
-	b.SetBytes(int64(len(data)))
-
-	timestamp := int64(0)
-	for b.Loop() {
-		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-			panic(fmt.Errorf("unexpected error: %w", err))
-		}
-		timestamp++
-	}
-}
-
 func BenchmarkScrapeWorkGetLabelsHash(b *testing.B) {
-	labels := []prompbmarshal.Label{}
-	for i := 0; i < 100; i++ {
-		labels = append(labels, prompbmarshal.Label{
+	labels := make([]prompbmarshal.Label, 100)
+	for i := range labels {
+		labels[i] = prompbmarshal.Label{
 			Name:  fmt.Sprintf("name%d", i),
 			Value: fmt.Sprintf("value%d", i),
-		})
+		}
 	}
-
-	var sw scrapeWork
 
 	b.ReportAllocs()
-	for b.Loop() {
-		sw.getLabelsHash(labels)
-	}
+	b.SetBytes(1)
+
+	b.RunParallel(func(pb *testing.PB) {
+		var hSum uint64
+		for pb.Next() {
+			h := getLabelsHash(labels)
+			hSum += h
+		}
+		Sink.Add(hSum)
+	})
 }
+
+var Sink atomic.Uint64

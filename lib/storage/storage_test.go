@@ -1549,16 +1549,10 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	}
 
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
-	if err != nil {
-		return fmt.Errorf("cannot create snapshot from the storage: %w", err)
-	}
+	snapshotName := s.MustCreateSnapshot()
 
 	// Verify the snapshot is visible
-	snapshots, err := s.ListSnapshots()
-	if err != nil {
-		return fmt.Errorf("cannot list snapshots: %w", err)
-	}
+	snapshots := s.MustListSnapshots()
 	if !containsString(snapshots, snapshotName) {
 		return fmt.Errorf("cannot find snapshot %q in %q", snapshotName, snapshots)
 	}
@@ -1598,10 +1592,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	if err := s.DeleteSnapshot(snapshotName); err != nil {
 		return fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 	}
-	snapshots, err = s.ListSnapshots()
-	if err != nil {
-		return fmt.Errorf("cannot list snapshots: %w", err)
-	}
+	snapshots = s.MustListSnapshots()
 	if containsString(snapshots, snapshotName) {
 		return fmt.Errorf("snapshot %q must be deleted, but is still visible in %q", snapshotName, snapshots)
 	}
@@ -1746,10 +1737,7 @@ func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		_, err := s.CreateSnapshot()
-		if err != nil {
-			panic(fmt.Sprintf("CreateSnapshot() failed unexpectedly: %v", err))
-		}
+		_ = s.MustCreateSnapshot()
 	}
 
 	testRotateIndexDB(t, mrs, op)
@@ -1996,15 +1984,9 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
-	snapshotName, err := s.CreateSnapshot()
-	if err != nil {
-		t.Fatalf("cannot create snapshot from the storage: %v", err)
-	}
+	snapshotName := s.MustCreateSnapshot()
 	assertListSnapshots := func(want []string) {
-		got, err := s.ListSnapshots()
-		if err != nil {
-			t.Fatalf("could not list snapshots: %v", err)
-		}
+		got := s.MustListSnapshots()
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Fatalf("unexpected snapshot list (-want, +got):\n%s", diff)
 		}
@@ -2099,18 +2081,12 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
-	if err != nil {
-		t.Fatalf("cannot create snapshot from the storage: %s", err)
-	}
+	snapshotName := s.MustCreateSnapshot()
+
 	// Delete snapshots older than 1 month
-	if err := s.DeleteStaleSnapshots(30 * 24 * time.Hour); err != nil {
-		t.Fatalf("error in DeleteStaleSnapshots(1 month): %s", err)
-	}
-	snapshots, err := s.ListSnapshots()
-	if err != nil {
-		t.Fatalf("cannot list snapshots: %s", err)
-	}
+	s.MustDeleteStaleSnapshots(30 * 24 * time.Hour)
+
+	snapshots := s.MustListSnapshots()
 	if len(snapshots) != 1 {
 		t.Fatalf("expecting one snapshot; got %q", snapshots)
 	}
@@ -2120,13 +2096,9 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 
 	// Delete the snapshot which is older than 1 nanoseconds
 	time.Sleep(2 * time.Nanosecond)
-	if err := s.DeleteStaleSnapshots(time.Nanosecond); err != nil {
-		t.Fatalf("cannot delete snapshot %q: %s", snapshotName, err)
-	}
-	snapshots, err = s.ListSnapshots()
-	if err != nil {
-		t.Fatalf("cannot list snapshots: %s", err)
-	}
+	s.MustDeleteStaleSnapshots(time.Nanosecond)
+
+	snapshots = s.MustListSnapshots()
 	if len(snapshots) != 0 {
 		t.Fatalf("expecting zero snapshots; got %q", snapshots)
 	}

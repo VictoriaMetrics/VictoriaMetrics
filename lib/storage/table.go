@@ -194,7 +194,10 @@ func (tb *table) addPartitionNolock(pt *partition) {
 }
 
 // MustClose closes the table.
-// It is expected that all the pending searches on the table are finished before calling MustClose.
+//
+// This func must be called only when there are no goroutines using the the
+// table, such as ones that ingest or retrieve time series samples or index
+// data.
 func (tb *table) MustClose() {
 	close(tb.stopCh)
 	tb.retentionWatcherWG.Wait()

@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
+	nethttputil "net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -14,14 +14,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -118,7 +118,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Handle non-trivial dynamic requests, which may take big amounts of time and resources.
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
-	tracerEnabled := httputils.GetBool(r, "trace")
+	tracerEnabled := httputil.GetBool(r, "trace")
 	qt := querytracer.New(tracerEnabled, "%s", r.URL.Path)
 
 	// Limit the number of concurrent queries.
@@ -128,7 +128,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := searchutils.GetMaxQueryDuration(r)
+		d := searchutil.GetMaxQueryDuration(r)
 		if d > *maxQueueDuration {
 			d = *maxQueueDuration
 		}
@@ -722,7 +722,7 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
 
 var (
 	vmalertProxyHost string
-	vmalertProxy     *httputil.ReverseProxy
+	vmalertProxy     *nethttputil.ReverseProxy
 )
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
@@ -735,5 +735,5 @@ func initVMAlertProxy() {
 		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
 	}
 	vmalertProxyHost = proxyURL.Host
-	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+	vmalertProxy = nethttputil.NewSingleHostReverseProxy(proxyURL)
 }

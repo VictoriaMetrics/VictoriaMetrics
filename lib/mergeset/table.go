@@ -491,6 +491,9 @@ func getFilePartsConcurrency() int {
 }
 
 // MustClose closes the table.
+//
+// This func must be called only when there are no goroutines using the the
+// table, such as ones that ingest or retrieve index data.
 func (tb *Table) MustClose() {
 	// Notify background workers to stop.
 	// The tb.partsLock is acquired in order to guarantee that tb.wg.Add() isn't called
@@ -1503,7 +1506,7 @@ func mustOpenParts(path string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 
@@ -1544,24 +1547,28 @@ func mustOpenParts(path string) []*partWrapper {
 	return pws
 }
 
-// CreateSnapshotAt creates tb snapshot in the given dstDir.
+// MustCreateSnapshotAt creates tb snapshot in the given dstDir.
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
 //
-// The caller is responsible for data removal at dstDir on unsuccessful snapshot creation.
-func (tb *Table) CreateSnapshotAt(dstDir string) error {
+// The method panics in case of any error. The input it accepts is provided by
+// the storage (not by a user) and the error indicates either a bug in storage
+// or a problem with the underlying file system (such as insufficient
+// permissions).
+func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	var err error
 	srcDir := tb.path
 	srcDir, err = filepath.Abs(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute dir for %q: %w", srcDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", srcDir, err)
 	}
 	dstDir, err = filepath.Abs(dstDir)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute dir for %q: %w", dstDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", dstDir, err)
 	}
-	if strings.HasPrefix(dstDir, srcDir+string(filepath.Separator)) {
-		return fmt.Errorf("cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
+	prefix := srcDir + string(filepath.Separator)
+	if strings.HasPrefix(dstDir, prefix) {
+		logger.Panicf("BUG: cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
 	}
 
 	// Flush inmemory items to disk.
@@ -1589,8 +1596,6 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	fs.MustSyncPath(dstDir)
 	parentDir := filepath.Dir(dstDir)
 	fs.MustSyncPath(parentDir)
-
-	return nil
 }
 
 func mustWritePartNames(pws []*partWrapper, dstDir string) {

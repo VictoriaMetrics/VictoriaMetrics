@@ -220,7 +220,8 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	// there will be panic.
 	mustWritePartNames(nil, nil, smallPartsPath)
 
-	pt := newPartition(tr, name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, tr, s)
+
 	pt.startBackgroundWorkers()
 
 	logger.Infof("partition %q has been created", name)
@@ -262,7 +263,6 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 	if err := tr.fromPartitionName(name); err != nil {
 		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
 	}
-
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
@@ -284,24 +284,25 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	pt := newPartition(tr, name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, tr, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
+
 	pt.startBackgroundWorkers()
 
 	return pt
 }
 
-func newPartition(tr TimeRange, name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, tr TimeRange, s *Storage) *partition {
 	id := uint64(tr.MinTimestamp)
 	idb := mustOpenIndexDB(id, tr, name, indexDBPartsPath, s, &s.isReadOnly)
 
 	p := &partition{
-		tr:               tr,
 		name:             name,
 		smallPartsPath:   smallPartsPath,
 		bigPartsPath:     bigPartsPath,
 		indexDBPartsPath: indexDBPartsPath,
+		tr:               tr,
 		s:                s,
 		idb:              idb,
 		stopCh:           make(chan struct{}),
@@ -1621,8 +1622,8 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
-	dmis := pt.getDeletedMetricIDs()
 	activeMerges.Add(1)
+	dmis := pt.getDeletedMetricIDs()
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
@@ -1995,7 +1996,7 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 
@@ -2061,9 +2062,7 @@ func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath, indexDBPath string
 	pt.mustCreateSnapshot(pt.smallPartsPath, smallPath, pwsSmall)
 	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
 
-	if err := pt.idb.tb.CreateSnapshotAt(indexDBPath); err != nil {
-		logger.Panicf("FATAL: cannot create paritition indexDB snapshot of %q at %q: %s", pt.indexDBPartsPath, indexDBPath, err)
-	}
+	pt.idb.tb.MustCreateSnapshotAt(indexDBPath)
 
 	logger.Infof("created partition snapshot of %q, %q, and %q at %q, %q, and %q in %.3f seconds",
 		pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath, smallPath, bigPath, indexDBPath, time.Since(startTime).Seconds())

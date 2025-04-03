@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv2/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -53,7 +53,7 @@ func insertRows(series []datadogv2.Series, extraLabels []prompbmarshal.Label) er
 			ctx.AddLabel(rs.Type, rs.Name)
 		}
 		for _, tag := range ss.Tags {
-			name, value := datadogutils.SplitTag(tag)
+			name, value := datadogutil.SplitTag(tag)
 			if name == "host" {
 				name = "exported_host"
 			}

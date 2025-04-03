@@ -3,14 +3,14 @@ package loki
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func TestParseJSONRequest_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		if err := parseJSONRequest([]byte(s), tlp, nil, false, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -63,7 +63,7 @@ func TestParseJSONRequest_Success(t *testing.T) {
 	f := func(s string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 
 		if err := parseJSONRequest([]byte(s), tlp, nil, false, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -130,7 +130,7 @@ func TestParseJSONRequest_ParseMessage(t *testing.T) {
 	f := func(s string, msgFields []string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 
 		if err := parseJSONRequest([]byte(s), tlp, msgFields, false, true); err != nil {
 			t.Fatalf("unexpected error: %s", err)

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
 // Client is used for interacting with the apps over the network.
@@ -22,7 +24,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		httpCli: &http.Client{
-			Transport: &http.Transport{},
+			Transport: httputil.NewTransport(false, "apptest_client"),
 		},
 	}
 }
@@ -51,6 +53,13 @@ func (c *Client) Post(t *testing.T, url, contentType string, data []byte) (strin
 func (c *Client) PostForm(t *testing.T, url string, data url.Values) (string, int) {
 	t.Helper()
 	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()))
+}
+
+// Delete sends a HTTP DELETE request and returns the response body and status code
+// to the caller.
+func (c *Client) Delete(t *testing.T, url string) (string, int) {
+	t.Helper()
+	return c.do(t, http.MethodDelete, url, "", nil)
 }
 
 // do prepares a HTTP request, sends it to the server, receives the response
