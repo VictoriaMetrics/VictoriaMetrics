@@ -40,7 +40,7 @@ type chunkedAllocator struct {
 	statsCountUniqSets     []statsCountUniqSet
 	statsCountUniqHashSets []statsCountUniqHashSet
 
-	hitsMaps []hitsMap
+	hitsMapShards []hitsMapShard
 
 	u64Buf []uint64
 
@@ -145,8 +145,8 @@ func (a *chunkedAllocator) newStatsCountUniqHashSets(itemsLen uint) []statsCount
 	return addNewItems(&a.statsCountUniqHashSets, itemsLen, a)
 }
 
-func (a *chunkedAllocator) newHitsMaps(itemsLen uint) []hitsMap {
-	return addNewItems(&a.hitsMaps, itemsLen, a)
+func (a *chunkedAllocator) newHitsMapShards(itemsLen uint) []hitsMapShard {
+	return addNewItems(&a.hitsMapShards, itemsLen, a)
 }
 
 func (a *chunkedAllocator) newUint64() (p *uint64) {

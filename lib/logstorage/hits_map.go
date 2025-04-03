@@ -14,7 +14,7 @@ type hitsMapAdaptive struct {
 
 	// concurrency is the number of parallel workers to use when merging shards.
 	//
-	// this field must be updated by the caller before using statsCountUniqProcessor.
+	// this field must be updated by the caller via init() before using hitsMapAdaptive.
 	concurrency uint
 
 	// hm tracks hits until the number of unique values reaches hitsMapAdaptiveMaxLen.
@@ -24,10 +24,17 @@ type hitsMapAdaptive struct {
 	// shards tracks hits for big number of unique values.
 	//
 	// Every shard contains hits for a share of unique values.
-	shards []hitsMap
+	shards []hitsMapShard
 
 	// a reduces memory allocations when counting the number of hits over big number of unique values.
 	a chunkedAllocator
+}
+
+type hitsMapShard struct {
+	hitsMap
+
+	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(hitsMap{})%128]byte
 }
 
 // the maximum number of values to track in hitsMapAdaptive.hm before switching to hitsMapAdaptive.shards
@@ -53,8 +60,10 @@ func (hma *hitsMapAdaptive) clear() {
 
 func (hma *hitsMapAdaptive) stateSize() int {
 	n := hma.hm.stateSize()
-	for i := range hma.shards {
-		n += hma.shards[i].stateSize()
+
+	shards := hma.shards
+	for i := range shards {
+		n += shards[i].stateSize()
 	}
 	return n
 }
@@ -141,7 +150,7 @@ func (hma *hitsMapAdaptive) probablyMoveToShards(a *chunkedAllocator) {
 }
 
 func (hma *hitsMapAdaptive) moveToShards(a *chunkedAllocator) {
-	hma.shards = a.newHitsMaps(hma.concurrency)
+	hma.shards = a.newHitsMapShards(hma.concurrency)
 
 	for n, pHits := range hma.hm.u64 {
 		hm := hma.getShardByUint64(n)
@@ -159,13 +168,13 @@ func (hma *hitsMapAdaptive) moveToShards(a *chunkedAllocator) {
 	hma.hm.reset()
 }
 
-func (hma *hitsMapAdaptive) getShardByUint64(n uint64) *hitsMap {
+func (hma *hitsMapAdaptive) getShardByUint64(n uint64) *hitsMapShard {
 	h := fastHashUint64(n)
 	shardIdx := h % uint64(len(hma.shards))
 	return &hma.shards[shardIdx]
 }
 
-func (hma *hitsMapAdaptive) getShardByString(v []byte) *hitsMap {
+func (hma *hitsMapAdaptive) getShardByString(v []byte) *hitsMapShard {
 	h := xxhash.Sum64(v)
 	shardIdx := h % uint64(len(hma.shards))
 	return &hma.shards[shardIdx]
@@ -344,9 +353,9 @@ func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f fun
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			hm := &hmas[0].shards[cpuIdx]
+			hm := &hmas[0].shards[cpuIdx].hitsMap
 			for j := range hmas[1:] {
-				src := &hmas[1+j].shards[cpuIdx]
+				src := &hmas[1+j].shards[cpuIdx].hitsMap
 				hm.mergeState(src, stopCh)
 				src.reset()
 			}
