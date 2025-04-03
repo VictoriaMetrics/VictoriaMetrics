@@ -821,27 +821,19 @@ var defaultPartitions = endpoints.Partitions{
 				Variant: endpoints.FIPSVariant,
 			}: {
 				Hostname:          "s3-fips.{region}.csp.hci.ic.gov",
-				Protocols:         []string{"http", "https"},
-				SignatureVersions: []string{"s3v4"},
+				Protocols:         []string{"https"},
+				SignatureVersions: []string{"v4"},
 			},
 			{
 				Variant: 0,
 			}: {
 				Hostname:          "s3.{region}.csp.hci.ic.gov",
-				Protocols:         []string{"http", "https"},
-				SignatureVersions: []string{"s3v4"},
+				Protocols:         []string{"https"},
+				SignatureVersions: []string{"v4"},
 			},
 		},
 		RegionRegex:    partitionRegexp.AwsIsoF,
 		IsRegionalized: true,
-		Endpoints: endpoints.Endpoints{
-			endpoints.EndpointKey{
-				Region: "us-isof-east-1",
-			}: endpoints.Endpoint{},
-			endpoints.EndpointKey{
-				Region: "us-isof-south-1",
-			}: endpoints.Endpoint{},
-		},
 	},
 	{
 		ID: "aws-us-gov",

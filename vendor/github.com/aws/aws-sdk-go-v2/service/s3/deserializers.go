@@ -341,19 +341,6 @@ func awsRestxml_deserializeOpDocumentCompleteMultipartUploadOutput(v **CompleteM
 				sv.ChecksumCRC32C = ptr.String(xtv)
 			}
 
-		case strings.EqualFold("ChecksumCRC64NVME", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumCRC64NVME = ptr.String(xtv)
-			}
-
 		case strings.EqualFold("ChecksumSHA1", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -378,19 +365,6 @@ func awsRestxml_deserializeOpDocumentCompleteMultipartUploadOutput(v **CompleteM
 			{
 				xtv := string(val)
 				sv.ChecksumSHA256 = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
 			}
 
 		case strings.EqualFold("ETag", t.Name.Local):
@@ -975,11 +949,6 @@ func awsRestxml_deserializeOpHttpBindingsCreateMultipartUploadOutput(v *CreateMu
 	if headerValues := response.Header.Values("x-amz-checksum-algorithm"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumAlgorithm = types.ChecksumAlgorithm(headerValues[0])
-	}
-
-	if headerValues := response.Header.Values("x-amz-checksum-type"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumType = types.ChecksumType(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("x-amz-request-charged"); len(headerValues) != 0 {
@@ -6058,11 +6027,6 @@ func awsRestxml_deserializeOpHttpBindingsGetObjectOutput(v *GetObjectOutput, res
 		v.ChecksumCRC32C = ptr.String(headerValues[0])
 	}
 
-	if headerValues := response.Header.Values("x-amz-checksum-crc64nvme"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumCRC64NVME = ptr.String(headerValues[0])
-	}
-
 	if headerValues := response.Header.Values("x-amz-checksum-sha1"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumSHA1 = ptr.String(headerValues[0])
@@ -6071,11 +6035,6 @@ func awsRestxml_deserializeOpHttpBindingsGetObjectOutput(v *GetObjectOutput, res
 	if headerValues := response.Header.Values("x-amz-checksum-sha256"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumSHA256 = ptr.String(headerValues[0])
-	}
-
-	if headerValues := response.Header.Values("x-amz-checksum-type"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumType = types.ChecksumType(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("Content-Disposition"); len(headerValues) != 0 {
@@ -7752,11 +7711,6 @@ func awsRestxml_deserializeOpHttpBindingsHeadObjectOutput(v *HeadObjectOutput, r
 		v.ChecksumCRC32C = ptr.String(headerValues[0])
 	}
 
-	if headerValues := response.Header.Values("x-amz-checksum-crc64nvme"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumCRC64NVME = ptr.String(headerValues[0])
-	}
-
 	if headerValues := response.Header.Values("x-amz-checksum-sha1"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumSHA1 = ptr.String(headerValues[0])
@@ -7765,11 +7719,6 @@ func awsRestxml_deserializeOpHttpBindingsHeadObjectOutput(v *HeadObjectOutput, r
 	if headerValues := response.Header.Values("x-amz-checksum-sha256"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumSHA256 = ptr.String(headerValues[0])
-	}
-
-	if headerValues := response.Header.Values("x-amz-checksum-type"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumType = types.ChecksumType(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("Content-Disposition"); len(headerValues) != 0 {
@@ -7794,11 +7743,6 @@ func awsRestxml_deserializeOpHttpBindingsHeadObjectOutput(v *HeadObjectOutput, r
 			return err
 		}
 		v.ContentLength = ptr.Int64(vv)
-	}
-
-	if headerValues := response.Header.Values("Content-Range"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ContentRange = ptr.String(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("Content-Type"); len(headerValues) != 0 {
@@ -10412,19 +10356,6 @@ func awsRestxml_deserializeOpDocumentListPartsOutput(v **ListPartsOutput, decode
 				sv.ChecksumAlgorithm = types.ChecksumAlgorithm(xtv)
 			}
 
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
-			}
-
 		case strings.EqualFold("Initiator", t.Name.Local):
 			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
 			if err := awsRestxml_deserializeDocumentInitiator(&sv.Initiator, nodeDecoder); err != nil {
@@ -12122,11 +12053,6 @@ func awsRestxml_deserializeOpHttpBindingsPutObjectOutput(v *PutObjectOutput, res
 		v.ChecksumCRC32C = ptr.String(headerValues[0])
 	}
 
-	if headerValues := response.Header.Values("x-amz-checksum-crc64nvme"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumCRC64NVME = ptr.String(headerValues[0])
-	}
-
 	if headerValues := response.Header.Values("x-amz-checksum-sha1"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumSHA1 = ptr.String(headerValues[0])
@@ -12135,11 +12061,6 @@ func awsRestxml_deserializeOpHttpBindingsPutObjectOutput(v *PutObjectOutput, res
 	if headerValues := response.Header.Values("x-amz-checksum-sha256"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumSHA256 = ptr.String(headerValues[0])
-	}
-
-	if headerValues := response.Header.Values("x-amz-checksum-type"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumType = types.ChecksumType(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("ETag"); len(headerValues) != 0 {
@@ -13017,11 +12938,6 @@ func awsRestxml_deserializeOpHttpBindingsUploadPartOutput(v *UploadPartOutput, r
 	if headerValues := response.Header.Values("x-amz-checksum-crc32c"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ChecksumCRC32C = ptr.String(headerValues[0])
-	}
-
-	if headerValues := response.Header.Values("x-amz-checksum-crc64nvme"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		v.ChecksumCRC64NVME = ptr.String(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("x-amz-checksum-sha1"); len(headerValues) != 0 {
@@ -14937,19 +14853,6 @@ func awsRestxml_deserializeDocumentChecksum(v **types.Checksum, decoder smithyxm
 				sv.ChecksumCRC32C = ptr.String(xtv)
 			}
 
-		case strings.EqualFold("ChecksumCRC64NVME", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumCRC64NVME = ptr.String(xtv)
-			}
-
 		case strings.EqualFold("ChecksumSHA1", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -14974,19 +14877,6 @@ func awsRestxml_deserializeDocumentChecksum(v **types.Checksum, decoder smithyxm
 			{
 				xtv := string(val)
 				sv.ChecksumSHA256 = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
 			}
 
 		default:
@@ -15310,19 +15200,6 @@ func awsRestxml_deserializeDocumentCopyObjectResult(v **types.CopyObjectResult, 
 				sv.ChecksumCRC32C = ptr.String(xtv)
 			}
 
-		case strings.EqualFold("ChecksumCRC64NVME", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumCRC64NVME = ptr.String(xtv)
-			}
-
 		case strings.EqualFold("ChecksumSHA1", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -15347,19 +15224,6 @@ func awsRestxml_deserializeDocumentCopyObjectResult(v **types.CopyObjectResult, 
 			{
 				xtv := string(val)
 				sv.ChecksumSHA256 = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
 			}
 
 		case strings.EqualFold("ETag", t.Name.Local):
@@ -15452,19 +15316,6 @@ func awsRestxml_deserializeDocumentCopyPartResult(v **types.CopyPartResult, deco
 			{
 				xtv := string(val)
 				sv.ChecksumCRC32C = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("ChecksumCRC64NVME", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumCRC64NVME = ptr.String(xtv)
 			}
 
 		case strings.EqualFold("ChecksumSHA1", t.Name.Local):
@@ -19496,19 +19347,6 @@ func awsRestxml_deserializeDocumentMultipartUpload(v **types.MultipartUpload, de
 				sv.ChecksumAlgorithm = types.ChecksumAlgorithm(xtv)
 			}
 
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
-			}
-
 		case strings.EqualFold("Initiated", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -20094,19 +19932,6 @@ func awsRestxml_deserializeDocumentObject(v **types.Object, decoder smithyxml.No
 				return err
 			}
 
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
-			}
-
 		case strings.EqualFold("ETag", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -20606,19 +20431,6 @@ func awsRestxml_deserializeDocumentObjectPart(v **types.ObjectPart, decoder smit
 				sv.ChecksumCRC32C = ptr.String(xtv)
 			}
 
-		case strings.EqualFold("ChecksumCRC64NVME", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumCRC64NVME = ptr.String(xtv)
-			}
-
 		case strings.EqualFold("ChecksumSHA1", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -20719,19 +20531,6 @@ func awsRestxml_deserializeDocumentObjectVersion(v **types.ObjectVersion, decode
 			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
 			if err := awsRestxml_deserializeDocumentChecksumAlgorithmListUnwrapped(&sv.ChecksumAlgorithm, nodeDecoder); err != nil {
 				return err
-			}
-
-		case strings.EqualFold("ChecksumType", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumType = types.ChecksumType(xtv)
 			}
 
 		case strings.EqualFold("ETag", t.Name.Local):
@@ -21197,19 +20996,6 @@ func awsRestxml_deserializeDocumentPart(v **types.Part, decoder smithyxml.NodeDe
 			{
 				xtv := string(val)
 				sv.ChecksumCRC32C = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("ChecksumCRC64NVME", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.ChecksumCRC64NVME = ptr.String(xtv)
 			}
 
 		case strings.EqualFold("ChecksumSHA1", t.Name.Local):
