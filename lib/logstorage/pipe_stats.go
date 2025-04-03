@@ -270,7 +270,7 @@ type pipeStatsProcessorShardNopad struct {
 	// groupMapShards are used for tracking big number of groups.
 	//
 	// Every shard contains a share of unique groups, which are merged in parallel at flush().
-	groupMapShards []pipeStatsGroupMap
+	groupMapShards []pipeStatsGroupMapShard
 
 	// a is used for reducing memory allocations when calculating stats among big number of different groups.
 	a chunkedAllocator
@@ -283,6 +283,13 @@ type pipeStatsProcessorShardNopad struct {
 	keyBuf       []byte
 
 	stateSizeBudget int
+}
+
+type pipeStatsGroupMapShard struct {
+	pipeStatsGroupMap
+
+	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(pipeStatsGroupMap{})%128]byte
 }
 
 // the maximum number of groups to track in pipeStatsProcessorShard.groupMap before switching to pipeStatsProcessorShard.groupMapShards
@@ -715,7 +722,7 @@ func (shard *pipeStatsProcessorShard) moveGroupMapToShards(a *chunkedAllocator) 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201
 	cpusCount := uint(len(shard.psp.shards))
 	bytesAllocatedPrev := a.bytesAllocated
-	shard.groupMapShards = a.newPipeStatsGroupMaps(cpusCount)
+	shard.groupMapShards = a.newPipeStatsGroupMapShards(cpusCount)
 	shard.stateSizeBudget -= a.bytesAllocated - bytesAllocatedPrev
 
 	for i := range shard.groupMapShards {
@@ -741,13 +748,13 @@ func (shard *pipeStatsProcessorShard) moveGroupMapToShards(a *chunkedAllocator) 
 func (shard *pipeStatsProcessorShard) getGroupMapShardByString(v []byte) *pipeStatsGroupMap {
 	h := xxhash.Sum64(v)
 	shardIdx := h % uint64(len(shard.groupMapShards))
-	return &shard.groupMapShards[shardIdx]
+	return &shard.groupMapShards[shardIdx].pipeStatsGroupMap
 }
 
 func (shard *pipeStatsProcessorShard) getGroupMapShardByUint64(n uint64) *pipeStatsGroupMap {
 	h := fastHashUint64(n)
 	shardIdx := h % uint64(len(shard.groupMapShards))
-	return &shard.groupMapShards[shardIdx]
+	return &shard.groupMapShards[shardIdx].pipeStatsGroupMap
 }
 
 type pipeStatsGroup struct {
@@ -1014,9 +1021,9 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 			defer wg.Done()
 
 			var a chunkedAllocator
-			psm := &psms[cpuIdx]
+			psm := &psms[cpuIdx].pipeStatsGroupMap
 			for j := range shards[1:] {
-				src := &shards[1+j].groupMapShards[cpuIdx]
+				src := &shards[1+j].groupMapShards[cpuIdx].pipeStatsGroupMap
 				psm.mergeState(&a, src, psp.stopCh)
 				src.reset()
 			}
@@ -1031,7 +1038,7 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 	result := make([]*pipeStatsGroupMap, 0, len(psms))
 	for i := range psms {
 		if psms[i].entriesCount() > 0 {
-			result = append(result, &psms[i])
+			result = append(result, &psms[i].pipeStatsGroupMap)
 		}
 	}
 
