@@ -32,8 +32,8 @@ type chunkedAllocator struct {
 	uniqValuesProcessors    []statsUniqValuesProcessor
 	valuesProcessors        []statsValuesProcessor
 
-	pipeStatsGroups    []pipeStatsGroup
-	pipeStatsGroupMaps []pipeStatsGroupMap
+	pipeStatsGroups         []pipeStatsGroup
+	pipeStatsGroupMapShards []pipeStatsGroupMapShard
 
 	statsProcessors []statsProcessor
 
@@ -129,8 +129,8 @@ func (a *chunkedAllocator) newPipeStatsGroup() (p *pipeStatsGroup) {
 	return addNewItem(&a.pipeStatsGroups, a)
 }
 
-func (a *chunkedAllocator) newPipeStatsGroupMaps(itemsLen uint) []pipeStatsGroupMap {
-	return addNewItems(&a.pipeStatsGroupMaps, itemsLen, a)
+func (a *chunkedAllocator) newPipeStatsGroupMapShards(itemsLen uint) []pipeStatsGroupMapShard {
+	return addNewItems(&a.pipeStatsGroupMapShards, itemsLen, a)
 }
 
 func (a *chunkedAllocator) newStatsProcessors(itemsLen uint) []statsProcessor {
