@@ -99,6 +99,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
+			Debug:                     cfg.Debug,
 		}),
 	}
 

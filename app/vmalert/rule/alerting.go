@@ -144,6 +144,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
+			Debug:                     cfg.Debug,
 		}),
 		alerts: make(map[uint64]*notifier.Alert),
 	}
