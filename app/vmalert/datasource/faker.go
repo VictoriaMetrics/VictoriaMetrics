@@ -10,8 +10,9 @@ import (
 // FakeQuerier is a mock querier that return predefined results and error message
 type FakeQuerier struct {
 	sync.Mutex
-	metrics []Metric
-	err     error
+	metrics   []Metric
+	err       error
+	isPartial *bool
 }
 
 // SetErr sets query error message
@@ -21,11 +22,19 @@ func (fq *FakeQuerier) SetErr(err error) {
 	fq.Unlock()
 }
 
+// SetPartialResponse marks query response as partial
+func (fq *FakeQuerier) SetPartialResponse(partial bool) {
+	fq.Lock()
+	fq.isPartial = &partial
+	fq.Unlock()
+}
+
 // Reset reset querier's error message and results
 func (fq *FakeQuerier) Reset() {
 	fq.Lock()
 	fq.err = nil
 	fq.metrics = fq.metrics[:0]
+	fq.isPartial = nil
 	fq.Unlock()
 }
 
@@ -57,7 +66,7 @@ func (fq *FakeQuerier) Query(_ context.Context, _ string, _ time.Time) (Result, 
 	cp := make([]Metric, len(fq.metrics))
 	copy(cp, fq.metrics)
 	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
-	return Result{Data: cp}, req, nil
+	return Result{Data: cp, IsPartial: fq.isPartial}, req, nil
 }
 
 // FakeQuerierWithRegistry can store different results for different query expr
