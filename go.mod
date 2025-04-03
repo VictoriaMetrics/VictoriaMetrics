@@ -16,13 +16,12 @@ replace github.com/prometheus/common => github.com/prometheus/common v0.62.0
 // This version enabled request and response checksum verification by default which
 // breaks compatibility with non-AWS S3-compatible storage providers.
 // See: https://github.com/victoriaMetrics/victoriaMetrics/issues/8622
-replace github.com/aws/aws-sdk-go-v2 => github.com/aws/aws-sdk-go-v2 v1.32.8
-
-replace github.com/aws/aws-sdk-go-v2/config => github.com/aws/aws-sdk-go-v2/config v1.28.11
-
-replace github.com/aws/aws-sdk-go-v2/feature/s3/manager => github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.48
-
-replace github.com/aws/aws-sdk-go-v2/service/s3 => github.com/aws/aws-sdk-go-v2/service/s3 v1.72.3
+replace (
+	github.com/aws/aws-sdk-go-v2 => github.com/aws/aws-sdk-go-v2 v1.32.8
+	github.com/aws/aws-sdk-go-v2/config => github.com/aws/aws-sdk-go-v2/config v1.28.11
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager => github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.48
+	github.com/aws/aws-sdk-go-v2/service/s3 => github.com/aws/aws-sdk-go-v2/service/s3 v1.72.3
+)
 
 require (
 	cloud.google.com/go/storage v1.51.0
