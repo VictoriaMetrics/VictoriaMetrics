@@ -801,10 +801,7 @@ func getIntK(k float64, maxV int) int {
 	if kn < 0 {
 		return 0
 	}
-	if kn > maxV {
-		return maxV
-	}
-	return kn
+	return min(kn, maxV)
 }
 
 func minValue(values []float64) float64 {
