@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0)
+
+Released at 2025-04-04
+
 * SECURITY: upgrade Go builder from Go1.24.1 to Go1.24.2. See the list of issues addressed in [Go1.24.2](https://github.com/golang/go/issues?q=milestone%3AGo1.24.2+label%3ACherryPickApproved).
 
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): remove panel `Storage full ETA` as it could have showing incorrect predictions and result in user's confusion. See more details in [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
