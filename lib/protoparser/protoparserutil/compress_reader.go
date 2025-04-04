@@ -103,7 +103,7 @@ func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
 		return getGzipReader(r)
 	case "deflate":
 		return getZlibReader(r)
-	case "", "none":
+	case "", "none", "identity":
 		return &plainReader{
 			r: r,
 		}, nil
