@@ -1,7 +1,6 @@
 import React, { FC, useState, useEffect, useMemo, useCallback } from "preact/compat";
 import Autocomplete from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
-import { escapeRegexp, hasUnclosedQuotes } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
 import { QueryContextType } from "../../../types";
 import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
