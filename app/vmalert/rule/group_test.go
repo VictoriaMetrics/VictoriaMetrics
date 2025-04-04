@@ -131,6 +131,7 @@ func TestUpdateWith(t *testing.T) {
 		}})
 
 	// update recording rule
+	debug := true
 	f(config.Group{
 		Rules: []config.Rule{{
 			Record: "foo",
@@ -142,7 +143,7 @@ func TestUpdateWith(t *testing.T) {
 		Rules: []config.Rule{{
 			Record: "foo",
 			Expr:   "min(up)",
-			Debug:  true,
+			Debug:  &debug,
 			Labels: map[string]string{
 				"baz": "bar",
 			},
