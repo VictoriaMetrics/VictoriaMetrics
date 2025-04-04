@@ -7,6 +7,8 @@ menu:
     parent: victoriametrics
     weight: 1
 aliases:
+- /quick-start
+- /Quick-Start
 - /Quick-Start.html
 ---
 ## How to install

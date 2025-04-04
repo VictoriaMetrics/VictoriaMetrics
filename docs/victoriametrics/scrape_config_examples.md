@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 200
 aliases:
+- /scrape_config_examples/
 - /scrape_config_examples.html
 ---
 - [Static configs](#static-configs)

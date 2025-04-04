@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 98
 aliases:
+- /stream-aggregation/
 - /stream-aggregation.html
 ---
 [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)

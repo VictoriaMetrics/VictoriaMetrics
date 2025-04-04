@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 300
 aliases:
+- /lts-releases
+- /LTS-releases
 - /LTS-releases.html
 ---
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) provides long-term support lines of releases (aka LTS releases).
