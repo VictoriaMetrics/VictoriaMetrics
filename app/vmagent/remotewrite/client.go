@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -384,7 +385,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	if c.useVMProto {
+	if encoding.IsZstd(body) {
 		h.Set("Content-Encoding", "zstd")
 		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
 	} else {
