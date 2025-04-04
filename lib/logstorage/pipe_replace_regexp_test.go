@@ -196,17 +196,19 @@ func TestAppendReplaceRegexp(t *testing.T) {
 		}
 	}
 
-	f("", "", "", 0, "")
-	f("", "foo", "bar", 0, "")
-	f("abc", "foo", "bar", 0, "abc")
-	f("foo", "fo+", "bar", 0, "bar")
-	f("foox", "fo+", "bar", 0, "barx")
-	f("afoo", "fo+", "bar", 0, "abar")
-	f("afoox", "fo+", "bar", 0, "abarx")
-	f("foo-bar/baz", "[-/]", "_", 0, "foo_bar_baz")
-	f("foo bar/ baz  ", "[ /]", "", 2, "foobar baz  ")
+	f("", "", "", 0, "")                               // empty input, empty pattern and replacement
+	f("", "foo", "bar", 0, "")                         // empty input, non-matching pattern
+	f("abc", "foo", "bar", 0, "abc")                   // no match in non-empty input
+	f("foo", "fo+", "bar", 0, "bar")                   // entire match replaced
+	f("foox", "fo+", "bar", 0, "barx")                 // partial prefix match replaced
+	f("afoo", "fo+", "bar", 0, "abar")                 // match in the middle
+	f("afoox", "fo+", "bar", 0, "abarx")               // match in the middle, suffix preserved
+	f("foo-bar/baz", "[-/]", "_", 0, "foo_bar_baz")    // replace multiple separators
+	f("foo bar/ baz  ", "[ /]", "", 2, "foobar baz  ") // limit number of matches
+	f("abcd", `\d*`, "foo", 0, "fooafoobfoocfoodfoo")  // pattern matches empty string between chars
+	f("hello", `^|$`, "X", 0, "XhelloX")               // match start and end of string using anchors
 
-	// placeholders
-	f("afoo abc barz", "a([^ ]+)", "b${1}x", 0, "bfoox bbcx bbrzx")
-	f("afoo abc barz", "a([^ ]+)", "b${1}x", 1, "bfoox abc barz")
+	// use of capture groups with full replacement
+	f("afoo abc barz", "a([^ ]+)", "b${1}x", 0, "bfoox bbcx bbrzx") // capture and reuse group in replacement
+	f("afoo abc barz", "a([^ ]+)", "b${1}x", 1, "bfoox abc barz")   // same as above, but limit = 1
 }
