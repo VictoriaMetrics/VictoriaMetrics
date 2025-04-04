@@ -62,6 +62,9 @@ type QueryOpts struct {
 	ExtraLabels    []string
 	Trace          string
 	ReduceMemUsage string
+	MaxLookback    string
+	LatencyOffset  string
+	Format         string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -83,6 +86,9 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
 	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
+	addNonEmpty("max_lookback", qos.MaxLookback)
+	addNonEmpty("latency_offset", qos.LatencyOffset)
+	addNonEmpty("format", qos.Format)
 
 	return uv
 }
