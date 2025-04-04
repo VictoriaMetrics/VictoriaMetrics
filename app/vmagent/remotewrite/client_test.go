@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/golang/snappy"
 )
 
 func TestCalculateRetryDuration(t *testing.T) {
@@ -96,4 +99,23 @@ func helper(d time.Duration) time.Duration {
 	}
 
 	return d + dv
+}
+
+func TestRepackBlockFromZstdToSnappy(t *testing.T) {
+	expectedPlainBlock := []byte(`foobar`)
+
+	zstdBlock := encoding.CompressZSTDLevel(nil, expectedPlainBlock, 1)
+	snappyBlock, err := repackBlockFromZstdToSnappy(zstdBlock)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	actualPlainBlock, err := snappy.Decode(nil, snappyBlock)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if string(actualPlainBlock) != string(expectedPlainBlock) {
+		t.Fatalf("unexpected plain block; got %q; want %q", actualPlainBlock, expectedPlainBlock)
+	}
 }
