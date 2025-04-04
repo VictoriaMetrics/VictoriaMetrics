@@ -281,7 +281,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
-	p, err := httpserver.ParsePath(path)
+	tenantID := r.Header.Get("TenantID")
+	p, err := httpserver.ParsePath(path, tenantID)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
@@ -575,7 +576,8 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(nil, w, r)
 		return true
 	}
-	p, err := httpserver.ParsePath(path)
+	tenantID := r.Header.Get("TenantID")
+	p, err := httpserver.ParsePath(path, tenantID)
 	if err != nil {
 		return false
 	}
