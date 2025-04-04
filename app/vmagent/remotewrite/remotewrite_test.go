@@ -2,8 +2,10 @@ package remotewrite
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"math"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -170,4 +172,116 @@ metric{env="test"} 20
 metric{env="dev"} 15
 metric{env="bar"} 25
 `)
+}
+
+func TestShardAmountRemoteWriteCtx(t *testing.T) {
+	// 1. distribute 100000 series to n nodes.
+	// 2. remove the last node from healthy list.
+	// 3. distribute the same 10000 series to (n-1) node again.
+	// 4. check active time series change rate:
+	//    - if consistent hash enabled, change rate must < (3/total nodes). e.g. +30% if 10 you have 10 nodes.
+	//    - if consistent hash disabled, change rate must < 1. e.g. +100%.
+	f := func(enableConsistentHash bool, remoteWriteCount int, healthyIdx []int, unhealthyIdx []int, replicas int) {
+		t.Helper()
+
+		// set flag
+		*shardByURLConsistent = enableConsistentHash
+
+		seriesCount := 100000
+		// build 1000000 series
+		tssBlock := make([]prompbmarshal.TimeSeries, 0, seriesCount)
+		for i := 0; i < seriesCount; i++ {
+			tssBlock = append(tssBlock, prompbmarshal.TimeSeries{
+				Labels: []prompbmarshal.Label{
+					{
+						Name:  "label",
+						Value: strconv.Itoa(i),
+					},
+				},
+				Samples: []prompbmarshal.Sample{
+					{
+						Timestamp: 0,
+						Value:     0,
+					},
+				},
+			})
+		}
+
+		// build consistent hash for x remote write context
+		// build active time series set
+		nodes := make([]string, 0, remoteWriteCount)
+		activeTimeSeriesByNodes := make([]map[string]struct{}, remoteWriteCount)
+		for i := 0; i < remoteWriteCount; i++ {
+			nodes = append(nodes, fmt.Sprintf("node%d", i))
+			activeTimeSeriesByNodes[i] = make(map[string]struct{})
+		}
+		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(nodes, 0)
+
+		// create shards
+		x := getTSSShards(len(healthyIdx))
+		shards := x.shards
+
+		// execute
+		shardAmountRemoteWriteCtx(tssBlock, shards, healthyIdx, unhealthyIdx, replicas)
+
+		for i, nodeIdx := range healthyIdx {
+			for _, ts := range shards[i] {
+				// add it to node[nodeIdx]'s active time series
+				activeTimeSeriesByNodes[nodeIdx][prompbmarshal.LabelsToString(ts.Labels)] = struct{}{}
+			}
+		}
+
+		totalActiveTimeSeries := 0
+		for _, activeTimeSeries := range activeTimeSeriesByNodes {
+			totalActiveTimeSeries += len(activeTimeSeries)
+		}
+		avgActiveTimeSeries1 := totalActiveTimeSeries / remoteWriteCount
+		putTSSShards(x)
+
+		// removed last node
+		x = getTSSShards(len(healthyIdx) - 1)
+		unhealthyIdx = healthyIdx[len(healthyIdx)-1:]
+		healthyIdx = healthyIdx[:len(healthyIdx)-1]
+
+		shards = x.shards
+
+		// execute
+		shardAmountRemoteWriteCtx(tssBlock, shards, healthyIdx, unhealthyIdx, replicas)
+		for i, nodeIdx := range healthyIdx {
+			for _, ts := range shards[i] {
+				// add it to node[nodeIdx]'s active time series
+				activeTimeSeriesByNodes[nodeIdx][prompbmarshal.LabelsToString(ts.Labels)] = struct{}{}
+			}
+		}
+
+		totalActiveTimeSeries = 0
+		for _, activeTimeSeries := range activeTimeSeriesByNodes {
+			totalActiveTimeSeries += len(activeTimeSeries)
+		}
+		avgActiveTimeSeries2 := totalActiveTimeSeries / remoteWriteCount
+
+		changed := math.Abs(float64(avgActiveTimeSeries2-avgActiveTimeSeries1) / float64(avgActiveTimeSeries1))
+		threshold := float64(1)
+		if *shardByURLConsistent {
+			threshold = 3 / float64(remoteWriteCount)
+		}
+
+		//logger.Infof("consistenthash %t, average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", enableConsistentHash, avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
+		if changed >= threshold {
+			t.Fatalf("consistenthash %t, average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", enableConsistentHash, avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
+		}
+
+	}
+
+	f(true, 5, []int{0, 1, 2, 3, 4}, []int{}, 1)
+	f(false, 5, []int{0, 1, 2, 3, 4}, []int{}, 1)
+
+	f(true, 5, []int{0, 1, 2, 3, 4}, []int{}, 2)
+	f(false, 5, []int{0, 1, 2, 3, 4}, []int{}, 2)
+
+	f(true, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 1)
+	f(false, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 1)
+
+	f(true, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
+	f(false, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
 }
