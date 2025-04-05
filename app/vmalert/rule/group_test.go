@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestUpdateWith(t *testing.T) {
-	f := func(currentRules, newRules []config.Rule) {
+	f := func(current, expect *config.Group) {
 		t.Helper()
 
 		ns := metrics.NewSet()
@@ -45,17 +45,23 @@ func TestUpdateWith(t *testing.T) {
 			metrics: &groupMetrics{set: ns},
 		}
 		qb := &datasource.FakeQuerier{}
-		for _, r := range currentRules {
-			r.ID = config.HashRule(r)
-			g.Rules = append(g.Rules, g.newRule(qb, r))
+		if current != nil {
+			for _, r := range current.Rules {
+				r.ID = config.HashRule(r)
+				g.Rules = append(g.Rules, g.newRule(qb, r))
+			}
+			g.Debug = current.Debug
 		}
 
 		ng := &Group{
 			Name: "test",
 		}
-		for _, r := range newRules {
-			r.ID = config.HashRule(r)
-			ng.Rules = append(ng.Rules, ng.newRule(qb, r))
+		if expect != nil {
+			for _, r := range expect.Rules {
+				r.ID = config.HashRule(r)
+				ng.Rules = append(ng.Rules, ng.newRule(qb, r))
+			}
+			ng.Debug = expect.Debug
 		}
 
 		err := g.updateWith(ng)
@@ -63,8 +69,8 @@ func TestUpdateWith(t *testing.T) {
 			t.Fatalf("cannot update rule: %s", err)
 		}
 
-		if len(g.Rules) != len(newRules) {
-			t.Fatalf("expected to have %d rules; got: %d", len(g.Rules), len(newRules))
+		if len(g.Rules) != len(expect.Rules) {
+			t.Fatalf("expected to have %d rules; got: %d", len(g.Rules), len(expect.Rules))
 		}
 		sort.Slice(g.Rules, func(i, j int) bool {
 			return g.Rules[i].ID() < g.Rules[j].ID()
@@ -81,100 +87,126 @@ func TestUpdateWith(t *testing.T) {
 				t.Fatalf("comparison error: %s", err)
 			}
 		}
+		if g.Debug != ng.Debug {
+			t.Fatalf("expected to have debug %q; got %q", ng.Debug, g.Debug)
+		}
 	}
 
 	// new rule
-	f(nil, []config.Rule{
-		{Alert: "bar"},
-	})
+	f(nil, &config.Group{
+		Rules: []config.Rule{
+			{Alert: "bar"},
+		}})
 
 	// update alerting rule
-	f([]config.Rule{
-		{
-			Alert: "foo",
-			Expr:  "up > 0",
-			For:   promutil.NewDuration(time.Second),
-			Labels: map[string]string{
-				"bar": "baz",
+	f(&config.Group{
+		Rules: []config.Rule{
+			{
+				Alert: "foo",
+				Expr:  "up > 0",
+				For:   promutil.NewDuration(time.Second),
+				Labels: map[string]string{
+					"bar": "baz",
+				},
+				Annotations: map[string]string{
+					"summary":     "{{ $value|humanize }}",
+					"description": "{{$labels}}",
+				},
 			},
-			Annotations: map[string]string{
-				"summary":     "{{ $value|humanize }}",
-				"description": "{{$labels}}",
+			{
+				Alert: "bar",
+				Expr:  "up > 0",
+				For:   promutil.NewDuration(time.Second),
+				Labels: map[string]string{
+					"bar": "baz",
+				},
 			},
-		},
-		{
-			Alert: "bar",
-			Expr:  "up > 0",
-			For:   promutil.NewDuration(time.Second),
-			Labels: map[string]string{
-				"bar": "baz",
+		}}, &config.Group{
+		Rules: []config.Rule{
+			{
+				Alert: "foo",
+				Expr:  "up > 10",
+				For:   promutil.NewDuration(time.Second),
+				Labels: map[string]string{
+					"baz": "bar",
+				},
+				Annotations: map[string]string{
+					"summary": "none",
+				},
 			},
-		},
-	}, []config.Rule{
-		{
-			Alert: "foo",
-			Expr:  "up > 10",
-			For:   promutil.NewDuration(time.Second),
-			Labels: map[string]string{
-				"baz": "bar",
+			{
+				Alert:         "bar",
+				Expr:          "up > 0",
+				For:           promutil.NewDuration(2 * time.Second),
+				KeepFiringFor: promutil.NewDuration(time.Minute),
+				Labels: map[string]string{
+					"bar": "baz",
+				},
 			},
-			Annotations: map[string]string{
-				"summary": "none",
-			},
-		},
-		{
-			Alert:         "bar",
-			Expr:          "up > 0",
-			For:           promutil.NewDuration(2 * time.Second),
-			KeepFiringFor: promutil.NewDuration(time.Minute),
-			Labels: map[string]string{
-				"bar": "baz",
-			},
-		},
-	})
+		}})
 
 	// update recording rule
 	debug := true
-	f([]config.Rule{{
-		Record: "foo",
-		Expr:   "max(up)",
-		Labels: map[string]string{
-			"bar": "baz",
-		},
-	}}, []config.Rule{{
-		Record: "foo",
-		Expr:   "min(up)",
-		Debug:  &debug,
-		Labels: map[string]string{
-			"baz": "bar",
-		},
-	}})
+	f(&config.Group{
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "max(up)",
+			Labels: map[string]string{
+				"bar": "baz",
+			},
+		}},
+	}, &config.Group{
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "min(up)",
+			Debug:  &debug,
+			Labels: map[string]string{
+				"baz": "bar",
+			},
+		}}})
 
 	// empty rule
-	f([]config.Rule{{Alert: "foo"}, {Record: "bar"}}, nil)
+	f(&config.Group{Rules: []config.Rule{{Alert: "foo"}, {Record: "bar"}}}, nil)
 
 	// multiple rules
-	f([]config.Rule{
-		{Alert: "bar"},
-		{Alert: "baz"},
-		{Alert: "foo"},
-	}, []config.Rule{
-		{Alert: "baz"},
-		{Record: "foo"},
-	})
+	f(&config.Group{
+		Rules: []config.Rule{
+			{Alert: "bar"},
+			{Alert: "baz"},
+			{Alert: "foo"},
+		}}, &config.Group{
+		Rules: []config.Rule{
+			{Alert: "baz"},
+			{Record: "foo"},
+		}})
 
 	// replace rule
-	f([]config.Rule{{Alert: "foo1"}}, []config.Rule{{Alert: "foo2"}})
+	f(&config.Group{Rules: []config.Rule{{Alert: "foo1"}}}, &config.Group{Rules: []config.Rule{{Alert: "foo2"}}})
 
 	// replace multiple rules
-	f([]config.Rule{
-		{Alert: "foo1"},
-		{Record: "foo2"},
-		{Alert: "foo3"},
-	}, []config.Rule{
-		{Alert: "foo3"},
-		{Alert: "foo4"},
-		{Record: "foo5"},
+	f(&config.Group{
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+			{Record: "foo2"},
+			{Alert: "foo3"},
+		}}, &config.Group{
+		Rules: []config.Rule{
+			{Alert: "foo3"},
+			{Alert: "foo4"},
+			{Record: "foo5"},
+		}})
+
+	f(&config.Group{Debug: false}, &config.Group{Debug: true})
+	f(&config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	}, &config.Group{
+		Debug: true,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
 	})
 }
 
@@ -277,6 +309,7 @@ func TestGroupStart(t *testing.T) {
           summary: "{{ $value }}"
 `
 	)
+
 	var groups []config.Group
 	err := yaml.Unmarshal([]byte(rules), &groups)
 	if err != nil {
@@ -477,6 +510,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
           summary: "{{ $value }}"
 `
 	)
+
 	var groups []config.Group
 	err := yaml.Unmarshal([]byte(rules), &groups)
 	if err != nil {
