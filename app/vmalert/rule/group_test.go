@@ -75,6 +75,9 @@ func TestUpdateWith(t *testing.T) {
 				t.Fatalf("comparison1 error: %s", err)
 			}
 		}
+		if g.Debug != expect.Debug {
+			t.Fatalf("expected to have debug %v; got %v", expect.Debug, g.Debug)
+		}
 	}
 
 	// new rule
@@ -177,8 +180,7 @@ func TestUpdateWith(t *testing.T) {
 		}})
 
 	// empty rule
-	f(config.Group{
-		Rules: []config.Rule{{Alert: "foo"}, {Record: "bar"}}}, config.Group{})
+	f(config.Group{Rules: []config.Rule{{Alert: "foo"}, {Record: "bar"}}}, config.Group{})
 
 	// multiple rules
 	f(config.Group{
@@ -193,9 +195,7 @@ func TestUpdateWith(t *testing.T) {
 		}})
 
 	// replace rule
-	f(config.Group{
-		Rules: []config.Rule{{Alert: "foo1"}}}, config.Group{
-		Rules: []config.Rule{{Alert: "foo2"}}})
+	f(config.Group{Rules: []config.Rule{{Alert: "foo1"}}}, config.Group{Rules: []config.Rule{{Alert: "foo2"}}})
 
 	// replace multiple rules
 	f(config.Group{
@@ -209,6 +209,19 @@ func TestUpdateWith(t *testing.T) {
 			{Alert: "foo4"},
 			{Record: "foo5"},
 		}})
+
+	f(config.Group{Debug: false}, config.Group{Debug: true})
+	f(config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	}, config.Group{
+		Debug: true,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	})
 }
 
 func TestUpdateDuringRandSleep(t *testing.T) {
@@ -310,6 +323,7 @@ func TestGroupStart(t *testing.T) {
           summary: "{{ $value }}"
 `
 	)
+
 	var groups []config.Group
 	err := yaml.Unmarshal([]byte(rules), &groups)
 	if err != nil {
@@ -510,6 +524,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
           summary: "{{ $value }}"
 `
 	)
+
 	var groups []config.Group
 	err := yaml.Unmarshal([]byte(rules), &groups)
 	if err != nil {

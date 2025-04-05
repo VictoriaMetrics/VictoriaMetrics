@@ -273,6 +273,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
+	g.Debug = newGroup.Debug
 	return nil
 }
 
