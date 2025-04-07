@@ -554,6 +554,7 @@ func TestLegacyStorage_GetSeriesCount(t *testing.T) {
 	newData := testGenerateMetricRowsWithPrefix(rng, numMetrics, "new", tr)
 
 	assertSearchResults := func(s *Storage, want uint64) {
+		t.Helper()
 		got, err := s.GetSeriesCount(noDeadline)
 		if err != nil {
 			t.Fatalf("GetSeriesCount() failed unexpectedly: %v", err)
@@ -572,6 +573,55 @@ func TestLegacyStorage_GetSeriesCount(t *testing.T) {
 		t.Helper()
 		want := uint64(len(legacyData) + len(newData))
 		assertSearchResults(s, want)
+	}
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+}
+
+func TestLegacyStorage_DeleteSeries(t *testing.T) {
+	const numMetrics = 1000
+	tr := TimeRange{
+		MinTimestamp: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	rng := rand.New(rand.NewSource(1))
+	legacyData := testGenerateMetricRowsWithPrefix(rng, numMetrics, "legacy", tr)
+	newData := testGenerateMetricRowsWithPrefix(rng, numMetrics, "new", tr)
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tfssAll := []*TagFilters{tfsAll}
+
+	assertSeriesCount := func(s *Storage, want int) {
+		t.Helper()
+		got, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+		if len(got) != want {
+			t.Fatalf("unexpected metric count: got %d, want %d", len(got), want)
+		}
+	}
+
+	assertLegacyData := func(s *Storage) {
+		t.Helper()
+		want := len(legacyData)
+		assertSeriesCount(s, want)
+	}
+	assertNewData := func(s *Storage) {
+		t.Helper()
+		want := len(legacyData) + len(newData)
+		assertSeriesCount(s, want)
+
+		got, err := s.DeleteSeries(nil, tfssAll, 1e9)
+		if err != nil {
+			t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Fatalf("Unexpected number of deleted series: got %d, want %d", got, want)
+		}
+
+		assertSeriesCount(s, 0)
 	}
 	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
 }

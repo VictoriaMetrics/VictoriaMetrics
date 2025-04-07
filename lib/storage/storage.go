@@ -1363,6 +1363,10 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // If the number of the series exceeds maxMetrics, no series will be deleted and
 // an error will be returned. Otherwise, the function returns the number of
 // metrics deleted.
+//
+// If legacy indexDBs are present, the method will also delete the metricIDs
+// from them. However, because legacy indexDBs are read-only, no background
+// merges will be performed.
 func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	qt = qt.NewChild("deleting series for %s", tfss)
 	defer qt.Done()
@@ -1372,14 +1376,24 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 
 	qt.Printf("start parallel search across all indexDBs...")
 
-	// Get all IndexDBs.
-	idbs := s.tb.GetIndexDBs(TimeRange{
+	var idbs []*indexDB
+
+	// Get all partition IndexDBs.
+	ptIDBs := s.tb.GetIndexDBs(TimeRange{
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	})
-	defer s.tb.PutIndexDBs(idbs)
+	defer s.tb.PutIndexDBs(ptIDBs)
+	idbs = append(idbs, ptIDBs...)
 
-	// TODO(@rtm0): Should we also delete from legacy idbs? They are read-only.
+	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	if legacyIDBPrev != nil {
+		idbs = append(idbs, legacyIDBPrev)
+	}
+	if legacyIDBCurr != nil {
+		idbs = append(idbs, legacyIDBCurr)
+	}
 
 	var wg sync.WaitGroup
 	metricIDss := make([][]uint64, len(idbs))
