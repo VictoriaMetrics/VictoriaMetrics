@@ -758,13 +758,14 @@ func GetRequestURI(r *http.Request) string {
 	}
 	// code copied from url.Query.Encode
 	var queryArgs strings.Builder
-	for k, v := range r.PostForm {
+	for k := range r.PostForm {
+		vs := r.PostForm[k]
 		// mask authKey as well-known secret
 		if k == "authKey" {
-			v = []string{"secret"}
+			vs = []string{"secret"}
 		}
 		keyEscaped := url.QueryEscape(k)
-		for _, v := range v {
+		for _, v := range vs {
 			if queryArgs.Len() > 0 {
 				queryArgs.WriteByte('&')
 			}
