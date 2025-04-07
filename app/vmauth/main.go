@@ -319,7 +319,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				ui.backendErrors.Inc()
 			}
-			return true, false
+			return false, false
 		}
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.

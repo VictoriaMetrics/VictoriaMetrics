@@ -4,10 +4,9 @@ package v4
 var IgnoredHeaders = Rules{
 	DenyList{
 		MapRule{
-			"Authorization":     struct{}{},
-			"User-Agent":        struct{}{},
-			"X-Amzn-Trace-Id":   struct{}{},
-			"Transfer-Encoding": struct{}{},
+			"Authorization":   struct{}{},
+			"User-Agent":      struct{}{},
+			"X-Amzn-Trace-Id": struct{}{},
 		},
 	},
 }

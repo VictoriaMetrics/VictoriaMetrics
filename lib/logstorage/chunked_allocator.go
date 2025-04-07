@@ -32,15 +32,15 @@ type chunkedAllocator struct {
 	uniqValuesProcessors    []statsUniqValuesProcessor
 	valuesProcessors        []statsValuesProcessor
 
-	pipeStatsGroups    []pipeStatsGroup
-	pipeStatsGroupMaps []pipeStatsGroupMap
+	pipeStatsGroups         []pipeStatsGroup
+	pipeStatsGroupMapShards []pipeStatsGroupMapShard
 
 	statsProcessors []statsProcessor
 
 	statsCountUniqSets     []statsCountUniqSet
 	statsCountUniqHashSets []statsCountUniqHashSet
 
-	hitsMaps []hitsMap
+	hitsMapShards []hitsMapShard
 
 	u64Buf []uint64
 
@@ -129,8 +129,8 @@ func (a *chunkedAllocator) newPipeStatsGroup() (p *pipeStatsGroup) {
 	return addNewItem(&a.pipeStatsGroups, a)
 }
 
-func (a *chunkedAllocator) newPipeStatsGroupMaps(itemsLen uint) []pipeStatsGroupMap {
-	return addNewItems(&a.pipeStatsGroupMaps, itemsLen, a)
+func (a *chunkedAllocator) newPipeStatsGroupMapShards(itemsLen uint) []pipeStatsGroupMapShard {
+	return addNewItems(&a.pipeStatsGroupMapShards, itemsLen, a)
 }
 
 func (a *chunkedAllocator) newStatsProcessors(itemsLen uint) []statsProcessor {
@@ -145,8 +145,8 @@ func (a *chunkedAllocator) newStatsCountUniqHashSets(itemsLen uint) []statsCount
 	return addNewItems(&a.statsCountUniqHashSets, itemsLen, a)
 }
 
-func (a *chunkedAllocator) newHitsMaps(itemsLen uint) []hitsMap {
-	return addNewItems(&a.hitsMaps, itemsLen, a)
+func (a *chunkedAllocator) newHitsMapShards(itemsLen uint) []hitsMapShard {
+	return addNewItems(&a.hitsMapShards, itemsLen, a)
 }
 
 func (a *chunkedAllocator) newUint64() (p *uint64) {
