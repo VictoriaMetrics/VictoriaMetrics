@@ -42,7 +42,6 @@ const (
 	// It is much more efficient from memory usage PoV to query per-day MetricName->TSID index
 	// (aka nsPrefixDateMetricNameToTSID) when the TSID must be obtained for the given MetricName
 	// during data ingestion under high churn rate and big retention.
-	//
 	nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.

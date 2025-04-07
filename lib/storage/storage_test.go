@@ -1600,7 +1600,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	return nil
 }
 
-func TestStorageRotateIndexDB(t *testing.T) {
+func TestStorageLegacyRotateIndexDB(t *testing.T) {
 	t.Skip("TODO(@rtm0): Rewrite this test as no data is written to legacy indexDBs anymore")
 	defer testRemoveAll(t)
 

@@ -1139,9 +1139,20 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
 	qt.Printf("start parallel indexDB search: timeRange=%s", &tr)
 
-	idbs := s.tb.GetIndexDBs(tr)
-	defer s.tb.PutIndexDBs(idbs)
-	// also add legacy to idbs
+	var idbs []*indexDB
+
+	ptIDBs := s.tb.GetIndexDBs(tr)
+	defer s.tb.PutIndexDBs(ptIDBs)
+	idbs = append(idbs, ptIDBs...)
+
+	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	if legacyIDBPrev != nil {
+		idbs = append(idbs, legacyIDBPrev)
+	}
+	if legacyIDBCurr != nil {
+		idbs = append(idbs, legacyIDBCurr)
+	}
 
 	var wg sync.WaitGroup
 	data := make([]T, len(idbs))

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestSearchQueryMarshalUnmarshal(t *testing.T) {
@@ -261,8 +263,8 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 
 	testSortMetricRows(got)
 	testSortMetricRows(want)
-	if !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("unexpected rows found;\ngot\n%s\nwant\n%s", mrsToString(got), mrsToString(want))
+	if diff := cmp.Diff(want, got); diff != "" {
+		return fmt.Errorf("unexpected rows found (-want, +got):\n%s", diff)
 	}
 
 	return nil
