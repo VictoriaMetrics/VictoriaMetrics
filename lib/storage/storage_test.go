@@ -1678,37 +1678,38 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 	return len(metricNames)
 }
 
-func TestStorageRotateIndexDB_AddRows(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_AddRows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 	}
-
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, mrs, op)
 }
 
-func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 		s.RegisterMetricNames(nil, mrs)
 		s.DebugFlush()
 	}
-
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, mrs, op)
 }
 
-func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1725,11 +1726,11 @@ func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 			panic(fmt.Sprintf("DeleteSeries() failed unexpectedly: %v", err))
 		}
 	}
-
-	testRotateIndexDB(t, mrs, op)
+	testLegacyRotateIndexDB(t, mrs, op)
 }
 
-func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1739,11 +1740,11 @@ func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	op := func(s *Storage) {
 		_ = s.MustCreateSnapshot()
 	}
-
-	testRotateIndexDB(t, mrs, op)
+	testLegacyRotateIndexDB(t, mrs, op)
 }
 
-func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1762,10 +1763,11 @@ func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 		}
 	}
 
-	testRotateIndexDB(t, mrs, op)
+	testLegacyRotateIndexDB(t, mrs, op)
 }
 
-func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1773,7 +1775,7 @@ func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.SearchLabelNames(nil, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
@@ -1781,7 +1783,8 @@ func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1789,7 +1792,7 @@ func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.SearchLabelValues(nil, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
@@ -1797,7 +1800,8 @@ func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1805,7 +1809,7 @@ func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric.", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.SearchTagValueSuffixes(nil, tr, "", "metric.", '.', 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
@@ -1813,7 +1817,8 @@ func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1821,7 +1826,7 @@ func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric.", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
@@ -1829,7 +1834,8 @@ func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1837,7 +1843,7 @@ func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.GetSeriesCount(noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
@@ -1845,7 +1851,8 @@ func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1854,7 +1861,7 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	date := uint64(tr.MinTimestamp) / msecPerDay
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
@@ -1862,7 +1869,8 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
 	op := func(s *Storage) {
 		// Set readonly so that the background workers started by
 		// notifyReadWriteMode exit early.
@@ -1870,18 +1878,20 @@ func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
 		s.notifyReadWriteMode()
 	}
 
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, []MetricRow{}, op)
 }
 
-func TestStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
 	op := func(s *Storage) {
 		s.UpdateMetrics(&Metrics{})
 	}
 
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, []MetricRow{}, op)
 }
 
-func TestStorageRotateIndexDB_Search(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_Search(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1894,7 +1904,7 @@ func TestStorageRotateIndexDB_Search(t *testing.T) {
 	}
 	tfss := []*TagFilters{tfs}
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, mrs, func(s *Storage) {
 		var search Search
 		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
 		for search.NextMetricBlock() {
@@ -1908,16 +1918,22 @@ func TestStorageRotateIndexDB_Search(t *testing.T) {
 	})
 }
 
-// testRotateIndexDB checks that storage handles gracefully indexDB rotation
+// testLegacyRotateIndexDB checks that storage handles gracefully indexDB rotation
 // that happens concurrently with some operation (ingestion or search). The
 // operation is expected to finish successfully and there must be no panics.
-func testRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage)) {
+//
+// TODO(@rtm0): Move to storage_legacy_test.go
+func testLegacyRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage)) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
+	s.MustClose()
+	testStorageConvertToLegacy(t)
+	s = MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 	for range 100 {
