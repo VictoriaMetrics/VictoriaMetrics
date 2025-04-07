@@ -8,7 +8,7 @@ package tpl
 import (
 	"net/http"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 )
 
 //line app/vmalert/tpl/footer.qtpl:8
@@ -30,7 +30,7 @@ func StreamFooter(qw422016 *qt422016.Writer, r *http.Request) {
 	qw422016.N().S(`
     `)
 //line app/vmalert/tpl/footer.qtpl:9
-	prefix := utils.Prefix(r.URL.Path)
+	prefix := vmalertutil.Prefix(r.URL.Path)
 
 //line app/vmalert/tpl/footer.qtpl:9
 	qw422016.N().S(`

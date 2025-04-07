@@ -104,9 +104,9 @@ type PutBucketLoggingInput struct {
 	// This member is required.
 	BucketLoggingStatus *types.BucketLoggingStatus
 
-	// Indicates the algorithm used to create the checksum for the request when you
-	// use the SDK. This header will not provide any additional functionality if you
-	// don't use the SDK. When you send this header, there must be a corresponding
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
 	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
@@ -214,12 +214,6 @@ func (c *Client) addOperationPutBucketLoggingMiddlewares(stack *middleware.Stack
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
-		return err
-	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpPutBucketLoggingValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -300,10 +294,9 @@ func getPutBucketLoggingRequestAlgorithmMember(input interface{}) (string, bool)
 }
 
 func addPutBucketLoggingInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketLoggingRequestAlgorithmMember,
 		RequireChecksum:                  true,
-		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

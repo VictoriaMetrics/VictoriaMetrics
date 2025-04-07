@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -95,7 +95,7 @@ func MustClose() {
 var promDB *tsdb.DB
 
 // GetLabelNamesOnTimeRange returns label names.
-func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutil.Deadline) ([]string, error) {
 	if *prometheusDataPath == "" {
 		return nil, nil
 	}
@@ -115,7 +115,7 @@ func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadlin
 }
 
 // GetLabelValuesOnTimeRange returns values for the given labelName on the given tr.
-func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutil.Deadline) ([]string, error) {
 	if *prometheusDataPath == "" {
 		return nil, nil
 	}
@@ -148,7 +148,7 @@ func copyStringsWithMemory(a []string) []string {
 type SeriesVisitor func(metricName []byte, values []float64, timestamps []int64)
 
 // VisitSeries calls f for each series found in the pdb.
-func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f SeriesVisitor) error {
+func VisitSeries(sq *storage.SearchQuery, deadline searchutil.Deadline, f SeriesVisitor) error {
 	if *prometheusDataPath == "" {
 		return nil
 	}

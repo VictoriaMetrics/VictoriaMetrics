@@ -1,21 +1,8 @@
 package storage
 
 import (
-	"time"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
-
-// SetDedupInterval sets the deduplication interval, which is applied to raw samples during data ingestion and querying.
-//
-// De-duplication is disabled if dedupInterval is 0.
-//
-// This function must be called before initializing the storage.
-func SetDedupInterval(dedupInterval time.Duration) {
-	globalDedupInterval = dedupInterval.Milliseconds()
-}
-
-var globalDedupInterval int64
 
 func isDedupEnabled() bool {
 	return len(downsamplingPeriods) > 0
