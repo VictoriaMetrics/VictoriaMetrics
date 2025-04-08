@@ -16,6 +16,11 @@ import (
 // callback shouldn't hold series after returning.
 func Parse(r io.Reader, encoding, contentType string, callback func(series []datadogv2.Series) error) error {
 	readCalls.Inc()
+	// Datadog extensions sends Content-Encoding: identity, which is not supported by RFC 2616
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649
+	if encoding == "identity" {
+		encoding = ""
+	}
 	err := protoparserutil.ReadUncompressedData(r, encoding, datadogutil.MaxInsertRequestSize, func(data []byte) error {
 		return parseData(data, contentType, callback)
 	})
