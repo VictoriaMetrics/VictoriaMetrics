@@ -18,7 +18,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
@@ -1949,9 +1948,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	assertDirEntries := func(srcDir, snapshotDir string, excludePath ...string) {
 		t.Helper()
 		dataDirEntries := testListDirEntries(t, srcDir, excludePath...)
-		logger.Errorf("dataDirEntries: %s", dataDirEntries)
 		snapshotDirEntries := testListDirEntries(t, snapshotDir)
-		logger.Errorf("snapshotDirEntries: %s", snapshotDirEntries)
 		if diff := cmp.Diff(dataDirEntries, snapshotDirEntries); diff != "" {
 			t.Fatalf("unexpected snapshot dir entries (-want, +got):\n%s", diff)
 		}

@@ -646,6 +646,181 @@ func testSearchOpWithLegacyIndexDBs(t *testing.T, legacyData, newData []MetricRo
 	s.MustClose()
 }
 
+func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numRows = 10000
+	minTimestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	maxTimestamp := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC).UnixMilli()
+	mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+
+	root := t.Name()
+	s := MustOpenStorage(root, OpenOptions{})
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	testStorageConvertToLegacy(t)
+	s = MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	var (
+		data                 = filepath.Join(root, dataDirname)
+		smallData            = filepath.Join(data, smallDirname)
+		bigData              = filepath.Join(data, bigDirname)
+		indexData            = filepath.Join(data, indexdbDirname)
+		smallSnapshots       = filepath.Join(smallData, snapshotsDirname)
+		bigSnapshots         = filepath.Join(bigData, snapshotsDirname)
+		indexSnapshots       = filepath.Join(indexData, snapshotsDirname)
+		legacyIndexData      = filepath.Join(root, indexdbDirname)
+		legacyIndexSnapshots = filepath.Join(legacyIndexData, snapshotsDirname)
+	)
+
+	snapshot1Name := s.MustCreateSnapshot()
+	assertListSnapshots := func(want []string) {
+		got := s.MustListSnapshots()
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected snapshot list (-want, +got):\n%s", diff)
+		}
+	}
+	assertListSnapshots([]string{snapshot1Name})
+
+	var (
+		snapshot1            = filepath.Join(root, snapshotsDirname, snapshot1Name)
+		smallSnapshot1       = filepath.Join(smallSnapshots, snapshot1Name)
+		smallSymlink1        = filepath.Join(snapshot1, dataDirname, smallDirname)
+		bigSnapshot1         = filepath.Join(bigSnapshots, snapshot1Name)
+		bigSymlink1          = filepath.Join(snapshot1, dataDirname, bigDirname)
+		indexSnapshot1       = filepath.Join(indexSnapshots, snapshot1Name)
+		indexSymlink1        = filepath.Join(snapshot1, dataDirname, indexdbDirname)
+		legacyIndexSnapshot1 = filepath.Join(legacyIndexSnapshots, snapshot1Name)
+		legacyIndexSymlink1  = filepath.Join(snapshot1, indexdbDirname)
+	)
+
+	// Check snapshot1 dir entries
+	assertDirEntries := func(srcDir, snapshotDir string, excludePath ...string) {
+		t.Helper()
+		dataDirEntries := testListDirEntries(t, srcDir, excludePath...)
+		snapshotDirEntries := testListDirEntries(t, snapshotDir)
+		if diff := cmp.Diff(dataDirEntries, snapshotDirEntries); diff != "" {
+			t.Fatalf("unexpected snapshot dir entries (-want, +got):\n%s", diff)
+		}
+	}
+	assertDirEntries(smallData, smallSnapshot1, smallSnapshots)
+	assertDirEntries(bigData, bigSnapshot1, bigSnapshots)
+	assertDirEntries(indexData, indexSnapshot1, indexSnapshots)
+	assertDirEntries(legacyIndexData, legacyIndexSnapshot1, legacyIndexSnapshots)
+
+	// Check snapshot1 symlinks
+	assertSymlink := func(symlink string, wantRealpath string) {
+		t.Helper()
+		gotRealpath, err := filepath.EvalSymlinks(symlink)
+		if err != nil {
+			t.Fatalf("Could not evaluate symlink %q: %v", symlink, err)
+		}
+		if gotRealpath != wantRealpath {
+			t.Fatalf("unexpected realpath for symlink %q: got %q, want %q", symlink, gotRealpath, wantRealpath)
+		}
+	}
+	assertSymlink(bigSymlink1, bigSnapshot1)
+	assertSymlink(smallSymlink1, smallSnapshot1)
+	assertSymlink(indexSymlink1, indexSnapshot1)
+	assertSymlink(legacyIndexSymlink1, legacyIndexSnapshot1)
+
+	// Rotate indexdb. Only one legacy indexDB must remain.
+	s.legacyMustRotateIndexDB(time.Now().UTC())
+
+	// Create snapshot2
+	snapshot2Name := s.MustCreateSnapshot()
+	assertListSnapshots([]string{snapshot1Name, snapshot2Name})
+
+	var (
+		snapshot2            = filepath.Join(root, snapshotsDirname, snapshot2Name)
+		smallSnapshot2       = filepath.Join(smallSnapshots, snapshot2Name)
+		smallSymlink2        = filepath.Join(snapshot2, dataDirname, smallDirname)
+		bigSnapshot2         = filepath.Join(bigSnapshots, snapshot2Name)
+		bigSymlink2          = filepath.Join(snapshot2, dataDirname, bigDirname)
+		indexSnapshot2       = filepath.Join(indexSnapshots, snapshot2Name)
+		indexSymlink2        = filepath.Join(snapshot2, dataDirname, indexdbDirname)
+		legacyIndexSnapshot2 = filepath.Join(legacyIndexSnapshots, snapshot2Name)
+		legacyIndexSymlink2  = filepath.Join(snapshot2, indexdbDirname)
+	)
+
+	// Check snapshot2 dir entries
+	assertDirEntries(smallData, smallSnapshot2, smallSnapshots)
+	assertDirEntries(bigData, bigSnapshot2, bigSnapshots)
+	assertDirEntries(indexData, indexSnapshot2, indexSnapshots)
+	assertDirEntries(legacyIndexData, legacyIndexSnapshot2, legacyIndexSnapshots)
+
+	// Check snapshot2 symlinks
+	assertSymlink(bigSymlink2, bigSnapshot2)
+	assertSymlink(smallSymlink2, smallSnapshot2)
+	assertSymlink(indexSymlink2, indexSnapshot2)
+	assertSymlink(legacyIndexSymlink2, legacyIndexSnapshot2)
+
+	// Rotate indexdb once again. There shouldn't be any legacy indexDBs left.
+	s.legacyMustRotateIndexDB(time.Now().UTC())
+
+	// Create snapshot3
+	snapshot3Name := s.MustCreateSnapshot()
+	assertListSnapshots([]string{snapshot1Name, snapshot2Name, snapshot3Name})
+
+	var (
+		snapshot3            = filepath.Join(root, snapshotsDirname, snapshot3Name)
+		smallSnapshot3       = filepath.Join(smallSnapshots, snapshot3Name)
+		smallSymlink3        = filepath.Join(snapshot3, dataDirname, smallDirname)
+		bigSnapshot3         = filepath.Join(bigSnapshots, snapshot3Name)
+		bigSymlink3          = filepath.Join(snapshot3, dataDirname, bigDirname)
+		indexSnapshot3       = filepath.Join(indexSnapshots, snapshot3Name)
+		indexSymlink3        = filepath.Join(snapshot3, dataDirname, indexdbDirname)
+		legacyIndexSnapshot3 = filepath.Join(legacyIndexSnapshots, snapshot3Name)
+		legacyIndexSymlink3  = filepath.Join(snapshot3, indexdbDirname)
+	)
+
+	assertPathDoesNotExist := func(path string) {
+		t.Helper()
+		if vmfs.IsPathExist(path) {
+			t.Fatalf("path was not expected to exist: %q", path)
+		}
+	}
+
+	// Check snapshot3 dir entries
+	assertDirEntries(smallData, smallSnapshot3, smallSnapshots)
+	assertDirEntries(bigData, bigSnapshot3, bigSnapshots)
+	assertDirEntries(indexData, indexSnapshot3, indexSnapshots)
+	assertPathDoesNotExist(legacyIndexSnapshot3)
+
+	// Check snapshot3 symlinks
+	assertSymlink(bigSymlink3, bigSnapshot3)
+	assertSymlink(smallSymlink3, smallSnapshot3)
+	assertSymlink(indexSymlink3, indexSnapshot3)
+	assertPathDoesNotExist(legacyIndexSymlink3)
+
+	// Check snapshot deletion.
+	for _, name := range []string{snapshot1Name, snapshot2Name, snapshot3Name} {
+		if err := s.DeleteSnapshot(name); err != nil {
+			t.Fatalf("could not delete snapshot %q: %v", name, err)
+		}
+	}
+	assertListSnapshots([]string{})
+	assertPathDoesNotExist(snapshot1)
+	assertPathDoesNotExist(snapshot2)
+	assertPathDoesNotExist(snapshot3)
+	assertPathDoesNotExist(bigSnapshot1)
+	assertPathDoesNotExist(bigSnapshot2)
+	assertPathDoesNotExist(bigSnapshot3)
+	assertPathDoesNotExist(smallSnapshot1)
+	assertPathDoesNotExist(smallSnapshot2)
+	assertPathDoesNotExist(smallSnapshot3)
+	assertPathDoesNotExist(indexSnapshot1)
+	assertPathDoesNotExist(indexSnapshot2)
+	assertPathDoesNotExist(indexSnapshot3)
+	assertPathDoesNotExist(legacyIndexSnapshot1)
+	assertPathDoesNotExist(legacyIndexSnapshot2)
+}
+
 // testStorageConvertToLegacy converts the storage partition indexDBs into the
 // legacy indexDB. The original partition indexDBs are removed.
 //
