@@ -6,4 +6,4 @@ Please provide a brief description of the changes you made. Be as specific as po
 
 The following checks are **mandatory**:
 
-- [ ] My change adheres [VictoriaMetrics contributing guidelines](https://docs.victoriametrics.com/contributing/).
+- [ ] My change adheres to [VictoriaMetrics contributing guidelines](https://docs.victoriametrics.com/contributing/).
