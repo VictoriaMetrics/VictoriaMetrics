@@ -49,7 +49,7 @@ See details about all supported options in the [vmgateway documentation](https:/
    ![Client secret](client-secret.webp)
    Copy the value of `Client secret`. It will be used later in Grafana configuration.<br>
 1. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
-   Click at `grafana-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
+   Click at `grafana-dedicated` -> `Configure a new mapper` -> `User attribute`.<br>
    ![Create mapper 1](create-mapper-1.webp)
    ![Create mapper 2](create-mapper-2.webp)
    Configure the mapper as follows<br>
@@ -61,8 +61,13 @@ See details about all supported options in the [vmgateway documentation](https:/
    
    ![Create mapper 3](create-mapper-3.webp)
    Click `Save`.<br>
-1. Go to `Users` -> select user to configure claims -> `Attributes`.<br>
-   Specify `vm_access` as `Key`.<br>
+1. Go to `Realm settings` -> `User profile`.<br>
+   Click `Create attribute`.<br>
+   Specify `vm_access` as `Attribute [Name]`.<br>
+   ![User attributes](create-attribute.webp)
+   Click `Save`.<br>
+1. Go to `Users` -> select user to configure.<br>
+   Modify value of `vm_access` attribute.<br>
    For the purpose of this example, we will use 2 users:<br>
    - for the first user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 0 },"extra_labels":{ "team": "admin" }}` as `Value`.
    - for the second user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 1 },"extra_labels":{ "team": "dev" }}` as `Value`.
@@ -219,17 +224,17 @@ version: '3'
 
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:21.0
+    image: quay.io/keycloak/keycloak:26.1
     command:
       - start-dev
     ports:
       - 3001:8080
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: change_me
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: change_me
 
   grafana:
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:11.5.2
     network_mode: host
     volumes:
       - ./grafana.ini:/etc/grafana/grafana.ini
@@ -369,9 +374,9 @@ In order to create a client for vmagent to use, follow the steps below:
    ![Client secret](vmagent-client-secret.webp)
    Copy the value of `Client secret`. It will be used later in vmagent configuration.<br>
 1. Go to `Clients` -> `vmagent` -> `Client scopes`.<br>
-   Click at `vmagent-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
-   ![Create mapper 1](create-mapper-1.webp)
-   ![Create mapper 2](create-mapper-2.webp)
+   Click at `vmagent-dedicated` -> `Configure a new mapper` -> `User attribute`.<br>
+   ![Create mapper 1](vmagent-create-mapper-1.webp)
+   ![Create mapper 2](vmagent-create-mapper-2.webp)
    Configure the mapper as follows<br>
    - `Name` as `vm_access`.
    - `Token Claim Name` as `vm_access`.
@@ -379,13 +384,12 @@ In order to create a client for vmagent to use, follow the steps below:
    - `Claim JSON Type` as `JSON`.
      Enable `Add to ID token` and `Add to access token`.<br>
 
-   ![Create mapper 3](create-mapper-3.webp)
+   ![Create mapper 3](vmagent-create-mapper-3.webp)
    Click `Save`.<br>
 1. Go to `Service account roles` -> click on `service-account-vmagent`.<br>
    ![vmagent service account](vmagent-sa.webp)
 1. Go to `Attributes` tab and add an attribute.
-   Specify `vm_access` as `Key`.<br>
-   Specify `{"tenant_id" : {"account_id": 0, "project_id": 0 }}` as a value.<br>
+   Change `vm_access` attribute value to `{"tenant_id" : {"account_id": 0, "project_id": 0 }}`. <br>
    ![User attributes](vmagent-sa-attributes.webp)
    Click `Save`.
 
