@@ -243,8 +243,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
-	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids")
-	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
+	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids_v2")
+	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids_v2")
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
@@ -870,9 +870,9 @@ func (s *Storage) MustClose() {
 	s.metricNameCache.Stop()
 
 	hmCurr := s.currHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids")
+	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids_v2")
 	hmPrev := s.prevHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids")
+	s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids_v2")
 
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
@@ -2453,6 +2453,20 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	return firstError
 }
 
+// hmPrevAndCurrInSameIndexDB returns true if previous and current hour
+// metricIDs belong to the same indexDB.
+func (s *Storage) hmPrevAndCurrInSameIndexDB(hmPrev, hmCurr *hourMetricIDs) bool {
+	hmCurrTimestamp := int64(hmCurr.hour * msecPerHour)
+	hmCurrIDB := s.tb.MustGetIndexDB(hmCurrTimestamp)
+	defer s.tb.PutIndexDB(hmCurrIDB)
+
+	hmPrevTimestamp := int64(hmPrev.hour * msecPerHour)
+	hmPrevIDB := s.tb.MustGetIndexDB(hmPrevTimestamp)
+	defer s.tb.PutIndexDB(hmPrevIDB)
+
+	return hmPrevIDB == hmCurrIDB
+}
+
 func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmCurr *hourMetricIDs) error {
 	if s.disablePerDayIndex {
 		return nil
@@ -2483,6 +2497,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
+	hmPrevAndCurrInSameIndexDB := s.hmPrevAndCurrInSameIndexDB(hmPrev, hmCurr)
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -2520,7 +2535,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 				}
 				continue
 			}
-			if date == hmPrevDate && hmPrev.m.Has(metricID) {
+			if hmPrevAndCurrInSameIndexDB && date == hmPrevDate && hmPrev.m.Has(metricID) {
 				// The metricID is already registered for the current day on the previous hour.
 				continue
 			}
