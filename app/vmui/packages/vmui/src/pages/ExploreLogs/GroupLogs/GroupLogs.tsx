@@ -18,6 +18,7 @@ import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectL
 import { usePaginateGroups } from "../hooks/usePaginateGroups";
 import { GroupLogsType } from "../../../types";
 import { getNanoTimestamp } from "../../../utils/time";
+import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
 
 interface Props {
   logs: Logs[];
@@ -159,6 +160,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
+          <DownloadLogsButton logs={logs} />
           <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}

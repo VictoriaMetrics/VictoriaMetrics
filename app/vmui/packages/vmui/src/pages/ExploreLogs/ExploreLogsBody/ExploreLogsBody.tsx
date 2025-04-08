@@ -14,6 +14,7 @@ import GroupLogs from "../GroupLogs/GroupLogs";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import LineLoader from "../../../components/Main/LineLoader/LineLoader";
 import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
+import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
 
 const MemoizedTableLogs = React.memo(TableLogs);
 const MemoizedGroupLogs = React.memo(GroupLogs);
@@ -99,20 +100,28 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
               limit={rowsPerPage}
               onChange={handleSetRowsPerPage}
             />
-            <TableSettings
-              columns={columns}
-              selectedColumns={displayColumns}
-              onChangeColumns={setDisplayColumns}
-              tableCompact={tableCompact}
-              toggleTableCompact={toggleTableCompact}
-            />
+            <div className="vm-explore-logs-body-header__table-settings">
+              <DownloadLogsButton logs={data} />
+              <TableSettings
+                columns={columns}
+                selectedColumns={displayColumns}
+                onChangeColumns={setDisplayColumns}
+                tableCompact={tableCompact}
+                toggleTableCompact={toggleTableCompact}
+              />
+            </div>
           </div>
         )}
         {activeTab === DisplayType.group && (
-          <div
-            className="vm-explore-logs-body-header__settings"
-            ref={groupSettingsRef}
-          />
+          <>
+            <div
+              className="vm-explore-logs-body-header__settings"
+              ref={groupSettingsRef}
+            />
+          </>
+        )}
+        {activeTab === DisplayType.json && (
+          <DownloadLogsButton logs={data} />
         )}
       </div>
 

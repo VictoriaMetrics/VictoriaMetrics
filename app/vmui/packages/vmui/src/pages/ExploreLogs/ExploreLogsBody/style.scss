@@ -16,6 +16,11 @@
       gap: $padding-small;
     }
 
+    &__table-settings {
+      display: flex;
+      flex-direction: row;
+    }
+
     &__log-info {
       flex-grow: 1;
       text-align: right;
