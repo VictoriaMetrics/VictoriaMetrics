@@ -64,6 +64,8 @@ var (
 	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
 	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
 	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+
+	disableCORS = flag.Bool("http.cors.disabled", false, `Disable CORS for all origins (*)`)
 )
 
 var (
@@ -527,7 +529,9 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 // EnableCORS enables https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 // on the response.
 func EnableCORS(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if !*disableCORS {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
 }
 
 func pprofHandler(profileName string, w http.ResponseWriter, r *http.Request) {
