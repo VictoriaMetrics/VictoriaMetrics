@@ -219,18 +219,18 @@ func (bsr *blockStreamReader) readBlock() error {
 	}
 
 	// Read block header.
-	if len(bsr.indexCursor) < marshaledBlockHeaderSize {
+	if len(bsr.indexCursor) < marshaledBlockHeaderSize.marshaledBlockHeaderSize {
 		return fmt.Errorf("too short index data for reading block header at offset %d; got %d bytes; want %d bytes",
-			bsr.prevIndexBlockOffset(), len(bsr.indexCursor), marshaledBlockHeaderSize)
+			bsr.prevIndexBlockOffset(), len(bsr.indexCursor), marshaledBlockHeaderSize.marshaledBlockHeaderSize)
 	}
-	tail, err := bsr.Block.bh.Unmarshal(bsr.indexCursor[:marshaledBlockHeaderSize])
+	tail, err := bsr.Block.bh.Unmarshal(bsr.indexCursor[:marshaledBlockHeaderSize.marshaledBlockHeaderSize])
 	if err != nil {
 		return fmt.Errorf("cannot parse block header read from index data at offset %d: %w", bsr.prevIndexBlockOffset(), err)
 	}
 	if len(tail) > 0 {
 		return fmt.Errorf("non-empty tail left after parsing block header at offset %d: %x", bsr.prevIndexBlockOffset(), tail)
 	}
-	bsr.indexCursor = bsr.indexCursor[marshaledBlockHeaderSize:]
+	bsr.indexCursor = bsr.indexCursor[marshaledBlockHeaderSize.marshaledBlockHeaderSize:]
 
 	bsr.blocksCount++
 	if bsr.blocksCount > bsr.ph.BlocksCount {
