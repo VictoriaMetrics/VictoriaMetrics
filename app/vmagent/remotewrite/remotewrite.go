@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -197,13 +196,7 @@ func Init() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	rcs, err := loadRelabelConfigs()
-	if err != nil {
-		logger.Fatalf("cannot load relabel configs: %s", err)
-	}
-	allRelabelConfigs.Store(rcs)
-	relabelConfigSuccess.Set(1)
-	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
+	initRelabelConfigs()
 
 	initStreamAggrConfigGlobal()
 
@@ -268,29 +261,6 @@ func dropDanglingQueues() {
 		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxsGlobal))
 	}
 }
-
-func reloadRelabelConfigs() {
-	relabelConfigReloads.Inc()
-	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
-	rcs, err := loadRelabelConfigs()
-	if err != nil {
-		relabelConfigReloadErrors.Inc()
-		relabelConfigSuccess.Set(0)
-		logger.Errorf("cannot reload relabel configs; preserving the previous configs; error: %s", err)
-		return
-	}
-	allRelabelConfigs.Store(rcs)
-	relabelConfigSuccess.Set(1)
-	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
-	logger.Infof("successfully reloaded relabel configs")
-}
-
-var (
-	relabelConfigReloads      = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
-	relabelConfigReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
-	relabelConfigSuccess      = metrics.NewGauge(`vmagent_relabel_config_last_reload_successful`, nil)
-	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
-)
 
 func initRemoteWriteCtxs(urls []string) {
 	if len(urls) == 0 {
