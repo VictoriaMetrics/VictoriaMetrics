@@ -33,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support `identity` value in `Content-Encoding` HTTP header. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fix timeseries with empty timestamp and value in Datadog sketches API. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): set `vminsert_streamagg_config_last_reload_successful` to 1, when no stream aggregation config is provided for consistency. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/2119) for details.
 
 ## [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0)
 
