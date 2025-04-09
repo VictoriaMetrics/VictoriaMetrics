@@ -84,7 +84,12 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
           "vm-explore-logs-body-header_mobile": isMobile,
         })}
       >
-        <div className="vm-section-header__tabs">
+        <div
+          className={classNames({
+            "vm-section-header__tabs": true,
+            "vm-explore-logs-body-header__tabs_mobile": isMobile,
+          })}
+        >
           <Tabs
             activeItem={String(activeTab)}
             items={tabs}
