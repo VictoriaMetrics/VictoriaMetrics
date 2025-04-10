@@ -93,24 +93,19 @@ func (bh *blockHeader) Less(src *blockHeader) bool {
 	return bh.TSID.Less(&src.TSID)
 }
 
-type marshaledBlockHeaderSizeStruct struct {
-	marshaledBlockHeaderSize int
-}
-
-type marshaledBlockHeaderSizeStructWithPadding struct {
-	marshaledBlockHeaderSizeStruct
-
+type marshaledBlockHeaderSizeWithPadding struct {
+	value int
 	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(marshaledBlockHeaderSizeStruct{})%128]byte
+	// 128 mod (cache line size) = 0
+	_ [128 - (unsafe.Sizeof(int(0)) % 128)]byte
 }
 
 // marshaledBlockHeaderSize is the size of marshaled block header.
-var marshaledBlockHeaderSize = func() marshaledBlockHeaderSizeStructWithPadding {
+var marshaledBlockHeaderSize = func() marshaledBlockHeaderSizeWithPadding {
 	var bh blockHeader
 	data := bh.Marshal(nil)
-	var marshaledBlockHeaderSize marshaledBlockHeaderSizeStructWithPadding
-	marshaledBlockHeaderSize.marshaledBlockHeaderSize = len(data)
+	var marshaledBlockHeaderSize marshaledBlockHeaderSizeWithPadding
+	marshaledBlockHeaderSize.value = len(data)
 	return marshaledBlockHeaderSize
 }()
 
@@ -132,8 +127,8 @@ func (bh *blockHeader) Marshal(dst []byte) []byte {
 
 // Unmarshal unmarshals bh from src and returns the rest of src.
 func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
-	if len(src) < marshaledBlockHeaderSize.marshaledBlockHeaderSize {
-		return src, fmt.Errorf("too short block header; got %d bytes; want %d bytes", len(src), marshaledBlockHeaderSize.marshaledBlockHeaderSize)
+	if len(src) < marshaledBlockHeaderSize.value {
+		return src, fmt.Errorf("too short block header; got %d bytes; want %d bytes", len(src), marshaledBlockHeaderSize.value)
 	}
 
 	tail, err := bh.TSID.Unmarshal(src)

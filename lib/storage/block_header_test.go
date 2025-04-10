@@ -12,8 +12,8 @@ func TestMarshaledBlockHeaderSize(t *testing.T) {
 	// If this test breaks then the storage format has been changed,
 	// so it may become incompatible with the previously written data.
 	expectedSize := 89
-	if marshaledBlockHeaderSize.marshaledBlockHeaderSize != expectedSize {
-		t.Fatalf("unexpected marshaledBlockHeaderSize; got %d; want %d", marshaledBlockHeaderSize, expectedSize)
+	if marshaledBlockHeaderSize.value != expectedSize {
+		t.Fatalf("unexpected marshaledBlockHeaderSize; got %d; want %d", marshaledBlockHeaderSize.value, expectedSize)
 	}
 }
 
@@ -41,8 +41,8 @@ func testBlockHeaderMarshalUnmarshal(t *testing.T, bh *blockHeader) {
 	t.Helper()
 
 	dst := bh.Marshal(nil)
-	if len(dst) != marshaledBlockHeaderSize.marshaledBlockHeaderSize {
-		t.Fatalf("unexpected dst size; got %d; want %d", len(dst), marshaledBlockHeaderSize.marshaledBlockHeaderSize)
+	if len(dst) != marshaledBlockHeaderSize.value {
+		t.Fatalf("unexpected dst size; got %d; want %d", len(dst), marshaledBlockHeaderSize.value)
 	}
 	var bh1 blockHeader
 	tail, err := bh1.Unmarshal(dst)
