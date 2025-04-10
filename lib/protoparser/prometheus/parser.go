@@ -7,9 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // Rows contains parsed Prometheus rows.
@@ -113,7 +114,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		s = s[n+1:]
 		tagsStart := len(tagsPool)
 		var err error
-		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
+		s, tagsPool, err = r.unmarshalTags(tagsPool, s, noEscapes)
 		if err != nil {
 			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
@@ -230,7 +231,7 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
-func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
+func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 	for {
 		s = skipLeadingWhitespace(s)
 		if len(s) > 0 && s[0] == '}' {
@@ -242,6 +243,27 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			return s, dst, fmt.Errorf("missing value for tag %q", s)
 		}
 		key := skipTrailingWhitespace(s[:n])
+		// Quoted UTF8 key
+		if len(key) > 1 && key[0] == '"' {
+			n = findClosingQuote(key)
+			if n < len(key) {
+				// Determine if there is an empty key Prometheus 3.0 metric name
+				key = key[1:n]
+				afterKey := skipLeadingWhitespace(s[n+1:])
+				if afterKey[0] == ',' {
+					if r.Metric == "" {
+						r.Metric = key
+					}
+					s = afterKey[1:]
+					continue
+				} else if afterKey[0] == '=' {
+					s = afterKey[1:]
+					n = -1
+				} else {
+					return s, dst, fmt.Errorf("missing value for tag %q", s)
+				}
+			}
+		}
 		if strings.IndexByte(key, '"') >= 0 {
 			return s, dst, fmt.Errorf("tag key %q cannot contain double quotes", key)
 		}
