@@ -13,30 +13,26 @@ import (
 //
 // This function must be called before initializing the storage.
 func SetDedupInterval(dedupInterval time.Duration) {
-	globalDedupInterval.globalDedupInterval = dedupInterval.Milliseconds()
+	globalDedupInterval.value = dedupInterval.Milliseconds()
 }
 
 // GetDedupInterval returns the dedup interval in milliseconds, which has been set via SetDedupInterval.
 func GetDedupInterval() int64 {
-	return globalDedupInterval.globalDedupInterval
-}
-
-type globalDedupIntervalStruct struct {
-	globalDedupInterval int64
+	return globalDedupInterval.value
 }
 
 type globalDedupIntervalStructWithPadding struct {
-	globalDedupIntervalStruct
+	value int64
 
 	// The padding prevents false sharing on widespread platforms with
 	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(globalDedupIntervalStruct{})%128]byte
+	_ [128 - unsafe.Sizeof(int64(0))%128]byte
 }
 
 var globalDedupInterval globalDedupIntervalStructWithPadding
 
 func isDedupEnabled() bool {
-	return globalDedupInterval.globalDedupInterval > 0
+	return globalDedupInterval.value > 0
 }
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in milliseconds.
