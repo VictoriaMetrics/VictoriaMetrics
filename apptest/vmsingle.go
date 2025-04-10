@@ -49,7 +49,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":     "127.0.0.1:0",
-			"-graphiteListenAddr": ":2003",
+			"-graphiteListenAddr": ":0",
 			"-opentsdbListenAddr": "127.0.0.1:0",
 		},
 		extractREs: []*regexp.Regexp{
