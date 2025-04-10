@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -141,7 +141,7 @@ func ValidateTemplates(annotations map[string]string) error {
 func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
-	eg := new(utils.ErrGroup)
+	eg := new(vmalertutil.ErrGroup)
 	r := make(map[string]string, len(annotations))
 	tData := tplData{data, externalLabels, externalURL}
 	header := strings.Join(tplHeaders, "")

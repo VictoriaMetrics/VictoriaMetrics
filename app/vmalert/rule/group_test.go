@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func init() {
@@ -93,7 +93,7 @@ func TestUpdateWith(t *testing.T) {
 		{
 			Alert: "foo",
 			Expr:  "up > 0",
-			For:   promutils.NewDuration(time.Second),
+			For:   promutil.NewDuration(time.Second),
 			Labels: map[string]string{
 				"bar": "baz",
 			},
@@ -105,7 +105,7 @@ func TestUpdateWith(t *testing.T) {
 		{
 			Alert: "bar",
 			Expr:  "up > 0",
-			For:   promutils.NewDuration(time.Second),
+			For:   promutil.NewDuration(time.Second),
 			Labels: map[string]string{
 				"bar": "baz",
 			},
@@ -114,7 +114,7 @@ func TestUpdateWith(t *testing.T) {
 		{
 			Alert: "foo",
 			Expr:  "up > 10",
-			For:   promutils.NewDuration(time.Second),
+			For:   promutil.NewDuration(time.Second),
 			Labels: map[string]string{
 				"baz": "bar",
 			},
@@ -125,8 +125,8 @@ func TestUpdateWith(t *testing.T) {
 		{
 			Alert:         "bar",
 			Expr:          "up > 0",
-			For:           promutils.NewDuration(2 * time.Second),
-			KeepFiringFor: promutils.NewDuration(time.Minute),
+			For:           promutil.NewDuration(2 * time.Second),
+			KeepFiringFor: promutil.NewDuration(time.Minute),
 			Labels: map[string]string{
 				"bar": "baz",
 			},
@@ -143,6 +143,7 @@ func TestUpdateWith(t *testing.T) {
 	}}, []config.Rule{{
 		Record: "foo",
 		Expr:   "min(up)",
+		Debug:  true,
 		Labels: map[string]string{
 			"baz": "bar",
 		},

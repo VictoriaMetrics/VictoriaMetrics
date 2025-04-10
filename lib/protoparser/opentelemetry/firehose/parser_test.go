@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 )
 
@@ -242,7 +242,7 @@ func TestProcessRequestBody(t *testing.T) {
 }
 
 func formatTimeseries(tss []prompbmarshal.TimeSeries) string {
-	var labels promutils.Labels
+	var labels promutil.Labels
 	var a []string
 	for _, ts := range tss {
 		labels.Labels = ts.Labels

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -41,8 +41,8 @@ var (
 	maxRequestSize = flagutil.NewBytes("journald.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single journald request")
 )
 
-func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
-	cp, err := insertutils.GetCommonParams(r)
+func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
+	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ var (
 )
 
 // See https://systemd.io/JOURNAL_EXPORT_FORMATS/#journal-export-format
-func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *insertutils.CommonParams) error {
+func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *insertutil.CommonParams) error {
 	var fields []logstorage.Field
 	var ts int64
 	var size uint64

@@ -166,7 +166,7 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		if !fs.IsPathExist(partPath) {
 			partsFile := filepath.Join(path, partsFilename)
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 

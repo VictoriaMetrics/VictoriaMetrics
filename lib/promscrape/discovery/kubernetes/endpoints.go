@@ -6,8 +6,8 @@ import (
 	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func (eps *Endpoints) key() string {
@@ -92,13 +92,13 @@ type EndpointPort struct {
 // getTargetLabels returns labels for each endpoint in eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
+func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	var svc *Service
 	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
 			ms = appendEndpointLabelsForAddresses(ms, gw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
@@ -128,8 +128,8 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 			if portSeen(cp.ContainerPort, seen) {
 				continue
 			}
-			addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
-			m := promutils.GetLabels()
+			addr := discoveryutil.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
+			m := promutil.GetLabels()
 			m.Add("__address__", addr)
 			p.appendCommonLabels(m, gw)
 			p.appendContainerLabels(m, c, &cp, isInit)
@@ -161,8 +161,8 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 	return ms
 }
 
-func appendEndpointLabelsForAddresses(ms []*promutils.Labels, gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
-	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []*promutils.Labels {
+func appendEndpointLabelsForAddresses(ms []*promutil.Labels, gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
+	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []*promutil.Labels {
 	for _, ea := range eas {
 		var p *Pod
 		if ea.TargetRef.Name != "" {
@@ -179,7 +179,7 @@ func appendEndpointLabelsForAddresses(ms []*promutils.Labels, gw *groupWatcher, 
 }
 
 func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints, ea EndpointAddress, epp EndpointPort,
-	p *Pod, svc *Service, ready string) *promutils.Labels {
+	p *Pod, svc *Service, ready string) *promutil.Labels {
 	m := getEndpointLabels(eps.Metadata, ea, epp, ready)
 	if svc != nil {
 		svc.appendCommonLabels(m)
@@ -220,9 +220,9 @@ func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod]
 	return m
 }
 
-func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, ready string) *promutils.Labels {
-	addr := discoveryutils.JoinHostPort(ea.IP, epp.Port)
-	m := promutils.GetLabels()
+func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, ready string) *promutil.Labels {
+	addr := discoveryutil.JoinHostPort(ea.IP, epp.Port)
+	m := promutil.GetLabels()
 	m.Add("__address__", addr)
 	m.Add("__meta_kubernetes_namespace", om.Namespace)
 	m.Add("__meta_kubernetes_endpoints_name", om.Name)

@@ -194,9 +194,6 @@ func (c *Client) addOperationDeleteBucketPolicyMiddlewares(stack *middleware.Sta
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpDeleteBucketPolicyValidationMiddleware(stack); err != nil {
 		return err
 	}

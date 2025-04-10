@@ -19,7 +19,8 @@ docs-debug: docs docs-image
 		--rm \
 		--name vmdocs-docker-container \
 		-p 1313:1313 \
-		-v ./docs:/opt/docs/content/victoriametrics vmdocs-docker-package
+		$(foreach dir,$(wildcard ./docs/$(dir)/*), -v ./docs/$(notdir $(dir)):/opt/docs/content/$(notdir $(dir))) \
+			vmdocs-docker-package
 
 docs-update-version: docs-image
 	$(if $(filter v%,$(PKG_TAG)), \

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 )
 
 func TestGetInstances_Success(t *testing.T) {
@@ -49,7 +49,7 @@ func TestGetInstances_Success(t *testing.T) {
 	})
 
 	// Prepare a discovery HTTP client who calls mock server.
-	client, err := discoveryutils.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+	client, err := discoveryutil.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 	if err != nil {
 		t.Fatalf("unexpected error wen creating http client: %s", err)
 	}
@@ -95,7 +95,7 @@ func TestGetInstances_Failure(t *testing.T) {
 	})
 
 	// Prepare a discovery HTTP client who calls mock server.
-	client, err := discoveryutils.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+	client, err := discoveryutil.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 	if err != nil {
 		t.Fatalf("unexpected error wen creating http client: %s", err)
 	}
@@ -124,7 +124,7 @@ func TestGetInstances_Paging(t *testing.T) {
 	})
 
 	// Prepare a discovery HTTP client who calls mock server.
-	client, err := discoveryutils.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+	client, err := discoveryutil.NewClient(s.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 	if err != nil {
 		t.Fatalf("unexpected error wen creating http client: %s", err)
 	}

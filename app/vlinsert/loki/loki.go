@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
@@ -42,7 +42,7 @@ func handleInsert(r *http.Request, w http.ResponseWriter) {
 }
 
 type commonParams struct {
-	cp *insertutils.CommonParams
+	cp *insertutil.CommonParams
 
 	// Whether to parse JSON inside plaintext log message.
 	//
@@ -51,7 +51,7 @@ type commonParams struct {
 }
 
 func getCommonParams(r *http.Request) (*commonParams, error) {
-	cp, err := insertutils.GetCommonParams(r)
+	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func getCommonParams(r *http.Request) (*commonParams, error) {
 	}
 
 	parseMessage := !*disableMessageParsing
-	if rv := httputils.GetRequestValue(r, "disable_message_parsing", "VL-Loki-Disable-Message-Parsing"); rv != "" {
+	if rv := httputil.GetRequestValue(r, "disable_message_parsing", "VL-Loki-Disable-Message-Parsing"); rv != "" {
 		bv, err := strconv.ParseBool(rv)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse dusable_message_parsing=%q: %s", rv, err)

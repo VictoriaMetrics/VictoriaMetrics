@@ -1,15 +1,15 @@
 package unittest
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // alertTestCase holds alert_rule_test cases defined in test file
 type alertTestCase struct {
-	EvalTime  *promutils.Duration `yaml:"eval_time"`
-	GroupName string              `yaml:"groupname"`
-	Alertname string              `yaml:"alertname"`
-	ExpAlerts []expAlert          `yaml:"exp_alerts"`
+	EvalTime  *promutil.Duration `yaml:"eval_time"`
+	GroupName string             `yaml:"groupname"`
+	Alertname string             `yaml:"alertname"`
+	ExpAlerts []expAlert         `yaml:"exp_alerts"`
 }
 
 // expAlert holds exp_alerts defined in test file

@@ -14,9 +14,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -51,14 +51,14 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		startTime: time.Now(),
 	}
 
-	start, err := utils.ParseTime(p.filter.TimeStart)
+	start, err := vmctlutil.ParseTime(p.filter.TimeStart)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
 	}
 
 	end := time.Now().In(start.Location())
 	if p.filter.TimeEnd != "" {
-		end, err = utils.ParseTime(p.filter.TimeEnd)
+		end, err = vmctlutil.ParseTime(p.filter.TimeEnd)
 		if err != nil {
 			return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 		}
@@ -362,7 +362,7 @@ func byteCountSI(b int64) string {
 }
 
 func buildMatchWithFilter(filter string, metricName string) (string, error) {
-	tfss, err := searchutils.ParseMetricSelector(filter)
+	tfss, err := searchutil.ParseMetricSelector(filter)
 	if err != nil {
 		return "", err
 	}

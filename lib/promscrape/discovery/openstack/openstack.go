@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // SDCheckInterval defines interval for targets refresh.
@@ -40,7 +40,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns OpenStack labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

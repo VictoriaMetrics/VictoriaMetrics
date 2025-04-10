@@ -36,7 +36,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -182,7 +182,7 @@ func ruleUnitTest(filename string, content []byte, externalLabels map[string]str
 
 	if unitTestInp.EvaluationInterval.Duration() == 0 {
 		fmt.Println("evaluation_interval set to 1m by default")
-		unitTestInp.EvaluationInterval = &promutils.Duration{D: 1 * time.Minute}
+		unitTestInp.EvaluationInterval = &promutil.Duration{D: 1 * time.Minute}
 	}
 
 	groupOrderMap := make(map[string]int)
@@ -312,7 +312,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	defer tearDown()
 
 	if tg.Interval == nil {
-		tg.Interval = promutils.NewDuration(evalInterval)
+		tg.Interval = promutil.NewDuration(evalInterval)
 	}
 	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
 	if err != nil {
@@ -472,15 +472,15 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 // unitTestFile holds the contents of a single unit test file
 type unitTestFile struct {
-	RuleFiles          []string            `yaml:"rule_files"`
-	EvaluationInterval *promutils.Duration `yaml:"evaluation_interval"`
-	GroupEvalOrder     []string            `yaml:"group_eval_order"`
-	Tests              []testGroup         `yaml:"tests"`
+	RuleFiles          []string           `yaml:"rule_files"`
+	EvaluationInterval *promutil.Duration `yaml:"evaluation_interval"`
+	GroupEvalOrder     []string           `yaml:"group_eval_order"`
+	Tests              []testGroup        `yaml:"tests"`
 }
 
 // testGroup is a group of input series and test cases associated with it
 type testGroup struct {
-	Interval           *promutils.Duration `yaml:"interval"`
+	Interval           *promutil.Duration  `yaml:"interval"`
 	InputSeries        []series            `yaml:"input_series"`
 	AlertRuleTests     []alertTestCase     `yaml:"alert_rule_test"`
 	MetricsqlExprTests []metricsqlTestCase `yaml:"metricsql_expr_test"`

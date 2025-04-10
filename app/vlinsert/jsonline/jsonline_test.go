@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func TestProcessStreamInternal(t *testing.T) {
@@ -12,7 +12,7 @@ func TestProcessStreamInternal(t *testing.T) {
 		t.Helper()
 
 		msgFields := []string{msgField}
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
 		processStreamInternal("test", r, timeField, msgFields, tlp)
 

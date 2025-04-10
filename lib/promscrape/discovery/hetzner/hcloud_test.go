@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseHCloudNetworksList(t *testing.T) {
@@ -312,8 +312,8 @@ func TestParseHCloudServerListResponse(t *testing.T) {
 	}
 	labelss := appendHCloudTargetLabels(nil, &sl[0], networks, port)
 
-	expectedLabels := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                            "1.2.3.4:123",
 			"__meta_hetzner_role":                                    "hcloud",
 			"__meta_hetzner_server_id":                               "42",
@@ -336,5 +336,5 @@ func TestParseHCloudServerListResponse(t *testing.T) {
 			"__meta_hetzner_hcloud_private_ipv4_mynet":               "10.0.0.2",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
 }

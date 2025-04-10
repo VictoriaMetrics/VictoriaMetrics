@@ -149,9 +149,6 @@ func (c *Client) addOperationGetBucketMetadataTableConfigurationMiddlewares(stac
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpGetBucketMetadataTableConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

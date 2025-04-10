@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -41,7 +41,7 @@ func httpWrite(address string, r io.Reader) {
 }
 
 // writeInputSeries send input series to vmstorage and flush them
-func writeInputSeries(input []series, interval *promutils.Duration, startStamp time.Time, dst string) error {
+func writeInputSeries(input []series, interval *promutil.Duration, startStamp time.Time, dst string) error {
 	r := testutil.WriteRequest{}
 	var err error
 	r.Timeseries, err = parseInputSeries(input, interval, startStamp)
@@ -56,7 +56,7 @@ func writeInputSeries(input []series, interval *promutils.Duration, startStamp t
 	return nil
 }
 
-func parseInputSeries(input []series, interval *promutils.Duration, startStamp time.Time) ([]testutil.TimeSeries, error) {
+func parseInputSeries(input []series, interval *promutil.Duration, startStamp time.Time) ([]testutil.TimeSeries, error) {
 	var res []testutil.TimeSeries
 	for _, data := range input {
 		expr, err := metricsql.Parse(data.Series)

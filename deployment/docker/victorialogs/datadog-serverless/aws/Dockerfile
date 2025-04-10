@@ -8,7 +8,7 @@ RUN \
   cd /tmp/aws-lambda-rie && \
   CGO_ENABLED=0 go build -buildvcs=false -ldflags "-s -w" -o /aws-lambda-rie ./cmd/aws-lambda-rie
 
-FROM python:3.12-bullseye
+FROM python:3.13-bullseye
 
 RUN \
   apt update && \
@@ -26,7 +26,7 @@ RUN \
 WORKDIR /var/task
 COPY --from=aws-lambda-rie /aws-lambda-rie /var/task/aws-lambda-rie
 COPY main.py /var/task/
-COPY --from=public.ecr.aws/datadog/lambda-extension:68 /opt/. /opt/
+COPY --from=public.ecr.aws/datadog/lambda-extension:73 /opt/. /opt/
 
 ENTRYPOINT ["/var/task/aws-lambda-rie"]
 CMD ["/usr/local/bin/python", "-m", "awslambdaric", "main.lambda_handler"]

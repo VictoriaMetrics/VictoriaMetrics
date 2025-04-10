@@ -6,7 +6,7 @@
     "net/http"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
-    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 ) %}
 
@@ -39,7 +39,7 @@ btn-primary
 {% endfunc %}
 
 {% func ListGroups(r *http.Request, originGroups []apiGroup) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
+    {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
         {%code
             filter := r.URL.Query().Get("filter")
@@ -181,7 +181,7 @@ btn-primary
 
 
 {% func ListAlerts(r *http.Request, groupAlerts []groupAlerts) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
+    {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
     {% if len(groupAlerts) > 0 %}
          <div class="btn-toolbar mb-3" role="toolbar">
@@ -340,7 +340,7 @@ btn-primary
 {% endfunc %}
 
 {% func Alert(r *http.Request, alert *apiAlert) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
+    {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
         var labelKeys []string
@@ -427,7 +427,7 @@ btn-primary
 
 
 {% func RuleDetails(r *http.Request, rule apiRule) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
+    {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
         var labelKeys []string

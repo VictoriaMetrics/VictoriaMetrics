@@ -173,9 +173,6 @@ func (c *Client) addOperationGetBucketCorsMiddlewares(stack *middleware.Stack, o
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpGetBucketCorsValidationMiddleware(stack); err != nil {
 		return err
 	}

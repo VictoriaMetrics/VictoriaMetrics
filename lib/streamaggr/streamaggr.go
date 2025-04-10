@@ -20,7 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
@@ -54,7 +54,7 @@ var supportedOutputs = []string{
 
 var (
 	// lc contains information about all compressed labels for streaming aggregation
-	lc promutils.LabelsCompressor
+	lc promutil.LabelsCompressor
 
 	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
 		return float64(lc.SizeBytes())
@@ -1077,9 +1077,9 @@ func decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Lab
 type pushCtx struct {
 	green        []pushSample
 	blue         []pushSample
-	labels       promutils.Labels
-	inputLabels  promutils.Labels
-	outputLabels promutils.Labels
+	labels       promutil.Labels
+	inputLabels  promutil.Labels
+	outputLabels promutil.Labels
 	buf          []byte
 }
 
@@ -1210,7 +1210,7 @@ func (ctx *flushCtx) flushSeries() {
 	}
 
 	// Slow path - apply output relabeling and then push the output metrics.
-	auxLabels := promutils.GetLabels()
+	auxLabels := promutil.GetLabels()
 	dstLabels := auxLabels.Labels[:0]
 	dst := tss[:0]
 	for _, ts := range tss {
@@ -1229,7 +1229,7 @@ func (ctx *flushCtx) flushSeries() {
 		ctx.ao.outputSamples.Add(len(dst))
 	}
 	auxLabels.Labels = dstLabels
-	promutils.PutLabels(auxLabels)
+	promutil.PutLabels(auxLabels)
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {

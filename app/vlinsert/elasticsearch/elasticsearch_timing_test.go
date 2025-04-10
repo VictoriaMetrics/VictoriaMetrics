@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -42,7 +42,7 @@ func benchmarkReadBulkRequest(b *testing.B, encoding string) {
 
 	timeField := "@timestamp"
 	msgFields := []string{"message"}
-	blp := &insertutils.BenchmarkLogMessageProcessor{}
+	blp := &insertutil.BenchmarkLogMessageProcessor{}
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))

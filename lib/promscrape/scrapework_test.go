@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
@@ -44,9 +44,9 @@ func TestIsAutoMetric(t *testing.T) {
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(sourceLabels, extraLabels string, honorLabels bool, resultExpected string) {
 		t.Helper()
-		src := promutils.MustNewLabelsFromString(sourceLabels)
-		extra := promutils.MustNewLabelsFromString(extraLabels)
-		var labels promutils.Labels
+		src := promutil.MustNewLabelsFromString(sourceLabels)
+		extra := promutil.MustNewLabelsFromString(extraLabels)
+		var labels promutil.Labels
 		labels.Labels = appendExtraLabels(src.GetLabels(), extra.GetLabels(), 0, honorLabels)
 		result := labels.String()
 		if result != resultExpected {
@@ -93,9 +93,9 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(_ *bytesutil.ByteBuffer) error {
+	sw.ReadData = func(_ *chunkedbuffer.Buffer) (bool, error) {
 		readDataCalls++
-		return fmt.Errorf("error when reading data")
+		return false, fmt.Errorf("error when reading data")
 	}
 
 	pushDataCalls := 0
@@ -149,10 +149,10 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
 			readDataCalls++
-			dst.B = append(dst.B, data...)
-			return nil
+			dst.MustWrite([]byte(data))
+			return false, nil
 		}
 
 		var pushDataMu sync.Mutex
@@ -239,7 +239,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:     streamParse,
 		ScrapeTimeout:   time.Second * 42,
 		HonorTimestamps: true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"foo": "x",
 		}),
 	}, `
@@ -260,7 +260,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job": "override",
 		}),
 	}, `
@@ -282,7 +282,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"instance": "foobar",
 			"job":      "xxx",
 		}),
@@ -304,7 +304,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"instance": "foobar",
 			"job":      "xxx",
 		}),
@@ -326,7 +326,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job": "override",
 		}),
 	}, `
@@ -347,7 +347,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job":         "xx",
 			"__address__": "foo.com",
 		}),
@@ -379,7 +379,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"job":      "xx",
 			"instance": "foo.com",
 		}),
@@ -536,22 +536,21 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 //
 // The core parsing functionality is validated separately in TestScrapeWorkScrapeInternalSuccess.
 func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
-	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected int64) {
+	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected, timeseriesExpectedDelta int64) {
 		t.Helper()
 
 		var sw scrapeWork
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
 			readDataCalls++
-			dst.B = append(dst.B, data...)
-			return nil
+			dst.MustWrite([]byte(data))
+			return false, nil
 		}
 
 		var pushDataCalls atomic.Int64
 		var pushedTimeseries atomic.Int64
-		var pushDataErr error
 		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 			pushDataCalls.Add(1)
 			pushedTimeseries.Add(int64(len(wr.Timeseries)))
@@ -568,17 +567,25 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 			}
 		}
 		tsmGlobal.Unregister(&sw)
-		if pushDataErr != nil {
-			t.Fatalf("unexpected error: %s", pushDataErr)
-		}
 		if readDataCalls != 1 {
 			t.Fatalf("unexpected number of readData calls; got %d; want %d", readDataCalls, 1)
 		}
 		if pushDataCalls.Load() != pushDataCallsExpected {
 			t.Fatalf("unexpected number of pushData calls; got %d; want %d", pushDataCalls.Load(), pushDataCallsExpected)
 		}
-		if timeseriesExpected != pushedTimeseries.Load() {
-			t.Fatalf("unexpected number of pushed timeseries; got %d; want %d", pushedTimeseries.Load(), timeseriesExpected)
+
+		// series limiter rely on bloomfilter.Limiter which performs maxLimit checks in a way that may allow slight overflows.
+		// This condition verifies whether the actual number of pushed timeseries falls within
+		// an expected tolerance range, accounting for potential deviations.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515#issuecomment-2741063155
+		lowerExpectedDelta := pushedTimeseries.Load() - timeseriesExpectedDelta
+		upperExpectedDelta := pushedTimeseries.Load() + timeseriesExpectedDelta + 1
+		if !(timeseriesExpected >= lowerExpectedDelta && timeseriesExpected < upperExpectedDelta) {
+			t.Fatalf("unexpected number of pushed timeseries; got %d; want within range [%d, %d)",
+				pushedTimeseries.Load(),
+				lowerExpectedDelta,
+				upperExpectedDelta,
+			)
 		}
 	}
 
@@ -594,37 +601,34 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	f(generateScrape(1), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 2, 8)
+	}, 2, 8, 0)
 
 	// process 5k series: two batch of data, plus auto metrics pushed
 	f(generateScrape(5000), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 3, 5007)
+	}, 3, 5007, 0)
 
 	// process 1M series: 246 batches of data, plus auto metrics pushed
 	f(generateScrape(1e6), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 246, 1000007)
+	}, 246, 1000007, 0)
 
 	// process 5k series: two batch of data, plus auto metrics pushed, with series limiters applied
 	f(generateScrape(5000), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
-	}, 3, 4015)
+	}, 3, 4015, 2)
 }
 
-func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
+func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
 	f := func(row string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
-		sw := scrapeWork{
-			Config: cfg,
-		}
-		var wc writeRequestCtx
 		r := parsePromRow(row)
-		sw.addRowToTimeseries(&wc, r, r.Timestamp, false)
+		var wc writeRequestCtx
+		wc.addRow(cfg, r, r.Timestamp, false)
 		tss := wc.writeRequest.Timeseries
 		tssExpected := parseData(dataExpected)
 		if err := expectEqualTimeseries(tss, tssExpected); err != nil {
@@ -657,7 +661,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, non-empty Labels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -665,7 +669,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -674,7 +678,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, non-empty Labels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -682,7 +686,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -691,7 +695,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, non-empty ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -699,7 +703,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -708,7 +712,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, non-empty ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -716,7 +720,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -725,10 +729,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, non-empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -736,10 +740,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f",x="y"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -748,10 +752,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, non-empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -759,10 +763,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f",x="y"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"x": "y",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -771,7 +775,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, clashing Labels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -780,7 +784,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, clashing Labels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -789,7 +793,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, clashing ExternalLabels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -798,7 +802,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, clashing ExternalLabels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -807,10 +811,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, clashing Labels and ExternalLAbels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -818,10 +822,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="f",exported_a="e"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: false,
@@ -830,10 +834,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=true, clashing Labels and ExternalLAbels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,
@@ -841,10 +845,10 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="e"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "e",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"a": "f",
 			}),
 			HonorLabels: true,

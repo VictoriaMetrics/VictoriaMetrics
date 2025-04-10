@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // getHCloudServerLabels returns labels for hcloud servers obtained from the given cfg
-func getHCloudServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getHCloudServerLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	networks, err := getHCloudNetworks(cfg)
 	if err != nil {
 		return nil, err
@@ -19,17 +19,17 @@ func getHCloudServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for i := range servers {
 		ms = appendHCloudTargetLabels(ms, &servers[i], networks, cfg.port)
 	}
 	return ms, nil
 }
 
-func appendHCloudTargetLabels(ms []*promutils.Labels, server *HCloudServer, networks []HCloudNetwork, port int) []*promutils.Labels {
-	m := promutils.NewLabels(24)
+func appendHCloudTargetLabels(ms []*promutil.Labels, server *HCloudServer, networks []HCloudNetwork, port int) []*promutil.Labels {
+	m := promutil.NewLabels(24)
 
-	addr := discoveryutils.JoinHostPort(server.PublicNet.IPv4.IP, port)
+	addr := discoveryutil.JoinHostPort(server.PublicNet.IPv4.IP, port)
 	m.Add("__address__", addr)
 
 	m.Add("__meta_hetzner_role", "hcloud")
@@ -61,17 +61,17 @@ func appendHCloudTargetLabels(ms []*promutils.Labels, server *HCloudServer, netw
 		networkID := privateNet.ID
 		for _, network := range networks {
 			if networkID == network.ID {
-				labelName := discoveryutils.SanitizeLabelName("__meta_hetzner_hcloud_private_ipv4_" + network.Name)
+				labelName := discoveryutil.SanitizeLabelName("__meta_hetzner_hcloud_private_ipv4_" + network.Name)
 				m.Add(labelName, privateNet.IP)
 			}
 		}
 	}
 
 	for labelKey, labelValue := range server.Labels {
-		labelName := discoveryutils.SanitizeLabelName("__meta_hetzner_hcloud_labelpresent_" + labelKey)
+		labelName := discoveryutil.SanitizeLabelName("__meta_hetzner_hcloud_labelpresent_" + labelKey)
 		m.Add(labelName, "true")
 
-		labelName = discoveryutils.SanitizeLabelName("__meta_hetzner_hcloud_label_" + labelKey)
+		labelName = discoveryutil.SanitizeLabelName("__meta_hetzner_hcloud_label_" + labelKey)
 		m.Add(labelName, labelValue)
 	}
 

@@ -174,9 +174,6 @@ func (c *Client) addOperationGetBucketAclMiddlewares(stack *middleware.Stack, op
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpGetBucketAclValidationMiddleware(stack); err != nil {
 		return err
 	}

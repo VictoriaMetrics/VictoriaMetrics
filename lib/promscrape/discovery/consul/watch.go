@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,7 +23,7 @@ var SDCheckInterval = flag.Duration("promscrape.consulSDCheckInterval", 30*time.
 
 // consulWatcher is a watcher for consul api, updates services map in background with long-polling.
 type consulWatcher struct {
-	client *discoveryutils.Client
+	client *discoveryutil.Client
 
 	serviceNamesQueryArgs string
 	serviceNodesQueryArgs string
@@ -48,7 +48,7 @@ type serviceWatcher struct {
 }
 
 // newConsulWatcher creates new watcher and starts background service discovery for Consul.
-func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, namespace string) *consulWatcher {
+func newConsulWatcher(client *discoveryutil.Client, sdc *SDConfig, datacenter, namespace string) *consulWatcher {
 	baseQueryArgs := "?dc=" + url.QueryEscape(datacenter)
 	if sdc.AllowStale == nil || *sdc.AllowStale {
 		baseQueryArgs += "&stale"

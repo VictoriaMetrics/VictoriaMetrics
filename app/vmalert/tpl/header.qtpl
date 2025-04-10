@@ -3,11 +3,11 @@
     "path"
     "net/url"
 
-    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 ) %}
 
 {% func Header(r *http.Request, navItems []NavItem, title string, userErr error) %}
-{%code prefix := utils.Prefix(r.URL.Path) %}
+{%code prefix := vmalertutil.Prefix(r.URL.Path) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,7 +85,7 @@ type NavItem struct {
 
 {% func printNavItems(r *http.Request, current string, items []NavItem, userErr error) %}
 {%code
-    prefix := utils.Prefix(r.URL.Path)
+    prefix := vmalertutil.Prefix(r.URL.Path)
 %}
 <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
   <div class="container-fluid">

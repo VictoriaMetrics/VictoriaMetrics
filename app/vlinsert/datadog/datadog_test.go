@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func TestReadLogsRequestFailure(t *testing.T) {
@@ -13,7 +13,7 @@ func TestReadLogsRequestFailure(t *testing.T) {
 
 		ts := time.Now().UnixNano()
 
-		lmp := &insertutils.TestLogMessageProcessor{}
+		lmp := &insertutil.TestLogMessageProcessor{}
 		if err := readLogsRequest(ts, []byte(data), lmp); err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
@@ -37,7 +37,7 @@ func TestReadLogsRequestSuccess(t *testing.T) {
 		for i := 0; i < rowsExpected; i++ {
 			timestampsExpected = append(timestampsExpected, ts)
 		}
-		lmp := &insertutils.TestLogMessageProcessor{}
+		lmp := &insertutil.TestLogMessageProcessor{}
 		if err := readLogsRequest(ts, []byte(data), lmp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func Test_getVpsLabels(t *testing.T) {
@@ -25,7 +25,7 @@ func Test_getVpsLabels(t *testing.T) {
 			return []byte{}, errors.New("invalid request")
 		}
 	})
-	c, _ := discoveryutils.NewClient(mockSvr.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+	c, _ := discoveryutil.NewClient(mockSvr.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 	td := atomic.Value{}
 	td.Store(time.Duration(1))
 	cfg := &apiConfig{
@@ -36,7 +36,7 @@ func Test_getVpsLabels(t *testing.T) {
 		timeDelta:         td,
 	}
 
-	expectLabels := &promutils.Labels{}
+	expectLabels := &promutil.Labels{}
 	expectLabels.Add("__address__", "139.99.154.158")
 	expectLabels.Add("instance", "vps-000e0e00.vps.ovh.ca")
 	expectLabels.Add("__meta_ovhcloud_vps_offer", "VPS vps2020-starter-1-2-20")
@@ -58,7 +58,7 @@ func Test_getVpsLabels(t *testing.T) {
 	expectLabels.Add("__meta_ovhcloud_vps_vcore", "1")
 	expectLabels.Add("__meta_ovhcloud_vps_ipv4", "139.99.154.158")
 	expectLabels.Add("__meta_ovhcloud_vps_ipv6", "2402:1f00:8100:401::bb6")
-	expect := []*promutils.Labels{
+	expect := []*promutil.Labels{
 		expectLabels,
 	}
 

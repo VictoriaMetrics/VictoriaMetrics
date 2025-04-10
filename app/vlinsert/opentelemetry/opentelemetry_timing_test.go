@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
@@ -21,7 +21,7 @@ func BenchmarkParseProtobufRequest(b *testing.B) {
 }
 
 func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
-	blp := &insertutils.BenchmarkLogMessageProcessor{}
+	blp := &insertutil.BenchmarkLogMessageProcessor{}
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {

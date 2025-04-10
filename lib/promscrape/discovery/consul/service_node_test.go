@@ -3,8 +3,8 @@ package consul
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseServiceNodesFailure(t *testing.T) {
@@ -107,8 +107,8 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 	// Check sn.appendTargetLabels()
 	tagSeparator := ","
 	labelss := sn.appendTargetLabels(nil, "redis", tagSeparator)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                  "10.1.10.12:8000",
 			"__meta_consul_address":                        "10.1.10.12",
 			"__meta_consul_dc":                             "dc1",
@@ -131,5 +131,5 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 			"__meta_consul_tags":                           ",primary,foo=bar,",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabelss)
 }

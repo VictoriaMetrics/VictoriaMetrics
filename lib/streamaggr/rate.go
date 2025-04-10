@@ -70,8 +70,10 @@ func (v *rateAggrSharedValue) reset() {
 	v.value = 0
 	v.deleteDeadline = 0
 	v.prevTimestamp = 0
-	putRateAggrStateValue(v.blue)
-	v.blue = nil
+	if v.blue != nil {
+		putRateAggrStateValue(v.blue)
+		v.blue = nil
+	}
 	if v.green != nil {
 		putRateAggrStateValue(v.green)
 		v.green = nil
@@ -131,11 +133,7 @@ func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast b
 		if sv.prevTimestamp == 0 {
 			continue
 		}
-		if av.isGreen {
-			state = sv.green
-		} else {
-			state = sv.blue
-		}
+		state = sv.getState(av.isGreen)
 		d := float64(state.timestamp-sv.prevTimestamp) / 1000
 		if d > 0 {
 			rate += state.increase / d

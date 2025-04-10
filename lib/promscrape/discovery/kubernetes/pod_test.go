@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParsePodListFailure(t *testing.T) {
@@ -691,7 +691,7 @@ const testPodsListIPv6AddressNoPorts = `
 `
 
 func TestParsePodListSuccess(t *testing.T) {
-	f := func(response string, expectedLabels []*promutils.Labels) {
+	f := func(response string, expectedLabels []*promutil.Labels) {
 		t.Helper()
 		r := bytes.NewBufferString(response)
 		objectsByKey, meta, err := parsePodList(r)
@@ -708,8 +708,8 @@ func TestParsePodListSuccess(t *testing.T) {
 		}
 	}
 
-	f(testPodsList, []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	f(testPodsList, []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "172.17.0.2:1234",
 
 			"__meta_kubernetes_namespace":                    "kube-system",
@@ -751,8 +751,8 @@ func TestParsePodListSuccess(t *testing.T) {
 		}),
 	})
 
-	f(testPodsListIPv6Address, []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	f(testPodsListIPv6Address, []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "[fd01:10:100:0:e38f:6f4b:9c53:9e4e]:1234",
 
 			"__meta_kubernetes_namespace":                    "kube-system",
@@ -793,8 +793,8 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_pod_annotationpresent_kubernetes_io_config_source": "true",
 		}),
 	})
-	f(testPodsListIPv6AddressNoPorts, []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	f(testPodsListIPv6AddressNoPorts, []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "[fd01:10:100:0:e38f:6f4b:9c53:9e4e]",
 
 			"__meta_kubernetes_namespace":                    "kube-system",

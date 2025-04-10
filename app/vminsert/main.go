@@ -31,7 +31,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -216,11 +216,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
 		addInfluxResponseHeaders(w)
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -320,8 +320,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
+		// https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 		state := r.FormValue("state")
-		promscrape.WriteAPIV1Targets(w, state)
+		scrapePool := r.FormValue("scrapePool")
+		promscrape.WriteAPIV1Targets(w, state, scrapePool)
 		return true
 	case "/prometheus/target_response", "/target_response":
 		promscrapeTargetResponseRequests.Inc()

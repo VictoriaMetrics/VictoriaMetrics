@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -39,7 +39,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
 
-	cp, err := insertutils.GetCommonParams(r)
+	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
@@ -75,7 +75,7 @@ var (
 	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 )
 
-func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
+func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor, useDefaultStreamFields bool) error {
 	var req pb.ExportLogsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		errorsTotal.Inc()
@@ -99,7 +99,7 @@ func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDe
 	return nil
 }
 
-func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) []logstorage.Field {
+func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutil.LogMessageProcessor, useDefaultStreamFields bool) []logstorage.Field {
 	fields := commonFields
 	for _, lr := range sc.LogRecords {
 		fields = fields[:len(commonFields)]

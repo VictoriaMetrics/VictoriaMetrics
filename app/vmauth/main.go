@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -318,7 +319,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				ui.backendErrors.Inc()
 			}
-			return true, false
+			return false, false
 		}
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
@@ -507,7 +508,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 		return nil, fmt.Errorf("cannot initialize promauth.Config: %w", err)
 	}
 
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := httputil.NewTransport(false, "vmauth_backend")
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
@@ -516,7 +517,6 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
-	tr.DialContext = netutil.NewStatDialFunc("vmauth_backend")
 
 	rt := cfg.NewRoundTripper(tr)
 	return rt, nil

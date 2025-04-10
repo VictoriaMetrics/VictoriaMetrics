@@ -3,7 +3,7 @@ package opentelemetry
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
@@ -15,7 +15,7 @@ func TestPushProtoOk(t *testing.T) {
 		}
 
 		pData := lr.MarshalProtobuf(nil)
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		if err := pushProtobufRequest(pData, tlp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

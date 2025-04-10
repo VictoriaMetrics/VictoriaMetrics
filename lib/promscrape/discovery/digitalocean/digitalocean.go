@@ -9,8 +9,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -31,7 +31,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns Digital Ocean droplet labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -121,8 +121,8 @@ func (r *listDropletResponse) nextURLPath() (string, error) {
 	return u.RequestURI(), nil
 }
 
-func addDropletLabels(droplets []droplet, defaultPort int) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addDropletLabels(droplets []droplet, defaultPort int) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, droplet := range droplets {
 		if len(droplet.Networks.V4) == 0 {
 			continue
@@ -132,8 +132,8 @@ func addDropletLabels(droplets []droplet, defaultPort int) []*promutils.Labels {
 		publicIPv4 := droplet.getIPByNet("v4", "public")
 		publicIPv6 := droplet.getIPByNet("v6", "public")
 
-		addr := discoveryutils.JoinHostPort(publicIPv4, defaultPort)
-		m := promutils.NewLabels(16)
+		addr := discoveryutil.JoinHostPort(publicIPv4, defaultPort)
+		m := promutil.NewLabels(16)
 		m.Add("__address__", addr)
 		m.Add("__meta_digitalocean_droplet_id", fmt.Sprintf("%d", droplet.ID))
 		m.Add("__meta_digitalocean_droplet_name", droplet.Name)

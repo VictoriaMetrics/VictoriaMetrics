@@ -45,6 +45,10 @@ type Aggregator struct {
 
 func Aggregate[T Type[T]](state, dp T, aggregate func(state, dp T) error) error {
 	switch {
+	case state.Timestamp() == 0:
+		// first sample of series, no state to aggregate with
+		dp.CopyTo(state)
+		return nil
 	case dp.StartTimestamp() < state.StartTimestamp():
 		// belongs to older series
 		return ErrOlderStart{Start: state.StartTimestamp(), Sample: dp.StartTimestamp()}

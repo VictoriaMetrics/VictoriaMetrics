@@ -38,6 +38,9 @@ func compareRecordingRules(t *testing.T, a, b *RecordingRule) error {
 	if a.Expr != b.Expr {
 		return fmt.Errorf("expected to have expression %q; got %q", a.Expr, b.Expr)
 	}
+	if a.Debug != b.Debug {
+		return fmt.Errorf("expected to have debug=%t; got %t", a.Debug, b.Debug)
+	}
 	if !reflect.DeepEqual(a.Labels, b.Labels) {
 		return fmt.Errorf("expected to have labels %#v; got %#v", a.Labels, b.Labels)
 	}
@@ -63,6 +66,9 @@ func compareAlertingRules(t *testing.T, a, b *AlertingRule) error {
 	}
 	if a.Type.String() != b.Type.String() {
 		return fmt.Errorf("expected to have Type %#v; got %#v", a.Type.String(), b.Type.String())
+	}
+	if a.Debug != b.Debug {
+		return fmt.Errorf("expected to have debug=%t; got %t", a.Debug, b.Debug)
 	}
 	return nil
 }

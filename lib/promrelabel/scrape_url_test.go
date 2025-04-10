@@ -3,13 +3,13 @@ package promrelabel
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestGetScrapeURL(t *testing.T) {
 	f := func(labelsStr, expectedScrapeURL, expectedAddress string) {
 		t.Helper()
-		labels := promutils.MustNewLabelsFromString(labelsStr)
+		labels := promutil.MustNewLabelsFromString(labelsStr)
 		scrapeURL, address := GetScrapeURL(labels, nil)
 		if scrapeURL != expectedScrapeURL {
 			t.Fatalf("unexpected scrapeURL; got %q; want %q", scrapeURL, expectedScrapeURL)

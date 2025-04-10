@@ -44,6 +44,8 @@ func TestByteBuffer(t *testing.T) {
 		t.Fatalf("unexpected bb.B; got %q; want %q", bb.B, data1)
 	}
 
+	bb.Grow(10)
+
 	data2 := []byte("1")
 	n, err = bb.Write(data2)
 	if err != nil {

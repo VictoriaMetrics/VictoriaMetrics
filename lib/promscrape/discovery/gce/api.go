@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"golang.org/x/oauth2/google"
 )
 
@@ -22,7 +22,7 @@ type apiConfig struct {
 	port         int
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 func getAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc) })
@@ -152,7 +152,7 @@ func getGCEMetadata(path string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot create http request for %q: %w", metadataURL, err)
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
-	resp, err := discoveryutils.GetHTTPClient().Do(req)
+	resp, err := discoveryutil.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain response to %q: %w", metadataURL, err)
 	}
