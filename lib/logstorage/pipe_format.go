@@ -207,6 +207,14 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 				} else {
 					b = marshalDurationString(b, nsecs)
 				}
+			case "duration_seconds":
+				nsecs, ok := tryParseDuration(v)
+				if !ok {
+					b = append(b, v...)
+				} else {
+					secs := float64(nsecs) / 1e9
+					b = marshalFloat64String(b, secs)
+				}
 			case "hexdecode":
 				b = appendHexDecode(b, v)
 			case "hexencode":
