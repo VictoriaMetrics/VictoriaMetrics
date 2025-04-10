@@ -20,6 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: all the VictoriaMetrics components: mask `authKey` value from log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973) for details.
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support `identity` value in `Content-Encoding` HTTP header. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
