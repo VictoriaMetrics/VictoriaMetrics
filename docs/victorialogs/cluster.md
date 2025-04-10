@@ -20,7 +20,7 @@ then it is preferred to do this instead of switching to cluster mode, since a si
   to transfer data over the network between cluster components.
 
 The migration path from a single-node VictoriaLogs to cluster mode is very easy - just [upgrade](https://docs.victoriametrics.com/victorialogs/#upgrading)
-a single-node VictoriaLogs executable to the latest available release and add it to the list of `vlstorage` nodes
+a single-node VictoriaLogs executable to the [latest available release](https://docs.victoriametrics.com/victorialogs/changelog/) and add it to the list of `vlstorage` nodes
 passed via `-storageNode` command-line flag to `vlinsert` and `vlselect` components of the cluster mode. See [cluster architecture](#architecture)
 for more details about VictoriaLogs cluster components.
 
