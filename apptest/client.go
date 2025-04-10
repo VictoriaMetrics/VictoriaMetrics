@@ -92,12 +92,12 @@ func (c *Client) Write(t *testing.T, address string, data []string) {
 		_ = conn.Close()
 	}()
 
-	d := strings.Join(data, "\n")
-	n, err := conn.Write([]byte(d))
+	d := []byte(strings.Join(data, "\n"))
+	n, err := conn.Write(d)
 	if err != nil {
 		t.Fatalf("cannot write %d bytes to %s: %s", len(data), address, err)
 	}
-	if n != len([]byte(d)) {
+	if n != len(d) {
 		t.Fatalf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(data))
 	}
 }
