@@ -404,7 +404,7 @@ services:
       - "--licenseFile=/license"
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.25.0
+    image: prom/alertmanager:v0.27.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:

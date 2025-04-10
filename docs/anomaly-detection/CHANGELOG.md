@@ -116,10 +116,14 @@ Released: 2024-11-14
 ## v1.18.2
 Released: 2024-11-13
 
+> **Note**: In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
+
 - IMPROVEMENT: Enhanced the flexibility of the [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) for tz-aware data (`tz_aware = True`). The `tz_seasonalities` argument has been reformatted to align with the structure of the existing `seasonalities` argument. For more details, refer to the [model section here](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet). Additionally, tz-aware support for `ProphetModel` has been added to [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model wrapper. This feature is automatically enabled if the data is timezone-aware and its timezone is not set to the default ('UTC'), otherwise default timezone-free optimization flow will be used.
 
 ## v1.18.1
 Released: 2024-11-12
+
+> **Note**: In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
 
 - IMPROVEMENT: Added a [reader-level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) `data_range` argument, allowing users to define a default *valid* data range for all input queries in `queries`. Individual queries can still override this default with their own `data_range` if needed.
 - IMPROVEMENT: Added the `url` label to enhance labelset consistency across [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) in both [reader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [writer](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) components. Metrics affected:
