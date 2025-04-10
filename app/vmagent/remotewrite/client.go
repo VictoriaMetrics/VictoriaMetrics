@@ -90,7 +90,8 @@ type client struct {
 	remoteWriteURL string
 
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
-	useVMProto atomic.Bool
+	useVMProto          atomic.Bool
+	canDowngradeVMProto atomic.Bool
 
 	fq *persistentqueue.FastQueue
 	hc *http.Client
@@ -171,6 +172,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	if !useVMProto && !usePromProto {
 		// The VM protocol could be downgraded later at runtime if unsupported media type response status is received.
 		useVMProto = true
+		c.canDowngradeVMProto.Store(true)
 	}
 	c.useVMProto.Store(useVMProto)
 
@@ -454,9 +456,10 @@ again:
 		// - Real-world implementations of v1 use both 400 and 415 status codes.
 		// See more in research: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462#issuecomment-2786918054
 	} else if statusCode == 415 || statusCode == 400 {
-		if c.useVMProto.Swap(false) {
+		if c.canDowngradeVMProto.Swap(false) {
 			logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
 				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+			c.useVMProto.Store(false)
 		}
 
 		if encoding.IsZstd(block) {
