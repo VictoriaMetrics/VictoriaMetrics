@@ -222,6 +222,18 @@ func TestUpdateWith(t *testing.T) {
 			{Alert: "foo1"},
 		},
 	})
+
+	f(config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	}, config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1", Debug: &debug},
+		},
+	})
 }
 
 func TestUpdateDuringRandSleep(t *testing.T) {
