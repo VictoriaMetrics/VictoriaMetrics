@@ -1,7 +1,10 @@
 package logstorage
 
 import (
+	"fmt"
 	"strconv"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 type statsSumLen struct {
@@ -65,6 +68,25 @@ func (ssp *statsSumLenProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 func (ssp *statsSumLenProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumLenProcessor)
 	ssp.sumLen += src.sumLen
+}
+
+func (ssp *statsSumLenProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return encoding.MarshalVarUint64(dst, ssp.sumLen)
+}
+
+func (ssp *statsSumLenProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	sumLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal sumLen")
+	}
+	src = src[n:]
+	ssp.sumLen = sumLen
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return 0, nil
 }
 
 func (ssp *statsSumLenProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {

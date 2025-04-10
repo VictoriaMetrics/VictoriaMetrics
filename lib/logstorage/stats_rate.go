@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 type statsRate struct {
@@ -39,6 +41,26 @@ func (srp *statsRateProcessor) updateStatsForRow(_ statsFunc, _ *blockResult, _ 
 func (srp *statsRateProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRateProcessor)
 	srp.rowsCount += src.rowsCount
+}
+
+func (srp *statsRateProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return encoding.MarshalVarUint64(dst, srp.rowsCount)
+}
+
+func (srp *statsRateProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	rowsCount, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal rowsCount")
+	}
+	src = src[n:]
+
+	srp.rowsCount = rowsCount
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return 0, nil
 }
 
 func (srp *statsRateProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {

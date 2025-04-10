@@ -16,6 +16,10 @@ func (po *pipeOffset) String() string {
 	return fmt.Sprintf("offset %d", po.offset)
 }
 
+func (po *pipeOffset) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return nil, []pipe{po}
+}
+
 func (po *pipeOffset) canLiveTail() bool {
 	return false
 }
@@ -28,7 +32,7 @@ func (po *pipeOffset) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (po *pipeOffset) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (po *pipeOffset) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return po, nil
 }
 

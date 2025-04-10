@@ -1,10 +1,12 @@
 package logstorage
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -76,6 +78,42 @@ func (smp *statsMaxProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp s
 	if src.hasItems {
 		smp.updateStateString(src.max)
 	}
+}
+
+func (smp *statsMaxProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	if !smp.hasItems {
+		dst = append(dst, 0)
+		return dst
+	}
+
+	dst = append(dst, 1)
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(smp.max))
+	return dst
+}
+
+func (smp *statsMaxProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	if len(src) == 0 {
+		return 0, fmt.Errorf("missing `hasItems`")
+	}
+	smp.hasItems = (src[0] == 1)
+	src = src[1:]
+
+	if smp.hasItems {
+		maxValue, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot unmarshal max value")
+		}
+		smp.max = string(maxValue)
+		src = src[n:]
+	} else {
+		smp.max = ""
+	}
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected tail left after decoding max value; len(tail)=%d", len(src))
+	}
+
+	return len(smp.max), nil
 }
 
 func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {

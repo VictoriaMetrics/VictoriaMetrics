@@ -22,6 +22,10 @@ func (pd *pipeDelete) String() string {
 	return "delete " + fieldNamesString(pd.fields)
 }
 
+func (pd *pipeDelete) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pd, nil
+}
+
 func (pd *pipeDelete) canLiveTail() bool {
 	return true
 }
@@ -38,7 +42,7 @@ func (pd *pipeDelete) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pd, nil
 }
 

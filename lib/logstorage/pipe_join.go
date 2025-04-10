@@ -3,8 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -40,6 +40,10 @@ func (pj *pipeJoin) String() string {
 	return s
 }
 
+func (pj *pipeJoin) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return nil, []pipe{pj}
+}
+
 func (pj *pipeJoin) canLiveTail() bool {
 	return true
 }
@@ -49,7 +53,7 @@ func (pj *pipeJoin) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	// Do not init values for in(...) filters at pj.q, since they are initialized separately at initJoinMap.
 	return pj, nil
 }
@@ -76,13 +80,11 @@ func (pj *pipeJoin) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pj *pipeJoin) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pj *pipeJoin) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeJoinProcessor{
 		pj:     pj,
 		stopCh: stopCh,
 		ppNext: ppNext,
-
-		shards: make([]pipeJoinProcessorShard, workersCount),
 	}
 }
 
@@ -91,17 +93,10 @@ type pipeJoinProcessor struct {
 	stopCh <-chan struct{}
 	ppNext pipeProcessor
 
-	shards []pipeJoinProcessorShard
+	shards atomicutil.Slice[pipeJoinProcessorShard]
 }
 
 type pipeJoinProcessorShard struct {
-	pipeJoinProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeJoinProcessorShardNopad{})%128]byte
-}
-
-type pipeJoinProcessorShardNopad struct {
 	wctx pipeUnpackWriteContext
 
 	byValues     []string
@@ -115,7 +110,7 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	pj := pjp.pj
-	shard := &pjp.shards[workerID]
+	shard := pjp.shards.Get(workerID)
 	shard.wctx.init(workerID, pjp.ppNext, true, true, br)
 
 	shard.byValues = slicesutil.SetLength(shard.byValues, len(pj.byFields))

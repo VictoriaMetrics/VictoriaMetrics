@@ -1293,10 +1293,10 @@ func (vd *valuesDict) marshal(dst []byte) []byte {
 	return dst
 }
 
-// unmarshalNoArena unmarshals vd from src.
+// unmarshalInplace unmarshals vd from src.
 //
 // vd is valid until src is changed.
-func (vd *valuesDict) unmarshalNoArena(src []byte) ([]byte, error) {
+func (vd *valuesDict) unmarshalInplace(src []byte) ([]byte, error) {
 	vd.reset()
 
 	srcOrig := src
@@ -1340,6 +1340,11 @@ func unmarshalUint64(v string) uint64 {
 func unmarshalInt64(v string) int64 {
 	b := bytesutil.ToUnsafeBytes(v)
 	return encoding.UnmarshalInt64(b)
+}
+
+func marshalFloat64(dst []byte, f float64) []byte {
+	n := math.Float64bits(f)
+	return encoding.MarshalUint64(dst, n)
 }
 
 func unmarshalFloat64(v string) float64 {

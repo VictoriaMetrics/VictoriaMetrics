@@ -3423,6 +3423,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq_hash`](#count_uniq_hash-stats) returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`histogram`](#histogram-stats) returns [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`json_values`](#json_values-stats) returns JSON-encoded logs as JSON array.
 - [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -3610,6 +3611,36 @@ See also:
 - [`quantile`](#quantile-stats)
 - [`unroll` pipe](#unroll-pipe)
 - [`unpack_json` pipe](#unpack_json-pipe)
+
+### json_values stats
+
+`json_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns packs the given fields into JSON per every log entry and returns JSON array,
+which can be unrolled with [`unroll` pipe](#unroll-pipe).
+
+For example, the following query returns per-`app` JSON arrays containing [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields for the last 5 minutes:
+
+```logsql
+_time:5m | stats by (app) json_values(_time, _msg) as json_logs
+```
+
+If the list of fields is empty, then all the log fields are encoded into JSON array:
+
+```logsql
+_time:5m | stats json_values() as json_logs
+```
+
+It is possible to set the upper limit on the number of JSON-encoded logs with the `limit N` suffix. For example, the following query
+returns up to 3 JSON-encoded logs per every `host`:
+
+```logsql
+_time:5m | stats by (host) json_values() limit 3 as json_logs
+```
+
+See also:
+
+- [`values`](#values-stats)
+- [`unroll` pipe](#unroll-pipe)
 
 ### max stats
 
@@ -3894,6 +3925,7 @@ The returned ip addresses can be unrolled into distinct log entries with [`unrol
 
 See also:
 
+- [`json_values`](#json_values-stats)
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 - [`count_empty`](#count_empty-stats)

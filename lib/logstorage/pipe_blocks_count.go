@@ -2,7 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 )
 
 // pipeBlocksCount processes '| blocks_count' pipe.
@@ -22,6 +23,15 @@ func (pc *pipeBlocksCount) String() string {
 	return s
 }
 
+func (pc *pipeBlocksCount) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
+	resultNameQuoted := quoteTokenIfNeeded(pc.resultName)
+
+	pStr := fmt.Sprintf("stats sum(%s) as %s", resultNameQuoted, resultNameQuoted)
+	pLocal := mustParsePipe(pStr, timestamp)
+
+	return pc, []pipe{pLocal}
+}
+
 func (pc *pipeBlocksCount) canLiveTail() bool {
 	return false
 }
@@ -35,7 +45,7 @@ func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pc, nil
 }
 
@@ -43,15 +53,11 @@ func (pc *pipeBlocksCount) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pc *pipeBlocksCount) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	shards := make([]pipeBlocksCountProcessorShard, workersCount)
-
+func (pc *pipeBlocksCount) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	pcp := &pipeBlocksCountProcessor{
 		pc:     pc,
 		stopCh: stopCh,
 		ppNext: ppNext,
-
-		shards: shards,
 	}
 	return pcp
 }
@@ -61,22 +67,15 @@ type pipeBlocksCountProcessor struct {
 	stopCh <-chan struct{}
 	ppNext pipeProcessor
 
-	shards []pipeBlocksCountProcessorShard
+	shards atomicutil.Slice[pipeBlocksCountProcessorShard]
 }
 
 type pipeBlocksCountProcessorShard struct {
-	pipeBlocksCountProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeBlocksCountProcessorShardNopad{})%128]byte
-}
-
-type pipeBlocksCountProcessorShardNopad struct {
 	blocksCount uint64
 }
 
 func (pcp *pipeBlocksCountProcessor) writeBlock(workerID uint, _ *blockResult) {
-	shard := &pcp.shards[workerID]
+	shard := pcp.shards.Get(workerID)
 	shard.blocksCount++
 }
 
@@ -86,11 +85,15 @@ func (pcp *pipeBlocksCountProcessor) flush() error {
 	}
 
 	// merge state across shards
-	shards := pcp.shards
+	shards := pcp.shards.GetSlice()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	blocksCount := shards[0].blocksCount
 	shards = shards[1:]
-	for i := range shards {
-		blocksCount += shards[i].blocksCount
+	for _, shard := range shards {
+		blocksCount += shard.blocksCount
 	}
 
 	// write result

@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -363,4 +364,41 @@ func TestStatsMax(t *testing.T) {
 			{"x", "4"},
 		},
 	})
+}
+
+func TestStatsMax_ExportImportState(t *testing.T) {
+	f := func(smp *statsMaxProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := smp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var smp2 statsMaxProcessor
+		stateSize, err := smp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(smp, &smp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &smp2, smp)
+		}
+	}
+
+	var smp statsMaxProcessor
+
+	// zero state
+	f(&smp, 1, 0)
+
+	// non-zero state
+	smp = statsMaxProcessor{
+		max:      "foobar",
+		hasItems: true,
+	}
+	f(&smp, 8, 6)
 }

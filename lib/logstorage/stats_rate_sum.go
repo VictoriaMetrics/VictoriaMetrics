@@ -45,6 +45,14 @@ func (srp *statsRateSumProcessor) mergeState(a *chunkedAllocator, sf statsFunc, 
 	srp.ssp.mergeState(a, ss.ss, &src.ssp)
 }
 
+func (srp *statsRateSumProcessor) exportState(dst []byte, stopCh <-chan struct{}) []byte {
+	return srp.ssp.exportState(dst, stopCh)
+}
+
+func (srp *statsRateSumProcessor) importState(src []byte, stopCh <-chan struct{}) (int, error) {
+	return srp.ssp.importState(src, stopCh)
+}
+
 func (srp *statsRateSumProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	sr := sf.(*statsRateSum)
 	rate := srp.ssp.sum
