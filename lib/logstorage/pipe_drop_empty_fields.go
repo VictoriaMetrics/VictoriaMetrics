@@ -2,8 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -17,6 +17,10 @@ func (pd *pipeDropEmptyFields) String() string {
 	return "drop_empty_fields"
 }
 
+func (pd *pipeDropEmptyFields) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pd, nil
+}
+
 func (pd *pipeDropEmptyFields) canLiveTail() bool {
 	return true
 }
@@ -25,7 +29,7 @@ func (pd *pipeDropEmptyFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDropEmptyFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDropEmptyFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pd, nil
 }
 
@@ -37,28 +41,19 @@ func (pd *pipeDropEmptyFields) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
 
-func (pd *pipeDropEmptyFields) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pd *pipeDropEmptyFields) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeDropEmptyFieldsProcessor{
 		ppNext: ppNext,
-
-		shards: make([]pipeDropEmptyFieldsProcessorShard, workersCount),
 	}
 }
 
 type pipeDropEmptyFieldsProcessor struct {
 	ppNext pipeProcessor
 
-	shards []pipeDropEmptyFieldsProcessorShard
+	shards atomicutil.Slice[pipeDropEmptyFieldsProcessorShard]
 }
 
 type pipeDropEmptyFieldsProcessorShard struct {
-	pipeDropEmptyFieldsProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeDropEmptyFieldsProcessorShardNopad{})%128]byte
-}
-
-type pipeDropEmptyFieldsProcessorShardNopad struct {
 	columnValues [][]string
 	fields       []Field
 
@@ -70,7 +65,7 @@ func (pdp *pipeDropEmptyFieldsProcessor) writeBlock(workerID uint, br *blockResu
 		return
 	}
 
-	shard := &pdp.shards[workerID]
+	shard := pdp.shards.Get(workerID)
 
 	cs := br.getColumns()
 

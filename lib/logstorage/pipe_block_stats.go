@@ -2,8 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -18,6 +18,10 @@ func (ps *pipeBlockStats) String() string {
 	return "block_stats"
 }
 
+func (ps *pipeBlockStats) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return ps, nil
+}
+
 func (ps *pipeBlockStats) canLiveTail() bool {
 	return false
 }
@@ -26,7 +30,7 @@ func (ps *pipeBlockStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return ps, nil
 }
 
@@ -39,28 +43,19 @@ func (ps *pipeBlockStats) updateNeededFields(neededFields, unneededFields fields
 	neededFields.add("*")
 }
 
-func (ps *pipeBlockStats) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (ps *pipeBlockStats) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeBlockStatsProcessor{
 		ppNext: ppNext,
-
-		shards: make([]pipeBlockStatsProcessorShard, workersCount),
 	}
 }
 
 type pipeBlockStatsProcessor struct {
 	ppNext pipeProcessor
 
-	shards []pipeBlockStatsProcessorShard
+	shards atomicutil.Slice[pipeBlockStatsProcessorShard]
 }
 
 type pipeBlockStatsProcessorShard struct {
-	pipeBlockStatsProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeBlockStatsProcessorShardNopad{})%128]byte
-}
-
-type pipeBlockStatsProcessorShardNopad struct {
 	wctx pipeBlockStatsWriteContext
 }
 
@@ -69,7 +64,7 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &psp.shards[workerID]
+	shard := psp.shards.Get(workerID)
 	shard.wctx.init(workerID, psp.ppNext, br.rowsLen)
 
 	cs := br.getColumns()

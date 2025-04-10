@@ -3,10 +3,9 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 // pipeLen processes '| len ...' pipe.
@@ -23,6 +22,10 @@ func (pl *pipeLen) String() string {
 		s += " as " + quoteTokenIfNeeded(pl.resultField)
 	}
 	return s
+}
+
+func (pl *pipeLen) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pl, nil
 }
 
 func (pl *pipeLen) canLiveTail() bool {
@@ -47,7 +50,7 @@ func (pl *pipeLen) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pl, nil
 }
 
@@ -55,35 +58,25 @@ func (pl *pipeLen) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pl *pipeLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	shards := make([]pipeLenProcessorShard, workersCount)
-	for i := range shards {
-		shards[i].reset()
-	}
-
-	return &pipeLenProcessor{
+func (pl *pipeLen) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	plp := &pipeLenProcessor{
 		pl:     pl,
 		ppNext: ppNext,
-
-		shards: shards,
 	}
+	plp.shards.Init = func(shard *pipeLenProcessorShard) {
+		shard.reset()
+	}
+	return plp
 }
 
 type pipeLenProcessor struct {
 	pl     *pipeLen
 	ppNext pipeProcessor
 
-	shards []pipeLenProcessorShard
+	shards atomicutil.Slice[pipeLenProcessorShard]
 }
 
 type pipeLenProcessorShard struct {
-	pipeLenProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeLenProcessorShardNopad{})%128]byte
-}
-
-type pipeLenProcessorShardNopad struct {
 	a  arena
 	rc resultColumn
 
@@ -96,7 +89,7 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &plp.shards[workerID]
+	shard := plp.shards.Get(workerID)
 	shard.rc.name = plp.pl.resultField
 
 	c := br.getColumnByName(plp.pl.fieldName)
@@ -105,7 +98,7 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 		v := c.valuesEncoded[0]
 		shard.a.b = marshalUint64String(shard.a.b[:0], uint64(len(v)))
 		shard.rc.addValue(bytesutil.ToUnsafeString(shard.a.b))
-		br.addResultColumnConst(&shard.rc)
+		br.addResultColumnConst(shard.rc)
 	} else {
 		// Slow path for other columns
 		values := c.getValues(br)
@@ -116,7 +109,7 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 			}
 			shard.rc.addValue(vEncoded)
 		}
-		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)
+		br.addResultColumnFloat64(shard.rc, shard.minValue, shard.maxValue)
 	}
 
 	// Write the result to ppNext
@@ -134,6 +127,7 @@ func (shard *pipeLenProcessorShard) reset() {
 
 func (shard *pipeLenProcessorShard) getEncodedLen(v string) string {
 	f := float64(len(v))
+
 	if math.IsNaN(shard.minValue) {
 		shard.minValue = f
 		shard.maxValue = f
@@ -142,9 +136,9 @@ func (shard *pipeLenProcessorShard) getEncodedLen(v string) string {
 	} else if f > shard.maxValue {
 		shard.maxValue = f
 	}
-	n := math.Float64bits(f)
+
 	bLen := len(shard.a.b)
-	shard.a.b = encoding.MarshalUint64(shard.a.b, n)
+	shard.a.b = marshalFloat64(shard.a.b, f)
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
 }
 

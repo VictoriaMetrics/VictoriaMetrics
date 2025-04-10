@@ -295,3 +295,34 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	f(o)
 
 }
+
+func TestInsertRow_MarshalUnmarshal(t *testing.T) {
+	r := &InsertRow{
+		TenantID: TenantID{
+			AccountID: 123,
+			ProjectID: 456,
+		},
+		StreamTagsCanonical: "foobar",
+		Timestamp:           789,
+		Fields: []Field{
+			{
+				Name:  "x",
+				Value: "y",
+			},
+			{
+				Name:  "qwe",
+				Value: "rty",
+			},
+		},
+	}
+	data := r.Marshal(nil)
+
+	var r2 InsertRow
+	tail, err := r2.UnmarshalInplace(data)
+	if err != nil {
+		t.Fatalf("unexpected error when unmarshaling InsertRow: %s", err)
+	}
+	if len(tail) > 0 {
+		t.Fatalf("unexpected tail left after unmarshaling InsertRow; len(tail)=%d; tail=%X", len(tail), tail)
+	}
+}

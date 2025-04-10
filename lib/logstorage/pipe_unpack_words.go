@@ -2,8 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -35,6 +35,10 @@ func (pu *pipeUnpackWords) String() string {
 	return s
 }
 
+func (pu *pipeUnpackWords) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pu, nil
+}
+
 func (pu *pipeUnpackWords) canLiveTail() bool {
 	return true
 }
@@ -43,7 +47,7 @@ func (pu *pipeUnpackWords) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUnpackWords) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnpackWords) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pu, nil
 }
 
@@ -65,13 +69,11 @@ func (pu *pipeUnpackWords) updateNeededFields(neededFields, unneededFields field
 	}
 }
 
-func (pu *pipeUnpackWords) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackWords) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeUnpackWordsProcessor{
 		pu:     pu,
 		stopCh: stopCh,
 		ppNext: ppNext,
-
-		shards: make([]pipeUnpackWordsProcessorShard, workersCount),
 	}
 }
 
@@ -80,17 +82,10 @@ type pipeUnpackWordsProcessor struct {
 	stopCh <-chan struct{}
 	ppNext pipeProcessor
 
-	shards []pipeUnpackWordsProcessorShard
+	shards atomicutil.Slice[pipeUnpackWordsProcessorShard]
 }
 
 type pipeUnpackWordsProcessorShard struct {
-	pipeUnpackWordsProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUnpackWordsProcessorShardNopad{})%128]byte
-}
-
-type pipeUnpackWordsProcessorShardNopad struct {
 	wctx pipeUnpackWriteContext
 	a    arena
 
@@ -104,7 +99,7 @@ func (pup *pipeUnpackWordsProcessor) writeBlock(workerID uint, br *blockResult) 
 	}
 
 	pu := pup.pu
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 	shard.wctx.init(workerID, pup.ppNext, false, false, br)
 
 	c := br.getColumnByName(pu.srcField)

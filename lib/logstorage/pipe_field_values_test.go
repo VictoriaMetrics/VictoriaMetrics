@@ -138,10 +138,10 @@ func TestPipeFieldValuesUpdateNeededFields(t *testing.T) {
 	f("field_values x", "*", "f1,f2", "x", "")
 
 	// all the needed fields, unneeded fields intersect with src
-	f("field_values x", "*", "f1,x", "", "")
+	f("field_values x", "*", "f1,x", "x", "")
 
 	// needed fields do not intersect with src
-	f("field_values x", "f1,f2", "", "", "")
+	f("field_values x", "f1,f2", "", "x", "")
 
 	// needed fields intersect with src
 	f("field_values x", "f1,x", "", "x", "")

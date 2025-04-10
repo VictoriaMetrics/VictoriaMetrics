@@ -261,6 +261,29 @@ func (br *blockResult) sizeBytes() int {
 	return n
 }
 
+func (br *blockResult) initFromDataBlock(db *DataBlock) {
+	br.reset()
+
+	br.rowsLen = db.RowsCount()
+
+	for i := range db.Columns {
+		c := &db.Columns[i]
+		if c.Name == "_time" {
+			var ok bool
+			br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], c.Values)
+			if ok {
+				br.addTimeColumn()
+				continue
+			}
+			br.timestampsBuf = br.timestampsBuf[:0]
+		}
+		br.addResultColumn(resultColumn{
+			name:   c.Name,
+			values: c.Values,
+		})
+	}
+}
+
 // setResultColumns sets the given rcs as br columns.
 //
 // The br is valid only until rcs are modified.
@@ -270,11 +293,11 @@ func (br *blockResult) setResultColumns(rcs []resultColumn, rowsLen int) {
 	br.rowsLen = rowsLen
 
 	for i := range rcs {
-		br.addResultColumn(&rcs[i])
+		br.addResultColumn(rcs[i])
 	}
 }
 
-func (br *blockResult) addResultColumnFloat64(rc *resultColumn, minValue, maxValue float64) {
+func (br *blockResult) addResultColumnFloat64(rc resultColumn, minValue, maxValue float64) {
 	if len(rc.values) != br.rowsLen {
 		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
@@ -287,7 +310,7 @@ func (br *blockResult) addResultColumnFloat64(rc *resultColumn, minValue, maxVal
 	})
 }
 
-func (br *blockResult) addResultColumn(rc *resultColumn) {
+func (br *blockResult) addResultColumn(rc resultColumn) {
 	if len(rc.values) != br.rowsLen {
 		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
@@ -302,7 +325,7 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 	}
 }
 
-func (br *blockResult) addResultColumnConst(rc *resultColumn) {
+func (br *blockResult) addResultColumnConst(rc resultColumn) {
 	br.valuesBuf = append(br.valuesBuf, rc.values[0])
 	valuesEncoded := br.valuesBuf[len(br.valuesBuf)-1:]
 	br.csAdd(blockResultColumn{
@@ -471,7 +494,14 @@ func (br *blockResult) getTimestamps() []int64 {
 
 func (br *blockResult) initTimestamps() {
 	if br.bs == nil {
-		br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
+		// Try decoding timestamps from _time field
+		c := br.getColumnByName("_time")
+		timestampValues := c.getValues(br)
+		var ok bool
+		br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], timestampValues)
+		if !ok {
+			br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
+		}
 		return
 	}
 
@@ -491,6 +521,20 @@ func (br *blockResult) initTimestamps() {
 	})
 	br.timestampsBuf = dstTimestamps
 	br.checkTimestampsLen()
+}
+
+func tryParseTimestamps(dst []int64, src []string) ([]int64, bool) {
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+len(src))
+	timestamps := dst[dstLen:]
+	for i, v := range src {
+		ts, ok := TryParseTimestampRFC3339Nano(v)
+		if !ok {
+			return dst, false
+		}
+		timestamps[i] = ts
+	}
+	return dst, true
 }
 
 func (br *blockResult) checkTimestampsLen() {

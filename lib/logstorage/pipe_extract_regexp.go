@@ -3,8 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"regexp"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -43,6 +43,10 @@ func (pe *pipeExtractRegexp) String() string {
 	return s
 }
 
+func (pe *pipeExtractRegexp) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pe, nil
+}
+
 func (pe *pipeExtractRegexp) canLiveTail() bool {
 	return true
 }
@@ -51,8 +55,8 @@ func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtractRegexp) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pe *pipeExtractRegexp) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -118,12 +122,10 @@ func (pe *pipeExtractRegexp) updateNeededFields(neededFields, unneededFields fie
 	}
 }
 
-func (pe *pipeExtractRegexp) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pe *pipeExtractRegexp) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeExtractRegexpProcessor{
 		pe:     pe,
 		ppNext: ppNext,
-
-		shards: make([]pipeExtractRegexpProcessorShard, workersCount),
 	}
 }
 
@@ -131,14 +133,19 @@ type pipeExtractRegexpProcessor struct {
 	pe     *pipeExtractRegexp
 	ppNext pipeProcessor
 
-	shards []pipeExtractRegexpProcessorShard
+	shards atomicutil.Slice[pipeExtractRegexpProcessorShard]
 }
 
 type pipeExtractRegexpProcessorShard struct {
-	pipeExtractRegexpProcessorShardNopad
+	bm bitmap
 
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeExtractRegexpProcessorShardNopad{})%128]byte
+	resultColumns []*blockResultColumn
+	resultValues  []string
+
+	rcs []resultColumn
+	a   arena
+
+	fields []string
 }
 
 func (shard *pipeExtractRegexpProcessorShard) apply(re *regexp.Regexp, v string) {
@@ -162,25 +169,13 @@ func (shard *pipeExtractRegexpProcessorShard) apply(re *regexp.Regexp, v string)
 	}
 }
 
-type pipeExtractRegexpProcessorShardNopad struct {
-	bm bitmap
-
-	resultColumns []*blockResultColumn
-	resultValues  []string
-
-	rcs []resultColumn
-	a   arena
-
-	fields []string
-}
-
 func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult) {
 	if br.rowsLen == 0 {
 		return
 	}
 
 	pe := pep.pe
-	shard := &pep.shards[workerID]
+	shard := pep.shards.Get(workerID)
 
 	bm := &shard.bm
 	if iff := pe.iff; iff != nil {
@@ -258,7 +253,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 
 	for i := range rcs {
 		if reFields[i] != "" {
-			br.addResultColumn(&rcs[i])
+			br.addResultColumn(rcs[i])
 		}
 	}
 	pep.ppNext.writeBlock(workerID, br)

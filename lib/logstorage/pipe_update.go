@@ -1,7 +1,7 @@
 package logstorage
 
 import (
-	"unsafe"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 )
 
 func updateNeededFieldsForUpdatePipe(neededFields, unneededFields fieldsSet, field string, iff *ifFilter) {
@@ -23,7 +23,7 @@ func updateNeededFieldsForUpdatePipe(neededFields, unneededFields fieldsSet, fie
 	}
 }
 
-func newPipeUpdateProcessor(workersCount int, updateFunc func(a *arena, v string) string, ppNext pipeProcessor, field string, iff *ifFilter) pipeProcessor {
+func newPipeUpdateProcessor(updateFunc func(a *arena, v string) string, ppNext pipeProcessor, field string, iff *ifFilter) pipeProcessor {
 	return &pipeUpdateProcessor{
 		updateFunc: updateFunc,
 
@@ -31,8 +31,6 @@ func newPipeUpdateProcessor(workersCount int, updateFunc func(a *arena, v string
 		iff:   iff,
 
 		ppNext: ppNext,
-
-		shards: make([]pipeUpdateProcessorShard, workersCount),
 	}
 }
 
@@ -44,17 +42,10 @@ type pipeUpdateProcessor struct {
 
 	ppNext pipeProcessor
 
-	shards []pipeUpdateProcessorShard
+	shards atomicutil.Slice[pipeUpdateProcessorShard]
 }
 
 type pipeUpdateProcessorShard struct {
-	pipeUpdateProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUpdateProcessorShardNopad{})%128]byte
-}
-
-type pipeUpdateProcessorShardNopad struct {
 	bm bitmap
 
 	rc resultColumn
@@ -66,7 +57,7 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 
 	bm := &shard.bm
 	if iff := pup.iff; iff != nil {
@@ -101,7 +92,7 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 		}
 	}
 
-	br.addResultColumn(&shard.rc)
+	br.addResultColumn(shard.rc)
 	pup.ppNext.writeBlock(workerID, br)
 
 	shard.rc.reset()
