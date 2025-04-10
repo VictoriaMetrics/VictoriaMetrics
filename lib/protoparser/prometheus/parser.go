@@ -250,13 +250,14 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 				// Determine if there is an empty key Prometheus 3.0 metric name
 				key = key[1:n]
 				afterKey := skipLeadingWhitespace(s[n+1:])
-				if afterKey[0] == ',' {
+				lenAfterKey := len(afterKey)
+				if afterKey == "" || afterKey[0] == ',' {
 					if r.Metric == "" {
 						r.Metric = key
 					}
 					s = afterKey[1:]
 					continue
-				} else if afterKey[0] == '=' {
+				} else if lenAfterKey > 1 && afterKey[0] == '=' {
 					s = afterKey[1:]
 					n = -1
 				} else {
