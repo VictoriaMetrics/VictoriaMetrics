@@ -355,6 +355,12 @@ func (app *Vmsingle) SnapshotCreateURL() string {
 	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
+// HTTPAddr returns the address at which the vmstorage process is listening
+// for http connections.
+func (app *Vmsingle) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // String returns the string representation of the vmsingle app state.
 func (app *Vmsingle) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q}", []any{
