@@ -20,8 +20,8 @@ type Vminsert struct {
 
 	httpListenAddr          string
 	clusternativeListenAddr string
-	graphiteWriteURL        string
-	openTSDBHTTPURL         string
+	graphiteListenAddr      string
+	openTSDBListenAddr      string
 
 	cli *Client
 }
@@ -59,7 +59,7 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-clusternativeListenAddr": "127.0.0.1:0",
 			"-graphiteListenAddr":      ":2003",
-			"-opentsdbListenAddr":      "127.0.0.1:4242",
+			"-opentsdbListenAddr":      "127.0.0.1:0",
 		},
 		extractREs: extractREs,
 	})
@@ -75,8 +75,8 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 		},
 		httpListenAddr:          stderrExtracts[0],
 		clusternativeListenAddr: stderrExtracts[1],
-		graphiteWriteURL:        stderrExtracts[2],
-		openTSDBHTTPURL:         stderrExtracts[3],
+		graphiteListenAddr:      stderrExtracts[2],
+		openTSDBListenAddr:      stderrExtracts[3],
 		cli:                     cli,
 	}, nil
 }
@@ -117,16 +117,15 @@ func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
 func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
-	app.cli.Write(t, app.graphiteWriteURL, records)
+	app.cli.Write(t, app.graphiteListenAddr, records)
 }
 
-// CSVImport is a test helper function that inserts a
-// collection of records in CSV format for the given
-// tenant by sending an HTTP POST request to
-// prometheus/api/v1/import/csv vminsert endpoint.
+// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
+// of records in CSV format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/csv vminsert endpoint.
 //
 // See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-func (app *Vminsert) CSVImport(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.getTenant())
@@ -144,16 +143,15 @@ func (app *Vminsert) CSVImport(t *testing.T, records []string, opts QueryOpts) {
 	})
 }
 
-// OpenTSDBHTTPImport is a test helper function that inserts a
-// collection of records in OpenTSDB format for the given
-// tenant by sending an HTTP POST request to
-// /opentsdb/api/put vminsert endpoint.
+// OpenTSDBAPIPut is a test helper function that inserts a collection of
+// records in OpenTSDB format for the given tenant by sending an HTTP POST
+// request to /opentsdb/api/put vminsert endpoint.
 //
 // See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-func (app *Vminsert) OpenTSDBHTTPImport(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/opentsdb/api/put", app.openTSDBHTTPURL, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/opentsdb/api/put", app.openTSDBListenAddr, opts.getTenant())
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {

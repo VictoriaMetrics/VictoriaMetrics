@@ -29,7 +29,7 @@ type Vmsingle struct {
 
 	// vminsert URLs.
 	influxLineWriteURL                 string
-	graphiteWriteURL                   string
+	graphiteWriteAddr                  string
 	openTSDBHTTPURL                    string
 	prometheusAPIV1ImportPrometheusURL string
 	prometheusAPIV1WriteURL            string
@@ -50,7 +50,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":     "127.0.0.1:0",
 			"-graphiteListenAddr": ":2003",
-			"-opentsdbListenAddr": "127.0.0.1:4242",
+			"-opentsdbListenAddr": "127.0.0.1:0",
 		},
 		extractREs: []*regexp.Regexp{
 			storageDataPathRE,
@@ -76,8 +76,8 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 
 		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
-		graphiteWriteURL:                   stderrExtracts[2],
-		openTSDBHTTPURL:                    fmt.Sprintf("http://%s/api/put", stderrExtracts[3]),
+		graphiteWriteAddr:                  stderrExtracts[2],
+		openTSDBHTTPURL:                    fmt.Sprintf("http://%s", stderrExtracts[3]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
 		prometheusAPIV1ExportURL:           fmt.Sprintf("http://%s/prometheus/api/v1/export", stderrExtracts[1]),
@@ -131,22 +131,21 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 	}
 }
 
-// GraphiteWrite is a test helper function that sends a
-// collection of records to graphiteListenAddr port.
+// GraphiteWrite is a test helper function that sends a collection of records
+// to graphiteListenAddr port.
 //
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
 func (app *Vmsingle) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
-	app.cli.Write(t, app.graphiteWriteURL, records)
+	app.cli.Write(t, app.graphiteWriteAddr, records)
 }
 
-// CSVImport is a test helper function that inserts a
-// collection of records in CSV format for the given
-// tenant by sending an HTTP POST request to
-// /api/v1/import/csv vmsingle endpoint.
+// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
+// of records in CSV format for the given tenant by sending an HTTP POST
+// request to /api/v1/import/csv vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data
-func (app *Vmsingle) CSVImport(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/api/v1/import/csv", app.httpListenAddr)
@@ -162,17 +161,16 @@ func (app *Vmsingle) CSVImport(t *testing.T, records []string, opts QueryOpts) {
 	}
 }
 
-// OpenTSDBHTTPImport is a test helper function that inserts a
-// collection of records in OpenTSDB format for the given
-// tenant by sending an HTTP POST request to
-// /api/put vmsingle endpoint.
+// OpenTSDBAPIPut is a test helper function that inserts a collection of
+// records in OpenTSDB format for the given tenant by sending an HTTP POST
+// request to /api/put vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests
-func (app *Vmsingle) OpenTSDBHTTPImport(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	// add extra label
-	url := app.openTSDBHTTPURL
+	url := app.openTSDBHTTPURL + "/api/put"
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {

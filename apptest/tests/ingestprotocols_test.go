@@ -80,7 +80,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// OpenTSDB HTTP write format
-	sut.OpenTSDBHTTPImport(t, []string{
+	sut.OpenTSDBAPIPut(t, []string{
 		`{"metric":"opentsdbimport.foo","value":45.34, "timestamp": "1707123457"}`,
 		`{"metric":"opentsdbimport.bar","value":43, "timestamp": "1707123456"}`,
 	}, at.QueryOpts{
@@ -108,7 +108,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// CSV import
-	sut.CSVImport(t, []string{
+	sut.PrometheusAPIV1ImportCSV(t, []string{
 		`GOOG,1.23,4.56,NYSE,1707123457`,
 		`MSFT,23,56,NASDAQ,1707123457`,
 	}, at.QueryOpts{
@@ -357,9 +357,9 @@ func TestClusterIngestionProtocols(t *testing.T) {
 	})
 
 	// CSV import
-	vminsert.CSVImport(t, []string{
-		`GOOG,1.23,4.56,NYSE,1707123457`,
-		`MSFT,23,56,NASDAQ,1707123457`,
+	vminsert.PrometheusAPIV1ImportCSV(t, []string{
+		`GOOG,1.23,4.56,NYSE,1707123457`, // 2024-02-05T08:57:37.000Z
+		`MSFT,23,56,NASDAQ,1707123457`,   // 2024-02-05T08:57:37.000Z
 	}, at.QueryOpts{
 		ExtraLabels: []string{"el1=elv1", "el2=elv2"},
 		Format:      "2:metric:csv_import,3:metric:csv_import_v2,1:label:ticker,4:label:market,5:time:unix_s",
@@ -398,17 +398,17 @@ func TestClusterIngestionProtocols(t *testing.T) {
 			},
 		},
 		wantSamples: []*at.Sample{
-			{Timestamp: 1707123457000, Value: 23},
-			{Timestamp: 1707123457000, Value: 1.23},
-			{Timestamp: 1707123457000, Value: 56},
-			{Timestamp: 1707123457000, Value: 4.56},
+			{Timestamp: 1707123457000, Value: 23},   // 2024-02-05T08:57:37.000Z
+			{Timestamp: 1707123457000, Value: 1.23}, // 2024-02-05T08:57:37.000Z
+			{Timestamp: 1707123457000, Value: 56},   // 2024-02-05T08:57:37.000Z
+			{Timestamp: 1707123457000, Value: 4.56}, // 2024-02-05T08:57:37.000Z
 		},
 	})
 
 	// openTSDB HTTP write format
-	vminsert.OpenTSDBHTTPImport(t, []string{
-		`{"metric":"opentsdbimport.foo","value":45.34, "timestamp": "1707123457"}`,
-		`{"metric":"opentsdbimport.bar","value":43, "timestamp": "1707123456"}`,
+	vminsert.OpenTSDBAPIPut(t, []string{
+		`{"metric":"opentsdbimport.foo","value":45.34, "timestamp": "1707123457"}`, // 2024-02-05T08:57:37.000Z
+		`{"metric":"opentsdbimport.bar","value":43, "timestamp": "1707123456"}`,    // 2024-02-05T08:57:36.000Z
 	}, at.QueryOpts{
 		ExtraLabels: []string{"el1=elv1", "el2=elv2"},
 	})
@@ -428,8 +428,8 @@ func TestClusterIngestionProtocols(t *testing.T) {
 			},
 		},
 		wantSamples: []*at.Sample{
-			{Timestamp: 1707123456000, Value: 43},
-			{Timestamp: 1707123457000, Value: 45.34},
+			{Timestamp: 1707123456000, Value: 43},    // 2024-02-05T08:57:36.000Z
+			{Timestamp: 1707123457000, Value: 45.34}, // 2024-02-05T08:57:37.000Z
 		},
 	})
 

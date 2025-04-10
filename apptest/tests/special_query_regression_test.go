@@ -13,7 +13,7 @@ import (
 // Most of these cases are based on user feedback. Refer to the corresponding GitHub issue for details on each case.
 //
 // To improve performance, it will handle ingestion and flushing at one location and then evaluate each query.
-func TestSpecialQueryRegression(t *testing.T) {
+func TestSingleSpecialQueryRegression(t *testing.T) {
 	os.RemoveAll(t.Name())
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -47,28 +47,28 @@ func setupPrometheusImport(t *testing.T, sut *at.Vmsingle) {
 	// duplicate_label
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/172
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`prometheus.duplicate_label{label="duplicate", label="duplicate"} 10 1707123456700`,
+		`prometheus.duplicate_label{label="duplicate", label="duplicate"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 	}, at.QueryOpts{})
 	// too big look-behind window
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`prometheus.too_big_lookbehind{label="foo"} 10 1707123456700`,
+		`prometheus.too_big_lookbehind{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 	}, at.QueryOpts{})
 	// too big look-behind window - query range
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`prometheus.too_big_lookbehind_range{label="foo"} 13 1707123496700`,
-		`prometheus.too_big_lookbehind_range{label="foo"} 12 1707123466700`,
-		`prometheus.too_big_lookbehind_range{label="foo"} 11 1707123436700`,
-		`prometheus.too_big_lookbehind_range{label="foo"} 10 1707123406700`,
+		`prometheus.too_big_lookbehind_range{label="foo"} 13 1707123496700`, // 2024-02-05T08:58:16.700Z
+		`prometheus.too_big_lookbehind_range{label="foo"} 12 1707123466700`, // 2024-02-05T08:57:46.700Z
+		`prometheus.too_big_lookbehind_range{label="foo"} 11 1707123436700`, // 2024-02-05T08:57:16.700Z
+		`prometheus.too_big_lookbehind_range{label="foo"} 10 1707123406700`, // 2024-02-05T08:56:46.700Z
 	}, at.QueryOpts{})
 	// too big look-behind window
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`GenBearTemp{db="TenMinute",Park="1",TurbineType="V112"} 10 1707123456700`,
-		`GenBearTemp{db="TenMinute",Park="2",TurbineType="V112"} 10 1707123456700`,
-		`GenBearTemp{db="TenMinute",Park="3",TurbineType="V112"} 10 1707123456700`,
-		`GenBearTemp{db="TenMinute",Park="4",TurbineType="V112"} 10 1707123456700`,
+		`GenBearTemp{db="TenMinute",Park="1",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`GenBearTemp{db="TenMinute",Park="2",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`GenBearTemp{db="TenMinute",Park="3",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`GenBearTemp{db="TenMinute",Park="4",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 	}, at.QueryOpts{})
 
 	sut.ForceFlush(t)
@@ -79,39 +79,39 @@ func setupGraphiteImport(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	rowInserted := sut.ServesMetrics.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
 
 	sut.GraphiteWrite(t, []string{
-		"not_nan_not_inf;item=x 1 1707123456",
-		"not_nan_not_inf;item=x 1 1707123455",
-		"not_nan_not_inf;item=y 3 1707123456",
-		"not_nan_not_inf;item=y 1 1707123455",
+		"not_nan_not_inf;item=x 1 1707123456", // 2024-02-05T08:57:36.000Z
+		"not_nan_not_inf;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
+		"not_nan_not_inf;item=y 3 1707123456", // 2024-02-05T08:57:36.000Z
+		"not_nan_not_inf;item=y 1 1707123455", // 2024-02-05T08:57:35.000Z
 	}, at.QueryOpts{})
 	sut.GraphiteWrite(t, []string{
-		"empty_label_match 1 1707123456",
-		"empty_label_match;foo=bar 2 1707123456",
-		"empty_label_match;foo=baz 3 1707123456",
+		"empty_label_match 1 1707123456",         // 2024-02-05T08:57:36.000Z
+		"empty_label_match;foo=bar 2 1707123456", // 2024-02-05T08:57:36.000Z
+		"empty_label_match;foo=baz 3 1707123456", // 2024-02-05T08:57:36.000Z
 	}, at.QueryOpts{})
 	sut.GraphiteWrite(t, []string{
-		"max_lookback_set 1 1707123426",
-		"max_lookback_set 2 1707123396",
-		"max_lookback_set 3 1707123336",
-		"max_lookback_set 4 1707123306",
+		"max_lookback_set 1 1707123426", // 2024-02-05T08:57:06.000Z
+		"max_lookback_set 2 1707123396", // 2024-02-05T08:56:36.000Z
+		"max_lookback_set 3 1707123336", // 2024-02-05T08:55:36.000Z",
+		"max_lookback_set 4 1707123306", // 2024-02-05T08:55:06.000Z
 	}, at.QueryOpts{})
 	sut.GraphiteWrite(t, []string{
-		"max_lookback_unset 1 1707123426",
-		"max_lookback_unset 2 1707123396",
-		"max_lookback_unset 3 1707123336",
-		"max_lookback_unset 4 1707123306",
+		"max_lookback_unset 1 1707123426", // 2024-02-05T08:57:06.000Z
+		"max_lookback_unset 2 1707123396", // 2024-02-05T08:56:36.000Z
+		"max_lookback_unset 3 1707123336", // 2024-02-05T08:55:36.000Z",
+		"max_lookback_unset 4 1707123306", // 2024-02-05T08:55:06.000Z
 	}, at.QueryOpts{})
 	sut.GraphiteWrite(t, []string{
-		"not_nan_as_missing_data;item=x 2 1707123454",
-		"not_nan_as_missing_data;item=x 1 1707123455",
-		"not_nan_as_missing_data;item=y 4 1707123454",
-		"not_nan_as_missing_data;item=y 3 1707123455",
+		"not_nan_as_missing_data;item=x 2 1707123454", // 2024-02-05T08:57:34.000Z
+		"not_nan_as_missing_data;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
+		"not_nan_as_missing_data;item=y 4 1707123454", // 2024-02-05T08:57:34.000Z
+		"not_nan_as_missing_data;item=y 3 1707123455", // 2024-02-05T08:57:35.000Z
 	}, at.QueryOpts{})
 	sut.GraphiteWrite(t, []string{
-		"forms_daily_count;item=x 1 1707123396",
-		"forms_daily_count;item=x 2 1707123336",
-		"forms_daily_count;item=y 3 1707123396",
-		"forms_daily_count;item=y 4 1707123336",
+		"forms_daily_count;item=x 1 1707123396", // 2024-02-05T08:56:36.000Z
+		"forms_daily_count;item=x 2 1707123336", // 2024-02-05T08:55:36.000Z",
+		"forms_daily_count;item=y 3 1707123396", // 2024-02-05T08:56:36.000Z
+		"forms_daily_count;item=y 4 1707123336", // 2024-02-05T08:55:36.000Z",
 	}, at.QueryOpts{})
 
 	tc.Assert(&at.AssertOptions{

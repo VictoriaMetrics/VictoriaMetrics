@@ -2,7 +2,6 @@ package apptest
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -98,8 +97,8 @@ func (c *Client) Write(t *testing.T, address string, data []string) {
 	if err != nil {
 		t.Fatalf("cannot write %d bytes to %s: %s", len(data), address, err)
 	}
-	if n != len(d) {
-		panic(fmt.Errorf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(data)))
+	if n != len([]byte(d)) {
+		t.Fatalf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(data))
 	}
 }
 
