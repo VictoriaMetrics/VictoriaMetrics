@@ -219,6 +219,42 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []l
 	}
 }
 
+// InsertRowProcessor is used by native data ingestion protocol parser.
+type InsertRowProcessor interface {
+	// AddInsertRow must add r to the underlying storage.
+	AddInsertRow(r *logstorage.InsertRow)
+}
+
+// AddInsertRow adds r to lmp.
+func (lmp *logMessageProcessor) AddInsertRow(r *logstorage.InsertRow) {
+	lmp.rowsIngestedTotal.Inc()
+	n := logstorage.EstimatedJSONRowLen(r.Fields)
+	lmp.bytesIngestedTotal.Add(n)
+
+	if len(r.Fields) > *MaxFieldsPerLine {
+		line := logstorage.MarshalFieldsToJSON(nil, r.Fields)
+		logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(r.Fields), *MaxFieldsPerLine, line)
+		rowsDroppedTotalTooManyFields.Inc()
+		return
+	}
+
+	lmp.mu.Lock()
+	defer lmp.mu.Unlock()
+
+	lmp.lr.MustAddInsertRow(r)
+
+	if lmp.cp.Debug {
+		s := lmp.lr.GetRowString(0)
+		lmp.lr.ResetKeepSettings()
+		logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` arg: %s", lmp.cp.DebugRemoteAddr, lmp.cp.DebugRequestURI, s)
+		rowsDroppedTotalDebug.Inc()
+		return
+	}
+	if lmp.lr.NeedFlush() {
+		lmp.flushLocked()
+	}
+}
+
 // flushLocked must be called under locked lmp.mu.
 func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lastFlushTime = time.Now()

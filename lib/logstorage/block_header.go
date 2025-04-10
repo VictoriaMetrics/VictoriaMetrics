@@ -278,20 +278,20 @@ func (cshIndex *columnsHeaderIndex) marshal(dst []byte) []byte {
 	return dst
 }
 
-// unmarshalNoArena unmarshals cshIndex from src.
+// unmarshalInplace unmarshals cshIndex from src.
 //
 // cshIndex is valid until src is changed.
-func (cshIndex *columnsHeaderIndex) unmarshalNoArena(src []byte) error {
+func (cshIndex *columnsHeaderIndex) unmarshalInplace(src []byte) error {
 	cshIndex.reset()
 
-	refs, tail, err := unmarshalColumnHeadersRefsNoArena(cshIndex.columnHeadersRefs[:0], src)
+	refs, tail, err := unmarshalColumnHeadersRefsInplace(cshIndex.columnHeadersRefs[:0], src)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal columnHeadersRefs: %w", err)
 	}
 	cshIndex.columnHeadersRefs = refs
 	src = tail
 
-	refs, tail, err = unmarshalColumnHeadersRefsNoArena(cshIndex.constColumnsRefs[:0], src)
+	refs, tail, err = unmarshalColumnHeadersRefsInplace(cshIndex.constColumnsRefs[:0], src)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal constColumnsRefs: %w", err)
 	}
@@ -312,7 +312,10 @@ func marshalColumnHeadersRefs(dst []byte, refs []columnHeaderRef) []byte {
 	return dst
 }
 
-func unmarshalColumnHeadersRefsNoArena(dst []columnHeaderRef, src []byte) ([]columnHeaderRef, []byte, error) {
+// unmarshalColumnHeadersRefsInplace appends unmarshaled from src column headers to dst and returns the result.
+//
+// The returned result is valid until src is changed.
+func unmarshalColumnHeadersRefsInplace(dst []columnHeaderRef, src []byte) ([]columnHeaderRef, []byte, error) {
 	srcOrig := src
 
 	n, nSize := encoding.UnmarshalVarUint64(src)
@@ -480,10 +483,10 @@ func (csh *columnsHeader) marshal(dst []byte, cshIndex *columnsHeaderIndex, g *c
 	return dst
 }
 
-// unmarshalNoArena unmarshals csh from src.
+// unmarshalInplace unmarshals csh from src.
 //
 // csh is valid until src is changed.
-func (csh *columnsHeader) unmarshalNoArena(src []byte, partFormatVersion uint) error {
+func (csh *columnsHeader) unmarshalInplace(src []byte, partFormatVersion uint) error {
 	csh.reset()
 
 	// unmarshal columnHeaders
@@ -498,7 +501,7 @@ func (csh *columnsHeader) unmarshalNoArena(src []byte, partFormatVersion uint) e
 
 	chs := csh.resizeColumnHeaders(int(n))
 	for i := range chs {
-		tail, err := chs[i].unmarshalNoArena(src, partFormatVersion)
+		tail, err := chs[i].unmarshalInplace(src, partFormatVersion)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal columnHeader %d out of %d columnHeaders: %w", i, len(chs), err)
 		}
@@ -523,7 +526,7 @@ func (csh *columnsHeader) unmarshalNoArena(src []byte, partFormatVersion uint) e
 
 	ccs := csh.resizeConstColumns(int(n))
 	for i := range ccs {
-		tail, err := ccs[i].unmarshalNoArena(src, partFormatVersion < 1)
+		tail, err := ccs[i].unmarshalInplace(src, partFormatVersion < 1)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal constColumn %d out of %d columns: %w", i, len(ccs), err)
 		}
@@ -726,10 +729,10 @@ func (ch *columnHeader) marshalBloomFilters(dst []byte) []byte {
 	return dst
 }
 
-// unmarshalNoArena unmarshals ch from src and returns the tail left after unmarshaling.
+// unmarshalInplace unmarshals ch from src and returns the tail left after unmarshaling.
 //
 // ch is valid until src is changed.
-func (ch *columnHeader) unmarshalNoArena(src []byte, partFormatVersion uint) ([]byte, error) {
+func (ch *columnHeader) unmarshalInplace(src []byte, partFormatVersion uint) ([]byte, error) {
 	ch.reset()
 
 	srcOrig := src
@@ -760,7 +763,7 @@ func (ch *columnHeader) unmarshalNoArena(src []byte, partFormatVersion uint) ([]
 		}
 		src = tail
 	case valueTypeDict:
-		tail, err := ch.valuesDict.unmarshalNoArena(src)
+		tail, err := ch.valuesDict.unmarshalInplace(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal dict at valueTypeDict for column %q: %w", ch.name, err)
 		}

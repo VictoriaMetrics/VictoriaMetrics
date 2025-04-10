@@ -10,11 +10,14 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage/netinsert"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage/netselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -39,14 +42,55 @@ var (
 		"the storage stops accepting new data")
 
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
+
+	storageNodeAddrs = flagutil.NewArrayString("storageNode", "Comma-separated list of TCP addresses for storage nodes to route the ingested logs to and to send select queries to. "+
+		"If the list is empty, then the ingested logs are stored and queried locally from -storageDataPath")
+	insertConcurrency        = flag.Int("insert.concurrency", 2, "The average number of concurrent data ingestion requests, which can be sent to every -storageNode")
+	insertDisableCompression = flag.Bool("insert.disableCompression", false, "Whether to disable compression when sending the ingested data to -storageNode nodes. "+
+		"Disabled compression reduces CPU usage at the cost of higher network usage")
+	selectDisableCompression = flag.Bool("select.disableCompression", false, "Whether to disable compression for select query responses received from -storageNode nodes. "+
+		"Disabled compression reduces CPU usage at the cost of higher network usage")
+
+	storageNodeUsername     = flagutil.NewArrayString("storageNode.username", "Optional basic auth username to use for the corresponding -storageNode")
+	storageNodePassword     = flagutil.NewArrayString("storageNode.password", "Optional basic auth password to use for the corresponding -storageNode")
+	storageNodePasswordFile = flagutil.NewArrayString("storageNode.passwordFile", "Optional path to basic auth password to use for the corresponding -storageNode. "+
+		"The file is re-read every second")
+	storageNodeBearerToken     = flagutil.NewArrayString("storageNode.bearerToken", "Optional bearer auth token to use for the corresponding -storageNode")
+	storageNodeBearerTokenFile = flagutil.NewArrayString("storageNode.bearerTokenFile", "Optional path to bearer token file to use for the corresponding -storageNode. "+
+		"The token is re-read from the file every second")
+
+	storageNodeTLS = flagutil.NewArrayBool("storageNode.tls", "Whether to use TLS (HTTPS) protocol for communicating with the corresponding -storageNode. "+
+		"By default communication is performed via HTTP")
+	storageNodeTLSCAFile = flagutil.NewArrayString("storageNode.tlsCAFile", "Optional path to TLS CA file to use for verifying connections to the corresponding -storageNode. "+
+		"By default, system CA is used")
+	storageNodeTLSCertFile = flagutil.NewArrayString("storageNode.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting "+
+		"to the corresponding -storageNode")
+	storageNodeTLSKeyFile    = flagutil.NewArrayString("storageNode.tlsKeyFile", "Optional path to client-side TLS certificate key to use when connecting to the corresponding -storageNode")
+	storageNodeTLSServerName = flagutil.NewArrayString("storageNode.tlsServerName", "Optional TLS server name to use for connections to the corresponding -storageNode. "+
+		"By default, the server name from -storageNode is used")
+	storageNodeTLSInsecureSkipVerify = flagutil.NewArrayBool("storageNode.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to the corresponding -storageNode")
 )
+
+var localStorage *logstorage.Storage
+var localStorageMetrics *metrics.Set
+
+var netstorageInsert *netinsert.Storage
+var netstorageSelect *netselect.Storage
 
 // Init initializes vlstorage.
 //
 // Stop must be called when vlstorage is no longer needed
 func Init() {
-	if strg != nil {
-		logger.Panicf("BUG: Init() has been already called")
+	if len(*storageNodeAddrs) == 0 {
+		initLocalStorage()
+	} else {
+		initNetworkStorage()
+	}
+}
+
+func initLocalStorage() {
+	if localStorage != nil {
+		logger.Panicf("BUG: initLocalStorage() has been already called")
 	}
 
 	if retentionPeriod.Duration() < 24*time.Hour {
@@ -63,60 +107,139 @@ func Init() {
 	}
 	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
 	startTime := time.Now()
-	strg = logstorage.MustOpenStorage(*storageDataPath, cfg)
+	localStorage = logstorage.MustOpenStorage(*storageDataPath, cfg)
 
 	var ss logstorage.StorageStats
-	strg.UpdateStats(&ss)
+	localStorage.UpdateStats(&ss)
 	logger.Infof("successfully opened storage in %.3f seconds; smallParts: %d; bigParts: %d; smallPartBlocks: %d; bigPartBlocks: %d; smallPartRows: %d; bigPartRows: %d; "+
 		"smallPartSize: %d bytes; bigPartSize: %d bytes",
 		time.Since(startTime).Seconds(), ss.SmallParts, ss.BigParts, ss.SmallPartBlocks, ss.BigPartBlocks, ss.SmallPartRowsCount, ss.BigPartRowsCount,
 		ss.CompressedSmallPartSize, ss.CompressedBigPartSize)
 
-	// register storage metrics
-	storageMetrics = metrics.NewSet()
-	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, strg)
+	// register local storage metrics
+	localStorageMetrics = metrics.NewSet()
+	localStorageMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		writeStorageMetrics(w, localStorage)
 	})
-	metrics.RegisterSet(storageMetrics)
+	metrics.RegisterSet(localStorageMetrics)
+}
+
+func initNetworkStorage() {
+	if netstorageInsert != nil || netstorageSelect != nil {
+		logger.Panicf("BUG: initNetworkStorage() has been already called")
+	}
+
+	authCfgs := make([]*promauth.Config, len(*storageNodeAddrs))
+	isTLSs := make([]bool, len(*storageNodeAddrs))
+	for i := range authCfgs {
+		authCfgs[i] = newAuthConfigForStorageNode(i)
+		isTLSs[i] = storageNodeTLS.GetOptionalArg(i)
+	}
+
+	logger.Infof("starting insert service for nodes %s", *storageNodeAddrs)
+	netstorageInsert = netinsert.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *insertConcurrency, *insertDisableCompression)
+
+	logger.Infof("initializing select service for nodes %s", *storageNodeAddrs)
+	netstorageSelect = netselect.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *selectDisableCompression)
+
+	logger.Infof("initialized all the network services")
+}
+
+func newAuthConfigForStorageNode(argIdx int) *promauth.Config {
+	username := storageNodeUsername.GetOptionalArg(argIdx)
+	password := storageNodePassword.GetOptionalArg(argIdx)
+	passwordFile := storageNodePasswordFile.GetOptionalArg(argIdx)
+	var basicAuthCfg *promauth.BasicAuthConfig
+	if username != "" || password != "" || passwordFile != "" {
+		basicAuthCfg = &promauth.BasicAuthConfig{
+			Username:     username,
+			Password:     promauth.NewSecret(password),
+			PasswordFile: passwordFile,
+		}
+	}
+
+	token := storageNodeBearerToken.GetOptionalArg(argIdx)
+	tokenFile := storageNodeBearerTokenFile.GetOptionalArg(argIdx)
+
+	tlsCfg := &promauth.TLSConfig{
+		CAFile:             storageNodeTLSCAFile.GetOptionalArg(argIdx),
+		CertFile:           storageNodeTLSCertFile.GetOptionalArg(argIdx),
+		KeyFile:            storageNodeTLSKeyFile.GetOptionalArg(argIdx),
+		ServerName:         storageNodeTLSServerName.GetOptionalArg(argIdx),
+		InsecureSkipVerify: storageNodeTLSInsecureSkipVerify.GetOptionalArg(argIdx),
+	}
+
+	opts := &promauth.Options{
+		BasicAuth:       basicAuthCfg,
+		BearerToken:     token,
+		BearerTokenFile: tokenFile,
+		TLSConfig:       tlsCfg,
+	}
+	ac, err := opts.NewConfig()
+	if err != nil {
+		logger.Panicf("FATAL: cannot populate auth config for storage node #%d: %s", argIdx, err)
+	}
+
+	return ac
 }
 
 // Stop stops vlstorage.
 func Stop() {
-	metrics.UnregisterSet(storageMetrics, true)
-	storageMetrics = nil
+	if localStorage != nil {
+		metrics.UnregisterSet(localStorageMetrics, true)
+		localStorageMetrics = nil
 
-	strg.MustClose()
-	strg = nil
+		localStorage.MustClose()
+		localStorage = nil
+	} else {
+		netstorageInsert.MustStop()
+		netstorageInsert = nil
+
+		netstorageSelect.MustStop()
+		netstorageSelect = nil
+	}
 }
 
 // RequestHandler is a storage request handler.
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
-			return true
-		}
-		// Run force merge in background
-		partitionNamePrefix := r.FormValue("partition_prefix")
-		go func() {
-			activeForceMerges.Inc()
-			defer activeForceMerges.Dec()
-			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
-			startTime := time.Now()
-			strg.MustForceMerge(partitionNamePrefix)
-			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
-		}()
-		return true
+		return processForceMerge(w, r)
 	}
 	return false
 }
 
-var strg *logstorage.Storage
-var storageMetrics *metrics.Set
+func processForceMerge(w http.ResponseWriter, r *http.Request) bool {
+	if localStorage == nil {
+		// Force merge isn't supported by non-local storage
+		return false
+	}
 
-// CanWriteData returns non-nil error if it cannot write data to vlstorage.
+	if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
+		return true
+	}
+
+	// Run force merge in background
+	partitionNamePrefix := r.FormValue("partition_prefix")
+	go func() {
+		activeForceMerges.Inc()
+		defer activeForceMerges.Dec()
+		logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
+		startTime := time.Now()
+		localStorage.MustForceMerge(partitionNamePrefix)
+		logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
+	}()
+	return true
+}
+
+// CanWriteData returns non-nil error if it cannot write data to vlstorage
 func CanWriteData() error {
-	if strg.IsReadOnly() {
+	if localStorage == nil {
+		// The data can be always written in non-local mode.
+		return nil
+	}
+
+	if localStorage.IsReadOnly() {
 		return &httpserver.ErrorWithStatusCode{
 			Err: fmt.Errorf("cannot add rows into storage in read-only mode; the storage can be in read-only mode "+
 				"because of lack of free disk space at -storageDataPath=%s", *storageDataPath),
@@ -130,50 +253,77 @@ func CanWriteData() error {
 //
 // It is advised to call CanWriteData() before calling MustAddRows()
 func MustAddRows(lr *logstorage.LogRows) {
-	strg.MustAddRows(lr)
+	if localStorage != nil {
+		// Store lr in the local storage.
+		localStorage.MustAddRows(lr)
+	} else {
+		// Store lr across the remote storage nodes.
+		lr.ForEachRow(netstorageInsert.AddRow)
+	}
 }
 
 // RunQuery runs the given q and calls writeBlock for the returned data blocks
-func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock logstorage.WriteBlockFunc) error {
-	return strg.RunQuery(ctx, tenantIDs, q, writeBlock)
+func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock logstorage.WriteDataBlockFunc) error {
+	if localStorage != nil {
+		return localStorage.RunQuery(ctx, tenantIDs, q, writeBlock)
+	}
+	return netstorageSelect.RunQuery(ctx, tenantIDs, q, writeBlock)
 }
 
 // GetFieldNames executes q and returns field names seen in results.
 func GetFieldNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]logstorage.ValueWithHits, error) {
-	return strg.GetFieldNames(ctx, tenantIDs, q)
+	if localStorage != nil {
+		return localStorage.GetFieldNames(ctx, tenantIDs, q)
+	}
+	return netstorageSelect.GetFieldNames(ctx, tenantIDs, q)
 }
 
 // GetFieldValues executes q and returns unique values for the fieldName seen in results.
 //
 // If limit > 0, then up to limit unique values are returned.
 func GetFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
-	return strg.GetFieldValues(ctx, tenantIDs, q, fieldName, limit)
+	if localStorage != nil {
+		return localStorage.GetFieldValues(ctx, tenantIDs, q, fieldName, limit)
+	}
+	return netstorageSelect.GetFieldValues(ctx, tenantIDs, q, fieldName, limit)
 }
 
 // GetStreamFieldNames executes q and returns stream field names seen in results.
 func GetStreamFieldNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]logstorage.ValueWithHits, error) {
-	return strg.GetStreamFieldNames(ctx, tenantIDs, q)
+	if localStorage != nil {
+		return localStorage.GetStreamFieldNames(ctx, tenantIDs, q)
+	}
+	return netstorageSelect.GetStreamFieldNames(ctx, tenantIDs, q)
 }
 
 // GetStreamFieldValues executes q and returns stream field values for the given fieldName seen in results.
 //
 // If limit > 0, then up to limit unique stream field values are returned.
 func GetStreamFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
-	return strg.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, limit)
+	if localStorage != nil {
+		return localStorage.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, limit)
+	}
+	return netstorageSelect.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, limit)
 }
 
 // GetStreams executes q and returns streams seen in query results.
 //
 // If limit > 0, then up to limit unique streams are returned.
 func GetStreams(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
-	return strg.GetStreams(ctx, tenantIDs, q, limit)
+	if localStorage != nil {
+		return localStorage.GetStreams(ctx, tenantIDs, q, limit)
+	}
+	return netstorageSelect.GetStreams(ctx, tenantIDs, q, limit)
 }
 
 // GetStreamIDs executes q and returns streamIDs seen in query results.
 //
 // If limit > 0, then up to limit unique streamIDs are returned.
 func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
-	return strg.GetStreamIDs(ctx, tenantIDs, q, limit)
+	if localStorage != nil {
+		return localStorage.GetStreamIDs(ctx, tenantIDs, q, limit)
+	}
+	return netstorageSelect.GetStreamIDs(ctx, tenantIDs, q, limit)
 }
 
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-	"unsafe"
 
 	"github.com/valyala/quicktemplate"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -46,6 +46,10 @@ func (pf *pipeFormat) String() string {
 		s += " skip_empty_results"
 	}
 	return s
+}
+
+func (pf *pipeFormat) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pf, nil
 }
 
 func (pf *pipeFormat) canLiveTail() bool {
@@ -95,8 +99,8 @@ func (pf *pipeFormat) hasFilterInWithQuery() bool {
 	return pf.iff.hasFilterInWithQuery()
 }
 
-func (pf *pipeFormat) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pf *pipeFormat) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -109,12 +113,10 @@ func (pf *pipeFormat) visitSubqueries(visitFunc func(q *Query)) {
 	pf.iff.visitSubqueries(visitFunc)
 }
 
-func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pf *pipeFormat) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeFormatProcessor{
 		pf:     pf,
 		ppNext: ppNext,
-
-		shards: make([]pipeFormatProcessorShard, workersCount),
 	}
 }
 
@@ -122,17 +124,10 @@ type pipeFormatProcessor struct {
 	pf     *pipeFormat
 	ppNext pipeProcessor
 
-	shards []pipeFormatProcessorShard
+	shards atomicutil.Slice[pipeFormatProcessorShard]
 }
 
 type pipeFormatProcessorShard struct {
-	pipeFormatProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeFormatProcessorShardNopad{})%128]byte
-}
-
-type pipeFormatProcessorShardNopad struct {
 	bm bitmap
 
 	a  arena
@@ -144,7 +139,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &pfp.shards[workerID]
+	shard := pfp.shards.Get(workerID)
 	pf := pfp.pf
 
 	bm := &shard.bm
@@ -176,7 +171,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 		shard.rc.addValue(v)
 	}
 
-	br.addResultColumn(&shard.rc)
+	br.addResultColumn(shard.rc)
 	pfp.ppNext.writeBlock(workerID, br)
 
 	shard.a.reset()
