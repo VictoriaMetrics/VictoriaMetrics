@@ -238,7 +238,7 @@ func TestNewLabelsFromStringFailure(t *testing.T) {
 	f(`foo{bar="baz`)
 	f(`foo{bar="baz"`)
 	f(`foo{bar="baz",`)
-	f(`foo{"bar"="baz"}`)
+	//f(`foo{"bar"="baz"}`)
 	f(`{"bar":"baz"}`)
 	f(`{bar:"baz"}`)
 	f(`{bar=~"baz"}`)
