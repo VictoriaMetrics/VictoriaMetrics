@@ -198,6 +198,13 @@ Logs also can be explored and queried via [built-in Web UI](https://docs.victori
 Open `http://localhost:9471/select/vmui/` in the web browser, select `last 7 days` time range in the top right corner and explore the ingested logs.
 See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/) to familiarize yourself with the query language.
 
+Every `vmstorage` node can be queried individually because [it is equivalent to a single-node VictoriaLogs](#single-node-and-cluster-mode-duality).
+For example, the following command returns the number of stored logs at the first `vmstorage` node started above:
+
+```sh
+curl http://localhost:9491/select/logsql/query -d 'query=* | count()'
+```
+
 It is recommended reading [key concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/) before you start working with VictoriaLogs.
 
 See also [security docs](#security).
