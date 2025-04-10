@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
 
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add an ability to format [duration values](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values) as floating-point seconds via `<duration_seconds:field_with_duration_value>` syntax.
+
 Released at 2025-04-10
 
 * FEATURE: add [cluster mode](https://docs.victoriametrics.com/victorialogs/cluster/), which allow scaling VictoriaLogs horizontally to multiple nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8223), [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5077), [this question](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7950).
