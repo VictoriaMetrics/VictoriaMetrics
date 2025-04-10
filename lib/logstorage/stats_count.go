@@ -1,9 +1,11 @@
 package logstorage
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -191,6 +193,26 @@ func (scp *statsCountProcessor) updateStatsForRow(sf statsFunc, br *blockResult,
 func (scp *statsCountProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsCountProcessor)
 	scp.rowsCount += src.rowsCount
+}
+
+func (scp *statsCountProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return encoding.MarshalVarUint64(dst, scp.rowsCount)
+}
+
+func (scp *statsCountProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	rowsCount, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal rowsCount")
+	}
+	src = src[n:]
+
+	scp.rowsCount = rowsCount
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return 0, nil
 }
 
 func (scp *statsCountProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {

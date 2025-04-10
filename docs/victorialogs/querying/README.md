@@ -784,6 +784,7 @@ Below is an example JSON output returned from this endpoint:
 ```
 
 The `/select/logsql/stream_field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N` with the biggest number of hits.
+If the `limit` is exceeded, then a random set of values is returned with zeroed `hits`.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns stream field values stats

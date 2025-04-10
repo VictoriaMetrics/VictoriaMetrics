@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/internalinsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/journald"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
@@ -27,6 +28,11 @@ func Stop() {
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+
+	if path == "/internal/insert" {
+		internalinsert.RequestHandler(w, r)
+		return true
+	}
 
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.

@@ -84,7 +84,7 @@ func TestStorageRunQuery(t *testing.T) {
 	}
 	s.debugFlush()
 
-	mustRunQuery := func(t *testing.T, tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) {
+	mustRunQuery := func(t *testing.T, tenantIDs []TenantID, q *Query, writeBlock WriteDataBlockFunc) {
 		t.Helper()
 		err := s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 		if err != nil {
@@ -99,8 +99,8 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 0,
 			ProjectID: 0,
 		}
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			panic(fmt.Errorf("unexpected match for %d rows", db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -111,8 +111,8 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			panic(fmt.Errorf("unexpected match for %d rows", db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -126,14 +126,14 @@ func TestStorageRunQuery(t *testing.T) {
 			}
 			expectedTenantID := tenantID.String()
 			var rowsCountTotal atomic.Uint32
-			writeBlock := func(_ uint, timestamps []int64, columns []BlockColumn) {
+			writeBlock := func(_ uint, db *DataBlock) {
 				hasTenantIDColumn := false
 				var columnNames []string
-				for _, c := range columns {
+				for _, c := range db.Columns {
 					if c.Name == "tenant.id" {
 						hasTenantIDColumn = true
-						if len(c.Values) != len(timestamps) {
-							panic(fmt.Errorf("unexpected number of rows in column %q; got %d; want %d", c.Name, len(c.Values), len(timestamps)))
+						if len(c.Values) != db.RowsCount() {
+							panic(fmt.Errorf("unexpected number of rows in column %q; got %d; want %d", c.Name, len(c.Values), db.RowsCount()))
 						}
 						for _, v := range c.Values {
 							if v != expectedTenantID {
@@ -146,7 +146,7 @@ func TestStorageRunQuery(t *testing.T) {
 				if !hasTenantIDColumn {
 					panic(fmt.Errorf("missing tenant.id column among columns: %q", columnNames))
 				}
-				rowsCountTotal.Add(uint32(len(timestamps)))
+				rowsCountTotal.Add(uint32(db.RowsCount()))
 			}
 			tenantIDs := []TenantID{tenantID}
 			mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -160,8 +160,8 @@ func TestStorageRunQuery(t *testing.T) {
 	t.Run("matching-multiple-tenant-ids", func(t *testing.T) {
 		q := mustParseQuery(`"log message"`)
 		var rowsCountTotal atomic.Uint32
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			rowsCountTotal.Add(uint32(db.RowsCount()))
 		}
 		mustRunQuery(t, allTenantIDs, q, writeBlock)
 
@@ -173,8 +173,8 @@ func TestStorageRunQuery(t *testing.T) {
 	t.Run("matching-in-filter", func(t *testing.T) {
 		q := mustParseQuery(`source-file:in(foobar,/foo/bar/baz)`)
 		var rowsCountTotal atomic.Uint32
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			rowsCountTotal.Add(uint32(db.RowsCount()))
 		}
 		mustRunQuery(t, allTenantIDs, q, writeBlock)
 
@@ -185,8 +185,8 @@ func TestStorageRunQuery(t *testing.T) {
 	})
 	t.Run("stream-filter-mismatch", func(t *testing.T) {
 		q := mustParseQuery(`_stream:{job="foobar",instance=~"host-.+:2345"} log`)
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			panic(fmt.Errorf("unexpected match for %d rows", db.RowsCount()))
 		}
 		mustRunQuery(t, allTenantIDs, q, writeBlock)
 	})
@@ -199,14 +199,14 @@ func TestStorageRunQuery(t *testing.T) {
 			}
 			expectedStreamID := fmt.Sprintf("stream_id=%d", i)
 			var rowsCountTotal atomic.Uint32
-			writeBlock := func(_ uint, timestamps []int64, columns []BlockColumn) {
+			writeBlock := func(_ uint, db *DataBlock) {
 				hasStreamIDColumn := false
 				var columnNames []string
-				for _, c := range columns {
+				for _, c := range db.Columns {
 					if c.Name == "stream-id" {
 						hasStreamIDColumn = true
-						if len(c.Values) != len(timestamps) {
-							panic(fmt.Errorf("unexpected number of rows for column %q; got %d; want %d", c.Name, len(c.Values), len(timestamps)))
+						if len(c.Values) != db.RowsCount() {
+							panic(fmt.Errorf("unexpected number of rows for column %q; got %d; want %d", c.Name, len(c.Values), db.RowsCount()))
 						}
 						for _, v := range c.Values {
 							if v != expectedStreamID {
@@ -219,7 +219,7 @@ func TestStorageRunQuery(t *testing.T) {
 				if !hasStreamIDColumn {
 					panic(fmt.Errorf("missing stream-id column among columns: %q", columnNames))
 				}
-				rowsCountTotal.Add(uint32(len(timestamps)))
+				rowsCountTotal.Add(uint32(db.RowsCount()))
 			}
 			tenantIDs := []TenantID{tenantID}
 			mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -237,8 +237,8 @@ func TestStorageRunQuery(t *testing.T) {
 			ProjectID: 11,
 		}
 		var rowsCountTotal atomic.Uint32
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			rowsCountTotal.Add(uint32(db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -257,8 +257,8 @@ func TestStorageRunQuery(t *testing.T) {
 			ProjectID: 11,
 		}
 		var rowsCountTotal atomic.Uint32
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			rowsCountTotal.Add(uint32(db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -277,8 +277,8 @@ func TestStorageRunQuery(t *testing.T) {
 			ProjectID: 11,
 		}
 		var rowsCountTotal atomic.Uint32
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			rowsCountTotal.Add(uint32(db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -296,8 +296,8 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			panic(fmt.Errorf("unexpected match for %d rows", db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -310,8 +310,8 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
+		writeBlock := func(_ uint, db *DataBlock) {
+			panic(fmt.Errorf("unexpected match for %d rows", db.RowsCount()))
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(t, tenantIDs, q, writeBlock)
@@ -501,14 +501,14 @@ func TestStorageRunQuery(t *testing.T) {
 		q := mustParseQuery(query)
 		var resultRowsLock sync.Mutex
 		var resultRows [][]Field
-		writeBlock := func(_ uint, _ []int64, bcs []BlockColumn) {
-			if len(bcs) == 0 {
+		writeBlock := func(_ uint, db *DataBlock) {
+			if len(db.Columns) == 0 {
 				return
 			}
 
-			for i := 0; i < len(bcs[0].Values); i++ {
-				row := make([]Field, len(bcs))
-				for j, bc := range bcs {
+			for i := 0; i < len(db.Columns[0].Values); i++ {
+				row := make([]Field, len(db.Columns))
+				for j, bc := range db.Columns {
 					row[j] = Field{
 						Name:  strings.Clone(bc.Name),
 						Value: strings.Clone(bc.Values[i]),
@@ -1160,4 +1160,126 @@ func newTestGenericSearchOptions(tenantIDs []TenantID, f filter, neededColumns [
 		filter:            f,
 		neededColumnNames: neededColumns,
 	}
+}
+
+func TestValueWithHitsMarshalUnmarshal(t *testing.T) {
+	vh := &ValueWithHits{
+		Value: "foo",
+		Hits:  1234,
+	}
+
+	data := vh.Marshal(nil)
+
+	vh2 := &ValueWithHits{}
+	tail, err := vh2.UnmarshalInplace(data)
+	if err != nil {
+		t.Fatalf("cannot unmarshal ValueWithHits: %s", err)
+	}
+	if len(tail) > 0 {
+		t.Fatalf("unexpected non-empty tail left; len(tail)=%d", len(tail))
+	}
+
+	if !reflect.DeepEqual(vh, vh2) {
+		t.Fatalf("unexpected unmarshaled ValueWithHits; got %#v; want %#v", vh, vh2)
+	}
+}
+
+func TestDataBlock_MarshalUnmarshal(t *testing.T) {
+	f := func(db *DataBlock) {
+		t.Helper()
+
+		data := db.Marshal(nil)
+
+		db2 := &DataBlock{}
+
+		tail, _, err := db2.UnmarshalInplace(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(tail) > 0 {
+			t.Fatalf("unexpected non-empty tail returned; len(tail)=%d", len(tail))
+		}
+
+		if len(db2.Columns) == 0 {
+			db2.Columns = nil
+		}
+		if !reflect.DeepEqual(db, db2) {
+			t.Fatalf("unexpected DataBlock after unmarshaling\ngot\n%#v\nwant\n%#v", db2, db)
+		}
+	}
+
+	var db *DataBlock
+
+	// empty DataBlock
+	db = &DataBlock{}
+	f(db)
+
+	// Zero rows, non-zero columns
+	db = &DataBlock{
+		Columns: []BlockColumn{
+			{
+				Name: "foo",
+			},
+			{
+				Name: "bar",
+			},
+		},
+	}
+	f(db)
+
+	// Non-zero rows, non-zero columns
+	db = &DataBlock{
+		Columns: []BlockColumn{
+			{
+				Name:   "foo",
+				Values: []string{"a", "b", "c"},
+			},
+			{
+				Name:   "bar",
+				Values: []string{"", "sfdsffs", ""},
+			},
+		},
+	}
+	f(db)
+
+	// Const columns
+	db = &DataBlock{
+		Columns: []BlockColumn{
+			{
+				Name:   "foo",
+				Values: []string{"a", "a", "a"},
+			},
+			{
+				Name:   "bar",
+				Values: []string{"x", "y", "z"},
+			},
+		},
+	}
+	f(db)
+
+	// Timestamp column
+	db = &DataBlock{
+		Columns: []BlockColumn{
+			{
+				Name:   "_time",
+				Values: []string{"2025-01-20T10:20:30Z", "2025-01-20T10:20:30.124Z", "2025-01-20T10:20:30.123456789Z"},
+			},
+		},
+	}
+	f(db)
+
+	// Non-zero columns, plus timestamps column
+	db = &DataBlock{
+		Columns: []BlockColumn{
+			{
+				Name:   "foo",
+				Values: []string{"a", "a", "a"},
+			},
+			{
+				Name:   "_time",
+				Values: []string{"2025-01-20T10:20:30Z", "2025-01-20T10:20:30.124Z", "2025-01-20T10:20:30.123456789Z"},
+			},
+		},
+	}
+	f(db)
 }
