@@ -58,7 +58,7 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-clusternativeListenAddr": "127.0.0.1:0",
-			"-graphiteListenAddr":      ":2003",
+			"-graphiteListenAddr":      ":0",
 			"-opentsdbListenAddr":      "127.0.0.1:0",
 		},
 		extractREs: extractREs,
