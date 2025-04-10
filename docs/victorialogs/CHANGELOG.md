@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
 
+Released at 2025-04-10
+
 * FEATURE: add [cluster mode](https://docs.victoriametrics.com/victorialogs/cluster/), which allow scaling VictoriaLogs horizontally to multiple nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8223), [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5077), [this question](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7950).
 * FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): add [`json_values` function](https://docs.victoriametrics.com/victorialogs/logsql/#json_values-stats) for JSON-encoding logs into JSON arrays.
 * FEATURE: [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{field in (*)}` and `{field not_in (*)}` to be consistent with [`in(*)`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter). The `{field in (*)}` matches any [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), while the `{field not_in (*)}` matches zero log streams. This is needed for [this feature request for VictoriaLogs datasource in Grafana](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238).
