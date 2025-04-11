@@ -101,7 +101,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
               onChange={handleSetRowsPerPage}
             />
             <div className="vm-explore-logs-body-header__table-settings">
-              <DownloadLogsButton logs={data} />
+              {data.length > 0 && <DownloadLogsButton logs={data} />}
               <TableSettings
                 columns={columns}
                 selectedColumns={displayColumns}
@@ -120,7 +120,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
             />
           </>
         )}
-        {activeTab === DisplayType.json && (
+        {activeTab === DisplayType.json && data.length > 0 && (
           <DownloadLogsButton logs={data} />
         )}
       </div>

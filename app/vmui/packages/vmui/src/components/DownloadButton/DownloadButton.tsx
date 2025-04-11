@@ -5,30 +5,34 @@ import { DownloadIcon } from "../Main/Icons";
 import Popper from "../Main/Popper/Popper";
 import { useRef } from "react";
 import "./style.scss";
+import useBoolean from "../../hooks/useBoolean";
 
 interface DownloadButtonProps {
-    title: string;
-    downloadFormatOptions?: string[];
-    onDownload: (format?: string) => void;
+  title: string;
+  downloadFormatOptions?: string[];
+  onDownload: (format?: string) => void;
 }
 
 const DownloadButton: FC<DownloadButtonProps> = ({ title, downloadFormatOptions, onDownload }) => {
-  const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
-  const onClosePopup = useCallback(() => setIsPopupOpen(false), []);
+  const {
+    value: isPopupOpen,
+    setTrue: onOpenPopup,
+    setFalse: onClosePopup,
+  } = useBoolean(false);
   const downloadButtonRef = useRef<HTMLDivElement>(null);
   const onDownloadClick = useCallback(() => {
-    if(isPopupOpen){
+    if (isPopupOpen) {
       onClosePopup();
       return;
     }
 
-    if(downloadFormatOptions && downloadFormatOptions.length > 0){
-      setIsPopupOpen(true);
+    if (downloadFormatOptions && downloadFormatOptions.length > 0) {
+      onOpenPopup();
     } else {
       onDownload();
       onClosePopup();
     }
-  }, [onDownload, onClosePopup, isPopupOpen,setIsPopupOpen]);
+  }, [onDownload, onClosePopup, isPopupOpen, onOpenPopup]);
 
   const onDownloadFormatClick = useCallback((event: Event) => {
     const button = event.currentTarget as HTMLButtonElement;
@@ -56,13 +60,19 @@ const DownloadButton: FC<DownloadButtonProps> = ({ title, downloadFormatOptions,
           buttonRef={downloadButtonRef}
           placement={"bottom-right"}
         >
-          {downloadFormatOptions.map((option) => <Button
-            size={"small"}
-            variant={"text"}
-            onClick={onDownloadFormatClick}
-            key={option}
-            className={"vm-download-button__format-option"}
-          >{option}</Button>)}
+          {downloadFormatOptions.map((option) =>
+            <div
+              key={option}
+              className={"vm-download-button__format-option"}
+            >
+              <Button
+                variant="text"
+                onClick={onDownloadFormatClick}
+                className={"vm-download-button__format-option-button"}
+              >
+                {option}
+              </Button>
+            </div>)}
         </Popper>)}
     </>
   );
