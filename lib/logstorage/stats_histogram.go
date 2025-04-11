@@ -2,8 +2,15 @@ package logstorage
 
 import (
 	"fmt"
+	"maps"
+	"sort"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 type statsHistogram struct {
@@ -24,6 +31,11 @@ func (sh *statsHistogram) newStatsProcessor(a *chunkedAllocator) statsProcessor 
 
 type statsHistogramProcessor struct {
 	h metrics.Histogram
+
+	// bucketsMap is initialized only in loadState().
+	//
+	// It contains additional state for h.
+	bucketsMap map[string]uint64
 }
 
 func (shp *statsHistogramProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
@@ -157,20 +169,101 @@ func (shp *statsHistogramProcessor) updateStatsForRow(sf statsFunc, br *blockRes
 func (shp *statsHistogramProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsHistogramProcessor)
 	shp.h.Merge(&src.h)
+
+	for vmrange, count := range src.bucketsMap {
+		if shp.bucketsMap == nil {
+			shp.bucketsMap = make(map[string]uint64)
+		}
+		shp.bucketsMap[vmrange] += count
+	}
+}
+
+func (shp *statsHistogramProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	m := shp.getCompleteBucketsMap()
+
+	dst = encoding.MarshalVarUint64(dst, uint64(len(m)))
+	for vmrange, count := range m {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(vmrange))
+		dst = encoding.MarshalVarUint64(dst, count)
+	}
+
+	return dst
+}
+
+func (shp *statsHistogramProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	shp.h.Reset()
+
+	bucketsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal bucketsLen")
+	}
+	src = src[n:]
+
+	stateSizeIncrease := 0
+	m := make(map[string]uint64, bucketsLen)
+	for i := uint64(0); i < bucketsLen; i++ {
+		v, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot unmarshal vmrange")
+		}
+		vmrange := string(v)
+		src = src[n:]
+
+		count, n := encoding.UnmarshalVarUint64(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot unmarshal bucket count")
+		}
+		src = src[n:]
+
+		m[vmrange] = count
+
+		stateSizeIncrease += int(unsafe.Sizeof(vmrange)) + len(vmrange) + int(unsafe.Sizeof(count))
+	}
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left after decoding histogram; len(tail)=%d", len(src))
+	}
+
+	if len(m) == 0 {
+		m = nil
+	}
+	shp.bucketsMap = m
+
+	return stateSizeIncrease, nil
 }
 
 func (shp *statsHistogramProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	m := shp.getCompleteBucketsMap()
+
+	vmranges := make([]string, 0, len(m))
+	for vmrange := range m {
+		vmranges = append(vmranges, vmrange)
+	}
+	sort.Slice(vmranges, func(i, j int) bool {
+		return stringsutil.LessNatural(vmranges[i], vmranges[j])
+	})
+
 	dst = append(dst, '[')
-	shp.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+	for _, vmrange := range vmranges {
 		dst = append(dst, `{"vmrange":"`...)
 		dst = append(dst, vmrange...)
 		dst = append(dst, `","hits":`...)
-		dst = marshalUint64String(dst, count)
+		dst = marshalUint64String(dst, m[vmrange])
 		dst = append(dst, `},`...)
-	})
+	}
 	dst = dst[:len(dst)-1]
 	dst = append(dst, ']')
 	return dst
+}
+
+func (shp *statsHistogramProcessor) getCompleteBucketsMap() map[string]uint64 {
+	m := maps.Clone(shp.bucketsMap)
+	if m == nil {
+		m = make(map[string]uint64)
+	}
+	shp.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+		m[vmrange] += count
+	})
+	return m
 }
 
 func parseStatsHistogram(lex *lexer) (*statsHistogram, error) {

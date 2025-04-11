@@ -31,6 +31,10 @@ func (pc *pipeCopy) String() string {
 	return "copy " + strings.Join(a, ", ")
 }
 
+func (pc *pipeCopy) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pc, nil
+}
+
 func (pc *pipeCopy) canLiveTail() bool {
 	return true
 }
@@ -58,7 +62,7 @@ func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pc, nil
 }
 

@@ -3,12 +3,11 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 // pipeHash processes '| hash ...' pipe.
@@ -25,6 +24,10 @@ func (ph *pipeHash) String() string {
 		s += " as " + quoteTokenIfNeeded(ph.resultField)
 	}
 	return s
+}
+
+func (ph *pipeHash) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return ph, nil
 }
 
 func (ph *pipeHash) canLiveTail() bool {
@@ -49,7 +52,7 @@ func (ph *pipeHash) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ph *pipeHash) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (ph *pipeHash) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return ph, nil
 }
 
@@ -57,35 +60,25 @@ func (ph *pipeHash) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (ph *pipeHash) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	shards := make([]pipeHashProcessorShard, workersCount)
-	for i := range shards {
-		shards[i].reset()
-	}
-
-	return &pipeHashProcessor{
+func (ph *pipeHash) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	php := &pipeHashProcessor{
 		ph:     ph,
 		ppNext: ppNext,
-
-		shards: shards,
 	}
+	php.shards.Init = func(shard *pipeHashProcessorShard) {
+		shard.reset()
+	}
+	return php
 }
 
 type pipeHashProcessor struct {
 	ph     *pipeHash
 	ppNext pipeProcessor
 
-	shards []pipeHashProcessorShard
+	shards atomicutil.Slice[pipeHashProcessorShard]
 }
 
 type pipeHashProcessorShard struct {
-	pipeHashProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeHashProcessorShardNopad{})%128]byte
-}
-
-type pipeHashProcessorShardNopad struct {
 	a  arena
 	rc resultColumn
 
@@ -98,7 +91,7 @@ func (php *pipeHashProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &php.shards[workerID]
+	shard := php.shards.Get(workerID)
 	shard.rc.name = php.ph.resultField
 
 	c := br.getColumnByName(php.ph.fieldName)
@@ -108,7 +101,7 @@ func (php *pipeHashProcessor) writeBlock(workerID uint, br *blockResult) {
 		f := getFloat64CompatibleHash(v)
 		shard.a.b = marshalFloat64String(shard.a.b[:0], f)
 		shard.rc.addValue(bytesutil.ToUnsafeString(shard.a.b))
-		br.addResultColumnConst(&shard.rc)
+		br.addResultColumnConst(shard.rc)
 	} else {
 		// Slow path for other columns
 		values := c.getValues(br)
@@ -119,7 +112,7 @@ func (php *pipeHashProcessor) writeBlock(workerID uint, br *blockResult) {
 			}
 			shard.rc.addValue(vEncoded)
 		}
-		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)
+		br.addResultColumnFloat64(shard.rc, shard.minValue, shard.maxValue)
 	}
 
 	// Write the result to ppNext
@@ -137,6 +130,7 @@ func (shard *pipeHashProcessorShard) reset() {
 
 func (shard *pipeHashProcessorShard) getEncodedHash(v string) string {
 	f := getFloat64CompatibleHash(v)
+
 	if math.IsNaN(shard.minValue) {
 		shard.minValue = f
 		shard.maxValue = f
@@ -145,9 +139,9 @@ func (shard *pipeHashProcessorShard) getEncodedHash(v string) string {
 	} else if f > shard.maxValue {
 		shard.maxValue = f
 	}
-	n := math.Float64bits(f)
+
 	bLen := len(shard.a.b)
-	shard.a.b = encoding.MarshalUint64(shard.a.b, n)
+	shard.a.b = marshalFloat64(shard.a.b, f)
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
 }
 

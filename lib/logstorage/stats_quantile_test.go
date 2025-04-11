@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -409,4 +410,41 @@ func TestHistogramQuantile(t *testing.T) {
 	f([]string{"5", "1", "3"}, 1-1e-5, "5")
 	f([]string{"5", "1", "3"}, 1, "5")
 	f([]string{"10", "5", "3"}, 10, "10")
+}
+
+func TestStatsQuantile_ExportImportState(t *testing.T) {
+	f := func(sqp *statsQuantileProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := sqp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var sqp2 statsQuantileProcessor
+		stateSize, err := sqp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(sqp, &sqp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &sqp2, sqp)
+		}
+	}
+
+	var sqp statsQuantileProcessor
+
+	// zero state
+	f(&sqp, 4, 0)
+
+	// non-zero state
+	sqp = statsQuantileProcessor{}
+	sqp.h.update("foo")
+	sqp.h.update("bar")
+	sqp.h.update("baz")
+	f(&sqp, 22, 63)
 }

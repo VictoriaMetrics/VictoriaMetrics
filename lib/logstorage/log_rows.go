@@ -1,13 +1,16 @@
 package logstorage
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // LogRows holds a set of rows needed for Storage.MustAddRows
@@ -49,6 +52,24 @@ type LogRows struct {
 
 	// defaultMsgValue contains default value for missing _msg field
 	defaultMsgValue string
+}
+
+// ForEachRow calls callback for every row stored in the lr.
+func (lr *LogRows) ForEachRow(callback func(streamHash uint64, r *InsertRow)) {
+	r := GetInsertRow()
+	for i, timestamp := range lr.timestamps {
+		sid := &lr.streamIDs[i]
+
+		streamHash := sid.id.lo ^ sid.id.hi
+
+		r.TenantID = sid.tenantID
+		r.StreamTagsCanonical = lr.streamTagsCanonicals[i]
+		r.Timestamp = timestamp
+		r.Fields = lr.rows[i]
+
+		callback(streamHash, r)
+	}
+	PutInsertRow(r)
 }
 
 type sortedFields []Field
@@ -118,6 +139,33 @@ func (lr *LogRows) ResetKeepSettings() {
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
 func (lr *LogRows) NeedFlush() bool {
 	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7
+}
+
+// MustAddInsertRow adds r to lr.
+func (lr *LogRows) MustAddInsertRow(r *InsertRow) {
+	// verify r.StreamTagsCanonical
+	st := GetStreamTags()
+	streamTagsCanonical := bytesutil.ToUnsafeBytes(r.StreamTagsCanonical)
+	tail, err := st.UnmarshalCanonical(streamTagsCanonical)
+	if err != nil {
+		line := MarshalFieldsToJSON(nil, r.Fields)
+		logger.Warnf("cannot unmarshal streamTagsCanonical: %w; skipping the log entry; log entry: %s", err, line)
+		return
+	}
+	if len(tail) > 0 {
+		line := MarshalFieldsToJSON(nil, r.Fields)
+		logger.Warnf("unexpected tail left after unmarshaling streamTagsCanonical; len(tail)=%d; streamTags: %s; log entry: %s", len(tail), st, line)
+		return
+	}
+	PutStreamTags(st)
+
+	// Calculate the id for the StreamTags
+	var sid streamID
+	sid.tenantID = r.TenantID
+	sid.id = hash128(streamTagsCanonical)
+
+	// Store the row
+	lr.mustAddInternal(sid, r.Timestamp, r.Fields, r.StreamTagsCanonical)
 }
 
 // MustAdd adds a log entry with the given args to lr.
@@ -419,4 +467,100 @@ func EstimatedJSONRowLen(fields []Field) int {
 		n += len(`,"":""`) + nameLen + len(f.Value)
 	}
 	return n
+}
+
+// GetInsertRow returns InsertRow from a pool.
+//
+// Pass the returned row to PutInsertRow when it is no longer needed, so it could be re-used.
+func GetInsertRow() *InsertRow {
+	v := insertRowsPool.Get()
+	if v == nil {
+		return &InsertRow{}
+	}
+	return v.(*InsertRow)
+}
+
+// PutInsertRow returns r to the pool, so it could be re-used via GetInsertRow.
+func PutInsertRow(r *InsertRow) {
+	r.Reset()
+	insertRowsPool.Put(r)
+}
+
+var insertRowsPool sync.Pool
+
+// InsertRow represents a row to insert into VictoriaLogs via native protocol.
+type InsertRow struct {
+	TenantID            TenantID
+	StreamTagsCanonical string
+	Timestamp           int64
+	Fields              []Field
+}
+
+// Reset resets r to zero value.
+func (r *InsertRow) Reset() {
+	r.TenantID.Reset()
+	r.StreamTagsCanonical = ""
+	r.Timestamp = 0
+
+	clear(r.Fields)
+	r.Fields = r.Fields[:0]
+}
+
+// Marshal appends marshaled r to dst and returns the result.
+func (r *InsertRow) Marshal(dst []byte) []byte {
+	dst = r.TenantID.marshal(dst)
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(r.StreamTagsCanonical))
+	dst = encoding.MarshalUint64(dst, uint64(r.Timestamp))
+	dst = encoding.MarshalVarUint64(dst, uint64(len(r.Fields)))
+	for _, field := range r.Fields {
+		dst = field.marshal(dst, true)
+	}
+	return dst
+}
+
+// UnmarshalInplace unmarshals r from src and returns the remaining tail.
+//
+// The r is valid until src contents isn't changed.
+func (r *InsertRow) UnmarshalInplace(src []byte) ([]byte, error) {
+	srcOrig := src
+
+	tail, err := r.TenantID.unmarshal(src)
+	if err != nil {
+		return srcOrig, fmt.Errorf("cannot unmarshal tenantID: %w", err)
+	}
+	src = tail
+
+	streamTagsCanonical, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal streamTagCanonical")
+	}
+	r.StreamTagsCanonical = bytesutil.ToUnsafeString(streamTagsCanonical)
+	src = src[n:]
+
+	if len(src) < 8 {
+		return srcOrig, fmt.Errorf("cannot unmarshal timestamp")
+	}
+	timestamp := encoding.UnmarshalUint64(src)
+	r.Timestamp = int64(timestamp)
+	src = src[8:]
+
+	fieldsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal the number of fields")
+	}
+	if fieldsLen > maxColumnsPerBlock {
+		return srcOrig, fmt.Errorf("too many fields in the log entry: %d; mustn't exceed %d", fieldsLen, maxColumnsPerBlock)
+	}
+	src = src[n:]
+
+	r.Fields = slicesutil.SetLength(r.Fields, int(fieldsLen))
+	for i := range r.Fields {
+		tail, err = r.Fields[i].unmarshalInplace(src, true)
+		if err != nil {
+			return srcOrig, fmt.Errorf("cannot unmarshal field #%d: %w", i, err)
+		}
+		src = tail
+	}
+
+	return src, nil
 }

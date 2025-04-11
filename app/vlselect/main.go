@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/internalselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/logsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -72,7 +73,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 
-	if !strings.HasPrefix(path, "/select/") {
+	if !strings.HasPrefix(path, "/select/") && !strings.HasPrefix(path, "/internal/select/") {
 		// Skip requests, which do not start with /select/, since these aren't our requests.
 		return false
 	}
@@ -119,12 +120,24 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	defer decRequestConcurrency()
 
+	if strings.HasPrefix(path, "/internal/select/") {
+		// Process internal request from vlselect without timeout (e.g. use ctx instead of ctxWithTimeout),
+		// since the timeout must be controlled by the vlselect.
+		internalselect.RequestHandler(ctx, w, r)
+		return true
+	}
+
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {
 		return false
 	}
 
-	err := ctxWithTimeout.Err()
+	logRequestErrorIfNeeded(ctxWithTimeout, w, r, startTime)
+	return true
+}
+
+func logRequestErrorIfNeeded(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
+	err := ctx.Err()
 	switch err {
 	case nil:
 		// nothing to do
@@ -140,8 +153,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		httpserver.Errorf(w, r, "unexpected error: %s", err)
 	}
-
-	return true
 }
 
 func incRequestConcurrency(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
