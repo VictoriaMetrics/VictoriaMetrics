@@ -55,16 +55,48 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 // The call is blocked until the data is flushed to vmstorage or the timeout is reached.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
-func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, _ QueryOpts) {
+func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	app.sendBlocking(t, len(records), func() {
+		app.APIV1ImportPrometheusNoWaitFlush(t, records, opts)
+	})
+}
+
+// APIV1ImportPrometheusNoWaitFlush is a test helper function that inserts a
+// collection of records in Prometheus text exposition format for the given
+// tenant by sending a HTTP POST request to /api/v1/import/prometheus vmagent endpoint.
+//
+// The call accepts the records but does not guarantee successful flush to vmstorage.
+// Flushing may still be in progress on the function return.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, "text/plain", data)
-		if statusCode != http.StatusNoContent {
-			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
-		}
-	})
+	_, statusCode := app.cli.Post(t, app.apiV1ImportPrometheusURL, "text/plain", data)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
+// RemoteWriteRequestsRetriesCountTotal sums up the total retries for remote write requests.
+func (app *Vmagent) RemoteWriteRequestsRetriesCountTotal(t *testing.T) int {
+	total := 0.0
+	for _, v := range app.GetMetricsByPrefix(t, "vmagent_remotewrite_retries_count_total") {
+		total += v
+	}
+	return int(total)
+}
+
+// RemoteWritePacketsDroppedTotal sums up the total number of dropped remote write packets.
+func (app *Vmagent) RemoteWritePacketsDroppedTotal(t *testing.T) int {
+	total := 0.0
+	for _, v := range app.GetMetricsByPrefix(t, "vmagent_remotewrite_packets_dropped_total") {
+		total += v
+	}
+	return int(total)
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and
