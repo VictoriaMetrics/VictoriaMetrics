@@ -11,8 +11,6 @@ import (
 // TestSingleSpecialQueryRegression is used to test queries that have experienced issues for specific data sets.
 // These test cases were migrated from `app/victoria-metrics/main_test.go`.
 // Most of these cases are based on user feedback. Refer to the corresponding GitHub issue for details on each case.
-//
-// To improve performance, it will handle ingestion and flushing at one location and then evaluate each query.
 func TestSingleSpecialQueryRegression(t *testing.T) {
 	os.RemoveAll(t.Name())
 	tc := at.NewTestCase(t)
@@ -21,14 +19,12 @@ func TestSingleSpecialQueryRegression(t *testing.T) {
 	sut := tc.MustStartDefaultVmsingle()
 
 	// prometheus
-	setupPrometheusImport(tc, sut)
 	testCaseSensitiveRegex(tc, sut)
 	testDuplicateLabel(tc, sut)
 	testTooBigLookbehindWindow(tc, sut)
 	testMatchSeries(tc, sut)
 
 	// graphite
-	setupGraphiteImport(tc, sut)
 	testComparisonNotInfNotNan(tc, sut)
 	testEmptyLabelMatch(tc, sut)
 	testMaxLookbehind(tc, sut)
@@ -36,8 +32,7 @@ func TestSingleSpecialQueryRegression(t *testing.T) {
 	testSubqueryAggregation(tc, sut)
 }
 
-// setupPrometheusImport import data for each test cases by prometheus import API.
-func setupPrometheusImport(tc *at.TestCase, sut *at.Vmsingle) {
+func testCaseSensitiveRegex(tc *at.TestCase, sut *at.Vmsingle) {
 	t := tc.T()
 
 	// case-sensitive-regex
@@ -46,94 +41,8 @@ func setupPrometheusImport(tc *at.TestCase, sut *at.Vmsingle) {
 		`prometheus.sensitiveRegex{label="sensitiveRegex"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`prometheus.sensitiveRegex{label="SensitiveRegex"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 	}, at.QueryOpts{})
-	// duplicate_label
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/172
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`prometheus.duplicate_label{label="duplicate", label="duplicate"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
-	// too big look-behind window
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`prometheus.too_big_lookbehind{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
-	// too big look-behind window - query range
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`prometheus.too_big_lookbehind_range{label="foo"} 13 1707123496700`, // 2024-02-05T08:58:16.700Z
-		`prometheus.too_big_lookbehind_range{label="foo"} 12 1707123466700`, // 2024-02-05T08:57:46.700Z
-		`prometheus.too_big_lookbehind_range{label="foo"} 11 1707123436700`, // 2024-02-05T08:57:16.700Z
-		`prometheus.too_big_lookbehind_range{label="foo"} 10 1707123406700`, // 2024-02-05T08:56:46.700Z
-	}, at.QueryOpts{})
-	// too big look-behind window
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`GenBearTemp{db="TenMinute",Park="1",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-		`GenBearTemp{db="TenMinute",Park="2",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-		`GenBearTemp{db="TenMinute",Park="3",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-		`GenBearTemp{db="TenMinute",Park="4",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
-
 	sut.ForceFlush(t)
-}
 
-// setupGraphiteImport import data for each test cases using Graphite TCP conn.
-func setupGraphiteImport(tc *at.TestCase, sut *at.Vmsingle) {
-	t := tc.T()
-
-	rowInserted := sut.ServesMetrics.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
-
-	sut.GraphiteWrite(t, []string{
-		"not_nan_not_inf;item=x 1 1707123456", // 2024-02-05T08:57:36.000Z
-		"not_nan_not_inf;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
-		"not_nan_not_inf;item=y 3 1707123456", // 2024-02-05T08:57:36.000Z
-		"not_nan_not_inf;item=y 1 1707123455", // 2024-02-05T08:57:35.000Z
-	}, at.QueryOpts{})
-	sut.GraphiteWrite(t, []string{
-		"empty_label_match 1 1707123456",         // 2024-02-05T08:57:36.000Z
-		"empty_label_match;foo=bar 2 1707123456", // 2024-02-05T08:57:36.000Z
-		"empty_label_match;foo=baz 3 1707123456", // 2024-02-05T08:57:36.000Z
-	}, at.QueryOpts{})
-	sut.GraphiteWrite(t, []string{
-		"max_lookback_set 1 1707123426", // 2024-02-05T08:57:06.000Z
-		"max_lookback_set 2 1707123396", // 2024-02-05T08:56:36.000Z
-		"max_lookback_set 3 1707123336", // 2024-02-05T08:55:36.000Z",
-		"max_lookback_set 4 1707123306", // 2024-02-05T08:55:06.000Z
-	}, at.QueryOpts{})
-	sut.GraphiteWrite(t, []string{
-		"max_lookback_unset 1 1707123426", // 2024-02-05T08:57:06.000Z
-		"max_lookback_unset 2 1707123396", // 2024-02-05T08:56:36.000Z
-		"max_lookback_unset 3 1707123336", // 2024-02-05T08:55:36.000Z",
-		"max_lookback_unset 4 1707123306", // 2024-02-05T08:55:06.000Z
-	}, at.QueryOpts{})
-	sut.GraphiteWrite(t, []string{
-		"not_nan_as_missing_data;item=x 2 1707123454", // 2024-02-05T08:57:34.000Z
-		"not_nan_as_missing_data;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
-		"not_nan_as_missing_data;item=y 4 1707123454", // 2024-02-05T08:57:34.000Z
-		"not_nan_as_missing_data;item=y 3 1707123455", // 2024-02-05T08:57:35.000Z
-	}, at.QueryOpts{})
-	sut.GraphiteWrite(t, []string{
-		"forms_daily_count;item=x 1 1707123396", // 2024-02-05T08:56:36.000Z
-		"forms_daily_count;item=x 2 1707123336", // 2024-02-05T08:55:36.000Z",
-		"forms_daily_count;item=y 3 1707123396", // 2024-02-05T08:56:36.000Z
-		"forms_daily_count;item=y 4 1707123336", // 2024-02-05T08:55:36.000Z",
-	}, at.QueryOpts{})
-
-	tc.Assert(&at.AssertOptions{
-		Msg: "unexpected row inserted metrics check",
-		Got: func() any {
-			return (sut.ServesMetrics.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 23
-		},
-		Want: true,
-	})
-
-	sut.ForceFlush(t)
-}
-
-func testCaseSensitiveRegex(tc *at.TestCase, sut *at.Vmsingle) {
-	t := tc.T()
-
-	// case-sensitive-regex
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/161
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/export response",
 		Got: func() any {
@@ -169,6 +78,11 @@ func testDuplicateLabel(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// duplicate_label
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/172
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`prometheus.duplicate_label{label="duplicate", label="duplicate"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+	}, at.QueryOpts{})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/export response",
 		Got: func() any {
@@ -200,6 +114,11 @@ func testTooBigLookbehindWindow(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// too big look-behind window
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`prometheus.too_big_lookbehind{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+	}, at.QueryOpts{})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query response",
 		Got: func() any {
@@ -226,6 +145,14 @@ func testTooBigLookbehindWindow(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// too big look-behind window - query range
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`prometheus.too_big_lookbehind_range{label="foo"} 13 1707123496700`, // 2024-02-05T08:58:16.700Z
+		`prometheus.too_big_lookbehind_range{label="foo"} 12 1707123466700`, // 2024-02-05T08:57:46.700Z
+		`prometheus.too_big_lookbehind_range{label="foo"} 11 1707123436700`, // 2024-02-05T08:57:16.700Z
+		`prometheus.too_big_lookbehind_range{label="foo"} 10 1707123406700`, // 2024-02-05T08:56:46.700Z
+	}, at.QueryOpts{})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
@@ -260,6 +187,14 @@ func testMatchSeries(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// match_series
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/155
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`GenBearTemp{db="TenMinute",Park="1",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`GenBearTemp{db="TenMinute",Park="2",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`GenBearTemp{db="TenMinute",Park="3",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`GenBearTemp{db="TenMinute",Park="4",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+	}, at.QueryOpts{})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/series response",
 		Got: func() any {
@@ -286,6 +221,22 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// comparison-not-inf-not-nan
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
+	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	sut.GraphiteWrite(t, []string{
+		"not_nan_not_inf;item=x 1 1707123456", // 2024-02-05T08:57:36.000Z
+		"not_nan_not_inf;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
+		"not_nan_not_inf;item=y 3 1707123456", // 2024-02-05T08:57:36.000Z
+		"not_nan_not_inf;item=y 1 1707123455", // 2024-02-05T08:57:35.000Z
+	}, at.QueryOpts{})
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected row inserted metrics check",
+		Got: func() any {
+			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+		},
+		Want: true,
+	})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
@@ -317,6 +268,21 @@ func testEmptyLabelMatch(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// empty-label-match
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395
+	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	sut.GraphiteWrite(t, []string{
+		"empty_label_match 1 1707123456",         // 2024-02-05T08:57:36.000Z
+		"empty_label_match;foo=bar 2 1707123456", // 2024-02-05T08:57:36.000Z
+		"empty_label_match;foo=baz 3 1707123456", // 2024-02-05T08:57:36.000Z
+	}, at.QueryOpts{})
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected row inserted metrics check",
+		Got: func() any {
+			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 3
+		},
+		Want: true,
+	})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
@@ -354,6 +320,22 @@ func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// max_lookback_set
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
+	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	sut.GraphiteWrite(t, []string{
+		"max_lookback_set 1 1707123426", // 2024-02-05T08:57:06.000Z
+		"max_lookback_set 2 1707123396", // 2024-02-05T08:56:36.000Z
+		"max_lookback_set 3 1707123336", // 2024-02-05T08:55:36.000Z",
+		"max_lookback_set 4 1707123306", // 2024-02-05T08:55:06.000Z
+	}, at.QueryOpts{})
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected row inserted metrics check",
+		Got: func() any {
+			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+		},
+		Want: true,
+	})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
@@ -385,6 +367,22 @@ func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// max_lookback_unset
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
+	rowInserted = sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	sut.GraphiteWrite(t, []string{
+		"max_lookback_unset 1 1707123426", // 2024-02-05T08:57:06.000Z
+		"max_lookback_unset 2 1707123396", // 2024-02-05T08:56:36.000Z
+		"max_lookback_unset 3 1707123336", // 2024-02-05T08:55:36.000Z
+		"max_lookback_unset 4 1707123306", // 2024-02-05T08:55:06.000Z
+	}, at.QueryOpts{})
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected row inserted metrics check",
+		Got: func() any {
+			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+		},
+		Want: true,
+	})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
@@ -430,6 +428,22 @@ func testNonNanAsMissingData(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// not-nan-as-missing-data
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
+	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	sut.GraphiteWrite(t, []string{
+		"not_nan_as_missing_data;item=x 2 1707123454", // 2024-02-05T08:57:34.000Z
+		"not_nan_as_missing_data;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
+		"not_nan_as_missing_data;item=y 4 1707123454", // 2024-02-05T08:57:34.000Z
+		"not_nan_as_missing_data;item=y 3 1707123455", // 2024-02-05T08:57:35.000Z
+	}, at.QueryOpts{})
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected row inserted metrics check",
+		Got: func() any {
+			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+		},
+		Want: true,
+	})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
@@ -469,6 +483,22 @@ func testSubqueryAggregation(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// subquery-aggregation
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/184
+	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	sut.GraphiteWrite(t, []string{
+		"forms_daily_count;item=x 1 1707123396", // 2024-02-05T08:56:36.000Z
+		"forms_daily_count;item=x 2 1707123336", // 2024-02-05T08:55:36.000Z
+		"forms_daily_count;item=y 3 1707123396", // 2024-02-05T08:56:36.000Z
+		"forms_daily_count;item=y 4 1707123336", // 2024-02-05T08:55:36.000Z
+	}, at.QueryOpts{})
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected row inserted metrics check",
+		Got: func() any {
+			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+		},
+		Want: true,
+	})
+	sut.ForceFlush(t)
+
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /api/v1/query response",
 		Got: func() any {
