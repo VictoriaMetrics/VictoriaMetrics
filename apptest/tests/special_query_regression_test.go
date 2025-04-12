@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestSpecialQueryRegression is used to test queries that have experienced issues for specific data sets.
+// TestSingleSpecialQueryRegression is used to test queries that have experienced issues for specific data sets.
 // These test cases were migrated from `app/victoria-metrics/main_test.go`.
 // Most of these cases are based on user feedback. Refer to the corresponding GitHub issue for details on each case.
 //
@@ -21,23 +21,25 @@ func TestSingleSpecialQueryRegression(t *testing.T) {
 	sut := tc.MustStartDefaultVmsingle()
 
 	// prometheus
-	setupPrometheusImport(t, sut)
-	testCaseSensetiveRegex(t, tc, sut)
-	testDuplicateLabel(t, tc, sut)
-	testTooBigLookbehindWindow(t, tc, sut)
-	testMatchSeries(t, tc, sut)
+	setupPrometheusImport(tc, sut)
+	testCaseSensitiveRegex(tc, sut)
+	testDuplicateLabel(tc, sut)
+	testTooBigLookbehindWindow(tc, sut)
+	testMatchSeries(tc, sut)
 
 	// graphite
-	setupGraphiteImport(t, tc, sut)
-	testComparisonNotInfNotNan(t, tc, sut)
-	testEmptyLabelMatch(t, tc, sut)
-	testMaxLookbehind(t, tc, sut)
-	testNonNanAsMissingData(t, tc, sut)
-	testSubqueryAggregation(t, tc, sut)
+	setupGraphiteImport(tc, sut)
+	testComparisonNotInfNotNan(tc, sut)
+	testEmptyLabelMatch(tc, sut)
+	testMaxLookbehind(tc, sut)
+	testNonNanAsMissingData(tc, sut)
+	testSubqueryAggregation(tc, sut)
 }
 
 // setupPrometheusImport import data for each test cases by prometheus import API.
-func setupPrometheusImport(t *testing.T, sut *at.Vmsingle) {
+func setupPrometheusImport(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// case-sensitive-regex
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/161
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
@@ -75,7 +77,9 @@ func setupPrometheusImport(t *testing.T, sut *at.Vmsingle) {
 }
 
 // setupGraphiteImport import data for each test cases using Graphite TCP conn.
-func setupGraphiteImport(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func setupGraphiteImport(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	rowInserted := sut.ServesMetrics.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
 
 	sut.GraphiteWrite(t, []string{
@@ -125,7 +129,9 @@ func setupGraphiteImport(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	sut.ForceFlush(t)
 }
 
-func testCaseSensetiveRegex(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testCaseSensitiveRegex(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// case-sensitive-regex
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/161
 	tc.Assert(&at.AssertOptions{
@@ -158,7 +164,9 @@ func testCaseSensetiveRegex(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testDuplicateLabel(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testDuplicateLabel(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// duplicate_label
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/172
 	tc.Assert(&at.AssertOptions{
@@ -187,7 +195,9 @@ func testDuplicateLabel(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testTooBigLookbehindWindow(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testTooBigLookbehindWindow(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// too big look-behind window
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 	tc.Assert(&at.AssertOptions{
@@ -245,7 +255,9 @@ func testTooBigLookbehindWindow(t *testing.T, tc *at.TestCase, sut *at.Vmsingle)
 	})
 }
 
-func testMatchSeries(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testMatchSeries(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// match_series
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/155
 	tc.Assert(&at.AssertOptions{
@@ -269,7 +281,9 @@ func testMatchSeries(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testComparisonNotInfNotNan(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testComparisonNotInfNotNan(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// comparison-not-inf-not-nan
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
 	tc.Assert(&at.AssertOptions{
@@ -298,7 +312,9 @@ func testComparisonNotInfNotNan(t *testing.T, tc *at.TestCase, sut *at.Vmsingle)
 	})
 }
 
-func testEmptyLabelMatch(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testEmptyLabelMatch(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// empty-label-match
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395
 	tc.Assert(&at.AssertOptions{
@@ -333,7 +349,9 @@ func testEmptyLabelMatch(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testMaxLookbehind(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// max_lookback_set
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
 	tc.Assert(&at.AssertOptions{
@@ -407,7 +425,9 @@ func testMaxLookbehind(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testNonNanAsMissingData(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testNonNanAsMissingData(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// not-nan-as-missing-data
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
 	tc.Assert(&at.AssertOptions{
@@ -444,7 +464,9 @@ func testNonNanAsMissingData(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testSubqueryAggregation(t *testing.T, tc *at.TestCase, sut *at.Vmsingle) {
+func testSubqueryAggregation(tc *at.TestCase, sut *at.Vmsingle) {
+	t := tc.T()
+
 	// subquery-aggregation
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/184
 	tc.Assert(&at.AssertOptions{

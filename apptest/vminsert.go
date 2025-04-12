@@ -128,7 +128,7 @@ func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) 
 func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.getTenant())
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/csv", app.httpListenAddr, opts.getTenant())
 	uv := opts.asURLValues()
 	uvs := uv.Encode()
 	if len(uvs) > 0 {
