@@ -29,12 +29,12 @@ export const setQueriesToStorage = (key: HistoryKey, history: QueryHistoryType[]
   lastValues.forEach((v) => {
     const already = values.includes(v);
     if (!already && v) values.unshift(v);
-    if (values.length > TOTAL_LIMIT) values.shift();
+    if (values.length > TOTAL_LIMIT) values.pop();
   });
 
   const newStorageHistory = {
     ...storageHistory,
-    QUERY_HISTORY: storageValues
+    QUERY_HISTORY: [values]
   };
 
   saveToStorage(key, JSON.stringify(newStorageHistory));
@@ -56,7 +56,7 @@ export const clearQueryHistoryStorage = (key: HistoryKey, historyType: HistoryTy
   }));
 };
 
-export const getUpdatedHistory = (query: string, queryHistory: QueryHistoryType) => {
+export const getUpdatedHistory = (query: string, queryHistory?: QueryHistoryType): QueryHistoryType => {
   const h = queryHistory || { values: [] };
   const queryEqual = query === h.values[h.values.length - 1];
   const newValues = !queryEqual && query ? [...h.values, query] : h.values;
