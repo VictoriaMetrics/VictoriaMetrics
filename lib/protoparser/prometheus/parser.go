@@ -233,7 +233,9 @@ var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`
 
 func unmarshalQuotedString(s string, noEscapes bool) (string, string, error) {
 	q := strings.IndexByte(s, '"')
-	if q == -1 {
+
+	// Check to see if s can contain 2 characters
+	if q == -1 || len(s[q:]) < 2 {
 		return "", s, fmt.Errorf("missing starting double quote in string: %q", s)
 	}
 	var n int
@@ -243,13 +245,13 @@ func unmarshalQuotedString(s string, noEscapes bool) (string, string, error) {
 			return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
 		}
 		// Add 2 to account for both quotes
-		return s[1 : q+1+n], s[q+2+n:], nil
+		return s[q+1 : q+1+n], s[q+2+n:], nil
 	}
 	n = findClosingQuote(s[q:])
 	if n == -1 {
 		return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
 	}
-	return unescapeValue(s[1:n]), s[n+1:], nil
+	return unescapeValue(s[q+1 : n]), s[n+1:], nil
 }
 
 func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
