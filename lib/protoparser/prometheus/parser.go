@@ -236,12 +236,14 @@ func parseQuotedLabel(s string) (string, string) {
 	n := findClosingQuote(s[q:])
 	return s[q+1 : n+q], s[n+q+1:]
 }
+
 func parseUnquotedLabel(s string) string {
 	s = skipLeadingWhitespace(s)
 	return s
 }
+
 func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
-	// Edge case for {}
+	// Edge case for no tags
 	s = skipLeadingWhitespace(s)
 	if s == "" {
 		return s, dst, nil
@@ -250,6 +252,7 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 		s = skipLeadingWhitespace(s)
 		n := strings.IndexByte(s, '"')
 		if n < 0 {
+			// Check that are we done with tags
 			if len(s) > 0 && s[0] == '}' {
 				return s[1:], dst, nil
 			}
@@ -276,7 +279,7 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 				}
 				s = skipLeadingWhitespace(s[1:])
 			}
-			// Fall through to setting value
+			// Fall through to parsing value
 		} else {
 			c := possibleKey[len(possibleKey)-1]
 			// This is an unquoted label
@@ -287,119 +290,11 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 				s = skipLeadingWhitespace(s[possibleKeyLen:])
 				// This will bottom out to parsing value
 			} else {
-				// Error out
-				return s, dst, fmt.Errorf("misformated tag %q", s)
-			}
-		}
-		if len(s) == 0 || s[0] != '"' {
-			return s, dst, fmt.Errorf("expecting quoted value for tag %q; got %q", key, s)
-		}
-		value := s[1:]
-		if noEscapes {
-			// Fast path - the line has no escape chars
-			n = strings.IndexByte(value, '"')
-			if n < 0 {
-				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
-			}
-			s = value[n+1:]
-			value = value[:n]
-		} else {
-			// Slow path - the line contains escape chars
-			n = findClosingQuote(s)
-			if n < 0 {
-				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
-			}
-			value = unescapeValue(s[1:n])
-			s = s[n+1:]
-		}
-		if len(key) > 0 {
-			// Allow empty values (len(value)==0) - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
-			if cap(dst) > len(dst) {
-				dst = dst[:len(dst)+1]
-			} else {
-				dst = append(dst, Tag{})
-			}
-			tag := &dst[len(dst)-1]
-			tag.Key = key
-			tag.Value = value
-		}
-		s = skipLeadingWhitespace(s)
-		if len(s) > 0 && s[0] == '}' {
-			// End of tags found.
-			return s[1:], dst, nil
-		}
-		if len(s) == 0 || s[0] != ',' {
-			return s, dst, fmt.Errorf("missing comma after tag %s=%q", key, value)
-		}
-		s = s[1:]
-	}
-}
-func (r *Row) unmarshalTagsOld(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
-	for {
-		s = skipLeadingWhitespace(s)
-		if len(s) > 0 && s[0] == '}' {
-			// End of tags found.
-			return s[1:], dst, nil
-		}
-		n := strings.IndexByte(s, '=')
-		if n < 0 {
-			// Edge case there may be a metric name enclosed in quotes
-			// This occurs when the metric name is all there is or if the metric name
-			// is the last item
-			start := strings.IndexByte(s, '"')
-			if start < 0 {
+				// We have an unquoted tag without a value
 				return s, dst, fmt.Errorf("missing value for tag %q", s)
 			}
-			end := findClosingQuote(s[start+1:])
-			if end > 0 {
-				key := s[start+1 : end]
-				n = findClosingQuote(key)
-				if n < 0 {
-					return s, dst, fmt.Errorf("missing value for tag %q", s)
-				}
-				if n < len(key) {
-					key = key[1:n]
-					if r.Metric == "" {
-						r.Metric = key
-					}
-					return s, dst, nil
-				}
-			}
 		}
-		key := skipTrailingWhitespace(s[:n])
-		// Quoted UTF8 key
-		if len(key) > 1 && key[0] == '"' {
-			n = findClosingQuote(key)
-			if n < len(key) {
-				// Determine if there is an empty key Prometheus 3.0 metric name
-				key = key[1:n]
-				afterKey := skipLeadingWhitespace(s[n+1:])
-				lenAfterKey := len(afterKey)
-				if afterKey == "" {
-					// This is a single quoted label which acts as a metric name
-					if r.Metric == "" {
-						r.Metric = key
-					}
-					return s, dst, nil
-				}
-				if lenAfterKey > 1 && afterKey[0] == ',' {
-					if r.Metric == "" {
-						r.Metric = key
-					}
-					s = afterKey[1:]
-					continue
-				} else if lenAfterKey > 1 && afterKey[0] == '=' {
-					s = afterKey[1:]
-					n = -1
-				} else {
-					return s, dst, fmt.Errorf("missing value for tag %q", s)
-				}
-			}
-		}
-		if strings.IndexByte(key, '"') >= 0 {
-			return s, dst, fmt.Errorf("tag key %q cannot contain double quotes", key)
-		}
-		s = skipLeadingWhitespace(s[n+1:])
+		// Parse value
 		if len(s) == 0 || s[0] != '"' {
 			return s, dst, fmt.Errorf("expecting quoted value for tag %q; got %q", key, s)
 		}
