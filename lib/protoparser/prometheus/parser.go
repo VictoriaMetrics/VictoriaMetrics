@@ -231,15 +231,10 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
-func parseQuotedLabel(s string) (string, string) {
+func unmarshalQuotedString(s string) (string, string) {
 	q := strings.IndexByte(s, '"')
 	n := findClosingQuote(s[q:])
 	return s[q+1 : n+q], s[n+q+1:]
-}
-
-func parseUnquotedLabel(s string) string {
-	s = skipLeadingWhitespace(s)
-	return s
 }
 
 func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
@@ -264,7 +259,7 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 		key := ""
 		if possibleKeyLen == 0 || possibleKey[possibleKeyLen-1] == ',' {
 			// Parse quoted label
-			key, s = parseQuotedLabel(s)
+			key, s = unmarshalQuotedString(s)
 			s = skipLeadingWhitespace(s)
 			// Check to see if next char is = if not this is a metric name
 			if len(s) > 0 {
@@ -289,7 +284,7 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 			// This is an unquoted label
 			if c == '=' {
 				// Parse unquoted label
-				key = parseUnquotedLabel(s[:possibleKeyLen-1])
+				key = skipLeadingWhitespace(s[:possibleKeyLen-1])
 				key = skipTrailingWhitespace(key)
 				s = skipLeadingWhitespace(s[possibleKeyLen:])
 				// This will bottom out to parsing value
