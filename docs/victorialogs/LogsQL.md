@@ -2075,6 +2075,9 @@ _time:5m | format "request from <ip>:<port>"
 
 String fields can be formatted with the following additional formatting rules:
 
+- The number of seconds in the [duration value](#duration-values) - add `duration_seconds:` in front of the corresponding field name.
+  The formatted number is fractional if the duration value contains non-zero milliseconds, microseconds or nanoseconds.
+
 - JSON-compatible quoted string - add `q:` in front of the corresponding field name.
   For example, the following query generates properly encoded JSON object from `_msg` and `stacktrace`
   [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and stores it into `my_json` output field:
