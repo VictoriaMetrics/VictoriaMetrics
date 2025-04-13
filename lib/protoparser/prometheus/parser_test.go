@@ -530,7 +530,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 		Rows: []Row{{
 			Metric: "foo",
 			Tags: []Tag{{
-				Key:   `温度{房间=\"水电费`,
+				Key:   `温度{房间="水电费`,
 				Value: "baz",
 			}},
 			Value:     1,
