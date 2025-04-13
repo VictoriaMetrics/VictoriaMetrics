@@ -276,6 +276,10 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 						s = s[1:]
 					}
 					continue
+				} else if s[0] != '=' {
+					// We are a quoted label that isn't preceded by a comma or at the end
+					// of the tags so we must have a value
+					return s, dst, fmt.Errorf("missing value for tag %q", s)
 				}
 				s = skipLeadingWhitespace(s[1:])
 			}
