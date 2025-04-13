@@ -40,7 +40,7 @@ type API interface {
 	Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error)
 
 	// GetMetricNamesUsageStats returns statistics for metric names
-	GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline uint64) (storage.MetricNamesStatsResponse, error)
+	GetMetricNamesUsageStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, deadline uint64) (storage.MetricNamesStatsResponse, error)
 
 	// ResetMetricNamesUsageStats resets internal state of metric names tracker
 	ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error

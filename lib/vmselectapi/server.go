@@ -1,6 +1,7 @@
 package vmselectapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -348,18 +349,6 @@ func (ctx *vmselectRequestCtx) readUint64() (uint64, error) {
 	return n, nil
 }
 
-func (ctx *vmselectRequestCtx) readInt64() (int64, error) {
-	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
-	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
-		if err == io.EOF {
-			return 0, err
-		}
-		return 0, fmt.Errorf("cannot read int64: %w", err)
-	}
-	n := encoding.UnmarshalInt64(ctx.sizeBuf)
-	return n, nil
-}
-
 func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) {
 	accountID, err := ctx.readUint32()
 	if err != nil {
@@ -586,7 +575,7 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processRegisterMetricNames(ctx)
 	case "tenants_v1":
 		return s.processTenants(ctx)
-	case "metricNamesUsageStats_v1":
+	case "metricNamesUsageStats_v2":
 		return s.processMetricNamesUsageStats(ctx)
 	case "resetMetricNamesStats_v1":
 		return s.processResetMetricUsageStats(ctx)
@@ -1076,46 +1065,24 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
+const maxMetricNamesStatsQueryJSONSize = 1024 * 1024
+
 func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	// Read request.
-	hasTenant, err := ctx.readBool()
-	if err != nil {
-		return fmt.Errorf("cannot read hasTenant: %w", err)
-	}
-	var at *storage.TenantToken
-	if hasTenant {
-		accountID, err := ctx.readUint32()
-		if err != nil {
-			return fmt.Errorf("cannot read accountID: %w", err)
-		}
-		projectID, err := ctx.readUint32()
-		if err != nil {
-			return fmt.Errorf("cannot read projectID: %w", err)
-		}
-		at = &storage.TenantToken{
-			AccountID: accountID,
-			ProjectID: projectID,
-		}
-	}
-	limit, err := ctx.readLimit()
-	if err != nil {
-		return fmt.Errorf("cannot read limit: %w", err)
-	}
-	le, err := ctx.readInt64()
-	if err != nil {
-		return fmt.Errorf("cannot read le: %w", err)
-	}
-	if err := ctx.readDataBufBytes(256); err != nil {
+	if err := ctx.readDataBufBytes(maxMetricNamesStatsQueryJSONSize); err != nil {
 		return fmt.Errorf("cannot read matchPattern: %w", err)
 	}
-	matchPattern := string(ctx.dataBuf)
+	var sq storage.MetricNamesStatsQuery
+	if err := json.Unmarshal(ctx.dataBuf, &sq); err != nil {
+		return fmt.Errorf("cannot parse MetricNamesStatsQuery: %w", err)
+	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
 
-	result, err := s.api.GetMetricNamesUsageStats(ctx.qt, at, limit, int(le), matchPattern, ctx.deadline)
+	result, err := s.api.GetMetricNamesUsageStats(ctx.qt, sq, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

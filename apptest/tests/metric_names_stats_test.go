@@ -122,7 +122,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
 	})
 	// verify empty stats
-	resp := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "0:0"})
+	resp := vmselect.MetricNamesStats(t, "", "", "", nil, apptest.QueryOpts{Tenant: "0:0"})
 	if len(resp.Records) != 0 {
 		t.Fatalf("unexpected resp Records: %d, want: %d", len(resp.Records), 0)
 	}
@@ -155,7 +155,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 				{MetricName: "metric_name_3"},
 			},
 		}
-		gotStats := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+		gotStats := vmselect.MetricNamesStats(t, "", "", "", nil, apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
 		}
@@ -172,7 +172,17 @@ func TestClusterMetricNamesStats(t *testing.T) {
 				{MetricName: "metric_name_1", QueryRequestsCount: 3},
 			},
 		}
-		gotStats = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
+		gotStats = vmselect.MetricNamesStats(t, "", "", "", nil, apptest.QueryOpts{Tenant: tenantID})
+		if diff := cmp.Diff(expected, gotStats); diff != "" {
+			t.Errorf("unexpected response tenant: %s (-want, +got):\n%s", tenantID, diff)
+		}
+		expected = apptest.MetricNamesStatsResponse{
+			Records: []at.MetricNamesStatsRecord{
+				{MetricName: "metric_name_1", QueryRequestsCount: 3},
+			},
+		}
+		matchNames := []string{"metric_name_1"}
+		gotStats = vmselect.MetricNamesStats(t, "", "", "", matchNames, apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
 			t.Errorf("unexpected response tenant: %s (-want, +got):\n%s", tenantID, diff)
 		}
@@ -186,14 +196,27 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			{MetricName: "metric_name_1", QueryRequestsCount: 9},
 		},
 	}
-	gotStats := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
+	gotStats := vmselect.MetricNamesStats(t, "", "", "", nil, apptest.QueryOpts{Tenant: "multitenant"})
+	if diff := cmp.Diff(expected, gotStats); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// verify multitenant stats
+	expected = apptest.MetricNamesStatsResponse{
+		Records: []at.MetricNamesStatsRecord{
+			{MetricName: "metric_name_2", QueryRequestsCount: 3},
+			{MetricName: "metric_name_1", QueryRequestsCount: 9},
+		},
+	}
+	matchNames := []string{"metric_name_2", "metric_name_1"}
+	gotStats = vmselect.MetricNamesStats(t, "", "", "", matchNames, apptest.QueryOpts{Tenant: "multitenant"})
 	if diff := cmp.Diff(expected, gotStats); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// reset cache and check empty state
 	vmselect.MetricNamesStatsReset(t, at.QueryOpts{})
-	resp = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
+	resp = vmselect.MetricNamesStats(t, "", "", "", nil, apptest.QueryOpts{Tenant: "multitenant"})
 	if len(resp.Records) != 0 {
 		t.Fatalf("want 0 records, got: %d", len(resp.Records))
 	}

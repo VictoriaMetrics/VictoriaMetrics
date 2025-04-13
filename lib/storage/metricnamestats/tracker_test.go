@@ -562,3 +562,60 @@ func TestStatsResultMerge(t *testing.T) {
 	f(dst, src, expected)
 
 }
+
+func TestStatsForMetricNames(t *testing.T) {
+	type testOp struct {
+		o  byte
+		mg string
+	}
+
+	umt, err := loadFrom(t.TempDir()+t.Name(), storeOverhead+10*2)
+	if err != nil {
+		t.Fatalf("cannot load tracker: %s", err)
+	}
+	umt.getCurrentTs = func() uint64 { return 1 }
+	ops := []testOp{
+		{'i', "metric_1"},
+		{'r', "metric_2"},
+		{'r', "metric_1"},
+		{'i', "metric_2"},
+		{'i', "metric_3"},
+		{'i', "metric_4"},
+		{'r', "metric_1"},
+		{'r', "metric_2"},
+		{'r', "metric_2"},
+		{'r', "metric_2"},
+	}
+	for _, op := range ops {
+		switch op.o {
+		case 'i':
+			umt.RegisterIngestRequest(0, 0, []byte(op.mg))
+		case 'r':
+			umt.RegisterQueryRequest(0, 0, []byte(op.mg))
+		}
+	}
+
+	f := func(names []string, expected StatsResult) {
+		t.Helper()
+		got := umt.GetStatsForNamesTenant(0, 0, names)
+		if d := cmp.Diff(expected, got, statsResultCmpOpts); len(d) > 0 {
+			t.Fatalf("unexpected deduplicate result: %s", d)
+		}
+	}
+	want := StatsResult{
+		TotalRecords: 2,
+		Records: []StatRecord{
+			{MetricName: "metric_1", RequestsCount: 2, LastRequestTs: 1},
+		},
+	}
+	f([]string{"metric_1", "metric"}, want)
+	want = StatsResult{
+		TotalRecords: 2,
+		Records: []StatRecord{
+			{MetricName: "metric_1", RequestsCount: 2, LastRequestTs: 1},
+			{MetricName: "metric_2", RequestsCount: 3, LastRequestTs: 1},
+		},
+	}
+	f([]string{"metric_1", "metric_2"}, want)
+
+}
