@@ -483,6 +483,7 @@ To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_
 * `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
 * `le` -  `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. For example, with `?le=1` API returns metric names that were queried <=1 times.
 * `match_pattern` - a substring pattern to match metric names. For example, `?match_pattern=vm_` will match any metric names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`. It doesn't support regex syntax.
+* `match_names` - a list of metric names to query. If this param is defined, `le` and `match_pattern` options will be ignored.
 
  The API endpoint returns the following `JSON` response:
 

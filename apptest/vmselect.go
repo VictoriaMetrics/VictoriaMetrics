@@ -139,13 +139,16 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 // and returns the statistics response for given params.
 //
 // See https://docs.victoriametrics.com/#Trackingestedmetricsusage
-func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, matchNames []string, opts QueryOpts) MetricNamesStatsResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("limit", limit)
 	values.Add("le", le)
 	values.Add("match_pattern", matchPattern)
+	for _, mn := range matchNames {
+		values.Add("match_names", mn)
+	}
 	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/status/metric_names_stats", app.httpListenAddr, opts.getTenant())
 
 	res, statusCode := app.cli.PostForm(t, queryURL, values)

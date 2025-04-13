@@ -2,6 +2,7 @@ package netstorage
 
 import (
 	"container/heap"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -3337,14 +3338,14 @@ func metricNameTenantToTags(mn *storage.MetricName) {
 }
 
 // GetMetricNamesStats returns metric names usage statistics for the given params
-func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
+func GetMetricNamesStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
 	type nodeResult struct {
 		resp storage.MetricNamesStatsResponse
 		err  error
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		resp, err := sn.processGetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+		resp, err := sn.processGetMetricNamesStats(qt, sq, deadline)
 		return nodeResult{resp: resp, err: err}
 	})
 	var mu sync.Mutex
@@ -3365,45 +3366,33 @@ func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit,
 	return mnuss, nil
 }
 
-func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
+func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
 	var result storage.MetricNamesStatsResponse
 	f := func(bc *handshake.BufferedConn) error {
-		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, tt, limit, le, matchPattern)
+		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, sq)
 		if err != nil {
 			return err
 		}
 		result = bcResult
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "metricNamesUsageStats_v1", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "metricNamesUsageStats_v2", f, deadline); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *storage.TenantToken, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+const maxStatsQuerySize = 1024 * 1024
+
+func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, sq storage.MetricNamesStatsQuery) (storage.MetricNamesStatsResponse, error) {
 	var result storage.MetricNamesStatsResponse
-	hasTenantToken := tt != nil
-	if err := writeBool(bc, hasTenantToken); err != nil {
-		return result, fmt.Errorf("cannot write hasTenantToken: %w", err)
+
+	data, err := json.Marshal(sq)
+	if err != nil {
+		return result, fmt.Errorf("cannot marshal MetricNamesStatsQuery: %w", err)
 	}
-	// conditionally write tenant token
-	if hasTenantToken {
-		if err := writeUint32(bc, tt.AccountID); err != nil {
-			return result, fmt.Errorf("cannot write AccountID: %w", err)
-		}
-		if err := writeUint32(bc, tt.ProjectID); err != nil {
-			return result, fmt.Errorf("cannot write ProjectID: %w", err)
-		}
-	}
-	if err := writeLimit(bc, limit); err != nil {
-		return result, fmt.Errorf("cannot write limit: %w", err)
-	}
-	if err := writeInt64(bc, int64(le)); err != nil {
-		return result, fmt.Errorf("cannot write le: %w", err)
-	}
-	if err := writeBytes(bc, []byte(matchPattern)); err != nil {
-		return result, fmt.Errorf("cannot write matchPattern: %w", err)
+	if err := writeBytes(bc, data); err != nil {
+		return result, fmt.Errorf("cannot write MetricNamesStatsQuery: %w", err)
 	}
 	if err := bc.Flush(); err != nil {
 		return result, fmt.Errorf("cannot flush write: %w", err)

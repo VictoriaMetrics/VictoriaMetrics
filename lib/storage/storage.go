@@ -3124,12 +3124,32 @@ type MetricNamesStatsResponse = metricnamestats.StatsResult
 // MetricNamesStatsRecord represents record at MetricNamesStatsResponse
 type MetricNamesStatsRecord = metricnamestats.StatRecord
 
-// GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, limit, le int, matchPattern string) MetricNamesStatsResponse {
-	if tt != nil {
-		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, limit, le, matchPattern)
+// MetricNamesStatsQuery represents query params for Stats requests
+type MetricNamesStatsQuery struct {
+	TenantToken  *TenantToken
+	Limit        int
+	Le           int
+	MatchPattern string
+	MatchNames   []string
+}
+
+// GetMetricNamesStats returns metric names usage stats for given Query params
+func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, sq MetricNamesStatsQuery) MetricNamesStatsResponse {
+
+	if sq.TenantToken != nil {
+		tt := sq.TenantToken
+		if len(sq.MatchNames) > 0 {
+			return s.metricsTracker.GetStatsForNamesTenant(tt.AccountID, tt.ProjectID, sq.MatchNames)
+		}
+
+		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, sq.Limit, sq.Le, sq.MatchPattern)
 	}
-	res := s.metricsTracker.GetStats(limit, le, matchPattern)
+
+	var res MetricNamesStatsResponse
+	if len(sq.MatchNames) > 0 {
+		return s.metricsTracker.GetStatsForNamesMultitenant(sq.MatchNames)
+	}
+	res = s.metricsTracker.GetStats(sq.Limit, sq.Le, sq.MatchPattern)
 	res.DeduplicateMergeRecords()
 	return res
 }

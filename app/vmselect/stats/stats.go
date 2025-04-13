@@ -45,7 +45,15 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 			ProjectID: at.ProjectID,
 		}
 	}
-	stats, err := netstorage.GetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+	matchNames := r.Form["match_names"]
+	sq := storage.MetricNamesStatsQuery{
+		TenantToken:  tt,
+		Limit:        limit,
+		Le:           le,
+		MatchNames:   matchNames,
+		MatchPattern: matchPattern,
+	}
+	stats, err := netstorage.GetMetricNamesStats(qt, sq, deadline)
 	if err != nil {
 		return err
 	}
