@@ -231,8 +231,10 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
-func parseQuotedLabel(s string) string {
-	return ""
+func parseQuotedLabel(s string) (string, string) {
+	q := strings.IndexByte(s, '"')
+	n := findClosingQuote(s[q:])
+	return s[q+1 : n+q], s[n+q+1:]
 }
 func parseUnquotedLabel(s string) string {
 	s = skipLeadingWhitespace(s)
@@ -259,11 +261,22 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 		key := ""
 		if possibleKeyLen == 0 || possibleKey[possibleKeyLen-1] == ',' {
 			// Parse quoted label
-			r := parseQuotedLabel(s)
-			if r == "" {
-				return s, dst, fmt.Errorf("missing value for tag %q", s)
-			}
+			key, s = parseQuotedLabel(s)
+			s = skipLeadingWhitespace(s)
 			// Check to see if next char is = if not this is a metric name
+			if len(s) > 0 {
+				if s[0] == ',' || s[0] == '}' {
+					if r.Metric == "" {
+						r.Metric = key
+					}
+					if len(s) > 1 && s[0] == ',' {
+						s = s[1:]
+					}
+					continue
+				}
+				s = skipLeadingWhitespace(s[1:])
+			}
+			// Fall through to setting value
 		} else {
 			c := possibleKey[len(possibleKey)-1]
 			// This is an unquoted label

@@ -466,72 +466,69 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Timestamp: 2000,
 		}},
 	})
-	/*
-			// UTF8 Quoted tags
-			f(`foo{"bar"="baz"} 1 2`, &Rows{
-				Rows: []Row{{
-					Metric: "foo",
-					Tags: []Tag{{
-						Key:   "bar",
-						Value: "baz",
-					}},
-					Value:     1,
-					Timestamp: 2000,
-				}},
-			})
-			f(`{"foo", "bar"="baz"} 1 2`, &Rows{
-				Rows: []Row{{
-					Metric: "foo",
-					Tags: []Tag{{
-						Key:   "bar",
-						Value: "baz",
-					}},
-					Value:     1,
-					Timestamp: 2000,
-				}},
-			})
-			f(`foo{"foo", bar="baz"} 1 2`, &Rows{
-				Rows: []Row{{
-					Metric: "foo",
-					Tags: []Tag{{
-						Key:   "bar",
-						Value: "baz",
-					}},
-					Value:     1,
-					Timestamp: 2000,
-				}},
-			})
-			f(`{bar="baz", "foo"} 1 2`, &Rows{
-				Rows: []Row{{
-					Metric: "foo",
-					Tags: []Tag{{
-						Key:   "bar",
-						Value: "baz",
-					}},
-					Value:     1,
-					Timestamp: 2000,
-				}},
-			})
-			f(`{"foo"} 1 2`, &Rows{
-				Rows: []Row{{
-					Metric:    "foo",
-					Tags:      []Tag{},
-					Value:     1,
-					Timestamp: 2000,
-				}},
-			})
-		f(`{"foo", "foo2", bar="baz"} 1 2`, &Rows{
-			Rows: []Row{{
-				Metric: "foo",
-				Tags: []Tag{{
-					Key:   "bar",
-					Value: "baz",
-				}},
-				Value:     1,
-				Timestamp: 2000,
+	// UTF8 Quoted tags
+	f(`foo{"bar"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
 			}},
-		})
-	*/
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo", "bar"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`foo{"foo", bar="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{bar="baz", "foo"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric:    "foo",
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo", "foo2", bar="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
 	f(`foo{bar="b\"a\\z"} -1.2`, &Rows{
 		Rows: []Row{{
 			Metric: "foo",
