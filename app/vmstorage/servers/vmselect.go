@@ -195,8 +195,8 @@ func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []stora
 	return nil
 }
 
-func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, _ uint64) (storage.MetricNamesStatsResponse, error) {
-	return api.s.GetMetricNamesStats(qt, sq), nil
+func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, statsQuery storage.MetricNamesStatsQuery, _ uint64) (storage.MetricNamesStatsResponse, error) {
+	return api.s.GetMetricNamesStats(qt, statsQuery), nil
 }
 
 func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {

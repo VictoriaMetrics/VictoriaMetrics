@@ -1072,8 +1072,8 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	if err := ctx.readDataBufBytes(maxMetricNamesStatsQueryJSONSize); err != nil {
 		return fmt.Errorf("cannot read matchPattern: %w", err)
 	}
-	var sq storage.MetricNamesStatsQuery
-	if err := json.Unmarshal(ctx.dataBuf, &sq); err != nil {
+	var statsQuery storage.MetricNamesStatsQuery
+	if err := json.Unmarshal(ctx.dataBuf, &statsQuery); err != nil {
 		return fmt.Errorf("cannot parse MetricNamesStatsQuery: %w", err)
 	}
 
@@ -1082,7 +1082,7 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	result, err := s.api.GetMetricNamesUsageStats(ctx.qt, sq, ctx.deadline)
+	result, err := s.api.GetMetricNamesUsageStats(ctx.qt, statsQuery, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

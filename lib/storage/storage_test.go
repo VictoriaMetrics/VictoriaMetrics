@@ -3471,10 +3471,10 @@ func TestStorageMetricTracker(t *testing.T) {
 
 	var sr Search
 	// check stats for metrics with 0 requests count
-	sq := MetricNamesStatsQuery{
+	statsQuery := MetricNamesStatsQuery{
 		Limit: 10_000,
 	}
-	mus := s.GetMetricNamesStats(nil, sq)
+	mus := s.GetMetricNamesStats(nil, statsQuery)
 	if len(mus.Records) != int(numRows) {
 		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
 	}
@@ -3490,12 +3490,12 @@ func TestStorageMetricTracker(t *testing.T) {
 	}
 	sr.MustClose()
 
-	mus = s.GetMetricNamesStats(nil, sq)
+	mus = s.GetMetricNamesStats(nil, statsQuery)
 	if len(mus.Records) != 0 {
 		t.Fatalf("unexpected Stats records count=%d; want 0 records", len(mus.Records))
 	}
-	sq.Le = 1
-	mus = s.GetMetricNamesStats(nil, sq)
+	statsQuery.Le = 1
+	mus = s.GetMetricNamesStats(nil, statsQuery)
 	if len(mus.Records) != int(numRows) {
 		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
 	}

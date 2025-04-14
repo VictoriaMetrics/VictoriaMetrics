@@ -117,9 +117,9 @@ func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, dead
 	return netstorage.ResetMetricNamesStats(qt, dl)
 }
 
-func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, deadline uint64) (storage.MetricNamesStatsResponse, error) {
+func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, statsQuery storage.MetricNamesStatsQuery, deadline uint64) (storage.MetricNamesStatsResponse, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	return netstorage.GetMetricNamesStats(qt, sq, dl)
+	return netstorage.GetMetricNamesStats(qt, statsQuery, dl)
 }
 
 // blockIterator implements vmselectapi.BlockIterator

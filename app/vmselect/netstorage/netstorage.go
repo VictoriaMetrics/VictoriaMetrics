@@ -3032,12 +3032,6 @@ func writeUint64(bc *handshake.BufferedConn, n uint64) error {
 	return err
 }
 
-func writeInt64(bc *handshake.BufferedConn, n int64) error {
-	sizeBuf := encoding.MarshalInt64(nil, n)
-	_, err := bc.Write(sizeBuf)
-	return err
-}
-
 func writeBool(bc *handshake.BufferedConn, b bool) error {
 	var buf [1]byte
 	if b {
@@ -3338,14 +3332,14 @@ func metricNameTenantToTags(mn *storage.MetricName) {
 }
 
 // GetMetricNamesStats returns metric names usage statistics for the given params
-func GetMetricNamesStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
+func GetMetricNamesStats(qt *querytracer.Tracer, statsQuery storage.MetricNamesStatsQuery, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
 	type nodeResult struct {
 		resp storage.MetricNamesStatsResponse
 		err  error
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		resp, err := sn.processGetMetricNamesStats(qt, sq, deadline)
+		resp, err := sn.processGetMetricNamesStats(qt, statsQuery, deadline)
 		return nodeResult{resp: resp, err: err}
 	})
 	var mu sync.Mutex
@@ -3366,10 +3360,10 @@ func GetMetricNamesStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuer
 	return mnuss, nil
 }
 
-func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, sq storage.MetricNamesStatsQuery, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
+func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, statsQuery storage.MetricNamesStatsQuery, deadline searchutil.Deadline) (storage.MetricNamesStatsResponse, error) {
 	var result storage.MetricNamesStatsResponse
 	f := func(bc *handshake.BufferedConn) error {
-		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, sq)
+		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, statsQuery)
 		if err != nil {
 			return err
 		}
@@ -3382,10 +3376,10 @@ func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, sq sto
 	return result, nil
 }
 
-func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, sq storage.MetricNamesStatsQuery) (storage.MetricNamesStatsResponse, error) {
+func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, statsQuery storage.MetricNamesStatsQuery) (storage.MetricNamesStatsResponse, error) {
 	var result storage.MetricNamesStatsResponse
 
-	data, err := json.Marshal(sq)
+	data, err := json.Marshal(statsQuery)
 	if err != nil {
 		return result, fmt.Errorf("cannot marshal MetricNamesStatsQuery: %w", err)
 	}

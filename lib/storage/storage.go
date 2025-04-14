@@ -3134,22 +3134,22 @@ type MetricNamesStatsQuery struct {
 }
 
 // GetMetricNamesStats returns metric names usage stats for given Query params
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, sq MetricNamesStatsQuery) MetricNamesStatsResponse {
+func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, statsQuery MetricNamesStatsQuery) MetricNamesStatsResponse {
 
-	if sq.TenantToken != nil {
-		tt := sq.TenantToken
-		if len(sq.MatchNames) > 0 {
-			return s.metricsTracker.GetStatsForNamesTenant(tt.AccountID, tt.ProjectID, sq.MatchNames)
+	if statsQuery.TenantToken != nil {
+		tt := statsQuery.TenantToken
+		if len(statsQuery.MatchNames) > 0 {
+			return s.metricsTracker.GetStatsForNamesTenant(tt.AccountID, tt.ProjectID, statsQuery.MatchNames)
 		}
 
-		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, sq.Limit, sq.Le, sq.MatchPattern)
+		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, statsQuery.Limit, statsQuery.Le, statsQuery.MatchPattern)
 	}
 
 	var res MetricNamesStatsResponse
-	if len(sq.MatchNames) > 0 {
-		return s.metricsTracker.GetStatsForNamesMultitenant(sq.MatchNames)
+	if len(statsQuery.MatchNames) > 0 {
+		return s.metricsTracker.GetStatsForNamesMultitenant(statsQuery.MatchNames)
 	}
-	res = s.metricsTracker.GetStats(sq.Limit, sq.Le, sq.MatchPattern)
+	res = s.metricsTracker.GetStats(statsQuery.Limit, statsQuery.Le, statsQuery.MatchPattern)
 	res.DeduplicateMergeRecords()
 	return res
 }

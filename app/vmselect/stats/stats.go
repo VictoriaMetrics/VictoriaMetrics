@@ -46,7 +46,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 		}
 	}
 	matchNames := r.Form["match_names"]
-	sq := storage.MetricNamesStatsQuery{
+	statsQuery := storage.MetricNamesStatsQuery{
 		TenantToken:  tt,
 		Limit:        limit,
 		Le:           le,
@@ -56,7 +56,7 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 	if limit > 0 && len(matchNames) > limit {
 		return fmt.Errorf("match_names len=%d cannot exceed limit=%d", len(matchNames), limit)
 	}
-	stats, err := netstorage.GetMetricNamesStats(qt, sq, deadline)
+	stats, err := netstorage.GetMetricNamesStats(qt, statsQuery, deadline)
 	if err != nil {
 		return err
 	}
