@@ -528,7 +528,15 @@ test-full-386:
 	GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 integration-test: victoria-metrics vmagent vmalert vmauth
-	go test ./apptest/... -skip="^TestCluster.*"
+	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
+
+# Currently can only be run locally because it requires another victoria-metrics
+# binary that uses legacy indexDB to be present somewhere on the local file
+# system.
+# The path to such a binary needs to be provided via VM_LEGACY_VMSINGLE_PATH env
+# variable.
+integration-test-legacy: victoria-metrics vmbackup vmrestore
+	go test ./apptest/... -run="^TestLegacySingle.*"
 
 benchmark:
 	go test -bench=. ./lib/...
