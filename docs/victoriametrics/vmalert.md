@@ -137,7 +137,7 @@ Each group has the following attributes:
 name: <string>
 
 # How often rules in the group are evaluated.
-  [ interval: <duration> | default = -evaluationInterval flag ]
+[ interval: <duration> | default = -evaluationInterval flag ]
 
 # Optional
 # Group will be evaluated at the exact offset in the range of [0...interval].
@@ -145,27 +145,27 @@ name: <string>
 # start at 5th minute of the hour. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409
 # `interval` must be specified if `eval_offset` is used, and `eval_offset` cannot exceed `interval`.
 # `eval_offset` cannot be used with `eval_delay`, as group will be executed at the exact offset and `eval_delay` is ignored.
-  [ eval_offset: <duration> ]
+[ eval_offset: <duration> ]
 
 # Optional
 # Adjust the `time` parameter of group evaluation requests to compensate intentional query delay from the datasource.
 # By default, the value is inherited from the `-rule.evalDelay` cmd-line flag - see its description for details.
 # If group has `latency_offset` set in `params`, then it is recommended to set `eval_delay` equal to `latency_offset`.
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/keyconcepts/#query-latency.
-  [ eval_delay: <duration> ]
+[ eval_delay: <duration> ]
 
 # Limit limits the number of alerts or recording results the rule within this group can produce.
 # On exceeding the limit, rule will be marked with an error and all its results will be discarded.
 # 0 is no limit.
-  [ limit: <integer> | default 0 ]
+[ limit: <integer> | default 0]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
-  [ concurrency: <integer> | default = 1 ]
+[ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside rules to override the `-rule.defaultRuleType(default is "prometheus")` cmd-line flag.
 # Supported values: "graphite", "prometheus" and "vlogs"(check https://docs.victoriametrics.com/victorialogs/vmalert/ for details).
-  [ type: <string> ]
+[ type: <string> ]
 
 # Optional
 # The evaluation timestamp will be aligned with group's interval, 
@@ -177,7 +177,7 @@ name: <string>
 #
 # See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049 
 # Available starting from v1.95
-  [ eval_alignment: <bool> | default true ]
+[ eval_alignment: <bool> | default true]
 
 # Optional list of HTTP URL parameters
 # applied for all rules requests within a group
@@ -188,7 +188,7 @@ name: <string>
 #    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests
 # see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
 params:
-  [ <string>: [ <string>, ... ] ]
+  [ <string>: [<string>, ...]]
 
 # Optional list of HTTP headers in form `header-name: value`
 # applied for all rules requests within a group
@@ -198,7 +198,7 @@ params:
 #    - "CustomHeader2: bar"
 # Headers set via this param have priority over headers set via `-datasource.headers` flag.
 headers:
-  [ <string>, ... ]
+  [ <string>, ...]
 
 # Optional list of HTTP headers in form `header-name: value`
 # applied for all alert notifications sent to notifiers 
@@ -208,7 +208,7 @@ headers:
 #  notifier_headers:
 #    - "TenantID: foo"
 notifier_headers:
-  [ <string>, ... ]
+  [ <string>, ...]
 
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
@@ -226,7 +226,7 @@ rules:
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
 # Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
-  [ debug: <bool> | default = false ]
+[ debug: <bool> | default = false ]
 ```
 
 ### Rules
