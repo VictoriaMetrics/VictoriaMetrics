@@ -394,7 +394,7 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 // GetStatsForNamesMultitenant returns stats for metric names
 // ignores accountID and projectID
 //
-// SingleNode version must use GetStatsForNamesTenant with 0 account nad project IDs
+// SingleNode version must use GetStatsForNamesTenant with 0 account and project IDs
 func (mt *Tracker) GetStatsForNamesMultitenant(names []string) StatsResult {
 	var result StatsResult
 

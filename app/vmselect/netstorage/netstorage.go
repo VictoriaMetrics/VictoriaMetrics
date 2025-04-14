@@ -3382,8 +3382,6 @@ func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, sq sto
 	return result, nil
 }
 
-const maxStatsQuerySize = 1024 * 1024
-
 func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, sq storage.MetricNamesStatsQuery) (storage.MetricNamesStatsResponse, error) {
 	var result storage.MetricNamesStatsResponse
 
