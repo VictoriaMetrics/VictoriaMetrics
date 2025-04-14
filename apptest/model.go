@@ -354,7 +354,7 @@ type TSDBStatusResponse struct {
 
 // Sort performs sorting of stats entries
 func (tsr *TSDBStatusResponse) Sort() {
-	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByFocusLabelValue)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelName)
 	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByFocusLabelValue)
 	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelValuePair)
 	sortTSDBStatusResponseEntries(tsr.Data.LabelValueCountByLabelName)
