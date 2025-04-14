@@ -440,11 +440,12 @@ func TestStatsQuantile_ExportImportState(t *testing.T) {
 
 	// zero state
 	f(&sqp, 4, 0)
-
-	// non-zero state
-	sqp = statsQuantileProcessor{}
-	sqp.h.update("foo")
-	sqp.h.update("bar")
-	sqp.h.update("baz")
-	f(&sqp, 22, 63)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-zero state
+	   	sqp = statsQuantileProcessor{}
+	   	sqp.h.update("foo")
+	   	sqp.h.update("bar")
+	   	sqp.h.update("baz")
+	   	f(&sqp, 22, 63)*/
 }

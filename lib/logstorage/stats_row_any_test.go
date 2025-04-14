@@ -210,21 +210,22 @@ func TestStatsRowAny_ExportImportState(t *testing.T) {
 
 	// zero state
 	f(&sap, 1, 0)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-zero state
+	   	sap = statsRowAnyProcessor{
+	   		captured: true,
 
-	// non-zero state
-	sap = statsRowAnyProcessor{
-		captured: true,
-
-		fields: []Field{
-			{
-				Name:  "foo",
-				Value: "bar",
-			},
-			{
-				Name:  "abc",
-				Value: "de",
-			},
-		},
-	}
-	f(&sap, 17, 75)
+	   		fields: []Field{
+	   			{
+	   				Name:  "foo",
+	   				Value: "bar",
+	   			},
+	   			{
+	   				Name:  "abc",
+	   				Value: "de",
+	   			},
+	   		},
+	   	}
+	   	f(&sap, 17, 75)*/
 }

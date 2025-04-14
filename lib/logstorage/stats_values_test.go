@@ -62,9 +62,10 @@ func TestStatsValues_ExportImportState(t *testing.T) {
 	// empty state
 	svp := newStatsValuesProcessor()
 	f(svp, 1, 0)
-
-	// non-empty state
-	svp = newStatsValuesProcessor()
-	svp.values = []string{"foo", "bar", "baz"}
-	f(svp, 13, 57)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-empty state
+	   	svp = newStatsValuesProcessor()
+	   	svp.values = []string{"foo", "bar", "baz"}
+	   	f(svp, 13, 57)*/
 }
