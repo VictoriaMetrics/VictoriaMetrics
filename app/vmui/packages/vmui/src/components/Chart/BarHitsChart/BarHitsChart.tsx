@@ -83,18 +83,36 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
 
   useEffect(() => {
     if (!uPlotInst) return;
+
+    const oldSeriesMap = new Map(uPlotInst.series.map(s => [s.label, s]));
+
+    const syncedSeries = series.map(s => {
+      const old = oldSeriesMap.get(s.label);
+      return old ? { ...s, show: old.show } : s;
+    });
+
     delSeries(uPlotInst);
-    addSeries(uPlotInst, series, true);
-    setBand(uPlotInst, series);
+    addSeries(uPlotInst, syncedSeries, true);
+    setBand(uPlotInst, syncedSeries);
     uPlotInst.redraw();
-  }, [series]);
+  }, [series, uPlotInst]);
+
+
+  useEffect(() => {
+    if (!uPlotInst) return;
+    uPlotInst.delBand();
+    bands.forEach(band => {
+      uPlotInst.addBand(band);
+    });
+    uPlotInst.redraw();
+  }, [bands]);
 
   useEffect(() => {
     if (!uPlotRef.current) return;
     const uplot = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(uplot);
     return () => uplot.destroy();
-  }, [uPlotRef.current, options]);
+  }, [uPlotRef.current]);
 
   useEffect(() => {
     if (!uPlotInst) return;

@@ -64,25 +64,34 @@ const useBarHitsOptions = ({
   };
 
   const series: Series[] = useMemo(() => {
-    let colorN = 0;
+    let visibleColorIndex = 0;
+
     return data.map((_d, i) => {
-      if (i === 0) return {}; // 0 index is xAxis(timestamps)
-      const target = logHits?.[i - 1];
-      const label = getLabelFromLogHit(target);
-      const color = getCssVariable(target?._isOther ? "color-log-hits-bar-0" : seriesColors[colorN]);
-      if (!target?._isOther) colorN++;
+      if (i === 0) return {}; // x-axis
+
+      const logHit = logHits?.[i - 1];
+      const label = getLabelFromLogHit(logHit);
+
+      const isOther = logHit?._isOther;
+      const colorVar = isOther
+        ? "color-log-hits-bar-0"
+        : seriesColors[visibleColorIndex++];
+
+      const color = getCssVariable(colorVar);
+
       return {
         label,
         width: strokeWidth[graphOptions.graphStyle],
         spanGaps: true,
+        show: true,
         stroke: color,
-        fill: graphOptions.fill ? color + (target?._isOther ? "" : "80") : "",
+        fill: graphOptions.fill && !isOther ? `${color}80` : graphOptions.fill ? color : "",
         paths: getSeriesPaths(graphOptions.graphStyle),
       };
     });
   }, [isDarkTheme, data, graphOptions]);
 
-  const options: Options = useMemo(() => ({
+  const options: Options = {
     series,
     bands,
     width: containerSize.width || (window.innerWidth / 2),
@@ -111,7 +120,7 @@ const useBarHitsOptions = ({
     legend: { show: false },
     axes: getAxes([{}, { scale: "y" }]),
     tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
-  }), [isDarkTheme, series, bands]);
+  };
 
   return {
     options,
