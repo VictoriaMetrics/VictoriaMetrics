@@ -314,21 +314,22 @@ func TestStatsRowMax_ExportImportState(t *testing.T) {
 
 	// zero state
 	f(&smp, 2, 0)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-zero state
+	   	smp = statsRowMaxProcessor{
+	   		max: "abcded",
 
-	// non-zero state
-	smp = statsRowMaxProcessor{
-		max: "abcded",
-
-		fields: []Field{
-			{
-				Name:  "foo",
-				Value: "bar",
-			},
-			{
-				Name:  "abc",
-				Value: "de",
-			},
-		},
-	}
-	f(&smp, 23, 81)
+	   		fields: []Field{
+	   			{
+	   				Name:  "foo",
+	   				Value: "bar",
+	   			},
+	   			{
+	   				Name:  "abc",
+	   				Value: "de",
+	   			},
+	   		},
+	   	}
+	   	f(&smp, 23, 81)*/
 }

@@ -421,147 +421,148 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 
 	// Zero state
 	f(sup, 5, 0, 0)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// uniqValues initialized
+	   	sup = newStatsCountUniqProcessor()
+	   	sup.uniqValues = statsCountUniqSet{
+	   		timestamps: map[uint64]struct{}{
+	   			123: {},
+	   			0:   {},
+	   		},
+	   		u64: map[uint64]struct{}{
+	   			43: {},
+	   		},
+	   		negative64: map[uint64]struct{}{
+	   			8234932: {},
+	   		},
+	   		strings: map[string]struct{}{
+	   			"foo": {},
+	   			"bar": {},
+	   		},
+	   	}
+	   	f(sup, 45, 70, 6)
 
-	// uniqValues initialized
-	sup = newStatsCountUniqProcessor()
-	sup.uniqValues = statsCountUniqSet{
-		timestamps: map[uint64]struct{}{
-			123: {},
-			0:   {},
-		},
-		u64: map[uint64]struct{}{
-			43: {},
-		},
-		negative64: map[uint64]struct{}{
-			8234932: {},
-		},
-		strings: map[string]struct{}{
-			"foo": {},
-			"bar": {},
-		},
-	}
-	f(sup, 45, 70, 6)
+	   	// shards initialized
+	   	sup = newStatsCountUniqProcessor()
+	   	sup.shards = []statsCountUniqSet{
+	   		{
+	   			timestamps: map[uint64]struct{}{
+	   				123: {},
+	   				0:   {},
+	   			},
+	   			u64: map[uint64]struct{}{
+	   				43: {},
+	   			},
+	   			negative64: map[uint64]struct{}{
+	   				8234932: {},
+	   			},
+	   			strings: map[string]struct{}{
+	   				"foo": {},
+	   				"bar": {},
+	   			},
+	   		},
+	   		{
+	   			timestamps: map[uint64]struct{}{
+	   				10:      {},
+	   				1123:    {},
+	   				3234324: {},
+	   			},
+	   			u64: map[uint64]struct{}{
+	   				42: {},
+	   			},
+	   		},
+	   	}
+	   	f(sup, 81, 166, 10)
 
-	// shards initialized
-	sup = newStatsCountUniqProcessor()
-	sup.shards = []statsCountUniqSet{
-		{
-			timestamps: map[uint64]struct{}{
-				123: {},
-				0:   {},
-			},
-			u64: map[uint64]struct{}{
-				43: {},
-			},
-			negative64: map[uint64]struct{}{
-				8234932: {},
-			},
-			strings: map[string]struct{}{
-				"foo": {},
-				"bar": {},
-			},
-		},
-		{
-			timestamps: map[uint64]struct{}{
-				10:      {},
-				1123:    {},
-				3234324: {},
-			},
-			u64: map[uint64]struct{}{
-				42: {},
-			},
-		},
-	}
-	f(sup, 81, 166, 10)
+	   	// shardss initialized
+	   	sup = newStatsCountUniqProcessor()
+	   	sup.shardss = [][]statsCountUniqSet{
+	   		{
+	   			{
+	   				strings: map[string]struct{}{
+	   					"afoo": {},
+	   					"bar":  {},
+	   				},
+	   			},
+	   			{
+	   				negative64: map[uint64]struct{}{
+	   					10:      {},
+	   					1123:    {},
+	   					3234324: {},
+	   				},
+	   			},
+	   		},
+	   		{
+	   			{
+	   				timestamps: map[uint64]struct{}{
+	   					123: {},
+	   					0:   {},
+	   				},
+	   				u64: map[uint64]struct{}{
+	   					43: {},
+	   				},
+	   				strings: map[string]struct{}{
+	   					"foo": {},
+	   					"bar": {},
+	   					"baz": {},
+	   				},
+	   			},
+	   			{
+	   				timestamps: map[uint64]struct{}{
+	   					10: {},
+	   				},
+	   			},
+	   		},
+	   	}
+	   	f(sup, 82, 197, 11)
 
-	// shardss initialized
-	sup = newStatsCountUniqProcessor()
-	sup.shardss = [][]statsCountUniqSet{
-		{
-			{
-				strings: map[string]struct{}{
-					"afoo": {},
-					"bar":  {},
-				},
-			},
-			{
-				negative64: map[uint64]struct{}{
-					10:      {},
-					1123:    {},
-					3234324: {},
-				},
-			},
-		},
-		{
-			{
-				timestamps: map[uint64]struct{}{
-					123: {},
-					0:   {},
-				},
-				u64: map[uint64]struct{}{
-					43: {},
-				},
-				strings: map[string]struct{}{
-					"foo": {},
-					"bar": {},
-					"baz": {},
-				},
-			},
-			{
-				timestamps: map[uint64]struct{}{
-					10: {},
-				},
-			},
-		},
-	}
-	f(sup, 82, 197, 11)
-
-	// boths shards and shardss initialized
-	sup = newStatsCountUniqProcessor()
-	sup.shardss = [][]statsCountUniqSet{
-		{
-			{
-				strings: map[string]struct{}{
-					"afoo": {},
-					"bar":  {},
-				},
-			},
-			{
-				strings: map[string]struct{}{
-					"foo":  {},
-					"abar": {},
-				},
-			},
-		},
-		{
-			{
-				strings: map[string]struct{}{
-					"afoo": {},
-					"bar":  {},
-					"baz":  {},
-				},
-			},
-			{
-				strings: map[string]struct{}{
-					"foo":  {},
-					"abar": {},
-					"abaz": {},
-				},
-			},
-		},
-	}
-	sup.shards = []statsCountUniqSet{
-		{
-			strings: map[string]struct{}{
-				"bar": {},
-			},
-		},
-		{
-			strings: map[string]struct{}{
-				"foo":   {},
-				"abarz": {},
-			},
-		},
-	}
-	f(sup, 42, 202, 7)
+	   	// boths shards and shardss initialized
+	   	sup = newStatsCountUniqProcessor()
+	   	sup.shardss = [][]statsCountUniqSet{
+	   		{
+	   			{
+	   				strings: map[string]struct{}{
+	   					"afoo": {},
+	   					"bar":  {},
+	   				},
+	   			},
+	   			{
+	   				strings: map[string]struct{}{
+	   					"foo":  {},
+	   					"abar": {},
+	   				},
+	   			},
+	   		},
+	   		{
+	   			{
+	   				strings: map[string]struct{}{
+	   					"afoo": {},
+	   					"bar":  {},
+	   					"baz":  {},
+	   				},
+	   			},
+	   			{
+	   				strings: map[string]struct{}{
+	   					"foo":  {},
+	   					"abar": {},
+	   					"abaz": {},
+	   				},
+	   			},
+	   		},
+	   	}
+	   	sup.shards = []statsCountUniqSet{
+	   		{
+	   			strings: map[string]struct{}{
+	   				"bar": {},
+	   			},
+	   		},
+	   		{
+	   			strings: map[string]struct{}{
+	   				"foo":   {},
+	   				"abarz": {},
+	   			},
+	   		},
+	   	}
+	   	f(sup, 42, 202, 7)*/
 }

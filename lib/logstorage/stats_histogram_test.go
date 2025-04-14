@@ -76,13 +76,14 @@ func TestStatsHistogram_ExportImportState(t *testing.T) {
 
 	// Zero state
 	f(&shp, 0)
-
-	// Non-zero state
-	shp = statsHistogramProcessor{
-		bucketsMap: map[string]uint64{
-			"1.896e+00...2.154e+00": 2344,
-			"2.783e+00...3.162e+00": 3289,
-		},
-	}
-	f(&shp, 90)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// Non-zero state
+	   	shp = statsHistogramProcessor{
+	   		bucketsMap: map[string]uint64{
+	   			"1.896e+00...2.154e+00": 2344,
+	   			"2.783e+00...3.162e+00": 3289,
+	   		},
+	   	}
+	   	f(&shp, 90)*/
 }

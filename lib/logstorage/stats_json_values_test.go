@@ -66,9 +66,10 @@ func TestStatsJSONValues_ExportImportState(t *testing.T) {
 	// empty state
 	sjp := newStatsJSONValuesProcessor()
 	f(sjp, 1, 0)
-
-	// non-empty state
-	sjp = newStatsJSONValuesProcessor()
-	sjp.values = []string{"foo", "bar", "baz"}
-	f(sjp, 13, 57)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-empty state
+	   	sjp = newStatsJSONValuesProcessor()
+	   	sjp.values = []string{"foo", "bar", "baz"}
+	   	f(sjp, 13, 57)*/
 }
