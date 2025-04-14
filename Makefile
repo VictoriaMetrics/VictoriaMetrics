@@ -218,8 +218,8 @@ test-full:
 test-full-386:
 	GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: victoria-metrics vmagent vmalert vmauth
-	go test ./apptest/... -skip="^TestCluster.*"
+integration-test: all
+	go test ./apptest/... -skip="^TestSingle.*"
 
 benchmark:
 	go test -bench=. ./lib/...
