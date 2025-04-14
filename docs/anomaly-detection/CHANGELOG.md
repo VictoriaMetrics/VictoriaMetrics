@@ -11,6 +11,19 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.22.0-experimental
+Released: 2025-04-11
+
+**(Experimental Patch Release)**
+
+> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Future releases will reintroduce optimized parallelization.
+
+- BUGFIX: Resolved an intermittent deadlock in the fit/infer process that previously caused the service to freeze indefinitely, thereby preventing anomaly score production and model refits on multicore systems.
+
+- BUGFIX: Fixed incorrect propagation of the `scale` model [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) from the old format (single float) to the new format (list of 2 floats).
+
+- IMPROVEMENT: Reduced the peak-to-average RAM usage for fit/infer calls from 2–2.5x to 1.1–1.3x, significantly lowering the risk of out-of-memory errors at startup.
+
 ## v1.21.0
 Released: 2025-03-19
 
