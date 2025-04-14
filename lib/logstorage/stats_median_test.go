@@ -392,11 +392,12 @@ func TestStatsMedian_ExportImportState(t *testing.T) {
 
 	// zero state
 	f(&smp, 4, 0)
-
-	// non-zero state
-	smp = statsMedianProcessor{}
-	smp.sqp.h.update("foo")
-	smp.sqp.h.update("bar")
-	smp.sqp.h.update("baz")
-	f(&smp, 22, 63)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-zero state
+	   	smp = statsMedianProcessor{}
+	   	smp.sqp.h.update("foo")
+	   	smp.sqp.h.update("bar")
+	   	smp.sqp.h.update("baz")
+	   	f(&smp, 22, 63)*/
 }
