@@ -25,7 +25,12 @@ const BarHitsLegend: FC<Props> = ({ uPlotInst, legendDetails, onApplyFilter }) =
   };
 
   useEffect(() => {
-    setSeries(getSeries());
+    if (!uPlotInst.hooks.draw) {
+      uPlotInst.hooks.draw = [];
+    }
+    uPlotInst.hooks.draw.push(() => {
+      setSeries(getSeries());
+    });
   }, [uPlotInst]);
 
   return (
