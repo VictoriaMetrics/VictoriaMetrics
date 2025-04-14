@@ -221,6 +221,12 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`a{"__name__":"upsd_time_left_ns","host":"myhost", status_OB="true"} 12`)
 	f(`a{host:"myhost"} 12`)
 	f(`a{host:"myhost",foo="bar"} 12`)
+	// invalid quoted UTF8 tags
+	f(`metric_"name"{"foo"="bar"}`)
+	f(`"metric_name"{"name":"name}`)
+	f(`metric_"name{"name":"name"}`)
+	f(`metric{"foo":"bar"}`)
+	f(`{"foo":"bar", "metric"}`)
 
 	// empty metric name
 	f(`{foo="bar"}`)
