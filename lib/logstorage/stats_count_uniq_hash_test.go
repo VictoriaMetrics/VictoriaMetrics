@@ -462,15 +462,16 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 		},
 		{
 			timestamps: map[uint64]struct{}{
-				10:   {},
-				1123: {},
+				10:      {},
+				1123:    {},
+				3234324: {},
 			},
 			u64: map[uint64]struct{}{
 				42: {},
 			},
 		},
 	}
-	f(sup, 81, 136, 9)
+	f(sup, 89, 144, 10)
 
 	// shardss initialized
 	sup = newStatsCountUniqHashProcessor()
@@ -484,8 +485,9 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 			},
 			{
 				negative64: map[uint64]struct{}{
-					10:   {},
-					1123: {},
+					10:      {},
+					1123:    {},
+					3234324: {},
 				},
 			},
 		},
@@ -511,5 +513,5 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(sup, 97, 152, 11)
+	f(sup, 105, 160, 12)
 }
