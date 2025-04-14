@@ -535,7 +535,7 @@ func mustRepackBlockFromZstdToSnappy(zstdBlock []byte) []byte {
 	plainBlock := make([]byte, 0, len(zstdBlock)*2)
 	plainBlock, err := zstd.Decompress(plainBlock, zstdBlock)
 	if err != nil {
-		logger.Panicf("BUG: cannot re-pack block with size %d bytes from Zstd to Snappy: %s", len(zstdBlock), err)
+		logger.Panicf("FATAL: cannot re-pack block with size %d bytes from Zstd to Snappy: %s", len(zstdBlock), err)
 	}
 
 	return snappy.Encode(nil, plainBlock)
