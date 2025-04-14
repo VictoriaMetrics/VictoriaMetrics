@@ -2957,9 +2957,21 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 // MetricNamesStatsResponse contains metric names usage stats API response
 type MetricNamesStatsResponse = metricnamestats.StatsResult
 
-// GetMetricNamesStats returns metric names usage stats with given limit and le predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, limit, le int, matchPattern string) MetricNamesStatsResponse {
-	return s.metricsTracker.GetStats(limit, le, matchPattern)
+// MetricNamesStatsQuery represents query params for Stats requests
+
+type MetricNamesStatsQuery struct {
+	Limit        int
+	Le           int
+	MatchPattern string
+	MatchNames   []string
+}
+
+// GetMetricNamesStats returns metric names usage stats for given Query params
+func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, statsQuery MetricNamesStatsQuery) MetricNamesStatsResponse {
+	if len(statsQuery.MatchNames) > 0 {
+		return s.metricsTracker.GetStatsForNamesTenant(0, 0, statsQuery.MatchNames)
+	}
+	return s.metricsTracker.GetStats(statsQuery.Limit, statsQuery.Le, statsQuery.MatchPattern)
 }
 
 // ResetMetricNamesStats resets state for metric names usage tracker

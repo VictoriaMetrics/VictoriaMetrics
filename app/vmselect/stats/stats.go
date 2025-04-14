@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // MetricNamesStatsHandler returns timeseries metric names usage statistics
@@ -33,7 +34,18 @@ func MetricNamesStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter, r *h
 		le = n
 	}
 	matchPattern := r.FormValue("match_pattern")
-	stats, err := netstorage.GetMetricNamesStats(qt, limit, le, matchPattern)
+	matchNames := r.Form["match_names"]
+	statsQuery := storage.MetricNamesStatsQuery{
+		Limit:        limit,
+		Le:           le,
+		MatchNames:   matchNames,
+		MatchPattern: matchPattern,
+	}
+	if limit > 0 && len(matchNames) > limit {
+		return fmt.Errorf("match_names len=%d cannot exceed limit=%d", len(matchNames), limit)
+	}
+
+	stats, err := netstorage.GetMetricNamesStats(qt, statsQuery)
 	if err != nil {
 		return err
 	}

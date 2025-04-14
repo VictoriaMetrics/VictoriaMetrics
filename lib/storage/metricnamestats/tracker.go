@@ -391,6 +391,71 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 	return result
 }
 
+// GetStatsForNamesMultitenant returns stats for metric names
+// ignores accountID and projectID
+//
+// SingleNode version must use GetStatsForNamesTenant with 0 account and project IDs
+func (mt *Tracker) GetStatsForNamesMultitenant(names []string) StatsResult {
+	var result StatsResult
+
+	result.CollectedSinceTs = mt.creationTs.Load()
+	result.TotalRecords = mt.currentItemsCount.Load()
+	result.MaxSizeBytes = mt.maxSizeBytes
+	result.CurrentSizeBytes = mt.currentSizeBytes.Load()
+
+	mt.mu.RLock()
+	for sk, si := range mt.store {
+		for _, mn := range names {
+			if mn == sk.metricName {
+				result.Records = append(result.Records, StatRecord{
+					MetricName:    sk.metricName,
+					RequestsCount: si.requestsCount.Load(),
+					LastRequestTs: si.lastRequestTs.Load(),
+				})
+				break
+			}
+		}
+	}
+	mt.mu.RUnlock()
+
+	result.sort()
+	result.DeduplicateMergeRecords()
+	return result
+}
+
+// GetStatsForNamesTenant returns stats for given accountID and projectID
+func (mt *Tracker) GetStatsForNamesTenant(accountID, projectID uint32, names []string) StatsResult {
+	var result StatsResult
+
+	result.CollectedSinceTs = mt.creationTs.Load()
+	result.TotalRecords = mt.currentItemsCount.Load()
+	result.MaxSizeBytes = mt.maxSizeBytes
+	result.CurrentSizeBytes = mt.currentSizeBytes.Load()
+
+	mt.mu.RLock()
+	for _, mn := range names {
+		sk := statKey{
+			accountID:  accountID,
+			projectID:  projectID,
+			metricName: mn,
+		}
+		si, ok := mt.store[sk]
+		if !ok {
+			continue
+		}
+		result.Records = append(result.Records, StatRecord{
+			MetricName:    sk.metricName,
+			RequestsCount: si.requestsCount.Load(),
+			LastRequestTs: si.lastRequestTs.Load(),
+		})
+	}
+
+	mt.mu.RUnlock()
+
+	result.sort()
+	return result
+}
+
 // GetStats returns stats response for the tracked metrics
 //
 // DeduplicateMergeRecords must be called at cluster version on returned result.

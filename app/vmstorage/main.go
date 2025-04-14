@@ -200,9 +200,9 @@ func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics
 }
 
 // GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+func GetMetricNamesStats(qt *querytracer.Tracer, statsQuery storage.MetricNamesStatsQuery) (storage.MetricNamesStatsResponse, error) {
 	WG.Add(1)
-	r := Storage.GetMetricNamesStats(qt, limit, le, matchPattern)
+	r := Storage.GetMetricNamesStats(qt, statsQuery)
 	WG.Done()
 	return r, nil
 }
