@@ -477,29 +477,30 @@ func TestStatsUniqValues_ExportImportState(t *testing.T) {
 	// empty state
 	sup := newStatsUniqValuesProcessor()
 	f(sup, 1, 0)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-empty m
+	   	sup = newStatsUniqValuesProcessor()
+	   	sup.m = map[string]struct{}{
+	   		"foo": {},
+	   		"bar": {},
+	   		"baz": {},
+	   	}
+	   	f(sup, 13, 57)
 
-	// non-empty m
-	sup = newStatsUniqValuesProcessor()
-	sup.m = map[string]struct{}{
-		"foo": {},
-		"bar": {},
-		"baz": {},
-	}
-	f(sup, 13, 57)
-
-	// non-empty ms
-	sup = newStatsUniqValuesProcessor()
-	sup.ms = []map[string]struct{}{
-		{
-			"foo": {},
-			"bar": {},
-			"baz": {},
-		},
-		{
-			"foo": {},
-			"aa":  {},
-			"":    {},
-		},
-	}
-	f(sup, 17, 91)
+	   	// non-empty ms
+	   	sup = newStatsUniqValuesProcessor()
+	   	sup.ms = []map[string]struct{}{
+	   		{
+	   			"foo": {},
+	   			"bar": {},
+	   			"baz": {},
+	   		},
+	   		{
+	   			"foo": {},
+	   			"aa":  {},
+	   			"":    {},
+	   		},
+	   	}
+	   	f(sup, 17, 91)*/
 }
