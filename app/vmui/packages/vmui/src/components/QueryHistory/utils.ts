@@ -1,4 +1,4 @@
-import { getFromStorage, saveToStorage, StorageKeys } from "../../utils/storage";
+import { getFromStorage, removeFromStorage, saveToStorage, StorageKeys } from "../../utils/storage";
 import { QueryHistoryType } from "../../state/query/reducer";
 import { MAX_QUERIES_HISTORY, MAX_QUERY_FIELDS } from "../../constants/graph";
 
@@ -9,6 +9,14 @@ const getHistoryFromStorage = (key: HistoryKey) => {
   const list = getFromStorage(key) as string;
   const history: Record<HistoryType, string[][]> = list ? JSON.parse(list) : {};
   return history;
+};
+
+const saveHistoryToStorage = (key: HistoryKey, historyType: HistoryType, history: string[][]) => {
+  const storageHistory = getHistoryFromStorage(key);
+  saveToStorage(key, JSON.stringify({
+    ...storageHistory,
+    [historyType]: history
+  }));
 };
 
 export const getQueriesFromStorage = (key: HistoryKey, historyType: HistoryType) => {
@@ -41,11 +49,7 @@ export const setQueriesToStorage = (key: HistoryKey, history: QueryHistoryType[]
 };
 
 export const setFavoriteQueriesToStorage = (key: HistoryKey, favoriteQueries: string[][]) => {
-  const storageHistory = getHistoryFromStorage(key);
-  saveToStorage(key, JSON.stringify({
-    ...storageHistory,
-    QUERY_FAVORITES: favoriteQueries
-  }));
+  saveHistoryToStorage(key, "QUERY_FAVORITES", favoriteQueries);
 };
 
 export const clearQueryHistoryStorage = (key: HistoryKey, historyType: HistoryType) => {
@@ -69,3 +73,17 @@ export const getUpdatedHistory = (query: string, queryHistory?: QueryHistoryType
     values: newValues
   };
 };
+
+const migrateMetricsQueryHistoryToHistoryByKey = () => {
+  const migrateHistory = (type: HistoryType) => {
+    const queryList = getFromStorage(type) as string;
+    if (queryList) {
+      const queryHistory: string[][] = JSON.parse(queryList);
+      saveHistoryToStorage("METRICS_QUERY_HISTORY", type, queryHistory);
+      removeFromStorage([type]);
+    }
+  };
+  migrateHistory("QUERY_HISTORY");
+  migrateHistory("QUERY_FAVORITES");
+};
+migrateMetricsQueryHistoryToHistoryByKey();
