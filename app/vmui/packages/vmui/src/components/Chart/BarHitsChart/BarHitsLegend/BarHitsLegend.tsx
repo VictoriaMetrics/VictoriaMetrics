@@ -21,7 +21,6 @@ const BarHitsLegend: FC<Props> = ({ uPlotInst, legendDetails, onApplyFilter }) =
 
   const handleRedrawGraph = () => {
     uPlotInst.redraw();
-    setSeries(getSeries());
   };
 
   useEffect(() => {
