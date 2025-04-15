@@ -3,7 +3,6 @@ services:
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
   vmagent:
-    container_name: vmagent
     image: victoriametrics/vmagent:v1.115.0
     depends_on:
       - "victoriametrics"
@@ -11,7 +10,7 @@ services:
       - 8429:8429
     volumes:
       - vmagentdata:/vmagentdata
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-vm-single.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
@@ -19,7 +18,6 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # storing metrics and serve read requests.
   victoriametrics:
-    container_name: victoriametrics
     image: victoriametrics/victoria-metrics:v1.115.0
     ports:
       - 8428:8428
@@ -41,7 +39,6 @@ services:
 
   # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
-    container_name: grafana
     image: grafana/grafana:11.5.0
     depends_on:
       - "victoriametrics"
@@ -49,16 +46,17 @@ services:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/datasources/prometheus-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
+      - ./provisioning/datasources/${DATASOURCE:-prometheus-datasource}/single.yml:/etc/grafana/provisioning/datasources/single.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     restart: always
+    environment:
+      GF_INSTALL_PLUGINS: ${DATASOURCE:-}
 
   # vmalert executes alerting and recording rules
   vmalert:
-    container_name: vmalert
     image: victoriametrics/vmalert:v1.115.0
     depends_on:
       - "victoriametrics"
@@ -84,7 +82,6 @@ services:
   # alertmanager receives alerting notifications from vmalert
   # and distributes them according to --config.file.
   alertmanager:
-    container_name: alertmanager
     image: prom/alertmanager:v0.28.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml

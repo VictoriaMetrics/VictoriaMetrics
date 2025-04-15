@@ -208,32 +208,58 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
-docker-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+docker-vm-single-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml up -d
 
-docker-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
+docker-single-up: docker-vm-single-up
 
-docker-single-vm-datasource-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml up -d
+docker-vm-single-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml down -v
 
-docker-single-vm-datasource-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml down -v
+docker-single-down: docker-vm-single-down
 
-docker-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+docker-vm-single-datasource-up:
+	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml up -d
 
-docker-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+docker-single-vm-datasource-up: docker-vm-single-datasource-up
 
-docker-cluster-vm-datasource-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml up -d
+docker-vm-single-datasource-down:
+	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml down -v
 
-docker-cluster-vm-datasource-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml down -v
+docker-single-vm-datasource-down: docker-vm-single-datasource-down
 
-docker-victorialogs-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml up -d
+docker-vm-cluster-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml up -d
 
-docker-victorialogs-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml down -v
+docker-cluster-up: docker-vm-cluster-up
+
+docker-vm-cluster-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
+
+docker-cluster-down: docker-vm-cluster-down
+
+docker-vm-cluster-datasource-up:
+	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml up -d
+
+docker-cluster-vm-datasource-up: docker-vm-cluster-datasource-up
+
+docker-vm-cluster-datasource-down:
+	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
+
+docker-cluster-vm-datasource-down: docker-vm-cluster-datasource-down
+
+docker-vl-single-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
+
+docker-victorialogs-up: docker-vl-single-up
+
+docker-vl-single-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
+
+docker-victorialogs-down: docker-vl-single-down
+
+docker-vl-cluster-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
+
+docker-vl-cluster-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v

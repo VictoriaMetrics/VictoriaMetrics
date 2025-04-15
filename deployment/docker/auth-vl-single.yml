@@ -1,0 +1,12 @@
+# route requests between VictoriaMetrics and VictoriaLogs
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/metrics/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: http://victoriametrics:8428
+  - src_paths:
+    - "/logs/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix:
+    - http://victorialogs:9428

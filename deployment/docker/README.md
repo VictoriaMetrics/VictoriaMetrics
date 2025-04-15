@@ -22,7 +22,7 @@ For starting the docker-compose environment ensure you have docker installed and
 
 To spin-up environment with VictoriaMetrics single server run the following command:
 ```
-make docker-single-up 
+make docker-vm-single-up
 ```
 
 VictoriaMetrics will be accessible on the following ports:
@@ -49,7 +49,7 @@ To access `vmalert` use link [http://localhost:8428/vmalert](http://localhost:84
 
 To shutdown environment execute the following command:
 ```
-make docker-single-down
+make docker-vm-single-down
 ```
 
 
@@ -57,7 +57,7 @@ make docker-single-down
 
 To spin-up environment with VictoriaMetrics cluster run the following command:
 ```
-make docker-cluster-up
+make docker-vm-cluster-up
 ```
 
 VictoriaMetrics cluster environment consists of `vminsert`, `vmstorage` and `vmselect` components.
@@ -85,7 +85,7 @@ To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/
 
 To shutdown environment execute the following command:
 ```
-make docker-cluster-down
+make docker-vm-cluster-down
 ```
 
 ## vmagent
@@ -141,11 +141,11 @@ Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMe
 Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource)
 can be started with the following commands:
 ```
-make docker-single-vm-datasource-up    # start single server
-make docker-single-vm-datasource-down  # shut down single server
+make docker-vm-single-datasource-up    # start single server
+make docker-vm-single-datasource-down  # shut down single server
 
-make docker-cluster-vm-datasource-up   # start cluster
-make docker-cluster-vm-datasource-down # shutdown cluster
+make docker-vm-cluster-datasource-up   # start cluster
+make docker-vm-cluster-datasource-down # shutdown cluster
 ```
 
 ## Alerts
@@ -177,7 +177,7 @@ VictoriaMetrics installations.
 
 To spin-up environment with VictoriaLogs run the following command:
 ```
-make docker-victorialogs-up
+make docker-vl-single-up
 ```
 
 VictoriaLogs will be accessible on the `--httpListenAddr=:9428` port.
@@ -189,14 +189,47 @@ In addition to VictoriaLogs server, the docker compose contains the following co
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
 To access [VictoriaLogs UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
-use link [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui).
+use link [http://localhost:8427/logs/select/vmui](http://localhost:8427/logs/select/vmui).
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/victorialogs/#monitoring) 
 VictoriaLogs installations.
 
 To shutdown environment execute the following command:
 ```
-make docker-victorialogs-down
+make docker-vl-single-down
+```
+
+## VictoriaLogs cluster
+
+To spin-up environment with VictoriaLogs cluster run the following command:
+```
+make docker-vl-cluster-up
+```
+
+VictoriaLogs cluster environment consists of `vlinsert`, `vlstorage` and `vlselect` components.
+`vlinsert` and `vlselect` are avaiable through `vmauth` on port `:8427`:
+* `vlselect` - `http://localhost:8427/logs/select`.
+* `vlinsert` - `http://localhost:8427/logs/insert`.
+and the rest of components are available only inside the environment.
+
+In addition to VictoriaLogs cluster, the docker compose contains the following components:
+* [vector](https://vector.dev/guides/) service for collecting docker logs and sending them to `vlinsert`;
+* [grafana](#grafana) is configured with [VictoriaLogs datasource](https://github.com/VictoriaMetrics/victorialogs-datasource) and pointing to `vmauth`.
+* `vlinsert` forwards data to `vlstorage`
+* `vlselect`s are connected to `vlstorage` for querying data;
+* [vmauth](#vmauth) balances incoming read and write requests among `vlselect`s and `vlinsert`s;
+
+To access Grafana use link [http://localhost:3000](http://localhost:3000).
+
+To access [VictoriaLogs UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
+use link [http://localhost:8427/logs/select/vmui](http://localhost:8427/logs/select/vmui).
+
+Please, also see [how to monitor](https://docs.victoriametrics.com/victorialogs/#monitoring)
+VictoriaLogs installations.
+
+To shutdown environment execute the following command:
+```
+make docker-vl-cluster-down
 ```
 
 Please see more examples on integration of VictoriaLogs with other log shippers below:
