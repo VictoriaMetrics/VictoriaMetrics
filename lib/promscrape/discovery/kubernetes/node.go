@@ -37,7 +37,7 @@ func parseNode(data []byte) (object, error) {
 
 // NodeList represents NodeList from k8s API.
 //
-// See https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/node-v1/#NodeList
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#nodelist-v1-core
 type NodeList struct {
 	Metadata ListMeta
 	Items    []*Node
@@ -45,7 +45,7 @@ type NodeList struct {
 
 // Node represents Node from k8s API.
 //
-// See https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/node-v1/
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#node-v1-core
 type Node struct {
 	Metadata ObjectMeta
 	Status   NodeStatus
@@ -54,7 +54,7 @@ type Node struct {
 
 // NodeStatus represents NodeStatus from k8s API.
 //
-// See https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/node-v1/#NodeStatus
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#nodestatus-v1-core
 type NodeStatus struct {
 	Addresses       []NodeAddress
 	DaemonEndpoints NodeDaemonEndpoints
@@ -62,14 +62,14 @@ type NodeStatus struct {
 
 // NodeSpec represents NodeSpec from k8s API.
 //
-// See https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/node-v1/#NodeSpec
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#nodespec-v1-core
 type NodeSpec struct {
 	ProviderID string
 }
 
 // NodeAddress represents NodeAddress from k8s API.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodeaddress-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#nodeaddress-v1-core
 type NodeAddress struct {
 	Type    string
 	Address string
@@ -77,7 +77,7 @@ type NodeAddress struct {
 
 // NodeDaemonEndpoints represents NodeDaemonEndpoints from k8s API.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodedaemonendpoints-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#nodedaemonendpoints-v1-core
 type NodeDaemonEndpoints struct {
 	KubeletEndpoint DaemonEndpoint
 }

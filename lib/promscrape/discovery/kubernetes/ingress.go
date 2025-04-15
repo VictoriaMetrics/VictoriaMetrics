@@ -36,7 +36,7 @@ func parseIngress(data []byte) (object, error) {
 
 // IngressList represents ingress list in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingresslist-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#ingresslist-v1-networking-k8s-io
 type IngressList struct {
 	Metadata ListMeta
 	Items    []*Ingress
@@ -44,7 +44,7 @@ type IngressList struct {
 
 // Ingress represents ingress in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingress-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#ingress-v1-networking-k8s-io
 type Ingress struct {
 	Metadata ObjectMeta
 	Spec     IngressSpec
@@ -52,7 +52,7 @@ type Ingress struct {
 
 // IngressSpec represents ingress spec in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingressspec-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#ingressspec-v1-networking-k8s-io
 type IngressSpec struct {
 	TLS              []IngressTLS `json:"tls"`
 	Rules            []IngressRule
@@ -61,14 +61,14 @@ type IngressSpec struct {
 
 // IngressTLS represents ingress TLS spec in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingresstls-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#ingresstls-v1-networking-k8s-io
 type IngressTLS struct {
 	Hosts []string
 }
 
 // IngressRule represents ingress rule in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingressrule-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#ingressrule-v1-networking-k8s-io
 type IngressRule struct {
 	Host string
 	HTTP HTTPIngressRuleValue `json:"http"`
@@ -76,14 +76,14 @@ type IngressRule struct {
 
 // HTTPIngressRuleValue represents HTTP ingress rule value in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#httpingressrulevalue-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#httpingressrulevalue-v1-networking-k8s-io
 type HTTPIngressRuleValue struct {
 	Paths []HTTPIngressPath
 }
 
 // HTTPIngressPath represents HTTP ingress path in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#httpingresspath-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#httpingresspath-v1-networking-k8s-io
 type HTTPIngressPath struct {
 	Path string
 }

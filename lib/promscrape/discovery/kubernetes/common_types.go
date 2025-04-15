@@ -8,7 +8,7 @@ import (
 
 // ObjectMeta represents ObjectMeta from k8s API.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectmeta-v1-meta
 type ObjectMeta struct {
 	Name            string
 	Namespace       string
@@ -23,7 +23,7 @@ func (om *ObjectMeta) key() string {
 }
 
 // ListMeta is a Kubernetes list metadata
-// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#listmeta-v1-meta
+// https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#listmeta-v1-meta
 type ListMeta struct {
 	ResourceVersion string
 }
@@ -64,7 +64,7 @@ func appendThreeStrings(dst []byte, a, b, c string) []byte {
 
 // OwnerReference represents OwnerReferense from k8s API.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#ownerreference-v1-meta
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#ownerreference-v1-meta
 type OwnerReference struct {
 	Name       string
 	Controller bool
@@ -73,7 +73,7 @@ type OwnerReference struct {
 
 // DaemonEndpoint represents DaemonEndpoint from k8s API.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#daemonendpoint-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#daemonendpoint-v1-core
 type DaemonEndpoint struct {
 	Port int
 }

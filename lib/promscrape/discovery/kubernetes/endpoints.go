@@ -37,7 +37,7 @@ func parseEndpoints(data []byte) (object, error) {
 
 // EndpointsList implements k8s endpoints list.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointslist-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#endpointslist-v1-core
 type EndpointsList struct {
 	Metadata ListMeta
 	Items    []*Endpoints
@@ -45,7 +45,7 @@ type EndpointsList struct {
 
 // Endpoints implements k8s endpoints.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpoints-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#endpoints-v1-core
 type Endpoints struct {
 	Metadata ObjectMeta
 	Subsets  []EndpointSubset
@@ -53,7 +53,7 @@ type Endpoints struct {
 
 // EndpointSubset implements k8s endpoint subset.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointsubset-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#endpointsubset-v1-core
 type EndpointSubset struct {
 	Addresses         []EndpointAddress
 	NotReadyAddresses []EndpointAddress
@@ -62,7 +62,7 @@ type EndpointSubset struct {
 
 // EndpointAddress implements k8s endpoint address.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointaddress-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#endpointaddress-v1-core
 type EndpointAddress struct {
 	Hostname  string
 	IP        string
@@ -72,7 +72,7 @@ type EndpointAddress struct {
 
 // ObjectReference implements k8s object reference.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectreference-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#objectreference-v1-core
 type ObjectReference struct {
 	Kind      string
 	Name      string
@@ -81,7 +81,7 @@ type ObjectReference struct {
 
 // EndpointPort implements k8s endpoint port.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointport-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#endpointport-v1-discovery-k8s-io
 type EndpointPort struct {
 	AppProtocol string
 	Name        string

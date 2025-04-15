@@ -37,7 +37,7 @@ func parseService(data []byte) (object, error) {
 
 // ServiceList is k8s service list.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#servicelist-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#servicelist-v1-core
 type ServiceList struct {
 	Metadata ListMeta
 	Items    []*Service
@@ -45,7 +45,7 @@ type ServiceList struct {
 
 // Service is k8s service.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#service-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#service-v1-core
 type Service struct {
 	Metadata ObjectMeta
 	Spec     ServiceSpec
@@ -53,7 +53,7 @@ type Service struct {
 
 // ServiceSpec is k8s service spec.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#servicespec-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#servicespec-v1-core
 type ServiceSpec struct {
 	ClusterIP    string
 	ExternalName string
@@ -63,7 +63,7 @@ type ServiceSpec struct {
 
 // ServicePort is k8s service port.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#serviceport-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#serviceport-v1-core
 type ServicePort struct {
 	Name     string
 	Protocol string

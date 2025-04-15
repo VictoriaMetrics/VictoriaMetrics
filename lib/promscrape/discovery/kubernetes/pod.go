@@ -38,7 +38,7 @@ func parsePod(data []byte) (object, error) {
 
 // PodList implements k8s pod list.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podlist-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#podlist-v1-core
 type PodList struct {
 	Metadata ListMeta
 	Items    []*Pod
@@ -46,7 +46,7 @@ type PodList struct {
 
 // Pod implements k8s pod.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#pod-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#pod-v1-core
 type Pod struct {
 	Metadata ObjectMeta
 	Spec     PodSpec
@@ -55,7 +55,7 @@ type Pod struct {
 
 // PodSpec implements k8s pod spec.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podspec-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#podspec-v1-core
 type PodSpec struct {
 	NodeName       string
 	Containers     []Container
@@ -64,7 +64,7 @@ type PodSpec struct {
 
 // Container implements k8s container.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#container-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#container-v1-core
 type Container struct {
 	Name          string
 	Image         string
@@ -81,7 +81,7 @@ type ContainerPort struct {
 
 // PodStatus implements k8s pod status.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podstatus-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#podstatus-v1-core
 type PodStatus struct {
 	Phase                 string
 	PodIP                 string
@@ -93,7 +93,7 @@ type PodStatus struct {
 
 // PodCondition implements k8s pod condition.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podcondition-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#podcondition-v1-core
 type PodCondition struct {
 	Type   string
 	Status string
@@ -101,7 +101,7 @@ type PodCondition struct {
 
 // ContainerStatus implements k8s container status.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#containerstatus-v1-core
 type ContainerStatus struct {
 	Name        string
 	ContainerID string
@@ -110,14 +110,14 @@ type ContainerStatus struct {
 
 // ContainerState implements k8s container state.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#containerstatus-v1-core
 type ContainerState struct {
 	Terminated *ContainerStateTerminated
 }
 
 // ContainerStateTerminated implements k8s terminated container state.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#containerstatus-v1-core
 type ContainerStateTerminated struct {
 	ExitCode int
 }

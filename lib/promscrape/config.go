@@ -1168,7 +1168,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 
 	mergeLabels(labels, swc, target, extraLabels, metaLabels)
 	var originalLabels *promutil.Labels
-	if !*dropOriginalLabels {
+	if !*dropOriginalLabels || *clusterMembersCount > 1 {
 		originalLabels = labels.Clone()
 	}
 	labels.Labels = swc.relabelConfigs.Apply(labels.Labels, 0)
@@ -1188,10 +1188,13 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1687#issuecomment-940629495
 	if *clusterMembersCount > 1 {
 		bb := scrapeWorkKeyBufPool.Get()
-		bb.B = appendScrapeWorkKey(bb.B[:0], labels)
+		bb.B = appendScrapeWorkKey(bb.B[:0], originalLabels)
 		memberNums := getClusterMemberNumsForScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor)
 		scrapeWorkKeyBufPool.Put(bb)
 		if !slices.Contains(memberNums, clusterMemberID) {
+			if *dropOriginalLabels {
+				originalLabels.Labels = originalLabels.Labels[:0]
+			}
 			originalLabels = sortOriginalLabelsIfNeeded(originalLabels)
 			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs, targetDropReasonSharding, memberNums)
 			return nil, nil
