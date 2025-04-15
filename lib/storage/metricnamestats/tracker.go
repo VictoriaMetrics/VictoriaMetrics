@@ -391,8 +391,8 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 	return result
 }
 
-// WriteStatsToForNames writes stats records for the given metric names into provided dst
-func (mt *Tracker) WriteStatsToForNames(dst []StatRecord, accountID, projectID uint32, metricNames []string) {
+// WriteStatsForNamesTo writes stats records for the given metric names into provided dst
+func (mt *Tracker) WriteStatsForNamesTo(dst []StatRecord, accountID, projectID uint32, metricNames []string) {
 	if mt == nil {
 		return
 	}

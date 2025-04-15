@@ -1791,7 +1791,7 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 			names[idx] = mns.Name
 		}
 		stats := make([]metricnamestats.StatRecord, len(names))
-		s.metricsTracker.WriteStatsToForNames(stats, accountID, projectID, names)
+		s.metricsTracker.WriteStatsForNamesTo(stats, accountID, projectID, names)
 		for idx, stat := range stats {
 			entry := &res.SeriesCountByMetricName[idx]
 			entry.RequestsCount = stat.RequestsCount

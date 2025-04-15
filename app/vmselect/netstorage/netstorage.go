@@ -2911,11 +2911,11 @@ func readTopHeapMetricNameEntries(bc *handshake.BufferedConn) ([]storage.TopHeap
 	for i := uint64(0); i < n; i++ {
 		buf, err = readBytes(buf[:0], bc, maxLabelNameSize)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read label name: %w", err)
+			return nil, fmt.Errorf("cannot read metric name: %w", err)
 		}
 		count, err := readUint64(bc)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read label count: %w", err)
+			return nil, fmt.Errorf("cannot read series count: %w", err)
 		}
 		requestsCount, err := readUint64(bc)
 		if err != nil {
