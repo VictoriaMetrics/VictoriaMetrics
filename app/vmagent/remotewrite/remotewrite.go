@@ -530,7 +530,7 @@ func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamples
 			rowsCount := getRowsCount(tss)
 			if *shardByURL {
 				// Todo: When shardByURL is enabled, the following metrics won't be 100% accurate. Because vmagent don't know
-				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute \
+				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute
 				// data to all rwctxs evenly.
 				rowsCount = rowsCount / len(rwctxsGlobal)
 			}
@@ -619,15 +619,13 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 	return !anyPushFailed.Load()
 }
 
-func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]prompbmarshal.TimeSeries, rwctxs []*remoteWriteCtx, replicas int) {
-	tmpLabels := promutil.GetLabels()
-	defer promutil.PutLabels(tmpLabels)
-
+// calculateHealthyRwctxIdx return the index of healthyRwctxs in rwctxsGlobal.
+func calculateHealthyRwctxIdx(healthyRwctxs []*remoteWriteCtx) ([]int, []int) {
 	unhealthyIdx := make([]int, 0, len(rwctxsGlobal))
 	healthyIdx := make([]int, 0, len(rwctxsGlobal))
 	i, j := 0, 0
-	for j < len(rwctxs) {
-		if rwctxsGlobal[i] != rwctxs[j] {
+	for j < len(healthyRwctxs) {
+		if rwctxsGlobal[i] != healthyRwctxs[j] {
 			unhealthyIdx = append(unhealthyIdx, i)
 			i++
 		} else {
@@ -640,6 +638,15 @@ func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]p
 		unhealthyIdx = append(unhealthyIdx, i)
 		i++
 	}
+	return healthyIdx, unhealthyIdx
+}
+
+// shardAmountRemoteWriteCtx distribute time series to shards by consistent hashing.
+func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]prompbmarshal.TimeSeries, rwctxs []*remoteWriteCtx, replicas int) {
+	tmpLabels := promutil.GetLabels()
+	defer promutil.PutLabels(tmpLabels)
+
+	healthyIdx, unhealthyIdx := calculateHealthyRwctxIdx(rwctxs)
 
 	// shardsIdxMap is a map to find which the shard idx by rwctxs idx.
 	// rwctxConsistentHashGlobal will tell which the rwctxs idx a time series should be written to.

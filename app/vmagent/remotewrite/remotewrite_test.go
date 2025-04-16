@@ -286,3 +286,35 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 
 	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
 }
+
+func TestCalculateHealthyRwctxIdx(t *testing.T) {
+	f := func(total int, healthyIdx []int, unhealthyIdx []int) {
+		t.Helper()
+
+		healthyMap := make(map[int]bool)
+		for _, idx := range healthyIdx {
+			healthyMap[idx] = true
+		}
+		rwctxsGlobal = make([]*remoteWriteCtx, total)
+		rwctxs := make([]*remoteWriteCtx, 0, len(healthyIdx))
+		for i := range rwctxsGlobal {
+			rwctx := &remoteWriteCtx{}
+			rwctxsGlobal[i] = rwctx
+			if healthyMap[i] {
+				rwctxs = append(rwctxs, rwctx)
+			}
+		}
+		gotHealthyIdx, gotUnhealthyIdx := calculateHealthyRwctxIdx(rwctxs)
+		if !reflect.DeepEqual(healthyIdx, gotHealthyIdx) {
+			t.Errorf("calculateHealthyRwctxIdx() got = %v, want %v", healthyIdx, gotHealthyIdx)
+		}
+		if !reflect.DeepEqual(unhealthyIdx, gotUnhealthyIdx) {
+			t.Errorf("calculateHealthyRwctxIdx() got1 = %v, want %v", unhealthyIdx, gotUnhealthyIdx)
+		}
+	}
+
+	f(5, []int{0, 1, 2, 3, 4}, []int{})
+	f(5, []int{0, 1, 2, 4}, []int{3})
+	f(5, []int{0, 2, 4}, []int{1, 3})
+	f(5, []int{}, []int{0, 1, 2, 3, 4})
+}
