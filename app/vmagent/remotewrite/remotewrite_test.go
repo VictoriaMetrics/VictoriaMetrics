@@ -247,7 +247,6 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 
 		// removed last node
 		rwctxs = rwctxs[:len(rwctxs)-1]
-		unhealthyIdx = append(unhealthyIdx, healthyIdx[len(healthyIdx)-1])
 		healthyIdx = healthyIdx[:len(healthyIdx)-1]
 
 		x = getTSSShards(len(rwctxs))
