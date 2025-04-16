@@ -9,7 +9,7 @@ const CATEGORY_TAG = "h3";
 const FUNCTION_TAG = "h4";
 const DESCRIPTION_TAG = "p";
 
-const docsUrl = "https://docs.victoriametrics.com/MetricsQL.html";
+const docsUrl = "https://docs.victoriametrics.com/metricsql/";
 const classLink = "vm-link vm-link_colored";
 
 const prepareDescription = (text: string): string => {

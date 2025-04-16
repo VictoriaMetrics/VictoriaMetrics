@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -70,7 +71,9 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		allRelabelConfigs.Store(rcs)
 
 		pss := make([]*pendingSeries, 1)
-		pss[0] = newPendingSeries(nil, true, 0, 100)
+		isVMProto := &atomic.Bool{}
+		isVMProto.Store(true)
+		pss[0] = newPendingSeries(nil, isVMProto, 0, 100)
 		rwctx := &remoteWriteCtx{
 			idx:                    0,
 			streamAggrKeepInput:    keepInput,
@@ -183,7 +186,7 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 	//    - if consistent hash disabled, change rate must < 1. e.g. +100%.
 	f := func(remoteWriteCount int, healthyIdx []int, unhealthyIdx []int, replicas int) {
 		t.Helper()
-		
+
 		seriesCount := 100000
 		// build 1000000 series
 		tssBlock := make([]prompbmarshal.TimeSeries, 0, seriesCount)

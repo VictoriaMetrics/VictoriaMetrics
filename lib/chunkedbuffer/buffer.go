@@ -1,14 +1,39 @@
 package chunkedbuffer
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 const chunkSize = 4 * 1024
+
+// Get returns Buffer from the pool.
+//
+// Return back the Buffer to the pool via Put() call when it is no longer needed.
+func Get() *Buffer {
+	v := cbPool.Get()
+	if v == nil {
+		return &Buffer{}
+	}
+	return v.(*Buffer)
+}
+
+// Put returns cb to the pool, so it could be re-used via Get() call.
+//
+// The cb cannot be used after Put() call.
+func Put(cb *Buffer) {
+	cb.Reset()
+	cbPool.Put(cb)
+}
+
+var cbPool sync.Pool
 
 // Buffer provides in-memory buffer optimized for storing big bytes volumes.
 //
@@ -89,10 +114,43 @@ func (cb *Buffer) MustReadAt(p []byte, off int64) {
 	}
 }
 
+// ReadFrom reads all the data from r and appends it to cb.
+func (cb *Buffer) ReadFrom(r io.Reader) (int64, error) {
+	v := copyBufPool.Get()
+	if v == nil {
+		v = new([16 * 1024]byte)
+	}
+	b := (v.(*[16 * 1024]byte))[:]
+
+	bytesRead := int64(0)
+	for {
+		n, err := r.Read(b)
+		cb.MustWrite(b[:n])
+		bytesRead += int64(n)
+		if err != nil {
+			copyBufPool.Put(v)
+			if errors.Is(err, io.EOF) {
+				return bytesRead, nil
+			}
+			return bytesRead, err
+		}
+	}
+}
+
+var copyBufPool sync.Pool
+
 // WriteTo writes cb data to w.
 func (cb *Buffer) WriteTo(w io.Writer) (int64, error) {
-	if len(cb.chunks) == 0 {
+	bLen := cb.Len()
+	if bLen == 0 {
 		return 0, nil
+	}
+
+	switch t := w.(type) {
+	case *bytesutil.ByteBuffer:
+		t.Grow(bLen)
+	case *bytes.Buffer:
+		t.Grow(bLen)
 	}
 
 	nTotal := 0
@@ -121,6 +179,16 @@ func (cb *Buffer) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	return int64(nTotal), nil
+}
+
+// MustWriteTo writes cb contents w.
+//
+// Use this function only if w cannot return errors. For example, if w is bytes.Buffer of bytesutil.ByteBuffer.
+// If w can return errors, then use WriteTo function instead.
+func (cb *Buffer) MustWriteTo(w io.Writer) {
+	if _, err := cb.WriteTo(w); err != nil {
+		logger.Panicf("BUG: unexpected error writing Buffer data to the provided writer: %s", err)
+	}
 }
 
 // Path returns cb path.
@@ -185,8 +253,7 @@ func (r *reader) MustClose() {
 func getChunk() *[chunkSize]byte {
 	v := chunkPool.Get()
 	if v == nil {
-		var chunk [chunkSize]byte
-		return &chunk
+		return new([chunkSize]byte)
 	}
 	return v.(*[chunkSize]byte)
 }

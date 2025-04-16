@@ -320,8 +320,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
+		// https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 		state := r.FormValue("state")
-		promscrape.WriteAPIV1Targets(w, state)
+		scrapePool := r.FormValue("scrapePool")
+		promscrape.WriteAPIV1Targets(w, state, scrapePool)
 		return true
 	case "/prometheus/target_response", "/target_response":
 		promscrapeTargetResponseRequests.Inc()

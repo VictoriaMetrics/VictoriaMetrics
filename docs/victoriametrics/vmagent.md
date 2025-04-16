@@ -40,7 +40,8 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
-* Uses lower amounts of RAM, CPU, disk IO and network bandwidth than Prometheus.
+* Uses much lower amounts of RAM, CPU, disk IO and network bandwidth than Prometheus. The RAM usage and CPU usage can be reduced further
+  if needed according to [these docs](#performance-optimizations).
 * Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
 * Can load scrape configs from multiple files. See [these docs](#loading-scrape-configs-from-multiple-files).
 * Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/).
@@ -402,9 +403,9 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
   This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
 
-`vmagent` automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
+`vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "#" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/).
+or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). If needed, It can automatically downgrade to a Prometheus protocol at runtime.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
@@ -1193,19 +1194,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 * It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
 
-* If `vmagent` uses too big amounts of memory, then the following options can help:
-  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line flag.
-    Another option is to reduce memory limits in Docker and/or Kubernetes if `vmagent` runs under these systems.
-  * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`,
-    where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
-  * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
-  * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
-  * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line flag.
-  * Passing `-promscrape.dropOriginalLabels` command-line flag to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs/)
-    big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling/#how-to-drop-discovered-targets)
-    before scraping. In this case `vmagent` drops `"discoveredLabels"` and `"droppedTargets"`
-    lists at `http://vmagent-host:8429/service-discovery` page. This reduces memory usage when scraping big number of targets at the cost
-    of reduced debuggability for improperly configured per-target [relabeling](https://docs.victoriametrics.com/relabeling/).
+* If `vmagent` uses too much RAM or CPU, then follow [these recommendations](#performance-optimizations).
 
 * When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended investigating and fixing these errors.
   If it is unfeasible to fix all the reported errors, then they can be suppressed by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
@@ -1645,6 +1634,46 @@ requests at this port, by specifying `-tls` and `-mtls` command-line flags. For 
 
 By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
+## Performance optimizations
+
+`vmagent` is optimized for low CPU usage and low RAM usage without the need to tune any configs. Sometimes it is needed to optimize CPU / RAM usage of `vmagent` even more.
+For example, if `vmagent` needs to scrape thousands of targets in resource-constrained environments. Then the following options may help reducing CPU usage and RAM usage of `vmagent`:
+
+- Set [GOGC](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to `100`. This reduces CPU usage at the cost of higher RAM usage.
+
+- Set [GOMAXPROCS](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to the value slightly bigger than the number of CPU cores used by `vmagent`.
+  Another option is to set CPU limit in Kubernetes / Docker to the integer value bigger than the number of CPU cores used by `vmagent`.
+  This reduces RAM usage and CPU usage when `vmagent` runs in an environment with bigger number of available CPU cores. Note that it may be needed to increase the `-remoteWrite.queues`
+  command-line flag to bigger values if `GOMAXPROCS` is set to too small values, since by default `-remoteWrite.queues` is proportional to `GOMAXPROCS`.
+
+- Disable response compression at scrape targets via `-promscrape.disableCompression` command-line flag or via `disable_compression: true` option
+  in the [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs). This reduces CPU usage at the cost of higher network bandwidth usage
+  between `vmagent` and scrape targets.
+
+- Disable tracking of original labels for the discovered targets via `-promscrape.dropOriginalLabels` command-line flag. This helps reducing RAM usage when `vmagent`
+  discovers big number of scrape targets and the majority of these targets are [dropped](https://docs.victoriametrics.com/relabeling/#how-to-drop-discovered-targets).
+  This is a typical case when `vmagent` discovers Kubernetes targets. The downside of using `-promscrape.dropOriginalLabels` command-line flag
+  is the reduced [debuggability](#debugging-scrape-targets) for improperly configured per-target relabeling.
+
+- Disable [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) via `-promscrape.noStaleMarkers` command-line flag
+  or via `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs). This reduces RAM usage and CPU usage.
+  Note that disabling staleness markers may result in unexpected query results when scrape targets are frequently rotated (this is a typical case in Kubernetes).
+
+- Set `-memory.allowedBytes` command-line flag to the value close to the actual memory usage of `vmagent`. Another option is to set memory limit in Kubernetes / Docker
+  to the value 50% bigger than the actual memory usage of `vmagent`. This should reduce memory usage spikes for `vmagent` running in the environment with bigger available memory
+  when the remote storage cannot keep up with the data ingestion rate. Increasing `-remoteWrite.queues` command-line flag value may help in this case too.
+
+- In extreme cases it may be useful to set `-promscrape.disableKeepAlive` command-line flag in order to save RAM on HTTP keep-alive connections to thousands of scrape targets.
+
+- Increase `scrape_interval` option in the `global` section of the `-promscrape.config` and/or at every [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs)
+  for reducing CPU usage. For example, increasing the `scrape_interval` from `10s` to `30s` across all the targets decreases CPU usage at `vmagent` by up to 3x.
+
+Example command, which runs `vmagent` in an optimized mode:
+
+```
+GOGC=100 GOMAXPROCS=1 ./vmagent -promscrape.disableCompression -promscrape.dropOriginalLabels -promscrape.noStaleMarkers -memory.allowedBytes=1GiB -promscrape.disableKeepAlive ...
+```
 
 ## How to build from sources
 

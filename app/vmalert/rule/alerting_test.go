@@ -22,6 +22,32 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
+func TestNewAlertingRule(t *testing.T) {
+	f := func(group *Group, rule config.Rule, expectRule *AlertingRule) {
+		t.Helper()
+
+		r := NewAlertingRule(&datasource.FakeQuerier{}, group, rule)
+		if err := CompareRules(t, expectRule, r); err != nil {
+			t.Fatalf("unexpected rule mismatch: %s", err)
+		}
+	}
+
+	f(&Group{Name: "foo"},
+		config.Rule{
+			Alert: "health",
+			Expr:  "up == 0",
+			Labels: map[string]string{
+				"foo": "bar",
+			},
+		}, &AlertingRule{
+			Name: "health",
+			Expr: "up == 0",
+			Labels: map[string]string{
+				"foo": "bar",
+			},
+		})
+}
+
 func TestAlertingRuleToTimeSeries(t *testing.T) {
 	timestamp := time.Now()
 
@@ -1320,5 +1346,25 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 
 	if !reflect.DeepEqual(ls.processed, expectedProcessedLabels) {
 		t.Fatalf("processed labels mismatch, got: %v, want: %v", ls.processed, expectedProcessedLabels)
+	}
+}
+
+func TestAlertingRuleExec_Partial(t *testing.T) {
+	fq := &datasource.FakeQuerier{}
+	fq.Add(metricWithValueAndLabels(t, 10, "__name__", "bar"))
+	fq.SetPartialResponse(true)
+
+	ar := newTestAlertingRule("test", 0)
+	ar.Debug = true
+	ar.Labels = map[string]string{"job": "test"}
+	ar.q = fq
+	ar.For = time.Second
+
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+
+	ts := time.Now()
+	_, err := ar.exec(context.TODO(), ts, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
 	}
 }

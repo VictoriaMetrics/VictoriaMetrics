@@ -1,8 +1,7 @@
 package logstorage
 
 import (
-	"unsafe"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -102,14 +101,12 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 	})
 }
 
-func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
+func newPipeUnpackProcessor(unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
 	fromField string, fieldPrefix string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter) *pipeUnpackProcessor {
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
 		ppNext:     ppNext,
-
-		shards: make([]pipeUnpackProcessorShard, workersCount),
 
 		fromField:          fromField,
 		fieldPrefix:        fieldPrefix,
@@ -123,7 +120,7 @@ type pipeUnpackProcessor struct {
 	unpackFunc func(uctx *fieldsUnpackerContext, s string)
 	ppNext     pipeProcessor
 
-	shards []pipeUnpackProcessorShard
+	shards atomicutil.Slice[pipeUnpackProcessorShard]
 
 	fromField          string
 	fieldPrefix        string
@@ -134,13 +131,6 @@ type pipeUnpackProcessor struct {
 }
 
 type pipeUnpackProcessorShard struct {
-	pipeUnpackProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUnpackProcessorShardNopad{})%128]byte
-}
-
-type pipeUnpackProcessorShardNopad struct {
 	bm bitmap
 
 	uctx fieldsUnpackerContext
@@ -152,7 +142,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 	shard.wctx.init(workerID, pup.ppNext, pup.keepOriginalFields, pup.skipEmptyResults, br)
 	shard.uctx.init(pup.fieldPrefix)
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/internalselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/logsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -72,7 +73,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 
-	if !strings.HasPrefix(path, "/select/") {
+	if !strings.HasPrefix(path, "/select/") && !strings.HasPrefix(path, "/internal/select/") {
 		// Skip requests, which do not start with /select/, since these aren't our requests.
 		return false
 	}
@@ -99,9 +100,17 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	ctx := r.Context()
+	if path == "/select/logsql/tail" {
+		logsqlTailRequests.Inc()
+		// Process live tailing request without timeout, since it is OK to run live tailing requests for very long time.
+		// Also do not apply concurrency limit to tail requests, since these limits are intended for non-tail requests.
+		logsql.ProcessLiveTailRequest(ctx, w, r)
+		return true
+	}
+
 	// Limit the number of concurrent queries, which can consume big amounts of CPU time.
 	startTime := time.Now()
-	ctx := r.Context()
 	d := getMaxQueryDuration(r)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
@@ -111,11 +120,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	defer decRequestConcurrency()
 
-	if path == "/select/logsql/tail" {
-		logsqlTailRequests.Inc()
-		// Process live tailing request without timeout (e.g. use ctx instead of ctxWithTimeout),
-		// since it is OK to run live tailing requests for very long time.
-		logsql.ProcessLiveTailRequest(ctx, w, r)
+	if strings.HasPrefix(path, "/internal/select/") {
+		// Process internal request from vlselect without timeout (e.g. use ctx instead of ctxWithTimeout),
+		// since the timeout must be controlled by the vlselect.
+		internalselect.RequestHandler(ctx, w, r)
 		return true
 	}
 
@@ -124,15 +132,17 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	err := ctxWithTimeout.Err()
+	logRequestErrorIfNeeded(ctxWithTimeout, w, r, startTime)
+	return true
+}
+
+func logRequestErrorIfNeeded(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
+	err := ctx.Err()
 	switch err {
 	case nil:
 		// nothing to do
 	case context.Canceled:
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-			time.Since(startTime).Seconds(), remoteAddr, requestURI)
+		// do not log canceled requests, since they are expected and legal.
 	case context.DeadlineExceeded:
 		err = &httpserver.ErrorWithStatusCode{
 			Err: fmt.Errorf("the request couldn't be executed in %.3f seconds; possible solutions: "+
@@ -143,8 +153,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		httpserver.Errorf(w, r, "unexpected error: %s", err)
 	}
-
-	return true
 }
 
 func incRequestConcurrency(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {

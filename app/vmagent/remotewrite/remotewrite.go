@@ -898,7 +898,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	}
 	pss := make([]*pendingSeries, pssLen)
 	for i := range pss {
-		pss[i] = newPendingSeries(fq, c.useVMProto, sf, rd)
+		pss[i] = newPendingSeries(fq, &c.useVMProto, sf, rd)
 	}
 
 	rwctx := &remoteWriteCtx{

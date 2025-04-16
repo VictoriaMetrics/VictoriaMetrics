@@ -202,8 +202,11 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
-	pt.tr.fromPartitionTimestamp(timestamp)
+	var tr TimeRange
+	tr.fromPartitionTimestamp(timestamp)
+
+	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
+
 	pt.startBackgroundWorkers()
 
 	logger.Infof("partition %q has been created", name)
@@ -239,6 +242,10 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
 	name := filepath.Base(smallPartsPath)
+	var tr TimeRange
+	if err := tr.fromPartitionName(name); err != nil {
+		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
+	}
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
@@ -256,22 +263,21 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
-	if err := pt.tr.fromPartitionName(name); err != nil {
-		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
-	}
+
 	pt.startBackgroundWorkers()
 
 	return pt
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath string, tr TimeRange, s *Storage) *partition {
 	p := &partition{
 		name:           name,
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
+		tr:             tr,
 		s:              s,
 		stopCh:         make(chan struct{}),
 	}
@@ -1568,7 +1574,8 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
+	dmis := pt.s.getDeletedMetricIDs()
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {

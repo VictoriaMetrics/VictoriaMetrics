@@ -1042,7 +1042,8 @@ Additionally, VictoriaMetrics provides the following handlers:
 
 * `/vmui` - Basic Web UI. See [these docs](#vmui).
 * `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
-  * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
+  * the handler scans all [IndexDBs](#indexdb) entirely, so it can be slow if the database contains tens of millions of time series;
+  * it can return an inflated value if the same time series is stored in more than one IndexDB.
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
 * `/api/v1/status/active_queries` - returns the list of currently running queries. This list is also available at [`active queries` page at VMUI](#active-queries).
 * `/api/v1/status/top_queries` - returns the following query lists:
@@ -2852,7 +2853,7 @@ To update the documentation follow the steps below:
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
-  with proposed changes and wait for it to be merged. See [contributing](https://docs.victoriametrics.com/contributing/).
+  with proposed changes and wait for it to be merged. See [pull request checklist](https://docs.victoriametrics.com/contributing/#pull-request-checklist).
 
 Requirements for changes to docs:
 

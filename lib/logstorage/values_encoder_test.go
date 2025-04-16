@@ -343,6 +343,7 @@ func TestTryParseDuration_Success(t *testing.T) {
 	f("1.5d", 1.5*nsecsPerDay)
 	f("1.5w", 1.5*nsecsPerWeek)
 	f("2.5y", 2.5*nsecsPerYear)
+	f("1h5m35s", 1*nsecsPerHour+5*nsecsPerMinute+35*nsecsPerSecond)
 	f("1m5.123456789s", nsecsPerMinute+5.123456789*nsecsPerSecond)
 
 	// composite duration

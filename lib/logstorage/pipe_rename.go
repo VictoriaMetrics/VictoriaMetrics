@@ -31,6 +31,10 @@ func (pr *pipeRename) String() string {
 	return "rename " + strings.Join(a, ", ")
 }
 
+func (pr *pipeRename) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pr, nil
+}
+
 func (pr *pipeRename) canLiveTail() bool {
 	return true
 }
@@ -62,7 +66,7 @@ func (pr *pipeRename) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pr, nil
 }
 

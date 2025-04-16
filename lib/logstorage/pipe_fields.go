@@ -25,6 +25,10 @@ func (pf *pipeFields) String() string {
 	return "fields " + fieldNamesString(pf.fields)
 }
 
+func (pf *pipeFields) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pf, nil
+}
+
 func (pf *pipeFields) canLiveTail() bool {
 	return true
 }
@@ -58,7 +62,7 @@ func (pf *pipeFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pf, nil
 }
 

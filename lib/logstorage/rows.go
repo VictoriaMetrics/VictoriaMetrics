@@ -39,7 +39,10 @@ func (f *Field) marshal(dst []byte, marshalFieldName bool) []byte {
 	return dst
 }
 
-func (f *Field) unmarshalNoArena(src []byte, unmarshalFieldName bool) ([]byte, error) {
+// unmarshalInplace unmarshals f from src.
+//
+// f is valid until src is changed.
+func (f *Field) unmarshalInplace(src []byte, unmarshalFieldName bool) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name

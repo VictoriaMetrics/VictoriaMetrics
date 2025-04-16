@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -93,9 +93,9 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(_ *bytesutil.ByteBuffer) error {
+	sw.ReadData = func(_ *chunkedbuffer.Buffer) (bool, error) {
 		readDataCalls++
-		return fmt.Errorf("error when reading data")
+		return false, fmt.Errorf("error when reading data")
 	}
 
 	pushDataCalls := 0
@@ -149,10 +149,10 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
 			readDataCalls++
-			dst.B = append(dst.B, data...)
-			return nil
+			dst.MustWrite([]byte(data))
+			return false, nil
 		}
 
 		var pushDataMu sync.Mutex
@@ -543,15 +543,14 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+		sw.ReadData = func(dst *chunkedbuffer.Buffer) (bool, error) {
 			readDataCalls++
-			dst.B = append(dst.B, data...)
-			return nil
+			dst.MustWrite([]byte(data))
+			return false, nil
 		}
 
 		var pushDataCalls atomic.Int64
 		var pushedTimeseries atomic.Int64
-		var pushDataErr error
 		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 			pushDataCalls.Add(1)
 			pushedTimeseries.Add(int64(len(wr.Timeseries)))
@@ -568,9 +567,6 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 			}
 		}
 		tsmGlobal.Unregister(&sw)
-		if pushDataErr != nil {
-			t.Fatalf("unexpected error: %s", pushDataErr)
-		}
 		if readDataCalls != 1 {
 			t.Fatalf("unexpected number of readData calls; got %d; want %d", readDataCalls, 1)
 		}
@@ -627,15 +623,12 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	}, 3, 4015, 2)
 }
 
-func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
+func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
 	f := func(row string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
-		sw := scrapeWork{
-			Config: cfg,
-		}
-		var wc writeRequestCtx
 		r := parsePromRow(row)
-		sw.addRowToTimeseries(&wc, r, r.Timestamp, false)
+		var wc writeRequestCtx
+		wc.addRow(cfg, r, r.Timestamp, false)
 		tss := wc.writeRequest.Timeseries
 		tssExpected := parseData(dataExpected)
 		if err := expectEqualTimeseries(tss, tssExpected); err != nil {
