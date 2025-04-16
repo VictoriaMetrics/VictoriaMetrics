@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.logSlowQueryStats`. This flag is available only in VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/). See the following [docs](https://docs.victoriametrics.com/query-stats) for details.
 * FEATURE: all the VictoriaMetrics components: mask `authKey` value from log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): add helpful hints to the unexpected EOF error message in the write concurrency limiter. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): use [VM remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) by default with automatic downgrade in runtime to Prometheus protocol when needed. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462) for details.
