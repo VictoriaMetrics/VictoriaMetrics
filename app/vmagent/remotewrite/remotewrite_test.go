@@ -181,12 +181,9 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 	// 4. check active time series change rate:
 	//    - if consistent hash enabled, change rate must < (3/total nodes). e.g. +30% if 10 you have 10 nodes.
 	//    - if consistent hash disabled, change rate must < 1. e.g. +100%.
-	f := func(enableConsistentHash bool, remoteWriteCount int, healthyIdx []int, unhealthyIdx []int, replicas int) {
+	f := func(remoteWriteCount int, healthyIdx []int, unhealthyIdx []int, replicas int) {
 		t.Helper()
-
-		// set flag
-		*shardByURLConsistent = enableConsistentHash
-
+		
 		seriesCount := 100000
 		// build 1000000 series
 		tssBlock := make([]prompbmarshal.TimeSeries, 0, seriesCount)
@@ -261,27 +258,20 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		avgActiveTimeSeries2 := totalActiveTimeSeries / remoteWriteCount
 
 		changed := math.Abs(float64(avgActiveTimeSeries2-avgActiveTimeSeries1) / float64(avgActiveTimeSeries1))
-		threshold := float64(1)
-		if *shardByURLConsistent {
-			threshold = 3 / float64(remoteWriteCount)
-		}
+		threshold := 3 / float64(remoteWriteCount)
 
 		//logger.Infof("consistenthash %t, average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", enableConsistentHash, avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
 		if changed >= threshold {
-			t.Fatalf("consistenthash %t, average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", enableConsistentHash, avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
+			t.Fatalf("average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
 		}
 
 	}
 
-	f(true, 5, []int{0, 1, 2, 3, 4}, []int{}, 1)
-	f(false, 5, []int{0, 1, 2, 3, 4}, []int{}, 1)
+	f(5, []int{0, 1, 2, 3, 4}, []int{}, 1)
 
-	f(true, 5, []int{0, 1, 2, 3, 4}, []int{}, 2)
-	f(false, 5, []int{0, 1, 2, 3, 4}, []int{}, 2)
+	f(5, []int{0, 1, 2, 3, 4}, []int{}, 2)
 
-	f(true, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 1)
-	f(false, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 1)
+	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 1)
 
-	f(true, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
-	f(false, 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
+	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
 }

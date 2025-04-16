@@ -55,9 +55,6 @@ var (
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
-	shardByURLConsistent = flag.Bool("remoteWrite.shardByURL.consistent", false, "Whether to use consistent hashing when sharding outgoing series among remote storage systems. "+
-		"If set to true, the same series will always be routed to the same remote storage system, which can help minimize changes in active time series when adding or removing remote write destinations. "+
-		"The consistent hash will be based on the remote write URLs and their sequence. Changing either of these will result in a different consistent hash node.")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -216,7 +213,7 @@ func Init() {
 		rwctxsGlobalIdx = append(rwctxsGlobalIdx, i)
 	}
 
-	if *shardByURL && *shardByURLConsistent {
+	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(*remoteWriteURLs))
 		for i := range *remoteWriteURLs {
 			consistentHashNodes = append(consistentHashNodes, fmt.Sprintf("%d:%s", i+1, (*remoteWriteURLs)[i]))
@@ -684,12 +681,9 @@ func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]p
 	// shardsIdxMap is a map to find which the shard idx by rwctxs idx.
 	// rwctxConsistentHashGlobal will tell which the rwctxs idx a time series should be written to.
 	// And this time series should be appended to the shards by correct shard idx.
-	var shardsIdxMap map[int]int
-	if *shardByURLConsistent {
-		shardsIdxMap = make(map[int]int, len(healthyIdx))
-		for idx, rwctxsIdx := range healthyIdx {
-			shardsIdxMap[rwctxsIdx] = idx
-		}
+	shardsIdxMap := make(map[int]int, len(healthyIdx))
+	for idx, rwctxsIdx := range healthyIdx {
+		shardsIdxMap[rwctxsIdx] = idx
 	}
 
 	for _, ts := range tssBlock {
@@ -713,23 +707,21 @@ func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]p
 		}
 		h := getLabelsHash(hashLabels)
 
-		// rwctx index
-		idx := int(h % uint64(len(shards)))
-		if *shardByURLConsistent {
-			hashIdx := rwctxConsistentHashGlobal.GetNodeIdx(h, unhealthyIdx)
-			idx = shardsIdxMap[hashIdx]
-		}
+		// Get the rwctxIdx through consistent hashing and then map it to the index in shards.
+		// The rwctxIdx is not always equal to the shardIdx, for example, when some rwctx are not available.
+		rwctxIdx := rwctxConsistentHashGlobal.GetNodeIdx(h, unhealthyIdx)
+		shardIdx := shardsIdxMap[rwctxIdx]
 
 		replicated := 0
 		for {
-			shards[idx] = append(shards[idx], ts)
+			shards[shardIdx] = append(shards[shardIdx], ts)
 			replicated++
 			if replicated >= replicas {
 				break
 			}
-			idx++
-			if idx >= len(shards) {
-				idx = 0
+			shardIdx++
+			if shardIdx >= len(shards) {
+				shardIdx = 0
 			}
 		}
 	}

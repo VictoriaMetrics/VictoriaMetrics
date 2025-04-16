@@ -18,7 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**Update note 1: [vmagent](https://docs.victoriametrics.com/vmagent/)'s data distribution algorithm of remote write is changed from round-robin to consistent hashing when remoteWrite.shardByURL is enabled. This means remote write destinations will receive different time series after a vmagent upgrade, resulting in a temporary higher churn rate and increased memory usage.**
+
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): remove panel `Storage full ETA` as it could have showing incorrect predictions and result in user's confusion. See more details in [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): change current data distribution algorithm from round-robin to consistent hashing for remote write when `remoteWrite.shardByURL` is enabled. It helps minimize changes in active time series when adding or removing remote write destinations. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8546) for details.
 
 ## [v1.114.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.114.0)
 
@@ -30,7 +33,6 @@ Released at 2025-03-21
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support zstd compression for OpenTelemetry and Datadog metrics ingestion. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): improve vmagent performance on parsing big responses in [stream parsing mode](https://docs.victoriametrics.com/vmagent/#stream-parsing-mode). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8159) for details. Thanks to @makasim for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515).
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add consistent hashing option for remote write, which helps minimize changes in active time series when adding or removing remote write destinations. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8546) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): use original unmodified by [relabeling](https://docs.victoriametrics.com/#relabeling) job name as `scrape_pool` value for [/api/v1/targets](https://docs.victoriametrics.com/#prometheus-querying-api-usage) responses. This change fixes discrepancy with Prometheus as mentioned in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343). Thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8457).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxTSDBStatusTopNSeries` to allow setting a limit for topN argument accepted by `/api/v1/status/tsdb` endpoint.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support AWS EKS Pod Identity. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5780) for details.
