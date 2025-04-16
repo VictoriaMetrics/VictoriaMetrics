@@ -940,7 +940,6 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	} else {
 		queryOffset = 0
 	}
-	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
 		Start:               start,
 		End:                 start,
@@ -958,12 +957,13 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		},
 
 		DenyPartialResponse: httputil.GetDenyPartialResponse(r),
-		QueryStats:          qs,
 	}
 	err = populateAuthTokens(qt, ec, at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot populate auth tokens: %w", err)
 	}
+	qs := promql.NewQueryStats(query, at, ec)
+	ec.QueryStats = qs
 
 	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
@@ -993,6 +993,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
+
 	return nil
 }
 
@@ -1054,7 +1055,6 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
 		Start:               start,
 		End:                 end,
@@ -1072,12 +1072,13 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		},
 
 		DenyPartialResponse: httputil.GetDenyPartialResponse(r),
-		QueryStats:          qs,
 	}
 	err = populateAuthTokens(qt, ec, at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot populate auth tokens: %w", err)
 	}
+	qs := promql.NewQueryStats(query, at, ec)
+	ec.QueryStats = qs
 
 	result, err := promql.Exec(qt, ec, query, false)
 	if err != nil {
@@ -1107,6 +1108,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
+
 	return nil
 }
 
