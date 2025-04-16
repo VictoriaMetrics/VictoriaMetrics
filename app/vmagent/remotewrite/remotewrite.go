@@ -528,6 +528,11 @@ func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamples
 				return nil, false
 			}
 			rowsCount := getRowsCount(tss)
+			if *shardByURL {
+				// Todo: It's not accurate for the same reason as above when shardByURL is enabled.
+				// The fast path is to consider the hashing algorithm fair and will distribute data to all rwctxs evenly.
+				rowsCount = rowsCount / len(rwctxsGlobal)
+			}
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		}
 	}
