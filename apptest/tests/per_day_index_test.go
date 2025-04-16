@@ -11,7 +11,7 @@ func TestSingleSearchWithDisabledPerDayIndex(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
+	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.MetricsWriterPrometheusQuerier {
 		return tc.MustStartVmsingle("vmsingle-"+name, []string{
 			"-storageDataPath=" + tc.Dir() + "/vmsingle",
 			"-retentionPeriod=100y",
@@ -25,7 +25,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
+	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.MetricsWriterPrometheusQuerier {
 		// Using static ports for vmstorage because random ports may cause
 		// changes in how data is sharded.
 		vmstorage1 := tc.MustStartVmstorage("vmstorage1-"+name, []string{
@@ -59,7 +59,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	})
 }
 
-type startSUTFunc func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier
+type startSUTFunc func(name string, disablePerDayIndex bool) at.MetricsWriterPrometheusQuerier
 
 // testDisablePerDayIndex_Search shows what search results to expect when data
 // is first inserted with per-day index enabled and then with per-day index
@@ -132,7 +132,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 
 	// Restart vmsingle with disabled per-day index, insert sample2, and confirm
 	// that both sample1 and sample2 is searchable.
-	tc.StopPrometheusWriteQuerier(sut)
+	tc.StopMetricsWriterQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample2, at.QueryOpts{})
@@ -167,7 +167,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	sample3 := []string{"metric1 333 1705708800000"} // 2024-01-20T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample3, at.QueryOpts{})
 	sut.ForceFlush(t)
-	tc.StopPrometheusWriteQuerier(sut)
+	tc.StopMetricsWriterQuerier(sut)
 	sut = start("with-per-day-index2", false)
 
 	// Time range is 1 day (Jan 1st) <= 40 days
@@ -295,7 +295,7 @@ func testClusterActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
 	})
 }
 
-func testActiveTimeseriesMetric(tc *at.TestCase, sut at.PrometheusWriteQuerier, getActiveTimeseries func() int) {
+func testActiveTimeseriesMetric(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier, getActiveTimeseries func() int) {
 	t := tc.T()
 	const numSamples = 1000
 	samples := make([]string, numSamples)

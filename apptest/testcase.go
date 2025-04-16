@@ -144,7 +144,7 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 // Vmcluster represents a typical cluster setup: several vmstorage replicas, one
 // vminsert, and one vmselect.
 //
-// Both Vmsingle and Vmcluster implement the PrometheusWriteQuerier used in
+// Both Vmsingle and Vmcluster implement the MetricsWriterPrometheusQuerier used in
 // business logic tests to abstract out the infrasture.
 //
 // This type is not suitable for infrastructure tests where custom cluster
@@ -189,7 +189,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 
 // MustStartDefaultCluster starts a typical cluster configuration with default
 // flags.
-func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+func (tc *TestCase) MustStartDefaultCluster() MetricsWriterPrometheusQuerier {
 	tc.t.Helper()
 
 	return tc.MustStartCluster(&ClusterOptions{
@@ -223,7 +223,7 @@ type ClusterOptions struct {
 }
 
 // MustStartCluster starts a typical cluster configuration with custom flags.
-func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerier {
+func (tc *TestCase) MustStartCluster(opts *ClusterOptions) MetricsWriterPrometheusQuerier {
 	tc.t.Helper()
 
 	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
@@ -267,8 +267,8 @@ func (tc *TestCase) StopApp(instance string) {
 	}
 }
 
-// StopPrometheusWriteQuerier stop all apps that are a part of the pwq.
-func (tc *TestCase) StopPrometheusWriteQuerier(pwq PrometheusWriteQuerier) {
+// StopMetricsWriterQuerier stop all apps that are a part of the pwq.
+func (tc *TestCase) StopMetricsWriterQuerier(pwq MetricsWriterPrometheusQuerier) {
 	tc.t.Helper()
 	switch t := pwq.(type) {
 	case *Vmsingle:

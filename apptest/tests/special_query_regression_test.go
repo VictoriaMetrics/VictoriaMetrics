@@ -32,7 +32,33 @@ func TestSingleSpecialQueryRegression(t *testing.T) {
 	testSubqueryAggregation(tc, sut)
 }
 
-func testCaseSensitiveRegex(tc *at.TestCase, sut *at.Vmsingle) {
+func TestClusterSpecialQueryRegression(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartCluster(&at.ClusterOptions{
+		Vmstorage1Instance: "vmstorage1",
+		Vmstorage2Instance: "vmstorage2",
+		VminsertInstance:   "vminsert",
+		VminsertFlags:      []string{"-graphiteListenAddr=:0", "-opentsdbListenAddr=127.0.0.1:0"},
+		VmselectInstance:   "vmselect",
+	})
+
+	// prometheus
+	testCaseSensitiveRegex(tc, sut)
+	testDuplicateLabel(tc, sut)
+	testTooBigLookbehindWindow(tc, sut)
+	testMatchSeries(tc, sut)
+
+	// graphite
+	testComparisonNotInfNotNan(tc, sut)
+	testEmptyLabelMatch(tc, sut)
+	testMaxLookbehind(tc, sut)
+	testNonNanAsMissingData(tc, sut)
+	testSubqueryAggregation(tc, sut)
+}
+
+func testCaseSensitiveRegex(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// case-sensitive-regex
@@ -73,7 +99,7 @@ func testCaseSensitiveRegex(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testDuplicateLabel(tc *at.TestCase, sut *at.Vmsingle) {
+func testDuplicateLabel(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// duplicate_label
@@ -109,7 +135,7 @@ func testDuplicateLabel(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testTooBigLookbehindWindow(tc *at.TestCase, sut *at.Vmsingle) {
+func testTooBigLookbehindWindow(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// too big look-behind window
@@ -182,7 +208,7 @@ func testTooBigLookbehindWindow(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testMatchSeries(tc *at.TestCase, sut *at.Vmsingle) {
+func testMatchSeries(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// match_series
@@ -216,12 +242,12 @@ func testMatchSeries(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testComparisonNotInfNotNan(tc *at.TestCase, sut *at.Vmsingle) {
+func testComparisonNotInfNotNan(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// comparison-not-inf-not-nan
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
-	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
 	sut.GraphiteWrite(t, []string{
 		"not_nan_not_inf;item=x 1 1707123456", // 2024-02-05T08:57:36.000Z
 		"not_nan_not_inf;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
@@ -231,7 +257,7 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut *at.Vmsingle) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -263,12 +289,12 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testEmptyLabelMatch(tc *at.TestCase, sut *at.Vmsingle) {
+func testEmptyLabelMatch(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// empty-label-match
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395
-	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
 	sut.GraphiteWrite(t, []string{
 		"empty_label_match 1 1707123456",         // 2024-02-05T08:57:36.000Z
 		"empty_label_match;foo=bar 2 1707123456", // 2024-02-05T08:57:36.000Z
@@ -277,7 +303,7 @@ func testEmptyLabelMatch(tc *at.TestCase, sut *at.Vmsingle) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 3
+			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 3
 		},
 		Want: true,
 	})
@@ -315,12 +341,12 @@ func testEmptyLabelMatch(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
+func testMaxLookbehind(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// max_lookback_set
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
-	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
 	sut.GraphiteWrite(t, []string{
 		"max_lookback_set 1 1707123426", // 2024-02-05T08:57:06.000Z
 		"max_lookback_set 2 1707123396", // 2024-02-05T08:56:36.000Z
@@ -330,7 +356,7 @@ func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -367,7 +393,7 @@ func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
 
 	// max_lookback_unset
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
-	rowInserted = sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted = GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
 	sut.GraphiteWrite(t, []string{
 		"max_lookback_unset 1 1707123426", // 2024-02-05T08:57:06.000Z
 		"max_lookback_unset 2 1707123396", // 2024-02-05T08:56:36.000Z
@@ -377,7 +403,7 @@ func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -423,12 +449,12 @@ func testMaxLookbehind(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testNonNanAsMissingData(tc *at.TestCase, sut *at.Vmsingle) {
+func testNonNanAsMissingData(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// not-nan-as-missing-data
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
-	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
 	sut.GraphiteWrite(t, []string{
 		"not_nan_as_missing_data;item=x 2 1707123454", // 2024-02-05T08:57:34.000Z
 		"not_nan_as_missing_data;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
@@ -438,7 +464,7 @@ func testNonNanAsMissingData(tc *at.TestCase, sut *at.Vmsingle) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -478,12 +504,12 @@ func testNonNanAsMissingData(tc *at.TestCase, sut *at.Vmsingle) {
 	})
 }
 
-func testSubqueryAggregation(tc *at.TestCase, sut *at.Vmsingle) {
+func testSubqueryAggregation(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	// subquery-aggregation
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/184
-	rowInserted := sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
 	sut.GraphiteWrite(t, []string{
 		"forms_daily_count;item=x 1 1707123396", // 2024-02-05T08:56:36.000Z
 		"forms_daily_count;item=x 2 1707123336", // 2024-02-05T08:55:36.000Z
@@ -493,7 +519,7 @@ func testSubqueryAggregation(tc *at.TestCase, sut *at.Vmsingle) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (sut.GetIntMetric(t, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -526,4 +552,20 @@ func testSubqueryAggregation(tc *at.TestCase, sut *at.Vmsingle) {
 			},
 		},
 	})
+}
+
+func GetIntMetricTotal(t *testing.T, sut at.MetricsWriterPrometheusQuerier, selector string) int {
+	switch tt := sut.(type) {
+	case *at.Vmsingle:
+		return tt.GetIntMetric(t, selector)
+	case *at.Vmcluster:
+		total := 0
+		for _, vms := range tt.Vmstorages {
+			total += vms.GetIntMetric(t, selector)
+		}
+		return total
+	default:
+		t.Fatalf("GetIntMetricTotal unknown type: %T, expect *Vmsingle or *Vmcluster.", sut)
+	}
+	return 0
 }
