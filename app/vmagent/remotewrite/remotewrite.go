@@ -529,8 +529,9 @@ func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamples
 			}
 			rowsCount := getRowsCount(tss)
 			if *shardByURL {
-				// Todo: It's not accurate for the same reason as above when shardByURL is enabled.
-				// The fast path is to consider the hashing algorithm fair and will distribute data to all rwctxs evenly.
+				// Todo: When shardByURL is enabled, the following metrics won't be 100% accurate. Because vmagent don't know
+				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute \
+				// data to all rwctxs evenly.
 				rowsCount = rowsCount / len(rwctxsGlobal)
 			}
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
