@@ -30,10 +30,12 @@ type PrometheusWriter interface {
 	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
 }
 
+// GraphiteWriter contains method to ingest new data via Graphite plaintext protocol.
 type GraphiteWriter interface {
 	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
 }
 
+// OpenTSDBWriter contains method to ingest new data via OpenTSDB HTTP API.
 type OpenTSDBWriter interface {
 	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
