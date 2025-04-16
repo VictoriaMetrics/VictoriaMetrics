@@ -215,8 +215,8 @@ func Init() {
 
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(*remoteWriteURLs))
-		for i := range *remoteWriteURLs {
-			consistentHashNodes = append(consistentHashNodes, fmt.Sprintf("%d:%s", i+1, (*remoteWriteURLs)[i]))
+		for i, rwURL := range *remoteWriteURLs {
+			consistentHashNodes = append(consistentHashNodes, fmt.Sprintf("%d:%s", i+1, rwURL))
 		}
 		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(consistentHashNodes, 0)
 	}
