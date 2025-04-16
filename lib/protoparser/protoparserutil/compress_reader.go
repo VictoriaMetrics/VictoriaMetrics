@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
@@ -21,9 +22,12 @@ import (
 //
 // The callback must not hold references to the data after returning.
 func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+
 	if encoding == "zstd" {
 		// Fast path for zstd encoding - read the data in full and then decompress it by a single call.
-		return readUncompressedData(r, maxDataSize, zstd.Decompress, callback)
+		return readUncompressedData(wcr, maxDataSize, zstd.Decompress, callback)
 	}
 	if encoding == "snappy" {
 		// Special case for snappy. The snappy data must be read in full and then decompressed,
@@ -31,11 +35,11 @@ func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.By
 		decompress := func(dst, src []byte) ([]byte, error) {
 			return snappy.Decode(dst[:cap(dst)], src)
 		}
-		return readUncompressedData(r, maxDataSize, decompress, callback)
+		return readUncompressedData(wcr, maxDataSize, decompress, callback)
 	}
 
 	// Slow path for other supported protocol encoders.
-	reader, err := GetUncompressedReader(r, encoding)
+	reader, err := GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return err
 	}
