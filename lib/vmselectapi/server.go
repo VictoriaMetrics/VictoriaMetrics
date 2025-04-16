@@ -578,7 +578,7 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processLabelNames(ctx)
 	case "seriesCount_v4":
 		return s.processSeriesCount(ctx)
-	case "tsdbStatus_v5":
+	case "tsdbStatus_v6":
 		return s.processTSDBStatus(ctx)
 	case "deleteSeries_v5":
 		return s.processDeleteSeries(ctx)
@@ -972,6 +972,9 @@ func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error 
 	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
 		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
 	}
+	if err := writeMetricNameStatRecords(ctx, status.SeriesQueryStatsByMetricName); err != nil {
+		return fmt.Errorf("cannot write SeriesMetricNamesStats: %w", err)
+	}
 	return nil
 }
 
@@ -1137,10 +1140,17 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	if err := ctx.writeUint64(result.MaxSizeBytes); err != nil {
 		return fmt.Errorf("cannot write MaxSizeBytes: %w", err)
 	}
-	if err := ctx.writeUint64(uint64(len(result.Records))); err != nil {
-		return fmt.Errorf("cannot write records count: %w", err)
+	if err := writeMetricNameStatRecords(ctx, result.Records); err != nil {
+		return fmt.Errorf("cannot write Records: %w", err)
 	}
-	for _, r := range result.Records {
+	return nil
+}
+
+func writeMetricNameStatRecords(ctx *vmselectRequestCtx, records []storage.MetricNamesStatsRecord) error {
+	if err := ctx.writeUint64(uint64(len(records))); err != nil {
+		return fmt.Errorf("cannot write MetricNamesStatsRecord size: %w", err)
+	}
+	for _, r := range records {
 		if err := ctx.writeString(r.MetricName); err != nil {
 			return fmt.Errorf("cannot write MetricName=%q record: %w", r.MetricName, err)
 		}

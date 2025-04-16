@@ -1780,7 +1780,19 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
-	return idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	res, err := idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if s.metricsTracker != nil && len(res.SeriesCountByMetricName) > 0 {
+		// for performance reason always check if metricsTracker is configured
+		names := make([]string, len(res.SeriesCountByMetricName))
+		for idx, mns := range res.SeriesCountByMetricName {
+			names[idx] = mns.Name
+		}
+		res.SeriesQueryStatsByMetricName = s.metricsTracker.GetStatRecordsForNames(accountID, projectID, names)
+	}
+	return res, nil
 }
 
 // MetricRow is a metric to insert into storage.

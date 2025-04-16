@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
@@ -129,6 +130,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 
 	const ingestDateTime = `2024-02-05T08:57:36.700Z`
 	const ingestTimestamp = ` 1707123456700`
+	const date = `2024-02-05`
 	dataSet := []string{
 		`metric_name_1{label="foo"} 10`,
 		`metric_name_1{label="bar"} 10`,
@@ -139,6 +141,8 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	for idx := range dataSet {
 		dataSet[idx] += ingestTimestamp
 	}
+
+	tsdbMetricNameEntryCmpOpts := cmpopts.IgnoreFields(apptest.TSDBStatusResponseMetricNameEntry{}, "LastRequestTimestamp")
 
 	// ingest per tenant data and verify it with search
 	tenantIDs := []string{"1:1", "1:15", "15:15"}
@@ -175,6 +179,31 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		gotStats = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
 			t.Errorf("unexpected response tenant: %s (-want, +got):\n%s", tenantID, diff)
+		}
+
+		expectedStatsResponse := apptest.TSDBStatusResponse{
+			Data: at.TSDBStatusResponseData{
+				TotalSeries:          5,
+				TotalLabelValuePairs: 10,
+				SeriesCountByMetricName: []apptest.TSDBStatusResponseMetricNameEntry{
+					{Name: "metric_name_1", RequestsCount: 3},
+					{Name: "metric_name_2", RequestsCount: 1},
+					{Name: "metric_name_3", RequestsCount: 1},
+				},
+				SeriesCountByLabelName:       []apptest.TSDBStatusResponseEntry{{Name: "__name__"}, {Name: "label"}},
+				SeriesCountByFocusLabelValue: []apptest.TSDBStatusResponseEntry{},
+				SeriesCountByLabelValuePair: []apptest.TSDBStatusResponseEntry{
+					{Name: "__name__=metric_name_1"}, {Name: "label=baz"},
+					{Name: "__name__=metric_name_2"}, {Name: "__name__=metric_name_3"},
+					{Name: "label=bar"}, {Name: "label=foo"},
+				},
+				LabelValueCountByLabelName: []apptest.TSDBStatusResponseEntry{{Name: "__name__"}, {Name: "label"}},
+			},
+		}
+		expectedStatsResponse.Sort()
+		gotStatus := vmselect.APIV1StatusTSDB(t, "", date, "", apptest.QueryOpts{Tenant: tenantID})
+		if diff := cmp.Diff(expectedStatsResponse, gotStatus, tsdbMetricNameEntryCmpOpts); diff != "" {
+			t.Errorf("unexpected APIV1StatusTSDB response tenant: %s (-want, +got):\n%s", tenantID, diff)
 		}
 	}
 
