@@ -957,7 +957,7 @@ func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error 
 	if err := ctx.writeUint64(status.TotalLabelValuePairs); err != nil {
 		return fmt.Errorf("cannot write totalLabelValuePairs to vmselect: %w", err)
 	}
-	if err := writeTopHeapMetricNamesEntries(ctx, status.SeriesCountByMetricName); err != nil {
+	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
 		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
 	}
 	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelName); err != nil {
@@ -972,6 +972,9 @@ func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error 
 	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
 		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
 	}
+	if err := writeMetricNameStatRecords(ctx, status.SeriesQueryStatsByMetricName); err != nil {
+		return fmt.Errorf("cannot write SeriesMetricNamesStats: %w", err)
+	}
 	return nil
 }
 
@@ -985,27 +988,6 @@ func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) erro
 		}
 		if err := ctx.writeUint64(e.Count); err != nil {
 			return fmt.Errorf("cannot write topHeapEntry count: %w", err)
-		}
-	}
-	return nil
-}
-
-func writeTopHeapMetricNamesEntries(ctx *vmselectRequestCtx, a []storage.TopHeapMetricNameEntry) error {
-	if err := ctx.writeUint64(uint64(len(a))); err != nil {
-		return fmt.Errorf("cannot write TopHeapMetricNameEntry size: %w", err)
-	}
-	for _, e := range a {
-		if err := ctx.writeString(e.Name); err != nil {
-			return fmt.Errorf("cannot write TopHeapMetricNameEntry name: %w", err)
-		}
-		if err := ctx.writeUint64(e.Count); err != nil {
-			return fmt.Errorf("cannot write TopHeapMetricNameEntry count: %w", err)
-		}
-		if err := ctx.writeUint64(e.RequestsCount); err != nil {
-			return fmt.Errorf("cannot write TopHeapMetricNameEntry requestsCount: %w", err)
-		}
-		if err := ctx.writeUint64(e.LastRequestTimestamp); err != nil {
-			return fmt.Errorf("cannot write TopHeapMetricNameEntry lastRequestTimestamp: %w", err)
 		}
 	}
 	return nil
@@ -1158,10 +1140,17 @@ func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
 	if err := ctx.writeUint64(result.MaxSizeBytes); err != nil {
 		return fmt.Errorf("cannot write MaxSizeBytes: %w", err)
 	}
-	if err := ctx.writeUint64(uint64(len(result.Records))); err != nil {
-		return fmt.Errorf("cannot write records count: %w", err)
+	if err := writeMetricNameStatRecords(ctx, result.Records); err != nil {
+		return fmt.Errorf("cannot write Records: %w", err)
 	}
-	for _, r := range result.Records {
+	return nil
+}
+
+func writeMetricNameStatRecords(ctx *vmselectRequestCtx, records []storage.MetricNamesStatsRecord) error {
+	if err := ctx.writeUint64(uint64(len(records))); err != nil {
+		return fmt.Errorf("cannot write MetricNamesStatsRecord size: %w", err)
+	}
+	for _, r := range records {
 		if err := ctx.writeString(r.MetricName); err != nil {
 			return fmt.Errorf("cannot write MetricName=%q record: %w", r.MetricName, err)
 		}

@@ -1301,26 +1301,17 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBStatus {
 	totalSeries := uint64(0)
 	totalLabelValuePairs := uint64(0)
-	seriesCountByMetricName := make(map[string]storage.TopHeapMetricNameEntry)
+	seriesCountByMetricName := make(map[string]uint64)
 	seriesCountByLabelName := make(map[string]uint64)
 	seriesCountByFocusLabelValue := make(map[string]uint64)
 	seriesCountByLabelValuePair := make(map[string]uint64)
 	labelValueCountByLabelName := make(map[string]uint64)
+	seriesQueryStatsByMetricNames := make(map[string]storage.MetricNamesStatsRecord)
 	for _, st := range statuses {
 		totalSeries += st.TotalSeries
 		totalLabelValuePairs += st.TotalLabelValuePairs
 		for _, e := range st.SeriesCountByMetricName {
-			ne, ok := seriesCountByMetricName[e.Name]
-			if ok {
-				ne.Count += e.Count
-				ne.RequestsCount += e.RequestsCount
-				if e.LastRequestTimestamp > ne.LastRequestTimestamp {
-					ne.LastRequestTimestamp = e.LastRequestTimestamp
-				}
-			} else {
-				ne = e
-			}
-			seriesCountByMetricName[e.Name] = ne
+			seriesCountByMetricName[e.Name] += e.Count
 		}
 		for _, e := range st.SeriesCountByLabelName {
 			seriesCountByLabelName[e.Name] += e.Count
@@ -1338,15 +1329,35 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 				labelValueCountByLabelName[e.Name] = e.Count
 			}
 		}
+		for _, e := range st.SeriesQueryStatsByMetricName {
+			ne, ok := seriesQueryStatsByMetricNames[e.MetricName]
+			if ok {
+				ne.RequestsCount += e.RequestsCount
+				if e.LastRequestTs > ne.LastRequestTs {
+					ne.LastRequestTs = e.LastRequestTs
+				}
+			} else {
+				ne = e
+			}
+			seriesQueryStatsByMetricNames[e.MetricName] = ne
+		}
+	}
+	// do not apply topN limit
+	// query stats should be joined to SeriesCountByMetricName
+	// at write response
+	seriesQueryStatsTotal := make([]storage.MetricNamesStatsRecord, 0, len(seriesQueryStatsByMetricNames))
+	for _, entry := range seriesQueryStatsByMetricNames {
+		seriesQueryStatsTotal = append(seriesQueryStatsTotal, entry)
 	}
 	return &storage.TSDBStatus{
 		TotalSeries:                  totalSeries,
 		TotalLabelValuePairs:         totalLabelValuePairs,
-		SeriesCountByMetricName:      toTopHeapMetricNameEntries(seriesCountByMetricName, topN),
+		SeriesCountByMetricName:      toTopHeapEntries(seriesCountByMetricName, topN),
 		SeriesCountByLabelName:       toTopHeapEntries(seriesCountByLabelName, topN),
 		SeriesCountByFocusLabelValue: toTopHeapEntries(seriesCountByFocusLabelValue, topN),
 		SeriesCountByLabelValuePair:  toTopHeapEntries(seriesCountByLabelValuePair, topN),
 		LabelValueCountByLabelName:   toTopHeapEntries(labelValueCountByLabelName, topN),
+		SeriesQueryStatsByMetricName: seriesQueryStatsTotal,
 	}
 }
 
@@ -1356,28 +1367,6 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 		a = append(a, storage.TopHeapEntry{
 			Name:  name,
 			Count: count,
-		})
-	}
-	sort.Slice(a, func(i, j int) bool {
-		if a[i].Count != a[j].Count {
-			return a[i].Count > a[j].Count
-		}
-		return a[i].Name < a[j].Name
-	})
-	if len(a) > topN {
-		a = a[:topN]
-	}
-	return a
-}
-
-func toTopHeapMetricNameEntries(m map[string]storage.TopHeapMetricNameEntry, topN int) []storage.TopHeapMetricNameEntry {
-	a := make([]storage.TopHeapMetricNameEntry, 0, len(m))
-	for _, e := range m {
-		a = append(a, storage.TopHeapMetricNameEntry{
-			Name:                 e.Name,
-			Count:                e.Count,
-			RequestsCount:        e.RequestsCount,
-			LastRequestTimestamp: e.LastRequestTimestamp,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {
@@ -2845,7 +2834,7 @@ func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read totalLabelValuePairs: %w", err)
 	}
-	seriesCountByMetricName, err := readTopHeapMetricNameEntries(bc)
+	seriesCountByMetricName, err := readTopHeapEntries(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
 	}
@@ -2865,6 +2854,10 @@ func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
 	}
+	seriesQueryStatsByMetricName, err := readMetricNamesStatsRecords(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesQueryStatsByMetricName: %w", err)
+	}
 	status := &storage.TSDBStatus{
 		TotalSeries:                  totalSeries,
 		TotalLabelValuePairs:         totalLabelValuePairs,
@@ -2873,6 +2866,7 @@ func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 		SeriesCountByFocusLabelValue: seriesCountByFocusLabelValue,
 		SeriesCountByLabelValuePair:  seriesCountByLabelValuePair,
 		LabelValueCountByLabelName:   labelValueCountByLabelName,
+		SeriesQueryStatsByMetricName: seriesQueryStatsByMetricName,
 	}
 	return status, nil
 }
@@ -2896,40 +2890,6 @@ func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, err
 		a = append(a, storage.TopHeapEntry{
 			Name:  string(buf),
 			Count: count,
-		})
-	}
-	return a, nil
-}
-
-func readTopHeapMetricNameEntries(bc *handshake.BufferedConn) ([]storage.TopHeapMetricNameEntry, error) {
-	n, err := readUint64(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read the number of topHeapEntries: %w", err)
-	}
-	var a []storage.TopHeapMetricNameEntry
-	var buf []byte
-	for i := uint64(0); i < n; i++ {
-		buf, err = readBytes(buf[:0], bc, maxLabelNameSize)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read metric name: %w", err)
-		}
-		count, err := readUint64(bc)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read series count: %w", err)
-		}
-		requestsCount, err := readUint64(bc)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read requestsCount: %w", err)
-		}
-		lastRequestTimestamp, err := readUint64(bc)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read lastRequestTimestamp: %w", err)
-		}
-		a = append(a, storage.TopHeapMetricNameEntry{
-			Name:                 string(buf),
-			Count:                count,
-			RequestsCount:        requestsCount,
-			LastRequestTimestamp: lastRequestTimestamp,
 		})
 	}
 	return a, nil
@@ -3499,29 +3459,38 @@ func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *stora
 	if err != nil {
 		return result, fmt.Errorf("cannot read MaxSizeBytes: %w", err)
 	}
+	records, err := readMetricNamesStatsRecords(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read MetricNamesStatsRecord records: %w", err)
+	}
+	result.Records = records
+	return result, nil
+}
+
+func readMetricNamesStatsRecords(bc *handshake.BufferedConn) ([]storage.MetricNamesStatsRecord, error) {
 	n, err := readUint64(bc)
 	if err != nil {
-		return result, fmt.Errorf("cannot read records count: %w", err)
+		return nil, fmt.Errorf("cannot read the number of MetricNamesStatsRecord: %w", err)
 	}
-	result.Records = make([]storage.MetricNamesStatsRecord, n)
+	records := make([]storage.MetricNamesStatsRecord, n)
 	var mnBuff []byte
 	for i := range n {
 		mnBuff, err = readBytes(mnBuff[:0], bc, 256)
 		if err != nil {
-			return result, fmt.Errorf("cannot read record metricName: %w", err)
+			return records, fmt.Errorf("cannot read record metricName: %w", err)
 		}
-		record := &result.Records[i]
+		record := &records[i]
 		record.MetricName = string(mnBuff)
 		record.LastRequestTs, err = readUint64(bc)
 		if err != nil {
-			return result, fmt.Errorf("cannot read record LastRequestTs: %w", err)
+			return records, fmt.Errorf("cannot read record LastRequestTs: %w", err)
 		}
 		record.RequestsCount, err = readUint64(bc)
 		if err != nil {
-			return result, fmt.Errorf("cannot read record RequestCount: %w", err)
+			return records, fmt.Errorf("cannot read record RequestCount: %w", err)
 		}
 	}
-	return result, nil
+	return records, nil
 }
 
 // ResetMetricNamesStats forwards reset tracker state request to the storage nodes

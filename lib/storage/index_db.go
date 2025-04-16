@@ -1593,18 +1593,10 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 	if bytes.HasPrefix(prevLabelValuePair, focusLabelEqualBytes) {
 		thSeriesCountByFocusLabelValue.push(prevLabelValuePair[len(focusLabelEqualBytes):], seriesCountByLabelValuePair)
 	}
-	sortedSeriesByMetricName := thSeriesCountByMetricName.getSortedResult()
-	metricNamesHeapSeries := make([]TopHeapMetricNameEntry, len(sortedSeriesByMetricName))
-	for idx, entry := range sortedSeriesByMetricName {
-		metricNamesHeapSeries[idx] = TopHeapMetricNameEntry{
-			Name:  entry.Name,
-			Count: entry.Count,
-		}
-	}
 	status := &TSDBStatus{
 		TotalSeries:                  totalSeries,
 		TotalLabelValuePairs:         totalLabelValuePairs,
-		SeriesCountByMetricName:      metricNamesHeapSeries,
+		SeriesCountByMetricName:      thSeriesCountByMetricName.getSortedResult(),
 		SeriesCountByLabelName:       thSeriesCountByLabelName.getSortedResult(),
 		SeriesCountByFocusLabelValue: thSeriesCountByFocusLabelValue.getSortedResult(),
 		SeriesCountByLabelValuePair:  thSeriesCountByLabelValuePair.getSortedResult(),
@@ -1619,11 +1611,12 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 type TSDBStatus struct {
 	TotalSeries                  uint64
 	TotalLabelValuePairs         uint64
-	SeriesCountByMetricName      []TopHeapMetricNameEntry
+	SeriesCountByMetricName      []TopHeapEntry
 	SeriesCountByLabelName       []TopHeapEntry
 	SeriesCountByFocusLabelValue []TopHeapEntry
 	SeriesCountByLabelValuePair  []TopHeapEntry
 	LabelValueCountByLabelName   []TopHeapEntry
+	SeriesQueryStatsByMetricName []MetricNamesStatsRecord
 }
 
 func (status *TSDBStatus) hasEntries() bool {
@@ -1705,14 +1698,6 @@ func (th *topHeap) Push(_ any) {
 
 func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
-}
-
-// TopHeapMetricNameEntry represents an entry from `top heap` used in stats for series metric names.
-type TopHeapMetricNameEntry struct {
-	Name                 string
-	Count                uint64
-	RequestsCount        uint64
-	LastRequestTimestamp uint64
 }
 
 // searchMetricName appends metric name for the given metricID to dst

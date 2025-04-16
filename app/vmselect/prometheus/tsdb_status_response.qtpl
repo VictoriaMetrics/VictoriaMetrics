@@ -12,7 +12,7 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 	"data":{
 		"totalSeries": {%dul= status.TotalSeries %},
 		"totalLabelValuePairs": {%dul= status.TotalLabelValuePairs %},
-		"seriesCountByMetricName":{%= tsdbStatusMetricNameEntries(status.SeriesCountByMetricName) %},
+		"seriesCountByMetricName":{%= tsdbStatusMetricNameEntries(status.SeriesCountByMetricName,status.SeriesQueryStatsByMetricName) %},
 		"seriesCountByLabelName":{%= tsdbStatusEntries(status.SeriesCountByLabelName) %},
 		"seriesCountByFocusLabelValue":{%= tsdbStatusEntries(status.SeriesCountByFocusLabelValue) %},
 		"seriesCountByLabelValuePair":{%= tsdbStatusEntries(status.SeriesCountByLabelValuePair) %},
@@ -35,14 +35,27 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 ]
 {% endfunc %}
 
-{% func tsdbStatusMetricNameEntries(a []storage.TopHeapMetricNameEntry) %}
+{% func tsdbStatusMetricNameEntries(a []storage.TopHeapEntry, queryStats []storage.MetricNamesStatsRecord) %}
+{% code
+  queryStatsByMetricName := make(map[string]storage.MetricNamesStatsRecord,len(queryStats))
+  for _, record := range queryStats{
+      queryStatsByMetricName[record.MetricName] = record
+    }
+%}
 [
 	{% for i, e := range a %}
 		{
+      {% code
+      entry, ok := queryStatsByMetricName[e.Name]
+      %}
 			"name":{%q= e.Name %},
+      {% if !ok %}
+			"value":{%d= int(e.Count) %}
+      {% else %}
 			"value":{%d= int(e.Count) %},
-			"requestsCount":{%d= int(e.RequestsCount) %},
-			"lastRequestTimestamp":{%d= int(e.LastRequestTimestamp) %}
+			"requestsCount":{%d= int(entry.RequestsCount) %},
+			"lastRequestTimestamp":{%d= int(entry.LastRequestTs) %}
+      {% endif %}
 		}
 		{% if i+1 < len(a) %},{% endif %}
 	{% endfor %}

@@ -391,16 +391,14 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 	return result
 }
 
-// WriteStatsForNamesTo writes stats records for the given metric names into provided dst
-func (mt *Tracker) WriteStatsForNamesTo(dst []StatRecord, accountID, projectID uint32, metricNames []string) {
+// GetStatRecordsForNames returns stats records for the given metric names and tenant
+func (mt *Tracker) GetStatRecordsForNames(accountID, projectID uint32, metricNames []string) []StatRecord {
 	if mt == nil {
-		return
-	}
-	if len(dst) != len(metricNames) {
-		logger.Fatalf("BUG: provided StatRecord len=%d must match metricName=%d", len(dst), len(metricNames))
+		return nil
 	}
 	mt.mu.RLock()
-	for idx, mn := range metricNames {
+	records := make([]StatRecord, 0, len(metricNames))
+	for _, mn := range metricNames {
 		sk := statKey{
 			accountID:  accountID,
 			projectID:  projectID,
@@ -410,12 +408,14 @@ func (mt *Tracker) WriteStatsForNamesTo(dst []StatRecord, accountID, projectID u
 		if !ok {
 			continue
 		}
-		dst[idx] = StatRecord{
+		records = append(records, StatRecord{
+			MetricName:    mn,
 			RequestsCount: si.requestsCount.Load(),
 			LastRequestTs: si.lastRequestTs.Load(),
-		}
+		})
 	}
 	mt.mu.RUnlock()
+	return records
 }
 
 // GetStats returns stats response for the tracked metrics

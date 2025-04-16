@@ -1785,18 +1785,12 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 		return nil, err
 	}
 	if s.metricsTracker != nil && len(res.SeriesCountByMetricName) > 0 {
-		// join query stats for given top metric names
+		// for performance reason always check if metricsTracker is configured
 		names := make([]string, len(res.SeriesCountByMetricName))
 		for idx, mns := range res.SeriesCountByMetricName {
 			names[idx] = mns.Name
 		}
-		stats := make([]metricnamestats.StatRecord, len(names))
-		s.metricsTracker.WriteStatsForNamesTo(stats, accountID, projectID, names)
-		for idx, stat := range stats {
-			entry := &res.SeriesCountByMetricName[idx]
-			entry.RequestsCount = stat.RequestsCount
-			entry.LastRequestTimestamp = stat.LastRequestTs
-		}
+		res.SeriesQueryStatsByMetricName = s.metricsTracker.GetStatRecordsForNames(accountID, projectID, names)
 	}
 	return res, nil
 }
