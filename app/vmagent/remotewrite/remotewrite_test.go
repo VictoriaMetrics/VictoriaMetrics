@@ -183,9 +183,16 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 	// 3. distribute the same 10000 series to (n-1) node again.
 	// 4. check active time series change rate:
 	//    - if consistent hash enabled, change rate must < (3/total nodes). e.g. +30% if 10 you have 10 nodes.
-	//    - if consistent hash disabled, change rate must < 1. e.g. +100%.
 	f := func(remoteWriteCount int, healthyIdx []int, unhealthyIdx []int, replicas int) {
 		t.Helper()
+
+		rwctxsGlobal = make([]*remoteWriteCtx, len(healthyIdx)+len(unhealthyIdx))
+		rwctxs := make([]*remoteWriteCtx, 0, len(healthyIdx))
+		for i := range healthyIdx {
+			healthyCtx := &remoteWriteCtx{}
+			rwctxsGlobal[i] = healthyCtx
+			rwctxs = append(rwctxs, healthyCtx)
+		}
 
 		seriesCount := 100000
 		// build 1000000 series
@@ -218,11 +225,11 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(nodes, 0)
 
 		// create shards
-		x := getTSSShards(len(healthyIdx))
+		x := getTSSShards(len(rwctxs))
 		shards := x.shards
 
 		// execute
-		shardAmountRemoteWriteCtx(tssBlock, shards, healthyIdx, unhealthyIdx, replicas)
+		shardAmountRemoteWriteCtx(tssBlock, shards, rwctxs, replicas)
 
 		for i, nodeIdx := range healthyIdx {
 			for _, ts := range shards[i] {
@@ -239,14 +246,15 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		putTSSShards(x)
 
 		// removed last node
-		x = getTSSShards(len(healthyIdx) - 1)
-		unhealthyIdx = healthyIdx[len(healthyIdx)-1:]
+		rwctxs = rwctxs[:len(rwctxs)-1]
+		unhealthyIdx = append(unhealthyIdx, healthyIdx[len(healthyIdx)-1])
 		healthyIdx = healthyIdx[:len(healthyIdx)-1]
 
+		x = getTSSShards(len(rwctxs))
 		shards = x.shards
 
 		// execute
-		shardAmountRemoteWriteCtx(tssBlock, shards, healthyIdx, unhealthyIdx, replicas)
+		shardAmountRemoteWriteCtx(tssBlock, shards, rwctxs, replicas)
 		for i, nodeIdx := range healthyIdx {
 			for _, ts := range shards[i] {
 				// add it to node[nodeIdx]'s active time series
