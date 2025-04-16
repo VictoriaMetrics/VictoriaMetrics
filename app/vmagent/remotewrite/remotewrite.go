@@ -208,10 +208,7 @@ func Init() {
 
 	initStreamAggrConfigGlobal()
 
-	rwctxsGlobal = newRemoteWriteCtxs(*remoteWriteURLs)
-	for i := range len(*remoteWriteURLs) {
-		rwctxsGlobalIdx = append(rwctxsGlobalIdx, i)
-	}
+	rwctxsGlobal = initRemoteWriteCtxs(*remoteWriteURLs)
 
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(*remoteWriteURLs))
@@ -304,7 +301,7 @@ var (
 	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
+func initRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
@@ -320,6 +317,7 @@ func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 		maxInmemoryBlocks = 2
 	}
 	rwctxs := make([]*remoteWriteCtx, len(urls))
+
 	for i, remoteWriteURLRaw := range urls {
 		remoteWriteURL, err := url.Parse(remoteWriteURLRaw)
 		if err != nil {
@@ -330,6 +328,7 @@ func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxsGlobalIdx = append(rwctxsGlobalIdx, i)
 	}
 	return rwctxs
 }
@@ -436,7 +435,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 			rwctx.pushFailures.Inc()
 		}
 		if forceDropSamplesOnFailure {
-			// return true, so caller will consider it success and skip retry
 			rowsCount := getRowsCount(tss)
 			if *shardByURL {
 				// Todo: It's not accurate for the same reason as above when shardByURL is enabled.
@@ -446,13 +444,14 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 			for _, rwctx := range rwctxsGlobal {
 				rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 			}
+			// return true, so caller will consider it success and skip retry
 			return true
 		}
 		return false
 	}
 
 	// If at least one rwctx is not healthy, shardByURL not enabled, and no need to force drop, return false to
-	// save CPU time, and let caller retry
+	// save CPU time, and let caller retry. In this case, disableOnDiskQueueAny must be true.
 	//
 	// Todo: why we don't try to push to the rest rwctx?
 	if len(unhealthyRwctxIdx) > 0 && !*shardByURL && !forceDropSamplesOnFailure {
