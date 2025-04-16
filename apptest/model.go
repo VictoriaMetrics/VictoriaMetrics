@@ -27,6 +27,15 @@ type PrometheusQuerier interface {
 type PrometheusWriter interface {
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+}
+
+type GraphiteWriter interface {
+	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
+}
+
+type OpenTSDBWriter interface {
+	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
 
 // StorageFlusher defines a method that forces the flushing of data inserted
@@ -41,11 +50,13 @@ type StorageMerger interface {
 	ForceMerge(t *testing.T)
 }
 
-// PrometheusWriteQuerier encompasses the methods for writing, flushing and
+// MetricsWriterPrometheusQuerier encompasses the methods for writing, flushing and
 // querying the data.
-type PrometheusWriteQuerier interface {
+type MetricsWriterPrometheusQuerier interface {
 	PrometheusWriter
 	PrometheusQuerier
+	GraphiteWriter
+	OpenTSDBWriter
 	StorageFlusher
 	StorageMerger
 }

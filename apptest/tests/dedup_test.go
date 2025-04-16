@@ -80,7 +80,7 @@ func TestClusterDeduplication_deduplicationIsOn(t *testing.T) {
 }
 
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#deduplication
-func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplicationIsOn bool) {
+func testDeduplication(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier, deduplicationIsOn bool) {
 	t := tc.T()
 
 	firstDayOfThisMonth := func() time.Time {
