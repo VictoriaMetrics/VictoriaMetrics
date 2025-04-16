@@ -1959,7 +1959,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
 	}
-	expectedSeriesCountByMetricName := []TopHeapEntry{
+	expectedSeriesCountByMetricName := []TopHeapMetricNameEntry{
 		{
 			Name:  "testMetric",
 			Count: 1000,
@@ -2073,7 +2073,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
 	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
+	expectedSeriesCountByMetricName = []TopHeapMetricNameEntry{
 		{
 			Name:  "testMetric",
 			Count: 1000,
@@ -2099,7 +2099,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
 	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
+	expectedSeriesCountByMetricName = []TopHeapMetricNameEntry{
 		{
 			Name:  "testMetric",
 			Count: 5000,
@@ -2154,7 +2154,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
 	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
+	expectedSeriesCountByMetricName = []TopHeapMetricNameEntry{
 		{
 			Name:  "testMetric",
 			Count: 3,
@@ -2180,7 +2180,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if !status.hasEntries() {
 		t.Fatalf("expecting non-empty TSDB status")
 	}
-	expectedSeriesCountByMetricName = []TopHeapEntry{
+	expectedSeriesCountByMetricName = []TopHeapMetricNameEntry{
 		{
 			Name:  "testMetric",
 			Count: 15,

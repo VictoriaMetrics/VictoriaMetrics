@@ -12,7 +12,7 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 	"data":{
 		"totalSeries": {%dul= status.TotalSeries %},
 		"totalLabelValuePairs": {%dul= status.TotalLabelValuePairs %},
-		"seriesCountByMetricName":{%= tsdbStatusEntries(status.SeriesCountByMetricName) %},
+		"seriesCountByMetricName":{%= tsdbStatusMetricNameEntries(status.SeriesCountByMetricName) %},
 		"seriesCountByLabelName":{%= tsdbStatusEntries(status.SeriesCountByLabelName) %},
 		"seriesCountByFocusLabelValue":{%= tsdbStatusEntries(status.SeriesCountByFocusLabelValue) %},
 		"seriesCountByLabelValuePair":{%= tsdbStatusEntries(status.SeriesCountByLabelValuePair) %},
@@ -34,5 +34,20 @@ TSDBStatusResponse generates response for /api/v1/status/tsdb .
 	{% endfor %}
 ]
 {% endfunc %}
+
+{% func tsdbStatusMetricNameEntries(a []storage.TopHeapMetricNameEntry) %}
+[
+	{% for i, e := range a %}
+		{
+			"name":{%q= e.Name %},
+			"value":{%d= int(e.Count) %},
+			"requestsCount":{%d= int(e.RequestsCount) %},
+			"lastRequestTimestamp":{%d= int(e.LastRequestTimestamp) %}
+		}
+		{% if i+1 < len(a) %},{% endif %}
+	{% endfor %}
+]
+{% endfunc %}
+
 
 {% endstripspace %}

@@ -391,6 +391,33 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 	return result
 }
 
+// WriteStatsToForNames writees stats records for the given metric names into provided buffer
+func (mt *Tracker) WriteStatsToForNames(dst []StatRecord, accountID, projectID uint32, metricNames []string) {
+	if mt == nil {
+		return
+	}
+	if len(dst) != len(metricNames) {
+		logger.Fatalf("BUG: provided StatRecord len=%d must match metricName=%d", len(dst), len(metricNames))
+	}
+	mt.mu.RLock()
+	for idx, mn := range metricNames {
+		sk := statKey{
+			accountID:  accountID,
+			projectID:  projectID,
+			metricName: mn,
+		}
+		si, ok := mt.store[sk]
+		if !ok {
+			continue
+		}
+		dst[idx] = StatRecord{
+			RequestsCount: si.requestsCount.Load(),
+			LastRequestTs: si.lastRequestTs.Load(),
+		}
+	}
+	mt.mu.RUnlock()
+}
+
 // GetStats returns stats response for the tracked metrics
 //
 // DeduplicateMergeRecords must be called at cluster version on returned result.
