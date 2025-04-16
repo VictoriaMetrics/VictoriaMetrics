@@ -119,10 +119,12 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
             onClick={onRun}
             fullWidth
           >
-            <span className="vm-explore-logs-header-bottom-execute__text">
-              {isLoading ? "Cancel Query" : "Execute Query"}
-            </span>
-            <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
+            <div>
+              <span className="vm-explore-logs-header-bottom-execute__text">
+                {isLoading ? "Cancel Query" : "Execute Query"}
+              </span>
+              <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
+            </div>
           </Button>
         </div>
       </div>
