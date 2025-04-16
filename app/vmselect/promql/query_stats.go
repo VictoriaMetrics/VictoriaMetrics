@@ -1,14 +1,11 @@
 package promql
 
 import (
-	"flag"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
-
-var logQueryStatsDuration = flag.Duration("search.logSlowQueryStats", 0, "Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/query-stats. Zero disables slow query statistics logging. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/")
 
 // QueryStats contains various stats of the query evaluation.
 type QueryStats struct {
