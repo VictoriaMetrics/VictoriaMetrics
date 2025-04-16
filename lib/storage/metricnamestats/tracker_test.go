@@ -134,6 +134,38 @@ func TestMetricsTracker(t *testing.T) {
 		},
 	}
 	f(dataSet, qOpts, expected)
+
+	// test regex pattern
+	qOpts = queryOpts{
+		isTenantEmpty: true,
+		limit:         100,
+		lte:           -1,
+		matchPattern:  "_1$",
+	}
+	expected = StatsResult{
+		TotalRecords: 5,
+		Records: []StatRecord{
+			{"metric_1", 1, 1},
+		},
+	}
+	f(dataSet, qOpts, expected)
+
+	// test multiple match pattern
+	qOpts = queryOpts{
+		isTenantEmpty: true,
+		limit:         100,
+		lte:           -1,
+		matchPattern:  "metric_1|metric_2|metric_3",
+	}
+	expected = StatsResult{
+		TotalRecords: 5,
+		Records: []StatRecord{
+			{"metric_1", 1, 1},
+			{"metric_2", 3, 1},
+			{"metric_3", 1, 1}},
+	}
+	f(dataSet, qOpts, expected)
+
 }
 
 func TestMetricsTrackerConcurrent(t *testing.T) {
