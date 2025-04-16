@@ -539,25 +539,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	return true
 }
 
-func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
-	if !disableOnDiskQueueAny {
-		return rwctxsGlobal, true
-	}
-
-	// This code is applicable if at least a single remote storage has -disableOnDiskQueue
-	for _, rwctx := range rwctxsGlobal {
-		if rwctx.fq.IsWriteBlocked() {
-			rwctx.pushFailures.Inc()
-			if !forceDropSamplesOnFailure {
-				return nil, false
-			}
-			rowsCount := getRowsCount(tss)
-			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
-		}
-	}
-	return rwctxsGlobal, true
-}
-
 // getRemoteWriteCtxIdxByStatus returns healthyIdx slice and unhealthyIdx slice.
 func getRemoteWriteCtxIdxByStatus() ([]int, []int) {
 	if !disableOnDiskQueueAny {
