@@ -84,6 +84,7 @@ func InitStreamAggr() {
 		if *streamAggrDedupInterval > 0 {
 			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrEnableWindows, *streamAggrDedupInterval, *streamAggrDropInputLabels, "global")
 		}
+		saCfgSuccess.Set(1)
 		return
 	}
 
