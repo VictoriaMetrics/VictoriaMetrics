@@ -16,6 +16,11 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.19.0-victorialogs)
+
+Released at 2025-04-17
+
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add an ability to format [duration values](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values) as floating-point seconds via `<duration_seconds:field_with_duration_value>` syntax.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for downloading displayed logs. It supports downloading in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604). Thanks to @arturminchukov .
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): optimize vmui for mobile layout to use space more efficiently. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8679). Thanks to @arturminchukov .
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add query history for quick access to previously executed queries, in the way similar to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8500). Thanks to @arturminchukov .
@@ -24,8 +29,6 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix incorrect table sorting for numeric columns. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8606).
 
 ## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
-
-* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add an ability to format [duration values](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values) as floating-point seconds via `<duration_seconds:field_with_duration_value>` syntax.
 
 Released at 2025-04-10
 
