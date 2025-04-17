@@ -7,77 +7,54 @@ package tpl
 //line app/vmalert/tpl/footer.qtpl:1
 import (
 	"net/http"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 )
 
-//line app/vmalert/tpl/footer.qtpl:8
+//line app/vmalert/tpl/footer.qtpl:6
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmalert/tpl/footer.qtpl:8
+//line app/vmalert/tpl/footer.qtpl:6
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmalert/tpl/footer.qtpl:8
+//line app/vmalert/tpl/footer.qtpl:6
 func StreamFooter(qw422016 *qt422016.Writer, r *http.Request) {
-//line app/vmalert/tpl/footer.qtpl:8
-	qw422016.N().S(`
-    `)
-//line app/vmalert/tpl/footer.qtpl:9
-	prefix := vmalertutil.Prefix(r.URL.Path)
-
-//line app/vmalert/tpl/footer.qtpl:9
+//line app/vmalert/tpl/footer.qtpl:6
 	qw422016.N().S(`
         </main>
-        <script src="`)
-//line app/vmalert/tpl/footer.qtpl:11
-	qw422016.E().S(prefix)
-//line app/vmalert/tpl/footer.qtpl:11
-	qw422016.N().S(`static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
-        <script src="`)
-//line app/vmalert/tpl/footer.qtpl:12
-	qw422016.E().S(prefix)
-//line app/vmalert/tpl/footer.qtpl:12
-	qw422016.N().S(`static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
-        <script src="`)
-//line app/vmalert/tpl/footer.qtpl:13
-	qw422016.E().S(prefix)
-//line app/vmalert/tpl/footer.qtpl:13
-	qw422016.N().S(`static/js/custom.js" type="text/javascript"></script>
     </body>
 </html>
 `)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 }
 
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 func WriteFooter(qq422016 qtio422016.Writer, r *http.Request) {
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	StreamFooter(qw422016, r)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 }
 
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 func Footer(r *http.Request) string {
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	WriteFooter(qb422016, r)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 	return qs422016
-//line app/vmalert/tpl/footer.qtpl:16
+//line app/vmalert/tpl/footer.qtpl:10
 }
