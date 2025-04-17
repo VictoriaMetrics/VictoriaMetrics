@@ -3,6 +3,7 @@ package apptest
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -28,8 +29,9 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 
 	app, stderrExtracts, err := startApp(instance, "../../bin/vmagent", flags, &appOptions{
 		defaultFlags: map[string]string{
-			"-httpListenAddr":    "127.0.0.1:0",
-			"-promscrape.config": promScrapeConfigFilePath,
+			"-httpListenAddr":          "127.0.0.1:0",
+			"-promscrape.config":       promScrapeConfigFilePath,
+			"-remoteWrite.tmpDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 		},
 		extractREs: extractREs,
 	})

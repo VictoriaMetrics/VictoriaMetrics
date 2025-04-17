@@ -33,6 +33,7 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 		`-remoteWrite.flushInterval=50ms`,
 		fmt.Sprintf(`-remoteWrite.forcePromProto=%v`, forcePromProto),
 		fmt.Sprintf(`-remoteWrite.url=http://%s/api/v1/write`, vmsingle.HTTPAddr()),
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 	}, ``)
 
 	vmagent.APIV1ImportPrometheus(t, []string{
@@ -81,6 +82,7 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 		`-remoteWrite.flushInterval=50ms`,
 		`-remoteWrite.forcePromProto=true`,
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 	}, ``)
 
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
@@ -143,6 +145,7 @@ func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
 	vmagent := tc.MustStartVmagent("vmagent", []string{
 		`-remoteWrite.flushInterval=50ms`,
 		fmt.Sprintf(`-remoteWrite.url=%s/api/v1/write`, remoteWriteSrv.URL),
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
 	}, ``)
 
 	// Send request encoded with `zstd`; it fails, gets repacked as `snappy`, and retries successfully.
