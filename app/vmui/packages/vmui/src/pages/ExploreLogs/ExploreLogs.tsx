@@ -15,12 +15,16 @@ import { useFetchLogHits } from "./hooks/useFetchLogHits";
 import { LOGS_ENTRIES_LIMIT } from "../../constants/logs";
 import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time";
 import { useSearchParams } from "react-router-dom";
+import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
+import { getUpdatedHistory } from "../../components/QueryHistory/utils";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
+  const { queryHistory } = useQueryState();
+  const queryDispatch = useQueryDispatch();
   const { duration, relativeTime, period: periodState } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [searchParams] = useSearchParams();
@@ -28,6 +32,18 @@ const ExploreLogs: FC = () => {
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
+
+  const updateHistory = () => {
+    const history = getUpdatedHistory(query, queryHistory[0]);
+    queryDispatch({
+      type: "SET_QUERY_HISTORY",
+      payload: {
+        key: "LOGS_QUERY_HISTORY",
+        history: [history],
+      }
+    });
+  };
+  
   const [isUpdatingQuery, setIsUpdatingQuery] = useState(false);
   const [period, setPeriod] = useState<TimeParams>(periodState);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
@@ -60,6 +76,7 @@ const ExploreLogs: FC = () => {
       "g0.end_input": newPeriod.date,
       "g0.relative_time": relativeTime || "none",
     });
+    updateHistory();
   };
 
   const handleChangeLimit = (limit: number) => {

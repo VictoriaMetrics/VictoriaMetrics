@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -57,6 +57,23 @@ func (pt *pipeTop) String() string {
 	return s
 }
 
+func (pt *pipeTop) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
+	hitsQuoted := quoteTokenIfNeeded(pt.hitsFieldName)
+	fieldsQuoted := fieldNamesString(pt.byFields)
+
+	pLocalStr := fmt.Sprintf(`stats by (%s) sum(%s) as %s | first %d by (%s desc, %s)`, fieldsQuoted, hitsQuoted, hitsQuoted, pt.limit, hitsQuoted, fieldsQuoted)
+	if pt.rankFieldName != "" {
+		pLocalStr += rankFieldNameString(pt.rankFieldName)
+	}
+
+	psLocal := mustParsePipes(pLocalStr, timestamp)
+
+	pRemoteStr := fmt.Sprintf("stats by (%s) count() as %s", fieldsQuoted, hitsQuoted)
+	pRemote := mustParsePipe(pRemoteStr, timestamp)
+
+	return pRemote, psLocal
+}
+
 func (pt *pipeTop) canLiveTail() bool {
 	return false
 }
@@ -76,7 +93,7 @@ func (pt *pipeTop) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pt, nil
 }
 
@@ -84,18 +101,8 @@ func (pt *pipeTop) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func (pt *pipeTop) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
-
-	shards := make([]pipeTopProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeTopProcessorShard{
-			pipeTopProcessorShardNopad: pipeTopProcessorShardNopad{
-				pt: pt,
-			},
-		}
-		shards[i].m.init(uint(workersCount), &shards[i].stateSizeBudget)
-	}
 
 	ptp := &pipeTopProcessor{
 		pt:     pt,
@@ -103,9 +110,11 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	ptp.shards.Init = func(shard *pipeTopProcessorShard) {
+		shard.pt = pt
+		shard.m.init(uint(concurrency), &shard.stateSizeBudget)
 	}
 	ptp.stateSizeBudget.Store(maxStateSize)
 
@@ -118,20 +127,13 @@ type pipeTopProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	shards []pipeTopProcessorShard
+	shards atomicutil.Slice[pipeTopProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeTopProcessorShard struct {
-	pipeTopProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeTopProcessorShardNopad{})%128]byte
-}
-
-type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
 
@@ -285,7 +287,7 @@ func (ptp *pipeTopProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &ptp.shards[workerID]
+	shard := ptp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -427,9 +429,14 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() []*pipeTopEntry {
 		return nil
 	}
 
-	hmas := make([]*hitsMapAdaptive, 0, len(ptp.shards))
-	for i := range ptp.shards {
-		hma := &ptp.shards[i].m
+	shards := ptp.shards.GetSlice()
+	if len(shards) == 0 {
+		return nil
+	}
+
+	hmas := make([]*hitsMapAdaptive, 0, len(shards))
+	for _, shard := range shards {
+		hma := &shard.m
 		if hma.entriesCount() > 0 {
 			hmas = append(hmas, hma)
 		}

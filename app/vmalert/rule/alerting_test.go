@@ -1348,3 +1348,23 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		t.Fatalf("processed labels mismatch, got: %v, want: %v", ls.processed, expectedProcessedLabels)
 	}
 }
+
+func TestAlertingRuleExec_Partial(t *testing.T) {
+	fq := &datasource.FakeQuerier{}
+	fq.Add(metricWithValueAndLabels(t, 10, "__name__", "bar"))
+	fq.SetPartialResponse(true)
+
+	ar := newTestAlertingRule("test", 0)
+	ar.Debug = true
+	ar.Labels = map[string]string{"job": "test"}
+	ar.q = fq
+	ar.For = time.Second
+
+	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+
+	ts := time.Now()
+	_, err := ar.exec(context.TODO(), ts, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}

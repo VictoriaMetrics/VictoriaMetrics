@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -263,9 +262,8 @@ func (iv *inValues) initFloat64Values() {
 		if !ok {
 			continue
 		}
-		n := math.Float64bits(f)
 		bufLen := len(buf)
-		buf = encoding.MarshalUint64(buf, n)
+		buf = marshalFloat64(buf, f)
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}

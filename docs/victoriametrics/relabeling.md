@@ -1,10 +1,10 @@
 ---
-weight: 37
+weight: 38
 title: Relabeling cookbook
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 37
+    weight: 38
 aliases:
 - /relabeling.html
 ---

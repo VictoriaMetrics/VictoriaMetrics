@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -154,6 +155,34 @@ func (smp *statsRowMaxProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sf
 		smp.max = src.max
 		smp.fields = src.fields
 	}
+}
+
+func (smp *statsRowMaxProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(smp.max))
+	dst = marshalFields(dst, smp.fields)
+	return dst
+}
+
+func (smp *statsRowMaxProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	maxValue, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read maxValue")
+	}
+	src = src[n:]
+	smp.max = string(maxValue)
+
+	fields, tail, err := unmarshalFields(nil, src)
+	if err != nil {
+		return 0, fmt.Errorf("cannot unmarshal fields: %w", err)
+	}
+	if len(tail) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(tail))
+	}
+	smp.fields = fields
+
+	stateSize := len(smp.max) + fieldsStateSize(smp.fields)
+
+	return stateSize, nil
 }
 
 func (smp *statsRowMaxProcessor) needUpdateStateBytes(b []byte) bool {

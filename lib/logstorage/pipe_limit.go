@@ -16,6 +16,10 @@ func (pl *pipeLimit) String() string {
 	return fmt.Sprintf("limit %d", pl.limit)
 }
 
+func (pl *pipeLimit) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pl, []pipe{pl}
+}
+
 func (pl *pipeLimit) canLiveTail() bool {
 	return false
 }
@@ -28,7 +32,7 @@ func (pl *pipeLimit) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pl, nil
 }
 

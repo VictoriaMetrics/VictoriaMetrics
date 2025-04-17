@@ -1,8 +1,8 @@
 import React, { FC, useMemo } from "preact/compat";
-import Button from "../../../components/Main/Button/Button";
-import { CopyIcon, PlayCircleOutlineIcon, StarBorderIcon, StarIcon } from "../../../components/Main/Icons";
-import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
+import Button from "../Main/Button/Button";
+import { CopyIcon, PlayCircleOutlineIcon, StarBorderIcon, StarIcon } from "../Main/Icons";
+import Tooltip from "../Main/Tooltip/Tooltip";
+import useCopyToClipboard from "../../hooks/useCopyToClipboard";
 import "./style.scss";
 
 interface Props {

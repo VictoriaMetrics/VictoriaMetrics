@@ -3,10 +3,9 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 // pipeJSONArrayLen processes '| json_array_len ...' pipe.
@@ -23,6 +22,10 @@ func (pl *pipeJSONArrayLen) String() string {
 		s += " as " + quoteTokenIfNeeded(pl.resultField)
 	}
 	return s
+}
+
+func (pl *pipeJSONArrayLen) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pl, nil
 }
 
 func (pl *pipeJSONArrayLen) canLiveTail() bool {
@@ -47,7 +50,7 @@ func (pl *pipeJSONArrayLen) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeJSONArrayLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeJSONArrayLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pl, nil
 }
 
@@ -55,35 +58,25 @@ func (pl *pipeJSONArrayLen) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pl *pipeJSONArrayLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	shards := make([]pipeJSONArrayLenProcessorShard, workersCount)
-	for i := range shards {
-		shards[i].reset()
-	}
-
-	return &pipeJSONArrayLenProcessor{
+func (pl *pipeJSONArrayLen) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	plp := &pipeJSONArrayLenProcessor{
 		pl:     pl,
 		ppNext: ppNext,
-
-		shards: shards,
 	}
+	plp.shards.Init = func(shard *pipeJSONArrayLenProcessorShard) {
+		shard.reset()
+	}
+	return plp
 }
 
 type pipeJSONArrayLenProcessor struct {
 	pl     *pipeJSONArrayLen
 	ppNext pipeProcessor
 
-	shards []pipeJSONArrayLenProcessorShard
+	shards atomicutil.Slice[pipeJSONArrayLenProcessorShard]
 }
 
 type pipeJSONArrayLenProcessorShard struct {
-	pipeJSONArrayLenProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeJSONArrayLenProcessorShardNopad{})%128]byte
-}
-
-type pipeJSONArrayLenProcessorShardNopad struct {
 	a  arena
 	rc resultColumn
 
@@ -99,7 +92,7 @@ func (plp *pipeJSONArrayLenProcessor) writeBlock(workerID uint, br *blockResult)
 		return
 	}
 
-	shard := &plp.shards[workerID]
+	shard := plp.shards.Get(workerID)
 	shard.rc.name = plp.pl.resultField
 
 	c := br.getColumnByName(plp.pl.fieldName)
@@ -111,7 +104,7 @@ func (plp *pipeJSONArrayLenProcessor) writeBlock(workerID uint, br *blockResult)
 		shard.a.b = marshalUint64String(shard.a.b, uint64(aLen))
 		vEncoded := bytesutil.ToUnsafeString(shard.a.b[bLen:])
 		shard.rc.addValue(vEncoded)
-		br.addResultColumnConst(&shard.rc)
+		br.addResultColumnConst(shard.rc)
 	} else {
 		// Slow path for other columns
 		values := c.getValues(br)
@@ -122,7 +115,7 @@ func (plp *pipeJSONArrayLenProcessor) writeBlock(workerID uint, br *blockResult)
 			}
 			shard.rc.addValue(vEncoded)
 		}
-		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)
+		br.addResultColumnFloat64(shard.rc, shard.minValue, shard.maxValue)
 	}
 
 	// Write the result to ppNext
@@ -155,9 +148,8 @@ func (shard *pipeJSONArrayLenProcessorShard) getEncodedLen(v string) string {
 		shard.maxValue = f
 	}
 
-	n := math.Float64bits(f)
 	bLen := len(shard.a.b)
-	shard.a.b = encoding.MarshalUint64(shard.a.b, n)
+	shard.a.b = marshalFloat64(shard.a.b, f)
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
 }
 

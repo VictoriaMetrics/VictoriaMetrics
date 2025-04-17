@@ -63,7 +63,7 @@ func TestColumnsHeaderIndexMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected lengths of the marshaled columnsHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		cshIndex2 := &columnsHeaderIndex{}
-		if err := cshIndex2.unmarshalNoArena(data); err != nil {
+		if err := cshIndex2.unmarshalInplace(data); err != nil {
 			t.Fatalf("unexpected error in unmarshal: %s", err)
 		}
 
@@ -105,7 +105,7 @@ func TestColumnsHeaderMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected length of the marshaled columnsHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		csh2 := &columnsHeader{}
-		if err := csh2.unmarshalNoArena(data, partFormatLatestVersion); err != nil {
+		if err := csh2.unmarshalInplace(data, partFormatLatestVersion); err != nil {
 			t.Fatalf("unexpected error in unmarshal: %s", err)
 		}
 		if err := csh2.setColumnNames(cshIndex, g.columnNames); err != nil {
@@ -203,7 +203,7 @@ func TestColumnsHeaderIndexUnmarshalFailure(t *testing.T) {
 
 		cshIndex := getColumnsHeaderIndex()
 		defer putColumnsHeaderIndex(cshIndex)
-		if err := cshIndex.unmarshalNoArena(data); err == nil {
+		if err := cshIndex.unmarshalInplace(data); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
@@ -242,7 +242,7 @@ func TestColumnsHeaderUnmarshalFailure(t *testing.T) {
 
 		csh := getColumnsHeader()
 		defer putColumnsHeader(csh)
-		if err := csh.unmarshalNoArena(data, partFormatLatestVersion); err == nil {
+		if err := csh.unmarshalInplace(data, partFormatLatestVersion); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
@@ -448,7 +448,7 @@ func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected marshaled length of columnHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		var ch2 columnHeader
-		tail, err := ch2.unmarshalNoArena(data, partFormatLatestVersion)
+		tail, err := ch2.unmarshalInplace(data, partFormatLatestVersion)
 		if err != nil {
 			t.Fatalf("unexpected error in umarshal(%v): %s", ch, err)
 		}
@@ -485,7 +485,7 @@ func TestColumnHeaderUnmarshalFailure(t *testing.T) {
 
 		dataOrig := append([]byte{}, data...)
 		var ch columnHeader
-		tail, err := ch.unmarshalNoArena(data, partFormatLatestVersion)
+		tail, err := ch.unmarshalInplace(data, partFormatLatestVersion)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}

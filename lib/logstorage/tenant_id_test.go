@@ -143,3 +143,29 @@ func TestParseTenantID(t *testing.T) {
 	f("123:", TenantID{AccountID: 123})
 	f(":456", TenantID{ProjectID: 456})
 }
+
+func TestMarshalUnmarshalTenantIDs(t *testing.T) {
+	tenantIDs := []TenantID{
+		{
+			AccountID: 0,
+			ProjectID: 0,
+		},
+		{
+			AccountID: 123,
+			ProjectID: 456,
+		},
+		{
+			AccountID: 73249834,
+			ProjectID: 34242123,
+		},
+	}
+	data := MarshalTenantIDs(nil, tenantIDs)
+
+	result, err := UnmarshalTenantIDs(data)
+	if err != nil {
+		t.Fatalf("unexpected error when unmarshaling tenants: %s", err)
+	}
+	if !reflect.DeepEqual(tenantIDs, result) {
+		t.Fatalf("unexpected tenantIDs after unmarshaling\ngot\n%#v\nwant\n%#v", result, tenantIDs)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 
@@ -79,6 +80,48 @@ func (sus *statsCountUniqHashSet) reset() {
 func (sus *statsCountUniqHashSet) entriesCount() uint64 {
 	n := len(sus.timestamps) + len(sus.u64) + len(sus.negative64) + len(sus.strings)
 	return uint64(n)
+}
+
+func (sus *statsCountUniqHashSet) exportState(dst []byte, stopCh <-chan struct{}) []byte {
+	dst = marshalUint64Set(dst, sus.timestamps, stopCh)
+	dst = marshalUint64Set(dst, sus.u64, stopCh)
+	dst = marshalUint64Set(dst, sus.negative64, stopCh)
+	dst = marshalUint64Set(dst, sus.strings, stopCh)
+	return dst
+}
+
+func (sus *statsCountUniqHashSet) importState(src []byte, stopCh <-chan struct{}) ([]byte, int, error) {
+	stateSizeIncrease := 0
+
+	tail, stateSize, err := unmarshalUint64Set(&sus.timestamps, src, stopCh)
+	if err != nil {
+		return tail, 0, fmt.Errorf("cannot unmarshal timestamps: %w", err)
+	}
+	src = tail
+	stateSizeIncrease += stateSize
+
+	tail, stateSize, err = unmarshalUint64Set(&sus.u64, src, stopCh)
+	if err != nil {
+		return tail, 0, fmt.Errorf("cannot unmarshal uint64 values: %w", err)
+	}
+	src = tail
+	stateSizeIncrease += stateSize
+
+	tail, stateSize, err = unmarshalUint64Set(&sus.negative64, src, stopCh)
+	if err != nil {
+		return tail, 0, fmt.Errorf("cannot unmarshal negative64 values: %w", err)
+	}
+	src = tail
+	stateSizeIncrease += stateSize
+
+	tail, stateSize, err = unmarshalUint64Set(&sus.strings, src, stopCh)
+	if err != nil {
+		return tail, 0, fmt.Errorf("cannot unmarshal string values: %w", err)
+	}
+	src = tail
+	stateSizeIncrease += stateSize
+
+	return src, stateSizeIncrease, nil
 }
 
 func (sus *statsCountUniqHashSet) updateStateTimestamp(ts int64) int {
@@ -454,15 +497,69 @@ func (sup *statsCountUniqHashProcessor) mergeState(a *chunkedAllocator, sf stats
 	src.shards = nil
 }
 
-func (sup *statsCountUniqHashProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
-	n := sup.entriesCount()
-	if len(sup.shardss) > 0 {
-		if sup.shards != nil {
-			sup.shardss = append(sup.shardss, sup.shards)
-			sup.shards = nil
+func (sup *statsCountUniqHashProcessor) exportState(dst []byte, stopCh <-chan struct{}) []byte {
+	sup.mergeShardssParallel(stopCh)
+
+	if sup.shards == nil {
+		dst = encoding.MarshalVarUint64(dst, uint64(1))
+		dst = sup.uniqValues.exportState(dst, stopCh)
+	} else {
+		dst = encoding.MarshalVarUint64(dst, uint64(len(sup.shards)))
+		for i := range sup.shards {
+			dst = sup.shards[i].exportState(dst, stopCh)
 		}
-		n = countUniqHashParallel(sup.shardss, stopCh)
 	}
+	return dst
+}
+
+func (sup *statsCountUniqHashProcessor) importState(src []byte, stopCh <-chan struct{}) (int, error) {
+	shardsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read the number of shards")
+	}
+	if shardsLen < 1 {
+		return 0, fmt.Errorf("the number of shards must be at least 1")
+	}
+	src = src[1:]
+
+	if shardsLen == 1 {
+		tail, stateSize, err := sup.uniqValues.importState(src, stopCh)
+		if err != nil {
+			return 0, fmt.Errorf("cannot read uniqValues state: %w", err)
+		}
+		if len(tail) > 0 {
+			return 0, fmt.Errorf("unexpected tail left after imporing uniqValues state; len(tail)=%d", len(tail))
+		}
+		return stateSize, nil
+	}
+
+	if shardsLen != uint64(sup.concurrency) {
+		return 0, fmt.Errorf("unexpected number of imported shards: %d; want %d", shardsLen, sup.concurrency)
+	}
+
+	shards := make([]statsCountUniqHashSet, shardsLen)
+	stateSizeIncrease := int(unsafe.Sizeof(shards[0])) * len(shards)
+	for i := range shards {
+		tail, stateSize, err := shards[i].importState(src, stopCh)
+		if err != nil {
+			return 0, fmt.Errorf("cannot read state for shard[%d]: %w", i, err)
+		}
+		src = tail
+
+		stateSizeIncrease += stateSize
+	}
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected tail left after importing shards' state; len(tail)=%d", len(src))
+	}
+	sup.shards = shards
+
+	return stateSizeIncrease, nil
+}
+
+func (sup *statsCountUniqHashProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
+	sup.mergeShardssParallel(stopCh)
+
+	n := sup.entriesCount()
 
 	su := sf.(*statsCountUniqHash)
 	if limit := su.limit; limit > 0 && n > limit {
@@ -471,11 +568,22 @@ func (sup *statsCountUniqHashProcessor) finalizeStats(sf statsFunc, dst []byte, 
 	return strconv.AppendUint(dst, n, 10)
 }
 
-func countUniqHashParallel(shardss [][]statsCountUniqHashSet, stopCh <-chan struct{}) uint64 {
-	cpusCount := len(shardss[0])
-	perCPUCounts := make([]uint64, cpusCount)
+func (sup *statsCountUniqHashProcessor) mergeShardssParallel(stopCh <-chan struct{}) {
+	if len(sup.shardss) == 0 {
+		// nothing to merge
+		return
+	}
+
+	shardss := sup.shardss
+	sup.shardss = nil
+	if sup.shards != nil {
+		shardss = append(shardss, sup.shards)
+		sup.shards = nil
+	}
+
+	result := make([]statsCountUniqHashSet, len(shardss[0]))
 	var wg sync.WaitGroup
-	for i := range perCPUCounts {
+	for i := range result {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
@@ -485,17 +593,12 @@ func countUniqHashParallel(shardss [][]statsCountUniqHashSet, stopCh <-chan stru
 				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
-			perCPUCounts[cpuIdx] = sus.entriesCount()
-			sus.reset()
+			result[cpuIdx] = *sus
 		}(i)
 	}
 	wg.Wait()
 
-	countTotal := uint64(0)
-	for _, n := range perCPUCounts {
-		countTotal += n
-	}
-	return countTotal
+	sup.shards = result
 }
 
 func (sup *statsCountUniqHashProcessor) entriesCount() uint64 {

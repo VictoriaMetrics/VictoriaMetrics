@@ -44,6 +44,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// Fall back to Snappy decompression, since vmagent may send snappy-encoded messages
 			// with 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301
+			//
+			// Newer vmagent sends proper 'Content-Encoding' header.
+			// The logic is preserved for backwards compatibility.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			zstdErr := err
 			bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
 			if err != nil {
@@ -56,6 +60,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// Fall back to zstd decompression, since vmagent may send zstd-encoded messages
 			// without 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301#issuecomment-1815871992
+			//
+			// Newer vmagent sends proper 'Content-Encoding' header.
+			// The logic is preserved for backwards compatibility.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			snappyErr := err
 			bb.B, err = zstd.Decompress(bb.B[:0], ctx.reqBuf.B)
 			if err != nil {

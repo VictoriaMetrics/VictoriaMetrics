@@ -10,6 +10,7 @@ import Modal from "../Main/Modal/Modal";
 import JsonForm from "../../pages/TracePage/JsonForm/JsonForm";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import { downloadJSON } from "../../utils/file";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -54,17 +55,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
   };
 
   const handleSaveToFile = (tracingData: Trace) => () => {
-    const blob = new Blob([tracingData.originalJSON], { type: "application/json" });
-    const href = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `vmui_trace_${tracingData.queryValue}.json`;
-    document.body.appendChild(link);
-    link.click();
-
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
+    downloadJSON(tracingData.originalJSON, `vmui_trace_${tracingData.queryValue}.json`);
   };
 
   const handleExpandAll = (tracingData: Trace) => () => {

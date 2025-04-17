@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -370,4 +371,148 @@ func TestStatsCountUniqHash(t *testing.T) {
 			{"x", "0"},
 		},
 	})
+}
+
+func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
+	newStatsCountUniqHashProcessor := func() *statsCountUniqHashProcessor {
+		sup := &statsCountUniqHashProcessor{
+			concurrency: 2,
+		}
+		return sup
+	}
+
+	f := func(sup *statsCountUniqHashProcessor, dataLenExpected, stateSizeExpected, entriesCountExpected int) {
+		t.Helper()
+
+		data := sup.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		entriesCount := sup.entriesCount()
+		if entriesCount != uint64(entriesCountExpected) {
+			t.Fatalf("unexpected entries count; got %d; want %d", entriesCount, entriesCountExpected)
+		}
+
+		sup2 := newStatsCountUniqHashProcessor()
+		stateSize, err := sup2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		entriesCount = sup2.entriesCount()
+		if entriesCount != uint64(entriesCountExpected) {
+			t.Fatalf("unexpected items count; got %d; want %d", entriesCount, entriesCountExpected)
+		}
+
+		sup.a = nil
+		sup2.a = nil
+		if !reflect.DeepEqual(sup, sup2) {
+			t.Fatalf("unexpected state imported\ngot\n%#v\nwant\n%#v", sup2, sup)
+		}
+	}
+
+	sup := newStatsCountUniqHashProcessor()
+
+	// Zero state
+	f(sup, 5, 0, 0)
+
+	// uniqValues initialized
+	sup = newStatsCountUniqHashProcessor()
+	sup.uniqValues = statsCountUniqHashSet{
+		timestamps: map[uint64]struct{}{
+			123: {},
+			0:   {},
+		},
+		u64: map[uint64]struct{}{
+			43: {},
+		},
+		negative64: map[uint64]struct{}{
+			8234932: {},
+		},
+		strings: map[uint64]struct{}{
+			1111: {},
+			2222: {},
+		},
+	}
+	f(sup, 53, 48, 6)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// shards initialized
+	   	sup = newStatsCountUniqHashProcessor()
+	   	sup.shards = []statsCountUniqHashSet{
+	   		{
+	   			timestamps: map[uint64]struct{}{
+	   				123: {},
+	   				0:   {},
+	   			},
+	   			u64: map[uint64]struct{}{
+	   				43: {},
+	   			},
+	   			negative64: map[uint64]struct{}{
+	   				8234932: {},
+	   			},
+	   			strings: map[uint64]struct{}{
+	   				1111: {},
+	   				2222: {},
+	   			},
+	   		},
+	   		{
+	   			timestamps: map[uint64]struct{}{
+	   				10:      {},
+	   				1123:    {},
+	   				3234324: {},
+	   			},
+	   			u64: map[uint64]struct{}{
+	   				42: {},
+	   			},
+	   		},
+	   	}
+	   	f(sup, 89, 144, 10)
+
+	   	// shardss initialized
+	   	sup = newStatsCountUniqHashProcessor()
+	   	sup.shardss = [][]statsCountUniqHashSet{
+	   		{
+	   			{
+	   				strings: map[uint64]struct{}{
+	   					11111: {},
+	   					22222: {},
+	   				},
+	   			},
+	   			{
+	   				negative64: map[uint64]struct{}{
+	   					10:      {},
+	   					1123:    {},
+	   					3234324: {},
+	   				},
+	   			},
+	   		},
+	   		{
+	   			{
+	   				timestamps: map[uint64]struct{}{
+	   					123: {},
+	   					0:   {},
+	   				},
+	   				u64: map[uint64]struct{}{
+	   					43: {},
+	   				},
+	   				strings: map[uint64]struct{}{
+	   					111:  {},
+	   					222:  {},
+	   					3333: {},
+	   				},
+	   			},
+	   			{
+	   				timestamps: map[uint64]struct{}{
+	   					10: {},
+	   				},
+	   			},
+	   		},
+	   	}
+	   	f(sup, 105, 160, 12)*/
 }

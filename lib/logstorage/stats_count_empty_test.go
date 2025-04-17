@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -319,4 +320,38 @@ func TestStatsCountEmpty(t *testing.T) {
 			{"x", "1"},
 		},
 	})
+}
+
+func TestStatsCountEmpty_ExportImportState(t *testing.T) {
+	f := func(scp *statsCountEmptyProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := scp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var scp2 statsCountEmptyProcessor
+		stateSize, err := scp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(scp, &scp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &scp2, scp)
+		}
+	}
+
+	var scp statsCountEmptyProcessor
+
+	f(&scp, 1, 0)
+
+	scp = statsCountEmptyProcessor{
+		rowsCount: 234,
+	}
+	f(&scp, 2, 0)
 }

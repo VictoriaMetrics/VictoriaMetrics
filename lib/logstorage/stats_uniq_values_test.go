@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -436,4 +437,70 @@ func TestSortStrings(t *testing.T) {
 	f("10KiB,10KB,5.34K", "5.34K,10KB,10KiB")
 	f("v1.10.9,v1.10.10,v1.9.0", "v1.9.0,v1.10.9,v1.10.10")
 	f("10s,123,100M", "123,100M,10s")
+}
+
+func TestStatsUniqValues_ExportImportState(t *testing.T) {
+	var a chunkedAllocator
+	newStatsUniqValuesProcessor := func() *statsUniqValuesProcessor {
+		sup := a.newStatsUniqValuesProcessor()
+		sup.a = &a
+		sup.concurrency = 2
+		return sup
+	}
+
+	f := func(sup *statsUniqValuesProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := sup.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		sup2 := newStatsUniqValuesProcessor()
+		stateSize, err := sup2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		itemsExpected := sup.mergeItemsParallel(nil)
+		items := sup2.mergeItemsParallel(nil)
+
+		if !reflect.DeepEqual(items, itemsExpected) {
+			t.Fatalf("unexpected state imported\ngot\n%#v\nwant\n%#v", items, itemsExpected)
+		}
+	}
+
+	// empty state
+	sup := newStatsUniqValuesProcessor()
+	f(sup, 1, 0)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-empty m
+	   	sup = newStatsUniqValuesProcessor()
+	   	sup.m = map[string]struct{}{
+	   		"foo": {},
+	   		"bar": {},
+	   		"baz": {},
+	   	}
+	   	f(sup, 13, 57)
+
+	   	// non-empty ms
+	   	sup = newStatsUniqValuesProcessor()
+	   	sup.ms = []map[string]struct{}{
+	   		{
+	   			"foo": {},
+	   			"bar": {},
+	   			"baz": {},
+	   		},
+	   		{
+	   			"foo": {},
+	   			"aa":  {},
+	   			"":    {},
+	   		},
+	   	}
+	   	f(sup, 17, 91)*/
 }

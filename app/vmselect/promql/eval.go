@@ -172,30 +172,6 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	return &ec
 }
 
-// QueryStats contains various stats for the query.
-type QueryStats struct {
-	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
-	SeriesFetched atomic.Int64
-
-	// ExecutionTimeMsec contains the number of milliseconds the query took to execute.
-	ExecutionTimeMsec atomic.Int64
-}
-
-func (qs *QueryStats) addSeriesFetched(n int) {
-	if qs == nil {
-		return
-	}
-	qs.SeriesFetched.Add(int64(n))
-}
-
-func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
-	if qs == nil {
-		return
-	}
-	d := time.Since(startTime).Milliseconds()
-	qs.ExecutionTimeMsec.Add(d)
-}
-
 func (ec *EvalConfig) validate() {
 	if ec.Start > ec.End {
 		logger.Panicf("BUG: start cannot exceed end; got %d vs %d", ec.Start, ec.End)
@@ -1721,12 +1697,13 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	if err != nil {
 		return nil, err
 	}
+	qs := ec.QueryStats
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()
 		return nil, nil
 	}
-	ec.QueryStats.addSeriesFetched(rssLen)
+	qs.addSeriesFetched(rssLen)
 
 	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen

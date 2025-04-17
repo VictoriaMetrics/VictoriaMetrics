@@ -120,6 +120,30 @@ func ParseTenantID(s string) (TenantID, error) {
 	return tenantID, nil
 }
 
+// MarshalTenantIDs appends marshaled tenantIDs to dst and returns the result.
+func MarshalTenantIDs(dst []byte, tenantIDs []TenantID) []byte {
+	for i := range tenantIDs {
+		dst = tenantIDs[i].marshal(dst)
+	}
+	return dst
+}
+
+// UnmarshalTenantIDs unmarshals tenantIDs from src.
+func UnmarshalTenantIDs(src []byte) ([]TenantID, error) {
+	var tenantIDs []TenantID
+	for len(src) > 0 {
+		var tid TenantID
+		tail, err := tid.unmarshal(src)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal tenantID #%d: %w", len(tenantIDs), err)
+		}
+		src = tail
+
+		tenantIDs = append(tenantIDs, tid)
+	}
+	return tenantIDs, nil
+}
+
 func getUint32FromHeader(r *http.Request, headerName string) (uint32, error) {
 	s := r.Header.Get(headerName)
 	if len(s) == 0 {

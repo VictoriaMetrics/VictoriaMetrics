@@ -262,9 +262,8 @@ func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, val
 		bm.resetBits()
 		return
 	}
-	n := math.Float64bits(f)
 	bb := bbPool.Get()
-	bb.B = encoding.MarshalUint64(bb.B, n)
+	bb.B = marshalFloat64(bb.B, f)
 	matchBinaryValue(bs, ch, bm, bb.B, tokens)
 	bbPool.Put(bb)
 }

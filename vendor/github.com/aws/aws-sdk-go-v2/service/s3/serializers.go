@@ -202,11 +202,6 @@ func awsRestxml_serializeOpHttpBindingsCompleteMultipartUploadInput(v *CompleteM
 		encoder.SetHeader(locationName).String(*v.ChecksumCRC32C)
 	}
 
-	if v.ChecksumCRC64NVME != nil {
-		locationName := "X-Amz-Checksum-Crc64nvme"
-		encoder.SetHeader(locationName).String(*v.ChecksumCRC64NVME)
-	}
-
 	if v.ChecksumSHA1 != nil {
 		locationName := "X-Amz-Checksum-Sha1"
 		encoder.SetHeader(locationName).String(*v.ChecksumSHA1)
@@ -215,11 +210,6 @@ func awsRestxml_serializeOpHttpBindingsCompleteMultipartUploadInput(v *CompleteM
 	if v.ChecksumSHA256 != nil {
 		locationName := "X-Amz-Checksum-Sha256"
 		encoder.SetHeader(locationName).String(*v.ChecksumSHA256)
-	}
-
-	if len(v.ChecksumType) > 0 {
-		locationName := "X-Amz-Checksum-Type"
-		encoder.SetHeader(locationName).String(string(v.ChecksumType))
 	}
 
 	if v.ExpectedBucketOwner != nil {
@@ -244,11 +234,6 @@ func awsRestxml_serializeOpHttpBindingsCompleteMultipartUploadInput(v *CompleteM
 		if err := encoder.SetURI("Key").String(*v.Key); err != nil {
 			return err
 		}
-	}
-
-	if v.MpuObjectSize != nil {
-		locationName := "X-Amz-Mp-Object-Size"
-		encoder.SetHeader(locationName).Long(*v.MpuObjectSize)
 	}
 
 	if len(v.RequestPayer) > 0 {
@@ -850,11 +835,6 @@ func awsRestxml_serializeOpHttpBindingsCreateMultipartUploadInput(v *CreateMulti
 	if len(v.ChecksumAlgorithm) > 0 {
 		locationName := "X-Amz-Checksum-Algorithm"
 		encoder.SetHeader(locationName).String(string(v.ChecksumAlgorithm))
-	}
-
-	if len(v.ChecksumType) > 0 {
-		locationName := "X-Amz-Checksum-Type"
-		encoder.SetHeader(locationName).String(string(v.ChecksumType))
 	}
 
 	if v.ContentDisposition != nil {
@@ -7761,11 +7741,6 @@ func awsRestxml_serializeOpHttpBindingsPutObjectInput(v *PutObjectInput, encoder
 		encoder.SetHeader(locationName).String(*v.ChecksumCRC32C)
 	}
 
-	if v.ChecksumCRC64NVME != nil {
-		locationName := "X-Amz-Checksum-Crc64nvme"
-		encoder.SetHeader(locationName).String(*v.ChecksumCRC64NVME)
-	}
-
 	if v.ChecksumSHA1 != nil {
 		locationName := "X-Amz-Checksum-Sha1"
 		encoder.SetHeader(locationName).String(*v.ChecksumSHA1)
@@ -9046,11 +9021,6 @@ func awsRestxml_serializeOpHttpBindingsUploadPartInput(v *UploadPartInput, encod
 		encoder.SetHeader(locationName).String(*v.ChecksumCRC32C)
 	}
 
-	if v.ChecksumCRC64NVME != nil {
-		locationName := "X-Amz-Checksum-Crc64nvme"
-		encoder.SetHeader(locationName).String(*v.ChecksumCRC64NVME)
-	}
-
 	if v.ChecksumSHA1 != nil {
 		locationName := "X-Amz-Checksum-Sha1"
 		encoder.SetHeader(locationName).String(*v.ChecksumSHA1)
@@ -9364,11 +9334,6 @@ func awsRestxml_serializeOpHttpBindingsWriteGetObjectResponseInput(v *WriteGetOb
 	if v.ChecksumCRC32C != nil {
 		locationName := "X-Amz-Fwd-Header-X-Amz-Checksum-Crc32c"
 		encoder.SetHeader(locationName).String(*v.ChecksumCRC32C)
-	}
-
-	if v.ChecksumCRC64NVME != nil {
-		locationName := "X-Amz-Fwd-Header-X-Amz-Checksum-Crc64nvme"
-		encoder.SetHeader(locationName).String(*v.ChecksumCRC64NVME)
 	}
 
 	if v.ChecksumSHA1 != nil {
@@ -9953,17 +9918,6 @@ func awsRestxml_serializeDocumentCompletedPart(v *types.CompletedPart, value smi
 		}
 		el := value.MemberElement(root)
 		el.String(*v.ChecksumCRC32C)
-	}
-	if v.ChecksumCRC64NVME != nil {
-		rootAttr := []smithyxml.Attr{}
-		root := smithyxml.StartElement{
-			Name: smithyxml.Name{
-				Local: "ChecksumCRC64NVME",
-			},
-			Attr: rootAttr,
-		}
-		el := value.MemberElement(root)
-		el.String(*v.ChecksumCRC64NVME)
 	}
 	if v.ChecksumSHA1 != nil {
 		rootAttr := []smithyxml.Attr{}

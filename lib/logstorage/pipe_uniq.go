@@ -5,8 +5,8 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -23,6 +23,8 @@ type pipeUniq struct {
 	// if hitsFieldName isn't empty, then the number of hits per each unique value is stored in this field.
 	hitsFieldName string
 
+	// limit is the maximum number of unique values to return.
+	// If hitsFieldName != "" and the limit is exceeded, then all the hits are set to 0.
 	limit uint64
 }
 
@@ -38,6 +40,17 @@ func (pu *pipeUniq) String() string {
 		s += fmt.Sprintf(" limit %d", pu.limit)
 	}
 	return s
+}
+
+func (pu *pipeUniq) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	if pu.hitsFieldName == "" {
+		return pu, []pipe{pu}
+	}
+
+	pLocal := &pipeUniqLocal{
+		pu: pu,
+	}
+	return pu, []pipe{pLocal}
 }
 
 func (pu *pipeUniq) canLiveTail() bool {
@@ -59,7 +72,7 @@ func (pu *pipeUniq) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pu, nil
 }
 
@@ -67,18 +80,8 @@ func (pu *pipeUniq) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUniq) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
-
-	shards := make([]pipeUniqProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeUniqProcessorShard{
-			pipeUniqProcessorShardNopad: pipeUniqProcessorShardNopad{
-				pu: pu,
-			},
-		}
-		shards[i].m.init(uint(workersCount), &shards[i].stateSizeBudget)
-	}
 
 	pup := &pipeUniqProcessor{
 		pu:     pu,
@@ -86,9 +89,11 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	pup.shards.Init = func(shard *pipeUniqProcessorShard) {
+		shard.pu = pu
+		shard.m.init(uint(concurrency), &shard.stateSizeBudget)
 	}
 	pup.stateSizeBudget.Store(maxStateSize)
 
@@ -101,20 +106,13 @@ type pipeUniqProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	shards []pipeUniqProcessorShard
+	shards atomicutil.Slice[pipeUniqProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeUniqProcessorShard struct {
-	pipeUniqProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUniqProcessorShardNopad{})%128]byte
-}
-
-type pipeUniqProcessorShardNopad struct {
 	// pu points to the parent pipeUniq.
 	pu *pipeUniq
 
@@ -252,7 +250,7 @@ func (pup *pipeUniqProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -346,7 +344,7 @@ func (pup *pipeUniqProcessor) flush() error {
 func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHits bool) {
 	wctx := &pipeUniqWriteContext{
 		workerID: workerID,
-		pup:      pup,
+		ppNext:   pup.ppNext,
 	}
 
 	byFields := pup.pu.byFields
@@ -462,9 +460,14 @@ func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHi
 }
 
 func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
-	hmas := make([]*hitsMapAdaptive, 0, len(pup.shards))
-	for i := range pup.shards {
-		hma := &pup.shards[i].m
+	shards := pup.shards.GetSlice()
+	if len(shards) == 0 {
+		return nil
+	}
+
+	hmas := make([]*hitsMapAdaptive, 0, len(shards))
+	for _, shard := range shards {
+		hma := &shard.m
 		if hma.entriesCount() > 0 {
 			hmas = append(hmas, hma)
 		}
@@ -488,7 +491,7 @@ func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
 
 type pipeUniqWriteContext struct {
 	workerID uint
-	pup      *pipeUniqProcessor
+	ppNext   pipeProcessor
 	rcs      []resultColumn
 	br       blockResult
 
@@ -559,7 +562,7 @@ func (wctx *pipeUniqWriteContext) flush() {
 	wctx.br.setResultColumns(wctx.rcs, wctx.rowsCount)
 	wctx.valuesLen = 0
 	wctx.rowsCount = 0
-	wctx.pup.ppNext.writeBlock(wctx.workerID, &wctx.br)
+	wctx.ppNext.writeBlock(wctx.workerID, &wctx.br)
 	wctx.br.reset()
 	for i := range wctx.rcs {
 		wctx.rcs[i].resetValues()

@@ -2,8 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -41,6 +41,10 @@ func (pe *pipeExtract) String() string {
 	return s
 }
 
+func (pe *pipeExtract) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pe, nil
+}
+
 func (pe *pipeExtract) canLiveTail() bool {
 	return true
 }
@@ -49,8 +53,8 @@ func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +120,10 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	}
 }
 
-func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pe *pipeExtract) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeExtractProcessor{
 		pe:     pe,
 		ppNext: ppNext,
-
-		shards: make([]pipeExtractProcessorShard, workersCount),
 	}
 }
 
@@ -129,17 +131,10 @@ type pipeExtractProcessor struct {
 	pe     *pipeExtract
 	ppNext pipeProcessor
 
-	shards []pipeExtractProcessorShard
+	shards atomicutil.Slice[pipeExtractProcessorShard]
 }
 
 type pipeExtractProcessorShard struct {
-	pipeExtractProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeExtractProcessorShardNopad{})%128]byte
-}
-
-type pipeExtractProcessorShardNopad struct {
 	bm  bitmap
 	ptn *pattern
 
@@ -156,7 +151,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	pe := pep.pe
-	shard := &pep.shards[workerID]
+	shard := pep.shards.Get(workerID)
 
 	bm := &shard.bm
 	if iff := pe.iff; iff != nil {
@@ -228,7 +223,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	for i := range rcs {
-		br.addResultColumn(&rcs[i])
+		br.addResultColumn(rcs[i])
 	}
 	pep.ppNext.writeBlock(workerID, br)
 

@@ -1545,12 +1545,15 @@ func mustOpenParts(path string) []*partWrapper {
 	return pws
 }
 
-// CreateSnapshotAt creates tb snapshot in the given dstDir.
+// MustCreateSnapshotAt creates tb snapshot in the given dstDir.
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
 //
-// The caller is responsible for data removal at dstDir on unsuccessful snapshot creation.
-func (tb *Table) CreateSnapshotAt(dstDir string) error {
+// The method panics in case of any error. The input it accepts is provided by
+// the storage (not by a user) and the error indicates either a bug in storage
+// or a problem with the underlying file system (such as insufficient
+// permissions).
+func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	logger.Infof("creating Table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -1558,14 +1561,15 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	srcDir := tb.path
 	srcDir, err = filepath.Abs(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute dir for %q: %w", srcDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", srcDir, err)
 	}
 	dstDir, err = filepath.Abs(dstDir)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute dir for %q: %w", dstDir, err)
+		logger.Panicf("FATAL: cannot obtain absolute dir for %q: %w", dstDir, err)
 	}
-	if strings.HasPrefix(dstDir, srcDir+string(filepath.Separator)) {
-		return fmt.Errorf("cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
+	prefix := srcDir + string(filepath.Separator)
+	if strings.HasPrefix(dstDir, prefix) {
+		logger.Panicf("BUG: cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
 	}
 
 	// Flush inmemory items to disk.
@@ -1595,7 +1599,6 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	fs.MustSyncPath(parentDir)
 
 	logger.Infof("created Table snapshot of %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
-	return nil
 }
 
 func mustWritePartNames(pws []*partWrapper, dstDir string) {

@@ -98,7 +98,6 @@ func (fs *FS) Init() error {
 		fs.Dir += "/"
 	}
 	configOpts := []func(*config.LoadOptions) error{
-		config.WithSharedConfigProfile(fs.ProfileName),
 		config.WithDefaultRegion("us-east-1"),
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
@@ -113,6 +112,9 @@ func (fs *FS) Init() error {
 		}),
 	}
 
+	if len(fs.ProfileName) > 0 {
+		configOpts = append(configOpts, config.WithSharedConfigProfile(fs.ProfileName))
+	}
 	if len(fs.ConfigFilePath) > 0 {
 		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
 			fs.ConfigFilePath,

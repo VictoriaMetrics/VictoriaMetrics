@@ -1,6 +1,6 @@
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { getQueryArray } from "../../utils/query-string";
-import { setQueriesToStorage } from "../../pages/CustomPanel/QueryHistory/utils";
+import { HistoryKey, setQueriesToStorage } from "../../components/QueryHistory/utils";
 import {
   QueryAutocompleteCache,
   QueryAutocompleteCacheItem
@@ -24,7 +24,7 @@ export interface QueryState {
 export type QueryAction =
   | { type: "SET_QUERY", payload: string[] }
   | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: { value: QueryHistoryType, queryNumber: number } }
-  | { type: "SET_QUERY_HISTORY", payload: QueryHistoryType[] }
+  | { type: "SET_QUERY_HISTORY", payload: { key: HistoryKey, history: QueryHistoryType[] } }
   | { type: "TOGGLE_AUTOCOMPLETE" }
   | { type: "SET_AUTOCOMPLETE_QUICK", payload: boolean }
   | { type: "SET_AUTOCOMPLETE_CACHE", payload: { key: QueryAutocompleteCacheItem, value: string[] } }
@@ -48,10 +48,10 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
         query: action.payload.map(q => q)
       };
     case "SET_QUERY_HISTORY":
-      setQueriesToStorage(action.payload);
+      setQueriesToStorage(action.payload.key, action.payload.history);
       return {
         ...state,
-        queryHistory: action.payload
+        queryHistory: action.payload.history
       };
     case "SET_QUERY_HISTORY_BY_INDEX":
       state.queryHistory.splice(action.payload.queryNumber, 1, action.payload.value);

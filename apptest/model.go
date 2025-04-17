@@ -304,3 +304,93 @@ type MetricNamesStatsRecord struct {
 	MetricName         string
 	QueryRequestsCount uint64
 }
+
+// SnapshotCreateResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/create endpoint.
+type SnapshotCreateResponse struct {
+	Status   string
+	Snapshot string
+}
+
+// APIV1AdminTSDBSnapshotResponse is an in-memory reprensentation of the json
+// response returned by the /api/v1/admin/tsdb/snapshot endpoint.
+type APIV1AdminTSDBSnapshotResponse struct {
+	Status string
+	Data   *SnapshotData
+}
+
+// SnapshotData holds the info about the snapshot created via
+// /api/v1/admin/tsdb/snapshot endpoint.
+type SnapshotData struct {
+	Name string
+}
+
+// SnapshotListResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/list endpoint.
+type SnapshotListResponse struct {
+	Status    string
+	Snapshots []string
+}
+
+// SnapshotDeleteResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/delete endpoint.
+type SnapshotDeleteResponse struct {
+	Status string
+	Msg    string
+}
+
+// SnapshotDeleteAllResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/delete_all endpoint.
+type SnapshotDeleteAllResponse struct {
+	Status string
+}
+
+// TSDBStatusResponse is an in-memory reprensentation of the json response
+// returned by the /prometheus/api/v1/status/tsdb endpoint.
+type TSDBStatusResponse struct {
+	IsPartial bool
+	Data      TSDBStatusResponseData
+}
+
+// Sort performs sorting of stats entries
+func (tsr *TSDBStatusResponse) Sort() {
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelName)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByFocusLabelValue)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelValuePair)
+	sortTSDBStatusResponseEntries(tsr.Data.LabelValueCountByLabelName)
+}
+
+// TSDBStatusResponseData is a part of TSDBStatusResponse
+type TSDBStatusResponseData struct {
+	TotalSeries                  int
+	TotalLabelValuePairs         int
+	SeriesCountByMetricName      []TSDBStatusResponseMetricNameEntry
+	SeriesCountByLabelName       []TSDBStatusResponseEntry
+	SeriesCountByFocusLabelValue []TSDBStatusResponseEntry
+	SeriesCountByLabelValuePair  []TSDBStatusResponseEntry
+	LabelValueCountByLabelName   []TSDBStatusResponseEntry
+}
+
+// TSDBStatusResponseEntry defines stats entry for TSDBStatusResponseData
+type TSDBStatusResponseEntry struct {
+	Name  string
+	Count int
+}
+
+// TSDBStatusResponseMetricNameEntry defines metric names stats entry for TSDBStatusResponseData
+type TSDBStatusResponseMetricNameEntry struct {
+	Name                 string
+	Count                int
+	RequestsCount        int
+	LastRequestTimestamp int
+}
+
+func sortTSDBStatusResponseEntries(entries []TSDBStatusResponseEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		left, right := entries[i], entries[j]
+		if left.Count == right.Count {
+			return left.Name < right.Name
+		}
+		return left.Count < right.Count
+	})
+}

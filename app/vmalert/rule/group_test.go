@@ -143,6 +143,7 @@ func TestUpdateWith(t *testing.T) {
 	}}, []config.Rule{{
 		Record: "foo",
 		Expr:   "min(up)",
+		Debug:  true,
 		Labels: map[string]string{
 			"baz": "bar",
 		},

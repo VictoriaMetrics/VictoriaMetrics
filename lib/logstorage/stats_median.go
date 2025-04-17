@@ -36,6 +36,14 @@ func (smp *statsMedianProcessor) mergeState(a *chunkedAllocator, sf statsFunc, s
 	smp.sqp.mergeState(a, sm.sq, &src.sqp)
 }
 
+func (smp *statsMedianProcessor) exportState(dst []byte, stopCh <-chan struct{}) []byte {
+	return smp.sqp.exportState(dst, stopCh)
+}
+
+func (smp *statsMedianProcessor) importState(src []byte, stopCh <-chan struct{}) (int, error) {
+	return smp.sqp.importState(src, stopCh)
+}
+
 func (smp *statsMedianProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
 	sm := sf.(*statsMedian)
 	return smp.sqp.finalizeStats(sm.sq, dst, stopCh)

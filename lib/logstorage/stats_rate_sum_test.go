@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -361,4 +362,37 @@ func TestStatsRateSum(t *testing.T) {
 			{"x", "NaN"},
 		},
 	})
+}
+
+func TestStatsRateSum_ExportImportState(t *testing.T) {
+	f := func(srp *statsRateSumProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := srp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var srp2 statsRateSumProcessor
+		stateSize, err := srp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(srp, &srp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &srp2, srp)
+		}
+	}
+
+	var srp statsRateSumProcessor
+
+	f(&srp, 8, 0)
+
+	srp = statsRateSumProcessor{}
+	srp.ssp.sum = 234
+	f(&srp, 8, 0)
 }

@@ -20,6 +20,7 @@ import { parseLineToJSON } from "../../../utils/json";
 import { ExportMetricResult, ReportMetaData } from "../../../api/types";
 import { getApiEndpoint } from "../../../utils/url";
 import MarkdownEditor from "../../../components/Main/MarkdownEditor/MarkdownEditor";
+import { downloadJSON } from "../../../utils/file";
 
 export enum ReportType {
   QUERY_DATA,
@@ -100,17 +101,7 @@ const DownloadReport: FC<Props> = ({ fetchUrl, reportType = ReportType.QUERY_DAT
 
   const generateFile = useCallback((data: unknown) => {
     const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const href = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `${filename || defaultFilename}.json`;
-    document.body.appendChild(link);
-    link.click();
-
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
+    downloadJSON(json, `${filename || defaultFilename}.json`);
     handleClose();
   }, [filename]);
 

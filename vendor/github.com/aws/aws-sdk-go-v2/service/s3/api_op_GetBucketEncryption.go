@@ -188,9 +188,6 @@ func (c *Client) addOperationGetBucketEncryptionMiddlewares(stack *middleware.St
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpGetBucketEncryptionValidationMiddleware(stack); err != nil {
 		return err
 	}

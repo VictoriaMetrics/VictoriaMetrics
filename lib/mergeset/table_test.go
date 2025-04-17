@@ -126,13 +126,10 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 
 	// Create multiple snapshots.
 	snapshot1 := path + "-test-snapshot1"
-	if err := tb.CreateSnapshotAt(snapshot1); err != nil {
-		t.Fatalf("cannot create snapshot1: %s", err)
-	}
+	tb.MustCreateSnapshotAt(snapshot1)
+
 	snapshot2 := path + "-test-snapshot2"
-	if err := tb.CreateSnapshotAt(snapshot2); err != nil {
-		t.Fatalf("cannot create snapshot2: %s", err)
-	}
+	tb.MustCreateSnapshotAt(snapshot2)
 
 	// Verify snapshots contain all the data.
 	tb1 := MustOpenTable(snapshot1, 0, nil, nil, &isReadOnly)

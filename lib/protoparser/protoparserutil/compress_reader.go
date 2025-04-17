@@ -103,7 +103,9 @@ func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
 		return getGzipReader(r)
 	case "deflate":
 		return getZlibReader(r)
-	case "", "none":
+	case "", "none", "identity":
+		// Datadog extensions sends Content-Encoding: identity, which is not supported by RFC 2616
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649
 		return &plainReader{
 			r: r,
 		}, nil

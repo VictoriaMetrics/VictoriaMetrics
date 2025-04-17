@@ -153,9 +153,6 @@ func (c *Client) addOperationGetObjectLockConfigurationMiddlewares(stack *middle
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
 	if err = addOpGetObjectLockConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

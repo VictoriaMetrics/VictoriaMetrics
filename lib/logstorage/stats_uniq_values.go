@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 type statsUniqValues struct {
@@ -161,21 +162,74 @@ func (sup *statsUniqValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFun
 	}
 }
 
-func (sup *statsUniqValuesProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
-	su := sf.(*statsUniqValues)
-	var items []string
-	if len(sup.ms) > 0 {
-		sup.ms = append(sup.ms, sup.m)
-		items = mergeSetsParallel(sup.ms, sup.concurrency, stopCh)
-	} else {
-		items = setToSortedSlice(sup.m)
+func (sup *statsUniqValuesProcessor) exportState(dst []byte, stopCh <-chan struct{}) []byte {
+	items := sup.mergeItemsParallel(stopCh)
+
+	dst = encoding.MarshalVarUint64(dst, uint64(len(items)))
+	for _, v := range items {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
+	}
+	return dst
+}
+
+func (sup *statsUniqValuesProcessor) importState(src []byte, stopCh <-chan struct{}) (int, error) {
+	itemsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal itemsLen")
+	}
+	src = src[n:]
+	if itemsLen > uint64(len(src)) {
+		return 0, fmt.Errorf("too big itemsLen=%d; it mustn't exceed %d", itemsLen, len(src))
 	}
 
+	m := make(map[string]struct{}, itemsLen)
+	stateSize := 0
+	for i := uint64(0); i < itemsLen; i++ {
+		v, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot unmarshal item")
+		}
+		src = src[n:]
+
+		value := sup.a.cloneBytesToString(v)
+		m[value] = struct{}{}
+		stateSize += int(unsafe.Sizeof(value)) + len(value)
+
+		if needStop(stopCh) {
+			return 0, nil
+		}
+	}
+	if len(m) == 0 {
+		m = nil
+	}
+	sup.m = m
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail; len(tail)=%d", len(src))
+	}
+
+	return stateSize, nil
+}
+
+func (sup *statsUniqValuesProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
+	items := sup.mergeItemsParallel(stopCh)
+
+	su := sf.(*statsUniqValues)
 	if limit := su.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
 	return marshalJSONArray(dst, items)
+}
+
+func (sup *statsUniqValuesProcessor) mergeItemsParallel(stopCh <-chan struct{}) []string {
+	if len(sup.ms) == 0 {
+		return setToSortedSlice(sup.m)
+	}
+
+	sup.ms = append(sup.ms, sup.m)
+	sup.m = nil
+	return mergeSetsParallel(sup.ms, sup.concurrency, stopCh)
 }
 
 func mergeSetsParallel(ms []map[string]struct{}, concurrency uint, stopCh <-chan struct{}) []string {
@@ -204,7 +258,6 @@ func mergeSetsParallel(ms []map[string]struct{}, concurrency uint, stopCh <-chan
 			}
 
 			msShards[idx] = perCPU
-			ms[idx] = nil
 		}(i)
 	}
 	wg.Wait()

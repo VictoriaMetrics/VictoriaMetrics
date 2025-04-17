@@ -1,10 +1,12 @@
 package logstorage
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -78,6 +80,42 @@ func (smp *statsMinProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp s
 	if src.hasItems {
 		smp.updateStateString(src.min)
 	}
+}
+
+func (smp *statsMinProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	if !smp.hasItems {
+		dst = append(dst, 0)
+		return dst
+	}
+
+	dst = append(dst, 1)
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(smp.min))
+	return dst
+}
+
+func (smp *statsMinProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	if len(src) == 0 {
+		return 0, fmt.Errorf("missing `hasItems`")
+	}
+	smp.hasItems = (src[0] == 1)
+	src = src[1:]
+
+	if smp.hasItems {
+		minValue, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot unmarshal min value")
+		}
+		smp.min = string(minValue)
+		src = src[n:]
+	} else {
+		smp.min = ""
+	}
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected tail left after decoding min value; len(tail)=%d", len(src))
+	}
+
+	return len(smp.min), nil
 }
 
 func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
