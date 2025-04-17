@@ -3512,7 +3512,11 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).UnixMilli(),
 			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		}
-		const numMetrics = 10
+		const (
+			accountID  = 0
+			projectID  = 0
+			numMetrics = 10
+		)
 		date := uint64(tr.MinTimestamp) / msecPerDay
 		idb, putCurrIndexDB := s.getCurrIndexDB()
 		defer putCurrIndexDB()
@@ -3529,7 +3533,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 
 			// Create per-day tag -> metricID entries for every tag in mn.
 			kb := kbPool.Get()
-			kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+			kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
 			kb.B = encoding.MarshalUint64(kb.B, date)
 			ii.B = append(ii.B, kb.B...)
 			ii.B = marshalTagValue(ii.B, nil)
@@ -3544,7 +3548,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		}
 		idb.tb.DebugFlush()
 
-		tfsAll := NewTagFilters()
+		tfsAll := NewTagFilters(accountID, projectID)
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 		}
