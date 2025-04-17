@@ -213,7 +213,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 
 	if tags := query.Tags; len(tags) > 0 {
 		for k, v := range tags {
-			qStr += fmt.Sprintf("AND "+jaeger.TagKey+":%s ", k, v)
+			qStr += fmt.Sprintf("AND "+jaeger.TagKey+":=%s ", k, v)
 		}
 	}
 	if durationMin := query.DurationMin; durationMin > 0 {
