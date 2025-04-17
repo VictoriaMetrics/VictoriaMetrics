@@ -1,10 +1,10 @@
 ---
-weight: 200
+weight: 37
 title: Scrape config examples
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 200
+    weight: 37
 aliases:
 - /scrape_config_examples.html
 ---

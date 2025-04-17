@@ -1,11 +1,11 @@
 ---
-weight: 99
+weight: 80
 title: Enterprise
 menu:
   docs:
     identifier: vm-enterprise
     parent: 'victoriametrics'
-    weight: 99
+    weight: 80
 aliases:
 - /enterprise.html
 ---
