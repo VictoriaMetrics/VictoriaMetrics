@@ -9,8 +9,8 @@ aliases:
 - /query-stats.html
 ---
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging {{% available_from "#" %}}
-for executed read queries for [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging {{% available_from "#" %}} for
+executed read queries for [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) API. To enable statistics 
 logging specify `-search.logSlowQueryStats=<duration>` command line flag on [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/)
 or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
