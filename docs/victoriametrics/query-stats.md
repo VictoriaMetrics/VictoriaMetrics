@@ -1,11 +1,10 @@
 ---
-weight: 90
-title: Enterprise
+weight: 82
+title: Query execution stats
 menu:
   docs:
-    identifier: vm-enterprise
     parent: 'victoriametrics'
-    weight: 90
+    weight: 82
 aliases:
 - /query-stats.html
 ---
