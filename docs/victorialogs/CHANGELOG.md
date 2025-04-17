@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for downloading of displayed logs. It supports downloading in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604).
+
 ## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
 
 * FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add an ability to format [duration values](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values) as floating-point seconds via `<duration_seconds:field_with_duration_value>` syntax.
@@ -25,7 +27,6 @@ Released at 2025-04-10
 * FEATURE: add [cluster mode](https://docs.victoriametrics.com/victorialogs/cluster/), which allow scaling VictoriaLogs horizontally to multiple nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8223), [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5077), [this question](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7950).
 * FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): add [`json_values` function](https://docs.victoriametrics.com/victorialogs/logsql/#json_values-stats) for JSON-encoding logs into JSON arrays.
 * FEATURE: [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{field in (*)}` and `{field not_in (*)}` to be consistent with [`in(*)`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter). The `{field in (*)}` matches any [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), while the `{field not_in (*)}` matches zero log streams. This is needed for [this feature request for VictoriaLogs datasource in Grafana](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238).
-* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a download logs button, which allows you to export logs in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604).
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix endless group expansion loop bug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8347).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect nanosecond precision when sorting logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8346).
