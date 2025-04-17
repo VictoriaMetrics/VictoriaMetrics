@@ -2410,6 +2410,8 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 
 VictoriaMetrics provides UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
 
+VictoriaMetrics enhances Prometheus stats with `requestsCount` and `lastRequestTimestamp` for `seriesCountByMetricName`. This stats added if [tracking metric names stats](https://docs.victoriametrics.com/#track-ingested-metrics-usage) is configured.
+
 ## Query tracing
 
 VictoriaMetrics supports query tracing, which can be used for determining bottlenecks during query processing.
@@ -3301,6 +3303,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
+  -search.logSlowQueryStats duration
+      Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/query-stats. Zero disables slow query statistics logging. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
   -search.maxDeleteDuration duration
