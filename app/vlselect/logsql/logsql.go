@@ -940,7 +940,6 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 // ProcessAdminTenantsRequest processes /select/logsql/admin_tenants request.
 func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-
 	start, okStart, err := getTimeNsec(r, "start")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
@@ -958,11 +957,21 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 		end = math.MaxInt64
 	}
 
-	bw := getBufferedWriter(w)
+	sw := &syncWriter{
+		w: w,
+	}
+
+	var bwShards atomicutil.Slice[bufferedWriter]
+	bwShards.Init = func(shard *bufferedWriter) {
+		shard.sw = sw
+	}
 	defer func() {
-		bw.FlushIgnoreErrors()
-		putBufferedWriter(bw)
+		shards := bwShards.GetSlice()
+		for _, shard := range shards {
+			shard.FlushIgnoreErrors()
+		}
 	}()
+
 	w.Header().Set("Content-Type", "application/json")
 
 	tenants, err := vlstorage.GetTenantIDs(ctx, start, end)
@@ -973,7 +982,6 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 
 	bb := blockResultPool.Get()
 	WriteTenantsResponse(bb, tenants)
-	bw.WriteIgnoreErrors(bb.B)
 	blockResultPool.Put(bb)
 }
 
