@@ -9,10 +9,8 @@ aliases:
 - /query-stats.html
 ---
 
-## Query statistics
-
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging for
-served read queries for [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging {{% available_from "#" %}}
+for executed read queries for [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) API. To enable statistics 
 logging specify `-search.logSlowQueryStats=<duration>` command line flag on [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/)
 or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
@@ -41,13 +39,13 @@ The example of query statistics log is the following:
 * `bytes` is the amount of bytes transferred from storage to execute the query;
 * `memory_estimated_bytes` is the estimated amount of memory that is needed to evaluate query. See `-search.maxMemoryPerQuery` cmd-line flag.
 
-### Analysis
+## Analysis
 
-It is recommended to do collect query statistics logs into [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/)
-to do the post-analysis of the query performance.
+It is recommended to collect query statistics logs into [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/)
+for the post-analysis of the query performance.
 
 The generated statistics logs are prefixed with `vm_slow_query_stats` key word to simplify filtering. All the logged fields
-are formatted in [logfmt](https://brandur.org/logfmt) format to simplify parsing.
+are formatted in [logfmt](https://brandur.org/logfmt) format to simplify the parsing.
 
 For example, once these logs are available in VictoriaLogs for querying, the following query will find top 5 slowest
 queries:
@@ -58,7 +56,7 @@ vm_slow_query_stats | extract 'vm_slow_query_stats <query_stats>' | unpack_logfm
 ```
 
 Here, we begin query with `vm_slow_query_stats` to filter only logs that have the key word. 
-Then, with `extract 'vm_slow_query_stats <query_stats>' | unpack_logfmt from query_stats ` we extract and parse log message
+Then, with `extract 'vm_slow_query_stats <query_stats>' | unpack_logfmt from query_stats` we extract and parse log message
 into separate fields. And now we can calculate various [stats](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions):
 ```logsql
 | stats by(query) max(execution_duration_ms) execution_duration_max 
@@ -68,7 +66,9 @@ or
 | stats by(query,query_hash) sum(series_fetched) series_fetched_sum
 ``` 
 
-With use of the [VictoriaLogs Grafana datasource](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/)
+With [VictoriaLogs Grafana datasource](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/)
 we can build a dashboard with various stats and query filtering options:
 
 ![query-stats_dashboard.webp](query-stats_dashboard.webp)
+
+The example of Grafana datasource is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/query-stats.json).
