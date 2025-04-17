@@ -16,9 +16,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for downloading displayed logs. It supports downloading in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604).
-* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): optimize vmui for mobile layout to use space more efficiently.
-* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add query history for quick access to previously executed queries, in the way similar to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8500).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for downloading displayed logs. It supports downloading in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604). Thanks to @arturminchukov .
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): optimize vmui for mobile layout to use space more efficiently. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8679). Thanks to @arturminchukov .
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add query history for quick access to previously executed queries, in the way similar to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8500). Thanks to @arturminchukov .
 
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): properly store the contents of the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for newly ingested logs. It was incorrectly replaced with `missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field` because of the bug in [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8707).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix incorrect table sorting for numeric columns. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8606).
