@@ -503,7 +503,7 @@ func (g *Group) infof(format string, args ...any) {
 }
 
 // Replay performs group replay
-func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool) int {
+func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar, continueOnErr bool) int {
 	var total int
 	step := g.Interval * time.Duration(maxDataPoint)
 	ri := rangeIterator{start: start, end: end, step: step}
@@ -517,6 +517,12 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
 			g.Limit)
 	}
+
+	logf := logger.Fatalf
+	if continueOnErr {
+		logf = logger.Errorf
+	}
+
 	for _, rule := range g.Rules {
 		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
 		var bar *pb.ProgressBar
@@ -527,7 +533,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		for ri.next() {
 			n, err := replayRule(rule, ri.s, ri.e, rw, replayRuleRetryAttempts)
 			if err != nil {
-				logger.Fatalf("rule %q: %s", rule, err)
+				logf("rule %q: %s", rule, err)
 			}
 			total += n
 			if bar != nil {
