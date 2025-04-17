@@ -3,16 +3,16 @@ package digitalocean
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAddDropletLabels(t *testing.T) {
-	f := func(droplets []droplet, labelssExpected []*promutils.Labels) {
+	f := func(droplets []droplet, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addDropletLabels(droplets, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// base labels add test
@@ -52,8 +52,8 @@ func TestAddDropletLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                      "100.100.100.100:9100",
 			"__meta_digitalocean_droplet_id":   "15",
 			"__meta_digitalocean_droplet_name": "ubuntu-1",

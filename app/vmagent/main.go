@@ -34,7 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -105,7 +105,7 @@ func main() {
 	// Some workloads may need increased GOGC values. Then such values can be set via GOGC environment variable.
 	// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction metric exposed at /metrics page
 	// exceeds 0.05 for extended periods of time.
-	cgroup.SetGOGC(30)
+	cgroup.SetGOGC(50)
 
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -331,11 +331,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -443,8 +443,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
+		// https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 		state := r.FormValue("state")
-		promscrape.WriteAPIV1Targets(w, state)
+		scrapePool := r.FormValue("scrapePool")
+		promscrape.WriteAPIV1Targets(w, state, scrapePool)
 		return true
 	case "/prometheus/target_response", "/target_response":
 		promscrapeTargetResponseRequests.Inc()
@@ -587,11 +589,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/query":
 		influxQueryRequests.Inc()
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()

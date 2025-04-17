@@ -191,7 +191,7 @@ const StepConfigurator: FC = () => {
             </p>
             <p>
               Read more about <Hyperlink
-                href="https://docs.victoriametrics.com/keyConcepts.html#range-query"
+                href="https://docs.victoriametrics.com/keyconcepts/#range-query"
                 text="Range"
               /> and <Hyperlink
                 href="https://docs.victoriametrics.com/keyconcepts/#instant-query"

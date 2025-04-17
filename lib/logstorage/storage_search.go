@@ -9,10 +9,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // genericSearchOptions contain options used for search.
@@ -75,50 +77,51 @@ type searchOptions struct {
 	needAllColumns bool
 }
 
-// WriteBlockFunc must write a block with the given timestamps and columns.
+// WriteDataBlockFunc must process the db.
 //
-// WriteBlockFunc cannot hold references to timestamps and columns after returning.
-type WriteBlockFunc func(workerID uint, timestamps []int64, columns []BlockColumn)
+// WriteDataBlockFunc cannot hold references to db after returning.
+type WriteDataBlockFunc func(workerID uint, db *DataBlock)
 
-// RunQuery runs the given q and calls writeBlock for results.
-func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) error {
-	writeBlockResult := func(workerID uint, br *blockResult) {
+func (f WriteDataBlockFunc) newBlockResultWriter() writeBlockResultFunc {
+	var dbs atomicutil.Slice[DataBlock]
+	return func(workerID uint, br *blockResult) {
 		if br.rowsLen == 0 {
 			return
 		}
-
-		brs := getBlockRows()
-		csDst := brs.cs
-
-		cs := br.getColumns()
-		for _, c := range cs {
-			values := c.getValues(br)
-			csDst = append(csDst, BlockColumn{
-				Name:   c.name,
-				Values: values,
-			})
-		}
-
-		timestamps := br.getTimestamps()
-		writeBlock(workerID, timestamps, csDst)
-
-		brs.cs = csDst
-		putBlockRows(brs)
+		db := dbs.Get(workerID)
+		db.initFromBlockResult(br)
+		f(workerID, db)
 	}
+}
 
+// writeBlockResultFunc must process the br.
+//
+// writeBlockResultFunc cannot hold references to br after returning.
+type writeBlockResultFunc func(workerID uint, br *blockResult)
+
+func (f writeBlockResultFunc) newDataBlockWriter() WriteDataBlockFunc {
+	var brs atomicutil.Slice[blockResult]
+	return func(workerID uint, db *DataBlock) {
+		if db.RowsCount() == 0 {
+			return
+		}
+		br := brs.Get(workerID)
+		br.initFromDataBlock(db)
+		f(workerID, br)
+	}
+}
+
+// RunQuery runs the given q and calls writeBlock for results.
+func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteDataBlockFunc) error {
+	writeBlockResult := writeBlock.newBlockResultWriter()
 	return s.runQuery(ctx, tenantIDs, q, writeBlockResult)
 }
 
-func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
-	qNew, err := s.initFilterInValues(ctx, tenantIDs, q)
-	if err != nil {
-		return err
-	}
-	qNew, err = s.initJoinMaps(ctx, tenantIDs, qNew)
-	if err != nil {
-		return err
-	}
-	qNew, err = s.initUnionQueries(tenantIDs, qNew)
+// runQueryFunc must run the given q and pass query results to writeBlock
+type runQueryFunc func(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock writeBlockResultFunc) error
+
+func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock writeBlockResultFunc) error {
+	qNew, err := initSubqueries(ctx, tenantIDs, q, s.runQuery, true)
 	if err != nil {
 		return err
 	}
@@ -130,8 +133,8 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	})
 
 	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
+	neededColumnNames, unneededColumnNames := getNeededColumns(q.pipes)
 
-	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:           tenantIDs,
 		streamIDs:           streamIDs,
@@ -143,45 +146,42 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		needAllColumns:      slices.Contains(neededColumnNames, "*"),
 	}
 
-	workersCount := cgroup.AvailableCPUs()
-	if q.opts != nil && q.opts.concurrency > 0 && int(q.opts.concurrency) < workersCount {
-		// Limit the number of workers by the number of available CPU cores,
-		// since bigger number of workers won't improve CPU-bound query performance -
-		// they just increase RAM usage and slow down query execution because
-		// of more context switches between workers.
-		workersCount = int(q.opts.concurrency)
+	workersCount := q.GetConcurrency()
+
+	search := func(stopCh <-chan struct{}, writeBlockToPipes writeBlockResultFunc) error {
+		s.search(workersCount, so, stopCh, writeBlockToPipes)
+		return nil
 	}
 
-	ppMain := newDefaultPipeProcessor(writeBlockResultFunc)
-	pp := ppMain
+	return runPipes(ctx, q.pipes, search, writeBlock, workersCount)
+}
+
+// searchFunc must perform search and pass its results to writeBlock.
+type searchFunc func(stopCh <-chan struct{}, writeBlock writeBlockResultFunc) error
+
+func runPipes(ctx context.Context, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) error {
 	stopCh := ctx.Done()
-	cancels := make([]func(), len(q.pipes))
-	pps := make([]pipeProcessor, len(q.pipes))
+	if len(pipes) == 0 {
+		// Fast path when there are no pipes
+		return search(stopCh, writeBlock)
+	}
 
-	var errPipe error
-	for i := len(q.pipes) - 1; i >= 0; i-- {
-		p := q.pipes[i]
+	pp := newNoopPipeProcessor(writeBlock)
+	cancels := make([]func(), len(pipes))
+	pps := make([]pipeProcessor, len(pipes))
+
+	for i := len(pipes) - 1; i >= 0; i-- {
+		p := pipes[i]
 		ctxChild, cancel := context.WithCancel(ctx)
-		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
-
-		pcp, ok := pp.(*pipeStreamContextProcessor)
-		if ok {
-			pcp.init(s, neededColumnNames, unneededColumnNames)
-			if i > 0 {
-				errPipe = fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", p, q.f, q.pipes[i-1])
-			}
-		}
+		pp = p.newPipeProcessor(concurrency, stopCh, cancel, pp)
+		cancels[i] = cancel
+		pps[i] = pp
 
 		stopCh = ctxChild.Done()
 		ctx = ctxChild
-
-		cancels[i] = cancel
-		pps[i] = pp
 	}
 
-	if errPipe == nil {
-		s.search(workersCount, so, stopCh, pp.writeBlock)
-	}
+	errSearch := search(stopCh, pp.writeBlock)
 
 	var errFlush error
 	for i, pp := range pps {
@@ -191,12 +191,9 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		cancel := cancels[i]
 		cancel()
 	}
-	if err := ppMain.flush(); err != nil && errFlush == nil {
-		errFlush = err
-	}
 
-	if errPipe != nil {
-		return errPipe
+	if errSearch != nil {
+		return errSearch
 	}
 
 	return errFlush
@@ -227,7 +224,7 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	return s.runValuesWithHitsQuery(ctx, tenantIDs, qNew)
 }
 
-func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+func getJoinMapGeneric(ctx context.Context, tenantIDs []TenantID, q *Query, runQuery runQueryFunc, byFields []string, prefix string) (map[string][][]Field, error) {
 	// TODO: track memory usage
 
 	m := make(map[string][][]Field)
@@ -282,7 +279,7 @@ func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query
 		}
 	}
 
-	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
+	if err := runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
 		return nil, err
 	}
 
@@ -296,7 +293,7 @@ func marshalStrings(dst []byte, a []string) []byte {
 	return dst
 }
 
-func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string) ([]string, error) {
+func getFieldValuesGeneric(ctx context.Context, tenantIDs []TenantID, q *Query, runQuery runQueryFunc, fieldName string) ([]string, error) {
 	// TODO: track memory usage
 
 	if !isLastPipeUniq(q.pipes) {
@@ -343,7 +340,7 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 		valuesPerCPU[workerID] = valuesDst
 	}
 
-	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
+	if err := runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
 		return nil, err
 	}
 
@@ -399,6 +396,35 @@ type ValueWithHits struct {
 	Hits  uint64
 }
 
+// Marshal appends marshaled vh to dst and returns the result
+func (vh *ValueWithHits) Marshal(dst []byte) []byte {
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(vh.Value))
+	dst = encoding.MarshalUint64(dst, vh.Hits)
+	return dst
+}
+
+// UnmarshalInplace unmarshals vh from src and returns the remaining tail.
+//
+// vh is valid until src is changed.
+func (vh *ValueWithHits) UnmarshalInplace(src []byte) ([]byte, error) {
+	srcOrig := src
+
+	value, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal value")
+	}
+	src = src[n:]
+	vh.Value = bytesutil.ToUnsafeString(value)
+
+	if len(src) < 8 {
+		return srcOrig, fmt.Errorf("cannot unmarshal hits")
+	}
+	vh.Hits = encoding.UnmarshalUint64(src)
+	src = src[8:]
+
+	return src, nil
+}
+
 func toValuesWithHits(m map[string]*uint64) []ValueWithHits {
 	results := make([]ValueWithHits, 0, len(m))
 	for k, pHits := range m {
@@ -409,25 +435,6 @@ func toValuesWithHits(m map[string]*uint64) []ValueWithHits {
 	}
 	sortValuesWithHits(results)
 	return results
-}
-
-func sortValuesWithHits(results []ValueWithHits) {
-	slices.SortFunc(results, func(a, b ValueWithHits) int {
-		if a.Hits == b.Hits {
-			if a.Value == b.Value {
-				return 0
-			}
-			if lessString(a.Value, b.Value) {
-				return -1
-			}
-			return 1
-		}
-		// Sort in descending order of hits
-		if a.Hits < b.Hits {
-			return 1
-		}
-		return -1
-	})
 }
 
 // GetStreamFieldNames returns stream field names from q results for the given tenantIDs.
@@ -478,6 +485,7 @@ func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID
 	values := toValuesWithHits(m)
 	if limit > 0 && uint64(len(values)) > limit {
 		values = values[:limit]
+		resetHits(values)
 	}
 	return values, nil
 }
@@ -616,20 +624,69 @@ func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []Tenant
 	return results, nil
 }
 
-func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
+func initSubqueries(ctx context.Context, tenantIDs []TenantID, q *Query, runQuery runQueryFunc, keepInSubquery bool) (*Query, error) {
+	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
+		return getFieldValuesGeneric(ctx, tenantIDs, q, runQuery, fieldName)
+	}
+	qNew, err := initFilterInValues(q, getFieldValues, keepInSubquery)
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize `in` subqueries: %w", err)
+	}
+
+	getJoinMap := func(q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+		return getJoinMapGeneric(ctx, tenantIDs, q, runQuery, byFields, prefix)
+	}
+	qNew, err = initJoinMaps(qNew, getJoinMap)
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize `join` subqueries: %w", err)
+	}
+
+	runUnionQuery := func(ctx context.Context, q *Query, writeBlock writeBlockResultFunc) error {
+		return runQuery(ctx, tenantIDs, q, writeBlock)
+	}
+	qNew = initUnionQueries(qNew, runUnionQuery)
+
+	return initStreamContextPipes(qNew, runQuery)
+}
+
+func initStreamContextPipes(q *Query, runQuery runQueryFunc) (*Query, error) {
+	pipes := q.pipes
+
+	if len(pipes) == 0 {
+		return q, nil
+	}
+
+	for i := 1; i < len(pipes); i++ {
+		p := pipes[i]
+		if pc, ok := p.(*pipeStreamContext); ok {
+			return nil, fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", pc, q.f, pipes[i-1])
+		}
+	}
+
+	if pc, ok := pipes[0].(*pipeStreamContext); ok {
+		neededColumnNames, unneededColumnNames := getNeededColumns(pipes)
+
+		pipesNew := append([]pipe{}, pipes...)
+		pipesNew[0] = pc.withRunQuery(runQuery, neededColumnNames, unneededColumnNames)
+		qNew := q.cloneShallow()
+		qNew.pipes = pipesNew
+		return qNew, nil
+	}
+
+	return q, nil
+}
+
+func initFilterInValues(q *Query, getFieldValues getFieldValuesFunc, keepSubquery bool) (*Query, error) {
 	if !hasFilterInWithQueryForFilter(q.f) && !hasFilterInWithQueryForPipes(q.pipes) {
 		return q, nil
 	}
 
-	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
-		return s.getFieldValuesNoHits(ctx, tenantIDs, q, fieldName)
-	}
 	var cache inValuesCache
-	fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues)
+	fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
-	pipesNew, err := initFilterInValuesForPipes(&cache, q.pipes, getFieldValues)
+	pipesNew, err := initFilterInValuesForPipes(&cache, q.pipes, getFieldValues, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -645,13 +702,11 @@ type inValuesCache struct {
 	m map[string][]string
 }
 
-func (s *Storage) initUnionQueries(tenantIDs []TenantID, q *Query) (*Query, error) {
-	if !hasUnionPipes(q.pipes) {
-		return q, nil
-	}
+type runUnionQueryFunc func(ctx context.Context, q *Query, writeBlock writeBlockResultFunc) error
 
-	runUnionQuery := func(ctx context.Context, q *Query, writeBlock func(workerID uint, br *blockResult)) error {
-		return s.runQuery(ctx, tenantIDs, q, writeBlock)
+func initUnionQueries(q *Query, runUnionQuery runUnionQueryFunc) *Query {
+	if !hasUnionPipes(q.pipes) {
+		return q
 	}
 
 	pipesNew := make([]pipe, len(q.pipes))
@@ -665,7 +720,7 @@ func (s *Storage) initUnionQueries(tenantIDs []TenantID, q *Query) (*Query, erro
 	qNew := q.cloneShallow()
 	qNew.pipes = pipesNew
 
-	return qNew, nil
+	return qNew
 }
 
 func hasUnionPipes(pipes []pipe) bool {
@@ -679,13 +734,9 @@ func hasUnionPipes(pipes []pipe) bool {
 
 type getJoinMapFunc func(q *Query, byFields []string, prefix string) (map[string][][]Field, error)
 
-func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
+func initJoinMaps(q *Query, getJoinMap getJoinMapFunc) (*Query, error) {
 	if !hasJoinPipes(q.pipes) {
 		return q, nil
-	}
-
-	getJoinMap := func(q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
-		return s.getJoinMap(ctx, tenantIDs, q, byFields, prefix)
 	}
 
 	pipesNew := make([]pipe, len(q.pipes))
@@ -760,12 +811,12 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 
 type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
 
-func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (*ifFilter, error) {
+func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (*ifFilter, error) {
 	if iff == nil {
 		return nil, nil
 	}
 
-	f, err := initFilterInValuesForFilter(cache, iff.f, getFieldValuesFunc)
+	f, err := initFilterInValuesForFilter(cache, iff.f, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +826,7 @@ func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc
 	return &iffNew, nil
 }
 
-func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
+func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (filter, error) {
 	if f == nil {
 		return nil, nil
 	}
@@ -805,7 +856,9 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 			fiNew := &filterIn{
 				fieldName: t.fieldName,
 			}
-			fiNew.values.q = t.values.q
+			if keepSubquery {
+				fiNew.values.q = t.values.q
+			}
 			fiNew.values.values = values
 			return fiNew, nil
 		case *filterContainsAll:
@@ -817,7 +870,9 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 			fiNew := &filterContainsAll{
 				fieldName: t.fieldName,
 			}
-			fiNew.values.q = t.values.q
+			if keepSubquery {
+				fiNew.values.q = t.values.q
+			}
 			fiNew.values.values = values
 			return fiNew, nil
 		case *filterContainsAny:
@@ -829,7 +884,9 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 			fiNew := &filterContainsAny{
 				fieldName: t.fieldName,
 			}
-			fiNew.values.q = t.values.q
+			if keepSubquery {
+				fiNew.values.q = t.values.q
+			}
 			fiNew.values.values = values
 			return fiNew, nil
 		case *filterStreamID:
@@ -849,7 +906,9 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 
 			fsNew := &filterStreamID{
 				streamIDs: streamIDs,
-				q:         t.q,
+			}
+			if keepSubquery {
+				fsNew.q = t.q
 			}
 			return fsNew, nil
 		default:
@@ -877,10 +936,10 @@ func getValuesForQuery(q *Query, qFieldName string, cache *inValuesCache, getFie
 	return vs, nil
 }
 
-func initFilterInValuesForPipes(cache *inValuesCache, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
+func initFilterInValuesForPipes(cache *inValuesCache, pipes []pipe, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) ([]pipe, error) {
 	pipesNew := make([]pipe, len(pipes))
 	for i, p := range pipes {
-		pNew, err := p.initFilterInValues(cache, getFieldValuesFunc)
+		pNew, err := p.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 		if err != nil {
 			return nil, err
 		}
@@ -888,33 +947,6 @@ func initFilterInValuesForPipes(cache *inValuesCache, pipes []pipe, getFieldValu
 	}
 	return pipesNew, nil
 }
-
-type blockRows struct {
-	cs []BlockColumn
-}
-
-func (brs *blockRows) reset() {
-	cs := brs.cs
-	for i := range cs {
-		cs[i].reset()
-	}
-	brs.cs = cs[:0]
-}
-
-func getBlockRows() *blockRows {
-	v := blockRowsPool.Get()
-	if v == nil {
-		return &blockRows{}
-	}
-	return v.(*blockRows)
-}
-
-func putBlockRows(brs *blockRows) {
-	brs.reset()
-	blockRowsPool.Put(brs)
-}
-
-var blockRowsPool sync.Pool
 
 // BlockColumn is a single column of a block of data
 type BlockColumn struct {
@@ -925,20 +957,178 @@ type BlockColumn struct {
 	Values []string
 }
 
-func (c *BlockColumn) reset() {
-	c.Name = ""
-	c.Values = nil
+// DataBlock is a single block of data
+type DataBlock struct {
+	// Columns represents columns in the data block.
+	Columns []BlockColumn
 }
 
-// searchResultFunc must process sr.
+// Reset resets db
+func (db *DataBlock) Reset() {
+	clear(db.Columns)
+	db.Columns = db.Columns[:0]
+}
+
+// RowsCount returns the number of rows in db.
+func (db *DataBlock) RowsCount() int {
+	columns := db.Columns
+	if len(columns) > 0 {
+		return len(columns[0].Values)
+	}
+	return 0
+}
+
+// GetTimestamps returns _time column values from db.
 //
-// The callback is called at the worker with the given workerID.
-type searchResultFunc func(workerID uint, br *blockResult)
+// It returns false if db doesn't have _time column.
+func (db *DataBlock) GetTimestamps() ([]string, bool) {
+	columns := db.Columns
+	for i := range columns {
+		c := &columns[i]
+		if c.Name == "_time" {
+			return c.Values, true
+		}
+	}
+	return nil, false
+}
+
+// Marshal appends marshaled db to dst and returns the result.
+func (db *DataBlock) Marshal(dst []byte) []byte {
+	rowsCount := db.RowsCount()
+	dst = encoding.MarshalVarUint64(dst, uint64(rowsCount))
+
+	columns := db.Columns
+	dst = encoding.MarshalVarUint64(dst, uint64(len(columns)))
+	for i := range columns {
+		c := &columns[i]
+
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(c.Name))
+
+		values := c.Values
+		if len(values) != rowsCount {
+			logger.Panicf("BUG: the column %q must contain %d values; got %d values", c.Name, rowsCount, len(values))
+		}
+		if areConstValues(values) {
+			dst = append(dst, valuesTypeConst)
+			dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(values[0]))
+		} else {
+			dst = append(dst, valuesTypeRegular)
+			for _, v := range values {
+				dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
+			}
+		}
+	}
+
+	return dst
+}
+
+const (
+	valuesTypeConst   = byte(0)
+	valuesTypeRegular = byte(1)
+)
+
+// UnmarshalInplace unmarshals db from src and returns the tail
+//
+// db is valid until src is changed.
+// valuesBuf holds all the values in the unmarshaled db.Columns.
+func (db *DataBlock) UnmarshalInplace(src []byte, valuesBuf []string) ([]byte, []string, error) {
+	srcOrig := src
+
+	db.Reset()
+
+	// Unmarshal the number of rows
+	u64, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return srcOrig, valuesBuf, fmt.Errorf("cannot unmarshal the number of rows from len(src)=%d", len(src))
+	}
+	if u64 > math.MaxInt {
+		return srcOrig, valuesBuf, fmt.Errorf("too big number of rows in block: %d; mustn't exceed %v", u64, math.MaxInt)
+	}
+	rowsCount := int(u64)
+	src = src[n:]
+
+	// Unmarshal the number of columns
+	columnsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return srcOrig, valuesBuf, fmt.Errorf("cannot unmarshal the number of columns from len(src)=%d", len(src))
+	}
+	if columnsLen > math.MaxInt {
+		return srcOrig, valuesBuf, fmt.Errorf("too big number of columns in block: %d; mustn't exceed %v", columnsLen, math.MaxInt)
+	}
+	src = src[n:]
+
+	// Unmarshal columns
+	columns := slicesutil.SetLength(db.Columns, int(columnsLen))
+	for i := range columns {
+		name, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return srcOrig, valuesBuf, fmt.Errorf("cannot unmarshal column name from len(src)=%d", len(src))
+		}
+		src = src[n:]
+
+		valuesBufLen := len(valuesBuf)
+		valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+rowsCount)
+		valuesBufA := valuesBuf[valuesBufLen:]
+
+		if len(src) == 0 {
+			return srcOrig, valuesBuf, fmt.Errorf("missing value type for column %q", name)
+		}
+		valuesType := src[0]
+		src = src[1:]
+		switch valuesType {
+		case valuesTypeConst:
+			v, n := encoding.UnmarshalBytes(src)
+			if n <= 0 {
+				return srcOrig, valuesBuf, fmt.Errorf("cannot unmarshal const value for column #%d with name %q from len(src)=%d", len(columns), name, len(src))
+			}
+			src = src[n:]
+
+			value := bytesutil.ToUnsafeString(v)
+			for j := 0; j < rowsCount; j++ {
+				valuesBufA[j] = value
+			}
+		case valuesTypeRegular:
+			for j := 0; j < rowsCount; j++ {
+				v, n := encoding.UnmarshalBytes(src)
+				if n <= 0 {
+					return srcOrig, valuesBuf, fmt.Errorf("cannot unmarshal value #%d out of %d values for column #%d with name %q from len(src)=%d",
+						j, rowsCount, len(columns), name, len(src))
+				}
+				src = src[n:]
+
+				valuesBufA[j] = bytesutil.ToUnsafeString(v)
+			}
+		default:
+			return srcOrig, valuesBuf, fmt.Errorf("unexpected valuesType=%d", valuesType)
+		}
+
+		columns[i] = BlockColumn{
+			Name:   bytesutil.ToUnsafeString(name),
+			Values: valuesBufA,
+		}
+	}
+	db.Columns = columns
+
+	return src, valuesBuf, nil
+}
+
+func (db *DataBlock) initFromBlockResult(br *blockResult) {
+	db.Reset()
+
+	cs := br.getColumns()
+	for _, c := range cs {
+		values := c.getValues(br)
+		db.Columns = append(db.Columns, BlockColumn{
+			Name:   c.name,
+			Values: values,
+		})
+	}
+}
 
 // search searches for the matching rows according to so.
 //
-// It calls processBlockResult for each matching block.
-func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-chan struct{}, processBlockResult searchResultFunc) {
+// It calls writeBlock for each matching block.
+func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
 	// Spin up workers
 	var wgWorkers sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)
@@ -959,7 +1149,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 
 					bs.search(bsw, bm)
 					if bs.br.rowsLen > 0 {
-						processBlockResult(workerID, &bs.br)
+						writeBlock(workerID, &bs.br)
 					}
 					bsw.reset()
 				}

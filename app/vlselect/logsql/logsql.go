@@ -3,6 +3,7 @@ package logsql
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"regexp"
@@ -11,15 +12,17 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -35,32 +38,35 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	maxValuesPerField, err := httputils.GetInt(r, "max_values_per_field")
+	maxValuesPerField, err := httputil.GetInt(r, "max_values_per_field")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	maxValueLen, err := httputils.GetInt(r, "max_value_len")
+	maxValueLen, err := httputil.GetInt(r, "max_value_len")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	keepConstFields := httputils.GetBool(r, "keep_const_fields")
+	keepConstFields := httputil.GetBool(r, "keep_const_fields")
 
 	q.DropAllPipes()
 	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen, keepConstFields)
 
 	var mLock sync.Mutex
 	m := make(map[string][]facetEntry)
-	writeBlock := func(_ uint, _ []int64, columns []logstorage.BlockColumn) {
-		if len(columns) == 0 || len(columns[0].Values) == 0 {
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		if rowsCount == 0 {
 			return
 		}
+
+		columns := db.Columns
 		if len(columns) != 3 {
 			logger.Panicf("BUG: expecting 3 columns; got %d columns", len(columns))
 		}
@@ -141,7 +147,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	fields := r.Form["field"]
 
 	// Obtain limit on the number of top fields entries.
-	fieldsLimit, err := httputils.GetInt(r, "fields_limit")
+	fieldsLimit, err := httputil.GetInt(r, "fields_limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -156,17 +162,19 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	var mLock sync.Mutex
 	m := make(map[string]*hitsSeries)
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
-		if len(columns) == 0 || len(columns[0].Values) == 0 {
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		if rowsCount == 0 {
 			return
 		}
 
+		columns := db.Columns
 		timestampValues := columns[0].Values
 		hitsValues := columns[len(columns)-1].Values
 		columns = columns[1 : len(columns)-1]
 
 		bb := blockResultPool.Get()
-		for i := range timestamps {
+		for i := 0; i < rowsCount; i++ {
 			timestampStr := strings.Clone(timestampValues[i])
 			hitsStr := strings.Clone(hitsValues[i])
 			hits, err := strconv.ParseUint(hitsStr, 10, 64)
@@ -204,6 +212,8 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	WriteHitsSeries(w, m)
 }
+
+var blockResultPool bytesutil.ByteBufferPool
 
 func getTopHitsSeries(m map[string]*hitsSeries, fieldsLimit int) map[string]*hitsSeries {
 	if fieldsLimit <= 0 || fieldsLimit >= len(m) {
@@ -310,7 +320,7 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -370,7 +380,7 @@ func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -401,7 +411,7 @@ func ProcessStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -432,7 +442,7 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -470,21 +480,21 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		return
 	}
 
-	refreshIntervalMsecs, err := httputils.GetDuration(r, "refresh_interval", 1000)
+	refreshIntervalMsecs, err := httputil.GetDuration(r, "refresh_interval", 1000)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 	refreshInterval := time.Millisecond * time.Duration(refreshIntervalMsecs)
 
-	startOffsetMsecs, err := httputils.GetDuration(r, "start_offset", 5*1000)
+	startOffsetMsecs, err := httputil.GetDuration(r, "start_offset", 5*1000)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 	startOffset := startOffsetMsecs * 1e6
 
-	offsetMsecs, err := httputils.GetDuration(r, "offset", 1000)
+	offsetMsecs, err := httputil.GetDuration(r, "offset", 1000)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -536,7 +546,7 @@ var liveTailRequests = metrics.NewCounter(`vl_live_tailing_requests`)
 const tailOffsetNsecs = 5e9
 
 type logRow struct {
-	timestamp int64
+	timestamp string
 	fields    []logstorage.Field
 }
 
@@ -552,7 +562,7 @@ type tailProcessor struct {
 	mu sync.Mutex
 
 	perStreamRows  map[string][]logRow
-	lastTimestamps map[string]int64
+	lastTimestamps map[string]string
 
 	err error
 }
@@ -562,12 +572,12 @@ func newTailProcessor(cancel func()) *tailProcessor {
 		cancel: cancel,
 
 		perStreamRows:  make(map[string][]logRow),
-		lastTimestamps: make(map[string]int64),
+		lastTimestamps: make(map[string]string),
 	}
 }
 
-func (tp *tailProcessor) writeBlock(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
-	if len(timestamps) == 0 {
+func (tp *tailProcessor) writeBlock(_ uint, db *logstorage.DataBlock) {
+	if db.RowsCount() == 0 {
 		return
 	}
 
@@ -579,14 +589,8 @@ func (tp *tailProcessor) writeBlock(_ uint, timestamps []int64, columns []logsto
 	}
 
 	// Make sure columns contain _time field, since it is needed for proper tail work.
-	hasTime := false
-	for _, c := range columns {
-		if c.Name == "_time" {
-			hasTime = true
-			break
-		}
-	}
-	if !hasTime {
+	timestamps, ok := db.GetTimestamps()
+	if !ok {
 		tp.err = fmt.Errorf("missing _time field")
 		tp.cancel()
 		return
@@ -595,8 +599,8 @@ func (tp *tailProcessor) writeBlock(_ uint, timestamps []int64, columns []logsto
 	// Copy block rows to tp.perStreamRows
 	for i, timestamp := range timestamps {
 		streamID := ""
-		fields := make([]logstorage.Field, len(columns))
-		for j, c := range columns {
+		fields := make([]logstorage.Field, len(db.Columns))
+		for j, c := range db.Columns {
 			name := strings.Clone(c.Name)
 			value := strings.Clone(c.Values[i])
 
@@ -688,12 +692,15 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+
+		columns := db.Columns
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
-		for i := range timestamps {
+		for i := 0; i < rowsCount; i++ {
 			// Do not move q.GetTimestamp() outside writeBlock, since ts
 			// must be initialized to query timestamp for every processed log row.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312
@@ -802,12 +809,14 @@ func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *htt
 	var rowsLock sync.Mutex
 
 	timestamp := q.GetTimestamp()
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		columns := db.Columns
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
-		for i := range timestamps {
+		for i := 0; i < rowsCount; i++ {
 			labels := make([]logstorage.Field, 0, len(byFields))
 			for j, c := range columns {
 				if slices.Contains(byFields, c.Name) {
@@ -863,17 +872,27 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 
 	// Parse limit query arg
-	limit, err := httputils.GetInt(r, "limit")
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 
-	bw := getBufferedWriter(w)
+	sw := &syncWriter{
+		w: w,
+	}
+
+	var bwShards atomicutil.Slice[bufferedWriter]
+	bwShards.Init = func(shard *bufferedWriter) {
+		shard.sw = sw
+	}
 	defer func() {
-		bw.FlushIgnoreErrors()
-		putBufferedWriter(bw)
+		shards := bwShards.GetSlice()
+		for _, shard := range shards {
+			shard.FlushIgnoreErrors()
+		}
 	}()
+
 	w.Header().Set("Content-Type", "application/stream+json")
 
 	if limit > 0 {
@@ -883,32 +902,34 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 				httpserver.Errorf(w, r, "%s", err)
 				return
 			}
-			bb := blockResultPool.Get()
-			b := bb.B
+			bw := bwShards.Get(0)
 			for i := range rows {
-				b = logstorage.MarshalFieldsToJSON(b[:0], rows[i].fields)
-				b = append(b, '\n')
-				bw.WriteIgnoreErrors(b)
+				bw.buf = logstorage.MarshalFieldsToJSON(bw.buf, rows[i].fields)
+				bw.buf = append(bw.buf, '\n')
+				if len(bw.buf) > 16*1024 {
+					bw.FlushIgnoreErrors()
+				}
 			}
-			bb.B = b
-			blockResultPool.Put(bb)
 			return
 		}
 
 		q.AddPipeLimit(uint64(limit))
 	}
 
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
-		if len(columns) == 0 || len(columns[0].Values) == 0 {
+	writeBlock := func(workerID uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		if rowsCount == 0 {
 			return
 		}
+		columns := db.Columns
 
-		bb := blockResultPool.Get()
-		for i := range timestamps {
-			WriteJSONRow(bb, columns, i)
+		bw := bwShards.Get(workerID)
+		for i := 0; i < rowsCount; i++ {
+			WriteJSONRow(bw, columns, i)
+			if len(bw.buf) > 16*1024 {
+				bw.FlushIgnoreErrors()
+			}
 		}
-		bw.WriteIgnoreErrors(bb.B)
-		blockResultPool.Put(bb)
 	}
 
 	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
@@ -956,14 +977,37 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 	blockResultPool.Put(bb)
 }
 
-var blockResultPool bytesutil.ByteBufferPool
-
-type row struct {
-	timestamp int64
-	fields    []logstorage.Field
+type syncWriter struct {
+	mu sync.Mutex
+	w  io.Writer
 }
 
-func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
+func (sw *syncWriter) Write(p []byte) (int, error) {
+	sw.mu.Lock()
+	n, err := sw.w.Write(p)
+	sw.mu.Unlock()
+	return n, err
+}
+
+type bufferedWriter struct {
+	buf []byte
+	sw  *syncWriter
+}
+
+func (bw *bufferedWriter) Write(p []byte) (int, error) {
+	bw.buf = append(bw.buf, p...)
+
+	// Do not send bw.buf to bw.sw here, since the data at bw.buf may be incomplete (it must end with '\n')
+
+	return len(p), nil
+}
+
+func (bw *bufferedWriter) FlushIgnoreErrors() {
+	_, _ = bw.sw.Write(bw.buf)
+	bw.buf = bw.buf[:0]
+}
+
+func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]logRow, error) {
 	limitUpper := 2 * limit
 	q.AddPipeLimit(uint64(limitUpper))
 
@@ -1032,7 +1076,7 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 	}
 }
 
-func getLastNRows(rows []row, limit int) []row {
+func getLastNRows(rows []logRow, limit int) []logRow {
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i].timestamp < rows[j].timestamp
 	})
@@ -1042,16 +1086,29 @@ func getLastNRows(rows []row, limit int) []row {
 	return rows
 }
 
-func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
+func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]logRow, error) {
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var rows []row
+	var missingTimeColumn atomic.Bool
+	var rows []logRow
 	var rowsLock sync.Mutex
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		if missingTimeColumn.Load() {
+			return
+		}
+
+		columns := db.Columns
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+
+		timestamps, ok := db.GetTimestamps()
+		if !ok {
+			missingTimeColumn.Store(true)
+			cancel()
+			return
 		}
 
 		for i, timestamp := range timestamps {
@@ -1063,7 +1120,7 @@ func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.Tenant
 			}
 
 			rowsLock.Lock()
-			rows = append(rows, row{
+			rows = append(rows, logRow{
 				timestamp: timestamp,
 				fields:    fields,
 			})
@@ -1074,11 +1131,13 @@ func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.Tenant
 			cancel()
 		}
 	}
-	if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, writeBlock); err != nil {
-		return nil, err
+	err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, writeBlock)
+
+	if missingTimeColumn.Load() {
+		return nil, fmt.Errorf("missing _time column in the result for the query [%s]", q)
 	}
 
-	return rows, nil
+	return rows, err
 }
 
 func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID, error) {

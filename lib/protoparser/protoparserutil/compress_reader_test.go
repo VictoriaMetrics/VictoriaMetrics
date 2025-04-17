@@ -31,20 +31,22 @@ func TestReadUncompressedData_Success(t *testing.T) {
 		case "gzip":
 			var bb bytes.Buffer
 			w := gzip.NewWriter(&bb)
-			_, err := w.Write(data)
-			if err != nil {
+			if _, err := w.Write(data); err != nil {
 				t.Fatalf("unexpected error when encoding gzip data: %s", err)
 			}
-			_ = w.Close()
+			if err := w.Close(); err != nil {
+				t.Fatalf("unexpected error when closing gzip writer: %s", err)
+			}
 			encodedData = bb.Bytes()
 		case "deflate":
 			var bb bytes.Buffer
 			w := zlib.NewWriter(&bb)
-			_, err := w.Write(data)
-			if err != nil {
+			if _, err := w.Write(data); err != nil {
 				t.Fatalf("unexpected error when encoding zlib data: %s", err)
 			}
-			_ = w.Close()
+			if err := w.Close(); err != nil {
+				t.Fatalf("unexpected error when closing zlib writer: %s", err)
+			}
 			encodedData = bb.Bytes()
 		case "", "none":
 			encodedData = data

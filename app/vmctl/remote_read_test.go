@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
 func TestRemoteRead(t *testing.T) {
@@ -70,8 +70,11 @@ func TestRemoteRead(t *testing.T) {
 		{
 			name:             "step month on month time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*"},
-			vmCfg: vm.Config{Addr: "", Concurrency: 1,
-				Transport: http.DefaultTransport.(*http.Transport)},
+			vmCfg: vm.Config{
+				Addr:        "",
+				Concurrency: 1,
+				Transport:   httputil.NewTransport(false, "vmctl_test_read"),
+			},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,

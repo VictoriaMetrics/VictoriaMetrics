@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // WriteMetricRelabelDebug writes /metric-relabel-debug page to w with the corresponding args.
@@ -26,7 +26,7 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
-	labels, err := promutils.NewLabelsFromString(metric)
+	labels, err := promutil.NewLabelsFromString(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %w", err)
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
@@ -43,7 +43,7 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 	WriteRelabelDebugSteps(w, targetURL, targetID, format, dss, metric, relabelConfigs, nil)
 }
 
-func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTargetRelabel bool) ([]DebugStep, string) {
+func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutil.Labels, isTargetRelabel bool) ([]DebugStep, string) {
 	// The target relabeling below must be in sync with the code at scrapeWorkConfig.getScrapeWork if isTargetRelabel=true
 	// and with the code at scrapeWork.addRowToTimeseries when isTargetRelabeling=false
 	targetURL := ""
@@ -104,7 +104,7 @@ func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTarget
 	return dss, targetURL
 }
 
-func getChangedLabelNames(in, out *promutils.Labels) map[string]struct{} {
+func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 	inMap := in.ToMap()
 	outMap := out.ToMap()
 	changed := make(map[string]struct{})

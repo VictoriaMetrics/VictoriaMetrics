@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
@@ -61,7 +61,7 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 
 		data := tlp.pr.MarshalProtobuf(nil)
 
-		tlp2 := &insertutils.TestLogMessageProcessor{}
+		tlp2 := &insertutil.TestLogMessageProcessor{}
 		if err := parseProtobufRequest(data, tlp2, nil, false, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -133,7 +133,7 @@ func TestParseProtobufRequest_ParseMessage(t *testing.T) {
 
 		data := tlp.pr.MarshalProtobuf(nil)
 
-		tlp2 := &insertutils.TestLogMessageProcessor{}
+		tlp2 := &insertutil.TestLogMessageProcessor{}
 		if err := parseProtobufRequest(data, tlp2, msgFields, false, true); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

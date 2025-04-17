@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -287,7 +287,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, encoding string, 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
+			cp := insertutil.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -351,7 +351,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, encoding string, us
 
 		wg.Add(1)
 		go func() {
-			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
+			cp := insertutil.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
 			if err := processStream("tcp", c, encoding, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
@@ -367,7 +367,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, encoding string, us
 }
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
-func processStream(protocol string, r io.Reader, encoding string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
+func processStream(protocol string, r io.Reader, encoding string, useLocalTimestamp bool, cp *insertutil.CommonParams) error {
 	if err := vlstorage.CanWriteData(); err != nil {
 		return err
 	}
@@ -379,7 +379,7 @@ func processStream(protocol string, r io.Reader, encoding string, useLocalTimest
 	return err
 }
 
-func processStreamInternal(r io.Reader, encoding string, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
+func processStreamInternal(r io.Reader, encoding string, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode syslog data: %w", err)
@@ -389,7 +389,7 @@ func processStreamInternal(r io.Reader, encoding string, useLocalTimestamp bool,
 	return processUncompressedStream(reader, useLocalTimestamp, lmp)
 }
 
-func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
+func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
@@ -474,7 +474,7 @@ again:
 			slr.err = fmt.Errorf("cannot parse message length from %q: %w", msgLenStr, err)
 			return false
 		}
-		if maxMsgLen := insertutils.MaxLineSizeBytes.IntN(); msgLen > uint64(maxMsgLen) {
+		if maxMsgLen := insertutil.MaxLineSizeBytes.IntN(); msgLen > uint64(maxMsgLen) {
 			slr.err = fmt.Errorf("cannot read message longer than %d bytes; msgLen=%d", maxMsgLen, msgLen)
 			return false
 		}
@@ -526,7 +526,7 @@ func putSyslogLineReader(slr *syslogLineReader) {
 
 var syslogLineReaderPool sync.Pool
 
-func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
+func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
 	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
@@ -535,7 +535,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 	if useLocalTimestamp {
 		ts = time.Now().UnixNano()
 	} else {
-		nsecs, err := insertutils.ExtractTimestampFromFields("timestamp", p.Fields)
+		nsecs, err := insertutil.ExtractTimestampFromFields("timestamp", p.Fields)
 		if err != nil {
 			return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
 		}

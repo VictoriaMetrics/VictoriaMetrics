@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -44,7 +44,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns Azure labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -65,16 +65,16 @@ func (sdc *SDConfig) MustStop() {
 	}
 }
 
-func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promutils.Labels {
-	ms := make([]*promutils.Labels, 0, len(vms))
+func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promutil.Labels {
+	ms := make([]*promutil.Labels, 0, len(vms))
 	for i := range vms {
 		vm := &vms[i]
 		for _, ips := range vm.ipAddresses {
 			if ips.privateIP == "" {
 				continue
 			}
-			addr := discoveryutils.JoinHostPort(ips.privateIP, port)
-			m := promutils.NewLabels(16)
+			addr := discoveryutil.JoinHostPort(ips.privateIP, port)
+			m := promutil.NewLabels(16)
 			m.Add("__address__", addr)
 			m.Add("__meta_azure_subscription_id", sdc.SubscriptionID)
 			m.Add("__meta_azure_machine_id", vm.ID)
@@ -105,7 +105,7 @@ func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promu
 				m.Add("__meta_azure_machine_size", vm.Properties.HardwareProfile.VMSize)
 			}
 			for k, v := range vm.Tags {
-				m.Add(discoveryutils.SanitizeLabelName("__meta_azure_machine_tag_"+k), v)
+				m.Add(discoveryutil.SanitizeLabelName("__meta_azure_machine_tag_"+k), v)
 			}
 			ms = append(ms, m)
 		}

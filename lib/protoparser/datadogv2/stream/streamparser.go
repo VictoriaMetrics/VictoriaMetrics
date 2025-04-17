@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -16,7 +16,8 @@ import (
 // callback shouldn't hold series after returning.
 func Parse(r io.Reader, encoding, contentType string, callback func(series []datadogv2.Series) error) error {
 	readCalls.Inc()
-	err := protoparserutil.ReadUncompressedData(r, encoding, datadogutils.MaxInsertRequestSize, func(data []byte) error {
+
+	err := protoparserutil.ReadUncompressedData(r, encoding, datadogutil.MaxInsertRequestSize, func(data []byte) error {
 		return parseData(data, contentType, callback)
 	})
 	if err != nil {
@@ -46,8 +47,8 @@ func parseData(data []byte, contentType string, callback func(series []datadogv2
 	series := req.Series
 	for i := range series {
 		rows += len(series[i].Points)
-		if *datadogutils.SanitizeMetricName {
-			series[i].Metric = datadogutils.SanitizeName(series[i].Metric)
+		if *datadogutil.SanitizeMetricName {
+			series[i].Metric = datadogutil.SanitizeName(series[i].Metric)
 		}
 	}
 	rowsRead.Add(rows)

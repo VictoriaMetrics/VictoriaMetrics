@@ -26,6 +26,10 @@ func (pp *pipePackJSON) String() string {
 	return s
 }
 
+func (pp *pipePackJSON) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pp, nil
+}
+
 func (pp *pipePackJSON) canLiveTail() bool {
 	return true
 }
@@ -38,7 +42,7 @@ func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pp, nil
 }
 
@@ -46,8 +50,8 @@ func (pp *pipePackJSON) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToJSON)
+func (pp *pipePackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	return newPipePackProcessor(ppNext, pp.resultField, pp.fields, MarshalFieldsToJSON)
 }
 
 func parsePipePackJSON(lex *lexer) (pipe, error) {

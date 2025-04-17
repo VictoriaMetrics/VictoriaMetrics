@@ -11,11 +11,14 @@ import (
 	"sync"
 	"testing"
 	"testing/quick"
+	"testing/synctest"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestReplaceAlternateRegexpsWithGraphiteWildcards(t *testing.T) {
@@ -1205,16 +1208,10 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	}
 
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
-	if err != nil {
-		return fmt.Errorf("cannot create snapshot from the storage: %w", err)
-	}
+	snapshotName := s.MustCreateSnapshot()
 
 	// Verify the snapshot is visible
-	snapshots, err := s.ListSnapshots()
-	if err != nil {
-		return fmt.Errorf("cannot list snapshots: %w", err)
-	}
+	snapshots := s.MustListSnapshots()
 	if !containsString(snapshots, snapshotName) {
 		return fmt.Errorf("cannot find snapshot %q in %q", snapshotName, snapshots)
 	}
@@ -1254,10 +1251,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	if err := s.DeleteSnapshot(snapshotName); err != nil {
 		return fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 	}
-	snapshots, err = s.ListSnapshots()
-	if err != nil {
-		return fmt.Errorf("cannot list snapshots: %w", err)
-	}
+	snapshots = s.MustListSnapshots()
 	if containsString(snapshots, snapshotName) {
 		return fmt.Errorf("snapshot %q must be deleted, but is still visible in %q", snapshotName, snapshots)
 	}
@@ -1402,10 +1396,7 @@ func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		_, err := s.CreateSnapshot()
-		if err != nil {
-			panic(fmt.Sprintf("CreateSnapshot() failed unexpectedly: %v", err))
-		}
+		_ = s.MustCreateSnapshot()
 	}
 
 	testRotateIndexDB(t, mrs, op)
@@ -1630,18 +1621,12 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
-	if err != nil {
-		t.Fatalf("cannot create snapshot from the storage: %s", err)
-	}
+	snapshotName := s.MustCreateSnapshot()
+
 	// Delete snapshots older than 1 month
-	if err := s.DeleteStaleSnapshots(30 * 24 * time.Hour); err != nil {
-		t.Fatalf("error in DeleteStaleSnapshots(1 month): %s", err)
-	}
-	snapshots, err := s.ListSnapshots()
-	if err != nil {
-		t.Fatalf("cannot list snapshots: %s", err)
-	}
+	s.MustDeleteStaleSnapshots(30 * 24 * time.Hour)
+
+	snapshots := s.MustListSnapshots()
 	if len(snapshots) != 1 {
 		t.Fatalf("expecting one snapshot; got %q", snapshots)
 	}
@@ -1651,13 +1636,9 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 
 	// Delete the snapshot which is older than 1 nanoseconds
 	time.Sleep(2 * time.Nanosecond)
-	if err := s.DeleteStaleSnapshots(time.Nanosecond); err != nil {
-		t.Fatalf("cannot delete snapshot %q: %s", snapshotName, err)
-	}
-	snapshots, err = s.ListSnapshots()
-	if err != nil {
-		t.Fatalf("cannot list snapshots: %s", err)
-	}
+	s.MustDeleteStaleSnapshots(time.Nanosecond)
+
+	snapshots = s.MustListSnapshots()
 	if len(snapshots) != 0 {
 		t.Fatalf("expecting zero snapshots; got %q", snapshots)
 	}
@@ -3310,4 +3291,101 @@ func TestStorageMetricTracker(t *testing.T) {
 	if len(mus.Records) != int(numRows) {
 		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
 	}
+}
+
+func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
+	defer testRemoveAll(t)
+
+	synctest.Run(func() {
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
+		now := time.Now().UTC()
+		tr := TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		}
+		const numMetrics = 10
+		date := uint64(tr.MinTimestamp) / msecPerDay
+		idb, putCurrIndexDB := s.getCurrIndexDB()
+		defer putCurrIndexDB()
+		var wantMetricIDs []uint64
+
+		// Symulate corrupted index by inserting `(date, tag) -> metricID`
+		// entries only.
+		for i := range numMetrics {
+			metricName := []byte(fmt.Sprintf("metric_%d", i))
+			metricID := generateUniqueMetricID()
+			wantMetricIDs = append(wantMetricIDs, metricID)
+
+			ii := getIndexItems()
+
+			// Create per-day tag -> metricID entries for every tag in mn.
+			kb := kbPool.Get()
+			kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+			kb.B = encoding.MarshalUint64(kb.B, date)
+			ii.B = append(ii.B, kb.B...)
+			ii.B = marshalTagValue(ii.B, nil)
+			ii.B = marshalTagValue(ii.B, metricName)
+			ii.B = encoding.MarshalUint64(ii.B, metricID)
+			ii.Next()
+			kbPool.Put(kb)
+
+			idb.tb.AddItems(ii.Items)
+
+			putIndexItems(ii)
+		}
+		idb.tb.DebugFlush()
+
+		tfsAll := NewTagFilters()
+		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+		}
+		tfssAll := []*TagFilters{tfsAll}
+
+		searchMetricIDs := func() []uint64 {
+			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			if err != nil {
+				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
+			}
+			return metricIDs
+		}
+		searchMetricNames := func() []string {
+			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+			if err != nil {
+				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
+			}
+			return metricNames
+		}
+
+		// Ensure that metricIDs can be searched.
+		if diff := cmp.Diff(wantMetricIDs, searchMetricIDs()); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+		// Ensure that Storage.SearchMetricNames() returns empty result.
+		// The corrupted index lets to find metricIDs by tag (`__name__` tag in
+		// our case) but it lacks metricID->metricName mapping and hence the
+		// empty search result.
+		// The code detects this and puts such metricIDs into a special cache.
+		if diff := cmp.Diff([]string{}, searchMetricNames()); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+		// Ensure that the metricIDs still can be searched.
+		if diff := cmp.Diff(wantMetricIDs, searchMetricIDs()); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+
+		time.Sleep(61 * time.Second)
+		synctest.Wait()
+
+		// If the same search is repeated after 1 minute, the metricIDs are
+		// marked as deleted.
+		if diff := cmp.Diff([]string{}, searchMetricNames()); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+		// As a result they cannot be searched anymore.
+		if diff := cmp.Diff([]uint64{}, searchMetricIDs()); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+	})
 }

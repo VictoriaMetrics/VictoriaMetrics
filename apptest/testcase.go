@@ -124,6 +124,23 @@ func (tc *TestCase) MustStartVminsert(instance string, flags []string) *Vminsert
 	return app
 }
 
+// MustStartVmagent is a test helper function that starts an instance of
+// vmagent and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrapeConfigFileYAML string) *Vmagent {
+	tc.t.Helper()
+
+	promScrapeConfigFilePath := path.Join(tc.t.TempDir(), "prometheus.yml")
+	if err := os.WriteFile(promScrapeConfigFilePath, []byte(promScrapeConfigFileYAML), os.ModePerm); err != nil {
+		tc.t.Fatalf("cannot init vmagent: prom config file write failed: %s", err)
+	}
+	app, err := StartVmagent(instance, flags, tc.cli, promScrapeConfigFilePath)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
+
 // Vmcluster represents a typical cluster setup: several vmstorage replicas, one
 // vminsert, and one vmselect.
 //

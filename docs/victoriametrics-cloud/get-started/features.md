@@ -15,8 +15,7 @@ VictoriaMetrics Cloud helps optimizing your data and maximizing its value in the
 ## Features
 VictoriaMetrics Cloud offers a robust suite of features designed to optimize your cloud experience. Seamless integrations, scalability and cost-saving measures, and comprehensive operational tools ensure that VictoriaMetrics Cloud can support your business needs.
 
-<details>
-<summary>Integrations and Compatibility</summary>
+{{% collapse name="Integrations and Compatibility" %}}
 
 * **Observability protocols**: Prometheus, OpenTelemetry, InfluxDB, DataDog, NewRelic, OpenTSDB & Graphite.
 * **Data visualization**: Use built-in [VictoriaMetrics UI](https://play.victoriametrics.com/) or integrate seamlessly with your current stack to query and visualize your data in [Grafana](https://grafana.com/) or [Perses](https://perses.dev).
@@ -25,19 +24,18 @@ VictoriaMetrics Cloud offers a robust suite of features designed to optimize you
 ![Integrations](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_integrations.webp)
 <figcaption style="text-align: center; font-style: italic;">VictoriaMetrics Cloud Integrations</figcaption>
 
-</details>
+{{% /collapse %}}
 
-<details>
-<summary>Scale as you go and save costs</summary>
+{{% collapse name="Scale as you go and save costs" %}}
 
 * **Easy Scaling**: VictoriaMetrics Cloud deployments can be scaled up or down with just a few clicks in line with growth and needs.
 * **Downsampling**: Lower your disk footprint (and save on storage costs!) by keeping fewer data points for historical data and speed up queries for it, while preserving high precision for your operational data.
 * **Retention filters**: Configure a custom retention period on a team (tenant) level or time series level by using label filters so that unneeded time series are wiped out freeing up storage space for new metrics data enabling additional cost savings
 * **Recording rules**: Improve query performance with recording rules, facilitating quicker data access & dashboard responsiveness.
-</details>
 
-<details>
-<summary>Operations</summary>
+{{% /collapse %}}
+
+{{% collapse name="Operations" %}}
 
 * **Enterprise, managed VictoriaMetrics Solution**: Comes with all the proven features in VictoriaMetrics open source & Enterprise.
 * **Single-node** & **Cluster** configurations with automatic software version and security updates.
@@ -48,14 +46,14 @@ VictoriaMetrics Cloud offers a robust suite of features designed to optimize you
 * **Automated Backups**: Regular backup procedures are in place. Your data is automatically saved to a backup storage, so you can easily restore it when the need arises.
 * **High-availability** & replication.
 * **Reliability** & extraordinary performance with 99.95% SLA.
-</details>
+
+{{% /collapse %}}
 
 ## Get instant value from your data
 
 VictoriaMetrics Cloud allows you to explore and optimize both your data and deployments.
 
-<details>
-<summary>Query your own metrics</summary>
+{{% collapse name="Query your own metrics" %}}
 
 * Visualize your own data in graphs, table or json formats
 * Combine several queries at the same time
@@ -66,10 +64,9 @@ VictoriaMetrics Cloud allows you to explore and optimize both your data and depl
 ![Query](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_query.webp)
 <figcaption style="text-align: center; font-style: italic;">Query your data with VictoriaMetrics Cloud</figcaption>
 
-</details>
+{{% /collapse %}}
 
-<details>
-<summary>Explore valuable insights</summary>
+{{% collapse name="Explore valuable insights" %}}
 
 * List your Prometheus metrics by Job and Instance
 * Inspect your time series data cardinality to optimize usage and costs
@@ -77,10 +74,10 @@ VictoriaMetrics Cloud allows you to explore and optimize both your data and depl
 
 ![Cardinality](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_cardinality.webp)
 <figcaption style="text-align: center; font-style: italic;">Understand your data with VictoriaMetrics Cloud</figcaption>
-</details>
 
-<details>
-<summary>Analyze, debug and learn</summary>
+{{% /collapse %}}
+
+{{% collapse name="Analyze, debug and learn" %}}
 
 * Trace and query analyzer to debug queries
 * WITH templating for MetricsQL: functions, variables and filters
@@ -88,7 +85,8 @@ VictoriaMetrics Cloud allows you to explore and optimize both your data and depl
 
 ![Traces](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_traces.webp)
 <figcaption style="text-align: center; font-style: italic;">Debug your queries</figcaption>
-</details>
+
+{{% /collapse %}}
 
 ## Benefits
 In brief, we run VictoriaMetrics Cloud deployments in our AWS environment and provide direct endpoints
@@ -100,43 +98,40 @@ software and infrastructure upgrades, store backups regularly or control costs. 
 
 > VictoriaMetrics Cloud is able to handle larger workloads than competing solutions at a far lower cost.
 
-<details>
-<summary>Easy Migration</summary>
+{{% collapse name="Easy Migration" %}}
 
 * Migrate from costly & less scalable monitoring solutions such as Managed Prometheus service from AWS, GCP or Azure, InfluxDB Cloud, or your on-premises setup.
 * Get higher data resolution with much higher cardinality.
 * Run more complex queries.
 
-</details>
+{{% /collapse %}}
 
-<details>
-<summary>Enterprise level support</summary>
+{{% collapse name="Enterprise level support" %}}
 
 Includes all VictoriaMetrics Enterprise Features Plus:
 
 * Business days & hours support
 * 8 hours response time for system impaired issues
 
-</details>
+{{% /collapse %}}
 
-<details>
-<summary>Cost-efficient Scaling</summary>
+{{% collapse name="Cost-efficient Scaling" %}}
 
 * Only pay for the resources that you actually use (compute, disk and network).
 * Downsampling and retention filters features enable additional cost-savings.
 
-</details>
+{{% /collapse %}}
 
-<details>
-<summary>Ease of Budgeting</summary>
+{{% collapse name="Ease of Budgeting" %}}
 
 **No invoice surprises**: pick a tier at a fixed price. Our pricing model protects you from surprise overages coming from unexpected changes in workload such as spikes in data ingestion rate, cardinality explosions or accidental heavy queries.
-</details>
+
+{{% /collapse %}}
 
 
-<details>
-<summary>Ease of use</summary>
+{{% collapse name="Ease of use" %}}
 
 The VictoriaMetrics team takes care of optimal configuration and handles all software maintenance, so you can focus on the monitoring.
-</details>
+
+{{% /collapse %}}
 

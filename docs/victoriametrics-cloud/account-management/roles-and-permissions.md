@@ -89,19 +89,19 @@ support team at support-cloud@victoriametrics.com.
 
 <table class="params">
   <tr>
-   <td class="highlight"><strong class="sr">Active</strong></td>
+   <td><strong>Active</strong></td>
    <td>The user can log in and use VictoriaMetrics Cloud. The user role defines the access level.</td>
   </tr>
   <tr>
-   <td class="highlight"><strong class="s1">Pending Invitation</strong></td>
+   <td><strong>Pending Invitation</strong></td>
    <td>An invitation was sent. The user must accept this.</td>
   </tr>
   <tr>
-   <td class="highlight"><strong class="s1">Expired Invitation</strong></td>
+   <td><strong>Expired Invitation</strong></td>
    <td>An invitation was expired. The admin should resend invitation to the user.</td>
   </tr>
   <tr>
-   <td class="highlight"><strong class="nn">Inactive</strong></td>
+   <td><strong>Inactive</strong></td>
    <td>The user is registered in the VictoriaMetrics Cloud but has no access to perform any actions. Admin can activate or completely delete the user.</td>
   </tr>
 </table>

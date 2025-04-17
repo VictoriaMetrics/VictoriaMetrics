@@ -12,6 +12,16 @@ import (
 
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+
+	"go.opentelemetry.io/collector/featuregate"
+)
+
+var enableMergeAppendOption = featuregate.GlobalRegistry().MustRegister(
+	"confmap.enableMergeAppendOption",
+	featuregate.StageAlpha,
+	featuregate.WithRegisterFromVersion("v0.120.0"),
+	featuregate.WithRegisterDescription("Combines lists when resolving configs from different sources. This feature gate will not be stabilized 'as is'; the current behavior will remain the default."),
+	featuregate.WithRegisterReferenceURL("https://github.com/open-telemetry/opentelemetry-collector/issues/8754"),
 )
 
 // follows drive-letter specification:
@@ -170,7 +180,13 @@ func (mr *Resolver) Resolve(ctx context.Context) (*Conf, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = retMap.Merge(retCfgMap); err != nil {
+		if enableMergeAppendOption.IsEnabled() {
+			// only use MergeAppend when enableMergeAppendOption featuregate is enabled.
+			err = retMap.mergeAppend(retCfgMap)
+		} else {
+			err = retMap.Merge(retCfgMap)
+		}
+		if err != nil {
 			return nil, err
 		}
 	}

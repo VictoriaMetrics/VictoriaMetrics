@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -283,4 +284,52 @@ func TestStatsRowMax(t *testing.T) {
 			{"x", `{"a":"3","b":"5","c":"4"}`},
 		},
 	})
+}
+
+func TestStatsRowMax_ExportImportState(t *testing.T) {
+	f := func(smp *statsRowMaxProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := smp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var smp2 statsRowMaxProcessor
+		stateSize, err := smp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(smp, &smp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &smp2, smp)
+		}
+	}
+
+	var smp statsRowMaxProcessor
+
+	// zero state
+	f(&smp, 2, 0)
+	/*
+	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
+	   	// non-zero state
+	   	smp = statsRowMaxProcessor{
+	   		max: "abcded",
+
+	   		fields: []Field{
+	   			{
+	   				Name:  "foo",
+	   				Value: "bar",
+	   			},
+	   			{
+	   				Name:  "abc",
+	   				Value: "de",
+	   			},
+	   		},
+	   	}
+	   	f(&smp, 23, 81)*/
 }

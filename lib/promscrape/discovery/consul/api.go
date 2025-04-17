@@ -12,7 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 )
 
 var waitTime = flag.Duration("promscrape.consul.waitTime", 0, "Wait time used by Consul service discovery. Default value is used if not set")
@@ -27,7 +27,7 @@ func (ac *apiConfig) mustStop() {
 	ac.consulWatcher.mustStop()
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc, baseDir) })
@@ -80,7 +80,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
+	client, err := discoveryutil.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
@@ -126,7 +126,7 @@ func GetToken(token *promauth.Secret) (string, error) {
 }
 
 // GetAgentInfo returns information about current consul agent.
-func GetAgentInfo(client *discoveryutils.Client) (*Agent, error) {
+func GetAgentInfo(client *discoveryutil.Client) (*Agent, error) {
 	// See https://www.consul.io/api/agent.html#read-configuration
 	data, err := client.GetAPIResponse("/v1/agent/self")
 	if err != nil {
@@ -139,7 +139,7 @@ func GetAgentInfo(client *discoveryutils.Client) (*Agent, error) {
 	return a, nil
 }
 
-func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
+func getDatacenter(client *discoveryutil.Client, dc string) (string, error) {
 	if dc != "" {
 		return dc, nil
 	}
@@ -152,7 +152,7 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 
 // maxWaitTime is duration for consul blocking request.
 func maxWaitTime() time.Duration {
-	d := discoveryutils.BlockingClientReadTimeout
+	d := discoveryutil.BlockingClientReadTimeout
 	// Consul adds random delay up to wait/16, so reduce the timeout in order to keep it below BlockingClientReadTimeout.
 	// See https://www.consul.io/api-docs/features/blocking
 	d -= d / 8
@@ -169,7 +169,7 @@ func maxWaitTime() time.Duration {
 // getBlockingAPIResponse performs blocking request to Consul via client and returns response.
 //
 // See https://www.consul.io/api-docs/features/blocking .
-func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
+func getBlockingAPIResponse(ctx context.Context, client *discoveryutil.Client, path string, index int64) ([]byte, int64, error) {
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
 	getMeta := func(resp *http.Response) {

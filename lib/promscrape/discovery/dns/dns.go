@@ -11,8 +11,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // SDCheckInterval defines interval for targets refresh.
@@ -32,7 +32,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns DNS labels according to sdc.
-func (sdc *SDConfig) GetLabels(_ string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(_ string) ([]*promutil.Labels, error) {
 	if len(sdc.Names) == 0 {
 		return nil, fmt.Errorf("`names` cannot be empty in `dns_sd_config`")
 	}
@@ -62,7 +62,7 @@ func (sdc *SDConfig) MustStop() {
 	// nothing to do
 }
 
-func getMXAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
+func getMXAddrLabels(ctx context.Context, sdc *SDConfig) []*promutil.Labels {
 	port := 25
 	if sdc.Port != nil {
 		port = *sdc.Port
@@ -83,7 +83,7 @@ func getMXAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 			}
 		}(name)
 	}
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for range sdc.Names {
 		r := <-ch
 		if r.err != nil {
@@ -101,7 +101,7 @@ func getMXAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 	return ms
 }
 
-func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
+func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []*promutil.Labels {
 	type result struct {
 		name string
 		as   []*net.SRV
@@ -118,7 +118,7 @@ func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 			}
 		}(name)
 	}
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for range sdc.Names {
 		r := <-ch
 		if r.err != nil {
@@ -136,7 +136,7 @@ func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 	return ms
 }
 
-func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]*promutils.Labels, error) {
+func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]*promutil.Labels, error) {
 	if sdc.Port == nil {
 		return nil, fmt.Errorf("missing `port` in `dns_sd_config` for `type: %s`", lookupType)
 	}
@@ -157,7 +157,7 @@ func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]*p
 			}
 		}(name)
 	}
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for range sdc.Names {
 		r := <-ch
 		if r.err != nil {
@@ -175,18 +175,18 @@ func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]*p
 	return ms, nil
 }
 
-func appendMXLabels(ms []*promutils.Labels, name, target string, port int) []*promutils.Labels {
-	addr := discoveryutils.JoinHostPort(target, port)
-	m := promutils.NewLabels(3)
+func appendMXLabels(ms []*promutil.Labels, name, target string, port int) []*promutil.Labels {
+	addr := discoveryutil.JoinHostPort(target, port)
+	m := promutil.NewLabels(3)
 	m.Add("__address__", addr)
 	m.Add("__meta_dns_name", name)
 	m.Add("__meta_dns_mx_record_target", target)
 	return append(ms, m)
 }
 
-func appendAddrLabels(ms []*promutils.Labels, name, target string, port int) []*promutils.Labels {
-	addr := discoveryutils.JoinHostPort(target, port)
-	m := promutils.NewLabels(4)
+func appendAddrLabels(ms []*promutil.Labels, name, target string, port int) []*promutil.Labels {
+	addr := discoveryutil.JoinHostPort(target, port)
+	m := promutil.NewLabels(4)
 	m.Add("__address__", addr)
 	m.Add("__meta_dns_name", name)
 	m.Add("__meta_dns_srv_record_target", target)
