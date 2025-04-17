@@ -11,7 +11,7 @@ const prefix = "/vmalert/"
 
 // Prefix returns "/vmalert/" prefix if it is missing in the path.
 func Prefix(path string) string {
-	pp := httpserver.GetPathPrefix()
+	pp := strings.TrimRight(httpserver.GetPathPrefix(), "/")
 	path = strings.TrimLeft(path, pp)
 	if strings.HasPrefix(path, prefix) {
 		return pp

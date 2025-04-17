@@ -71,9 +71,9 @@ func StreamQueryRangeResponse(qw422016 *qt422016.Writer, rs []netstorage.Result,
 	qw422016.N().DL(qs.SeriesFetched.Load())
 //line app/vmselect/prometheus/query_range_response.qtpl:36
 	qw422016.N().S(`","executionTimeMsec":`)
-//line app/vmselect/prometheus/query_range_response.qtpl:38
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qw422016.N().DL(qs.ExecutionDuration.Load().Milliseconds())
-//line app/vmselect/prometheus/query_range_response.qtpl:38
+//line app/vmselect/prometheus/query_range_response.qtpl:37
 	qw422016.N().S(`}`)
 //line app/vmselect/prometheus/query_range_response.qtpl:40
 	qt.Printf("generate /api/v1/query_range response for series=%d, points=%d", seriesCount, pointsCount)

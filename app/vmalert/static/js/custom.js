@@ -1,38 +1,32 @@
-function expandAll() {
-    $('.group-heading').each(function () {
-        let style = $(this).attr("style")
-        // display only elements that are currently visible
-        if (style === "display: none;") {
-            return
+function actionAll(isCollapse) {
+    document.querySelectorAll('.collapse').forEach((collapse) => {
+        if (isCollapse) {
+            collapse.classList.remove('show');
+        } else {
+            collapse.classList.add('show');
         }
-        $(this).next().addClass('show')
     });
 }
 
-function collapseAll() {
-    $('.collapse').removeClass('show');
-}
-
-function showByID(id) {
-    if (!id) {
-        return
-    }
-    let parent = $("#" + id).parent();
-    if (!parent) {
-        return
-    }
-    let target = $("#" + parent.attr("data-bs-target"));
-    if (target.length > 0) {
-        target.addClass('show');
+function groupFilter(key) {
+    if (key) {
+        location.href = `?filter=${key}`;
+    } else {
+        window.location = window.location.pathname;
     }
 }
 
-function toggleByID(id) {
-    if (id) {
-        let el = $("#" + id);
-        if (el.length > 0) {
-            el.click();
-        }
+function showBySelector(selector) {
+    if (!selector) {
+        return
+    }
+    const control = document.querySelector(`${selector} [data-bs-target]`);
+    if (!control) {
+        return
+    }
+    let target = document.getElementById(control.getAttribute('data-bs-target').slice(1));
+    if (target) {
+        target.classList.add('show');
     }
 }
 
@@ -46,28 +40,16 @@ function debounce(func, delay) {
     };
 }
 
-$('#search').on("keyup", debounce(search, 500));
-
 // search shows or hides groups&rules that satisfy the search phrase.
 // case-insensitive, respects GET param `search`.
 function search() {
-    $(".rule").show();
-
-    let groupHeader = $(".group-heading")
-    let searchPhrase = $("#search").val().toLowerCase()
-    if (searchPhrase.length === 0) {
-        groupHeader.show()
-        setParamURL('search', '')
-        return
+    let searchBox = document.getElementById('search');
+    if (!searchBox) {
+        return;
     }
+    const searchPhrase = searchBox.value.toLowerCase();
 
-    $(".rule-table").removeClass('show');
-    groupHeader.hide()
-
-    searchPhrase = searchPhrase.toLowerCase()
-    filterRuleByName(searchPhrase);
-    filterRuleByLabels(searchPhrase);
-    filterGroupsByName(searchPhrase);
+    filterRules(searchPhrase);
 
     setParamURL('search', searchPhrase)
 }
@@ -83,81 +65,51 @@ function getParamURL(key) {
     return url.searchParams.get(key)
 }
 
-function filterGroupsByName(searchPhrase) {
-    $(".group-heading").each(function () {
-        const groupName = $(this).attr('data-group-name').toLowerCase();
-        const hasValue = groupName.indexOf(searchPhrase) >= 0
-
-        if (!hasValue) {
-            return
-        }
-
-        const target = $(this).attr("data-bs-target");
-        $(`div[id="${target}"] .rule`).show();
-        $(this).show();
-    });
-}
-
-function filterRuleByName(searchPhrase) {
-    $(".rule").each(function () {
-        const ruleName = $(this).attr("data-rule-name").toLowerCase();
-        const hasValue = ruleName.indexOf(searchPhrase) >= 0
-        if (!hasValue) {
-            $(this).hide();
-            return
-        }
-
-        const target = $(this).attr('data-bs-target')
-        $(`#rules-${target}`).addClass('show');
-        $(`div[data-bs-target='rules-${target}']`).show();
-        $(this).show();
-    });
-}
-
-function filterRuleByLabels(searchPhrase) {
-    $(".rule").each(function () {
-        const matches = $(".label", this).filter(function () {
-            const label = $(this).text().toLowerCase();
-            return label.indexOf(searchPhrase) >= 0;
-        }).length;
-
-        if (matches > 0) {
-            const target = $(this).attr('data-bs-target')
-            $(`#rules-${target}`).addClass('show');
-            $(`div[data-bs-target='rules-${target}']`).show();
-            $(this).show();
-        }
-    });
-}
-
-$(document).ready(function () {
-    $(".group-heading a").click(function (e) {
-        e.stopPropagation(); // prevent collapse logic on link click
-        let target = $(this).attr('href');
-        if (target.length > 0) {
-            toggleByID(target.substr(1));
-        }
-    });
-
-    $(".group-heading").click(function (e) {
-        let target = $(this).attr('data-bs-target');
-        let el = $("#" + target);
-        new bootstrap.Collapse(el, {
-            toggle: true
+function filterRules(searchPhrase) {
+    document.querySelectorAll('.alert-rules').forEach((rules) => {
+        let found = false;
+        rules.querySelectorAll('.alert-rule').forEach((rule) => {
+            if (searchPhrase) {
+                const ruleName = rule.innerText.toLowerCase();
+                const matches = []
+                const hasValue = ruleName.indexOf(searchPhrase) >= 0;
+                rule.querySelectorAll('.label').forEach((label) => {
+                    const text = label.innerText.toLowerCase();
+                    if (text.indexOf(searchPhrase) >= 0) {
+                        matches.push(text);
+                    }
+                });
+                if (!matches.length && !hasValue) {
+                    rule.classList.add('d-none');
+                    return;
+                }
+            }
+            rule.classList.remove('d-none');
+            found = true;
         });
+        if (found && searchPhrase) {
+            rules.classList.add('show');
+        } else {
+            rules.classList.remove('show');
+        }
     });
+}
 
+document.addEventListener('DOMContentLoaded', () => {
     // update search element with value from URL, if any
-    let searchPhrase = getParamURL('search')
-    $("#search").val(searchPhrase)
+    const searchPhrase = getParamURL('search')
+    const searchBox = document.getElementById('search');
+    if (searchBox) {
+        searchBox.addEventListener('keyup', debounce(search, 500));
+        searchBox.value = searchPhrase;
+    }
 
     // apply filtering by search phrase
     search()
 
-    let hash = window.location.hash.substr(1);
-    showByID(hash);
-});
+    showBySelector(window.location.hash);
 
-$(document).ready(function () {
-    $('[data-bs-toggle="tooltip"]').tooltip();
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((tooltip) => {
+        new bootstrap.Tooltip(tooltip);
+    });
 });

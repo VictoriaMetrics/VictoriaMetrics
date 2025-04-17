@@ -471,6 +471,7 @@ func (g *Group) DeepCopy() *Group {
 	newG := Group{}
 	_ = json.Unmarshal(data, &newG)
 	newG.Rules = g.Rules
+	newG.id = g.id
 	return &newG
 }
 
