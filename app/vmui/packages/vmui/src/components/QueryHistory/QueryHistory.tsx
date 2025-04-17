@@ -1,22 +1,23 @@
 import React, { FC, useEffect, useMemo, useState } from "preact/compat";
-import Button from "../../../components/Main/Button/Button";
-import { ClockIcon, DeleteIcon } from "../../../components/Main/Icons";
-import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import useBoolean from "../../../hooks/useBoolean";
-import Modal from "../../../components/Main/Modal/Modal";
-import Tabs from "../../../components/Main/Tabs/Tabs";
-import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import useEventListener from "../../../hooks/useEventListener";
-import { useQueryState } from "../../../state/query/QueryStateContext";
-import { getQueriesFromStorage } from "./utils";
+import Button from "../Main/Button/Button";
+import { ClockIcon, DeleteIcon } from "../Main/Icons";
+import Tooltip from "../Main/Tooltip/Tooltip";
+import useBoolean from "../../hooks/useBoolean";
+import Modal from "../Main/Modal/Modal";
+import Tabs from "../Main/Tabs/Tabs";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
+import useEventListener from "../../hooks/useEventListener";
+import { useQueryState } from "../../state/query/QueryStateContext";
+import { clearQueryHistoryStorage, getQueriesFromStorage, setFavoriteQueriesToStorage } from "./utils";
 import QueryHistoryItem from "./QueryHistoryItem";
 import classNames from "classnames";
 import "./style.scss";
-import { saveToStorage } from "../../../utils/storage";
-import { arrayEquals } from "../../../utils/array";
+import { saveToStorage, StorageKeys } from "../../utils/storage";
+import { arrayEquals } from "../../utils/array";
 
 interface Props {
   handleSelectQuery: (query: string, index: number) => void
+  historyKey: Extract<StorageKeys, "LOGS_QUERY_HISTORY" | "METRICS_QUERY_HISTORY">;
 }
 
 export const HistoryTabTypes = {
@@ -31,7 +32,7 @@ export const historyTabs = [
   { label: "Favorite queries", value: HistoryTabTypes.favorite },
 ];
 
-const QueryHistory: FC<Props> = ({ handleSelectQuery }) => {
+const QueryHistory: FC<Props> = ({ handleSelectQuery, historyKey }) => {
   const { queryHistory: historyState } = useQueryState();
   const { isMobile } = useDeviceDetect();
 
@@ -42,8 +43,8 @@ const QueryHistory: FC<Props> = ({ handleSelectQuery }) => {
   } = useBoolean(false);
 
   const [activeTab, setActiveTab] = useState(historyTabs[0].value);
-  const [historyStorage, setHistoryStorage] = useState(getQueriesFromStorage("QUERY_HISTORY"));
-  const [historyFavorites, setHistoryFavorites] = useState(getQueriesFromStorage("QUERY_FAVORITES"));
+  const [historyStorage, setHistoryStorage] = useState(getQueriesFromStorage(historyKey, "QUERY_HISTORY"));
+  const [historyFavorites, setHistoryFavorites] = useState(getQueriesFromStorage(historyKey, "QUERY_FAVORITES"));
 
   const historySession = useMemo(() => {
     return historyState.map((h) => h.values.filter(q => q).reverse());
@@ -86,20 +87,20 @@ const QueryHistory: FC<Props> = ({ handleSelectQuery }) => {
   };
 
   const updateStageHistory = () => {
-    setHistoryStorage(getQueriesFromStorage("QUERY_HISTORY"));
-    setHistoryFavorites(getQueriesFromStorage("QUERY_FAVORITES"));
+    setHistoryStorage(getQueriesFromStorage(historyKey, "QUERY_HISTORY"));
+    setHistoryFavorites(getQueriesFromStorage(historyKey, "QUERY_FAVORITES"));
   };
 
   const handleClearStorage = () => {
-    saveToStorage("QUERY_HISTORY", "");
+    clearQueryHistoryStorage(historyKey, "QUERY_HISTORY");
   };
 
   useEffect(() => {
     const nextValue = historyFavorites[0] || [];
-    const prevValue = getQueriesFromStorage("QUERY_FAVORITES")[0] || [];
+    const prevValue = getQueriesFromStorage(historyKey, "QUERY_FAVORITES")[0] || [];
     const isEqual = arrayEquals(nextValue, prevValue);
     if (isEqual) return;
-    saveToStorage("QUERY_FAVORITES", JSON.stringify(historyFavorites));
+    setFavoriteQueriesToStorage(historyKey, historyFavorites);
   }, [historyFavorites]);
 
   useEventListener("storage", updateStageHistory);
@@ -174,7 +175,7 @@ const QueryHistory: FC<Props> = ({ handleSelectQuery }) => {
                     startIcon={<DeleteIcon/>}
                     onClick={handleClearStorage}
                   >
-                      clear history
+                    clear history
                   </Button>
                 </div>
               )}
