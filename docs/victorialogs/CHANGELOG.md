@@ -19,9 +19,11 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for downloading displayed logs. It supports downloading in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): optimize vmui for mobile layout to use space more efficiently.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add query history for quick access to previously executed queries, in the way similar to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8500).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a toggle to handle ANSI escape sequences in log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6614).
 
 * BUGFIX: expect message in a field with empty name or "_msg". See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8707).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix incorrect table sorting for numeric columns. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8606).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix the Group tab to display raw JSON when `_msg` is missing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8205).
 
 
 ## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)

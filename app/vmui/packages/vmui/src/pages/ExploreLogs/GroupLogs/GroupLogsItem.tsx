@@ -13,6 +13,7 @@ import { useSearchParams } from "react-router-dom";
 import { LOGS_DATE_FORMAT, LOGS_URL_PARAMS } from "../../../constants/logs";
 import useEventListener from "../../../hooks/useEventListener";
 import { getFromStorage } from "../../../utils/storage";
+import { parseAnsiToHtml } from "../../../utils/ansiParser";
 
 interface Props {
   log: Logs;
@@ -26,7 +27,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
   } = useBoolean(false);
 
   const [searchParams] = useSearchParams();
-  const { markdownParsing } = useLogsState();
+  const { markdownParsing, ansiParsing } = useLogsState();
   const { timezone } = useTimeState();
 
   const noWrapLines = searchParams.get(LOGS_URL_PARAMS.NO_WRAP_LINES) === "true";
@@ -46,22 +47,25 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
   const hasFields = fields.length > 0;
 
   const displayMessage = useMemo(() => {
-    if (displayFields.length) {
-      return displayFields.filter(field => log[field]).map((field, i) => (
-        <span
-          className="vm-group-logs-row-content__sub-msg"
-          key={field + i}
-        >{log[field]}</span>
-      ));
+    const values: (string | React.ReactNode)[] = [];
+
+    if (!hasFields) {
+      values.push("-");
     }
-    if (log._msg) return log._msg;
-    if (!hasFields) return;
-    const dataObject = fields.reduce<{ [key: string]: string }>((obj, [key, value]) => {
-      obj[key] = value;
-      return obj;
-    }, {});
-    return JSON.stringify(dataObject);
-  }, [log, fields, hasFields, displayFields]);
+
+    if (displayFields.some(field => log[field])) {
+      displayFields.filter(field => log[field]).forEach((field) => {
+        const value = field === "_msg" && ansiParsing ? parseAnsiToHtml(log[field]) : log[field];
+        values.push(value);
+      });
+    } else {
+      fields.forEach(([key, value]) => {
+        values.push(`${key}: ${value}`);
+      });
+    }
+
+    return values;
+  }, [log, fields, hasFields, displayFields, ansiParsing]);
 
   const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
 
@@ -108,9 +112,16 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
             "vm-group-logs-row-content__msg_missing": !displayMessage,
             "vm-group-logs-row-content__msg_single-line": noWrapLines,
           })}
-          dangerouslySetInnerHTML={(markdownParsing && formattedMarkdown) ? { __html: formattedMarkdown } : undefined}
+          dangerouslySetInnerHTML={formattedMarkdown ? { __html: formattedMarkdown } : undefined}
         >
-          {displayMessage || "-"}
+          {displayMessage.map((msg, i) => (
+            <span
+              className="vm-group-logs-row-content__sub-msg"
+              key={`${msg}_${i}`}
+            >
+              {msg}
+            </span>
+          ))}
         </div>
       </div>
       {hasFields && isOpenFields && (

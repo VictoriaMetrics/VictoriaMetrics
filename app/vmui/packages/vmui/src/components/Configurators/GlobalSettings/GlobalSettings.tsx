@@ -12,7 +12,6 @@ import Timezones from "./Timezones/Timezones";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
-import SwitchMarkdownParsing from "../LogsSettings/MarkdownParsing/SwitchMarkdownParsing";
 import { APP_TYPE_LOGS } from "../../../constants/appType";
 
 const title = "Settings";
@@ -57,10 +56,6 @@ const GlobalSettings: FC = () => {
         ref={limitsSettingRef}
         onClose={handleClose}
       />
-    },
-    {
-      show: APP_TYPE_LOGS,
-      component: <SwitchMarkdownParsing/>
     },
     {
       show: true,
