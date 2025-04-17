@@ -213,7 +213,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 
 	if tags := query.Tags; len(tags) > 0 {
 		for k, v := range tags {
-			qStr += fmt.Sprintf("AND "+jaeger.TagKey+":=%s ", k, v)
+			qStr += fmt.Sprintf(`AND "`+jaeger.TagKey+`":=%s `, k, v)
 		}
 	}
 	if durationMin := query.DurationMin; durationMin > 0 {
@@ -224,6 +224,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 	}
 	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+jaeger.TraceID+") | fields _time, "+jaeger.TraceID+" | sort by (_time) desc", "AND ")
 
+	logger.Infof("FindTraceIDs query debug: %s", qStr)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, query.StartTimeMax.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
