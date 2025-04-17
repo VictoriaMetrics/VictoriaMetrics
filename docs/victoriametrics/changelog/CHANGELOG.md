@@ -18,7 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-** Update Note 1: Updated the RPC cluster protocol version for the [TSDB status API](https://docs.victoriametrics.com/#tsdb-stats) from `tsdbStatus_v5` to `tsdbStatus_v6`.
+**Update Note 1:** Updated the RPC cluster protocol version for the [TSDB status API](https://docs.victoriametrics.com/#tsdb-stats) from `tsdbStatus_v5` to `tsdbStatus_v6`.
  The TSDB Status API will be temporarily unavailable during the version upgrade process.
  This update requires both vmselect and vmstorage components to be running version v1.116.0 or higher for full compatibility.
 
@@ -33,7 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support `identity` value in `Content-Encoding` HTTP header. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fix timeseries with empty timestamp and value in Datadog sketches API. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Restore write concurrency limiter for data ingestion. The limiter was unintentionally removed in v1.115.0, potentially leading to increased memory usage. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8742).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): restore write concurrency limiter for data ingestion. The limiter was unintentionally removed in [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0) and potentially could lead to increased memory usage in certain scenarios. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8742).
 
 ## [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0)
 
