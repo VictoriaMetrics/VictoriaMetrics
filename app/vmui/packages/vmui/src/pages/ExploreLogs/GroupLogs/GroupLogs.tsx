@@ -18,6 +18,7 @@ import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectL
 import { usePaginateGroups } from "../hooks/usePaginateGroups";
 import { GroupLogsType } from "../../../types";
 import { getNanoTimestamp } from "../../../utils/time";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
 }
 
 const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
+  const { isMobile } = useDeviceDetect();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [page, setPage] = useState(1);
@@ -95,7 +97,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
   };
 
   useEffect(() => {
-    setExpandGroups(new Array(groupData.length).fill(true));
+    setExpandGroups(new Array(groupData.length).fill(!isMobile));
   }, [groupData]);
 
   useEffect(() => {
