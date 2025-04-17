@@ -847,6 +847,9 @@ There are following non-required `replay` flags:
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
+* `replay.continueOnError` - whether to continue on an error when a replay fails. 
+  ruleRetryAttempts is taken into account when it is considered an error.
+  Set it to true if you still want to continue on rule evaluations despite an error.
 
 See full description for these flags in `./vmalert -help`.
 
@@ -1435,6 +1438,8 @@ The shortlist of configuration flags is the following:
      Optional TLS server name to use for connections to -remoteWrite.url. By default, the server name from -remoteWrite.url is used
   -remoteWrite.url string
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
+  -replay.continueOnError
+     Whether to continue on an error when a replay fails. ruleRetryAttempts is preserved when it is considered an error.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery /query_range
