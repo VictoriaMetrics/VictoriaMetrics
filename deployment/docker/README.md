@@ -122,7 +122,7 @@ In addition to VictoriaLogs server, the docker compose contains the following co
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
 To access [VictoriaLogs UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
-use link [http://localhost:8427/logs/select/vmui](http://localhost:8427/logs/select/vmui).
+use link [http://localhost:8427/select/vmui](http://localhost:8427/select/vmui).
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/victorialogs/#monitoring) 
 VictoriaLogs installations.
@@ -140,10 +140,11 @@ make docker-vl-cluster-up
 ```
 
 VictoriaLogs cluster environment consists of `vlinsert`, `vlstorage` and `vlselect` components.
-`vlinsert` and `vlselect` are available through `vmauth` on port `:8427`:
-* `vlselect` - `http://localhost:8427/logs/select`.
-* `vlinsert` - `http://localhost:8427/logs/insert`.
-and the rest of components are available only inside the environment.
+`vlinsert` and `vlselect` are available through `vmauth` on port `:8427`.
+For example, `vector` pushes logs via `http://vmauth:8427/insert/elasticsearch/` path,
+and Grafana queries `http://vmauth:8427` for datasource queries.
+
+The rest of components are available only inside the environment.
 
 In addition to VictoriaLogs cluster, the docker compose contains the following components:
 * [vector](https://vector.dev/guides/) service for collecting docker logs and sending them to `vlinsert`;
@@ -161,7 +162,7 @@ In addition to VictoriaLogs cluster, the docker compose contains the following c
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
 To access [VictoriaLogs UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
-use link [http://localhost:8427/logs/select/vmui](http://localhost:8427/logs/select/vmui).
+use link [http://localhost:8427/select/vmui](http://localhost:8427/select/vmui).
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/victorialogs/#monitoring)
 VictoriaLogs installations.

@@ -5,6 +5,6 @@ unauthorized_user:
     - "/api/v1/.*"
     url_prefix: http://victoriametrics:8428
   - src_paths:
-    - "/select/logsql/.*"
+    - "/select/.*"
     url_prefix:
     - http://victorialogs:9428
