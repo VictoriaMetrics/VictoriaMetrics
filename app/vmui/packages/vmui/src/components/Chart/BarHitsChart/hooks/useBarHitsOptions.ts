@@ -1,5 +1,5 @@
 import { useMemo, useState } from "preact/compat";
-import { getAxes, handleDestroy, setSelect } from "../../../../utils/uplot";
+import { getAxes, getMinMaxBuffer, handleDestroy, setSelect } from "../../../../utils/uplot";
 import dayjs from "dayjs";
 import { dateFromSeconds, formatDateForNativeInput } from "../../../../utils/time";
 import uPlot, { AlignedData, Band, Options, Series } from "uplot";
@@ -9,6 +9,7 @@ import { MinMax, SetMinMax } from "../../../../types";
 import { LogHits } from "../../../../api/types";
 import getSeriesPaths from "../../../../utils/uplot/paths";
 import { GraphOptions, GRAPH_STYLES } from "../types";
+import { getMaxFromArray } from "../../../../utils/math";
 
 const seriesColors = [
   "color-log-hits-bar-1",
@@ -42,6 +43,12 @@ export const getLabelFromLogHit = (logHit: LogHits) => {
   if (logHit?._isOther) return OTHER_HITS_LABEL;
   const fields = Object.values(logHit?.fields || {});
   return fields.map((value) => value || "\"\"").join(", ");
+};
+
+const getYRange = (u: uPlot, _initMin = 0, initMax = 1) => {
+  const maxValues = u.series.filter(({ scale }) => scale === "y").map(({ max }) => max || initMax);
+  const max = getMaxFromArray(maxValues);
+  return getMinMaxBuffer(0, max || initMax);
 };
 
 const useBarHitsOptions = ({
@@ -99,6 +106,9 @@ const useBarHitsOptions = ({
       x: {
         time: true,
         range: () => [xRange.min, xRange.max]
+      },
+      y: {
+        range: getYRange
       }
     },
     hooks: {
