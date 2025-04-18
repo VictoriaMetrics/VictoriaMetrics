@@ -137,8 +137,8 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    
    cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...' -d 'reduce_mem_usage=1'
    ```
-   Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-   and from [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) contain **evaluated** data
+   Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+   and from [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) contain **evaluated** data
    instead of raw samples stored in VictoriaMetrics. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness)
    for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/#vmui) in `Raw Query` tab and shared via `export` button.
 
@@ -174,14 +174,14 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 1. If you observe gaps when plotting time series try simplifying your query according to p2 and follow the list.
    If problem still remains, then it is likely caused by irregular intervals for metrics collection (network delays
    or targets unavailability on scrapes, irregular pushes, irregular timestamps).
-   VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/keyconcepts/#range-query)
-   based on median interval between [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+   VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
+   based on median interval between [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
    This might work incorrect for irregular data as median will be skewed. In this case it is recommended to switch
    to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` cmd-line flag (`5m` is
    the static interval used by Prometheus).
 
 1. If you observe recently written data is not immediately visible/queryable, then read more about 
-   [query latency](https://docs.victoriametrics.com/keyconcepts/#query-latency) behavior.
+   [query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) behavior.
 
 1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
    and verifying whether the issue is fixed there.
@@ -204,7 +204,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
 There are the following most commons reasons for slow data ingestion in VictoriaMetrics:
 
-1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
+1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
    VictoriaMetrics (or `vmstorage` in cluster version of VictoriaMetrics) maintains an in-memory cache
    for quick search for internal series ids per each incoming metric.
@@ -216,7 +216,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
    contain `Slow inserts` graph, which shows the cache miss percentage for `storage/tsid` cache
    during data ingestion. If `slow inserts` graph shows values greater than 5% for more than 10 minutes,
-   then it is likely the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
+   then it is likely the current number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
    cannot fit the `storage/tsid` cache.
 
    There are the following solutions exist for this issue:
@@ -229,20 +229,20 @@ There are the following most commons reasons for slow data ingestion in Victoria
    - To reduce the number of active time series. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
      contain a graph showing the number of active time series. Recent versions of VictoriaMetrics
      provide [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
-     which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality).
+     which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality).
 
-1. [High churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate),
+1. [High churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
    e.g. when old time series are substituted with new time series at a high rate.
    When VictoriaMetrics encounters a sample for new time series, it needs to register the time series
    in the internal index (aka `indexdb`), so it can be quickly located on subsequent select queries.
    The process of registering new time series in the internal index is an order of magnitude slower
    than the process of adding new sample to already registered time series.
-   So VictoriaMetrics may work slower than expected under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+   So VictoriaMetrics may work slower than expected under [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
    The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
    provides `Churn rate` graph, which shows the average number of new time series registered
-   during the last 24 hours. If this number exceeds the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series),
-   then you need to identify and fix the source of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+   during the last 24 hours. If this number exceeds the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series),
+   then you need to identify and fix the source of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
    The most commons source of high churn rate is a label, which frequently changes its value. Try avoiding such labels.
    The [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help identifying
    such labels.
@@ -328,19 +328,19 @@ There are the following solutions exist for improving performance of slow querie
 - Rewriting slow queries, so they become faster. Unfortunately it is hard determining
   whether the given query is slow by just looking at it.
 
-  The main source of slow queries in practice is [alerting and recording rules](https://docs.victoriametrics.com/vmalert/#rules)
+  The main source of slow queries in practice is [alerting and recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules)
   with long lookbehind windows in square brackets. These queries are frequently used in SLI/SLO calculations such as [Sloth](https://github.com/slok/sloth).
 
   For example, `avg_over_time(up[30d]) > 0.99` needs to read and process
-  all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
-  for `up` [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the last 30 days
+  all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+  for `up` [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the last 30 days
   each time it executes. If this query is executed frequently, then it can take significant share of CPU, disk read IO, network bandwidth and RAM.
   Such queries can be optimized in the following ways:
 
   - To reduce the lookbehind window in square brackets. For example, `avg_over_time(up[10d])` takes up to 3x less compute resources
     than `avg_over_time(up[30d])` at VictoriaMetrics.
   - To increase evaluation interval for alerting and recording rules, so they are executed less frequently.
-    For example, increasing `-evaluationInterval` command-line flag value at [vmalert](https://docs.victoriametrics.com/vmalert/)
+    For example, increasing `-evaluationInterval` command-line flag value at [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
     from `1m` to `2m` should reduce compute resource usage at VictoriaMetrics by 2x.
 
   Another source of slow queries is improper use of [subqueries](https://docs.victoriametrics.com/metricsql/#subqueries).
@@ -459,7 +459,7 @@ at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriame
     /
   sum(vm_data_size_bytes{type=~"(storage|indexdb)/.+"}) without(type)
   ```
-  If this query returns values bigger than 0.5, then it is likely there is a [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issue,
+  If this query returns values bigger than 0.5, then it is likely there is a [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issue,
   which results in excess disk space usage for both `indexdb` and `data` folders under `-storageDataPath` folder.
   The solution is to identify and fix the source of high churn rate with [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer).
 

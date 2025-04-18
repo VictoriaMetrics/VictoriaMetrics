@@ -13,11 +13,11 @@ In the rest of the documentation we will assume you have configured your push en
 ## Documented Collectors/Agents
 
 
-- [Telegraf](https://docs.victoriametrics.com/data-ingestion/telegraf/)
-- [Vector](https://docs.victoriametrics.com/data-ingestion/vector/)
-- [vmagent](https://docs.victoriametrics.com/data-ingestion/vmagent)
-- [Grafana Alloy](https://docs.victoriametrics.com/data-ingestion/alloy/)
-- [Prometheus](https://docs.victoriametrics.com/data-ingestion/prometheus/)
+- [Telegraf](https://docs.victoriametrics.com/victoriametrics/data-ingestion/telegraf/)
+- [Vector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vector/)
+- [vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent)
+- [Grafana Alloy](https://docs.victoriametrics.com/victoriametrics/data-ingestion/alloy/)
+- [Prometheus](https://docs.victoriametrics.com/victoriametrics/data-ingestion/prometheus/)
 
 
 ## Supported Platforms

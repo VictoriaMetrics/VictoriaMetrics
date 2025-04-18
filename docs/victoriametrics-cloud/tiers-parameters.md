@@ -15,9 +15,9 @@ The tier parameters are derived from testing in typical monitoring environments,
 | **Parameter**                             | **Maximum Value**                 | **Description**                                                                                                                                                                                    |
 |-------------------------------------------|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Data Ingestion Rate**                   | Per Tier Limits                   | Number of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) ingested per second.                                                                                                                                   |
-| **Active Time Series Count**              | Per Tier Limits                   | Number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) that received at least one data point in the last hour.                                         |
+| **Active Time Series Count**              | Per Tier Limits                   | Number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) that received at least one data point in the last hour.                                         |
 | **Read Rate**                             | Per Tier Limits                   | Number of datapoints retrieved from the database per second.                                                                                                                                       |
-| **New Series Over 24 Hours** (churn rate) | `<= Active Time Series Count`     | Number of new series created in 24 hours. High [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) leads to higher resource consumption.                                    |
+| **New Series Over 24 Hours** (churn rate) | `<= Active Time Series Count`     | Number of new series created in 24 hours. High [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) leads to higher resource consumption.                                    |
 | **Concurrent Requests per Token**         | `<= 600`                          | Maximum concurrent requests per access token. It is recommended to create separate tokens for different clients and environments. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com). |
 
 For a detailed explanation of each parameter, visit the guide on [Understanding Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size.html).
@@ -34,6 +34,6 @@ For a detailed explanation of each parameter, visit the guide on [Understanding 
 
   - [Time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
   - [Labels](https://docs.victoriametrics.com/keyconcepts/#labels)
-  - [Active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
-  - [Churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+  - [Active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+  - [Churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
   - [Cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality)

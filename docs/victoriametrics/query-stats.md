@@ -6,14 +6,15 @@ menu:
     parent: 'victoriametrics'
     weight: 82
 aliases:
+- /query-stats
 - /query-stats.html
 - /query-stats/index.html
 - /query-stats/
 ---
 
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging {{% available_from "#" %}} for
-executed read queries for [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) API. To enable statistics 
+executed read queries for [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) API. To enable statistics 
 logging specify `-search.logSlowQueryStats=<duration>` command line flag on [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/)
 or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
 Where `<duration>` is a threshold for query duration after which it must be logged:
@@ -26,17 +27,17 @@ The example of query statistics log is the following:
 2025-03-25T11:23:29.520Z        info    VictoriaMetrics/app/vmselect/promql/query_stats.go:60       vm_slow_query_stats type=instant query="vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1\n" query_hash=1585303298 start_ms=1742901750000 end_ms=1742901750000 step_ms=300000 range_ms=0 tenant="0" execution_duration_ms=0 series_fetched=2 samples_fetched=163 bytes=975 memory_estimated_bytes=2032
 ```
 
-* `type` is either [instant](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-  or [range](https://docs.victoriametrics.com/keyconcepts/#range-query) query;
+* `type` is either [instant](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+  or [range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) query;
 * `query` is the executed [MetricsQL](https://docs.victoriametrics.com/metricsql/) query;
 * `query_hash` is a hashed `query` and is used to simplify filtering logs by a specific query;
-* `start_ms`, `end_ms`, `step_ms` are query params described [here](https://docs.victoriametrics.com/keyconcepts/#range-query);
+* `start_ms`, `end_ms`, `step_ms` are query params described [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query);
 * `range_ms` is a difference between `start_ms` and `end_ms`. If `range_ms==0` it means this query is instant;
 * `tenant` is a tenant ID. Is available only for cluster version of VictoriaMetrics;
 * `execution_duration_ms` is execution duration of the query. It doesn't include time spent on transferring query results to the requester over network;
-* `series_fetched` is the amount of unique [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) fetched during query execution. The number could be bigger than
+* `series_fetched` is the amount of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) fetched during query execution. The number could be bigger than
   the actual number of returned series, as it accounts for series before filtering by bool conditions (like `cpu_usage > 0`);
-* `samples_fetched` is the amount of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) fetched
+* `samples_fetched` is the amount of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched
   during query execution;
 * `bytes` is the amount of bytes transferred from storage to execute the query;
 * `memory_estimated_bytes` is the estimated amount of memory that is needed to evaluate query. See `-search.maxMemoryPerQuery` cmd-line flag.

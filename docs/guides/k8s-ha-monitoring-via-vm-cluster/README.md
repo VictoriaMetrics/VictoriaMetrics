@@ -135,7 +135,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-2                 1/1     Running  
 
 ## 3. Install vmagent from the Helm chart
 
-To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [vmagent](https://docs.victoriametrics.com/vmagent/) with some additional configurations. To do so, please run the following command:
+To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with some additional configurations. To do so, please run the following command:
 
 ```yaml
 helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.com/guides/examples/guide-vmcluster-vmagent-values.yaml
@@ -222,7 +222,7 @@ scrape_configs:
           target_label: systemd_service_name
           replacement: '${1}'
 ```
-* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/vmagent/) to write scraped metrics into the `vminsert` service.
+* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) to write scraped metrics into the `vminsert` service.
 * The `metric_relabel_configs` section allows you to process Kubernetes metrics for the Grafana dashboard.
 
 

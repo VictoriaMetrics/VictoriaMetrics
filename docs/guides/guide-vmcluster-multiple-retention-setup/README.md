@@ -16,8 +16,8 @@ A multi-retention setup can be implemented by dividing a [victoriametrics cluste
 
 Example:
 Setup should handle 3 different retention groups 3months, 1year and 3 years.
-Solution contains 3 groups of vmstorages + vminserts and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent/)
-by [splitting data streams](https://docs.victoriametrics.com/vmagent/#splitting-data-streams-among-multiple-systems). 
+Solution contains 3 groups of vmstorages + vminserts and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
+by [splitting data streams](https://docs.victoriametrics.com/victoriametrics/vmagent/#splitting-data-streams-among-multiple-systems). 
 The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how long to keep the metrics.
 
 The diagram below shows a proposed solution
@@ -31,7 +31,7 @@ The diagram below shows a proposed solution
 1. Groups of vminserts C know about only vmstorages C and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup). 
 1. vmselect reads data from all vmstorage nodes via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup) 
    with [deduplication](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) setting equal to vmagent's scrape interval or minimum interval between collected samples. 
-1. vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig` [configuration](https://docs.victoriametrics.com/vmagent/#relabeling).
+1. vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig` [configuration](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 **Multi-Tenant Setup**
 
@@ -39,4 +39,4 @@ Every group of vmstorages can handle one tenant or multiple one. Different group
 
 **Additional Enhancements**
 
-You can set up [vmauth](https://docs.victoriametrics.com/vmauth/) for routing data to the given vminsert group depending on the needed retention.
+You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) for routing data to the given vminsert group depending on the needed retention.

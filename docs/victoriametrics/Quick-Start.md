@@ -358,44 +358,44 @@ It should open [vmui](https://docs.victoriametrics.com/#vmui) page.
 
 ## Write data
 
-There are two main models in monitoring for data collection: [push](https://docs.victoriametrics.com/keyconcepts/#push-model) 
-and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Both are used in modern monitoring and both are 
+There are two main models in monitoring for data collection: [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) 
+and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Both are used in modern monitoring and both are 
 supported by VictoriaMetrics.
 
-See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
+See more details on [writing data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data).
 See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/data-ingestion/).
 
 ## Query data
 
 VictoriaMetrics has built-in [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical
 User Interface for querying and visualizing metrics. [MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the
-query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/keyconcepts/#metricsql).
+query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#metricsql).
 
 VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
 
-See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data).
+See more details on [querying data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
 ## Alerting
 
-To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/vmalert/). 
+To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/). 
 It allows creating set of conditions using MetricsQL expressions and send notifications to [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
 when such conditions are met.
 
-See [vmalert quick start](https://docs.victoriametrics.com/vmalert/#quickstart).
+See [vmalert quick start](https://docs.victoriametrics.com/victoriametrics/vmalert/#quickstart).
 
 ## Data migration
 
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
-[supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
+[supported formats](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model).
 
-The migration might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl/) - VictoriaMetrics
+The migration might get easier when using [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:
-* [Prometheus using snapshot API](https://docs.victoriametrics.com/vmctl/#migrating-data-from-prometheus);
-* [Thanos](https://docs.victoriametrics.com/vmctl/#migrating-data-from-thanos);
-* [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x);
-* [OpenTSDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-opentsdb);
-* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
+* [Prometheus using snapshot API](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-prometheus);
+* [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-thanos);
+* [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x);
+* [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-opentsdb);
+* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
 
 ## Productionization
 
@@ -428,10 +428,10 @@ and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriam
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
 Understanding resource usage and performance of VictoriaMetrics also requires knowing the tech terms
-[active series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series),
-[churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate),
-[cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality),
-[slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert).
+[active series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series),
+[churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
+[cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality),
+[slow inserts](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-a-slow-insert).
 All of them are present in [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 
 ### Data safety
@@ -443,7 +443,7 @@ and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#ba
 ### Configuring limits
 
 To avoid excessive resource usage or performance degradation limits must be in place:
-* [Resource usage limits](https://docs.victoriametrics.com/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
+* [Resource usage limits](https://docs.victoriametrics.com/victoriametrics/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
 * [Cardinality limiter](https://docs.victoriametrics.com/single-server-victoriametrics/#cardinality-limiter).
 
 ### Security recommendations

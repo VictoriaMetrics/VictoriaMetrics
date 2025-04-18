@@ -6,6 +6,7 @@ menu:
     parent: 'victoriametrics'
     weight: 29
 aliases:
+- /articles
 - /Articles.html
 - /articles/index.html
 - /articles/
