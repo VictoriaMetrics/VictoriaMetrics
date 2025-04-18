@@ -56,13 +56,13 @@ If you want playing with [LogsQL](https://docs.victoriametrics.com/victorialogs/
 VictoriaLogs exposes internal metrics in Prometheus exposition format at `http://localhost:9428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
-vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
+vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
 We recommend installing Grafana dashboard for [VictoriaLogs single-node](https://grafana.com/grafana/dashboards/22084) 
 or [cluster](https://grafana.com/grafana/dashboards/23274) (if link is unavailable use [source link](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json)).
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
-via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
+via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via Prometheus.
 
 VictoriaLogs emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
 
@@ -102,7 +102,7 @@ It automatically drops partition directories outside the configured retention.
 VictoriaLogs automatically drops logs at [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) stage
 if they have timestamps outside the configured retention. A sample of dropped logs is logged with `WARN` message in order to simplify troubleshooting.
 The `vl_rows_dropped_total` [metric](#monitoring) is incremented each time an ingested log entry is dropped because of timestamp outside the retention.
-It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert/) in order to be notified
+It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) in order to be notified
 when logs with wrong timestamps are ingested into VictoriaLogs:
 
 ```metricsql
@@ -192,7 +192,7 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 - **VictoriaLogs Single-Node Instances**: Use two or more instances to achieve HA.
 
-- **[vmauth](https://docs.victoriametrics.com/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
+- **[vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
 
 ![VictoriaLogs Single-Node Instance High-Availability schema](ha-victorialogs-single-node.webp)
 
@@ -261,11 +261,11 @@ If `AccountID` and/or `ProjectID` request headers aren't set, then the default `
 
 VictoriaLogs has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaLogs instance.
 
-VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
+VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or similar tools for per-tenant authorization.
 
 ### Multitenancy access control
 
-Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/vmauth/). Access control can be configured for each tenant by setting up the following rules:
+Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/). Access control can be configured for each tenant by setting up the following rules:
 
 ```yaml
 users:
@@ -298,7 +298,7 @@ This configuration allows `foo` to use the `/select/.*` and `/insert/.*` endpoin
 
 It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
 It is recommended providing access to VictoriaLogs [data ingestion APIs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/vmauth/)
+and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 or similar authorization proxies.
 
 ## Benchmarks

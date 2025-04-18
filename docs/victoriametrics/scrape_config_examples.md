@@ -64,10 +64,10 @@ scrape_configs:
 ```
 
 Note that the last specified target contains the full url instead of host and port.
-This is an extension supported by VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) - you can use both `host:port`
+This is an extension supported by VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) - you can use both `host:port`
 and full urls in scrape target lists.
 
-Send `SIGHUP` signal `victoria-metrics-prod` process, so it [reloads the updated `scrape.yaml`](https://docs.victoriametrics.com/vmagent/#configuration-update):
+Send `SIGHUP` signal `victoria-metrics-prod` process, so it [reloads the updated `scrape.yaml`](https://docs.victoriametrics.com/victoriametrics/vmagent/#configuration-update):
 
 ```
 kill -HUP `pidof victoria-metrics-prod`
@@ -78,7 +78,7 @@ The last one should have `state: up`, since this is VictoriaMetrics itself.
 
 Let's query the scraped metrics. Open `http://localhost:8428/vmui/` aka [vmui](https://docs.victoriametrics.com/#vmui), enter `up` in the query input field
 and press `enter`. You'll see a graph for `up` metrics. It must contain two lines for the targets defined in `scrape.yaml` file above.
-See [these docs](https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics) about `up` metric. You can explore other scraped metrics
+See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) about `up` metric. You can explore other scraped metrics
 in `vmui` via [Prometheus metrics explorer](https://docs.victoriametrics.com/#metrics-explorer).
 
 Let's look closely to the contents of the `scrape.yaml` file created above:
@@ -97,7 +97,7 @@ scrape_configs:
 
 The [`scrape_configs`](https://docs.victoriametrics.com/sd_configs/#scrape_configs) section contains a list of scrape configs.
 Our `scrape.yaml` file contains two scrape configs - for `job_name: node-exporter` and for `job_name: victoriametrics`.
-[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 can efficiently process thousands of scrape configs in production.
 
 Every scrape config in the list **must** contain `job_name` field - its' value is used as [`job`](https://prometheus.io/docs/concepts/jobs_instances/) label
@@ -110,9 +110,9 @@ These sections consist of a list of static configs according to [these docs](htt
 Every static config contains a list of `targets`, which need to be scraped. The target address is used as [`instance`](https://prometheus.io/docs/concepts/jobs_instances/)
 label in all the metrics scraped from the target.
 
-[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 can efficiently process tens of thousands of targets in production. If you need scraping more targets,
-then see [these docs](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
+then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
 Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets).
 It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling/) if needed.
@@ -123,7 +123,7 @@ It is possible to modify scrape urls via [relabeling](https://docs.victoriametri
 It may be not so convenient updating `scrape.yaml` file with [`static_configs`](https://docs.victoriametrics.com/sd_configs/#static_configs)
 every time new scrape target is added, changed or removed. In this case [`file_sd_configs`](https://docs.victoriametrics.com/sd_configs/#file_sd_configs)
 can come to rescue. It allows defining a list of scrape targets in `JSON` files, and automatically updating the list of scrape targets
-at [vmagent](https://docs.victoriametrics.com/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
+at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
 when the corresponding `JSON` files are updated.
 
 Let's create `node_exporter_targets.json` file with the following contents:
@@ -170,12 +170,12 @@ Now let's add more targets to `node_exporter_targets.json`:
 ```
 
 Note that the added targets contains full urls instead of host and port.
-This is an extension supported by VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) - you can use both `host:port`
+This is an extension supported by VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) - you can use both `host:port`
 and full urls in scrape target lists.
 
 Save the updated `node_exporter_targets.json`, wait for 30 seconds and then refresh the `http://localhost:8428/targets` page.
 Now this page must contain all the targets defined in the updated `node_exporter_targets.json`.
-By default [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+By default [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 check for updates in `files` specified at [`file_sd_configs`](https://docs.victoriametrics.com/sd_configs/#file_sd_configs)
 every 30 seconds. This interval can be changed via `-promscrape.fileSDCheckInterval` command-line flag.
 For example, the following command starts VictoriaMetrics, which checks for updates in `file_sd_configs` every 5 seconds:
@@ -202,9 +202,9 @@ scrape_configs:
 It is possible to specify directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
 See [these docs](https://docs.victoriametrics.com/sd_configs/#file_sd_configs) for details.
 
-[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 can efficiently scrape tens of thousands of scrape targets. If you need scraping more targets,
-then see [these docs](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
+then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
 Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets).
 It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling/) if needed.
@@ -263,14 +263,14 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
 
 ### Discovering and scraping `kube-state-metrics` in Kubernetes
 
 [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) is a special metrics exporter,
 which exposes `state` metrics for all the Kubernetes objects such as `container`, `pod`, `node`, etc.
 It already sets `namespace`, `container`, `pod` and `node` labels for every exposed metric,
-so these metrics shouldn't be set in [target relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
+so these metrics shouldn't be set in [target relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 The following [`-promscrape.config`](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) target inside Kubernetes cluster:
@@ -301,7 +301,7 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
 
 ### Discovering and scraping metrics from `cadvisor`
 
@@ -339,7 +339,7 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
 
 See [these docs](https://docs.victoriametrics.com/sd_configs/#http-api-client-options) for details on `bearer_token_file` and `tls_config` options.
 
@@ -380,4 +380,4 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.

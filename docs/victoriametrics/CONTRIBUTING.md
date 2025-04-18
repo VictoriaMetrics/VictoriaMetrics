@@ -7,6 +7,7 @@ menu:
     parent: victoriametrics
     weight: 400
 aliases:
+- /contributing
 - /CONTRIBUTING.html
 - /contributing/index.html
 - /contributing/

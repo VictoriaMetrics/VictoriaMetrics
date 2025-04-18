@@ -29,7 +29,7 @@ Using this schema, you can achieve:
 
 * If you scrape data from Prometheus-compatible targets, then please specify `-promscrape.config` parameter as well.
 
-Here is a Quickstart guide for [vmagent](https://docs.victoriametrics.com/vmagent/#quick-start)
+Here is a Quickstart guide for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#quick-start)
 
 ### How to read the data from Ground Control regions
 

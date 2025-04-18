@@ -11,9 +11,9 @@ aliases:
 - /relabeling/index.html
 - /relabeling/
 ---
-VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) support
-[Prometheus-compatible relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)
-with [additional enhancements](https://docs.victoriametrics.com/vmagent/#relabeling-enhancements).
+VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) support
+[Prometheus-compatible relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling)
+with [additional enhancements](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling-enhancements).
 
 The relabeling is mostly used for the following tasks:
 
@@ -34,7 +34,7 @@ The relabeling is mostly used for the following tasks:
 * Removing some labels from metrics matching some [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
   See [how to remove labels from metrics subset](#how-to-remove-labels-from-metrics-subset).
 
-See also [relabeling docs at vmagent](https://docs.victoriametrics.com/vmagent/#relabeling).
+See also [relabeling docs at vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 
 ## How to remove labels from metrics subset
@@ -64,7 +64,7 @@ See also:
 
 ## How to rename scraped metrics
 
-Metric name is a regular label with special name - `__name__` (see [these docs](https://docs.victoriametrics.com/keyconcepts/#labels)).
+Metric name is a regular label with special name - `__name__` (see [these docs](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)).
 So renaming of metric name is performed in the same way as changing label value.
 
 Let's look at a few examples.
@@ -116,7 +116,7 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 
 ## How to add labels to scraped metrics
 
-The following config sets `foo="bar"` [label](https://docs.victoriametrics.com/keyconcepts/#labels) across all the scraped metrics:
+The following config sets `foo="bar"` [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) across all the scraped metrics:
 
 ```yaml
 scrape_configs:
@@ -128,7 +128,7 @@ scrape_configs:
     replacement: bar
 ```
 
-The following config sets `foo="bar"` label only for metrics matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering):
+The following config sets `foo="bar"` label only for metrics matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering):
 
 ```yaml
 scrape_configs:
@@ -160,7 +160,7 @@ scrape_configs:
 ```
 
 The following config adds `foo_` prefix to `job` label values only for metrics
-matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering):
+matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering):
 
 ```yaml
 scrape_configs:
@@ -180,8 +180,8 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 ## How to remove labels from scraped metrics
 
 Sometimes it may be needed to remove labels from scraped metrics. For example, if some labels
-lead to [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-or [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issues,
+lead to [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
+or [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues,
 then it may be a good idea to drop these labels during scrapes.
 This can be done with `action: labeldrop` or `action: labelkeep` relabeling rules at `metric_relabel_configs` section:
 
@@ -217,8 +217,8 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 ## How to drop metrics during scrape
 
 Sometimes it is needed to drop some metrics during scrapes. For example, if some metrics result
-in [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-or [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issues,
+in [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
+or [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues,
 then it may be a good idea to drop these metrics during scrapes. This can be done with the `action: drop` or `action: keep`
 relabeling rules at `metric_relabel_configs` section:
 
@@ -374,7 +374,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## How to modify instance and job
 
-Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) automatically add `instance` and `job` labels per each discovered target:
+Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) automatically add `instance` and `job` labels per each discovered target:
 
 * The `job` label is set to `job_name` value specified in the corresponding [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
 * The `instance` label is set to the `host:port` part of `__address__` label value after target-level relabeling.
@@ -575,7 +575,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 ## Useful tips for target relabeling
 
 * Target relabeling can be debugged by clicking the `debug` link for the needed target on the `http://vmagent:8429/target`
-  or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/vmagent/#relabel-debug).
+  or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
 * Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
   The specific sets of labels per each supported service discovery option are listed
   [here](https://docs.victoriametrics.com/sd_configs/#prometheus-service-discovery).
@@ -593,7 +593,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 ## Useful tips for metric relabeling
 
 * Metric relabeling can be debugged at `http://vmagent:8429/metric-relabel-debug` page.
-  See [these docs](https://docs.victoriametrics.com/vmagent/#relabel-debug).
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
 * All the labels, which start with `__` prefix, are automatically removed from metrics after the relabeling.
   So it is common practice to store temporary labels with names starting with `__` during metrics relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets,

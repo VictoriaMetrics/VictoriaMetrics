@@ -21,7 +21,7 @@ for ingestion rates lower than a million data points per second.
 The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
 with the number of CPU cores, RAM and available storage space.
 The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
-See [this question](https://docs.victoriametrics.com/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
+See [this question](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
 
 There is also user-friendly database for logs - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
 
@@ -29,12 +29,12 @@ If you have questions about VictoriaMetrics, then feel free asking them at [Vict
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
-See [features available in enterprise package](https://docs.victoriametrics.com/enterprise/).
+See [features available in enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 Enterprise binaries can be downloaded and evaluated for free 
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 
 VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
 
@@ -66,7 +66,7 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at 
 `http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmeselect` service.
-The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/#vmui).
+The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/victoriametrics#vmui).
 
 ## Multitenancy
 
@@ -79,19 +79,19 @@ Some facts about tenants in VictoriaMetrics:
 - Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth/)
-or [vmgateway](https://docs.victoriametrics.com/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
+by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
 
 - Tenants are automatically created when the first data point is written into the given tenant.
 
 - Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
 when different tenants have different amounts of data and different query load.
 
-- The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
+- The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 
 - The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
 
-- VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/pertenantstatistic/).
+- VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
 
 See also [multitenancy via labels](#multitenancy-via-labels).
 
@@ -114,17 +114,17 @@ http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
 Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
 while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `accountID=7, projectID=9`.
 
-The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling/)
+The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
 The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
-such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
-[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
-[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
+such as [Graphite](https://docs.victoriametrics.com/victoriametrics#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
+[InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics#sending-data-via-telnet-put-protocol).
 
 **Reads**
 
-_For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
+_For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)._
 
 `vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
 Currently supported endpoints for `<suffix>` are:
@@ -152,7 +152,7 @@ up{vm_account_id!="42"} # selects all the time series except those belonging to 
 up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
 ```
 
-Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics#prometheus-querying-api-enhancements)
 query args to apply additional filters for the query:
 ```bash
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
@@ -243,8 +243,8 @@ across multiple availability zones, since cross-AZ network usually has lower ban
 error rates comparing the network inside a single AZ.
 
 If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
-[vmagent](https://docs.victoriametrics.com/vmagent/) in front of these clusters, so it could replicate incoming data
-into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent/#multitenancy) for details.
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
+into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
 ## Cluster setup
@@ -255,14 +255,14 @@ A minimal cluster must contain the following nodes:
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports automatic discovering and updating of `vmstorage` nodes.
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic discovering and updating of `vmstorage` nodes.
 See [these docs](#automatic-vmstorage-discovery) for details.
 
 It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
 
 It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
 
-An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth/) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
+An http load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
 It must contain the following routing configs according to [the url format](#url-format):
 
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
@@ -291,7 +291,7 @@ if some of its components are temporarily unavailable.
 VictoriaMetrics cluster remains available if the following conditions are met:
 
 - HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
-  ([vmauth](https://docs.victoriametrics.com/vmauth/) stops routing requests to unavailable nodes).
+  ([vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) stops routing requests to unavailable nodes).
 
 - At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
   The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
@@ -321,7 +321,7 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
   for processing the increased data ingestion workload.
   `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
   the increased load on these nodes. During re-routing, healthy `vmstorage` nodes will experience higher resource usage
-  and increase in number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
+  and increase in number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
 - `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
   It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
@@ -337,13 +337,13 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
 
   It is also possible to configure independent replication factor per distinct `vmstorage` groups - see [these docs](#vmstorage-groups-at-vmselect).
 
-`vmselect` doesn't serve partial responses for API handlers returning [raw datapoints](https://docs.victoriametrics.com/keyconcepts/#raw-samples),
+`vmselect` doesn't serve partial responses for API handlers returning [raw datapoints](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples),
 since users usually expect this data is always complete. The following handlers return raw samples:
 
-- [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series)
-- [`/api/v1/query`](https://docs.victoriametrics.com/url-examples/#apiv1query) when the `query` contains [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
+- [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/victoriametrics/#how-to-export-time-series)
+- [`/api/v1/query`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query) when the `query` contains [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
   ending with some duration in square brackets. For example, `/api/v1/query?query=up[1h]&time=2024-01-02T03:00:00Z`.
-  This query returns [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+  This query returns [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) for [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
   with the `up` name on the time range `(2024-01-02T02:00:00 .. 2024-01-02T03:00:00]`. See [this article](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
   for details.
 
@@ -368,7 +368,7 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 * Data ingestion speed is limited by the slowest link to AZ.
 * `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
-These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent/#multitenancy).
+These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
 ### vmstorage groups at vmselect
@@ -431,7 +431,7 @@ See also [multi-level cluster setup](#multi-level-cluster-setup).
 
 ### Automatic vmstorage discovery
 
-`vminsert` and `vmselect` components in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) support
+`vminsert` and `vmselect` components in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) support
 the following approaches for automatic discovery of `vmstorage` nodes:
 
 - file-based discovery - put the list of `vmstorage` nodes into a file - one node address per each line - and then pass `-storageNode=file:/path/to/file-with-vmstorage-list`
@@ -483,22 +483,22 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 General security recommendations:
 
 - All the VictoriaMetrics cluster components must run in protected private network without direct access from untrusted networks such as Internet.
-- External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/vmauth/)
-  or [vmgateway](https://docs.victoriametrics.com/vmgateway/).
+- External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+  or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 - The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from MitM attacks.
 - It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
 - Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.
   This minimizes attack surface.
 
-See also [security recommendation for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
+See also [security recommendation for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
 
 ### mTLS protection
 
 By default `vminsert` and `vmselect` nodes accept http requests at `8480` and `8481` ports accordingly (these ports can be changed via `-httpListenAddr` command-line flags),
-since it is expected that [vmauth](https://docs.victoriametrics.com/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
+since it is expected that [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
 in front of `vminsert` and `vmselect`.
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at `8480` and `8481` ports for `vminsert` and `vmselect` nodes, by specifying `-tls` and `-mtls` command-line flags.
 For example, the following command runs `vmselect`, which accepts only mTLS requests at port `8481`:
 
@@ -509,7 +509,7 @@ For example, the following command runs `vmselect`, which accepts only mTLS requ
 By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
-By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components [run in a protected environment](#security). [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
+By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components [run in a protected environment](#security). [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
 
 The following optional command-line flags related to mTLS are supported:
 
@@ -521,7 +521,7 @@ When `vmselect` runs with `-clusternativeListenAddr` command-line option, then i
 
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Monitoring
@@ -533,7 +533,7 @@ By default, the following TCP ports are used:
 - `vmselect` - 8481
 - `vmstorage` - 8482
 
-It is recommended setting up [vmagent](https://docs.victoriametrics.com/vmagent/)
+It is recommended setting up [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
 with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
@@ -543,27 +543,27 @@ If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMet
 command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
 See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
-It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
+It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
 ## Cardinality limiter
 
 `vmstorage` nodes can be configured with limits on the number of unique time series across all the tenants with the following command-line flags:
 
-- `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) during the last hour.
-- `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+- `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) during the last hour.
+- `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
 Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
 
-See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/#cardinality-limiter).
+See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/victoriametrics/#cardinality-limiter).
 
 ## Troubleshooting
 
 - If your VictoriaMetrics cluster experiences data ingestion delays during
-  [rolling restarts and configuration updates](https://docs.victoriametrics.com/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes),
+  [rolling restarts and configuration updates](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes),
   then see [these docs](#improving-re-routing-performance-during-restart).
 
-[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/troubleshooting/) apply to VictoriaMetrics cluster as well.
+[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) apply to VictoriaMetrics cluster as well.
 
 ## Readonly mode
 
@@ -576,10 +576,10 @@ The metric is set to `0` when the `vmstorage` isn't in read-only mode.
 
 ## URL format
 
-The main differences between URL formats of cluster and [Single server](https://docs.victoriametrics.com/single-server-victoriametrics/)
+The main differences between URL formats of cluster and [Single server](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 versions are that cluster has separate components for read and ingestion path, and because of multi-tenancy support.
 Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, `csv`, `native` and `prometheus` data formats **not** only `prometheus` data.
-Check practical examples of VictoriaMetrics API [here](https://docs.victoriametrics.com/url-examples/).
+Check practical examples of VictoriaMetrics API [here](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
@@ -590,34 +590,34 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
     - `prometheus` and `prometheus/api/v1/write` - for ingesting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` at `vmselect` (see below), JSON line format.
     - `prometheus/api/v1/import/native` - for importing data obtained via `api/v1/export/native` on `vmselect` (see below).
-    - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data) for details.
-    - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). This endpoint also supports [Pushgateway protocol](https://github.com/prometheus/pushgateway#url). See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
-    - `opentelemetry/v1/metrics` - for ingesting data via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md). See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-data-via-opentelemetry).
-    - `datadog/api/v1/series` - for ingesting data with DataDog submit metrics API v1. See [these docs](https://docs.victoriametrics.com/url-examples/#datadogapiv1series) for details.
-    - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-datadog-agent) for details.
+    - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data) for details.
+    - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). This endpoint also supports [Pushgateway protocol](https://github.com/prometheus/pushgateway#url). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
+    - `opentelemetry/v1/metrics` - for ingesting data via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+    - `datadog/api/v1/series` - for ingesting data with DataDog submit metrics API v1. See [these docs](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadogapiv1series) for details.
+    - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent) for details.
     - `datadog/api/beta/sketches` - for ingesting data with [DataDog lambda extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/).
-    - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). TCP and UDP receiver is disabled by default. It is exposed on a distinct TCP address set via `-influxListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
-    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/#how-to-send-data-from-newrelic-agent) for details.
-    - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests) for details.
+    - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). TCP and UDP receiver is disabled by default. It is exposed on a distinct TCP address set via `-influxListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
+    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/victoriametrics/#how-to-send-data-from-newrelic-agent) for details.
+    - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
   - `<suffix>` may have the following values:
-    - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/keyconcepts/#instant-query).
-    - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/keyconcepts/#range-query).
-    - `api/v1/series` - performs [series query](https://docs.victoriametrics.com/url-examples/#apiv1series).
-    - `api/v1/labels` - returns a [list of label names](https://docs.victoriametrics.com/url-examples/#apiv1labels).
-    - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to the API](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues).
+    - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query).
+    - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
+    - `api/v1/series` - performs [series query](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series).
+    - `api/v1/labels` - returns a [list of label names](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels).
+    - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to the API](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues).
     - `federate` - returns [federated metrics](https://prometheus.io/docs/prometheus/latest/federation/).
     - `api/v1/export` - exports raw data in JSON line format. See [this article](https://medium.com/@valyala/analyzing-prometheus-data-with-external-tools-5f3e5e147639) for details.
     - `api/v1/export/native` - exports raw data in native binary format. It may be imported into another VictoriaMetrics via `api/v1/import/native` (see above).
     - `api/v1/export/csv` - exports data in CSV. It may be imported into another VictoriaMetrics via `api/v1/import/csv` (see above).
     - `api/v1/series/count` - returns the total number of series.
-    - `api/v1/status/tsdb` - for time series stats. See [these docs](https://docs.victoriametrics.com/#tsdb-stats) for details.
+    - `api/v1/status/tsdb` - for time series stats. See [these docs](https://docs.victoriametrics.com/victoriametrics/#tsdb-stats) for details.
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
     - `api/v1/status/top_queries` - for listing the most frequently executed queries and queries taking the most duration.
-    - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/relabeling/).
+    - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)
@@ -646,11 +646,11 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...` .
 The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
 
-- URL for accessing [vmalerts](https://docs.victoriametrics.com/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
+- URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
-  - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/#forced-merge) on the given `vmstorage` node.
+  - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/victoriametrics/#forced-merge) on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.
@@ -673,8 +673,8 @@ General recommendations for cluster scalability:
 - Adding more CPU and RAM to existing `vmselect` nodes improves the performance for heavy queries, which process big number of time series with big number of raw samples.
   See [this article on how to detect and optimize heavy queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
 
-- Adding more `vmstorage` nodes (aka horizontal scaling) increases the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
-  the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate),
+- Adding more `vmstorage` nodes (aka horizontal scaling) increases the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+  the cluster can handle. This also increases query performance over time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
   since every `vmstorage` node contains lower number of time series when the number of `vmstorage` nodes increases.
 
   The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload
@@ -683,9 +683,9 @@ General recommendations for cluster scalability:
   If one node out of 10 nodes is unavailable, then `1/10=10%` of the load is re-distributed across 9 remaining nodes, so per-node workload increase is `(1/10/9)/(1/10) = 1/9 =~ 11%`.
 
 - Adding more CPU and RAM to existing `vmstorage` nodes (aka vertical scaling) increases the number
-  of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) the cluster can handle.
+  of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) the cluster can handle.
   It is preferred to add more `vmstorage` nodes over adding more CPU and RAM to existing `vmstorage` nodes, since higher number of `vmstorage` nodes
-  increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  increases cluster stability and improves query performance over time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
 - Adding more `vminsert` nodes increases the maximum possible data ingestion speed, since the ingested data may be split among bigger number of `vminsert` nodes.
 
@@ -726,7 +726,7 @@ This strategy allows upgrading the cluster without downtime if the following con
   the current workload when a single node of any type (`vminsert`, `vmselect` or `vmstorage`)
   is temporarily unavailable during its restart.
 - The updated config / upgraded binary is compatible with the remaining components in the cluster.
-  See the [CHANGELOG](https://docs.victoriametrics.com/changelog/) for compatibility notes between different releases.
+  See the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) for compatibility notes between different releases.
 
 If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
 during the config update / version upgrade. In this case the following strategy is recommended.
@@ -752,7 +752,7 @@ The `minimum downtime` strategy has the following benefits comparing to `no down
 ### Improving re-routing performance during restart
 
 `vmstorage` nodes may experience increased usage for CPU, RAM and disk IO during
-[rolling restarts](https://docs.victoriametrics.com/cluster-victoriametrics/#no-downtime-strategy),
+[rolling restarts](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#no-downtime-strategy),
 since they need to process higher load when some of `vmstorage` nodes are temporarily unavailable in the cluster.
 
 The following approaches can be used for reducing resource usage at `vmstorage` nodes during rolling restart:
@@ -762,7 +762,7 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
   Note that the `-disableReroutingOnUnavailable` flag may pause data ingestion for long time when some `vmstorage` nodes are unavailable
   for long time.
 
-- To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/changelog/#v1950))
+- To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1950))
   command-line flag at `vmstorage` nodes.In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
   This reduces data ingestion slowdown during rollout restarts.
 
@@ -773,9 +773,9 @@ See also [minimum downtime strategy](#minimum-downtime-strategy).
 
 ## Capacity planning
 
-VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/casestudies/).
+VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 
-Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/#troubleshooting).
 
 The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
@@ -791,7 +791,7 @@ Some capacity planning tips for VictoriaMetrics cluster:
 
 - The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. These copies are de-duplicated by `vmselect` during querying. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
 - It is recommended to run a cluster with big number of small `vmstorage` nodes instead of a cluster with small number of big `vmstorage` nodes. This increases chances that the cluster remains available and stable when some of `vmstorage` nodes are temporarily unavailable during maintenance events such as upgrades, configuration changes or migrations. For example, when a cluster contains 10 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 9 nodes increases by `1/9=11%`. When a cluster contains 3 `vmstorage` nodes and a single node becomes temporarily unavailable, then the workload on the remaining 2 nodes increases by `1/2=50%`. The remaining `vmstorage` nodes may have no enough free capacity for handling the increased workload. In this case the cluster may become overloaded, which may result to decreased availability and stability.
-- Cluster capacity for [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) can be increased by increasing RAM and CPU resources per each `vmstorage` node or by adding new `vmstorage` nodes.
+- Cluster capacity for [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) can be increased by increasing RAM and CPU resources per each `vmstorage` node or by adding new `vmstorage` nodes.
 - Query latency can be reduced by increasing CPU resources per each `vmselect` node, since each incoming query is processed by a single `vmselect` node. Performance for heavy queries scales with the number of available CPU cores at `vmselect` node, since `vmselect` processes time series referred by the query on all the available CPU cores.
 - If the cluster needs to process incoming queries at a high rate, then its capacity can be increased by adding more `vmselect` nodes, so incoming queries could be spread among bigger number of `vmselect` nodes.
 - By default `vminsert` compresses the data it sends to `vmstorage` in order to reduce network bandwidth usage. The compression takes additional CPU resources at `vminsert`. If `vminsert` nodes have limited CPU, then the compression can be disabled by passing `-rpc.disableCompression` command-line flag at `vminsert` nodes.
@@ -829,9 +829,9 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   See also `-search.maxMemoryPerQuery` command-line flag at `vmselect`.
 - `-search.maxQueueDuration` at `vmselect` and `vmstorage` limits the maximum duration queries may wait for execution when `-search.maxConcurrentRequests`
   concurrent queries are executed.
-- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
-  query args at [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues).
+- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics#prometheus-querying-api-enhancements)
+  query args at [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels) and
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues).
   This may be useful for reducing the load on `vmstorage` if the provided extra filters match too many time series.
   The downside is that the endpoints can return labels and series, which do not match the provided extra filters.
 - `-search.maxSamplesPerSeries` at `vmselect` limits the number of raw samples the query can process per each time series.
@@ -841,68 +841,68 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` at `vmselect` limits the number of raw samples a single query can process. This allows limiting CPU usage at `vmselect` for heavy queries.
 - `-search.maxResponseSeries` at `vmselect` limits the number of time series a single query can return
-  from [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query).
+  from [`/api/v1/query`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
 - `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each
-  matching time series from [range query](https://docs.victoriametrics.com/keyconcepts/#range-query).
+  matching time series from [range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
 - `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated
   per each matching time series during [subquery](https://docs.victoriametrics.com/metricsql/#subqueries) evaluation.
 - `-search.maxSeriesPerAggrFunc` limits the number of time series, which can be generated by [MetricsQL aggregate functions](https://docs.victoriametrics.com/metricsql/#aggregate-functions) in a single query.
 - `-search.maxSeries` at `vmselect` limits the number of time series, which may be returned from
-  [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+  [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series).
   This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values.
   Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains
-  big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
 - `-search.maxDeleteSeries` at `vmselect` limits the number of unique time
   series that can be deleted by a single
-  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
+  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series)
   call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.
 - `-search.maxTSDBStatusTopNSeries` at `vmselect` limits the number of unique time
   series that can be queried with topN argument by a single
-  [/api/v1/status/tsdb?topN=N](https://docs.victoriametrics.com/#tsdb-stats)
+  [/api/v1/status/tsdb?topN=N](https://docs.victoriametrics.com/victoriametrics/#tsdb-stats)
   call. 
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
-  [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels). This endpoint is used mostly by Grafana
+  [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels). This endpoint is used mostly by Grafana
   for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect`
-  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
 - `-search.maxTagValues` at `vmstorage` limits the number of items, which may be returned from
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues). This endpoint is used mostly by Grafana
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues). This endpoint is used mostly by Grafana
   for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect`
-  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
 - `-search.maxLabelsAPISeries` at `vmselect` limits the number of time series, which can be scanned
-  when performing [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) or
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) requests.
+  when performing [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels) or
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) requests.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
-  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxLabelsAPIDuration` at `vmselect` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+- `-search.maxLabelsAPIDuration` at `vmselect` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels),
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues)
+  or [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series).
   The limit can be overridden to a smaller value by passing `timeout` GET parameter.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
-  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxFederateSeries` at `vmselect` limits maximum number of time series, which can be returned via [/federate API](https://docs.victoriametrics.com#federation).
+- `-search.maxFederateSeries` at `vmselect` limits maximum number of time series, which can be returned via [/federate API](https://docs.victoriametrics.com/victoriametrics#federation).
   The duration of the `/federate` queries is limited via `-search.maxQueryDuration` flag. This option allows limiting memory usage.
-- `-search.maxExportSeries` at `vmselect` limits maximum number of time series, which can be returned from [/api/v1/export* APIs](https://docs.victoriametrics.com#how-to-export-data-in-json-line-format).
+- `-search.maxExportSeries` at `vmselect` limits maximum number of time series, which can be returned from [/api/v1/export* APIs](https://docs.victoriametrics.com/victoriametrics#how-to-export-data-in-json-line-format).
   The duration of the export queries is limited via `-search.maxExportDuration` flag. This option allows limiting memory usage.
-- `-search.maxTSDBStatusSeries` at `vmselect` limits maximum number of time series, which can be processed during the call to [/api/v1/status/tsdb](https://docs.victoriametrics.com#tsdb-stats).
+- `-search.maxTSDBStatusSeries` at `vmselect` limits maximum number of time series, which can be processed during the call to [/api/v1/status/tsdb](https://docs.victoriametrics.com/victoriametrics#tsdb-stats).
   The duration of the status queries is limited via `-search.maxStatusRequestDuration` flag. This option allows limiting memory usage.
 - `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day aka
-  [time series churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate). See [cardinality limiter docs](#cardinality-limiter).
-- `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
+  [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate). See [cardinality limiter docs](#cardinality-limiter).
+- `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
   See [cardinality limiter docs](#cardinality-limiter).
 
-See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent/#cardinality-limiter).
+See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 
 ## Helm
 
@@ -929,7 +929,7 @@ for newly ingested data when `N-1` of storage nodes are unavailable.
 
 VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes when the replication is enabled,
 so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics
-from identically configured [vmagent](https://docs.victoriametrics.com/vmagent/) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set
+from identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set
 to `scrape_interval` from scrape configs according to [deduplication docs](#deduplication).
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
@@ -945,7 +945,7 @@ HDD-based persistent disks should be enough for the majority of use cases. It is
 ## Deduplication
 
 Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. 
-See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that 
+See [these docs](https://docs.victoriametrics.com/victoriametrics#deduplication) for details. The only difference is that 
 deduplication can't be guaranteed when samples and sample duplicates for the same time series end up on different 
 `vmstorage` nodes. This could happen in the following scenarios:
 
@@ -964,7 +964,7 @@ for protecting from user errors such as accidental data deletion.
 The following steps must be performed for each `vmstorage` node for creating a backup:
 
 1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
-1. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/vmbackup/).
+1. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
    The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
 1. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
 
@@ -973,13 +973,13 @@ There is no need in synchronizing backups among all the `vmstorage` nodes.
 Restoring from backup:
 
 1. Stop `vmstorage` node with `kill -INT`.
-1. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/vmrestore/) into `-storageDataPath` directory.
+1. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) into `-storageDataPath` directory.
 1. Start `vmstorage` node.
 
 ## Retention filters
 
-[VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/) supports configuring multiple retentions for distinct sets of time series
-by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](https://docs.victoriametrics.com/#retention-filters) for details on this feature.
+[VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports configuring multiple retentions for distinct sets of time series
+by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics#retention-filters) for details on this feature.
 
 Additionally, enterprise version of VictoriaMetrics cluster supports multiple retentions for distinct sets of [tenants](#multitenancy)
 by specifying filters on `vm_account_id` and/or `vm_project_id` pseudo-labels in `-retentionFilter` command-line flag.
@@ -1000,7 +1000,7 @@ For example, the following config sets retention to 5 days for time series with 
 -retentionFilter='{vm_account_id="5",env="dev"}:5d'
 ```
 
-See also [these docs](https://docs.victoriametrics.com/#retention-filters) for additional details on retention filters.
+See also [these docs](https://docs.victoriametrics.com/victoriametrics#retention-filters) for additional details on retention filters.
 See also [downsampling](#downsampling).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -1008,10 +1008,10 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/).
-It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/#downsampling).
+Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/victoriametrics#downsampling).
 
-It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/keyconcepts/#filtering)
+It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples
 older than one hour only for [tenants](#multitenancy) with accountID equal to 12 and 42, while series for other tenants are dropped:
 
@@ -1030,7 +1030,7 @@ The same flag value must be passed to both `vmstorage` and `vmselect` nodes. Con
 command-line flag makes query results more consistent, because `vmselect` uses the maximum configured downsampling interval
 on the requested time range if this time range covers multiple downsampling levels.
 For example, if `-downsampling.period=30d:5m` and the query requests the last 60 days of data, then `vmselect`
-downsamples all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on the requested time range
+downsamples all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on the requested time range
 using 5 minute interval. If `-downsampling.period` command-line flag isn't set at `vmselect`,
 then query results can be less consistent because of mixing raw and downsampled data.
 
@@ -1067,7 +1067,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 ## vmalert
 
-vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert/)
+vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
 * for accessing vmalert UI through vmselect Web interface.
@@ -1088,7 +1088,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
-If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/contributing/).
+If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 
 ## Reporting bugs
 
@@ -1110,19 +1110,19 @@ Below is the output for `/path/to/vminsert -help`:
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
-     Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCertFile string
-     Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsInsecureSkipVerify
-     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsKeyFile string
-     Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.vminsertConnsShutdownDuration duration
-     The time needed for gradual closing of upstream vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining lower-level clusters during rolling restart. Smaller duration reduces the time needed to close all the upstream vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart (default 25s)
+     The time needed for gradual closing of upstream vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining lower-level clusters during rolling restart. Smaller duration reduces the time needed to close all the upstream vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart (default 25s)
   -clusternativeListenAddr string
-     TCP address to listen for data from other vminsert nodes in multi-level cluster setup. See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty
+     TCP address to listen for data from other vminsert nodes in multi-level cluster setup. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
@@ -1131,7 +1131,7 @@ Below is the output for `/path/to/vminsert -help`:
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics#query-tracing
   -disableRerouting
      Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload (default true)
   -disableReroutingOnUnavailable
@@ -1141,11 +1141,11 @@ Below is the output for `/path/to/vminsert -help`:
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
@@ -1154,7 +1154,7 @@ Below is the output for `/path/to/vminsert -help`:
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphite.sanitizeMetricName
-     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -1200,12 +1200,12 @@ Below is the output for `/path/to/vminsert -help`:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.forceStreamMode bool
-     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/victoriametrics#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -influx.maxRequestSize size
-     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
@@ -1269,7 +1269,7 @@ Below is the output for `/path/to/vminsert -help`:
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricNamesStatsResetAuthKey value
      AuthKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*
-     See https://docs.victoriametrics.com/#track-ingested-metrics-usage
+     See https://docs.victoriametrics.com/victoriametrics#track-ingested-metrics-usage
      Flag value can be read from the given file when using -metricNamesStatsResetAuthKey=file:///abs/path/to/file or -metricNamesStatsResetAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https
  url when using -metricNamesStatsResetAuthKey=http://host/path or -metricNamesStatsResetAuthKey=https://host/path
   -metrics.exposeMetadata
@@ -1278,18 +1278,18 @@ Below is the output for `/path/to/vminsert -help`:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.usePrometheusNaming
-     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/#sending-data-via-opentelemetry
+     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics#sending-data-via-opentelemetry
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpenTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
   -opentsdbHTTPListenAddr.useProxyProtocol
@@ -1323,11 +1323,11 @@ Below is the output for `/path/to/vminsert -help`:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -relabelConfig string
-     Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
+     Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelConfigCheckInterval duration
      Interval for checking for changes in '-relabelConfig' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -replicationFactor int
@@ -1337,23 +1337,23 @@ Below is the output for `/path/to/vminsert -help`:
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storageNode array
-     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery
+     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.discoveryInterval duration
-     Interval for refreshing -storageNode list behind DNS SRV records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/ (default 2s)
+     Interval for refreshing -storageNode list behind DNS SRV records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 2s)
   -storageNode.filter string
-     An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
@@ -1394,15 +1394,15 @@ Below is the output for `/path/to/vmselect -help`:
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
-     Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCertFile string
-     Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsInsecureSkipVerify
-     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to skip verification of TLS certificates provided by -storageNode nodes if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsKeyFile string
-     Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to client-side TLS key file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.disableCompression
      Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. This reduces CPU usage at the cost of higher network bandwidth usage
   -clusternative.maxConcurrentRequests int
@@ -1416,40 +1416,40 @@ Below is the output for `/path/to/vmselect -help`:
   -clusternative.maxTagValues int
      The maximum number of tag values returned per search at -clusternativeListenAddr (default 100000)
   -clusternative.tls
-     Whether to use TLS when accepting connections at -clusternativeListenAddr. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to use TLS when accepting connections at -clusternativeListenAddr. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by vmselect, which connects at -clusternativeListenAddr if -clusternative.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to TLS CA file to use for verifying certificates provided by vmselect, which connects at -clusternativeListenAddr if -clusternative.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.tlsCertFile string
-     Path to server-side TLS certificate file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to server-side TLS certificate file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.tlsCipherSuites array
-     Optional list of TLS cipher suites used for connections at -clusternativeListenAddr if -clusternative.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Optional list of TLS cipher suites used for connections at -clusternativeListenAddr if -clusternative.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -clusternative.tlsInsecureSkipVerify
-     Whether to skip verification of TLS certificates provided by vmselect, which connects to -clusternativeListenAddr if -clusternative.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to skip verification of TLS certificates provided by vmselect, which connects to -clusternativeListenAddr if -clusternative.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.tlsKeyFile string
-     Path to server-side TLS key file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to server-side TLS key file to use when accepting connections at -clusternativeListenAddr if -clusternative.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternativeListenAddr string
-     TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty
+     TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty
   -dedup.minScrapeInterval duration
-     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/victoriametrics#deduplication for details
   -deleteAuthKey value
      authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries. It could be passed via authKey query arg.
      Flag value can be read from the given file when using -deleteAuthKey=file:///abs/path/to/file or -deleteAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -deleteAuthKey=http://host/path or -deleteAuthKey=https://host/path
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/victoriametrics#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
@@ -1458,7 +1458,7 @@ Below is the output for `/path/to/vmselect -help`:
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -globalReplicationFactor int
-     How many copies of every ingested sample is available across vmstorage groups. vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. See https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor (default 1)
+     How many copies of every ingested sample is available across vmstorage groups. vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor (default 1)
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
@@ -1531,11 +1531,11 @@ Below is the output for `/path/to/vmselect -help`:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
@@ -1556,7 +1556,7 @@ Below is the output for `/path/to/vmselect -help`:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -replicationFactor array
@@ -1567,7 +1567,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.denyPartialResponse
      Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
   -search.disableCache
-     Whether to disable response caching. This may be useful when ingesting historical data. See https://docs.victoriametrics.com/#backfilling . See also -search.resetRollupResultCacheOnStartup
+     Whether to disable response caching. This may be useful when ingesting historical data. See https://docs.victoriametrics.com/victoriametrics#backfilling . See also -search.resetRollupResultCacheOnStartup
   -search.disableImplicitConversion
      Whether to return an error for queries that rely on implicit subquery conversions, see https://docs.victoriametrics.com/metricsql/#subqueries for details. See also -search.logImplicitConversion
   -search.graphiteMaxPointsPerSeries int
@@ -1603,11 +1603,11 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics#graphite-render-api-usage (default 300000)
   -search.maxGraphiteTagKeys int
-     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics#graphite-tags-api-usage (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics#graphite-tags-api-usage (default 100000)
   -search.maxLabelsAPIDuration duration
      The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
@@ -1667,7 +1667,7 @@ Below is the output for `/path/to/vmselect -help`:
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg.
      Flag value can be read from the given file when using -search.resetCacheAuthKey=file:///abs/path/to/file or -search.resetCacheAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -search.resetCacheAuthKey=http://host/path or -search.resetCacheAuthKey=https://host/path
   -search.resetRollupResultCacheOnStartup
-     Whether to reset rollup result cache on startup. See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache
+     Whether to reset rollup result cache on startup. See https://docs.victoriametrics.com/victoriametrics#rollup-result-cache . See also -search.disableCache
   -search.setLookbackToStep
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.skipSlowReplicas
@@ -1684,23 +1684,23 @@ Below is the output for `/path/to/vmselect -help`:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode array
-     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery
+     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.discoveryInterval duration
-     Interval for refreshing -storageNode list behind DNS SRV records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/ (default 2s)
+     Interval for refreshing -storageNode list behind DNS SRV records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 2s)
   -storageNode.filter string
-     An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
@@ -1745,37 +1745,37 @@ Below is the output for `/path/to/vmstorage -help`:
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
-     Whether to use TLS when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to use TLS when accepting connections from vminsert and vmselect. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by vminsert and vmselect if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to TLS CA file to use for verifying certificates provided by vminsert and vmselect if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCertFile string
-     Path to server-side TLS certificate file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to server-side TLS certificate file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsCipherSuites array
-     Optional list of TLS cipher suites used for connections from vminsert and vmselect if -cluster.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Optional list of TLS cipher suites used for connections from vminsert and vmselect if -cluster.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -cluster.tlsInsecureSkipVerify
-     Whether to skip verification of TLS certificates provided by vminsert and vmselect if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Whether to skip verification of TLS certificates provided by vminsert and vmselect if -cluster.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -cluster.tlsKeyFile string
-     Path to server-side TLS key file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Path to server-side TLS key file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -dedup.minScrapeInterval duration
-     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/victoriametrics#deduplication for details
   -denyQueriesOutsideRetention
      Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/victoriametrics#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -finalMergeDelay duration
@@ -1871,11 +1871,11 @@ Below is the output for `/path/to/vmstorage -help`:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
@@ -1898,11 +1898,11 @@ Below is the output for `/path/to/vmstorage -help`:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retentionFilter array
-     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/victoriametrics#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retentionPeriod value
@@ -1955,19 +1955,19 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.finalDedupScheduleCheckInterval duration
      The interval for checking when final deduplication process should be started.Storage unconditionally adds 25% jitter to the interval value on each check evaluation.
      Changing the interval to the bigger values may delay downsampling, deduplication for historical data.
-     See also https://docs.victoriametrics.com/#deduplication (default 1h0m0s)
+     See also https://docs.victoriametrics.com/victoriametrics#deduplication (default 1h0m0s)
   -storage.maxDailySeries int
-     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/#cardinality-limiter . See also -storage.maxHourlySeries
+     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics#cardinality-limiter . See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
-     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/#cardinality-limiter . See also -storage.maxDailySeries
+     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics#cardinality-limiter . See also -storage.maxDailySeries
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
   -storage.trackMetricNamesStats
      Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests.
-     See https://docs.victoriametrics.com/#track-ingested-metrics-usage
+     See https://docs.victoriametrics.com/victoriametrics#track-ingested-metrics-usage
   -storage.vminsertConnsShutdownDuration duration
-     The time needed for gradual closing of vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart (default 25s)
+     The time needed for gradual closing of vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart (default 25s)
   -storageDataPath string
      Path to storage data (default "vmstorage-data")
   -tls array
@@ -1975,11 +1975,11 @@ Below is the output for `/path/to/vmstorage -help`:
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
