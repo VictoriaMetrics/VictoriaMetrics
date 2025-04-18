@@ -517,12 +517,6 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
 			g.Limit)
 	}
-
-	logf := logger.Fatalf
-	if continueOnErr {
-		logf = logger.Errorf
-	}
-
 	for _, rule := range g.Rules {
 		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
 		var bar *pb.ProgressBar
@@ -533,7 +527,11 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		for ri.next() {
 			n, err := replayRule(rule, ri.s, ri.e, rw, replayRuleRetryAttempts)
 			if err != nil {
-				logf("rule %q: %s", rule, err)
+				if continueOnErr {
+					logger.Errorf("rule %q: %s", rule, err)
+				} else {
+					logger.Fatalf("rule %q: %s", rule, err)
+				}
 			}
 			total += n
 			if bar != nil {
