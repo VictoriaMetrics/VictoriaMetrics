@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add 0 label to the Y axis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8409).
+
 ## [v1.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.19.0-victorialogs)
 
 Released at 2025-04-17
