@@ -37,7 +37,6 @@ services:
       - "--vmalert.proxyURL=http://vmalert:8880"
     restart: always
 
-  # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     image: grafana/grafana:11.5.0
     depends_on:
@@ -46,14 +45,12 @@ services:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/datasources/${DATASOURCE:-prometheus-datasource}/single.yml:/etc/grafana/provisioning/datasources/single.yml
+      - ./provisioning/datasources/prometheus-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     restart: always
-    environment:
-      GF_INSTALL_PLUGINS: ${DATASOURCE:-}
 
   # vmalert executes alerting and recording rules
   vmalert:

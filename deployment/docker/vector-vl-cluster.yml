@@ -20,7 +20,7 @@ sinks:
   elasticsearch:
     type: elasticsearch
     inputs: [demo, msg_parser]
-    endpoints: [http://vmauth:8427/logs/insert/elasticsearch/]
+    endpoints: [http://vmauth:8427/insert/elasticsearch/]
     mode: bulk
     api_version: v8
     compression: gzip

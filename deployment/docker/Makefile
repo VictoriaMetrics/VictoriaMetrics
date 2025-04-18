@@ -208,58 +208,40 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
+# VM single
 docker-vm-single-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml up -d
-
-docker-single-up: docker-vm-single-up
 
 docker-vm-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml down -v
 
-docker-single-down: docker-vm-single-down
-
-docker-vm-single-datasource-up:
-	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml up -d
-
-docker-single-vm-datasource-up: docker-vm-single-datasource-up
-
-docker-vm-single-datasource-down:
-	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml down -v
-
-docker-single-vm-datasource-down: docker-vm-single-datasource-down
-
+# VM cluster
 docker-vm-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml up -d
-
-docker-cluster-up: docker-vm-cluster-up
 
 docker-vm-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
 
-docker-cluster-down: docker-vm-cluster-down
-
-docker-vm-cluster-datasource-up:
-	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml up -d
-
-docker-cluster-vm-datasource-up: docker-vm-cluster-datasource-up
-
-docker-vm-cluster-datasource-down:
-	DATASOURCE=victoriametrics-metrics-datasource $(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
-
-docker-cluster-vm-datasource-down: docker-vm-cluster-datasource-down
-
+# VL single
 docker-vl-single-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
-
-docker-victorialogs-up: docker-vl-single-up
 
 docker-vl-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
 
-docker-victorialogs-down: docker-vl-single-down
-
+# VL cluster
 docker-vl-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
 
 docker-vl-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
+
+# Command aliases to keep backward-compatibility, as they could have been mentioned on the Internet before the rename.
+docker-single-up: docker-vm-single-up
+docker-single-down: docker-vm-single-down
+
+docker-cluster-up: docker-vm-cluster-up
+docker-cluster-down: docker-vm-cluster-down
+
+docker-victorialogs-up: docker-vl-single-up
+docker-victorialogs-down: docker-vl-single-down

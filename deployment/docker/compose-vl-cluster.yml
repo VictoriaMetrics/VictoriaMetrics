@@ -13,7 +13,7 @@ services:
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
-      - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
+      - ./../../dashboards/victorialogs-cluster.json:/var/lib/grafana/dashboards/vl.json
     environment:
       - "GF_INSTALL_PLUGINS=victoriametrics-logs-datasource"
     restart: always
@@ -35,12 +35,7 @@ services:
       - "8686:8686"
     user: root
 
-  vlinsert-1:
-    image: victoriametrics/victoria-logs:v1.18.0-victorialogs
-    command:
-      - "--storageNode=vlstorage-1:9428"
-      - "--storageNode=vlstorage-2:9428"
-  vlinsert-2:
+  vlinsert:
     image: victoriametrics/victoria-logs:v1.18.0-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
@@ -73,7 +68,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.113.0
+    image: victoriametrics/victoria-metrics:v1.115.0
     volumes:
       - vmdata:/storage
       - ./prometheus-vl-cluster.yml:/etc/prometheus/prometheus.yml
@@ -86,13 +81,12 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.113.0
+    image: victoriametrics/vmauth:v1.115.0
     depends_on:
       - "victoriametrics"
       - "vlselect-1"
       - "vlselect-2"
-      - "vlinsert-1"
-      - "vlinsert-2"
+      - "vlinsert"
     volumes:
       - ./auth-vl-cluster.yml:/etc/auth.yml
     command:
@@ -103,7 +97,7 @@ services:
 
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.113.0
+    image: victoriametrics/vmalert:v1.115.0
     depends_on:
       - "vmauth"
       - "alertmanager"

@@ -23,5 +23,4 @@ scrape_configs:
 - job_name: vlinsert
   static_configs:
   - targets:
-    - vlinsert-1:9428
-    - vlinsert-2:9428
+    - vlinsert:9428

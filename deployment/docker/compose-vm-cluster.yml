@@ -16,7 +16,6 @@ services:
       - "--remoteWrite.url=http://vmauth:8427/insert/0/prometheus/api/v1/write"
     restart: always
 
-  # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     image: grafana/grafana:11.5.0
     depends_on:
@@ -26,14 +25,12 @@ services:
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/datasources/${DATASOURCE:-prometheus-datasource}/cluster.yml:/etc/grafana/provisioning/datasources/cluster.yml
+      - ./provisioning/datasources/prometheus-datasource/cluster.yml:/etc/grafana/provisioning/datasources/cluster.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
       - ./../../dashboards/vmauth.json:/var/lib/grafana/dashboards/vmauth.json
-    environment:
-      GF_INSTALL_PLUGINS: ${DATASOURCE:-}
 
   # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
   # where N is number of vmstorages (2 in this case).

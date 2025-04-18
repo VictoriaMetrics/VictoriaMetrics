@@ -47,7 +47,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.113.0
+    image: victoriametrics/victoria-metrics:v1.115.0
     volumes:
       - vmdata:/storage
       - ./prometheus-vl-single.yml:/etc/prometheus/prometheus.yml
@@ -60,7 +60,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.113.0
+    image: victoriametrics/vmauth:v1.115.0
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -72,9 +72,9 @@ services:
       - 8427:8427
     restart: always
 
-  # vmalert executes alerting and recording rules according to given rule type.
+  # vmalert executes alerting and recording rules according to the given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.113.0
+    image: victoriametrics/vmalert:v1.115.0
     depends_on:
       - "vmauth"
       - "alertmanager"
@@ -85,7 +85,6 @@ services:
       - ./rules/alerts.yml:/etc/alerts/alerts.yml
       - ./rules/alerts-vlogs.yml:/etc/alerts/vlogs.yml
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
-      - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
       # vlogs rule
       - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml

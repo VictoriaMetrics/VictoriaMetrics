@@ -123,7 +123,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
 VictoriaLogs stores the ingested data to the `victoria-logs-data` directory by default. The directory can be changed
 via `-storageDataPath` command-line flag. See [these docs](https://docs.victoriametrics.com/victorialogs/#storage) for details.
 
-By default VictoriaLogs stores [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/) with timestamps
+By default, VictoriaLogs stores [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/) with timestamps
 in the time range `[now-7d, now]`, while dropping logs outside the given time range.
 E.g. it uses the retention of 7 days. Read [these docs](https://docs.victoriametrics.com/victorialogs/#retention) on how to control the retention
 for the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.
@@ -137,7 +137,10 @@ See also:
 
 ## Docker demos
 
-Here are a Docker-compose demos, which start VictoriaLogs and push logs to it via various log collectors:
+Docker-compose demos for single-node and cluster version of VictoriaLogs that include logs collection,
+monitoring, alerting and Grafana are available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
+
+Docker-compose demos that integrate VictoriaLogs and various log collectors:
 
 - [Filebeat demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat)
 - [Fluentbit demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit)

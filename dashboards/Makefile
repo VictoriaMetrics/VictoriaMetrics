@@ -19,3 +19,4 @@ dashboards-sync:
 	SRC=backupmanager.json D_UID=gF-lxRdVz TITLE="VictoriaMetrics - backupmanager" $(MAKE) dashboard-copy
 	SRC=clusterbytenant.json D_UID=IZFqd3lMz TITLE="VictoriaMetrics Cluster Per Tenant Statistic" $(MAKE) dashboard-copy
 	SRC=victorialogs.json D_UID=OqPIZTX4z TITLE="VictoriaLogs" $(MAKE) dashboard-copy
+	SRC=victorialogs-cluster.json D_UID=XqCOFEX4z TITLE="VictoriaLogs - cluster" $(MAKE) dashboard-copy
