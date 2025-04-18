@@ -725,7 +725,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/2.49/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/2.53/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
   Used as alert source in AlertManager.
