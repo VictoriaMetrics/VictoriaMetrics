@@ -137,4 +137,21 @@ func TestReplay(t *testing.T) {
 			},
 		},
 	})
+
+	// multiple alerting rules in one group+ multiple responses + concurrency
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, []config.Group{
+		{Rules: []config.Rule{{Alert: "foo", Expr: "sum(up) > 1"}, {Alert: "bar", Expr: "max(up) < 1"}}, Concurrency: 2}}, &fakeReplayQuerier{
+		registry: map[string]map[string]struct{}{
+			"sum(up) > 1": {
+				"12:00:00+12:01:00": {},
+				"12:01:00+12:02:00": {},
+				"12:02:00+12:02:30": {},
+			},
+			"max(up) < 1": {
+				"12:00:00+12:01:00": {},
+				"12:01:00+12:02:00": {},
+				"12:02:00+12:02:30": {},
+			},
+		},
+	})
 }

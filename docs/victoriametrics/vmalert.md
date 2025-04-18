@@ -808,7 +808,7 @@ max range per request:  8h20m0s
 ```
 
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
-executed sequentially as well (`concurrency` setting is ignored). vmalert sends rule's expression
+executed per the `concurrency` setting of the group. vmalert sends rule's expression
 to [/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
@@ -840,7 +840,7 @@ There are following non-required `replay` flags:
   the fewer requests will be issued during `replay`.
 * `-replay.ruleRetryAttempts` - when datasource fails to respond vmalert will make this number of retries
   per rule before giving up.
-* `-replay.rulesDelay` - delay between sequential rules execution. Important in cases if there are chaining
+* `-replay.rulesDelay` - delay between sequential rules execution, ignored during concurrent rule execution. Important in cases if there are chaining
   (rules which depend on each other) rules. It is expected, that remote storage will be able to persist
   previously accepted data during the delay, so data will be available for the subsequent queries.
   Keep it equal or bigger than `-remoteWrite.flushInterval`.
