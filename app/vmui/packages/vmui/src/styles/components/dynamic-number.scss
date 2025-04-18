@@ -21,6 +21,10 @@
     color: $color-error;
   }
 
+  &_warning {
+    color: $color-warning;
+  }
+
   &:before {
     position: absolute;
     top: auto;

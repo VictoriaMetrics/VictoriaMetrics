@@ -45,6 +45,7 @@ const MetricsContent: FC<MetricsProperties> = ({
   const tableCells = (row: Data) => (
     <TableCells
       row={row}
+      tableHeaderCells={tableHeaderCells}
       totalSeries={totalSeries}
       totalSeriesPrev={totalSeriesPrev}
       onActionClick={onActionClick}
