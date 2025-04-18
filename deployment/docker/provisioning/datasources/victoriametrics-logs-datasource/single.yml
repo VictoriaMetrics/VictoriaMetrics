@@ -4,9 +4,9 @@ datasources:
   - name: VictoriaLogs
     type: victoriametrics-logs-datasource
     access: proxy
-    url:  http://victorialogs:9428
+    url:  http://vmauth:8427/
 
   - name: VictoriaMetrics
     type: prometheus
     access: proxy
-    url: http://victoriametrics:8428
+    url: http://vmauth:8427/

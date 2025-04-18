@@ -31,10 +31,10 @@ Querying the data
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
 Vector configuration example can be found below:
-* [elasticsearch](./elasticsearch/vector.yaml)
-* [loki](./loki/vector.yaml)
-* [jsonline single node](./jsonline/vector.yaml)
-* [jsonline HA setup](./jsonline-ha/vector.yaml)
-* [datadog](./datadog/vector.yaml)
+* [elasticsearch](./elasticsearch/vector.yml)
+* [loki](./loki/vector.yml)
+* [jsonline single node](./jsonline/vector.yml)
+* [jsonline HA setup](./jsonline-ha/vector.yml)
+* [datadog](./datadog/vector.yml)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.
