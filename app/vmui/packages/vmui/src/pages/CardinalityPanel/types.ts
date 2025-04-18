@@ -18,6 +18,8 @@ export interface TopHeapEntry {
   value: number;
   diff: number;
   valuePrev: number;
+  lastRequestTimestamp: number;
+  requestsCount: number;
 }
 
 interface QueryUpdaterArgs {
