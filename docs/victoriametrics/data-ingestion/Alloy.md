@@ -13,7 +13,8 @@ aliases:
   - /data-ingestion/grafana-agent.html
   - /data-ingestion/grafana-agent/index.html
   - /data-ingestion/grafana-agent/
-
+  - /data-ingestion/alloy/index.html
+  - /data-ingestion/alloy/
 ---
 
 [Grafana Alloy](https://grafana.com/docs/alloy/latest/) supports sending data via the Prometheus remote write protocol and OpenTelemetry Protocol (OTLP).
