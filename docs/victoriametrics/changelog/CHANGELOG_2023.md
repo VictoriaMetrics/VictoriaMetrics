@@ -11,8 +11,8 @@ menu:
 aliases:
 - /CHANGELOG_2023.html
 - /changelog_2023
-- /changelog_2023/index.html
-- /changelog_2023/
+- /changelog/changelog_2023/index.html
+- /changelog/changelog_2023/
 ---
 ## [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0)
 
