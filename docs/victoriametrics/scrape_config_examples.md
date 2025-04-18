@@ -7,6 +7,9 @@ menu:
     weight: 37
 aliases:
 - /scrape_config_examples.html
+- /scrape_config_examples/index.html
+- /scrape_config_examples/
+
 ---
 - [Static configs](#static-configs)
 - [File-based target discovery](#file-based-target-discovery)

@@ -8,6 +8,8 @@ menu:
     weight: 80
 aliases:
 - /enterprise.html
+- /enterprise/index.html
+- /enterprise/
 ---
 VictoriaMetrics components are provided in two kinds - [Community edition](https://victoriametrics.com/products/open-source/)
 and [Enterprise edition](https://victoriametrics.com/products/enterprise/).

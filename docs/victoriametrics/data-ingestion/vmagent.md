@@ -8,6 +8,8 @@ menu:
     weight: 2
 aliases:
   - /data-ingestion/vmagent.html
+  - /data-ingestion/vmagent/index.html
+  - /data-ingestion/vmagent/
   - /data-ingestion/VMAgent.html
 ---
 

@@ -9,6 +9,8 @@ menu:
 
 aliases:
   - /url-examples.html
+  - /url-examples/index.html
+  - /url-examples/
 ---
 ### /api/v1/admin/tsdb/delete_series
 

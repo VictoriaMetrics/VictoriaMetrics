@@ -8,6 +8,8 @@ menu:
 title: Cluster version
 aliases:
   - /Cluster-VictoriaMetrics.html
+  - /cluster-victoriametrics/index.html
+  - /cluster-victoriametrics/
 ---
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.

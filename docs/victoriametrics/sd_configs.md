@@ -7,6 +7,8 @@ menu:
     weight: 36
 aliases:
 - /sd_configs.html
+- /sd_configs/index.html
+- /sd_configs/
 ---
 # Supported service discovery configs
 

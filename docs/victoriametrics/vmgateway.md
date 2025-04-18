@@ -7,6 +7,8 @@ menu:
 title: vmgateway
 aliases:
   - /vmgateway.html
+  - /vmgateway/index.html
+  - /vmgateway/
 ---
 ***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). 
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
