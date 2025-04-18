@@ -8,5 +8,7 @@ menu:
     weight: 100
 aliases:
   - /CHANGELOG.html
+  - /changelog/index.html
+  - /changelog/
 ---
 {{% content "CHANGELOG.md" %}}

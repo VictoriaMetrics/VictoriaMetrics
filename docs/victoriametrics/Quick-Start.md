@@ -8,6 +8,8 @@ menu:
     weight: 1
 aliases:
 - /Quick-Start.html
+- /quick-start/index.html
+- /quick-start/
 ---
 ## How to install
 

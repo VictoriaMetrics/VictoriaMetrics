@@ -9,6 +9,8 @@ menu:
 aliases:
   - /PerTenantStatistic.html
   - /pertenantstatistic
+  - /pertenantstatistic/index.html
+  - /pertenantstatistic/
 ---
 ![cluster-per-tenant-stat](PerTenantStatistic-stats.webp)
 

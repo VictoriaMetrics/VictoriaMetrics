@@ -7,6 +7,8 @@ menu:
 title: vmrestore
 aliases:
   - /vmrestore.html
+  - /vmrestore/index.html
+  - /vmrestore/
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup/).
 

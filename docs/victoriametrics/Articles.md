@@ -7,6 +7,8 @@ menu:
     weight: 29
 aliases:
 - /Articles.html
+- /articles/index.html
+- /articles/
 ---
 See also [case studies](https://docs.victoriametrics.com/casestudies/).
 

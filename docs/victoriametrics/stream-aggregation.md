@@ -7,6 +7,8 @@ menu:
     weight: 39
 aliases:
 - /stream-aggregation.html
+- /stream-aggregation/index.html
+- /stream-aggregation/
 ---
 [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage

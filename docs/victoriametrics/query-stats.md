@@ -7,6 +7,8 @@ menu:
     weight: 82
 aliases:
 - /query-stats.html
+- /query-stats/index.html
+- /query-stats/
 ---
 
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging {{% available_from "#" %}} for

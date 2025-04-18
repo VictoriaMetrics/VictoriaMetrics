@@ -8,6 +8,8 @@ menu:
 aliases:
 - /FAQ.html
 - /faq.html
+- /faq/index.html
+- /faq/
 ---
 ## What is the main purpose of VictoriaMetrics?
 

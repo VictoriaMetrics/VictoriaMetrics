@@ -11,6 +11,8 @@ aliases:
   - /data-ingestion/grafana-alloy.html
   - /data-ingestion/Grafana-Agent.html
   - /data-ingestion/grafana-agent.html
+  - /data-ingestion/grafana-agent/index.html
+  - /data-ingestion/grafana-agent/
 
 ---
 

@@ -8,6 +8,8 @@ menu:
     weight: 400
 aliases:
 - /CONTRIBUTING.html
+- /contributing/index.html
+- /contributing/
 ---
 If you like VictoriaMetrics and want to contribute, then it would be great:
 

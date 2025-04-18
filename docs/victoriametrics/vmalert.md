@@ -7,6 +7,8 @@ menu:
 title: vmalert
 aliases:
   - /vmalert.html
+  - /vmalert/index.html
+  - /vmalert/
 ---
 `vmalert` executes a list of the given [alerting](https://docs.victoriametrics.com/vmalert/#alerting-rules)
 or [recording](https://docs.victoriametrics.com/vmalert/#recording-rules)
