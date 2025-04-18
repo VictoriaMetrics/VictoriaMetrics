@@ -1,7 +1,6 @@
 services:
   vmagent:
-    container_name: vmagent
-    image: victoriametrics/vmagent:v1.113.0
+    image: victoriametrics/vmagent:v1.115.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -12,13 +11,10 @@ services:
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
-    networks:
-      - vm_net
     restart: always
 
   victoriametrics:
-    container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.113.0
+    image: victoriametrics/victoria-metrics:v1.115.0
     ports:
       - 8428:8428
     volumes:
@@ -28,12 +24,9 @@ services:
       - "--httpListenAddr=:8428"
       - "--vmalert.proxyURL=http://vmalert:8880"
       - "-search.disableCache=1" # for guide only, do not use in production
-    networks:
-      - vm_net
     restart: always
 
   grafana:
-    container_name: grafana
     image: grafana/grafana-oss:10.2.1
     depends_on:
       - "victoriametrics"
@@ -44,13 +37,10 @@ services:
       - ./provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./vmanomaly_guide_dashboard.json:/var/lib/grafana/dashboards/vmanomaly_guide_dashboard.json
-    networks:
-      - vm_net
     restart: always
 
   vmalert:
-    container_name: vmalert
-    image: victoriametrics/vmalert:v1.113.0
+    image: victoriametrics/vmalert:v1.115.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -67,18 +57,13 @@ services:
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
       # when copypaste the line be aware of '$$' for escaping in '$expr'
       - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr": },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
-    networks:
-      - vm_net
     restart: always
   vmanomaly:
-    container_name: vmanomaly
     image: victoriametrics/vmanomaly:v1.21.0
     depends_on:
       - "victoriametrics"
     ports:
       - "8490:8490"
-    networks:
-      - vm_net
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
@@ -88,7 +73,6 @@ services:
       - "/config.yaml"
       - "--licenseFile=/license"
   alertmanager:
-    container_name: alertmanager
     image: prom/alertmanager:v0.28.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
@@ -96,23 +80,16 @@ services:
       - "--config.file=/config/alertmanager.yml"
     ports:
       - 9093:9093
-    networks:
-      - vm_net
     restart: always
 
   node-exporter:
     image: quay.io/prometheus/node-exporter:v1.7.0
-    container_name: node-exporter
     ports:
       - 9100:9100
     pid: host
     restart: unless-stopped
-    networks:
-      - vm_net
 
 volumes:
   vmagentdata-guide-vmanomaly-vmalert: {}
   vmdata-guide-vmanomaly-vmalert: {}
   grafanadata-guide-vmanomaly-vmalert: {}
-networks:
-  vm_net:

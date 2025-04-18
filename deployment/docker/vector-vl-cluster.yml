@@ -20,7 +20,7 @@ sinks:
   elasticsearch:
     type: elasticsearch
     inputs: [demo, msg_parser]
-    endpoints: [http://victorialogs:9428/insert/elasticsearch/]
+    endpoints: [http://vmauth:8427/insert/elasticsearch/]
     mode: bulk
     api_version: v8
     compression: gzip
@@ -30,7 +30,7 @@ sinks:
       headers:
         VL-Stream-Fields: source_type,label.com.docker.compose.service
         VL-Time-Field: timestamp
-        VL-Msg-Field: message,log
+        VL-Msg-Field: message,msg,_msg,message.message,message.log
         AccountID: "0"
         ProjectID: "0"
   victoriametrics:

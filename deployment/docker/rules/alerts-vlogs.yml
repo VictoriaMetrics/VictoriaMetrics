@@ -3,8 +3,6 @@
 # and threshold calibration according to every specific setup.
 groups:
   - name: vlogs
-    interval: 30s
-    concurrency: 2
     rules:
       - alert: DiskRunsOutOfSpace
         expr: |
