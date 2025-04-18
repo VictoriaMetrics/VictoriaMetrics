@@ -1379,6 +1379,5 @@ func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern str
 func ResetMetricNamesStats(qt *querytracer.Tracer) error {
 	qt = qt.NewChild("reset metric names usage stats")
 	defer qt.Done()
-	vmstorage.ResetMetricNamesStats(qt)
-	return nil
+	return vmstorage.ResetMetricNamesStats(qt)
 }
