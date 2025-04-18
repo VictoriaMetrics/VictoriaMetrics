@@ -2,6 +2,7 @@
 
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
+DOCKER_ROOT := $(dir $(lastword $(MAKEFILE_LIST)))
 
 ROOT_IMAGE ?= alpine:3.21.3
 ROOT_IMAGE_SCRATCH ?= scratch
@@ -208,33 +209,14 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
-# VM single
-docker-vm-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml up -d
-
-docker-vm-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml down -v
-
-# VM cluster
-docker-vm-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml up -d
-
-docker-vm-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
-
-# VL single
+# Make targets for docker compose setups
 docker-vl-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
+	$(eval COMPOSE_FILE := $(patsubst docker-%-up,compose-%,$@))
+	$(DOCKER_COMPOSE) -f $(DOCKER_ROOT)/$(COMPOSE_FILE).yml up -d
 
-docker-vl-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
-
-# VL cluster
-docker-vl-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
-
-docker-vl-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
+docker-%-down:
+	$(eval COMPOSE_FILE := $(patsubst docker-%-down,compose-%,$@))
+	$(DOCKER_COMPOSE) -f $(DOCKER_ROOT)/$(COMPOSE_FILE).yml down -v
 
 # Command aliases to keep backward-compatibility, as they could have been mentioned on the Internet before the rename.
 docker-single-up: docker-vm-single-up
