@@ -1126,27 +1126,63 @@ See also [aggregation outputs](#aggregation-outputs).
 
 ## Dropping unneeded labels
 
-If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
-and [stream aggregation](#aggregation-outputs), then the following options exist:
+To optimize performance and reduce the [churn rate](https://docs.victoriametrics.com/guides/understand-your-setup-size/#churn-rate), 
+certain labels can be dropped from incoming samples before [input relabeling](#relabeling),
+[de-duplication](#deduplication) and [stream aggregation](#aggregation-outputs) are applied.
+There are several ways to drop labels, which can be used independently or together.
 
-- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag
-  or via `-remoteWrite.streamAggr.dropInputLabels` individually per each `-remoteWrite.url`.
-  For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
-  before applying de-duplication and stream aggregation.
+**Global label dropping** is configured using the `-streamAggr.dropInputLabels` flag.
+It works in conjunction with the `-streamAggr.config` flag and applies to all matching sections in it.
+The flag could be applied on [vmagent](https://docs.victoriametrics.com/vmagent/), vminsert and [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/). 
+The following example drops the `replica` and `az` labels for both `foo` and `bar` remote write targets:
 
-- To specify `drop_input_labels` list with the labels to drop in [stream aggregation config](#stream-aggregation-config).
-  For example, the following config drops `replica` label from input samples with the name `process_resident_memory_bytes`
-  before calculating the average over one minute:
+```bash
+/path/to/vmagent \
+  -remoteWrite.url="http://foo/api/v1/write" \
+  -remoteWrite.url="http://bar/api/v1/write" \
+  -streamAggr.config="aggr.yaml" \
+  -streamAggr.dropInputLabels="replica,az"
+```
 
-  ```yaml
-  - match: process_resident_memory_bytes
-    interval: 1m
-    drop_input_labels: [replica]
-    outputs: [avg]
-    keep_metric_names: true
-  ```
+**Per remote write label drop** is configured using the `-remoteWrite.streamAggr.dropInputLabels` flag.  
+This flag is available for [vmagent](https://docs.victoriametrics.com/vmagent/) only.
 
-Typical use case is to drop `replica` label from samples, which are received from high availability replicas.
+It works similarly to `-streamAggr.dropInputLabels` when defined once.  
+In the example below, `replica` and `az` are dropped for both `foo` and `bar` remote write targets:
+
+```bash
+/path/to/vmagent \
+  -remoteWrite.url="http://foo/api/v1/write" \
+  -remoteWrite.url="http://bar/api/v1/write" \
+  -remoteWrite.streamAggr.config="aggr.yaml" \
+  -remoteWrite.streamAggr.dropInputLabels="replica^^az"
+```
+
+When the flag is specified multiple times, it applies to the corresponding remote write target.
+In the example below, `replica` and `az` are dropped for the `foo` target,
+while `instance` is dropped for the `bar` target:
+
+```bash
+/path/to/vmagent \
+  -remoteWrite.url="http://foo/api/v1/write" \
+  -remoteWrite.url="http://bar/api/v1/write" \
+  -remoteWrite.streamAggr.config="aggr.yaml" \
+  -remoteWrite.streamAggr.dropInputLabels="replica^^az" \
+  -remoteWrite.streamAggr.dropInputLabels="instance"
+```
+
+**Config based label drop** can be defined within the [stream aggregation config](#stream-aggregation-config) using the `drop_input_labels` key.
+This method applies to configurations provided via either the `-streamAggr.config` or `-remoteWrite.streamAggr.config` flag.
+When specified, `drop_input_labels` takes precedence over any label drop definitions set via flags.
+Here is an example `aggr.yaml` configuration that drops the `replica` and `az` labels from `process_resident_memory_bytes` metrics:
+
+```yaml
+- match: 'process_resident_memory_bytes'
+  interval: '1m'
+  drop_input_labels: ['replica', 'az']
+  outputs: ['avg']
+  keep_metric_names: true
+```
 
 # Troubleshooting
 
