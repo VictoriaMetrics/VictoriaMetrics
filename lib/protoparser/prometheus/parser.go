@@ -7,9 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // Rows contains parsed Prometheus rows.
@@ -113,7 +114,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		s = s[n+1:]
 		tagsStart := len(tagsPool)
 		var err error
-		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
+		s, tagsPool, err = r.unmarshalTags(tagsPool, s, noEscapes)
 		if err != nil {
 			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
@@ -230,43 +231,101 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
-func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
+func unmarshalQuotedString(s string, noEscapes bool) (string, string, error) {
+	q := strings.IndexByte(s, '"')
+
+	// Check to see if s can contain 2 characters
+	if q == -1 || len(s[q:]) < 2 {
+		return "", s, fmt.Errorf("missing starting double quote in string: %q", s)
+	}
+	var n int
+	if noEscapes {
+		n = strings.IndexByte(s[q+1:], '"')
+		if n == -1 {
+			return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
+		}
+		// Add 2 to account for both quotes
+		return s[q+1 : q+1+n], s[q+2+n:], nil
+	}
+	n = findClosingQuote(s[q:])
+	if n == -1 {
+		return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
+	}
+	return unescapeValue(s[q+1 : n]), s[n+1:], nil
+}
+
+func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
+	// Edge case for no tags
+	s = skipLeadingWhitespace(s)
+	if s == "" {
+		return s, dst, nil
+	}
+	var err error
+
 	for {
 		s = skipLeadingWhitespace(s)
-		if len(s) > 0 && s[0] == '}' {
-			// End of tags found.
-			return s[1:], dst, nil
-		}
-		n := strings.IndexByte(s, '=')
+		n := strings.IndexByte(s, '"')
 		if n < 0 {
+			// Check that are we done with tags
+			if len(s) > 0 && s[0] == '}' {
+				return s[1:], dst, nil
+			}
 			return s, dst, fmt.Errorf("missing value for tag %q", s)
 		}
-		key := skipTrailingWhitespace(s[:n])
-		if strings.IndexByte(key, '"') >= 0 {
-			return s, dst, fmt.Errorf("tag key %q cannot contain double quotes", key)
+		// Determine if this is a value or quoted label
+		possibleKey := skipTrailingWhitespace(s[:n])
+		possibleKeyLen := len(possibleKey)
+		key := ""
+		if possibleKeyLen == 0 || possibleKey[possibleKeyLen-1] == ',' {
+			// Parse quoted label
+			key, s, err = unmarshalQuotedString(s, noEscapes)
+			if err != nil {
+				return s, dst, err
+			}
+			s = skipLeadingWhitespace(s)
+			// Check to see if next char is = if not this is a metric name
+			if len(s) > 0 {
+				if s[0] == ',' || s[0] == '}' {
+					if r.Metric == "" {
+						r.Metric = key
+					}
+					if len(s) > 1 && s[0] == ',' {
+						s = s[1:]
+					}
+					continue
+				} else if s[0] != '=' {
+					// We are a quoted label that isn't preceded by a comma or at the end
+					// of the tags so we must have a value
+					return s, dst, fmt.Errorf("missing value for tag %q", key)
+				}
+				s = skipLeadingWhitespace(s[1:])
+			}
+			// Fall through to parsing value
+		} else {
+			c := possibleKey[len(possibleKey)-1]
+			// This is an unquoted label
+			if c == '=' {
+				// Parse unquoted label
+				key = skipLeadingWhitespace(s[:possibleKeyLen-1])
+				key = skipTrailingWhitespace(key)
+				s = skipLeadingWhitespace(s[possibleKeyLen:])
+				// This will bottom out to parsing value
+			} else {
+				// We have an unquoted tag without a value
+				return s, dst, fmt.Errorf("missing value for tag %q", s)
+			}
 		}
-		s = skipLeadingWhitespace(s[n+1:])
+		// Parse value
 		if len(s) == 0 || s[0] != '"' {
 			return s, dst, fmt.Errorf("expecting quoted value for tag %q; got %q", key, s)
 		}
-		value := s[1:]
-		if noEscapes {
-			// Fast path - the line has no escape chars
-			n = strings.IndexByte(value, '"')
-			if n < 0 {
-				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
-			}
-			s = value[n+1:]
-			value = value[:n]
-		} else {
-			// Slow path - the line contains escape chars
-			n = findClosingQuote(s)
-			if n < 0 {
-				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
-			}
-			value = unescapeValue(s[1:n])
-			s = s[n+1:]
+		var value string
+		value, s, err = unmarshalQuotedString(s, noEscapes)
+
+		if err != nil {
+			return s, dst, err
 		}
+
 		if len(key) > 0 {
 			// Allow empty values (len(value)==0) - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
 			if cap(dst) > len(dst) {
