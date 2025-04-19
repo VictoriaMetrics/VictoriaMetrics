@@ -3475,7 +3475,7 @@ func readMetricNamesStatsRecords(bc *handshake.BufferedConn) ([]storage.MetricNa
 	records := make([]storage.MetricNamesStatsRecord, n)
 	var mnBuff []byte
 	for i := range n {
-		mnBuff, err = readBytes(mnBuff[:0], bc, 256)
+		mnBuff, err = readBytes(mnBuff[:0], bc, maxLabelValueSize)
 		if err != nil {
 			return records, fmt.Errorf("cannot read record metricName: %w", err)
 		}
