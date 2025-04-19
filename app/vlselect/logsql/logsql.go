@@ -938,6 +938,53 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 }
 
+// ProcessAdminTenantsRequest processes /select/logsql/admin_tenants request.
+func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	start, okStart, err := getTimeNsec(r, "start")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	end, okEnd, err := getTimeNsec(r, "end")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if !okStart {
+		start = math.MinInt64
+	}
+	if !okEnd {
+		end = math.MaxInt64
+	}
+
+	sw := &syncWriter{
+		w: w,
+	}
+
+	var bwShards atomicutil.Slice[bufferedWriter]
+	bwShards.Init = func(shard *bufferedWriter) {
+		shard.sw = sw
+	}
+	defer func() {
+		shards := bwShards.GetSlice()
+		for _, shard := range shards {
+			shard.FlushIgnoreErrors()
+		}
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+
+	tenants, err := vlstorage.GetTenantIDs(ctx, start, end)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain tenantIDs: %s", err)
+		return
+	}
+
+	bb := blockResultPool.Get()
+	WriteTenantsResponse(bb, tenants)
+	blockResultPool.Put(bb)
+}
+
 type syncWriter struct {
 	mu sync.Mutex
 	w  io.Writer

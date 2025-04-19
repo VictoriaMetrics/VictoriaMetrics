@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -58,6 +59,11 @@ const (
 	//
 	// It must be updated every time the protocol changes.
 	QueryProtocolVersion = "v1"
+
+	// TenantIDsProtocolVersion is the version of the protocol used for /internal/select/tenant_ids HTTP endpoint.
+	//
+	// It must be updated every time the protocol changes.
+	TenantIDsProtocolVersion = "v1"
 )
 
 // Storage is a network storage for querying remote storage nodes in the cluster.
@@ -222,6 +228,14 @@ func (sn *storageNode) getStreamIDs(ctx context.Context, tenantIDs []logstorage.
 	args.Set("limit", fmt.Sprintf("%d", limit))
 
 	return sn.getValuesWithHits(ctx, "/internal/select/stream_ids", args)
+}
+
+func (sn *storageNode) getTenantIDs(ctx context.Context) ([]string, error) {
+	// data, err := sn.executeRequestAt(ctx, "/internal/select", args)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return sn.getTenantIDs(ctx)
 }
 
 func (sn *storageNode) getCommonArgs(version string, tenantIDs []logstorage.TenantID, q *logstorage.Query) url.Values {
@@ -401,6 +415,49 @@ func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []logstorage.Tenan
 	return s.getValuesWithHits(ctx, limit, true, func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error) {
 		return sn.getStreamIDs(ctx, tenantIDs, q, limit)
 	})
+}
+
+// GetTenantIDs returns tenantIDs for the given start and end.
+func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]string, error) {
+	return s.getTenantIDs(ctx, start, end)
+}
+
+func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]string, error) {
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	results := make([][]string, len(s.sns))
+	errs := make([]error, len(s.sns))
+
+	var wg sync.WaitGroup
+	for i := range s.sns {
+		wg.Add(1)
+		go func(nodeIdx int) {
+			defer wg.Done()
+
+			sn := s.sns[nodeIdx]
+			tenantIDs, err := sn.getTenantIDs(ctxWithCancel)
+			results[nodeIdx] = tenantIDs
+			errs[nodeIdx] = err
+
+			if err != nil {
+				// Cancel the remaining parallel requests
+				cancel()
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	if err := getFirstNonCancelError(errs); err != nil {
+		return nil, err
+	}
+
+	for _, result := range results {
+		log.Printf("RESULT => %#v", result)
+	}
+	// tenantIDs := logstorage.MergeTenantIDs(results)
+
+	return results[0], nil
 }
 
 func (s *Storage) getValuesWithHits(ctx context.Context, limit uint64, resetHitsOnLimitExceeded bool,
