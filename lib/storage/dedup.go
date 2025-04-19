@@ -2,6 +2,7 @@ package storage
 
 import (
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
@@ -12,18 +13,26 @@ import (
 //
 // This function must be called before initializing the storage.
 func SetDedupInterval(dedupInterval time.Duration) {
-	globalDedupInterval = dedupInterval.Milliseconds()
+	globalDedupInterval.value = dedupInterval.Milliseconds()
 }
 
 // GetDedupInterval returns the dedup interval in milliseconds, which has been set via SetDedupInterval.
 func GetDedupInterval() int64 {
-	return globalDedupInterval
+	return globalDedupInterval.value
 }
 
-var globalDedupInterval int64
+type globalDedupIntervalStructWithPadding struct {
+	value int64
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(int64(0))%128]byte
+}
+
+var globalDedupInterval globalDedupIntervalStructWithPadding
 
 func isDedupEnabled() bool {
-	return globalDedupInterval > 0
+	return globalDedupInterval.value > 0
 }
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in milliseconds.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -92,11 +93,20 @@ func (bh *blockHeader) Less(src *blockHeader) bool {
 	return bh.TSID.Less(&src.TSID)
 }
 
+type marshaledBlockHeaderSizeWithPadding struct {
+	value int
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0
+	_ [128 - (unsafe.Sizeof(int(0)) % 128)]byte
+}
+
 // marshaledBlockHeaderSize is the size of marshaled block header.
-var marshaledBlockHeaderSize = func() int {
+var marshaledBlockHeaderSize = func() marshaledBlockHeaderSizeWithPadding {
 	var bh blockHeader
 	data := bh.Marshal(nil)
-	return len(data)
+	var marshaledBlockHeaderSize marshaledBlockHeaderSizeWithPadding
+	marshaledBlockHeaderSize.value = len(data)
+	return marshaledBlockHeaderSize
 }()
 
 // Marshal appends marshaled bh to dst and returns the result.
@@ -117,8 +127,8 @@ func (bh *blockHeader) Marshal(dst []byte) []byte {
 
 // Unmarshal unmarshals bh from src and returns the rest of src.
 func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
-	if len(src) < marshaledBlockHeaderSize {
-		return src, fmt.Errorf("too short block header; got %d bytes; want %d bytes", len(src), marshaledBlockHeaderSize)
+	if len(src) < marshaledBlockHeaderSize.value {
+		return src, fmt.Errorf("too short block header; got %d bytes; want %d bytes", len(src), marshaledBlockHeaderSize.value)
 	}
 
 	tail, err := bh.TSID.Unmarshal(src)
