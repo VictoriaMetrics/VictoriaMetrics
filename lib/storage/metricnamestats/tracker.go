@@ -19,9 +19,7 @@ import (
 )
 
 const (
-	// metricNameBufSize can hold up to 64 metric name values
-	// max size of metric name label value is 256
-	// but usual size of metric name is 16-32
+	// metricNameBufSize defines size buffer for metric name allocations
 	metricNameBufSize = 16 * 1024
 	statItemBufSize   = 1024
 	// statKey + statItem + approx key-value at map in-memory size
@@ -176,6 +174,13 @@ func (mt *Tracker) nextRecordLocked() *statItem {
 // it allocates metricNamesBuf, copies provide metricGroup into it
 // and uses string *byte references for it via subslice.
 func (mt *Tracker) cloneMetricNameLocked(metricName []byte) string {
+	if len(metricName) > metricNameBufSize {
+		// metricName is too large for default buffer
+		// directly allocate it on heap as strings.Clone does
+		b := make([]byte, len(metricName))
+		copy(b, metricName)
+		return bytesutil.ToUnsafeString(b)
+	}
 	idx := len(mt.metricNamesBuf)
 	n := len(metricName) + len(mt.metricNamesBuf)
 	if n > cap(mt.metricNamesBuf) {
