@@ -7,6 +7,7 @@ export interface HeadCell {
   label: string | ReactNode;
   info?: string;
   sortable?: boolean;
+  modifiers?: string[]; // modifiers for styling
 }
 
 export interface EnhancedHeaderTableProps {
@@ -34,4 +35,6 @@ export interface Data {
   valuePrev: number;
   progressValue: number;
   actions: string;
+  lastRequestTimestamp: number;
+  requestsCount: number;
 }
