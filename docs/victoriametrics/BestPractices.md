@@ -57,7 +57,7 @@ and [kubernetes operator](https://docs.victoriametrics.com/operator/). See how t
 
 Common recommendations:
 1. Prefer setting [requests equal to limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits)
-for stateful components like [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
+for stateful components like [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
 component restarts.
 
 1. Avoid using [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) 
@@ -91,4 +91,4 @@ There are the following channels for providing technical support for VictoriaMet
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
-We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise/).
+We also provide [Enterprise support](https://docs.victoriametrics.com/victoriametrics/enterprise/).

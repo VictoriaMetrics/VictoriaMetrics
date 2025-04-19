@@ -32,7 +32,7 @@ See how to run vmalert-tool for unit test below:
 
 vmalert-tool unittest is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)
 except `promql_expr_test` field. Use `metricsql_expr_test` field name instead. The name is different because vmalert-tool
-validates and executes [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions,
+validates and executes [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions,
 which aren't always backward compatible with [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
 ### Limitations

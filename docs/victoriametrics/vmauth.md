@@ -160,8 +160,8 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 ### Load balancer for VictoriaMetrics cluster
 
-[VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) accepts incoming data via `vminsert` nodes
-and processes incoming requests via `vmselect` nodes according to [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) accepts incoming data via `vminsert` nodes
+and processes incoming requests via `vmselect` nodes according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 `vmauth` can be used for balancing both `insert` and `select` requests among `vminsert` and `vmselect` nodes, when the following [`-auth.config`](#auth-config) is used:
 
 ```yaml
@@ -254,7 +254,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 ### Per-tenant authorization
 
 The following [`-auth.config`](#auth-config) instructs proxying `insert` and `select` requests from the [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication)
-user `tenant1` to the [tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) `1`,
+user `tenant1` to the [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) `1`,
 while requests from the user `tenant2` are sent to tenant `2`:
 
 ```yaml
@@ -291,7 +291,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ### mTLS-based request routing
 
-[Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise/) can be configured for routing requests
+[Enterprise version of `vmauth`](https://docs.victoriametrics.com/victoriametrics/enterprise/) can be configured for routing requests
 to different backends depending on the following [subject fields](https://en.wikipedia.org/wiki/Public_key_certificate#Common_fields) in the TLS certificate provided by client:
 
 * `organizational_unit` aka `OU`
@@ -319,7 +319,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 ### Enforcing query args
 
 `vmauth` can be configured for adding some mandatory query args before proxying requests to backends.
-For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/victoriametrics#prometheus-querying-api-enhancements)
 to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
 
 ```yaml
@@ -556,7 +556,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
 
 Load balancing feature can be used in the following cases:
 
-- Balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
+- Balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
   The following [`-auth.config`](#auth-config) can be used for spreading incoming requests among 3 vmselect nodes and re-trying failed requests
   or requests with 500 and 502 response status codes:
 
@@ -572,7 +572,7 @@ Load balancing feature can be used in the following cases:
 - Sending select queries to the closest availability zone (AZ), while falling back to other AZs with identical data if the closest AZ is unavailable.
   For example, the following [`-auth.config`](#auth-config) sends select queries to `https://vmselect-az1/` and uses the `https://vmselect-az2/` as a fallback
   when `https://vmselect-az1/` is temporarily unavailable or cannot return full responses.
-  See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-availability) for details about `deny_partial_response` query arg,
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-availability) for details about `deny_partial_response` query arg,
   which is added to requests before they are proxied to backends.
 
   ```yaml
@@ -592,7 +592,7 @@ See also [discovering backend IPs](#discovering-backend-ips), [authorization](#a
 
 By default `vmauth` spreads load among the listed backends at `url_prefix` as described in [load balancing docs](#load-balancing).
 Sometimes multiple backend instances can be hidden behind a single hostname. For example, `vmselect-service` hostname
-may point to a cluster of `vmselect` instances in [VictoriaMetrics cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+may point to a cluster of `vmselect` instances in [VictoriaMetrics cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 So the following config may fail spreading load among available `vmselect` instances, since `vmauth` will send all the requests to the same url, which may end up
 to a single backend instance:
 
@@ -816,7 +816,7 @@ The file is checked for modifications every second and is automatically re-read 
 
 ## IP filters
 
-[Enterprise version](https://docs.victoriametrics.com/enterprise/) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
 
 For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
 
@@ -1050,7 +1050,7 @@ This may be useful for passing secrets to the config.
 ## mTLS protection
 
 By default `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
-[Enterprise version of vmauth](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+[Enterprise version of vmauth](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
 
 ```
@@ -1095,7 +1095,7 @@ As an alternative, it's possible to serve internal API routes at the different l
 
 ## Automatic issuing of TLS certificates
 
-`vmauth` [Enterprise](https://docs.victoriametrics.com/enterprise/) supports automatic issuing of TLS certificates via [Let's Encrypt service](https://letsencrypt.org/).
+`vmauth` [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic issuing of TLS certificates via [Let's Encrypt service](https://letsencrypt.org/).
 The following command-line flags must be set in order to enable automatic issuing of TLS certificates:
 
 - `-httpListenAddr` must be set for listening TCP port `443`. For example, `-httpListenAddr=:443`. This port must be accessible by the [Let's Encrypt service](https://letsencrypt.org/).
@@ -1105,7 +1105,7 @@ The following command-line flags must be set in order to enable automatic issuin
 - `-tlsAutocertCacheDir` may be set to the directory path for persisting the issued TLS certificates between `vmauth` restarts. If this flag isn't set,
   then TLS certificates are re-issued on every restart.
 
-This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/enterprise/).
+This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
 See also [security recommendations](#security).
 
@@ -1254,11 +1254,11 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -failTimeout duration
      Sets a delay period for load balancing to skip a malfunctioning backend (default 3s)
   -filestream.disableFadvise
@@ -1367,11 +1367,11 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
@@ -1390,7 +1390,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
@@ -1409,11 +1409,11 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array

@@ -1,6 +1,6 @@
 **This guide covers:**
 
-* The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
+* The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
 * How to scrape metrics from k8s components using service discovery 
 * How to visualize stored data 
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com) tsdb
@@ -17,7 +17,7 @@ We will use:
 
 ## 1. VictoriaMetrics Helm repository
 
-You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/). You can do this by running the following command:
+You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/). You can do this by running the following command:
 
 
 ```shell
@@ -56,7 +56,7 @@ vm/victoria-metrics-single     	0.15.1       	v1.113.0   	Victoria Metrics Singl
 ```
 
 
-## 2. Install [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) from Helm Chart
+## 2. Install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) from Helm Chart
 
 Run this command in your terminal:
 
@@ -151,8 +151,8 @@ server:
 ```
 
 
-* By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
-* By adding `scrape: enabled: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/)
+* By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
+* By adding `scrape: enabled: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 * On line 67 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml) we added `metric_relabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
 
 
@@ -177,7 +177,7 @@ Metrics Ingestion:
   Write URL inside the kubernetes cluster:
     http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428/<protocol-specific-write-endpoint>
 
-  All supported write endpoints can be found at https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data
+  All supported write endpoints can be found at https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data
 
   E.g: for Prometheus:
     http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428/api/v1/write

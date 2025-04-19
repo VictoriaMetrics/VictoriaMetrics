@@ -1,4 +1,4 @@
-VictoriaMetrics and VictoriaLogs support ingestion [metrics](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-data-via-opentelemetry)
+VictoriaMetrics and VictoriaLogs support ingestion [metrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry)
 and [logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/) in OpenTelemetry format.
 This guide covers examples of using [opentelemetry-collector](https://opentelemetry.io/docs/collector/) and direct pushing of metrics and logs from the Go application.
 
@@ -44,7 +44,7 @@ VictoriaMetrics helm chart provides the following URL for writing data:
 Write URL inside the kubernetes cluster:
   http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local.:8428/<protocol-specific-write-endpoint>
 
-All supported write endpoints can be found at https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data.
+All supported write endpoints can be found at https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data.
 ```
 
 For OpenTelemetry VictoriaMetrics write endpoint is:
@@ -119,7 +119,7 @@ config:
       compression: gzip
       encoding: proto
       # Setting below will work for sending data to VictoriaMetrics single-node version.
-      # Cluster version of VictoriaMetrics will require a different URL - https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+      # Cluster version of VictoriaMetrics will require a different URL - https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
       metrics_endpoint: http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local:8428/opentelemetry/v1/metrics
       logs_endpoint: http://victoria-logs-victoria-logs-single-server.default.svc.cluster.local:9428/insert/opentelemetry/v1/logs
       tls:
@@ -154,7 +154,7 @@ kubectl port-forward svc/victoria-metrics-victoria-metrics-single-server 8428
 ```
 
 Visit [http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready](http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready) to check if metric `k8s_container_ready` is present.
-Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) page.
+Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/victoriametrics#cardinality-explorer) page.
 
 Forward VictoriaLogs port to local machine to explore logs ingested by the collector:
 ```sh
@@ -244,7 +244,7 @@ After a few seconds you should start seeing metrics sent to VictoriaMetrics by v
 
 ![OTEL Metrics VMUI](vmui-direct-metrics.webp)
 
-Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) page.
+Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/victoriametrics#cardinality-explorer) page.
 
 Logs should be available by visiting [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui)
 using query `service.name: unknown_service:otel`.

@@ -11,11 +11,11 @@ aliases:
 - /stream-aggregation/index.html
 - /stream-aggregation/
 ---
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
 (or local storage for single-node VictoriaMetrics).
-The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/victoriametrics#how-to-import-time-series-data)
+and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 **By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
@@ -40,7 +40,7 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Histograms over input metrics](#histograms-over-input-metrics)
 * [Aggregating histograms](#aggregating-histograms)
 
-Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/victoriametrics#how-to-import-time-series-data)
 and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ## Recording rules alternative
@@ -88,13 +88,13 @@ to one sample per 5 minutes per each input time series (this operation is also k
 
 ```yaml
   # Aggregate metrics ending with _total with `total` output.
-  # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-outputs
 - match: '{__name__=~".+_total"}'
   interval: 5m
   outputs: [total]
 
   # Downsample other metrics with `count_samples`, `sum_samples`, `min` and `max` outputs
-  # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-outputs
 - match: '{__name__!~".+_total"}'
   interval: 5m
   outputs: [count_samples, sum_samples, min, max]
@@ -255,7 +255,7 @@ response_size_bytes:60s_histogram_bucket{vmrange="start2...end2"} count2
 response_size_bytes:60s_histogram_bucket{vmrange="startN...endN"} countN
 ```
 
-The resulting histogram buckets can be queried with [MetricsQL](https://docs.victoriametrics.com/metricsql/) in the following ways:
+The resulting histogram buckets can be queried with [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) in the following ways:
 
 1. An estimated 50th and 99th [percentiles](https://en.wikipedia.org/wiki/Percentile) of the request duration over the last hour:
 
@@ -263,7 +263,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_quantiles("quantile", 0.50, 0.99, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_quantiles](https://docs.victoriametrics.com/metricsql/#histogram_quantiles) function.
+   This query uses [histogram_quantiles](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantiles) function.
 
 1. An estimated [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) of the request duration over the last hour:
 
@@ -271,7 +271,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_stddev(sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_stddev](https://docs.victoriametrics.com/metricsql/#histogram_stddev) function.
+   This query uses [histogram_stddev](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_stddev) function.
 
 1. An estimated share of requests with the duration smaller than `0.5s` over the last hour:
 
@@ -279,7 +279,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_share(0.5, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_share](https://docs.victoriametrics.com/metricsql/#histogram_share) function.
+   This query uses [histogram_share](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_share) function.
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
@@ -288,8 +288,8 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 
 [Histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) is a set of [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter)
 metrics with different `vmrange` or `le` labels. Since typical usage of histograms is to calculate quantiles over the
-buckets change via [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) function the
-appropriate aggregation output for this is [total](https://docs.victoriametrics.com/stream-aggregation/#rate_sum):
+buckets change via [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) function the
+appropriate aggregation output for this is [total](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#rate_sum):
 
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
@@ -310,7 +310,7 @@ http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="3"}    val
 http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="+Inf"} value6
 ```
 
-The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
+The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile)
 function:
 
 ```metricsql
@@ -330,7 +330,7 @@ See also [histograms over input metrics](#histograms-over-input-metrics) and [qu
 
 Stream aggregation can be configured via the following command-line flags:
 
-- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   and at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 - `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) only. This flag can be specified individually
   per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
@@ -346,11 +346,11 @@ By default, the following data is written to the storage when stream aggregation
 
 This behaviour can be changed via the following command-line flags:
 
-- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
-- `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+- `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
@@ -389,7 +389,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 `avg` returns the average over input [sample values](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
 `avg` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
-The results of `avg` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `avg` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(sum_over_time(some_metric[interval])) / sum(count_over_time(some_metric[interval]))
@@ -411,7 +411,7 @@ See also:
 
 `count_samples` counts the number of input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `count_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `count_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(count_over_time(some_metric[interval]))
@@ -426,7 +426,7 @@ See also:
 
 `count_series` counts the number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the given `interval`.
 
-The results of `count_series` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `count_series` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 count(last_over_time(some_metric[interval]))
@@ -444,7 +444,7 @@ for the input [sample values](https://docs.victoriametrics.com/victoriametrics/k
 `histogram_bucket` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 See how to aggregate regular histograms [here](#aggregating-histograms).
 
-The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
@@ -465,7 +465,7 @@ See also:
 `increase` returns the increase of input [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the given 'interval'.
 `increase` makes sense only for aggregating [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
-The results of `increase` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `increase` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(increase_pure(some_counter[interval]))
@@ -494,7 +494,7 @@ See also:
 `increase_prometheus` returns the increase of input [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the given `interval`.
 `increase_prometheus` makes sense only for aggregating [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
-The results of `increase_prometheus` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `increase_prometheus` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(increase_prometheus(some_counter[interval]))
@@ -518,7 +518,7 @@ See also:
 
 `last` returns the last input [sample value](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 last_over_time(some_metric[interval])
@@ -535,7 +535,7 @@ See also:
 
 `max` returns the maximum input [sample value](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `max` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `max` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 max(max_over_time(some_metric[interval]))
@@ -556,7 +556,7 @@ See also:
 
 `min` returns the minimum input [sample value](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `min` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `min` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 min(min_over_time(some_metric[interval]))
@@ -578,7 +578,7 @@ See also:
 `rate_avg` returns the average of average per-second increase rates across input [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the given `interval`.
 `rate_avg` makes sense only for aggregating [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
-The results of `rate_avg` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `rate_avg` are equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 avg(rate(some_counter[interval]))
@@ -595,7 +595,7 @@ See also:
 `rate_sum` returns the sum of average per-second increase rates across input [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the given `interval`.
 `rate_sum` makes sense only for aggregating [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
-The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(rate(some_counter[interval]))
@@ -613,7 +613,7 @@ See also:
 over the given `interval`.
 `stddev` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
-The results of `stddev` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `stddev` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 histogram_stddev(sum(histogram_over_time(some_metric[interval])) by (vmrange))
@@ -631,7 +631,7 @@ See also:
 over the given `interval`.
 `stdvar` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
-The results of `stdvar` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `stdvar` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 histogram_stdvar(sum(histogram_over_time(some_metric[interval])) by (vmrange))
@@ -652,7 +652,7 @@ See also:
 `sum_samples` sums input [sample values](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) over the given `interval`.
 `sum_samples` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
-The results of `sum_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `sum_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(sum_over_time(some_metric[interval]))
@@ -672,7 +672,7 @@ See also:
 `total` generates output [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total` makes sense only for aggregating [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
-The results of `total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_pure(some_counter)))
@@ -715,7 +715,7 @@ See also:
 `total_prometheus` generates output [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total_prometheus` makes sense only for aggregating [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
-The results of `total_prometheus` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total_prometheus` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_prometheus(some_counter)))
@@ -744,7 +744,7 @@ See also:
 `unique_samples` counts the number of unique sample values over the given `interval`.
 `unique_samples` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
-The results of `unique_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `unique_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 count(count_values_over_time(some_metric[interval]))
@@ -762,7 +762,7 @@ over the input [sample values](https://docs.victoriametrics.com/victoriametrics/
 `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while `1` means `100th` percentile.
 `quantiles(...)` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
-The results of `quantiles(phi1, ..., phiN)` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `quantiles(phi1, ..., phiN)` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 histogram_quantiles("quantile", phi1, ..., phiN, sum(histogram_over_time(some_metric[interval])) by (vmrange))
@@ -778,7 +778,7 @@ See also:
 ## Stream aggregation config
 
 Below is the format for stream aggregation config file, which may be referred via `-streamAggr.config` command-line flag at
-[single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+[single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) `-remoteWrite.streamAggr.config` command-line flag can be
 specified individually per each `-remoteWrite.url`:
 
@@ -788,7 +788,7 @@ specified individually per each `-remoteWrite.url`:
   #
   # If it is set, then it is used as `name` label in the exposed metrics
   # for the given aggregation config at /metrics page.
-  # See https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring and https://docs.victoriametrics.com/#monitoring
+  # See https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring and https://docs.victoriametrics.com/victoriametrics#monitoring
 - name: 'foobar'
 
   # match is an optional filter for incoming samples to aggregate.
@@ -808,7 +808,7 @@ specified individually per each `-remoteWrite.url`:
 
   # dedup_interval is an optional interval for de-duplication of input samples before the aggregation.
   # Samples are de-duplicated on a per-series basis. See https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series
-  # and https://docs.victoriametrics.com/#deduplication
+  # and https://docs.victoriametrics.com/victoriametrics#deduplication
   # The deduplication is performed after input_relabel_configs relabeling is applied.
   # By default, the deduplication is disabled unless -remoteWrite.streamAggr.dedupInterval or -streamAggr.dedupInterval
   # command-line flags are set.
@@ -816,7 +816,7 @@ specified individually per each `-remoteWrite.url`:
   # dedup_interval: 30s
 
   # enable_windows is a boolean option to enable fixed aggregation windows.
-  # See https://docs.victoriametrics.com/stream-aggregation#aggregation-windows
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation#aggregation-windows
   #
   # enable_windows: true
 
@@ -829,7 +829,7 @@ specified individually per each `-remoteWrite.url`:
   # - rate_sum
   # - total
   # - total_prometheus
-  # See https://docs.victoriametrics.com/stream-aggregation/#staleness for more details.
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness for more details.
   #
   # staleness_interval: 2m
   
@@ -848,17 +848,17 @@ specified individually per each `-remoteWrite.url`:
   # flush_on_shutdown: false
 
   # without is an optional list of labels, which must be removed from the output aggregation.
-  # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregating-by-labels
   #
   # without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
-  # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregating-by-labels
   #
   # by: [job, vmrange]
 
   # outputs is the list of unique aggregations to perform on the input data.
-  # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-outputs
   #
   outputs: [total]
 
@@ -866,25 +866,25 @@ specified individually per each `-remoteWrite.url`:
   # This option can't be enabled together with `-streamAggr.keepInput` or `-remoteWrite.streamAggr.keepInput`.
   # This option can be set only if outputs list contains a single output.
   # By default, a special suffix is added to original metric names in the aggregated samples.
-  # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#output-metric-names
   #
   # keep_metric_names: false
 
   # ignore_old_samples instructs ignoring input samples with old timestamps outside the current aggregation interval.
-  # See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples
   # See also -remoteWrite.streamAggr.ignoreOldSamples and -streamAggr.ignoreOldSamples command-line flag.
   #
   # ignore_old_samples: false
 
   # ignore_first_intervals instructs ignoring the first N aggregation intervals after process start.
-  # See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignore-aggregation-intervals-on-start
   # See also -remoteWrite.streamAggr.ignoreFirstIntervals and -streamAggr.ignoreFirstIntervals command-line flags.
   #
   # ignore_first_intervals: N
 
   # drop_input_labels instructs dropping the given labels from input samples.
   # The labels' dropping is performed before input_relabel_configs are applied.
-  # This also means that the labels are dropped before de-duplication ( https://docs.victoriametrics.com/stream-aggregation/#deduplication )
+  # This also means that the labels are dropped before de-duplication ( https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication )
   # and stream aggregation.
   #
   # drop_input_labels: [replica, availability_zone]
@@ -892,7 +892,7 @@ specified individually per each `-remoteWrite.url`:
   # input_relabel_configs is an optional relabeling rules,
   # which are applied to the incoming samples after they pass the match filter
   # and before being aggregated.
-  # See https://docs.victoriametrics.com/stream-aggregation/#relabeling
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#relabeling
   #
   input_relabel_configs:
   - target_label: vmaggr
@@ -911,7 +911,7 @@ per each specified config entry.
 
 ### Configuration update
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 support the following approaches for hot reloading stream aggregation configs from `-remoteWrite.streamAggr.config` and `-streamAggr.config`:
 
 * By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:
@@ -924,7 +924,7 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 # Routing
 
-[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports relabeling,
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) supports relabeling,
 deduplication and stream aggregation for all the received data, scraped or pushed. 
 The processed data is then stored in local storage and **can't be forwarded further**.
 
@@ -933,9 +933,9 @@ the received data, scraped or pushed. Then, the collected data will be forwarded
 The data processing order is the following:
 
 1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) (if it is set)
-1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
+1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication)
    (if it is set to duration bigger than 0)
-1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) (if it is set)
+1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) (if it is set)
 1. the resulting data is then replicated to each `-remoteWrite.url`
 1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
 1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
@@ -944,15 +944,15 @@ The data processing order is the following:
 
 Typical scenarios for data routing with `vmagent`:
 
-1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) command-line flag
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) command-line flag
    to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
-2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration)
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration)
    command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
    can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
 # Deduplication
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/victoriametrics#deduplication) of samples
 before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
 - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
@@ -965,19 +965,19 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
 - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
   in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
 
-[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports two types of de-duplication:
-- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) supports two types of de-duplication:
+- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/victoriametrics#deduplication) command-line option.
 - Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
   - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
     For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VictoriaMetrics to leave only the last sample per each
     seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 30 seconds.
-    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/#relabeling).
+    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/victoriametrics#relabeling).
 
   - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-streamAggr.config`.
 
 It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
 
-The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
+The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/victoriametrics#deduplication) at VictoriaMetrics.
 
 # Relabeling
 
@@ -1174,12 +1174,12 @@ Enabling of this mode has increased resource usage: memory usage is expected to 
 instead of one. However, this significantly improves accuracy of calculations. Aggregation windows can be enabled via
 the following settings:
 
-- `-streamAggr.enableWindows` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+- `-streamAggr.enableWindows` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.enableWindows` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags is set, then all aggregators will be using fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
   `-streamAggr.dedupInterval` fixed aggregation windows are enabled on deduplicator as well.
- - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config).
+ - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config).
   It allows enabling aggregation windows for a specific aggregator.
 
 ## Staleness
@@ -1234,7 +1234,7 @@ These time series then can be aggregated later as needed during querying.
 
 If `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
 as a unique label value per each `vmagent` via `-remoteWrite.label=vmagent=%{HOSTNAME}` command-line flag.
-See [these docs](https://docs.victoriametrics.com/#environment-variables) on how to refer environment variables in VictoriaMetrics components.
+See [these docs](https://docs.victoriametrics.com/victoriametrics#environment-variables) on how to refer environment variables in VictoriaMetrics components.
 
 ## Common mistakes
 

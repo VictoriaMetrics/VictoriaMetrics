@@ -35,7 +35,7 @@ The following functionality is implemented differently in MetricsQL compared to 
   which may significantly differ from the expected results. This addresses [this issue from Prometheus](https://github.com/prometheus/prometheus/issues/3746).
   See technical details about VictoriaMetrics and Prometheus calculations for [rate](#rate)
   and [increase](#increase) [in this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1215#issuecomment-850305711).
-* MetricsQL returns the expected non-empty responses for [rate](#rate) function when Grafana or [vmui](https://docs.victoriametrics.com/#vmui)
+* MetricsQL returns the expected non-empty responses for [rate](#rate) function when Grafana or [vmui](https://docs.victoriametrics.com/victoriametrics#vmui)
   passes `step` values smaller than the interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
   to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
   This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451).
@@ -61,13 +61,13 @@ and provides additional functionality mentioned below, which is aimed towards so
 Feel free [filing a feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you think MetricsQL misses certain useful functionality.
 
 This functionality can be evaluated at [VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/)
-or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
+or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/victoriametrics#how-to-start-victoriametrics).
 
 The list of MetricsQL features on top of PromQL:
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax.
-  See [these docs](https://docs.victoriametrics.com/#selecting-graphite-metrics).
-  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics#selecting-graphite-metrics).
+  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/victoriametrics#graphite-api-usage) for details.
   See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
 * Lookbehind window in square brackets for [rollup functions](#rollup-functions) may be omitted. VictoriaMetrics automatically selects the lookbehind window
   depending on the `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)

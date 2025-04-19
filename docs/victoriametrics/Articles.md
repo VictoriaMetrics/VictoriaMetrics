@@ -11,7 +11,7 @@ aliases:
 - /articles/index.html
 - /articles/
 ---
-See also [case studies](https://docs.victoriametrics.com/casestudies/).
+See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 
 ## Third-party articles and slides about VictoriaMetrics
 

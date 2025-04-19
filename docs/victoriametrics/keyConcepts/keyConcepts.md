@@ -45,9 +45,9 @@ requests_total{path="/", code="200"}
 
 Labels can be automatically attached to the [time series](#time-series) 
 written via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) 
-or [Prometheus](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup).
-VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
-to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
+or [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup).
+VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 #### Time series
 
@@ -134,9 +134,9 @@ was rapidly changing from 1:38 pm to 1:39 pm, then there were no changes until 1
 Counter is used for measuring the number of events, like the number of requests, errors, logs, messages, etc.
 The most common [MetricsQL](#metricsql) functions used with counters are:
 
-* [rate](https://docs.victoriametrics.com/metricsql/#rate) - calculates the average per-second speed of metric change.
+* [rate](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate) - calculates the average per-second speed of metric change.
   For example, `rate(requests_total)` shows how many requests are served per second on average;
-* [increase](https://docs.victoriametrics.com/metricsql/#increase) - calculates the growth of a metric on the given
+* [increase](https://docs.victoriametrics.com/victoriametrics/metricsql/#increase) - calculates the growth of a metric on the given
   time period specified in square brackets.
   For example, `increase(requests_total[1h])` shows the number of requests served over the last hour.
 
@@ -166,7 +166,7 @@ Gauge is used in the following scenarios:
   can store the timestamp of the last successful configuration reload.
 
 The most common [MetricsQL](#metricsql) functions used with gauges are [aggregation functions](#aggregation-and-grouping-functions)
-and [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions).
+and [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions).
 
 #### Histogram
 
@@ -193,7 +193,7 @@ that there were 2 queries with the number of rows in the range `(408.4 - 464.2]`
 since the last VictoriaMetrics start.
 
 The counters ending with `_bucket` suffix allow estimating arbitrary percentile
-for the observed measurement with the help of [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
+for the observed measurement with the help of [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile)
 function. For example, the following query returns the estimated 99th percentile
 on the number of rows read per each query during the last hour (see `1h` in square brackets):
 
@@ -251,7 +251,7 @@ and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#qua
 
 ![histogram](histogram.webp)
 
-Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/metricsql/#prometheus_buckets)
+Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/victoriametrics/metricsql/#prometheus_buckets)
 function must be used for converting buckets with `vmrange` labels to buckets with `le` labels before building heatmaps in Grafana.
 
 Histograms are usually used for measuring the distribution of latency, sizes of elements (batch size, for example) etc. There are two
@@ -344,13 +344,13 @@ avoid excessive resource usage and database slowdown.
 
 ### Multi-tenancy
 
-[Cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/) of VictoriaMetrics 
-supports [multi-tenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
+[Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics 
+supports [multi-tenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
 for data isolation.
 
-Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
 version of VictoriaMetrics by adding [labels](#labels) on [write path](#write-data)
-and enforcing [labels filtering](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements) 
+and enforcing [labels filtering](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) 
 on [read path](#query-data).
 
 
@@ -365,13 +365,13 @@ Client regularly sends the collected metrics to the server in the push model:
 ![push model](push_model.webp)
 
 The client (application) decides when and where to send its metrics. VictoriaMetrics supports many protocols
-for data ingestion (aka `push protocols`) - see [the full list here](https://docs.victoriametrics.com/#how-to-import-time-series-data).
+for data ingestion (aka `push protocols`) - see [the full list here](https://docs.victoriametrics.com/victoriametrics#how-to-import-time-series-data).
 All the protocols are fully compatible with VictoriaMetrics [data model](#data-model) and can be used in production.
 We recommend using the [github.com/VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) package
 for pushing application metrics to VictoriaMetrics.
 It is also possible to use already existing clients compatible with the protocols listed above
 like [Telegraf](https://github.com/influxdata/telegraf)
-for [InfluxDB line protocol](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+for [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
@@ -379,14 +379,14 @@ Creating custom clients or instrumenting the application for metrics writing is 
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
-It is allowed to push/write metrics to [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/),
-to [cluster component vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview)
+It is allowed to push/write metrics to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
+to [cluster component vminsert](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview)
 and to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 The pros of push model:
 
 * Simpler configuration at VictoriaMetrics side - there is no need to configure VictoriaMetrics with locations of the monitored applications.
-  There is no need in complex [service discovery schemes](https://docs.victoriametrics.com/sd_configs/).
+  There is no need in complex [service discovery schemes](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 * Simpler security setup - there is no need to set up access from VictoriaMetrics to each monitored application.
 
 See [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
@@ -413,9 +413,9 @@ In pull model, the monitoring system needs to be aware of all the applications i
 scraped (pulled) from the known applications (aka `scrape targets`) via HTTP protocol on a regular basis (aka `scrape_interval`).
 
 VictoriaMetrics supports discovering Prometheus-compatible targets and scraping metrics from them in the same way as Prometheus does -
-see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+see [these docs](https://docs.victoriametrics.com/victoriametrics#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-Metrics scraping is supported by [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+Metrics scraping is supported by [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 and by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 The pros of the pull model:
@@ -429,7 +429,7 @@ The pros of the pull model:
 The cons of the pull model:
 
 * Harder security setup - monitoring system needs to have access to applications it monitors.
-* Pull model needs non-trivial [service discovery schemes](https://docs.victoriametrics.com/sd_configs/).
+* Pull model needs non-trivial [service discovery schemes](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 
 ### Common approaches for data collection
 
@@ -455,17 +455,17 @@ VictoriaMetrics components allow building more advanced topologies. For example,
 
 ![two dcs](two_dcs.webp)
 
-VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
-or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/). Vmagent also allows
+VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
+or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). Vmagent also allows
 [replicating the same data to multiple destinations](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability).
 
 ## Query data
 
 VictoriaMetrics provides
-an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
+an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup). The same API is also used by
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - a graphical User Interface for querying
+[Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup). The same API is also used by
+[VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) - a graphical User Interface for querying
 and visualizing metrics.
 
 The API consists of two main handlers for serving [instant queries](#instant-query) and [range queries](#range-query).
@@ -480,10 +480,10 @@ GET | POST /api/v1/query?query=...&time=...&step=...&timeout=...
 
 Params:
 
-* `query` - [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression.
-* `time` - optional, [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
+* `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
+* `time` - optional, [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
-  The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
+  The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/victoriametrics#timestamp-formats).
 * `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
   For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
@@ -563,7 +563,7 @@ Instant queries can return multiple time series, but always only one data sample
 the following scenarios:
 
 * Getting the last recorded value;
-* For [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions) such as `count_over_time`;
+* For [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) such as `count_over_time`;
 * For alerts and recording rules evaluation;
 * Plotting Stat or Table panels in Grafana.
 
@@ -576,10 +576,10 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...&timeout=...
 ```
 
 Params:
-* `query` - [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression.
-* `start` - the starting [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
+* `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
+* `start` - the starting [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
-* `end` - the ending [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
+* `end` - the ending [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
 * `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
@@ -729,7 +729,7 @@ useful in the following scenarios:
 * Correlate changes between multiple metrics on the time interval;
 * Observe trends and dynamics of the metric change.
 
-If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
+If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/victoriametrics#how-to-export-time-series).
 
 ### Query latency
 
@@ -756,14 +756,14 @@ VictoriaMetrics buffers recently ingested samples in memory for up to a few seco
 This buffering improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
 or if `latency_offset` query arg is set to 0.
 You can send GET request to `/internal/force_flush` http handler at single-node VictoriaMetrics
-or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
+or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 in order to forcibly flush the buffered samples to disk, so they become visible for querying. The `/internal/force_flush` handler
 is provided for debugging and testing purposes only. Do not call it in production, since this may significantly slow down data ingestion
 performance and increase resource usage.
 
 ### MetricsQL
 
-VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
 It is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics)-like query language with a powerful set of
 functions and features for working specifically with time series data. MetricsQL is backward-compatible with PromQL,
 so it shares most of the query concepts. The basic concepts for PromQL and MetricsQL are
@@ -821,7 +821,7 @@ The query above returns series for two metrics: `requests_error_total` and `requ
 
 #### Filtering by multiple "or" filters
 
-[MetricsQL](https://docs.victoriametrics.com/metricsql/) supports selecting time series, which match at least one of multiple "or" filters.
+[MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) supports selecting time series, which match at least one of multiple "or" filters.
 Such filters must be delimited by `or` inside curly braces. For example, the following query selects time series with
 `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
 
@@ -832,9 +832,9 @@ Such filters must be delimited by `or` inside curly braces. For example, the fol
 The number of `or` groups can be arbitrary. The number of `,`-delimited label filters per each `or` group can be arbitrary.
 Per-group filters are applied with `and` operation, e.g. they select series simultaneously matching all the filters in the group.
 
-This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions)
-such as [rate()](https://docs.victoriametrics.com/metricsql/#rate)
-without the need to use [subqueries](https://docs.victoriametrics.com/metricsql/#subqueries):
+This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions)
+such as [rate()](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate)
+without the need to use [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries):
 
 ```metricsql
 rate({job="app1",env="prod" or job="app2",env="dev"}[5m])
@@ -905,12 +905,12 @@ summary memory usage for each `job`:
 sum(process_resident_memory_bytes) by (job)
 ```
 
-See [docs for aggregate functions in MetricsQL](https://docs.victoriametrics.com/metricsql/#aggregate-functions).
+See [docs for aggregate functions in MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions).
 
 #### Calculating rates
 
 One of the most widely used functions for [counters](#counter)
-is [rate](https://docs.victoriametrics.com/metricsql/#rate). It calculates the average per-second increase rate individually
+is [rate](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate). It calculates the average per-second increase rate individually
 per each matching time series. For example, the following query shows the average per-second data receive speed
 per each monitored `node_exporter` instance, which exposes the `node_network_receive_bytes_total` metric:
 
@@ -931,7 +931,7 @@ In this case VictoriaMetrics uses the specified lookbehind window - `5m` (5 minu
 Bigger lookbehind windows usually lead to smoother graphs.
 
 `rate` strips metric name while leaving all the labels for the inner time series. If you need to keep the metric name,
-then add [keep_metric_names](https://docs.victoriametrics.com/metricsql/#keep_metric_names) modifier
+then add [keep_metric_names](https://docs.victoriametrics.com/victoriametrics/metricsql/#keep_metric_names) modifier
 after the `rate(..)`. For example, the following query leaves metric names after calculating the `rate()`:
 
 ```metricsql
@@ -943,13 +943,13 @@ rate(node_network_receive_bytes_total) keep_metric_names
 ### Visualizing time series
 
 VictoriaMetrics has a built-in graphical User Interface for querying and visualizing metrics -
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui).
+[VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
 ![vmui](vmui.webp)
 
-VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
-which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup)
+VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
+which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup)
 in the same way as Grafana queries Prometheus.
 
 ## Modify data
@@ -961,20 +961,20 @@ it is stored. Due to this limitation, VictoriaMetrics does not support direct da
 
 ### Deletion
 
-See [How to delete time series](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-delete-time-series)
+See [How to delete time series](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series)
 .
 
 ### Relabeling
 
 Relabeling is a powerful mechanism for modifying time series before they have been written to the database. Relabeling
 may be applied for both [push](#push-model) and [pull](#pull-model) models. See more
-details [here](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling).
+details [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling).
 
 ### Deduplication
 
-VictoriaMetrics supports data deduplication. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#deduplication).
+VictoriaMetrics supports data deduplication. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication).
 
 
 ### Downsampling
 
-VictoriaMetrics supports data downsampling. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#downsampling).
+VictoriaMetrics supports data downsampling. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).

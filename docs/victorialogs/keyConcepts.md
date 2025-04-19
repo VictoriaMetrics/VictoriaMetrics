@@ -191,7 +191,7 @@ Every ingested log entry is associated with a log stream. Every log stream consi
 - `_stream_id` - this is an unique identifier for the log stream. All the logs for the particular stream can be selected
   via [`_stream_id:...` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
 
-- `_stream` - this field contains stream labels in the format similar to [labels in Prometheus metrics](https://docs.victoriametrics.com/keyconcepts/#labels):
+- `_stream` - this field contains stream labels in the format similar to [labels in Prometheus metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels):
   ```
   {field1="value1", ..., fieldN="valueN"}
   ```
