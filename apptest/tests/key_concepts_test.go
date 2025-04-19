@@ -51,7 +51,7 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 }
 
 // testKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
-func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
+func testKeyConceptsQueryData(t *testing.T, sut at.MetricsWriterPrometheusQuerier) {
 
 	// Insert example data from documentation.
 	sut.PrometheusAPIV1ImportPrometheus(t, docData, at.QueryOpts{})
@@ -227,7 +227,7 @@ func TestClusterMillisecondPrecisionInInstantQueries(t *testing.T) {
 	testMillisecondPrecisionInInstantQueries(tc, sut)
 }
 
-func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	t := tc.T()
 
 	type opts struct {

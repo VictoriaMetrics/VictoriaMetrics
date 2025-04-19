@@ -47,12 +47,14 @@ func MustStart(addr string, useProxyProtocol bool, insertHandler func(r io.Reade
 	if err != nil {
 		logger.Fatalf("cannot start TCP Graphite server at %q: %s", addr, err)
 	}
+	logger.Infof("started TCP Graphite server at %q", lnTCP.Addr().String())
 
 	logger.Infof("starting UDP Graphite server at %q", addr)
 	lnUDP, err := net.ListenPacket(netutil.GetUDPNetwork(), addr)
 	if err != nil {
 		logger.Fatalf("cannot start UDP Graphite server at %q: %s", addr, err)
 	}
+	logger.Infof("started UDP Graphite server at %q", lnUDP.LocalAddr().String())
 
 	s := &Server{
 		addr:  addr,
