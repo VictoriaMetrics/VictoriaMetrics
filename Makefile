@@ -1,6 +1,10 @@
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
+ifeq ($(shell uname -s),SunOS)
+MAKE_CONCURRENCY ?= $(shell getconf NPROCESSORS_ONLN)
+else
 MAKE_CONCURRENCY ?= $(shell getconf _NPROCESSORS_ONLN)
+endif
 MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
