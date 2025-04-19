@@ -201,6 +201,9 @@ func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics
 
 // GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
 func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+	if !*trackMetricNamesStats {
+		return storage.MetricNamesStatsResponse{}, fmt.Errorf("metrics usage feature must be enabled specifically using the `-storage.trackMetricNamesStats` flag")
+	}
 	WG.Add(1)
 	r := Storage.GetMetricNamesStats(qt, limit, le, matchPattern)
 	WG.Done()
@@ -208,10 +211,14 @@ func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern str
 }
 
 // ResetMetricNamesStats resets state for metric names usage tracker
-func ResetMetricNamesStats(qt *querytracer.Tracer) {
+func ResetMetricNamesStats(qt *querytracer.Tracer) error {
+	if !*trackMetricNamesStats {
+		return fmt.Errorf("metrics usage feature must be enabled specifically using the `-storage.trackMetricNamesStats` flag")
+	}
 	WG.Add(1)
 	Storage.ResetMetricNamesStats(qt)
 	WG.Done()
+	return nil
 }
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
