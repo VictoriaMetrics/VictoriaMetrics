@@ -7,6 +7,7 @@ menu:
     parent: victoriametrics
     weight: 34
 aliases:
+  - /keyconcepts/
   - /keyConcepts.html
   - /keyсoncepts.html
   - /keyconcepts/index.html

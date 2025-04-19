@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 501
 aliases:
+- /release-guide
+- /Release-Guide
 - /Release-Guide.html
 - /release-guide/index.html
 - /release-guide/
@@ -52,7 +54,7 @@ Bumping the limits may significantly improve build speed.
 1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/changelog/CHANGELOG.md)
    and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
-1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/lts-releases/).
+1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
 1. Make sure you get all changes fetched `git fetch --all`.
 1. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
@@ -97,7 +99,7 @@ Bumping the limits may significantly improve build speed.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
 1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
-1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
+1. Bump VictoriaMetrics version at `deployment/docker/compose-vm-single.yml` and at `deployment/docker/compose-vm-cluster.yml`.
 1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 
@@ -105,7 +107,7 @@ Bumping the limits may significantly improve build speed.
 
 * Publish message in Slack  at <https://victoriametrics.slack.com>
 * Post at X (Twitter) at <https://x.com/VictoriaMetrics>
-* Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
+* Post in Reddit at <https://reddit.com/r/VictoriaMetrics/>
 * Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
 

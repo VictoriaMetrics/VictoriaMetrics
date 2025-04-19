@@ -8,6 +8,10 @@ menu:
     weight: 6
     title: FAQ
 aliases:
+- /VictoriaLogs/FAQ.html
+- /VictoriaLogs/faq.html
+- /VictoriaLogs/FAQ
+- /VictoriaLogs/faq
 - /victorialogs/FAQ.html
 - /victorialogs/faq.html
 ---

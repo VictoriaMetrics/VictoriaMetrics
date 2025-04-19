@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 4
 aliases:
+  - /VictoriaLogs/data-ingestion/OpenTelemetry.html
+  - /VictoriaLogs/data-ingestion/open-telemetry/
   - /victorialogs/data-ingestion/OpenTelemetry.html
 ---
 VictoriaLogs supports both client open-telemetry [SDK](https://opentelemetry.io/docs/languages/) and [collector](https://opentelemetry.io/docs/collector/).

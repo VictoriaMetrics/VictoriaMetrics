@@ -7,6 +7,7 @@ menu:
     parent: "data-ingestion"
     weight: 4
 aliases:
+  - /data-ingestion/vector/
   - /data-ingestion/Vector.html
   - /data-ingestion/vector.html
   - /data-ingestion/vector/index.html
