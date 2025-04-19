@@ -185,7 +185,7 @@ function submitRelabelDebugForm(e) {
                 {% else %}
                         {%s metricName %}
                 {% endif %}
-                {% if len(labelsList) == 0 %}{% return %}{% endif %}
+                {% if len(labelsList) == 0 %}{}{% return %}{% endif %}
         {% endif %}
 {
         {% for i, label := range labelsList %}
@@ -201,7 +201,7 @@ function submitRelabelDebugForm(e) {
 
 {% func mustFormatLabels(s string) %}
         {% code labels := promutil.MustNewLabelsFromString(s) %}
-        {%= labelsWithHighlight(labels, nil, "") %}
+        {%= labelsWithHighlight(labels, map[string]struct{}{"__name__": {}}, "") %}
 {% endfunc %}
 
 {% endstripspace %}
