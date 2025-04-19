@@ -1,6 +1,5 @@
 ---
 weight: 40
-editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
 title: Grafana datasource
 menu:
   docs:

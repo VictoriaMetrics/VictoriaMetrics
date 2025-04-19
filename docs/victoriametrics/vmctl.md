@@ -39,7 +39,7 @@ COMMANDS:
    prometheus  Migrate timeseries from Prometheus
    vm-native   Migrate time series between VictoriaMetrics installations via native binary format
    remote-read Migrate timeseries by Prometheus remote read protocol
-   verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
+   verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/victoriametrics#how-to-export-data-in-native-format
 ```
 
 Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x))
@@ -791,9 +791,9 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
+The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#data-migration).
 
-vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
+vmctl uses [native binary protocol](https://docs.victoriametrics.com/victoriametrics#how-to-export-data-in-native-format)
 (available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
 to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
@@ -839,7 +839,7 @@ Importing tips:
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
    Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
    proper values for `src`. If hitting the limits, follow the recommendations 
-   [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+   [here](https://docs.victoriametrics.com/victoriametrics#how-to-export-data-in-native-format).
    If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
    update `-search.maxSeries` command-line flag on vmselect/vmsingle;
 1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
@@ -854,7 +854,7 @@ Importing tips:
    This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps. Ignore this recommendation
    if you already have `-dedup.minScrapeInterval` set to 1ms or higher values at destination.
 1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
-   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format):
+   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format):
    ```sh
    # Migrating from cluster specific tenantID to single
    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
@@ -880,7 +880,7 @@ Importing tips:
    of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
    destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
    the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
-   See more about replication [here](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety).
+   See more about replication [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 1. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
    workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
    So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
@@ -936,7 +936,7 @@ Requests to make: 45 / 45 [█████████████████�
 
 Using cluster-to-cluster migration mode helps to migrate all tenants data in a single `vmctl` run.
 
-Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/changelog/#v1840)) to discover list of tenants from source cluster.
+Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1840)) to discover list of tenants from source cluster.
 
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 
@@ -989,7 +989,7 @@ Run the following command to get all configuration options:
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
-[native format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-native-format)
+[native format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format)
 from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
@@ -1342,9 +1342,9 @@ Flags available only for the `vm-native` command:
      Time series selector to match series for export. For example, select {instance!="localhost"} will match all series with "instance" label different to "localhost".
      See more details here https://github.com/VictoriaMetrics/VictoriaMetrics#how-to-export-data-in-native-format (default: "{__name__!=\"\"}")
    --vm-native-filter-time-start value
-     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
+     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
    --vm-native-filter-time-end value
-     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
+     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
    --vm-native-step-interval value
      The time interval to split the migration into steps. For example, to migrate 1y of data with '--vm-native-step-interval=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--vm-native-filter-time-reverse'. Requires setting '--vm-native-filter-time-start'. Valid values are 'month','week','day','hour','minute'. (default: "month")
    --vm-native-filter-time-reverse
@@ -1353,7 +1353,7 @@ Flags available only for the `vm-native` command:
      Disable HTTP persistent connections for requests made to VictoriaMetrics components during export (default: false)
    --vm-native-src-addr value
      VictoriaMetrics address to perform export from. 
-     Should be the same as --httpListenAddr value for single-node version or vmselect component. If exporting from cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+     Should be the same as --httpListenAddr value for single-node version or vmselect component. If exporting from cluster version see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
    --vm-native-src-user value
      VictoriaMetrics username for basic auth [$VM_NATIVE_SRC_USERNAME]
    --vm-native-src-password value
@@ -1377,7 +1377,7 @@ Flags available only for the `vm-native` command:
    --vm-native-dst-addr value
      VictoriaMetrics address to perform import to. 
      Should be the same as --httpListenAddr value for single-node version or vminsert component. 
-     If importing into cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+     If importing into cluster version see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
    --vm-native-dst-user value
      VictoriaMetrics username for basic auth [$VM_NATIVE_DST_USERNAME]
    --vm-native-dst-password value
@@ -1414,8 +1414,8 @@ Flags available only for the `vm-native` command:
      Defines whether to disable per-metric migration and migrate all data via one connection. 
      In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests. (default: false)
    --vm-native-disable-binary-protocol
-     Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format instead of 
-     https://docs.victoriametrics.com/#how-to-export-data-in-native-format API. 
+     Whether to use https://docs.victoriametrics.com/victoriametrics#how-to-export-data-in-json-line-format instead of 
+     https://docs.victoriametrics.com/victoriametrics#how-to-export-data-in-native-format API. 
      Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks.
      Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side. (default: false)
    --vm-native-backoff-retries value

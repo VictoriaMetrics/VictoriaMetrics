@@ -12,10 +12,10 @@ aliases:
 - /query-stats/
 ---
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports statistics logging {{% available_from "#" %}} for
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports statistics logging {{% available_from "#" %}} for
 executed read queries for [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) API. To enable statistics 
-logging specify `-search.logSlowQueryStats=<duration>` command line flag on [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/)
+logging specify `-search.logSlowQueryStats=<duration>` command line flag on [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
 Where `<duration>` is a threshold for query duration after which it must be logged:
 * `-search.logSlowQueryStats=5s` will log stats for queries with execution duration exceeding `5s`;
@@ -29,7 +29,7 @@ The example of query statistics log is the following:
 
 * `type` is either [instant](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
   or [range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) query;
-* `query` is the executed [MetricsQL](https://docs.victoriametrics.com/metricsql/) query;
+* `query` is the executed [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query;
 * `query_hash` is a hashed `query` and is used to simplify filtering logs by a specific query;
 * `start_ms`, `end_ms`, `step_ms` are query params described [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query);
 * `range_ms` is a difference between `start_ms` and `end_ms`. If `range_ms==0` it means this query is instant;

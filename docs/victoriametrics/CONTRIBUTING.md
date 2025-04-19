@@ -17,13 +17,13 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 - Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))
   and helping other community members there.
 - Filing issues, feature requests and questions [at VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
+- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/victoriametrics#documentation).
 - Spreading the word about VictoriaMetrics via various channels:
   - conference talks
   - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CaseStudies.md)
   - comments at Hacker News, Twitter, LinkedIn, Reddit, Facebook, etc.
   - experience sharing with colleagues.
-- Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/enterprise/) with VictoriaMetrics.
+- Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/victoriametrics/enterprise/) with VictoriaMetrics.
 
 ## Issues
 
@@ -36,7 +36,7 @@ instead of [enhancements](https://github.com/VictoriaMetrics/VictoriaMetrics/iss
 Helping other people with their [questions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Aquestion) is also a contribution.
 
 If you'd like to contribute to [documentation](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) please
-read the [guideline](https://docs.victoriametrics.com/#documentation).
+read the [guideline](https://docs.victoriametrics.com/victoriametrics#documentation).
 
 ### Labels
 
@@ -51,7 +51,7 @@ to categorize GitHub issues. We have the following labels:
   to understand  that this issue wasn't forgotten but waits for the feedback from user.
 1. `waiting for release`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
   Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, remove the label, and close the issue.
-1. `vmui`, assigned to issues related to https://docs.victoriametrics.com/#vmui or https://docs.victoriametrics.com/victorialogs/querying/#web-ui
+1. `vmui`, assigned to issues related to https://docs.victoriametrics.com/victoriametrics#vmui or https://docs.victoriametrics.com/victorialogs/querying/#web-ui
 
 ## Pull request checklist
 
@@ -69,7 +69,7 @@ A pull request should contain the following attributes:
 1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
    to the documentation. It will be later automatically replaced with an actual release version.
-1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
+1. A line in the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/#tip) mentioning the change and related issue in a way
   that would be clear to other readers even if they don't have the full context. Use the same guidelines as for commit message.
 1. Reviewers who you think have the best expertise on the matter.
 
@@ -90,7 +90,7 @@ We are open to third-party pull requests provided they follow [KISS design princ
 - Prefer simple code and architecture.
 - Avoid complex abstractions.
 - Avoid magic code and fancy algorithms.
-- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/#profiling)
+- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/victoriametrics#profiling)
   shows significant improvements in performance and scalability or significant reduction in RAM usage.
   Profiling must be performed on [Go benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks) and on production workload.
 - Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
@@ -99,11 +99,11 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
 
-Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has none of the following "features" popular in distributed computing world:
+Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) has none of the following "features" popular in distributed computing world:
 
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
-- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.
+- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for details.
 - Automatic data reshuffling between storage nodes, which may hurt cluster performance and availability.
 - Automatic cluster resizing, which may cost you a lot of money if improperly configured.
 - Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)

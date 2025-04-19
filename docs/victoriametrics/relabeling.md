@@ -17,7 +17,7 @@ with [additional enhancements](https://docs.victoriametrics.com/victoriametrics/
 
 The relabeling is mostly used for the following tasks:
 
-* Dropping unneeded scrape targets during [service discovery](https://docs.victoriametrics.com/sd_configs/#prometheus-service-discovery).
+* Dropping unneeded scrape targets during [service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery).
   See [how to drop discovered targets](#how-to-drop-discovered-targets).
 * Adding or updating static labels at scrape targets. See [how to add labels to scrape targets](#how-to-add-labels-to-scrape-targets).
 * Copying target labels from another labels. See [how to copy labels in scrape targets](#how-to-copy-labels-in-scrape-targets).
@@ -247,12 +247,12 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 
 ## How to remove labels from a subset of targets
 
-Sometimes it is needed to remove some labels from a subset of [discovered targets](https://docs.victoriametrics.com/sd_configs/),
+Sometimes it is needed to remove some labels from a subset of [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/),
 while leaving these labels in the rest of discovered targets.
 In this case the `if` [selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 can be added to `action: labeldrop` or `action: labelkeep` relabeling rule.
 
-For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs),
+For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs),
 [extracts pod-level labels](#how-to-remove-prefixes-from-target-label-names) into labels with `foo_` prefix and then drops all the labels
 with `foo_bar_` prefix in their names for targets matching `{__address__=~"pod123.+"}` selector:
 
@@ -275,13 +275,13 @@ See also [how to remove labels from targets](#how-to-remove-labels-from-targets)
 
 ## How to remove labels from targets
 
-Sometimes it is needed to remove some labels from [discovered targets](https://docs.victoriametrics.com/sd_configs/).
+Sometimes it is needed to remove some labels from [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 In this case the `action: labeldrop` and `action: labelkeep` relabeling options can be used:
 
 * `action: labeldrop` drops all the labels with names matching the `regex` option
 * `action: labelkeep` drops all the labels with names not matching the `regex` option
 
-For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs),
+For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs),
 [extracts pod-level labels](#how-to-remove-prefixes-from-target-label-names) into labels with `foo_` prefix and then drops all the labels
 with `foo_bar_` prefix in their names:
 
@@ -312,8 +312,8 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## How to remove prefixes from target label names
 
-Sometimes it is needed to remove `__meta_*` prefixes from meta-labels of the [discovered targets](https://docs.victoriametrics.com/sd_configs/).
-For example, [Kubernetes service discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) adds `__meta_kubernetes_pod_label_<labelname>`
+Sometimes it is needed to remove `__meta_*` prefixes from meta-labels of the [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
+For example, [Kubernetes service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) adds `__meta_kubernetes_pod_label_<labelname>`
 labels per each pod-level label. In this case it may be needed to leave only the `<labelname>` part of such label names,
 while removing the `__meta_kubernetes_pod_label_` prefix. This can be done with `action: labelmap` relabeling option:
 
@@ -343,7 +343,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 Relabeling allows extracting parts from label values and storing them into arbitrary labels.
 This is performed with `regex` and `replacement` options in relabeling rules.
 
-For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs),
+For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs),
 extracts `bar` part from `foo/bar` container name and stores it into the `xyz` label with `abc_` prefix:
 
 ```yaml
@@ -376,14 +376,14 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) automatically add `instance` and `job` labels per each discovered target:
 
-* The `job` label is set to `job_name` value specified in the corresponding [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
+* The `job` label is set to `job_name` value specified in the corresponding [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
 * The `instance` label is set to the `host:port` part of `__address__` label value after target-level relabeling.
   The `__address__` label value is automatically set to the most suitable value depending
-  on the used [service discovery type](https://docs.victoriametrics.com/sd_configs/#supported-service-discovery-configs).
+  on the used [service discovery type](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs).
   The `__address__` label can be overridden during relabeling - see [these docs](#how-to-modify-scrape-urls-in-targets).
 
 Both `instance` and `job` labels can be overridden during relabeling. For example, the following config discovers pod targets
-in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and overrides `job` label from `k8s` to `foo`:
+in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) and overrides `job` label from `k8s` to `foo`:
 
 ```yaml
 scrape_configs:
@@ -404,10 +404,10 @@ URLs for scrape targets are composed of the following parts:
 
 * Scheme (e.g. `http` or `https`). The scheme is available during target relabeling in a special label - `__scheme__`.
   By default, the scheme is set to `http`. It can be overridden either by specifying the `scheme` option
-  at [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs) level
+  at [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) level
   or by updating the `__scheme__` label during relabeling.
 * Host and port (e.g. `host12:3456`). This information is available during target relabeling in a special label - `__address__`.
-  Every [supported service discovery type](https://docs.victoriametrics.com/sd_configs/#supported-service-discovery-configs)
+  Every [supported service discovery type](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs)
   sets the `__address__` label to the most suitable value. Sometimes this value needs to be modified. In this case
   just update the `__address__` label during relabeling to the needed value.
   The port part is optional. If it is missing, then it is automatically set either to `80` or `443` depending
@@ -418,12 +418,12 @@ URLs for scrape targets are composed of the following parts:
   In this case the `__scheme__` and `__metrics_path__` labels are ignored.
 * URL path (e.g. `/metrics`). This information is available during target relabeling in a special label - `__metrics_path__`.
   By default, the `__metrics_path__` is set to `/metrics`. It can be overridden either by specifying the `metrics_path`
-  option at [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs)
+  option at [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
   or by updating the `__metrics_path__` label during relabeling.
 * Query args (e.g. `?foo=bar&baz=xyz`). This information is available during target relabeling in special labels
   with `__param_` prefix. For example, `__param_foo` would have the `bar` value, while `__param_baz` would have the `xyz` value
   for `?foo=bar&baz=xyz` query string. The query args can be specified either via `params` section
-  at [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs)
+  at [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
   or by updating/setting the corresponding `__param_*` labels during relabeling.
 
 The resulting scrape url looks like the following:
@@ -437,7 +437,7 @@ in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/m
 at the resulting scrape url.
 
 Given the scrape url construction rules above, the following config discovers pod targets
-in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs)
+in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs)
 and constructs per-target scrape url as `https://<pod_name>/foo/bar?baz=<container_name>`:
 
 ```yaml
@@ -463,7 +463,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 Labels can be copied by specifying the source labels via `source_labels` relabeling option
 and specifying the target label via `target_label` relabeling option.
 For example, the following config copies `__meta_kubernetes_pod_name` label to `pod` label
-for all the discovered pods in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs):
+for all the discovered pods in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs):
 
 ```yaml
 scrape_configs:
@@ -479,7 +479,7 @@ Note that the `source_labels` option accepts a list of labels in square brackets
 in the `source_labels` list, then the specified label values are joined into a single string with `;` delimiter by default.
 The delimiter can be modified by specifying it via `separator` option.
 For example, the following config sets the `pod_name:container_port` value to the `host_port` label
-for all the discovered pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs):
+for all the discovered pod targets in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs):
 
 ```yaml
 scrape_configs:
@@ -501,7 +501,7 @@ Additional labels can be added to scrape targets by specifying the label name in
 and by specifying the label value in `replacement` relabeling option.
 The same approach can be used for updating already existing label values at target level.
 
-For example, the following config adds `{foo="bar"}` label to all the discovered pods in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs):
+For example, the following config adds `{foo="bar"}` label to all the discovered pods in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs):
 
 ```yaml
 scrape_configs:
@@ -542,7 +542,7 @@ If a particular discovered target shouldn't be scraped, then `action: keep` or `
 must be used inside `relabel_configs` section.
 
 The `action: keep` keeps only scrape targets with labels matching the `if` [selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors),
-while dropping the rest of targets. For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs)
+while dropping the rest of targets. For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs)
 and scrapes only pods with names starting with `foo` prefix:
 
 ```yaml
@@ -556,7 +556,7 @@ scrape_configs:
 ```
 
 The `action: drop` drops all the scrape targets with labels matching the `if` [selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors),
-while keeping the rest of targets. For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs)
+while keeping the rest of targets. For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs)
 and scrapes only pods with names starting with prefixes other than `foo`:
 
 ```yaml
@@ -578,7 +578,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
   or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
 * Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
   The specific sets of labels per each supported service discovery option are listed
-  [here](https://docs.victoriametrics.com/sd_configs/#prometheus-service-discovery).
+  [here](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery).
 * Every discovered target contains additional labels with `__` prefix other than `__meta_` labels.
   See [these docs](#how-to-modify-scrape-urls-in-targets) for more details.
 * All the labels, which start with `__` prefix, are automatically removed from targets after the relabeling.

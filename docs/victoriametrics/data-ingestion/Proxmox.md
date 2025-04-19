@@ -31,7 +31,7 @@ or a username and password.
 3. Set the parameters as follows:
   - Name: VictoriaMetrics (can be changed to any string)
   - Server: the hostname or IP of your VictoriaMetrics Instance
-  - Port: This will vary depending on how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
+  - Port: This will vary depending on how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/victoriametrics/data-ingestion/)
   - Protocol: use HTTPS if you have TLS/SSL configured otherwise use HTTP
   - Organization: leave it empty since it doesn't get used
   - Bucket: leave it empty since it doesn't get used
@@ -55,7 +55,7 @@ You should see 1 time series per node in your PVE cluster.
   - Name: VictoriaMetrics (can be set to any string)
   - URL: http(s)://<ip_or_host>:<port>
     - set the URL to HTTPS if you have TLS enabled and HTTP if you do not
-    - Port: This will vary depending on how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
+    - Port: This will vary depending on how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/victoriametrics/data-ingestion/)
   - Organization: leave it empty since it doesn't get used
   - Bucket: leave it empty since it doesn't get used
   - Token: your token from vmauth or leave blank if you don't have authentication enabled
