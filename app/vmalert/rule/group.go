@@ -510,36 +510,84 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	iterations := int(end.Sub(start)/step) + 1
 	fmt.Printf("\nGroup %q"+
 		"\ninterval: \t%v"+
+		"\nconcurrency: \t %d"+
 		"\nrequests to make: \t%d"+
 		"\nmax range per request: \t%v\n",
-		g.Name, g.Interval, iterations, step)
+		g.Name, g.Interval, g.Concurrency, iterations, step)
 	if g.Limit > 0 {
 		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
 			g.Limit)
 	}
-	for _, rule := range g.Rules {
-		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
-		var bar *pb.ProgressBar
-		if !disableProgressBar {
-			bar = pb.StartNew(iterations)
-		}
-		ri.reset()
-		for ri.next() {
-			n, err := replayRule(rule, ri.s, ri.e, rw, replayRuleRetryAttempts)
-			if err != nil {
-				logger.Fatalf("rule %q: %s", rule, err)
+
+	if g.Concurrency == 1 {
+		for _, rule := range g.Rules {
+			fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
+			var bar *pb.ProgressBar
+			if !disableProgressBar {
+				bar = pb.StartNew(iterations)
 			}
-			total += n
+			ri.reset()
+			for ri.next() {
+				n, err := replayRule(rule, ri.s, ri.e, rw, replayRuleRetryAttempts)
+				if err != nil {
+					logger.Fatalf("rule %q: %s", rule, err)
+				}
+				total += n
+				if bar != nil {
+					bar.Increment()
+				}
+			}
 			if bar != nil {
-				bar.Increment()
+				bar.Finish()
 			}
+			// sleep to let remote storage to flush data on-disk
+			// so chained rules could be calculated correctly
+			time.Sleep(replayDelay)
 		}
-		if bar != nil {
-			bar.Finish()
-		}
-		// sleep to let remote storage to flush data on-disk
-		// so chained rules could be calculated correctly
-		time.Sleep(replayDelay)
+		return total
+	}
+
+	fmt.Println("Please note, that rules cannot be chained during replay with concurrency > 1.")
+	sem := make(chan struct{}, g.Concurrency)
+	res := make(chan int, len(g.Rules)*iterations)
+	wg := sync.WaitGroup{}
+	var bar *pb.ProgressBar
+	if !disableProgressBar {
+		bar = pb.StartNew(iterations * len(g.Rules))
+	}
+	for _, r := range g.Rules {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(r Rule, ri rangeIterator) {
+			fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
+
+			ri.reset()
+			for ri.next() {
+				n, err := replayRule(r, ri.s, ri.e, rw, replayRuleRetryAttempts)
+				if err != nil {
+					logger.Fatalf("rule %q: %s", r, err)
+				}
+				if bar != nil {
+					bar.Increment()
+				}
+				res <- n
+			}
+			<-sem
+			wg.Done()
+		}(r, rangeIterator{start: start, end: end, step: step})
+	}
+
+	wg.Wait()
+	close(res)
+	close(sem)
+
+	if bar != nil {
+		bar.Finish()
+	}
+
+	total = 0
+	for n := range res {
+		total += n
 	}
 	return total
 }
