@@ -1,5 +1,5 @@
 import React, { FC, useState, useMemo, useRef } from "preact/compat";
-import { CodeIcon, ListIcon, TableIcon } from "../../../components/Main/Icons";
+import { CodeIcon, CurlyBracketIcon, ListIcon, TableIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
@@ -28,13 +28,15 @@ export interface ExploreLogBodyProps {
 enum DisplayType {
   group = "group",
   table = "table",
+  compactJSON = "compactJSON",
   json = "json",
 }
 
 const tabs = [
   { label: "Group", value: DisplayType.group, icon: <ListIcon/> },
   { label: "Table", value: DisplayType.table, icon: <TableIcon/> },
-  { label: "JSON", value: DisplayType.json, icon: <CodeIcon/> },
+  { label: "JSON", value: DisplayType.compactJSON, icon: <CodeIcon/> },
+  { label: "Raw JSON", value: DisplayType.json, icon: <CurlyBracketIcon/> },
 ];
 
 const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
@@ -48,7 +50,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
   const columns = useMemo(() => {
-    if (!data?.length || activeTab !== DisplayType.table) return [];
+    if (!data?.length || (activeTab !== DisplayType.table && activeTab !== DisplayType.compactJSON)) return [];
     const keys = new Set<string>();
     for (const item of data) {
       for (const key in item) {
@@ -106,13 +108,11 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
               onChange={handleSetRowsPerPage}
             />
             <div className="vm-explore-logs-body-header__table-settings">
-              {data.length > 0 && <DownloadLogsButton logs={data} />}
+              {data.length > 0 && <DownloadLogsButton logs={data}/>}
               <TableSettings
                 columns={columns}
                 selectedColumns={displayColumns}
                 onChangeColumns={setDisplayColumns}
-                tableCompact={tableCompact}
-                toggleTableCompact={toggleTableCompact}
               />
             </div>
           </div>
@@ -125,8 +125,17 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
             />
           </>
         )}
-        {activeTab === DisplayType.json && data.length > 0 && (
-          <DownloadLogsButton logs={data} />
+        {activeTab === DisplayType.compactJSON && !!data.length && (
+          <div className="vm-explore-logs-body-header__settings">
+            <SelectLimit
+              limit={rowsPerPage}
+              onChange={handleSetRowsPerPage}
+            />
+            <DownloadLogsButton logs={data}/>
+          </div>
+        )}
+        {activeTab === DisplayType.json && !!data.length && (
+          <DownloadLogsButton logs={data}/>
         )}
       </div>
 
@@ -144,6 +153,15 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
                 logs={data}
                 displayColumns={displayColumns}
                 tableCompact={tableCompact}
+                columns={columns}
+                rowsPerPage={Number(rowsPerPage)}
+              />
+            )}
+            {activeTab === DisplayType.compactJSON && (
+              <MemoizedTableLogs
+                logs={data}
+                displayColumns={displayColumns}
+                tableCompact={true}
                 columns={columns}
                 rowsPerPage={Number(rowsPerPage)}
               />
