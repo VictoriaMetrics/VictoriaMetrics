@@ -159,20 +159,28 @@ func appendReplaceRegexp(dst []byte, s string, re *regexp.Regexp, replacement st
 		return dst
 	}
 
-	replacements := uint64(0)
-	for {
-		locs := re.FindStringSubmatchIndex(s)
-		if locs == nil {
-			return append(dst, s...)
-		}
-		start := locs[0]
-		dst = append(dst, s[:start]...)
-		end := locs[1]
-		dst = re.ExpandString(dst, replacement, s, locs)
-		s = s[end:]
-		replacements++
-		if limit > 0 && replacements >= limit {
-			return append(dst, s...)
-		}
+	var matches [][]int
+	if limit > 0 {
+		matches = re.FindAllStringSubmatchIndex(s, int(limit))
+	} else {
+		matches = re.FindAllStringSubmatchIndex(s, -1)
 	}
+
+	if len(matches) == 0 {
+		return append(dst, s...)
+	}
+
+	prevEnd := 0
+	for _, locs := range matches {
+		start := locs[0]
+		end := locs[1]
+
+		dst = append(dst, s[prevEnd:start]...)
+		dst = re.ExpandString(dst, replacement, s, locs)
+
+		prevEnd = end
+	}
+
+	// Append the rest of the string after the last match
+	return append(dst, s[prevEnd:]...)
 }
