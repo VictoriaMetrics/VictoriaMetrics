@@ -98,6 +98,12 @@ type apiGroup struct {
 	EvalOffset float64 `json:"eval_offset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	EvalDelay float64 `json:"eval_delay,omitempty"`
+	// Unhealthy unhealthy rules count
+	Unhealthy int
+	// Healthy passing rules count
+	Healthy int
+	// NoMatch not matching rules count
+	NoMatch int
 }
 
 // groupAlerts represents a group of alerts for WEB view
@@ -325,8 +331,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	g = g.DeepCopy()
 	ag := apiGroup{
 		// encode as string to avoid rounding
-		ID: fmt.Sprintf("%d", g.GetID()),
-
+		ID:              strconv.FormatUint(g.GetID(), 10),
 		Name:            g.Name,
 		Type:            g.Type.String(),
 		File:            g.File,
@@ -336,8 +341,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 		Params:          urlValuesToStrings(g.Params),
 		Headers:         headersToStrings(g.Headers),
 		NotifierHeaders: headersToStrings(g.NotifierHeaders),
-
-		Labels: g.Labels,
+		Labels:          g.Labels,
 	}
 	if g.EvalOffset != nil {
 		ag.EvalOffset = g.EvalOffset.Seconds()

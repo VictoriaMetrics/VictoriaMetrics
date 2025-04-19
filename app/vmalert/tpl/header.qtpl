@@ -1,7 +1,7 @@
 {% import (
     "net/http"
-    "path"
     "net/url"
+    "path"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 ) %}
@@ -13,61 +13,9 @@
 <head>
     <title>vmalert{% if title != "" %} - {%s title %}{% endif %}</title>
     <link href="{%s prefix %}static/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        body{
-          min-height: 75rem;
-          padding-top: 4.5rem;
-        }
-        .group-heading {
-            cursor: pointer;
-            padding: 5px;
-            margin-top: 5px;
-            position: relative;
-        }
-        .group-heading .anchor {
-            position:absolute;
-            top:-60px;
-        }
-        .group-heading span {
-            float: right;
-            margin-left: 5px;
-            margin-right: 5px;
-        }
-         .group-heading:hover {
-            background-color: #f8f9fa!important;
-        }
-        .table {
-            table-layout: fixed;
-        }
-        .table .error-cell{
-            word-break: break-word;
-            font-size: 14px;
-        }
-        pre {
-            overflow: scroll;
-            min-height: 30px;
-            max-width: 100%;
-        }
-        pre::-webkit-scrollbar {
-          -webkit-appearance: none;
-          width: 0px;
-          height: 5px;
-        }
-        pre::-webkit-scrollbar-thumb {
-          border-radius: 5px;
-          background-color: rgba(0,0,0,.5);
-          -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
-        }
-        textarea.curl-area{
-            width: 100%;
-            line-height: 1;
-            font-size: 12px;
-            border: none;
-            margin: 0;
-            padding: 0;
-            overflow: scroll;
-        }
-    </style>
+    <link href="{%s prefix %}static/css/custom.css" rel="stylesheet" />
+    <script src="{%s prefix %}static/js/bootstrap.bundle.min.js" type="text/javascript" defer></script>
+    <script src="{%s prefix %}static/js/custom.js" type="text/javascript" defer></script>
 </head>
 <body>
     {%= printNavItems(r, title, navItems, userErr) %}
@@ -79,25 +27,23 @@
 {% code
 type NavItem struct {
 	Name string
-	Url  string
+	URL  string
 }
 %}
 
 {% func printNavItems(r *http.Request, current string, items []NavItem, userErr error) %}
-{%code
-    prefix := vmalertutil.Prefix(r.URL.Path)
-%}
-<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+{%code prefix := vmalertutil.Prefix(r.URL.Path) %}
+<nav class="navbar navbar-expand navbar-dark fixed-top bg-dark">
   <div class="container-fluid">
     <div class="collapse navbar-collapse" id="navbarCollapse">
-        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+        <ul class="navbar-nav me-auto mb-0">
             {% for _, item := range items  %}
                 <li class="nav-item">
                     {% code
-                    u, _ := url.Parse(item.Url)
+                    u, _ := url.Parse(item.URL)
                     %}
                     <a class="nav-link{% if current == item.Name %} active{% endif %}"
-                       href="{% if u.IsAbs() %}{%s item.Url %}{% else %}{%s path.Join(prefix,item.Url) %}{% endif %}">
+                       href="{% if u.IsAbs() %}{%s item.URL %}{% else %}{%s path.Join(prefix, item.URL) %}{% endif %}">
                         {%s item.Name %}
                     </a>
                 </li>
