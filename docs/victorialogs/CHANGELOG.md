@@ -22,6 +22,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add an ability to force flush the recently ingested logs, so they become available for querying. See [these docs](https://docs.victoriametrics.com/victorialogs/#forced-flush).
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`sample` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sample-pipe), which returns `1/Nth` random sample for the selected logs.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a toggle to handle ANSI escape sequences in log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6614).
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add support for parsing float Unix timestamps with automatic precision detection. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8659).
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix the Group tab to display raw JSON when `_msg` is missing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8205).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix display of `Query history` icon in mobile view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8788).

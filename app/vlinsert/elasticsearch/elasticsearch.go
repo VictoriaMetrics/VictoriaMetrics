@@ -228,7 +228,11 @@ func parseElasticsearchTimestamp(s string) (int64, error) {
 	}
 	if len(s) < len("YYYY-MM-DD") || s[len("YYYY")] != '-' {
 		// Try parsing timestamp in seconds or milliseconds
-		return insertutil.ParseUnixTimestamp(s)
+		nsecs, ok := logstorage.TryParseUnixTimestamp(s)
+		if !ok {
+			return 0, fmt.Errorf("cannot parse unix timestamp %q", s)
+		}
+		return nsecs, nil
 	}
 	if len(s) == len("YYYY-MM-DD") {
 		t, err := time.Parse("2006-01-02", s)

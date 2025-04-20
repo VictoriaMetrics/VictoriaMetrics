@@ -222,5 +222,9 @@ func parseLokiTimestamp(s string) (int64, error) {
 		// Special case - an empty timestamp must be substituted with the current time by the caller.
 		return 0, nil
 	}
-	return insertutil.ParseUnixTimestamp(s)
+	nsecs, ok := logstorage.TryParseUnixTimestamp(s)
+	if !ok {
+		return 0, fmt.Errorf("cannot parse unix timestamp %q", s)
+	}
+	return nsecs, nil
 }

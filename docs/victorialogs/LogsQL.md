@@ -2122,8 +2122,10 @@ String fields can be formatted with the following additional formatting rules:
 Numeric fields can be transformed into the following string representation at `format` pipe:
 
 - [RFC3339 time](https://www.rfc-editor.org/rfc/rfc3339) - by adding `time:` in front of the corresponding field name
-  containing [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
-  For example, `format "time=<time:timestamp_nsecs>"`. The timestamp can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+  containing [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time). 
+  The numeric timestamp can be in seconds, milliseconds, microseconds, or nanoseconds — the precision is automatically detected based on the value.
+  Both integer and floating-point values are supported.
+  For example, `format "time=<time:timestamp>"`.
 
 - Human-readable duration - by adding `duration:` in front of the corresponding numeric field name containing duration in nanoseconds.
   For example, `format "duration=<duration:duration_nsecs>"`. The duration can be converted into nanoseconds with the [`math` pipe](#math-pipe).
