@@ -7,6 +7,8 @@ menu:
     weight: 501
 aliases:
 - /Release-Guide.html
+- /release-guide/index.html
+- /release-guide/
 ---
 ## Pre-reqs
 

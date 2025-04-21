@@ -9,5 +9,7 @@ menu:
 aliases:
   - /keyConcepts.html
   - /keyсoncepts.html
+  - /keyconcepts/index.html
+  - /keyconcepts/
 ---
 {{% content "keyConcepts.md" %}}

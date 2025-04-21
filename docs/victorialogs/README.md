@@ -58,7 +58,8 @@ It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
-We recommend installing [Grafana dashboard for VictoriaLogs](https://grafana.com/grafana/dashboards/22084).
+We recommend installing Grafana dashboard for [VictoriaLogs single-node](https://grafana.com/grafana/dashboards/22084) 
+or [cluster](https://grafana.com/grafana/dashboards/23274) (if link is unavailable use [source link](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json)).
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
 via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
@@ -82,7 +83,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 ## Retention
 
-By default VictoriaLogs stores log entries with timestamps in the time range `[now-7d, now]`, while dropping logs outside the given time range.
+By default, VictoriaLogs stores log entries with timestamps in the time range `[now-7d, now]`, while dropping logs outside the given time range.
 E.g. it uses the retention of 7 days. The retention can be configured with `-retentionPeriod` command-line flag.
 This flag accepts values starting from `1d` (one day) up to `100y` (100 years). See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
 for the supported duration formats.
@@ -187,7 +188,7 @@ since VictoriaLogs automatically performs optimal merges in background when new 
 
 This schema outlines how to configure a High Availability (HA) setup using VictoriaLogs Single-Node instances. The setup consists of the following components:
 
-- **Log Collector**: The log collector should support multiplexing incoming data to multiple outputs (destinations). Popular log collectors like [Fluent Bit](https://docs.fluentbit.io/manual/concepts/data-pipeline/router), [Logstash](https://www.elastic.co/guide/en/logstash/current/output-plugins.html), [Fluentd](https://docs.fluentd.org/output/copy), and [Vector](https://vector.dev/docs/setup/configuration/sinks/) already offer this capability. Refer to their documentation for configuration details.
+- **Log Collector**: The log collector should support multiplexing incoming data to multiple outputs (destinations). Popular log collectors like [Fluent Bit](https://docs.fluentbit.io/manual/concepts/data-pipeline/router), [Logstash](https://www.elastic.co/guide/en/logstash/current/output-plugins.html), [Fluentd](https://docs.fluentd.org/output/copy), and [Vector](https://vector.dev/docs/reference/configuration/sinks/) already offer this capability. Refer to their documentation for configuration details.
 
 - **VictoriaLogs Single-Node Instances**: Use two or more instances to achieve HA.
 

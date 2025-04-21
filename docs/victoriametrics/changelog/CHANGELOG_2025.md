@@ -11,5 +11,7 @@ menu:
 aliases:
   - /CHANGELOG_2025.html
   - /changelog_2025
+  - /changelog/changelog_2025/index.html
+  - /changelog/changelog_2025/
 ---
 {{% content "CHANGELOG.md" %}}

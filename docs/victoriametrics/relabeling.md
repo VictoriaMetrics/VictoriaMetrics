@@ -1,12 +1,14 @@
 ---
-weight: 37
+weight: 38
 title: Relabeling cookbook
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 37
+    weight: 38
 aliases:
 - /relabeling.html
+- /relabeling/index.html
+- /relabeling/
 ---
 VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) support
 [Prometheus-compatible relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)

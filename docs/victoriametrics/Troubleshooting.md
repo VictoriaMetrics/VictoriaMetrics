@@ -7,6 +7,8 @@ menu:
     weight: 35
 aliases:
 - /Troubleshooting.html
+- /troubleshooting/index.html
+- /troubleshooting/
 ---
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 

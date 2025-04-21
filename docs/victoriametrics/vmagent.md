@@ -7,6 +7,8 @@ menu:
 title: vmagent
 aliases:
   - /vmagent.html
+  - /vmagent/index.html
+  - /vmagent/
 ---
 `vmagent` is a tiny agent which helps you collect metrics from various sources,
 [relabel and filter the collected metrics](#relabeling)

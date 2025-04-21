@@ -7,6 +7,8 @@ menu:
 title: vmrestore
 aliases:
   - /vmrestore.html
+  - /vmrestore/index.html
+  - /vmrestore/
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup/).
 
@@ -28,8 +30,8 @@ Run the following command to restore backup from the given `-src` into the given
   * [GCS](https://cloud.google.com/storage/). Example: `-src=gs://<bucket>/<path/to/backup>`
   * [S3](https://aws.amazon.com/s3/). Example: `-src=s3://<bucket>/<path/to/backup>`
   * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `-src=azblob://<container>/<path/to/backup>`
-  * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/)
-    or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
+  * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio) or [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/).
+    See [these docs](#advanced-usage) for details.
   * Local filesystem. Example: `-src=fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup
     into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed

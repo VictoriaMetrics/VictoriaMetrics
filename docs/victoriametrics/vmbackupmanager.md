@@ -7,6 +7,8 @@ menu:
 title: vmbackupmanager
 aliases:
   - /vmbackupmanager.html
+  - /vmbackupmanager/index.html
+  - /vmbackupmanager/
 ---
 ## vmbackupmanager
 

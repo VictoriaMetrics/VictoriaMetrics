@@ -7,6 +7,8 @@ menu:
 title: vmalert-tool
 aliases:
   - /vmalert-tool.html
+  - /vmalert-tool/index.html
+  - /vmalert-tool/
 ---
 VMAlert command-line tool
 
