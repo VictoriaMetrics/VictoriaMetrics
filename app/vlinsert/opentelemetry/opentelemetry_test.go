@@ -41,6 +41,26 @@ func TestPushProtoOk(t *testing.T) {
 		`{"_msg":"log-line-message","severity":"Trace"}`,
 	)
 
+	// severities mapping
+	f([]pb.ResourceLogs{
+		{
+			ScopeLogs: []pb.ScopeLogs{
+				{
+					LogRecords: []pb.LogRecord{
+						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1234, SeverityNumber: 1, Body: pb.AnyValue{StringValue: ptrTo("log-line-message")}},
+						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1234, SeverityNumber: 13, Body: pb.AnyValue{StringValue: ptrTo("log-line-message")}},
+						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1234, SeverityNumber: 24, Body: pb.AnyValue{StringValue: ptrTo("log-line-message")}},
+					},
+				},
+			},
+		},
+	},
+		[]int64{1234, 1234, 1234},
+		`{"_msg":"log-line-message","severity":"Trace"}
+{"_msg":"log-line-message","severity":"Warn"}
+{"_msg":"log-line-message","severity":"Fatal4"}`,
+	)
+
 	// multi-line with resource attributes
 	f([]pb.ResourceLogs{
 		{
@@ -60,7 +80,7 @@ func TestPushProtoOk(t *testing.T) {
 				{
 					LogRecords: []pb.LogRecord{
 						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1234, SeverityNumber: 1, Body: pb.AnyValue{StringValue: ptrTo("log-line-message")}},
-						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1235, SeverityNumber: 21, Body: pb.AnyValue{StringValue: ptrTo("log-line-message-msg-2")}},
+						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1235, SeverityNumber: 25, Body: pb.AnyValue{StringValue: ptrTo("log-line-message-msg-2")}},
 						{Attributes: []*pb.KeyValue{}, TimeUnixNano: 1236, SeverityNumber: -1, Body: pb.AnyValue{StringValue: ptrTo("log-line-message-msg-2")}},
 					},
 				},
