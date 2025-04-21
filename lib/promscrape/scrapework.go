@@ -525,7 +525,13 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 
 	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
 	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
-		wc.reset()
+		// use wc.writeRequest.Reset() instead of wc.reset()
+		// in order to keep the len(wc.labels), which is used for initializing sw.prevLabelsLen below.
+		//
+		// This prevents from excess memory allocations at wc for the next scrape for the given scrapeWork.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/commit/12f26668a6bbf804db0e41a2683f1bd232e985d6#r155481168
+		wc.writeRequest.Reset()
+
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
 		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
