@@ -297,7 +297,7 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 		rwctxsGlobal = make([]*remoteWriteCtx, total)
 		rwctxs := make([]*remoteWriteCtx, 0, len(healthyIdx))
 		for i := range rwctxsGlobal {
-			rwctx := &remoteWriteCtx{}
+			rwctx := &remoteWriteCtx{idx: i}
 			rwctxsGlobal[i] = rwctx
 			if healthyMap[i] {
 				rwctxs = append(rwctxs, rwctx)
@@ -305,15 +305,19 @@ func TestCalculateHealthyRwctxIdx(t *testing.T) {
 		}
 		gotHealthyIdx, gotUnhealthyIdx := calculateHealthyRwctxIdx(rwctxs)
 		if !reflect.DeepEqual(healthyIdx, gotHealthyIdx) {
-			t.Errorf("calculateHealthyRwctxIdx() got = %v, want %v", healthyIdx, gotHealthyIdx)
+			t.Errorf("calculateHealthyRwctxIdx want healthyIdx = %v, got %v", healthyIdx, gotHealthyIdx)
 		}
 		if !reflect.DeepEqual(unhealthyIdx, gotUnhealthyIdx) {
-			t.Errorf("calculateHealthyRwctxIdx() got1 = %v, want %v", unhealthyIdx, gotUnhealthyIdx)
+			t.Errorf("calculateHealthyRwctxIdx want unhealthyIdx = %v, got %v", unhealthyIdx, gotUnhealthyIdx)
 		}
 	}
 
 	f(5, []int{0, 1, 2, 3, 4}, []int{})
 	f(5, []int{0, 1, 2, 4}, []int{3})
+	f(5, []int{2, 4}, []int{0, 1, 3})
 	f(5, []int{0, 2, 4}, []int{1, 3})
 	f(5, []int{}, []int{0, 1, 2, 3, 4})
+	f(5, []int{4}, []int{0, 1, 2, 3})
+	f(1, []int{0}, []int{})
+	f(1, []int{}, []int{0})
 }

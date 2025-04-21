@@ -623,21 +623,17 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 func calculateHealthyRwctxIdx(healthyRwctxs []*remoteWriteCtx) ([]int, []int) {
 	unhealthyIdx := make([]int, 0, len(rwctxsGlobal))
 	healthyIdx := make([]int, 0, len(rwctxsGlobal))
-	i, j := 0, 0
-	for j < len(healthyRwctxs) {
-		if rwctxsGlobal[i] != healthyRwctxs[j] {
-			unhealthyIdx = append(unhealthyIdx, i)
+
+	var i int
+	for j := range rwctxsGlobal {
+		if i < len(healthyRwctxs) && rwctxsGlobal[j].idx == healthyRwctxs[i].idx {
+			healthyIdx = append(healthyIdx, j)
 			i++
 		} else {
-			healthyIdx = append(healthyIdx, i)
-			i++
-			j++
+			unhealthyIdx = append(unhealthyIdx, j)
 		}
 	}
-	for i < len(rwctxsGlobal) {
-		unhealthyIdx = append(unhealthyIdx, i)
-		i++
-	}
+
 	return healthyIdx, unhealthyIdx
 }
 
