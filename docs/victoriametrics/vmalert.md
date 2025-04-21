@@ -847,7 +847,7 @@ There are following non-required `replay` flags:
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
-* `replay.continueOnError` - whether to continue on an error when a replay fails. 
+* `-replay.continueOnError` - whether to continue on an error when a replay fails. 
   ruleRetryAttempts is taken into account when it is considered an error.
   Set it to true if you still want to continue on rule evaluations despite an error.
 
