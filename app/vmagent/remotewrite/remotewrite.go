@@ -512,6 +512,10 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	return true
 }
 
+// getEligibleRemoteWriteCtxs checks whether writes to configured remote storage systems are blocked and
+// returns only the unblocked rwctx.
+//
+// calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
 	if !disableOnDiskQueueAny {
 		return rwctxsGlobal, true
@@ -619,7 +623,8 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 	return !anyPushFailed.Load()
 }
 
-// calculateHealthyRwctxIdx return the index of healthyRwctxs in rwctxsGlobal.
+// calculateHealthyRwctxIdx returns the index of healthyRwctxs in rwctxsGlobal.
+// It relies on the order of rwctx in healthyRwctxs, which is appended by getEligibleRemoteWriteCtxs.
 func calculateHealthyRwctxIdx(healthyRwctxs []*remoteWriteCtx) ([]int, []int) {
 	unhealthyIdx := make([]int, 0, len(rwctxsGlobal))
 	healthyIdx := make([]int, 0, len(rwctxsGlobal))
