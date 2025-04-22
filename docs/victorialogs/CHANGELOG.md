@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.20.0-victorialogs)
+
+Released at 2025-04-22
+
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce CPU usage by up to 10x when ingesting small number of log entries per request.
 * FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/23274): add Grafana dashboard for cluster version of VictoriaLogs. The source of the dashboard is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json) and will continue improving with time.
 * FEATURE: [deployment/docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme): add [docker-compose environment for VictoriaLogs cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victorialogs-cluster) deployment. It is intended for demonstrative purposes, includes alerting and Grafana dashboards.
