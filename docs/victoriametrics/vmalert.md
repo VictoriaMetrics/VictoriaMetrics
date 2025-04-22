@@ -464,7 +464,7 @@ In this example, `-external.alert.source` will lead to Grafana's Explore page wi
 and time range will be selected starting from `"from":"{{ .ActiveAt.UnixMilli }}"` when alert became active.
 
 In addition to `source` link, some extra links could be added to alert's [annotations](https://docs.victoriametrics.com/vmalert/#alerting-rules)
-field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/839596c00df123c639d1244b28ee8137dfc9609c/deployment/docker/rules/alerts-cluster.yml#L43)
+field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/rules/alerts-cluster.yml#L44)
 to link alerting rule and the corresponding panel on Grafana dashboard.
 
 ### Multitenancy

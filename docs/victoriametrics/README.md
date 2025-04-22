@@ -235,9 +235,8 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 
 ### Start with docker-compose
 
-[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
+[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent/) and Grafana with one command.
-More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 ## Playgrounds
 
