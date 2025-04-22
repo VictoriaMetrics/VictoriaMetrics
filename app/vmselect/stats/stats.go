@@ -3,6 +3,7 @@ package stats
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -37,6 +38,12 @@ func MetricNamesStatsHandler(startTime time.Time, at *auth.Token, qt *querytrace
 		le = n
 	}
 	matchPattern := r.FormValue("match_pattern")
+	if len(matchPattern) > 0 {
+		_, err := regexp.Compile(matchPattern)
+		if err != nil {
+			return fmt.Errorf("match_pattern=%q must be valid regex: %w", matchPattern, err)
+		}
+	}
 	deadline := searchutil.GetDeadlineForStatusRequest(r, startTime)
 	var tt *storage.TenantToken
 	if at != nil {
