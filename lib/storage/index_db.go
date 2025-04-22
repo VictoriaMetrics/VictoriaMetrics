@@ -642,6 +642,11 @@ func putIndexItems(ii *indexItems) {
 
 var indexItemsPool sync.Pool
 
+// HasTimestamp checks if index contains given timestamp.
+func (db *indexDB) HasTimestamp(timestamp int64) bool {
+	return timestamp >= db.tr.MinTimestamp && timestamp <= db.tr.MaxTimestamp
+}
+
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
