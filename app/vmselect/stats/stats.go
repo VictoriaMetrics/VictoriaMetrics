@@ -3,6 +3,7 @@ package stats
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -33,6 +34,12 @@ func MetricNamesStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter, r *h
 		le = n
 	}
 	matchPattern := r.FormValue("match_pattern")
+	if len(matchPattern) > 0 {
+		_, err := regexp.Compile(matchPattern)
+		if err != nil {
+			return fmt.Errorf("match_pattern=%q must be valid regex: %w", matchPattern, err)
+		}
+	}
 	stats, err := netstorage.GetMetricNamesStats(qt, limit, le, matchPattern)
 	if err != nil {
 		return err

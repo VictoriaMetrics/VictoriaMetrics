@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -371,6 +371,14 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 	if mt == nil {
 		return result
 	}
+	var matchRe *regexp.Regexp
+	if len(matchPattern) > 0 {
+		var err error
+		matchRe, err = regexp.Compile(matchPattern)
+		if err != nil {
+			logger.Fatalf("BUG: expected valid regex=%q: %s", matchPattern, err)
+		}
+	}
 	mt.mu.RLock()
 
 	result = mt.getStatsLocked(limit, func(sk *statKey, si *statItem) bool {
@@ -380,7 +388,7 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 		if le >= 0 && int(si.requestsCount.Load()) > le {
 			return false
 		}
-		if len(matchPattern) > 0 && !strings.Contains(sk.metricName, matchPattern) {
+		if matchRe != nil && !matchRe.MatchString(sk.metricName) {
 			return false
 		}
 		return true
@@ -427,12 +435,19 @@ func (mt *Tracker) GetStats(limit, le int, matchPattern string) StatsResult {
 		return result
 	}
 	mt.mu.RLock()
-
+	var matchRe *regexp.Regexp
+	if len(matchPattern) > 0 {
+		var err error
+		matchRe, err = regexp.Compile(matchPattern)
+		if err != nil {
+			logger.Fatalf("BUG: expected valid regex=%q: %s", matchPattern, err)
+		}
+	}
 	result = mt.getStatsLocked(limit, func(sk *statKey, si *statItem) bool {
 		if le >= 0 && int(si.requestsCount.Load()) > le {
 			return false
 		}
-		if len(matchPattern) > 0 && !strings.Contains(sk.metricName, matchPattern) {
+		if matchRe != nil && !matchRe.MatchString(sk.metricName) {
 			return false
 		}
 		return true
