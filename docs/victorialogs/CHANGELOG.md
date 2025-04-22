@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce CPU usage by up to 10x when ingesting small number of log entries per request.
+* FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/23274): add Grafana dashboard for cluster version of VictoriaLogs. The source of the dashboard is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json) and will continue improving with time.
+* FEATURE: [deployment/docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme): add [docker-compose environment for VictoriaLogs cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victorialogs-cluster) deployment. It is intended for demonstrative purposes, includes alerting and Grafana dashboards.
+
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix high CPU usage when hovering over log entries due to complex button styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8135).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add 0 label to the Y axis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8409).
 
