@@ -22,6 +22,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix high CPU usage when hovering over log entries due to complex button styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8135).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add 0 label to the Y axis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8409).
+* BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): add missed WARN severity levels. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8647). Thanks to @090809 for [the bugfix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8648).
 
 ## [v1.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.19.0-victorialogs)
 
@@ -45,7 +46,6 @@ Released at 2025-04-10
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix endless group expansion loop bug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8347).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect nanosecond precision when sorting logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8346).
-* BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): add missed WARN severity levels. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8647).
 
 ## [v1.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.17.0-victorialogs)
 
