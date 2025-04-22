@@ -9,6 +9,8 @@ import TextField from "../../../components/Main/TextField/TextField";
 import LogsQueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/LogsQL/LogsQueryEditorAutocomplete";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import Switch from "../../../components/Main/Switch/Switch";
+import QueryHistory from "../../../components/QueryHistory/QueryHistory";
+import useBoolean from "../../../hooks/useBoolean";
 
 export interface ExploreLogHeaderProps {
   query: string;
@@ -30,11 +32,12 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
   onRun,
 }) => {
   const { isMobile } = useDeviceDetect();
-  const { autocomplete } = useQueryState();
+  const { autocomplete, queryHistory } = useQueryState();
   const queryDispatch = useQueryDispatch();
 
   const [errorLimit, setErrorLimit] = useState("");
   const [limitInput, setLimitInput] = useState(limit);
+  const { value: awaitQuery, setValue: setAwaitQuery } = useBoolean(false);
 
   const handleChangeLimit = (val: string) => {
     const number = +val;
@@ -55,6 +58,33 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
     setLimitInput(limit);
   }, [limit]);
 
+  const handleHistoryChange = (step: number) => {
+    const { values, index } = queryHistory[0];
+    const newIndexHistory = index + step;
+    if (newIndexHistory < 0 || newIndexHistory >= values.length) return;
+    onChange(values[newIndexHistory] || "");
+    queryDispatch({
+      type: "SET_QUERY_HISTORY_BY_INDEX",
+      payload: { value: { values, index: newIndexHistory }, queryNumber: 0 }
+    });
+  };
+
+  const handleSelectHistory = (value: string) => {
+    onChange(value);
+    setAwaitQuery(true);
+  };
+
+  const createHandlerArrow = (step: number) => () => {
+    handleHistoryChange(step);
+  };
+
+  useEffect(() => {
+    if (awaitQuery) {
+      onRun();
+      setAwaitQuery(false);
+    }
+  }, [query, awaitQuery]);
+
   return (
     <div
       className={classNames({
@@ -68,8 +98,8 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
           value={query}
           autocomplete={autocomplete}
           autocompleteEl={LogsQueryEditorAutocomplete}
-          onArrowUp={() => null}
-          onArrowDown={() => null}
+          onArrowUp={createHandlerArrow(-1)}
+          onArrowDown={createHandlerArrow(1)}
           onEnter={onRun}
           onChange={onChange}
           label={"Log query"}
@@ -113,16 +143,22 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
             Documentation
           </a>
         </div>
+        <QueryHistory
+          handleSelectQuery={handleSelectHistory}
+          historyKey={"LOGS_QUERY_HISTORY"}
+        />
         <div className="vm-explore-logs-header-bottom-execute">
           <Button
             startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
             onClick={onRun}
             fullWidth
           >
-            <span className="vm-explore-logs-header-bottom-execute__text">
-              {isLoading ? "Cancel Query" : "Execute Query"}
-            </span>
-            <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
+            <div>
+              <span className="vm-explore-logs-header-bottom-execute__text">
+                {isLoading ? "Cancel Query" : "Execute Query"}
+              </span>
+              <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
+            </div>
           </Button>
         </div>
       </div>

@@ -8,6 +8,8 @@ menu:
     weight: 22
 aliases:
 - /BestPractices.html
+- /bestpractices/index.html
+- /bestpractices/
 ---
 ## Install Recommendation
 

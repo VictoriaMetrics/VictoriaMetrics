@@ -307,6 +307,8 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 		fieldName := f.Name
 		if fieldName == "_msg" {
 			fieldName = ""
+		}
+		if fieldName == "" {
 			hasMsgField = true
 		}
 

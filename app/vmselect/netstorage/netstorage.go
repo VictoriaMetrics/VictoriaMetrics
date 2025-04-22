@@ -1306,6 +1306,7 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 	seriesCountByFocusLabelValue := make(map[string]uint64)
 	seriesCountByLabelValuePair := make(map[string]uint64)
 	labelValueCountByLabelName := make(map[string]uint64)
+	seriesQueryStatsByMetricNames := make(map[string]storage.MetricNamesStatsRecord)
 	for _, st := range statuses {
 		totalSeries += st.TotalSeries
 		totalLabelValuePairs += st.TotalLabelValuePairs
@@ -1328,6 +1329,25 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 				labelValueCountByLabelName[e.Name] = e.Count
 			}
 		}
+		for _, e := range st.SeriesQueryStatsByMetricName {
+			ne, ok := seriesQueryStatsByMetricNames[e.MetricName]
+			if ok {
+				ne.RequestsCount += e.RequestsCount
+				if e.LastRequestTs > ne.LastRequestTs {
+					ne.LastRequestTs = e.LastRequestTs
+				}
+			} else {
+				ne = e
+			}
+			seriesQueryStatsByMetricNames[e.MetricName] = ne
+		}
+	}
+	// do not apply topN limit
+	// query stats should be joined to SeriesCountByMetricName
+	// at write response
+	seriesQueryStatsTotal := make([]storage.MetricNamesStatsRecord, 0, len(seriesQueryStatsByMetricNames))
+	for _, entry := range seriesQueryStatsByMetricNames {
+		seriesQueryStatsTotal = append(seriesQueryStatsTotal, entry)
 	}
 	return &storage.TSDBStatus{
 		TotalSeries:                  totalSeries,
@@ -1337,6 +1357,7 @@ func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBSt
 		SeriesCountByFocusLabelValue: toTopHeapEntries(seriesCountByFocusLabelValue, topN),
 		SeriesCountByLabelValuePair:  toTopHeapEntries(seriesCountByLabelValuePair, topN),
 		LabelValueCountByLabelName:   toTopHeapEntries(labelValueCountByLabelName, topN),
+		SeriesQueryStatsByMetricName: seriesQueryStatsTotal,
 	}
 }
 
@@ -2356,7 +2377,7 @@ func (sn *storageNode) getTSDBStatus(qt *querytracer.Tracer, requestData []byte,
 		status = st
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tsdbStatus_v5", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "tsdbStatus_v6", f, deadline); err != nil {
 		return nil, err
 	}
 	return status, nil
@@ -2833,6 +2854,10 @@ func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
 	}
+	seriesQueryStatsByMetricName, err := readMetricNamesStatsRecords(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesQueryStatsByMetricName: %w", err)
+	}
 	status := &storage.TSDBStatus{
 		TotalSeries:                  totalSeries,
 		TotalLabelValuePairs:         totalLabelValuePairs,
@@ -2841,6 +2866,7 @@ func readTSDBStatus(bc *handshake.BufferedConn) (*storage.TSDBStatus, error) {
 		SeriesCountByFocusLabelValue: seriesCountByFocusLabelValue,
 		SeriesCountByLabelValuePair:  seriesCountByLabelValuePair,
 		LabelValueCountByLabelName:   labelValueCountByLabelName,
+		SeriesQueryStatsByMetricName: seriesQueryStatsByMetricName,
 	}
 	return status, nil
 }
@@ -3433,29 +3459,38 @@ func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *stora
 	if err != nil {
 		return result, fmt.Errorf("cannot read MaxSizeBytes: %w", err)
 	}
+	records, err := readMetricNamesStatsRecords(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read MetricNamesStatsRecord records: %w", err)
+	}
+	result.Records = records
+	return result, nil
+}
+
+func readMetricNamesStatsRecords(bc *handshake.BufferedConn) ([]storage.MetricNamesStatsRecord, error) {
 	n, err := readUint64(bc)
 	if err != nil {
-		return result, fmt.Errorf("cannot read records count: %w", err)
+		return nil, fmt.Errorf("cannot read the number of MetricNamesStatsRecord: %w", err)
 	}
-	result.Records = make([]storage.MetricNamesStatsRecord, n)
+	records := make([]storage.MetricNamesStatsRecord, n)
 	var mnBuff []byte
 	for i := range n {
 		mnBuff, err = readBytes(mnBuff[:0], bc, 256)
 		if err != nil {
-			return result, fmt.Errorf("cannot read record metricName: %w", err)
+			return records, fmt.Errorf("cannot read record metricName: %w", err)
 		}
-		record := &result.Records[i]
+		record := &records[i]
 		record.MetricName = string(mnBuff)
 		record.LastRequestTs, err = readUint64(bc)
 		if err != nil {
-			return result, fmt.Errorf("cannot read record LastRequestTs: %w", err)
+			return records, fmt.Errorf("cannot read record LastRequestTs: %w", err)
 		}
 		record.RequestsCount, err = readUint64(bc)
 		if err != nil {
-			return result, fmt.Errorf("cannot read record RequestCount: %w", err)
+			return records, fmt.Errorf("cannot read record RequestCount: %w", err)
 		}
 	}
-	return result, nil
+	return records, nil
 }
 
 // ResetMetricNamesStats forwards reset tracker state request to the storage nodes

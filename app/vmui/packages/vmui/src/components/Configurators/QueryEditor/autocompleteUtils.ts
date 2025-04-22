@@ -85,7 +85,7 @@ export function getContext(
   );
   const endOfClosedQuotes =
     !hasUnclosedQuotes(valueBeforeCursor) &&
-    ["`", "'", '"'].some((char) => valueBeforeCursor.endsWith(char));
+    ["`", "'", "\""].some((char) => valueBeforeCursor.endsWith(char));
   if (
     !valueBeforeCursor ||
     endOfClosedBrackets ||

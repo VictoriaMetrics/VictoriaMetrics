@@ -4,7 +4,7 @@
   display: grid;
   gap: calc($padding-large * 2);
   padding: $padding-global 0;
-  width: 600px;
+  max-width: 600px;
 
   &-item {
     display: grid;

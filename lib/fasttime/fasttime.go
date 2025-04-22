@@ -2,6 +2,7 @@ package fasttime
 
 import (
 	"sync/atomic"
+	"testing"
 	"time"
 )
 
@@ -26,6 +27,12 @@ var currentTimestamp = func() *atomic.Uint64 {
 //
 // It is faster than time.Now().Unix()
 func UnixTimestamp() uint64 {
+	if testing.Testing() {
+		// When executing inside the tests, use the time package directly.
+		// This allows to override time using synctest package.
+		return uint64(time.Now().Unix())
+	}
+
 	return currentTimestamp.Load()
 }
 
