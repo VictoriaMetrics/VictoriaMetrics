@@ -9,6 +9,8 @@ menu:
 aliases:
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
+  - /data-ingestion/telegraf/index.html
+  - /data-ingestion/telegraf/
 ---
 This document covers various output configurations for Telegraf for shipping data [via HTTP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 to VictoriaMetrics. All the options examples below can be combined to fit your use case.

@@ -206,4 +206,4 @@ plus it accepts TLS-encrypted syslog messages via TCP port 6514 and stores them 
    };
    ```
    Where `victoria-logs-server` is the hostname where VictoriaLogs runs.
-   See [these docs](https://support.oneidentity.com/technical-documents/doc/syslog-ng-open-source-edition/3.19/administration-guide/29#TOPIC-1094570) for details.
+   See [these docs](https://support.oneidentity.com/technical-documents/syslog-ng-open-source-edition/3.19/administration-guide/29#TOPIC-1094570) for details.

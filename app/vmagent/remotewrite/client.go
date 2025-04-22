@@ -418,7 +418,7 @@ again:
 		if retryDuration > maxRetryDuration {
 			retryDuration = maxRetryDuration
 		}
-		logger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
+		remoteWriteRetryLogger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
 		t := timerpool.Get(retryDuration)
 		select {
@@ -509,6 +509,7 @@ again:
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
+var remoteWriteRetryLogger = logger.WithThrottler("remoteWriteRetry", 5*time.Second)
 
 // getRetryDuration returns retry duration.
 // retryAfterDuration has the highest priority.

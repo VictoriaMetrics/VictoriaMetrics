@@ -11,7 +11,7 @@ services:
       - type: bind
         source: /var/lib/docker
         target: /var/lib/docker
-      - ${PWD}/vector.yaml:/etc/vector/vector.yaml:ro
+      - ${PWD}/vector.yml:/etc/vector/vector.yaml:ro
     user: root
     ports:
       - '8686:8686'

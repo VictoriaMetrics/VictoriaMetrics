@@ -7,6 +7,8 @@ menu:
 title: vmbackup
 aliases:
   - /vmbackup.html
+  - /vmbackup/index.html
+  - /vmbackup/
 ---
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
 
@@ -30,7 +32,7 @@ creation of hourly, daily, weekly and monthly backups.
 * [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
 * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<container>/<path/to/backup>`
-* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
+* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio) or [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
 ## Use cases
@@ -518,7 +520,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 

@@ -7,6 +7,8 @@ menu:
     weight: 36
 aliases:
 - /sd_configs.html
+- /sd_configs/index.html
+- /sd_configs/
 ---
 # Supported service discovery configs
 
@@ -1235,7 +1237,7 @@ The list of discovered Kubernetes targets is refreshed at the interval, which ca
 Kuma service discovery config allows to fetch targets from the specified control plane `server` of [Kuma Service Mesh](https://kuma.io).
 
 It discovers "monitoring assignments" based on Kuma Dataplane Proxies, 
-via the [MADS (Monitoring Assignment Discovery Service)](https://kuma.io/docs/2.1.x/policies/traffic-metrics/#traffic-metrics) 
+via the [MADS (Monitoring Assignment Discovery Service)](https://kuma.io/docs/2.10.x/policies/traffic-metrics/) 
 [xDS RESP API](http://envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol).
 
 Configuration example:
