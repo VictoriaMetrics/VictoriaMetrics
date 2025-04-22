@@ -8,7 +8,7 @@ menu:
 ---
 
 You need to use Access tokens to access the deployment.
-Access tokens are  technical credentials for reading and writing data to your deployments.
+Access tokens are technical credentials for reading and writing data to your deployments.
 
 You can manage them in the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments):
 
