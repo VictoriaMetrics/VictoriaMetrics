@@ -1,0 +1,179 @@
+---
+title : "How to write data"
+weight: 2
+menu:
+  docs:
+    parent: "deployments"
+    weight: 2
+---
+
+You need to use Access tokens to access the deployment.
+Access tokens are  technical credentials for reading and writing data to your deployments.
+
+You can manage them in the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments):
+
+![Access tokens](access-tokens.webp)
+
+One ‘default access token’ will always be automatically created after the deployment is created.
+
+You can use it, but we strongly recommend [creating a separate token](#how-to-create-access-token) for each individual access unit.
+For instance, if you have two separate kubernetes clusters, you can [create separate access tokens](#how-to-create-access-token) 
+for [vmagent](https://docs.victoriametrics.com/vmagent/) in each cluster and separate tokens for Grafana.
+
+It allows:
+
+- Reduce the blast radius in case of any human error
+- Easier to diagnose and debug problems
+- Manage rights more granularly and safely
+- Limit the impact of overloading if limits are exceeded
+- Secure access partially in case of a leak
+
+Each Access token has limit for concurrent requests, more details about it you can read on [Tier Parameters and Flag Parameters Configuration](../tiers-parameters.md) page.
+
+## How to create access token
+
+1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
+2. Click "Generate Token" button
+3. Enter the name of the token (for example "vmagent prod")
+4. And select the access level:
+   - **Read** - read-only access to the deployment (for data querying tools like Grafana, Perses, etc.)
+   - **Write** - write-only access to the deployment (for data collectors like [vmagent](https://docs.victoriametrics.com/vmagent/, Prometheus, telegraf, etc.)
+   - **Read/Write** - read and write access to the deployment (for tools which need to read and write data, like [vmalert](https://docs.victoriametrics.com/vmalert/))
+5. For cluster deployments you can also specify a specific tenant in the "Advanced Settings", in which case the token will only be able to work with the specified tenant. More details about this option you can read in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section. 
+6. Click "Generate" button
+
+After that you can get [Secret value of the Access token](#how-to-use-secret-value-of-access-token) for using it.
+
+## How to change access token parameters
+
+Access tokens are immutable - you can’t change access token parameters creation, you can only [revoke it](#how-to-revoke-access-token) and [create new one](#how-to-create-access-token).
+
+## How to use secret value of access token
+
+For using Access token in your software you need secret value of the Access token:
+
+1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
+2. Find the required token in the list
+3. Click to the value in "Key" column of this Access token. After that secret value of the Access token will be in your clipboard.
+
+Please be careful with this this value, treat it like a password - do not store or send it on in the open.
+
+This value is the [Bearer token](https://swagger.io/docs/specification/v3_0/authentication/bearer-authentication/), 
+you need to pass it as http header in each request in the following format:
+
+```
+Authorization: Bearer <SECRET_VAUE>
+```
+
+## Access endpoint
+
+Each deployment has access endpoint: URL for using API of deployment 
+for [writing](#how-to-write-data-with-access-token) and [reading](#how-to-read-data-with-access-token) data.
+
+You can find it in the "Overview" tab on the deployment page:
+
+![Access endpoint](access-endpoint.webp)
+
+You can click on the Access endpoint to copy it to the clipboard.
+
+Access endpoint can be shared for several deployments, requests routing to the required deployment is done using Access token.
+
+## How to write data with access token
+
+To use Access token for writing data you need the following things:
+
+- [Secret value of the Access token](#how-to-use-secret-value-of-access-token)
+- [Access endpoint](#access-endpoint)
+- [Required API path of Victoria Metrics deployment](https://docs.victoriametrics.com/victoriametrics/url-examples/)
+
+You can use the following format for requests to yo deployment:
+
+```
+POST https://<ACCESS_ENDPOINT>/<API_PATH>
+Authotization: Bearer <SECRET_VALUE>
+```
+
+Please note that API paths are different for single and cluster deployments, more details about it you can read in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section.
+
+The best way to configure writing data to your deployment is to use the [integrations page](https://console.victoriametrics.cloud/integrations?integrationType=ingestion)
+in the [Victoria Metrics Cloud console](https://console.victoriametrics.cloud/integrations) or [Integrations section](../integrations) of the documentation. 
+If there’s an integration you would like to use and it is currently missing, please [contact us](mailto:support-cloud@victoriametrics.com).
+
+You can also open examples section of access tokens:
+
+1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
+2. Find the required token in the list
+3. Click "..." button in the Actions column next to the required token in the list
+4. Click "Examples" button
+5. Choose on of available examples: [vmagent](https://docs.victoriametrics.com/vmagent/), prometheus or curl. You can click on the button in the top right corner to copy command or config to clipboard with the access token substituted in it.
+
+## How to read data with access token
+
+To use Access token for writing data you need the following things:
+
+- [Secret value of the Access token](#how-to-use-secret-value-of-access-token)
+- [Access endpoint](#access-endpoint)
+- [Required API path of Victoria Metrics deployment](https://docs.victoriametrics.com/victoriametrics/url-examples/)
+
+You can use the following format for requests to yo deployment:
+
+```
+POST https://<ACCESS_ENDPOINT>/<API_PATH>
+Authotization: Bearer <SECRET_VALUE>
+```
+
+Please note that API paths are different for single and cluster deployments, more details about it you can read in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section.
+
+The best way to configure writing data to your deployment is to use the [integrations page](https://console.victoriametrics.cloud/integrations?integrationType=visualization)
+in the [Victoria Metrics Cloud console](https://console.victoriametrics.cloud/integrations) or [Integrations section](../integrations) of the documentation.
+If there’s an integration you would like to use and it is currently missing, please [contact us](mailto:support-cloud@victoriametrics.com).
+
+You can also open examples section of access tokens:
+
+1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
+2. Find the required token in the list
+3. Click "..." button in the Actions column next to the required token in the list
+4. Click "Examples" button
+5. Go to "Read" tab in example dialog
+6. Choose on of available examples: grafana or curl. You can click on the button in the top right corner to copy command or config to clipboard with the access token substituted in it.
+
+## How to revoke access token
+
+1. Make sure the token is no longer in use
+2. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
+3. Find the required token in the list
+4. Click "..." button in the Actions column next to the required token in the list
+5. Click "Delete" button
+
+## How to work with tenants in cluster deployments
+
+Please note that API paths are different for single and cluster deployments, for example:
+
+| Deployment type    | URL                                                                    |
+|--------------------|------------------------------------------------------------------------|
+| Single deployment  | `https://<ACCESS_ENDPOINT>/api/v1/write`                               |
+| Cluster deployment | `https://<ACCESS_ENDPOINT>/insert/<TENANT_ID>/prometheus/api/v1/write` |
+
+You can read about the difference in [URL format section](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) 
+and see examples on [URL examples page](https://docs.victoriametrics.com/victoriametrics/url-examples/).
+
+The main difference is that cluster deployments are multitenant by default and a special suffix must be added for them, which contains the component prefix (insert/select) and tenant id.
+More details about multitenancy and tenants you can read in [Multitenancy section](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
+
+Cluster deployment also allows to [create Access tokens](#how-to-create-access-token) for specific tenants.
+In this case, the token will only be able to work with the specified tenant.
+For creating Access token for specific tenant you need to specify tenant id in the "Advanced Settings" section of the [token creation dialog](#how-to-create-access-token).
+API paths for such tokens will be the different from the default ones, for example:
+
+| Access token type     | URL                                                                    |
+|-----------------------|------------------------------------------------------------------------|
+| Regular token         | `https://<ACCESS_ENDPOINT>/insert/<TENANT_ID>/prometheus/api/v1/write` |
+| Tenant-specific token | `https://<ACCESS_ENDPOINT>/prometheus/api/v1/write`                    |
+
+Thus for tenant-specific tokens the `/insert/<TENANT>` and `/select/<TENANT>` suffix will be added automatically.
+
+## Difference between Access tokens and API Keys
+
+- Access tokens are used for using your deployment: [reading](#how-to-read-data-with-access-token) and [writing](#how-to-write-data-with-access-token) the data.
+- [API keys](../api.md) are used for managing your deployment: creating, updating and deleting it and their resources like Access tokens, alerting rules, etc. 
+  This is necessary if you want to manage your monitoring infrastructure (including Victoria Metrics Cloud deployments) as code, for example with Terraform.s
