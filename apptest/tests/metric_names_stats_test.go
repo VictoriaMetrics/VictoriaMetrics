@@ -71,16 +71,18 @@ func TestSingleMetricNamesStats(t *testing.T) {
 
 	expectedStatsResponse := apptest.TSDBStatusResponse{
 		Data: at.TSDBStatusResponseData{
-			TotalSeries:          5,
-			TotalLabelValuePairs: 10,
+			TotalSeries:          6,
+			TotalLabelValuePairs: 12,
 			SeriesCountByMetricName: []apptest.TSDBStatusResponseMetricNameEntry{
 				{Name: "metric_name_1", RequestsCount: 3},
+				{Name: largeMetricName, RequestsCount: 1},
 				{Name: "metric_name_2", RequestsCount: 1},
 				{Name: "metric_name_3", RequestsCount: 1},
 			},
 			SeriesCountByLabelName:       []apptest.TSDBStatusResponseEntry{{Name: "__name__"}, {Name: "label"}},
 			SeriesCountByFocusLabelValue: []apptest.TSDBStatusResponseEntry{},
 			SeriesCountByLabelValuePair: []apptest.TSDBStatusResponseEntry{
+				{Name: "__name__=" + largeMetricName},
 				{Name: "__name__=metric_name_1"}, {Name: "label=baz"},
 				{Name: "__name__=metric_name_2"}, {Name: "__name__=metric_name_3"},
 				{Name: "label=bar"}, {Name: "label=foo"},
