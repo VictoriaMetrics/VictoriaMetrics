@@ -271,8 +271,6 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 		if len(rf.files) > 0 && !slices.Contains(rf.files, group.File) {
 			continue
 		}
-		d, _ := json.Marshal(group)
-		fmt.Println(string(d))
 
 		g := groupToAPI(group)
 		// the returned list should always be non-nil

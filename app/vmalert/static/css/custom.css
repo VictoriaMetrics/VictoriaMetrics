@@ -15,7 +15,7 @@ body {
   padding-top: 4.5rem;
 }
 
-.alert-group {
+.group-items {
   cursor: pointer;
   padding: 5px;
   margin-top: 5px;
@@ -36,11 +36,11 @@ body {
   height: 38px;
 }
 
-.alert-group:not(:has(.alert-rule:not(.d-none))) {
+.group-items:not(:has(.sub-item:not(.d-none))) {
   display: none !important;
 }
 
-.alert-group:hover {
+.group-items:hover {
   background-color: #f8f9fa!important;
 }
 

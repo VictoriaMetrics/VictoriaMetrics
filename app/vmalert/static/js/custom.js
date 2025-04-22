@@ -66,9 +66,9 @@ function getParamURL(key) {
 }
 
 function filterRules(searchPhrase) {
-    document.querySelectorAll('.alert-rules').forEach((rules) => {
+    document.querySelectorAll('.sub-items').forEach((rules) => {
         let found = false;
-        rules.querySelectorAll('.alert-rule').forEach((rule) => {
+        rules.querySelectorAll('.sub-item').forEach((rule) => {
             if (searchPhrase) {
                 const ruleName = rule.innerText.toLowerCase();
                 const matches = []

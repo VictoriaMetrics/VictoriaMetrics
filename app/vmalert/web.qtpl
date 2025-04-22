@@ -11,65 +11,65 @@
 ) %}
 
 {% func Controls(icons, filters map[string]string, currentIcon, currentText string, search bool) %}
-  <div class="btn-toolbar mb-3" role="toolbar">
-    <div class="d-flex gap-2 justify-content-between w-100">
-      <div class="d-flex gap-2">
-        {% if len(filters) > 0 %}
-          <div class="dropdown">
-            <button
-              class="btn btn-outline-dark dropdown-toggle d-flex justify-content-between align-items-center"
-              type="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              <span class="d-none d-md-inline-block">{%s currentText %}</span>
-              {%s= currentIcon %}
-            </button>
-            <ul class="dropdown-menu">
-              {% for key, title := range filters %}
-                {% if title != currentText %}
-                  <li>
-                    <a class="dropdown-item" onclick="groupFilter('{%s key %}')">
-                      <span class="d-none d-md-inline-block">{%s title %}</span>
-                      {%s= icons[key] %}
-                    </a>
-                  </li>
+    <div class="btn-toolbar mb-3" role="toolbar">
+        <div class="d-flex gap-2 justify-content-between w-100">
+            <div class="d-flex gap-2">
+                {% if len(filters) > 0 %}
+                    <div class="dropdown">
+                        <button
+                            class="btn btn-outline-dark dropdown-toggle d-flex justify-content-between align-items-center"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                        >
+                            <span class="d-none d-md-inline-block">{%s currentText %}</span>
+                            {%s= currentIcon %}
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% for key, title := range filters %}
+                                {% if title != currentText %}
+                                    <li>
+                                        <a class="dropdown-item" onclick="groupFilter('{%s key %}')">
+                                            <span class="d-none d-md-inline-block">{%s title %}</span>
+                                            {%s= icons[key] %}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
                 {% endif %}
-              {% endfor %}
-            </ul>
-          </div>
-        {% endif %}
-        <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(true)">
-          <span class="d-none d-md-block">Collapse All</span>
-          <svg class="d-md-none" height="20" width="20" viewBox="3 2 42 44">
-            <path d="M22.6,15.4a1.9,1.9,0,0,0,2.8,0l6-5.9a2.1,2.1,0,0,0,.2-2.7,1.9,1.9,0,0,0-3-.2L26,9.2V4a2,2,0,0,0-4,0V9.2L19.4,6.6a1.9,1.9,0,0,0-3,.2,2.1,2.1,0,0,0,.2,2.7Z"/>
-            <path d="M25.4,32.6a1.9,1.9,0,0,0-2.8,0l-6,5.9a2.1,2.1,0,0,0-.2,2.7,1.9,1.9,0,0,0,3,.2L22,38.8V44a2,2,0,0,0,4,0V38.8l2.6,2.6a1.9,1.9,0,0,0,3-.2,2.1,2.1,0,0,0-.2-2.7Z"/>
-            <path d="M6,22H42a2,2,0,0,0,0-4H6a2,2,0,0,0,0,4Z"/>
-            <path d="M42,26H6a2,2,0,0,0,0,4H42a2,2,0,0,0,0-4Z"/>
-          </svg>
-        </a>
-        <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(false)">
-          <span class="d-none d-md-block">Expand All</span>
-          <svg class="d-md-none" viewBox="205.7009 131.8402 40.0061 44.0455" width="20" height="20">
-            <path d="M 224.163 175.27 C 224.916 176.091 226.21 176.091 226.963 175.27 L 232.963 169.37 C 233.678 168.639 233.763 167.499 233.163 166.67 C 232.47 165.637 230.987 165.539 230.163 166.47 L 227.563 169.07 L 227.563 163.87 C 227.563 162.33 225.896 161.368 224.563 162.138 C 223.944 162.495 223.563 163.155 223.563 163.87 L 223.563 169.07 L 220.963 166.47 C 220.139 165.539 218.656 165.637 217.963 166.67 C 217.363 167.499 217.448 168.639 218.163 169.37 L 224.163 175.27 Z"/>
-            <path d="M 207.704 151.973 L 243.704 151.973 C 245.244 151.973 246.206 150.306 245.436 148.973 C 245.079 148.354 244.419 147.973 243.704 147.973 L 207.704 147.973 C 206.164 147.973 205.202 149.64 205.972 150.973 C 206.329 151.592 206.989 151.973 207.704 151.973 Z"/>
-            <path d="M 243.704 155.973 L 207.704 155.973 C 206.164 155.973 205.202 157.64 205.972 158.973 C 206.329 159.592 206.989 159.973 207.704 159.973 L 243.704 159.973 C 245.244 159.973 246.206 158.306 245.436 156.973 C 245.079 156.354 244.419 155.973 243.704 155.973 Z"/>
-            <path d="M 227.114 132.456 C 226.361 131.635 225.067 131.635 224.314 132.456 L 218.314 138.356 C 217.599 139.087 217.514 140.227 218.114 141.056 C 218.807 142.089 220.29 142.187 221.114 141.256 L 223.714 138.656 L 223.714 143.856 C 223.714 145.396 225.381 146.358 226.714 145.588 C 227.333 145.231 227.714 144.571 227.714 143.856 L 227.714 138.656 L 230.314 141.256 C 231.138 142.187 232.621 142.089 233.314 141.056 C 233.914 140.227 233.829 139.087 233.114 138.356 L 227.114 132.456 Z"/>
-          </svg>
-        </a>
-      </div>
-      {% if search %}
-        <div class="input-group flex-grow-1 justify-content-end">
-          <span class="input-group-text">
-            <svg height="25" width="20" viewBox="0 0 490.4 490.4">
-              <path d="m484.1 454.796-110.5-110.6c29.8-36.3 47.6-82.8 47.6-133.4 0-116.3-94.3-210.6-210.6-210.6S0 94.496 0 210.796s94.3 210.6 210.6 210.6c50.8 0 97.4-18 133.8-48l110.5 110.5c12.9 11.8 25 4.2 29.2 0 8.4-8.3 8.4-20.8 0-29.1m-443-244c0-93.6 75.9-169.5 169.5-169.5s169.6 75.9 169.6 169.5-75.9 169.5-169.5 169.5-169.6-75.9-169.6-169.5"/>
-            </svg>
-          </span>
-          <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
+                <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(true)">
+                    <span class="d-none d-md-block">Collapse All</span>
+                    <svg class="d-md-none" height="20" width="20" viewBox="3 2 42 44">
+                        <path d="M22.6,15.4a1.9,1.9,0,0,0,2.8,0l6-5.9a2.1,2.1,0,0,0,.2-2.7,1.9,1.9,0,0,0-3-.2L26,9.2V4a2,2,0,0,0-4,0V9.2L19.4,6.6a1.9,1.9,0,0,0-3,.2,2.1,2.1,0,0,0,.2,2.7Z"/>
+                        <path d="M25.4,32.6a1.9,1.9,0,0,0-2.8,0l-6,5.9a2.1,2.1,0,0,0-.2,2.7,1.9,1.9,0,0,0,3,.2L22,38.8V44a2,2,0,0,0,4,0V38.8l2.6,2.6a1.9,1.9,0,0,0,3-.2,2.1,2.1,0,0,0-.2-2.7Z"/>
+                        <path d="M6,22H42a2,2,0,0,0,0-4H6a2,2,0,0,0,0,4Z"/>
+                        <path d="M42,26H6a2,2,0,0,0,0,4H42a2,2,0,0,0,0-4Z"/>
+                    </svg>
+                </a>
+                <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(false)">
+                    <span class="d-none d-md-block">Expand All</span>
+                    <svg class="d-md-none" viewBox="205.7009 131.8402 40.0061 44.0455" width="20" height="20">
+                        <path d="M 224.163 175.27 C 224.916 176.091 226.21 176.091 226.963 175.27 L 232.963 169.37 C 233.678 168.639 233.763 167.499 233.163 166.67 C 232.47 165.637 230.987 165.539 230.163 166.47 L 227.563 169.07 L 227.563 163.87 C 227.563 162.33 225.896 161.368 224.563 162.138 C 223.944 162.495 223.563 163.155 223.563 163.87 L 223.563 169.07 L 220.963 166.47 C 220.139 165.539 218.656 165.637 217.963 166.67 C 217.363 167.499 217.448 168.639 218.163 169.37 L 224.163 175.27 Z"/>
+                        <path d="M 207.704 151.973 L 243.704 151.973 C 245.244 151.973 246.206 150.306 245.436 148.973 C 245.079 148.354 244.419 147.973 243.704 147.973 L 207.704 147.973 C 206.164 147.973 205.202 149.64 205.972 150.973 C 206.329 151.592 206.989 151.973 207.704 151.973 Z"/>
+                        <path d="M 243.704 155.973 L 207.704 155.973 C 206.164 155.973 205.202 157.64 205.972 158.973 C 206.329 159.592 206.989 159.973 207.704 159.973 L 243.704 159.973 C 245.244 159.973 246.206 158.306 245.436 156.973 C 245.079 156.354 244.419 155.973 243.704 155.973 Z"/>
+                        <path d="M 227.114 132.456 C 226.361 131.635 225.067 131.635 224.314 132.456 L 218.314 138.356 C 217.599 139.087 217.514 140.227 218.114 141.056 C 218.807 142.089 220.29 142.187 221.114 141.256 L 223.714 138.656 L 223.714 143.856 C 223.714 145.396 225.381 146.358 226.714 145.588 C 227.333 145.231 227.714 144.571 227.714 143.856 L 227.714 138.656 L 230.314 141.256 C 231.138 142.187 232.621 142.089 233.314 141.056 C 233.914 140.227 233.829 139.087 233.114 138.356 L 227.114 132.456 Z"/>
+                    </svg>
+                </a>
+            </div>
+            {% if search %}
+                <div class="input-group flex-grow-1 justify-content-end">
+                    <span class="input-group-text">
+                        <svg height="25" width="20" viewBox="0 0 490.4 490.4">
+                            <path d="m484.1 454.796-110.5-110.6c29.8-36.3 47.6-82.8 47.6-133.4 0-116.3-94.3-210.6-210.6-210.6S0 94.496 0 210.796s94.3 210.6 210.6 210.6c50.8 0 97.4-18 133.8-48l110.5 110.5c12.9 11.8 25 4.2 29.2 0 8.4-8.3 8.4-20.8 0-29.1m-443-244c0-93.6 75.9-169.5 169.5-169.5s169.6 75.9 169.6 169.5-75.9 169.5-169.5 169.5-169.6-75.9-169.6-169.5"/>
+                        </svg>
+                    </span>
+                    <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
+                </div>
+            {% endif %}
         </div>
-      {% endif %}
     </div>
-  </div>
 {% endfunc %}
 
 {% func Welcome(r *http.Request) %}
@@ -111,104 +111,103 @@
         {%= Controls(icons, filters, currentIcon, currentText, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
-                <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column alert-group{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
-                  <span class="d-flex justify-content-between">
-                    <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
-                    <span
-                      class="flex-grow-1 d-flex justify-content-end"
-                      role="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#sub-{%s g.ID %}"
-                    >
-                      <span class="d-flex gap-2">
-                        {% if g.Unhealthy > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.Unhealthy %}</span> {% endif %}
-                        {% if g.NoMatch > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.NoMatch %}</span> {% endif %}
-                        <span class="badge bg-success" title="Number of rules with status Ok">{%d g.Healthy %}</span>
-                      </span>
+                <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column group-items{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
+                    <span class="d-flex justify-content-between">
+                        <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
+                        <span
+                            class="flex-grow-1 d-flex justify-content-end"
+                            role="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#sub-{%s g.ID %}"
+                        >
+                            <span class="d-flex gap-2">
+                                {% if g.Unhealthy > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.Unhealthy %}</span> {% endif %}
+                                {% if g.NoMatch > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.NoMatch %}</span> {% endif %}
+                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.Healthy %}</span>
+                            </span>
+                        </span>
                     </span>
-                  </span>
-                  <span
-                    class="d-flex flex-column row-gap-2"
-                    role="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#sub-{%s g.ID %}"
-                  >
-                    <span class="fs-6 text-start w-100 fw-lighter">{%s g.File %}</span>
-                    {% if len(g.Params) > 0 %}
-                      <span class="fs-6 text-start w-100 d-flex justify-content-between fw-lighter">
-                        <span>Extra params</span>
-                        <span class="d-flex align-items-center gap-2">
-                          {% for _, param := range g.Params %}
-                            <span class="badge bg-primary label">{%s param %}</span>
-                          {% endfor %}
-                        </span>
-                      </span>
-                    {% endif %}
-                    {% if len(g.Headers) > 0 %}
-                      <span class="fs-6 text-start w-100 d-flex justify-content-between fw-lighter">
-                        <span>Extra headers</span>
-                        <span class="d-flex align-items-center gap-2">
-                          {% for _, header := range g.Headers %}
-                            <span class="badge bg-primary label">{%s header %}</span>
-                          {% endfor %}
-                        </span>
-                      </span>
-                    {% endif %}
-                  </span>
-                  <div class="collapse alert-rules" id="sub-{%s g.ID %}">
-                    <table class="table table-striped table-hover table-sm">
-                      <thead>
-                        <tr>
-                          <th scope="col" style="width: 60%">Rule</th>
-                          <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
-                          <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for _, r := range g.Rules %}
-                          <tr class="alert-rule{% if r.LastError != "" %} alert-danger{% endif %}">
-                            <td>
-                              <div class="row">
-                                <div class="col-12 mb-2">
-                                  {% if r.Type == "alerting" %}
-                                    {% if r.KeepFiringFor > 0 %}
-                                      <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds, keep_firing_for: {%v r.KeepFiringFor %} seconds)
-                                    {% else %}
-                                      <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
-                                    {% endif %}
-                                  {% else %}
-                                    <b>record:</b> {%s r.Name %}
-                                  {% endif %}
-                                  |
-                                  {%= seriesFetchedWarn(r) %}
-                                  <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
-                                </div>
-                                <div class="col-12">
-                                  <code><pre>{%s r.Query %}</pre></code>
-                                </div>
-                                <div class="col-12 mb-2">
-                                  {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
-                                  {% for k, v := range r.Labels %}
-                                    <span class="ms-1 badge bg-primary label">{%s k %}={%s v %}</span>
-                                  {% endfor %}
-                                </div>
-                                {% if r.LastError != "" %}
-                                  <div class="col-12">
-                                    <b>Error:</b>
-                                    <div class="error-cell">
-                                      {%s r.LastError %}
-                                    </div>
-                                  </div>
-                                {% endif %}
-                              </div>
-                            </td>
-                            <td class="text-center">{%d r.LastSamples %}</td>
-                            <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
+                    <span
+                        class="d-flex flex-column row-gap-2 mb-2"
+                        role="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#sub-{%s g.ID %}"
+                    >
+                        <span class="fs-6 text-start w-100 fw-lighter">{%s g.File %}</span>
+                        {% if len(g.Params) > 0 %}
+                            <span class="fs-6 text-start w-100 d-flex justify-content-between fw-lighter">
+                                <span>Extra params</span>
+                                <span class="d-flex align-items-center gap-2">
+                                    {% for _, param := range g.Params %}
+                                        <span class="badge bg-primary">{%s param %}</span>
+                                    {% endfor %}
+                                </span>
+                            </span>
+                        {% endif %}
+                        {% if len(g.Headers) > 0 %}
+                            <span>Extra headers</span>
+                                <span class="d-flex align-items-center gap-2">
+                                    {% for _, header := range g.Headers %}
+                                        <span class="badge bg-primary label">{%s header %}</span>
+                                    {% endfor %}
+                                </span>
+                            </span>
+                        {% endif %}
+                    </span>
+                    <div class="collapse sub-items" id="sub-{%s g.ID %}">
+                        <table class="table table-striped table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 60%">Rule</th>
+                                    <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
+                                    <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for _, r := range g.Rules %}
+                                    <tr class="sub-item{% if r.LastError != "" %} alert-danger{% endif %}">
+                                        <td>
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    {% if r.Type == "alerting" %}
+                                                        {% if r.KeepFiringFor > 0 %}
+                                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds, keep_firing_for: {%v r.KeepFiringFor %} seconds)
+                                                        {% else %}
+                                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <b>record:</b> {%s r.Name %}
+                                                    {% endif %}
+                                                    |
+                                                    {%= seriesFetchedWarn(r) %}
+                                                    <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
+                                                </div>
+                                                <div class="col-12">
+                                                    <code><pre>{%s r.Query %}</pre></code>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
+                                                    {% for k, v := range r.Labels %}
+                                                        <span class="ms-1 badge bg-primary label">{%s k %}={%s v %}</span>
+                                                    {% endfor %}
+                                                </div>
+                                                {% if r.LastError != "" %}
+                                                    <div class="col-12">
+                                                        <b>Error:</b>
+                                                        <div class="error-cell">
+                                                            {%s r.LastError %}
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-center">{%d r.LastSamples %}</td>
+                                        <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}
@@ -216,9 +215,7 @@
                 <p>No groups...</p>
             </div>
         {% endif %}
-
     {%= tpl.Footer(r) %}
-
 {% endfunc %}
 
 
@@ -228,151 +225,153 @@
     {%= Controls(nil, nil, "", "", true) %}
     {% if len(groupAlerts) > 0 %}
          {% for _, ga := range groupAlerts %}
-            {%code
-              g := ga.Group
-              var keys []string
-              alertsByRule := make(map[string][]*apiAlert)
-              for _, alert := range ga.Alerts {
-                if len(alertsByRule[alert.RuleID]) < 1 {
-                  keys = append(keys, alert.RuleID)
-                }
-                alertsByRule[alert.RuleID] = append(alertsByRule[alert.RuleID], alert)
-              }
-              sort.Strings(keys)
-            %}
-            <div class="d-flex w-100 flex-column alert-group alert-danger">
-              <span id="group-{%s g.ID %}" class="d-flex justify-content-between">
-                <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %}</a>
-                <span
-                  class="flex-grow-1 d-flex justify-content-end"
-                  role="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#sub-{%s g.ID %}"
-                >
-                  <span class="badge bg-danger" title="Number of active alerts">{%d len(ga.Alerts) %}</span>
-                </span>
-              </span>
-              <span
-                role="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#sub-{%s g.ID %}"
-              >
-                <span class="fs-6 text-start w-100 fw-lighter">{%s g.File %}</p>
-              </span>
-              <div class="collapse alert-rules" id="sub-{%s g.ID %}">
-                {% for _, ruleID := range keys %}
-                  {%code
-                    defaultAR := alertsByRule[ruleID][0]
-                    var labelKeys []string
-                    for k := range defaultAR.Labels {
-                      labelKeys = append(labelKeys, k)
-                    }
-                    sort.Strings(labelKeys)
-                  %}
-                  <br>
-                  <div class="alert-rule">
-                    <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
-                    | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
-                    <br>
-                    <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
-                    <table class="table table-striped table-hover table-sm">
-                      <thead>
-                        <tr>
-                          <th scope="col">Labels</th>
-                          <th scope="col">State</th>
-                          <th scope="col">Active at</th>
-                          <th scope="col">Value</th>
-                          <th scope="col">Link</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for _, ar := range alertsByRule[ruleID] %}
-                          <tr>
-                            <td>
-                              {% for _, k := range labelKeys %}
-                                <span class="ms-1 badge bg-primary label">{%s k %}={%s ar.Labels[k] %}</span>
-                              {% endfor %}
-                            </td>
-                            <td>{%= badgeState(ar.State) %}</td>
-                            <td>
-                              {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
-                              {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
-                              {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
-                            </td>
-                            <td>{%s ar.Value %}</td>
-                            <td>
-                              <a href="{%s prefix+ar.WebLink() %}">Details</a>
-                            </td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-        {% endfor %}
-    {% else %}
-        <div>
-            <p>No active alerts...</p>
-        </div>
-    {% endif %}
-
-    {%= tpl.Footer(r) %}
-
+             {%code
+                 g := ga.Group
+                 var keys []string
+                 alertsByRule := make(map[string][]*apiAlert)
+                 for _, alert := range ga.Alerts {
+                     if len(alertsByRule[alert.RuleID]) < 1 {
+                         keys = append(keys, alert.RuleID)
+                     }
+                     alertsByRule[alert.RuleID] = append(alertsByRule[alert.RuleID], alert)
+                 }
+                 sort.Strings(keys)
+             %}
+             <div class="d-flex w-100 flex-column group-items alert-danger">
+                 <span id="group-{%s g.ID %}" class="d-flex justify-content-between">
+                     <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %}</a>
+                     <span
+                         class="flex-grow-1 d-flex justify-content-end"
+                         role="button"
+                         data-bs-toggle="collapse"
+                         data-bs-target="#sub-{%s g.ID %}"
+                     >
+                         <span class="badge bg-danger" title="Number of active alerts">{%d len(ga.Alerts) %}</span>
+                     </span>
+                 </span>
+                 <span>
+                     <span
+                         class="fs-6 text-start w-100 fw-lighter"
+                         role="button" 
+                         data-bs-toggle="collapse"
+                         data-bs-target="#sub-{%s g.ID %}"
+                     >{%s g.File %}</span>
+                 </span>
+                 <div class="collapse sub-items" id="sub-{%s g.ID %}">
+                     {% for _, ruleID := range keys %}
+                         {%code
+                             defaultAR := alertsByRule[ruleID][0]
+                             var labelKeys []string
+                             for k := range defaultAR.Labels {
+                                 labelKeys = append(labelKeys, k)
+                             }
+                             sort.Strings(labelKeys)
+                         %}
+                         <br>
+                         <div class="sub-item">
+                             <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
+                             | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
+                             <br>
+                             <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
+                             <table class="table table-striped table-hover table-sm">
+                                 <thead>
+                                     <tr>
+                                         <th scope="col">Labels</th>
+                                         <th scope="col">State</th>
+                                         <th scope="col">Active at</th>
+                                         <th scope="col">Value</th>
+                                         <th scope="col">Link</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody>
+                                     {% for _, ar := range alertsByRule[ruleID] %}
+                                         <tr>
+                                             <td>
+                                                 {% for _, k := range labelKeys %}
+                                                     <span class="ms-1 badge bg-primary label">{%s k %}={%s ar.Labels[k] %}</span>
+                                                 {% endfor %}
+                                             </td>
+                                             <td>{%= badgeState(ar.State) %}</td>
+                                             <td>
+                                                 {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
+                                                 {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
+                                                 {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
+                                             </td>
+                                             <td>{%s ar.Value %}</td>
+                                             <td><a href="{%s prefix+ar.WebLink() %}">Details</a></td>
+                                         </tr>
+                                     {% endfor %}
+                                 </tbody>
+                             </table>
+                         </div>
+                     {% endfor %}
+                 </div>
+             </div>
+         {% endfor %}
+     {% else %}
+         <div>
+             <p>No active alerts...</p>
+         </div>
+     {% endif %}
+     {%= tpl.Footer(r) %}
 {% endfunc %}
 
 {% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
     {%= tpl.Header(r, navItems, "Notifiers", getLastConfigError()) %}
     {%= Controls(nil, nil, "", "", false) %}
     {% if len(targets) > 0 %}
-         {%code
-             var keys []string
-             for key := range targets {
-                 keys = append(keys, string(key))
-             }
-             sort.Strings(keys)
-         %}
-
-         {% for i := range keys %}
-           {%code typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
+        {%code
+            var keys []string
+            for key := range targets {
+                keys = append(keys, string(key))
+            }
+            sort.Strings(keys)
+        %}
+        {% for i := range keys %}
+            {%code
+                typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
                 count := len(ns)
             %}
-           <div id="group-{%s typeK %}" class="d-flex w-100 flex-column alert-group">
-             <a href="#group-{%s typeK %}">{%s typeK %} ({%d count %})</a>
-           </div>
-           <div id="sub-{%s typeK %}">
-             <table class="table table-striped table-hover table-sm">
-                 <thead>
-                     <tr>
-                         <th scope="col">Labels</th>
-                         <th scope="col">Address</th>
-                     </tr>
-                 </thead>
-                 <tbody>
-                 {% for _, n := range ns %}
-                     <tr>
-                         <td>
-                              {% for _, l := range n.Labels.GetLabels() %}
-                                      <span class="ms-1 badge bg-primary">{%s l.Name %}={%s l.Value %}</span>
-                              {% endfor %}
-                          </td>
-                         <td>{%s n.Notifier.Addr() %}</td>
-                     </tr>
-                 {% endfor %}
-              </tbody>
-             </table>
-         </div>
-     {% endfor %}
-
+            <div class="d-flex w-100 flex-column group-items">
+                <span class="d-flex justify-content-between" id="group-{%s typeK %}">
+                    <a href="#group-{%s typeK %}">{%s typeK %} ({%d count %})</a>
+                    <span
+                        class="flex-grow-1"
+                        role="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#sub-{%s typeK %}"
+                    ></span>
+                </span>
+                <div id="sub-{%s typeK %}" class="collapse sub-items">
+                    <table class="table table-striped table-hover table-sm">
+                        <thead>
+                            <tr class="sub-item">
+                                <th scope="col">Labels</th>
+                                <th scope="col">Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, n := range ns %}
+                                <tr>
+                                    <td>
+                                        {% for _, l := range n.Labels.GetLabels() %}
+                                            <span class="ms-1 badge bg-primary">{%s l.Name %}={%s l.Value %}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>{%s n.Notifier.Addr() %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
     {% else %}
         <div>
             <p>No targets...</p>
         </div>
     {% endif %}
-
     {%= tpl.Footer(r) %}
-
 {% endfunc %}
 
 {% func Alert(r *http.Request, alert *apiAlert) %}
@@ -384,7 +383,6 @@
             labelKeys = append(labelKeys, k)
         }
         sort.Strings(labelKeys)
-
         var annotationKeys []string
         for k := range alert.Annotations {
             annotationKeys = append(annotationKeys, k)
