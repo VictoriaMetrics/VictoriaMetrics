@@ -113,7 +113,6 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
 	}
 
-	c.wg.Add(cc)
 	for i := 0; i < cc; i++ {
 		c.run(ctx)
 	}
@@ -174,6 +173,7 @@ func (c *Client) run(ctx context.Context) {
 
 		cancel()
 	}
+	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
 		defer ticker.Stop()
