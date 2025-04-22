@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,6 +29,9 @@ func TestSingleMetricNamesStats(t *testing.T) {
 		`metric_name_1{label="baz"} 10`,
 		`metric_name_3{label="baz"} 30`,
 	}
+	largeMetricName := strings.Repeat("large_metric_name_", 32) + "1"
+	dataSet = append(dataSet, largeMetricName+`{label="bar"} 50`)
+
 	for idx := range dataSet {
 		dataSet[idx] += ingestTimestamp
 	}
@@ -39,6 +43,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	// verify ingest request correctly registered
 	expected := apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
+			{MetricName: largeMetricName},
 			{MetricName: "metric_name_1"},
 			{MetricName: "metric_name_2"},
 			{MetricName: "metric_name_3"},
@@ -53,6 +58,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	sut.PrometheusAPIV1Query(t, `{__name__!=""}`, at.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
+			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 1},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
@@ -92,6 +98,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	sut.PrometheusAPIV1Query(t, `metric_name_2`, at.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
+			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 2},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
@@ -105,6 +112,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	// verify le filter
 	expected = apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
+			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_2", QueryRequestsCount: 2},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
@@ -165,6 +173,9 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		`metric_name_1{label="baz"} 10`,
 		`metric_name_3{label="baz"} 30`,
 	}
+	largeMetricName := strings.Repeat("large_metric_name_", 32) + "1"
+
+	dataSet = append(dataSet, largeMetricName+`{label="bar"} 50`)
 	for idx := range dataSet {
 		dataSet[idx] += ingestTimestamp
 	}
@@ -181,6 +192,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		// verify ingest request correctly registered
 		expected := apptest.MetricNamesStatsResponse{
 			Records: []at.MetricNamesStatsRecord{
+				{MetricName: largeMetricName},
 				{MetricName: "metric_name_1"},
 				{MetricName: "metric_name_2"},
 				{MetricName: "metric_name_3"},
@@ -198,6 +210,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 
 		expected = apptest.MetricNamesStatsResponse{
 			Records: []at.MetricNamesStatsRecord{
+				{MetricName: largeMetricName, QueryRequestsCount: 1},
 				{MetricName: "metric_name_2", QueryRequestsCount: 1},
 				{MetricName: "metric_name_3", QueryRequestsCount: 1},
 				{MetricName: "metric_name_1", QueryRequestsCount: 3},
@@ -210,16 +223,18 @@ func TestClusterMetricNamesStats(t *testing.T) {
 
 		expectedStatsResponse := apptest.TSDBStatusResponse{
 			Data: at.TSDBStatusResponseData{
-				TotalSeries:          5,
-				TotalLabelValuePairs: 10,
+				TotalSeries:          6,
+				TotalLabelValuePairs: 12,
 				SeriesCountByMetricName: []apptest.TSDBStatusResponseMetricNameEntry{
 					{Name: "metric_name_1", RequestsCount: 3},
+					{Name: largeMetricName, RequestsCount: 1},
 					{Name: "metric_name_2", RequestsCount: 1},
 					{Name: "metric_name_3", RequestsCount: 1},
 				},
 				SeriesCountByLabelName:       []apptest.TSDBStatusResponseEntry{{Name: "__name__"}, {Name: "label"}},
 				SeriesCountByFocusLabelValue: []apptest.TSDBStatusResponseEntry{},
 				SeriesCountByLabelValuePair: []apptest.TSDBStatusResponseEntry{
+					{Name: "__name__=" + largeMetricName},
 					{Name: "__name__=metric_name_1"}, {Name: "label=baz"},
 					{Name: "__name__=metric_name_2"}, {Name: "__name__=metric_name_3"},
 					{Name: "label=bar"}, {Name: "label=foo"},
@@ -237,6 +252,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	// verify multitenant stats
 	expected := apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
+			{MetricName: largeMetricName, QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 3},
 			{MetricName: "metric_name_3", QueryRequestsCount: 3},
 			{MetricName: "metric_name_1", QueryRequestsCount: 9},
