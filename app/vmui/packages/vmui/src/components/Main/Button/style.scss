@@ -3,225 +3,133 @@
 $button-radius: 6px;
 
 .vm-button {
-  position: relative;
-  display: flex;
+  display: inline-flex;
+  gap: 6px;
   align-items: center;
   justify-content: center;
   padding: 6px 14px;
   font-size: $font-size-small;
-  line-height: calc($font-size + 1px);
   font-weight: normal;
-  min-height: 31px;
-  border-radius: $button-radius;
+  text-transform: capitalize;
   color: $color-white;
-  transform-style: preserve-3d;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: $button-radius;
   cursor: pointer;
-  text-transform: uppercase;
   user-select: none;
   white-space: nowrap;
+  transition: transform 0.2s, opacity 0.2s, background-color 0.2s;
 
-  &:hover:after {
-    background-color: $color-hover-black;
+  &:focus-visible {
+    outline: 2px solid #006FEEFF;
+    outline-offset: 2px;
   }
 
-  &:before,
-  &:after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transition: background-color 200ms ease;
-    border-radius: $button-radius;
+  &:active {
+    transform: scale(0.97);
+    opacity: 0.9;
   }
 
-  &:before {
-    transform: translateZ(-2px);
+  &:disabled {
+    opacity: 0.3;
+    pointer-events: none;
   }
 
-  &:after {
-    background-color: transparent;
-    transform: translateZ(-1px);
-  }
-
-  &:active:after {
-    transform: scale(0.9);
-  }
-
-  span {
-    display: grid;
-    align-items: center;
-    justify-content: center;
-    transform: translateZ(1px);
+  // Sizes
+  &_small {
+    padding: 4px 10px;
+    line-height: 14px;
 
     svg {
-      width: calc($font-size + 1px);
+      width: 14px;
     }
   }
 
-  &__start-icon {
-    margin-right: 6px;
+  &_medium {
+    padding: 6px 14px;
+    line-height: 14px;
+
+    svg {
+      width: 16px;
+    }
   }
 
-  &__end-icon {
-    margin-left: 6px;
+  &_large {
+    padding: 8px 20px;
+    font-size: $font-size-medium;
+
+    svg {
+      width: 18px;
+      line-height: 16px;
+    }
   }
 
-  &_disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
+  // Icon only
+  &_icon_only {
+    aspect-ratio: 1;
   }
 
-  &_icon {
-    padding: 6px $padding-small;
+  $icon-sizes: (
+    small: 4px,
+    medium: 6px,
+    large: 8px
+  );
+
+  @each $size, $padding in $icon-sizes {
+    &_#{$size}.vm-button_icon_only {
+      padding: $padding;
+    }
   }
 
-  &_icon &__start-icon,
-  &_icon &__end-icon {
-    margin: 0;
-  }
+  // Color variants
+  @mixin contained-button($name, $color, $text-color: $color-white) {
+    &_contained_#{$name} {
+      background-color: $color;
+      color: $text-color;
 
-  /* size SMALL */
-  &_small {
-    padding: 4px 8px;
-    min-height: 25px;
-
-    span {
-      svg {
-        width: 13px;
+      &:hover:not(:disabled) {
+        opacity: 0.8;
       }
     }
   }
 
+  @mixin outlined-button($name, $border-color, $text-color: $border-color) {
+    &_outlined_#{$name} {
+      background-color: transparent;
+      border-color: $border-color;
+      color: $text-color;
 
-  /* variant CONTAINED */
-  &_contained_primary {
-    color: $color-primary-text;
-    background-color: $color-primary;
-
-    &:before {
-      background-color: $color-primary;
-    }
-
-    &:hover:after {
-      background-color: rgba($color-black, 0.2)
+      &:hover:not(:disabled) {
+        background-color: $color-hover-black;
+        opacity: 0.8;
+      }
     }
   }
 
-  &_contained_secondary {
-    color: $color-secondary-text;
+  @mixin text-button($name, $text-color: $color-white) {
+    &_text_#{$name} {
+      background-color: transparent;
+      color: $text-color;
 
-    &:before {
-      background-color: $color-secondary;
-    }
-
-    &:hover:after {
-      background-color: rgba($color-black, 0.2)
-    }
-  }
-
-  &_contained_success {
-    color: $color-success-text;
-
-    &:before {
-      background-color: $color-success;
-    }
-
-    &:hover:after {
-      background-color: rgba($color-black, 0.2)
+      &:hover:not(:disabled) {
+        background-color: $color-hover-black;
+      }
     }
   }
 
-  &_contained_error {
-    color: $color-error-text;
+  $button-colors: (
+    primary: $color-primary,
+    secondary: $color-secondary,
+    success: $color-success,
+    warning: $color-warning,
+    error: $color-error,
+    gray: $color-text-secondary,
+    white: $color-white
+  );
 
-    &:before {
-      background-color: $color-error;
-    }
-  }
-
-  &_contained_gray {
-    color: $color-text-secondary;
-
-    &:before {
-      background-color: $color-text-secondary;
-    }
-  }
-
-  &_contained_warning {
-    color: $color-warning;
-
-    &:before {
-      background-color: $color-warning;
-      opacity: 0.2;
-    }
-   }
-
-
-  /* variant TEXT */
-  &_text_primary {
-    color: $color-primary;
-  }
-
-  &_text_secondary {
-    color: $color-secondary;
-  }
-
-  &_text_success {
-    color: $color-success;
-  }
-
-  &_text_error {
-    color: $color-error;
-  }
-
-  &_text_gray {
-    color: $color-text-secondary;
-  }
-
-  &_text_white {
-    color: $color-white;
-  }
-
-  &_text_warning {
-    color: $color-warning;
-  }
-
-
-  /* variant OUTLINED */
-  &_outlined_primary {
-    border: 1px solid $color-primary;
-    color: $color-primary;
-  }
-
-  &_outlined_error {
-    border: 1px solid $color-error;
-    color: $color-error;
-  }
-
-  &_outlined_secondary {
-    border: 1px solid $color-secondary;
-    color: $color-secondary;
-  }
-
-  &_outlined_success {
-    border: 1px solid $color-success;
-    color: $color-success;
-  }
-
-  &_outlined_gray {
-    border: 1px solid $color-text-secondary;
-    color: $color-text-secondary;
-  }
-
-  &_outlined_white {
-    border: 1px solid $color-white;
-    color: $color-white;
-  }
-
-  &_outlined_warning {
-    border: 1px solid $color-warning;
-    color: $color-warning;
+  @each $name, $color in $button-colors {
+    @include contained-button($name, $color, if($name == white, $color-black, $color-white));
+    @include outlined-button($name, $color, if($name == white, $color-white, $color));
+    @include text-button($name, if($name == white, $color-white, $color));
   }
 }
