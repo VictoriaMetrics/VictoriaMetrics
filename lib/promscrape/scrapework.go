@@ -41,6 +41,8 @@ var (
 	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
 		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. "+
 		"See also -promscrape.suppressScrapeErrorsDelay")
+	acceptPartialScrapesForStreamParse = flag.Bool("promscrape.acceptPartialScrapesForStreamParse", false, "Whether to accept partial scrapes. "+
+		"When using either 'sample_limit' and/or 'series_limit', streamParse can lead to partial scrapes.")
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode")
@@ -159,7 +161,7 @@ type ScrapeWork struct {
 func (sw *ScrapeWork) canSwitchToStreamParseMode() bool {
 	// Deny switching to stream parse mode if `sample_limit` or `series_limit` options are set,
 	// since these limits cannot be applied in stream parsing mode.
-	return sw.SampleLimit <= 0 && sw.SeriesLimit <= 0
+	return (sw.SampleLimit <= 0 && sw.SeriesLimit <= 0) || *acceptPartialScrapesForStreamParse
 }
 
 // key returns unique identifier for the given sw.
