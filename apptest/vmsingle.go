@@ -356,6 +356,37 @@ func (app *Vmsingle) HTTPAddr() string {
 	return app.httpListenAddr
 }
 
+// APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
+// //
+// See https://docs.victoriametrics.com/#tsdb-stats
+func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/prometheus/api/v1/status/tsdb", app.httpListenAddr)
+	values := opts.asURLValues()
+	addNonEmpty := func(name, value string) {
+		if len(value) == 0 {
+			return
+		}
+		values.Add(name, value)
+	}
+	addNonEmpty("match[]", matchQuery)
+	addNonEmpty("topN", topN)
+	addNonEmpty("date", date)
+
+	res, statusCode := app.cli.PostForm(t, seriesURL, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var status TSDBStatusResponse
+	if err := json.Unmarshal([]byte(res), &status); err != nil {
+		t.Fatalf("could not unmarshal tsdb status response data:\n%s\n err: %v", res, err)
+	}
+	status.Sort()
+	return status
+}
+
 // String returns the string representation of the vmsingle app state.
 func (app *Vmsingle) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q}", []any{
