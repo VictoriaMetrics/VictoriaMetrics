@@ -82,7 +82,7 @@ func TestStorageRunQuery(t *testing.T) {
 			}
 		}
 	}
-	s.debugFlush()
+	s.DebugFlush()
 
 	mustRunQuery := func(t *testing.T, tenantIDs []TenantID, q *Query, writeBlock WriteDataBlockFunc) {
 		t.Helper()
@@ -903,7 +903,7 @@ func TestStorageSearch(t *testing.T) {
 			}
 		}
 	}
-	s.debugFlush()
+	s.DebugFlush()
 
 	// run tests on the filled storage
 	const workersCount = 3
