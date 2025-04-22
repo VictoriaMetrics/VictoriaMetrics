@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`sample` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sample-pipe), which returns `1/Nth` random sample for the selected logs.
+
 ## [v1.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.20.0-victorialogs)
 
 Released at 2025-04-22

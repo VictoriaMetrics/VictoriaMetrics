@@ -1517,6 +1517,7 @@ LogsQL supports the following pipes:
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
+- [`sample`](#sample-pipe) returns a sample of the matching logs according to the provided `sample` value.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
@@ -2321,6 +2322,7 @@ By default rows are selected in arbitrary order because of performance reasons, 
 
 See also:
 
+- [`sample` pipe](#sample-pipe)
 - [`sort` pipe](#sort-pipe)
 - [`offset` pipe](#offset-pipe)
 
@@ -2636,6 +2638,20 @@ with `***` in the `foo` field only if `user_type` field equals to `admin`:
 ```logsql
 _time:5m | replace_regexp if (user_type:=admin) ("password: [^ ]+", "") at foo
 ```
+
+### sample pipe
+
+The `<q> | sample N` [pipe](#pipes) returns `1/N`th random sample of logs for the `<q>` [query](#query-syntax).
+For example, the following query returns ~1% (1/100th random sample) of logs over the last 5 minutes with the `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:1h error | sample 100
+```
+
+See also:
+
+- [`limit` pipe](#limit-pipe)
 
 ### sort pipe
 
