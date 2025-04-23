@@ -434,25 +434,29 @@ It is possible to change the selected time range for the graphs in the top right
 
 ### Cardinality explorer
 
-VictoriaMetrics provides an ability to explore time series cardinality at `Explore cardinality` tab in [vmui](#vmui) in the following ways:
+VictoriaMetrics provides an ability to explore [time series cardinality](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#cardinality)
+at `Explore cardinality` tab in [vmui](#vmui):
 
-- To identify metric names with the highest number of series.
-- To identify labels with the highest number of series.
-- To identify values with the highest number of series for the selected label (aka `focusLabel`).
-- To identify label=name pairs with the highest number of series.
-- To identify labels with the highest number of unique values.
-  Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
-  may show lower than expected number of unique label values for labels with small number of unique values.
-  This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
+- [Metric](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#what-is-a-metric) names with the highest number of series.
+- [Labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) with the highest number of series.
+- Values with the highest number of series for the selected label (aka `focusLabel`).
+- `label=name` pairs with the highest number of series.
+- Labels with the highest number of unique values.
+- Read usage statistics of metric names, based on [metric name usage tracker](https://docs.victoriametrics.com/#track-ingested-metrics-usage).
+  Shows the number of times the metric name was queried (`Requests count`), and the last time (`Last request`) when it was queried.
+  
+Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
+may show lower than expected number of unique label values for labels with small number of unique values.
+This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
 
-By default, cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
-By default, all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
-matching the specified [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+By default, cardinality explorer analyzes time series for the **current date**. It provides the ability to **select different day at the top right corner**.
+By default, all the time series for the selected date are analyzed. To narrow down the analysis specify [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
-See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
+Resources:
+ * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
+ * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ### Cardinality explorer statistic inaccuracy
 
