@@ -20,6 +20,7 @@ import {
   WITHOUT_GROUPING
 } from "../../../constants/logs";
 import { getFromStorage, saveToStorage } from "../../../utils/storage";
+import LogParsingSwitches from "../../Configurators/LogsSettings/LogParsingSwitches";
 
 const {
   GROUP_BY,
@@ -224,6 +225,8 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
                 Your current date format: <code>{dayjs().format(dateFormat || LOGS_DATE_FORMAT)}</code>
               </span>
             </div>
+
+            <LogParsingSwitches/>
 
             <div className="vm-group-logs-configurator-item">
               <Switch
