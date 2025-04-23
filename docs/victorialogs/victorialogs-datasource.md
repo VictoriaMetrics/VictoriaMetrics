@@ -7,6 +7,8 @@ menu:
     identifier: victorialogs-grafana-datasource
     parent: victorialogs
     weight: 9
+tags:
+  - logs
 aliases:
 - /victorialogs/victorialogs-datasource.html
 ---

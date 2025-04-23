@@ -5,6 +5,8 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 36
+tags:
+  - metrics
 aliases:
 - /sd_configs.html
 - /sd_configs/index.html

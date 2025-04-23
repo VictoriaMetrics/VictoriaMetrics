@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs"
     weight: 6
     title: FAQ
+tags:
+  - logs
 aliases:
 - /victorialogs/FAQ.html
 - /victorialogs/faq.html

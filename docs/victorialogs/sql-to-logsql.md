@@ -5,6 +5,9 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 120
+tags:
+  - logs
+  - guide
 ---
 
 This is a tutorial for the migration from SQL to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).

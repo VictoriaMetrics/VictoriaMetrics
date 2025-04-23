@@ -5,6 +5,9 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 82
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /query-stats.html
 - /query-stats/index.html

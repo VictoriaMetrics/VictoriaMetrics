@@ -6,6 +6,8 @@ menu:
     identifier: "Vector"
     parent: "data-ingestion"
     weight: 4
+tags:
+  - metrics
 aliases:
   - /data-ingestion/Vector.html
   - /data-ingestion/vector.html

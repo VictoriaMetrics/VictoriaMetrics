@@ -5,6 +5,9 @@ menu:
     parent: victoriametrics
     weight: 9
 title: vmgateway
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /vmgateway.html
   - /vmgateway/index.html

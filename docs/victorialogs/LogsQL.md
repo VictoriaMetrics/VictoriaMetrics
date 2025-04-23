@@ -5,6 +5,8 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 5
+tags:
+  - logs
 aliases:
 - /victorialogs/LogsQL.html
 ---

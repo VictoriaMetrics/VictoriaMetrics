@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 8
 title: vmctl
+tags:
+   - metrics
 aliases:
   - /vmctl.html
   - /vmctl/index.html

@@ -6,6 +6,8 @@ menu:
     identifier: vm-changelog
     parent: victoriametrics
     weight: 100
+tags:
+  - metrics
 aliases:
   - /CHANGELOG.html
   - /changelog/index.html

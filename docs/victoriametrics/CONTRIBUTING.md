@@ -6,6 +6,7 @@ menu:
     identifier: vm-contributing
     parent: victoriametrics
     weight: 400
+tags: []
 aliases:
 - /CONTRIBUTING.html
 - /contributing/index.html

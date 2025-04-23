@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-scaling"
     parent: "anomaly-detection"
     weight: 3
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection/high-availability.html
 - /anomaly-detection/scaling-vmanomaly.html

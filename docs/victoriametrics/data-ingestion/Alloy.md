@@ -6,6 +6,8 @@ menu:
     identifier: "alloy"
     parent: "data-ingestion"
     weight: 3
+tags:
+  - metrics
 aliases:
   - /data-ingestion/Grafana-Alloy.html
   - /data-ingestion/grafana-alloy.html

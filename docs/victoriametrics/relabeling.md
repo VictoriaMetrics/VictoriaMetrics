@@ -5,6 +5,8 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 38
+tags:
+  - metrics
 aliases:
 - /relabeling.html
 - /relabeling/index.html

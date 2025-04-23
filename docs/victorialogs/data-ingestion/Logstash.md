@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 3
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/logstash.html
   - /victorialogs/data-ingestion/Logstash.html

@@ -6,6 +6,9 @@ menu:
     parent: "vmanomaly-components"
     weight: 5
     identifier: "vmanomaly-monitoring"
+tags:
+  - metrics
+  - enterprise
 aliases:
   - ./monitoring.html
 ---
