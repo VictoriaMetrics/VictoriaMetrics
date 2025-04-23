@@ -143,23 +143,25 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
             Documentation
           </a>
         </div>
-        <QueryHistory
-          handleSelectQuery={handleSelectHistory}
-          historyKey={"LOGS_QUERY_HISTORY"}
-        />
-        <div className="vm-explore-logs-header-bottom-execute">
-          <Button
-            startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
-            onClick={onRun}
-            fullWidth
-          >
-            <div>
-              <span className="vm-explore-logs-header-bottom-execute__text">
-                {isLoading ? "Cancel Query" : "Execute Query"}
-              </span>
-              <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
-            </div>
-          </Button>
+        <div className="vm-explore-logs-header-bottom-buttons">
+          <QueryHistory
+            handleSelectQuery={handleSelectHistory}
+            historyKey={"LOGS_QUERY_HISTORY"}
+          />
+          <div className="vm-explore-logs-header-bottom-execute">
+            <Button
+              startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
+              onClick={onRun}
+              fullWidth
+            >
+              <div>
+                <span className="vm-explore-logs-header-bottom-execute__text">
+                  {isLoading ? "Cancel Query" : "Execute Query"}
+                </span>
+                <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
+              </div>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
