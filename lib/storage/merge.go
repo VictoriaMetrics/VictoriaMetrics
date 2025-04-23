@@ -39,14 +39,6 @@ var bsmPool = &sync.Pool{
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func moveCounter(from, to *atomic.Uint64) {
-	local := from.Load()
-	if local > 0 {
-		to.Add(local)
-		from.Add(-local)
-	}
-}
-
 func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, dmis *uint64set.Set, rowsMerged, rowsDeleted *atomic.Uint64) error {
 	pendingBlockIsEmpty := true
 	pendingBlock := getBlock()
@@ -55,17 +47,25 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 	defer putBlock(tmpBlock)
 
 	var localRowsMerged, localRowsDeleted atomic.Uint64
+	updateStats := func() {
+		local := localRowsDeleted.Swap(0)
+		if local > 0 {
+			rowsDeleted.Add(local)
+		}
+		local = localRowsMerged.Swap(0)
+		if local > 0 {
+			rowsMerged.Add(local)
+		}
+	}
 	i := 0
 	defer func() {
-		moveCounter(&localRowsMerged, rowsMerged)
-		moveCounter(&localRowsDeleted, rowsDeleted)
+		updateStats()
 	}()
 
 	for bsm.NextBlock() {
 		i += 1
 		if i%10000 == 0 {
-			moveCounter(&localRowsMerged, rowsMerged)
-			moveCounter(&localRowsDeleted, rowsDeleted)
+			updateStats()
 		}
 		select {
 		case <-stopCh:
