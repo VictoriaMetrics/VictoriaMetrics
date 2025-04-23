@@ -1,8 +1,8 @@
 package notifier
 
 import (
-	"crypto/md5"
 	"fmt"
+	"hash/fnv"
 	"net/url"
 	"os"
 	"path"
@@ -99,7 +99,7 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal configuration for checksum: %w", err)
 	}
-	h := md5.New()
+	h := fnv.New64a()
 	h.Write(b)
 	cfg.Checksum = fmt.Sprintf("%x", h.Sum(nil))
 	return nil
