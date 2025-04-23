@@ -132,7 +132,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 
 	// Restart vmsingle with disabled per-day index, insert sample2, and confirm
 	// that both sample1 and sample2 is searchable.
-	tc.StopMetricsWriterQuerier(sut)
+	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample2, at.QueryOpts{})
@@ -167,7 +167,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	sample3 := []string{"metric1 333 1705708800000"} // 2024-01-20T00:00:00Z
 	sut.PrometheusAPIV1ImportPrometheus(t, sample3, at.QueryOpts{})
 	sut.ForceFlush(t)
-	tc.StopMetricsWriterQuerier(sut)
+	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("with-per-day-index2", false)
 
 	// Time range is 1 day (Jan 1st) <= 40 days

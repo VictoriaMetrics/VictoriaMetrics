@@ -267,8 +267,8 @@ func (tc *TestCase) StopApp(instance string) {
 	}
 }
 
-// StopMetricsWriterQuerier stop all apps that are a part of the pwq.
-func (tc *TestCase) StopMetricsWriterQuerier(pwq PrometheusWriteQuerier) {
+// StopPrometheusWriteQuerier stop all apps that are a part of the pwq.
+func (tc *TestCase) StopPrometheusWriteQuerier(pwq PrometheusWriteQuerier) {
 	tc.t.Helper()
 	switch t := pwq.(type) {
 	case *Vmsingle:

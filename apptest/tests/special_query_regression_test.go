@@ -17,19 +17,7 @@ func TestSingleSpecialQueryRegression(t *testing.T) {
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultVmsingle()
-
-	// prometheus
-	testCaseSensitiveRegex(tc, sut)
-	testDuplicateLabel(tc, sut)
-	testTooBigLookbehindWindow(tc, sut)
-	testMatchSeries(tc, sut)
-
-	// graphite
-	testComparisonNotInfNotNan(tc, sut)
-	testEmptyLabelMatch(tc, sut)
-	testMaxLookbehind(tc, sut)
-	testNonNanAsMissingData(tc, sut)
-	testSubqueryAggregation(tc, sut)
+	testSpecialQueryRegression(tc, sut)
 }
 
 func TestClusterSpecialQueryRegression(t *testing.T) {
@@ -43,7 +31,10 @@ func TestClusterSpecialQueryRegression(t *testing.T) {
 		VminsertFlags:      []string{"-graphiteListenAddr=:0", "-opentsdbListenAddr=127.0.0.1:0"},
 		VmselectInstance:   "vmselect",
 	})
+	testSpecialQueryRegression(tc, sut)
+}
 
+func testSpecialQueryRegression(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	// prometheus
 	testCaseSensitiveRegex(tc, sut)
 	testDuplicateLabel(tc, sut)
