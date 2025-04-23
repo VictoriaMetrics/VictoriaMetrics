@@ -19,6 +19,9 @@ export interface ContextData {
   contextType: ContextType;
   valueContext: string;
   filterName?: string;
+  query?: string;
+  queryBeforeIncompleteFilter?: string;
+  operator?: ":" | ":!" | ":-" | ":=" | ":~" | ":<" | ":>" | ":<=" | ":>=";
 }
 
 export enum ContextType {

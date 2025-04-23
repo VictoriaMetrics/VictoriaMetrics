@@ -87,6 +87,7 @@ const pushPart = (currentPart: string, isPipePart: boolean, position: LogicalPar
 export const getContextData = (part: LogicalPart, cursorPos: number) => {
   const valueBeforeCursor = part.value.substring(0, cursorPos);
   const valueAfterCursor = part.value.substring(cursorPos);
+  const enhanceOperators = ["=", "-", "!", "~", "<", ">", "<=", ">="] as const;
 
   const metaData: ContextData = {
     valueBeforeCursor,
@@ -100,10 +101,17 @@ export const getContextData = (part: LogicalPart, cursorPos: number) => {
     if (noColon) {
       metaData.contextType = ContextType.FilterUnknown;
     } else if (valueBeforeCursor.includes(":")) {
-      const [filterName, filterValue] = valueBeforeCursor.split(":");
+      const [filterName, ...filterValue] = valueBeforeCursor.split(":");
       metaData.contextType = ContextType.FilterValue;
       metaData.filterName = filterName;
-      metaData.valueContext = filterValue;
+      const enhanceOperator = enhanceOperators.find(op => op === filterValue[0]);
+      if(enhanceOperator){
+        metaData.valueContext = filterValue.slice(1).join(":");
+        metaData.operator = `:${enhanceOperator}`;
+      } else {
+        metaData.valueContext = filterValue.join(":");
+        metaData.operator = ":";
+      }
     } else {
       metaData.contextType = ContextType.FilterName;
     }
