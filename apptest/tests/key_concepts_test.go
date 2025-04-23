@@ -227,7 +227,7 @@ func TestClusterMillisecondPrecisionInInstantQueries(t *testing.T) {
 	testMillisecondPrecisionInInstantQueries(tc, sut)
 }
 
-func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	type opts struct {

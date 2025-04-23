@@ -11,7 +11,7 @@ func TestSingleSearchWithDisabledPerDayIndex(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.MetricsWriterPrometheusQuerier {
+	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
 		return tc.MustStartVmsingle("vmsingle-"+name, []string{
 			"-storageDataPath=" + tc.Dir() + "/vmsingle",
 			"-retentionPeriod=100y",
@@ -25,7 +25,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.MetricsWriterPrometheusQuerier {
+	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
 		// Using static ports for vmstorage because random ports may cause
 		// changes in how data is sharded.
 		vmstorage1 := tc.MustStartVmstorage("vmstorage1-"+name, []string{
@@ -59,7 +59,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	})
 }
 
-type startSUTFunc func(name string, disablePerDayIndex bool) at.MetricsWriterPrometheusQuerier
+type startSUTFunc func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier
 
 // testDisablePerDayIndex_Search shows what search results to expect when data
 // is first inserted with per-day index enabled and then with per-day index
@@ -295,7 +295,7 @@ func testClusterActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
 	})
 }
 
-func testActiveTimeseriesMetric(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier, getActiveTimeseries func() int) {
+func testActiveTimeseriesMetric(tc *at.TestCase, sut at.PrometheusWriteQuerier, getActiveTimeseries func() int) {
 	t := tc.T()
 	const numSamples = 1000
 	samples := make([]string, numSamples)

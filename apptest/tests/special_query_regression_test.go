@@ -58,7 +58,7 @@ func TestClusterSpecialQueryRegression(t *testing.T) {
 	testSubqueryAggregation(tc, sut)
 }
 
-func testCaseSensitiveRegex(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testCaseSensitiveRegex(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// case-sensitive-regex
@@ -99,7 +99,7 @@ func testCaseSensitiveRegex(tc *at.TestCase, sut at.MetricsWriterPrometheusQueri
 	})
 }
 
-func testDuplicateLabel(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testDuplicateLabel(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// duplicate_label
@@ -135,7 +135,7 @@ func testDuplicateLabel(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) 
 	})
 }
 
-func testTooBigLookbehindWindow(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testTooBigLookbehindWindow(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// too big look-behind window
@@ -208,7 +208,7 @@ func testTooBigLookbehindWindow(tc *at.TestCase, sut at.MetricsWriterPrometheusQ
 	})
 }
 
-func testMatchSeries(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testMatchSeries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// match_series
@@ -242,7 +242,7 @@ func testMatchSeries(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	})
 }
 
-func testComparisonNotInfNotNan(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// comparison-not-inf-not-nan
@@ -289,7 +289,7 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut at.MetricsWriterPrometheusQ
 	})
 }
 
-func testEmptyLabelMatch(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// empty-label-match
@@ -341,7 +341,7 @@ func testEmptyLabelMatch(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier)
 	})
 }
 
-func testMaxLookbehind(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// max_lookback_set
@@ -449,7 +449,7 @@ func testMaxLookbehind(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
 	})
 }
 
-func testNonNanAsMissingData(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// not-nan-as-missing-data
@@ -504,7 +504,7 @@ func testNonNanAsMissingData(tc *at.TestCase, sut at.MetricsWriterPrometheusQuer
 	})
 }
 
-func testSubqueryAggregation(tc *at.TestCase, sut at.MetricsWriterPrometheusQuerier) {
+func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// subquery-aggregation
@@ -554,7 +554,7 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.MetricsWriterPrometheusQuer
 	})
 }
 
-func GetIntMetricTotal(t *testing.T, sut at.MetricsWriterPrometheusQuerier, selector string) int {
+func GetIntMetricTotal(t *testing.T, sut at.PrometheusWriteQuerier, selector string) int {
 	switch tt := sut.(type) {
 	case *at.Vmsingle:
 		return tt.GetIntMetric(t, selector)

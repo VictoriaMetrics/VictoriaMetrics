@@ -23,20 +23,17 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
-// PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
-type PrometheusWriter interface {
+// Writer contains methods for Writing new data
+type Writer interface {
+	// Prometheus APIs
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
 	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
-}
 
-// GraphiteWriter contains method to ingest new data via Graphite plaintext protocol.
-type GraphiteWriter interface {
+	// Graphit APIs
 	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
-}
 
-// OpenTSDBWriter contains method to ingest new data via OpenTSDB HTTP API.
-type OpenTSDBWriter interface {
+	// OpenTSDB APIs
 	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
 
@@ -52,13 +49,11 @@ type StorageMerger interface {
 	ForceMerge(t *testing.T)
 }
 
-// MetricsWriterPrometheusQuerier encompasses the methods for writing, flushing and
+// PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
-type MetricsWriterPrometheusQuerier interface {
-	PrometheusWriter
+type PrometheusWriteQuerier interface {
+	Writer
 	PrometheusQuerier
-	GraphiteWriter
-	OpenTSDBWriter
 	StorageFlusher
 	StorageMerger
 }

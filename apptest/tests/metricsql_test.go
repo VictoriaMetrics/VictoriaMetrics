@@ -46,7 +46,7 @@ func TestClusterInstantQuery(t *testing.T) {
 	testQueryRangeWithAtModifier(t, sut)
 }
 
-func testInstantQueryWithUTFNames(t *testing.T, sut apptest.MetricsWriterPrometheusQuerier) {
+func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	data := []pb.TimeSeries{
 		{
 			Labels: []pb.Label{
@@ -112,7 +112,7 @@ var staleNaNsData = func() []pb.TimeSeries {
 	}
 }()
 
-func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.MetricsWriterPrometheusQuerier) {
+func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 
 	sut.PrometheusAPIV1Write(t, staleNaNsData, apptest.QueryOpts{})
 	sut.ForceFlush(t)
@@ -184,7 +184,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.MetricsWri
 // See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444
 // However, conversion of math.NaN to int64 could behave differently depending on platform and Go version.
 // Hence, this test could succeed for some platforms even if fix is rolled back.
-func testQueryRangeWithAtModifier(t *testing.T, sut apptest.MetricsWriterPrometheusQuerier) {
+func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	data := []pb.TimeSeries{
 		{
 			Labels: []pb.Label{
