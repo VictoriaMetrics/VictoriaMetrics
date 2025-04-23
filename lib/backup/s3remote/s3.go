@@ -138,7 +138,7 @@ func (fs *FS) Init() error {
 		return err
 	}
 
-	tr := httputil.NewTransport(false, "vmbackup_s3_client")
+	tr := httputil.NewTransport(true, "vmbackup_s3_client")
 	if fs.TLSInsecureSkipVerify {
 		tr.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true,
