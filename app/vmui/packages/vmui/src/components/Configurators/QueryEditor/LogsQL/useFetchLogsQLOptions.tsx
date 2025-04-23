@@ -10,6 +10,7 @@ import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { LogsFiledValues } from "../../../../api/types";
 import { useLogsDispatch, useLogsState } from "../../../../state/logsPanel/LogsStateContext";
 import { useSearchParams } from "react-router-dom";
+import { generateQuery } from "./utils";
 
 type FetchDataArgs = {
   urlSuffix: string;
@@ -119,7 +120,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
       urlSuffix: "field_names",
       setter: setFieldNames,
       type: ContextType.FilterName,
-      params: getQueryParams({ query: "*" })
+      params: getQueryParams({ query: contextData?.queryBeforeIncompleteFilter || "*" })
     });
 
     return () => abortControllerRef.current?.abort();
@@ -138,7 +139,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
       urlSuffix: "field_values",
       setter: setFieldValues,
       type: ContextType.FilterValue,
-      params: getQueryParams({ query: "*", field: contextData.filterName })
+      params: getQueryParams({ query: generateQuery(contextData), field: contextData.filterName })
     });
 
     return () => abortControllerRef.current?.abort();

@@ -100,10 +100,10 @@ export const getContextData = (part: LogicalPart, cursorPos: number) => {
     if (noColon) {
       metaData.contextType = ContextType.FilterUnknown;
     } else if (valueBeforeCursor.includes(":")) {
-      const [filterName, filterValue] = valueBeforeCursor.split(":");
+      const [filterName, ...filterValue] = valueBeforeCursor.split(":");
       metaData.contextType = ContextType.FilterValue;
       metaData.filterName = filterName;
-      metaData.valueContext = filterValue;
+      metaData.valueContext = filterValue.join(":");
     } else {
       metaData.contextType = ContextType.FilterName;
     }

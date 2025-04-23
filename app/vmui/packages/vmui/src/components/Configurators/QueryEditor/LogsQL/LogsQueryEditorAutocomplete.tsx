@@ -33,8 +33,11 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     const part = logicalParts.find(p => caretPosition[0] >= p.position[0] && caretPosition[0] <= p.position[1]);
     if (!part) return;
     const cursorStartPosition = caretPosition[0] - part.position[0];
+    const queryBeforeIncompleteFilter = value.substring(0, part.position[0]);
     return {
       ...part,
+      queryBeforeIncompleteFilter,
+      query: value,
       ...getContextData(part, cursorStartPosition)
     };
   }, [logicalParts, caretPosition]);
