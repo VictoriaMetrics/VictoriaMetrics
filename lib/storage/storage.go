@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -54,7 +53,6 @@ type Storage struct {
 	newTimeseriesCreated   atomic.Uint64
 	slowRowInserts         atomic.Uint64
 	slowPerDayIndexInserts atomic.Uint64
-	slowMetricNameLoads    atomic.Uint64
 
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
@@ -127,13 +125,6 @@ type Storage struct {
 	// Pending MetricIDs to be added to nextDayMetricIDs.
 	pendingNextDayMetricIDsLock sync.Mutex
 	pendingNextDayMetricIDs     *uint64set.Set
-
-	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
-	prefetchedMetricIDsLock sync.Mutex
-	prefetchedMetricIDs     *uint64set.Set
-
-	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
-	prefetchedMetricIDsDeadline atomic.Uint64
 
 	// legacyDeletedMetricIDs contains deleted metricIDs stored in legacy
 	// previous and current IndexDBs.
@@ -251,7 +242,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
-	s.prefetchedMetricIDs = &uint64set.Set{}
 	if opts.TrackMetricNamesStats {
 		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
@@ -514,7 +504,6 @@ type Metrics struct {
 	NewTimeseriesCreated   uint64
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
-	SlowMetricNameLoads    uint64
 
 	HourlySeriesLimitRowsDropped   uint64
 	HourlySeriesLimitMaxSeries     uint64
@@ -559,9 +548,6 @@ type Metrics struct {
 	NextDayMetricIDCacheSize      uint64
 	NextDayMetricIDCacheSizeBytes uint64
 
-	PrefetchedMetricIDsSize      uint64
-	PrefetchedMetricIDsSizeBytes uint64
-
 	NextRetentionSeconds uint64
 
 	MetricNamesUsageTrackerSize         uint64
@@ -592,7 +578,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NewTimeseriesCreated += s.newTimeseriesCreated.Load()
 	m.SlowRowInserts += s.slowRowInserts.Load()
 	m.SlowPerDayIndexInserts += s.slowPerDayIndexInserts.Load()
-	m.SlowMetricNameLoads += s.slowMetricNameLoads.Load()
 
 	if sl := s.hourlySeriesLimiter; sl != nil {
 		m.HourlySeriesLimitRowsDropped += s.hourlySeriesLimitRowsDropped.Load()
@@ -654,12 +639,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
 	m.NextDayMetricIDCacheSize += uint64(nextDayMetricIDs.Len())
 	m.NextDayMetricIDCacheSizeBytes += nextDayMetricIDs.SizeBytes()
-
-	s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := s.prefetchedMetricIDs
-	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
-	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
-	s.prefetchedMetricIDsLock.Unlock()
 
 	var tm metricnamestats.TrackerMetrics
 	s.metricsTracker.UpdateMetrics(&tm)
@@ -1237,7 +1216,7 @@ func (s *Storage) searchMetricNames(qt *querytracer.Tracer, idb *indexDB, tfss [
 	if len(metricIDs) == 0 {
 		return nil, nil
 	}
-	if err = s.prefetchMetricNames(qt, idb, metricIDs, deadline); err != nil {
+	if err = idb.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
 		return nil, err
 	}
 
@@ -1266,91 +1245,6 @@ func (s *Storage) searchMetricNames(qt *querytracer.Tracer, idb *indexDB, tfss [
 	}
 	qt.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
-}
-
-// prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
-//
-// This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
-//
-// It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, srcMetricIDs []uint64, deadline uint64) error {
-	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
-	defer qt.Done()
-
-	if len(srcMetricIDs) < 500 {
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
-		return nil
-	}
-
-	var metricIDs []uint64
-	s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := s.prefetchedMetricIDs
-	for _, metricID := range srcMetricIDs {
-		if prefetchedMetricIDs.Has(metricID) {
-			continue
-		}
-		metricIDs = append(metricIDs, metricID)
-	}
-	s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
-	if len(metricIDs) < 500 {
-		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
-		return nil
-	}
-	s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
-
-	// Pre-fetch metricIDs.
-	var missingMetricIDs []uint64
-	var metricName []byte
-	var err error
-	is := idb.getIndexSearch(deadline)
-	defer idb.putIndexSearch(is)
-	for loops, metricID := range metricIDs {
-		if loops&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return err
-			}
-		}
-		var ok bool
-		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if !ok {
-			missingMetricIDs = append(missingMetricIDs, metricID)
-			continue
-		}
-	}
-	idb.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		defer extDB.putIndexSearch(is)
-		for loops, metricID := range missingMetricIDs {
-			if loops&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
-					return
-				}
-			}
-			metricName, _ = is.searchMetricNameWithCache(metricName[:0], metricID)
-		}
-	})
-	if err != nil && err != io.EOF {
-		return err
-	}
-	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
-
-	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
-	s.prefetchedMetricIDsLock.Lock()
-	if fasttime.UnixTimestamp() > s.prefetchedMetricIDsDeadline.Load() {
-		// Periodically reset the prefetchedMetricIDs in order to limit its size.
-		s.prefetchedMetricIDs = &uint64set.Set{}
-		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
-		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
-		s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
-	}
-	s.prefetchedMetricIDs.AddMulti(metricIDs)
-	s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("cache metric ids for pre-fetched metric names")
-	return nil
 }
 
 // ErrDeadlineExceeded is returned when the request times out.
