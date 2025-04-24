@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     identifier: 'data-ingestion'
     weight: 26
+tags:
+  - metrics
 aliases:
 - /data-ingestion.html
 - /data-ingestion.html

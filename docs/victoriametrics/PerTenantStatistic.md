@@ -6,6 +6,9 @@ menu:
     identifier: vm-cluster-per-tenant-statistic
     parent: victoriametrics
     weight: 81
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /PerTenantStatistic.html
   - /pertenantstatistic

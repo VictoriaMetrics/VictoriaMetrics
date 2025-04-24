@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 3
 title: vmagent
+tags:
+  - metrics
 aliases:
   - /vmagent.html
   - /vmagent/index.html

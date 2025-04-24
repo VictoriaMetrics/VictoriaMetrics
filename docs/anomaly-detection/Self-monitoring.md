@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-self-monitoring"
     parent: "anomaly-detection"
     weight: 4
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection/self-monitoring.html
 ---

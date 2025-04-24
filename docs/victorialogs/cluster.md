@@ -7,6 +7,9 @@ menu:
     identifier: vl-cluster
     weight: 20
     title: VictoriaLogs cluster
+tags:
+  - logs
+  - guide
 aliases:
 - /victorialogs/cluster/
 ---

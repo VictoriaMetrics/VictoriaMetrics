@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-changelog"
     parent: "anomaly-detection"
     weight: 6
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection/CHANGELOG.html
 ---

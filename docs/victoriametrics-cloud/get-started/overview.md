@@ -6,6 +6,10 @@ menu:
     parent: get-started
     weight: 1
     name: Overview
+tags:
+  - metrics
+  - cloud
+  - enterprise
 aliases:
   - /victoriametrics-cloud/overview/index.html
   - /managed-victoriametrics/overview/index.html

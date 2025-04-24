@@ -6,6 +6,8 @@ menu:
     identifier: "prometheus"
     parent: "data-ingestion"
     weight: 1
+tags:
+  - metrics
 aliases:
   - /data-ingestion/prometheus.html
   - /data-ingestion/Prometheus.html

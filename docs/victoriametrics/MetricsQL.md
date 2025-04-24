@@ -5,6 +5,8 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 23
+tags:
+  - metrics
 aliases:
 - /ExtendedPromQL.html
 - /MetricsQL.html
