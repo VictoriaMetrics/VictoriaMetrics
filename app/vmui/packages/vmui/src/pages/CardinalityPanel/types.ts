@@ -13,6 +13,13 @@ export interface TSDBStatus {
   headStats?: object;
 }
 
+export interface MetricNameStats {
+  statsCollectedSince: number,
+  statsCollectedRecordsTotal: number,
+  trackerMemoryMaxSizeBytes: number,
+  trackerCurrentMemoryUsageBytes: number,
+}
+
 export interface TopHeapEntry {
   name:  string;
   value: number;

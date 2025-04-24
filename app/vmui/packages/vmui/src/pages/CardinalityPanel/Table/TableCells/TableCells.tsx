@@ -37,12 +37,28 @@ const TableCells: FC<CardinalityTableCells> = ({
 
   const diffPercent = `${Math.abs(row.diffPercent).toFixed(2)}%`;
 
-  const formattedCount = row.requestsCount?.toLocaleString("en-US") ?? 0;
+  const neverCount = row.requestsCount === 0;
+  const noInfoAboutCount = row.requestsCount == null;
+  const formattedCount = noInfoAboutCount
+    ? "n/a"
+    : row.requestsCount.toLocaleString("en-US");
 
-  const hasLastRequest = row.lastRequestTimestamp > 0;
-  const lastRequestDiff = hasLastRequest ? dayjs().diff(row.lastRequestTimestamp * 1000, "seconds") : 0;
-  const formattedLastRequestDate = hasLastRequest ? dayjs.unix(row.lastRequestTimestamp).format(DATE_TIME_FORMAT) : "-";
-  const formattedTimeAgo = hasLastRequest ? dayjs.duration(lastRequestDiff * -1, "seconds").humanize(true) : "never";
+  const neverRequested = row.lastRequestTimestamp === 0;
+  const noInfoAboutRequest = row.lastRequestTimestamp == null;
+  const hasLastRequest = !neverRequested && !noInfoAboutRequest;
+
+  const placeholderLastRequest = neverRequested ? "never" : "n/a";
+  const lastRequestDiff = hasLastRequest
+    ? dayjs().diff(row.lastRequestTimestamp * 1000, "seconds")
+    : 0;
+
+  const formattedLastRequestDate = hasLastRequest
+    ? dayjs.unix(row.lastRequestTimestamp).format(DATE_TIME_FORMAT)
+    : "-";
+
+  const formattedTimeAgo = hasLastRequest
+    ? dayjs.duration(-lastRequestDiff, "seconds").humanize(true)
+    : placeholderLastRequest;
 
   const handleActionClick = () => {
     onActionClick(row.name);
@@ -68,7 +84,7 @@ const TableCells: FC<CardinalityTableCells> = ({
           <div
             className={classNames({
               "vm-dynamic-number": true,
-              "vm-dynamic-number_negative": !row.requestsCount,
+              "vm-dynamic-number_negative": neverCount,
             })}
           >
             {formattedCount}
@@ -81,7 +97,7 @@ const TableCells: FC<CardinalityTableCells> = ({
             <span
               className={classNames({
                 "vm-dynamic-number": true,
-                "vm-dynamic-number_negative": !lastRequestDiff || lastRequestDiff >= 30 * 86400, // more than 30 days or never
+                "vm-dynamic-number_negative": neverRequested || lastRequestDiff >= 30 * 86400, // more than 30 days or never
                 "vm-dynamic-number_warning": lastRequestDiff >= 7 * 86400 && lastRequestDiff < 30 * 86400, // 7 - 30 days
               })}
             >
@@ -153,7 +169,7 @@ const TableCells: FC<CardinalityTableCells> = ({
                 variant="text"
                 size="small"
                 onClick={handleActionClick}
-                startIcon={<PlayCircleOutlineIcon/>}
+                startIcon={<PlayCircleOutlineIcon />}
               />
             </Tooltip>
           </div>
