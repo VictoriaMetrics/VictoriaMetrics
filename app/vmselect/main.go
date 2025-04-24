@@ -538,6 +538,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 
 	case "prometheus/api/v1/status/metric_names_stats":
 		metricNamesStatsRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := stats.MetricNamesStatsHandler(startTime, at, qt, w, r); err != nil {
 			metricNamesStatsErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)

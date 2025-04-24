@@ -1,8 +1,8 @@
 import { ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
 import { useEffect, useRef, useState } from "preact/compat";
-import { CardinalityRequestsParams, getCardinalityInfo } from "../../../api/tsdb";
-import { TSDBStatus } from "../types";
+import { CardinalityRequestsParams, getCardinalityInfo, getMetricNamesStats } from "../../../api/tsdb";
+import { MetricNameStats, TSDBStatus } from "../types";
 import AppConfigurator from "../appConfigurator";
 import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -31,6 +31,7 @@ export const useFetchQuery = (): {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
+  const [metricNamesStats, setMetricNamesStats] = useState<MetricNameStats>(appConfigurator.defaultMetricNameStats);
   const [isCluster, setIsCluster] = useState<boolean>(false);
 
   const getResponseJson = async (url: string) => {
@@ -123,9 +124,31 @@ export const useFetchQuery = (): {
     }
   };
 
+  const fetchMetricNamesStats = async () => {
+    if (!serverUrl) return;
+    setError("");
+    setIsLoading(true);
+
+    const url = getMetricNamesStats(serverUrl, { limit: 1 });
+
+    try {
+      const resp = await getResponseJson(url);
+      setMetricNamesStats(resp);
+      setIsLoading(false);
+    } catch (e) {
+      setIsLoading(false);
+      setMetricNamesStats(appConfigurator.defaultMetricNameStats);
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchCardinalityInfo({ topN, match, date, focusLabel });
   }, [serverUrl, match, focusLabel, topN, date]);
+
+  useEffect(() => {
+    fetchMetricNamesStats();
+  }, [serverUrl]);
 
   useEffect(() => {
     if (error) {
@@ -141,5 +164,6 @@ export const useFetchQuery = (): {
 
 
   appConfigurator.tsdbStatusData = tsdbStatus;
+  appConfigurator.metricNameStatsData = metricNamesStats;
   return { isLoading, appConfigurator: appConfigurator, error, isCluster };
 };
