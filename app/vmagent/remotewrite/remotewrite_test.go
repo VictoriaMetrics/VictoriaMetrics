@@ -2,7 +2,6 @@ package remotewrite
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"math"
 	"reflect"
 	"strconv"
@@ -10,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -182,16 +183,39 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 	// 2. remove the last node from healthy list.
 	// 3. distribute the same 10000 series to (n-1) node again.
 	// 4. check active time series change rate:
-	//    - if consistent hash enabled, change rate must < (3/total nodes). e.g. +30% if 10 you have 10 nodes.
-	f := func(remoteWriteCount int, healthyIdx []int, unhealthyIdx []int, replicas int) {
-		t.Helper()
+	// change rate must < (3/total nodes). e.g. +30% if 10 you have 10 nodes.
 
-		rwctxsGlobal = make([]*remoteWriteCtx, len(healthyIdx)+len(unhealthyIdx))
+	f := func(remoteWriteCount int, healthyIdx []int, replicas int) {
+		t.Helper()
+		defer func() {
+			rwctxsGlobal = nil
+			rwctxsGlobalIdx = nil
+			rwctxConsistentHashGlobal = nil
+		}()
+
+		rwctxsGlobal = make([]*remoteWriteCtx, remoteWriteCount)
+		rwctxsGlobalIdx = make([]int, remoteWriteCount)
 		rwctxs := make([]*remoteWriteCtx, 0, len(healthyIdx))
-		for i := range healthyIdx {
-			healthyCtx := &remoteWriteCtx{}
-			rwctxsGlobal[i] = healthyCtx
-			rwctxs = append(rwctxs, healthyCtx)
+
+		for i := range remoteWriteCount {
+			rwCtx := &remoteWriteCtx{
+				idx: i,
+			}
+			rwctxsGlobalIdx[i] = i
+
+			if i >= len(healthyIdx) {
+				rwctxsGlobal[i] = rwCtx
+				continue
+			}
+			hIdx := healthyIdx[i]
+			if hIdx != i {
+				rwctxs = append(rwctxs, &remoteWriteCtx{
+					idx: hIdx,
+				})
+			} else {
+				rwctxs = append(rwctxs, rwCtx)
+			}
+			rwctxsGlobal[i] = rwCtx
 		}
 
 		seriesCount := 100000
@@ -270,20 +294,19 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		changed := math.Abs(float64(avgActiveTimeSeries2-avgActiveTimeSeries1) / float64(avgActiveTimeSeries1))
 		threshold := 3 / float64(remoteWriteCount)
 
-		//logger.Infof("consistenthash %t, average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", enableConsistentHash, avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
 		if changed >= threshold {
 			t.Fatalf("average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
 		}
 
 	}
 
-	f(5, []int{0, 1, 2, 3, 4}, []int{}, 1)
+	f(5, []int{0, 1, 2, 3, 4}, 1)
 
-	f(5, []int{0, 1, 2, 3, 4}, []int{}, 2)
+	f(5, []int{0, 1, 2, 3, 4}, 2)
 
-	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 1)
+	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, 1)
 
-	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, []int{8}, 3)
+	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, 3)
 }
 
 func TestCalculateHealthyRwctxIdx(t *testing.T) {
