@@ -60,7 +60,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 
 	defer updateStats()
 
-	for i := 0; bsm.NextBlock(); i += 1 {
+	for i := 0; bsm.NextBlock(); i++ {
 		if i%10000 == 0 {
 			updateStats()
 		}
