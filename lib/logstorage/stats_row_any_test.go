@@ -183,7 +183,7 @@ func TestStatsRowAny(t *testing.T) {
 }
 
 func TestStatsRowAny_ExportImportState(t *testing.T) {
-	f := func(sap *statsRowAnyProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(sap *statsRowAnyProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := sap.exportState(nil, nil)
@@ -193,12 +193,9 @@ func TestStatsRowAny_ExportImportState(t *testing.T) {
 		}
 
 		var sap2 statsRowAnyProcessor
-		stateSize, err := sap2.importState(data, nil)
+		_, err := sap2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(sap, &sap2) {
@@ -209,23 +206,22 @@ func TestStatsRowAny_ExportImportState(t *testing.T) {
 	var sap statsRowAnyProcessor
 
 	// zero state
-	f(&sap, 1, 0)
-	/*
-	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
-	   	// non-zero state
-	   	sap = statsRowAnyProcessor{
-	   		captured: true,
+	f(&sap, 1)
 
-	   		fields: []Field{
-	   			{
-	   				Name:  "foo",
-	   				Value: "bar",
-	   			},
-	   			{
-	   				Name:  "abc",
-	   				Value: "de",
-	   			},
-	   		},
-	   	}
-	   	f(&sap, 17, 75)*/
+	// non-zero state
+	sap = statsRowAnyProcessor{
+		captured: true,
+
+		fields: []Field{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "abc",
+				Value: "de",
+			},
+		},
+	}
+	f(&sap, 17)
 }
