@@ -87,10 +87,10 @@ function filterRules(searchPhrase) {
             rule.classList.remove('d-none');
             found = true;
         });
-        if (found && searchPhrase) {
-            rules.classList.add('show');
+        if (found && searchPhrase || !searchPhrase) {
+            rules.classList.remove('d-none');
         } else {
-            rules.classList.remove('show');
+            rules.classList.add('d-none');
         }
     });
 }

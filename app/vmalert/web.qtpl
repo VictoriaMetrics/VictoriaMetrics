@@ -10,7 +10,7 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 ) %}
 
-{% func Controls(icons, filters map[string]string, currentIcon, currentText string, search bool) %}
+{% func Controls(icons, filters map[string]string, currentText string, search bool) %}
     <div class="btn-toolbar mb-3" role="toolbar">
         <div class="d-flex gap-2 justify-content-between w-100">
             <div class="d-flex gap-2">
@@ -22,19 +22,17 @@
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
                         >
-                            <span class="d-none d-md-inline-block">{%s currentText %}</span>
-                            {%s= currentIcon %}
+                            <span class="d-none d-md-inline-block">Filter by status</span>
+                            <svg class="d-md-none" height="22" width="22" viewBox="-10 -10 320 310"><path d="M288.953 0h-277c-5.522 0-10 4.478-10 10v49.531c0 5.522 4.478 10 10 10h12.372l91.378 107.397v113.978a10 10 0 0 0 15.547 8.32l49.5-33a10 10 0 0 0 4.453-8.32v-80.978l91.378-107.397h12.372c5.522 0 10-4.478 10-10V10c0-5.522-4.477-10-10-10M167.587 166.77a10 10 0 0 0-2.384 6.48v79.305l-29.5 19.666V173.25a10 10 0 0 0-2.384-6.48L50.585 69.531h199.736zM278.953 49.531h-257V20h257z"/></svg>
                         </button>
                         <ul class="dropdown-menu">
                             {% for key, title := range filters %}
-                                {% if title != currentText %}
-                                    <li>
-                                        <a class="dropdown-item" onclick="groupFilter('{%s key %}')">
-                                            <span class="d-none d-md-inline-block">{%s title %}</span>
-                                            {%s= icons[key] %}
-                                        </a>
-                                    </li>
-                                {% endif %}
+                                <li>
+                                    <a class="dropdown-item{% if title == currentText %} active{% endif %}" onclick="groupFilter('{%s key %}')">
+                                        <span class="d-none d-md-inline-block">{%s title %}</span>
+                                        {%s= icons[key] %}
+                                    </a>
+                                </li>
                             {% endfor %}
                         </ul>
                     </div>
@@ -100,15 +98,14 @@
             "noMatch": "No Match",
         }
         icons := map[string]string{
-            "": `<svg class="d-md-none" width="22" height="22" viewBox="25 0 370 430"><path d="m267.442 220.358 142.31 142.309-30.17 30.17L240.29 253.544l-5.623 6.874v149.334H192V260.418h-.448L0 25.752l21.333-.001L47.085 0zM133.174 25.751h293.493l-132.072 161.42-30.312-30.312 72.357-88.44-160.798-.001z"/></svg>`,
+            "": `<svg class="d-md-none" height="22" width="22" viewBox="-10 -10 320 310"><path d="M288.953 0h-277c-5.522 0-10 4.478-10 10v49.531c0 5.522 4.478 10 10 10h12.372l91.378 107.397v113.978a10 10 0 0 0 15.547 8.32l49.5-33a10 10 0 0 0 4.453-8.32v-80.978l91.378-107.397h12.372c5.522 0 10-4.478 10-10V10c0-5.522-4.477-10-10-10M167.587 166.77a10 10 0 0 0-2.384 6.48v79.305l-29.5 19.666V173.25a10 10 0 0 0-2.384-6.48L50.585 69.531h199.736zM278.953 49.531h-257V20h257z"/><path stroke-width="20" stroke="#000" d="m-10-10 310 310"/></svg>`,
             "unhealthy": `<svg class="d-md-none" width="22" height="22" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6.5" fill="none"/><path stroke-linecap="round" stroke-width="1.5" d="m5 5 4 4M5 9l4-4"/></svg>`,
             "noMatch": `<svg class="d-md-none" width="22" height="22" viewBox="0 0 116.623 116.623"><path d="M99.114 89.251H57.783l19.181-41.797h22.149a5.971 5.971 0 1 0 0-11.942H82.444L94.591 9.049a5.97 5.97 0 0 0-2.938-7.917 5.97 5.97 0 0 0-7.918 2.936L69.304 35.513H41.662c-2.289-.458-17.685-4.48-17.685-29.542a5.97 5.97 0 1 0-11.942 0c0 18.536 7.157 29.533 14.93 35.514-7.774 5.981-14.93 16.978-14.93 35.514a5.971 5.971 0 1 0 11.942 0c0-25.007 14.886-29.013 17.677-29.542h22.17L44.643 89.253H17.509a5.972 5.972 0 0 0 0 11.943h21.653l-3.196 6.965a5.972 5.972 0 1 0 10.856 4.981l5.479-11.943h46.812a5.975 5.975 0 0 0 .001-11.948"/></svg>`,
         }
         currentText := filters[filter]
-	currentIcon := icons[filter]
     %}
     {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
-        {%= Controls(icons, filters, currentIcon, currentText, true) %}
+        {%= Controls(icons, filters, currentText, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
                 <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column group-items{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
@@ -145,7 +142,8 @@
                             </span>
                         {% endif %}
                         {% if len(g.Headers) > 0 %}
-                            <span>Extra headers</span>
+                            <span class="fs-6 text-start w-100 d-flex justify-content-between fw-lighter">
+                                <span>Extra headers</span>
                                 <span class="d-flex align-items-center gap-2">
                                     {% for _, header := range g.Headers %}
                                         <span class="badge bg-primary label">{%s header %}</span>
@@ -222,7 +220,7 @@
 {% func ListAlerts(r *http.Request, groupAlerts []groupAlerts) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
-    {%= Controls(nil, nil, "", "", true) %}
+    {%= Controls(nil, nil, "", true) %}
     {% if len(groupAlerts) > 0 %}
          {% for _, ga := range groupAlerts %}
              {%code
@@ -318,7 +316,7 @@
 
 {% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
     {%= tpl.Header(r, navItems, "Notifiers", getLastConfigError()) %}
-    {%= Controls(nil, nil, "", "", false) %}
+    {%= Controls(nil, nil, "", false) %}
     {% if len(targets) > 0 %}
         {%code
             var keys []string
@@ -342,7 +340,7 @@
                         data-bs-target="#sub-{%s typeK %}"
                     ></span>
                 </span>
-                <div id="sub-{%s typeK %}" class="collapse sub-items">
+                <div id="sub-{%s typeK %}" class="collapse show sub-items">
                     <table class="table table-striped table-hover table-sm">
                         <thead>
                             <tr class="sub-item">

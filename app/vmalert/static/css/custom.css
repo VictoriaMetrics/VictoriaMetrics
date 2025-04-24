@@ -3,6 +3,14 @@ html {
 }
 
 .dropdown-menu {
+  --bs-dropdown-link-active-color: #000;
+  --bs-dropdown-link-active-bg: #e9e9e9;
+  & .dropdown-item.active {
+    font-weight: 700;
+  }
+}
+
+.dropdown-menu {
   min-width: 0;
 }
 
