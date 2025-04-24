@@ -1867,8 +1867,8 @@ Please note, [labels](https://docs.victoriametrics.com/keyconcepts/#labels) of r
 in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent/#high-availability)
 needs to be identically configured. 
 
-The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled.
-So it is safe to use deduplication and downsampling simultaneously.
+The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` in [downsampling](#downsampling).
+It is also safe to use deduplication and downsampling simultaneously.
 
 The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. 
 It is recommended to have a single `scrape_interval` across all the scrape targets. 
@@ -2121,7 +2121,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise/) supports multi-level downsampling via `-downsampling.period=offset:interval` command-line flag.
 This command-line flag instructs leaving the last sample per each `interval` for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
-[samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) older than the `offset`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
+[samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) older than the `offset`. The `offset` must be a multiple of `interval`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
 per each 5-minute interval for samples older than 30 days, while the rest of samples are dropped.
 
 The `-downsampling.period` command-line flag can be specified multiple times in order to apply different downsampling levels for different time ranges (aka multi-level downsampling).
@@ -2143,6 +2143,7 @@ even if their names start with `node_` prefix. All the other time series with na
 
 If downsampling shouldn't be applied to some time series matching the given `filter`, then pass `-downsampling.period=filter:0s:0s` command-line flag to VictoriaMetrics.
 For example, if series with `env="prod"` label shouldn't be downsampled, then pass `-downsampling.period='{env="prod"}:0s:0s'` command-line flag in front of other `-downsampling.period` flags.
+But `-downsampling.period=0s:interval` or `-downsampling.period=filter:0s:0s` cannot be used with [deduplication](#deduplication) simultaneously as they could conflict.
 
 Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the configured interval, in the same way as [deduplication](#deduplication) does.
@@ -2170,7 +2171,7 @@ It's expected that resource usage will temporarily increase when **downsampling 
 This is because additional operations are required to read historical data, downsample, and persist it back, 
 which will cost extra CPU and memory.
 
-Please, note that intervals of `-downsampling.period` must be multiples of each other.
+Please, note that intervals of `-downsampling.period` for a single filter must be multiples of each other.
 In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled, value of `-dedup.minScrapeInterval` command-line flag must also
 be multiple of `-downsampling.period` intervals. This is required to ensure consistency of deduplication and downsampling results.
 
@@ -2963,7 +2964,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. The `offset` must be a multiple of `interval`, and when setting multiple downsampling periods for a single filter, those periods must also be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -dryRun
