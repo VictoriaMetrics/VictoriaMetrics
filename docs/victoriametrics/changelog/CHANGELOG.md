@@ -19,7 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): use `retentionFilter` flag name in debugging interface to make it consistent with flag definition. Previously, flag name in debugging interface was different from command-line configuration so copying command-line flags for debugging produced an error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8697).
-* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): fix various UI glitches and tidy up the visual styles.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): fix various UI glitches and tidy up the visual styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773) for details.
 
 ## [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0)
 
