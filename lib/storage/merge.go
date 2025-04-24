@@ -57,13 +57,10 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			rowsMerged.Add(local)
 		}
 	}
-	i := 0
-	defer func() {
-		updateStats()
-	}()
 
-	for bsm.NextBlock() {
-		i += 1
+	defer updateStats()
+
+	for i := 0; bsm.NextBlock(); i += 1 {
 		if i%10000 == 0 {
 			updateStats()
 		}
