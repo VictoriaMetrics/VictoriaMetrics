@@ -83,7 +83,7 @@ $button-radius: 6px;
 
   // Color variants
   @mixin contained-button($name, $color, $text-color: $color-white) {
-    &_contained_#{$name} {
+    &_contained_#{"" + $name} {
       background-color: $color;
       color: $text-color;
 
@@ -94,7 +94,7 @@ $button-radius: 6px;
   }
 
   @mixin outlined-button($name, $border-color, $text-color: $border-color) {
-    &_outlined_#{$name} {
+    &_outlined_#{"" + $name} {
       background-color: transparent;
       border-color: $border-color;
       color: $text-color;
@@ -107,7 +107,7 @@ $button-radius: 6px;
   }
 
   @mixin text-button($name, $text-color: $color-white) {
-    &_text_#{$name} {
+    &_text_#{"" + $name} {
       background-color: transparent;
       color: $text-color;
 

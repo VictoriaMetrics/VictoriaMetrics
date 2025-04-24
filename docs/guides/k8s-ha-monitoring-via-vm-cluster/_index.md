@@ -5,6 +5,10 @@ menu:
   docs:
     parent: "guides"
     weight: 9
+tags:
+  - metrics
+  - guide
+  - kubernetes
 aliases:
 - /guides/k8s-ha-monitoring-via-vm-cluster.html
 ---

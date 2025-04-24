@@ -6,6 +6,9 @@ menu:
     identifier: vm-quick-start
     parent: victoriametrics
     weight: 1
+tags:
+  - metrics
+  - guide
 aliases:
 - /Quick-Start.html
 - /quick-start/index.html

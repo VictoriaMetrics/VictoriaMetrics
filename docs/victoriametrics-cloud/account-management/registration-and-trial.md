@@ -6,6 +6,10 @@ menu:
   docs:
     parent: account-management
     weight: 1
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 Start your registration process by visiting the [Sign Up](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_registration_and_trial) page.

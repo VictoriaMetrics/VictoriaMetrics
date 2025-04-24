@@ -8,6 +8,8 @@ menu:
     identifier: vm-changelog-2020
     parent: vm-changelog
     weight: 7
+tags:
+  - metrics
 aliases:
 - /CHANGELOG_2020.html
 - /changelog_2020

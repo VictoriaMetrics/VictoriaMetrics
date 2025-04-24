@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs"
     weight: 8
     title: Roadmap
+tags:
+  - logs
 aliases:
 - /victorialogs/Roadmap.html
 ---

@@ -42,6 +42,9 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): enable support of HTTP/2 for connections to S3-compatible storage endpoints. It was disabled in [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0) and could lead to connection errors with some S3-compatible storage providers.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): correctly update the `debug` param for recording rule when updating the rule group.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix alert group ids in UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix duplicated series in the legend on the Raw Query page when deduplication is disabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8688).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): respect `-http.pathPrefix` flag when requesting `/flags` API endpoint in vmui. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8641) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow using `-downsampling.period=filter:0s:0s` to skip downsampling for time series that match the specified `filter`. See [this doc](https://docs.victoriametrics.com/#downsampling).
 
 ## [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0)
 

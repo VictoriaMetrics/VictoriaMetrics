@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-querying"
     weight: 1
+tags:
+  - logs
 ---
 
 `vlogsqcli` is an interactive command-line tool for querying [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).

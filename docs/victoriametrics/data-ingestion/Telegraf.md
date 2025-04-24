@@ -6,6 +6,8 @@ menu:
     identifier: "telegraf"
     parent: "data-ingestion"
     weight: 5
+tags:
+  - metrics
 aliases:
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
