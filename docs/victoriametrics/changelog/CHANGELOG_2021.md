@@ -8,6 +8,8 @@ menu:
     identifier: vm-changelog-2021
     parent: vm-changelog
     weight: 6
+tags:
+  - metrics
 aliases:
 - /CHANGELOG_2021.html
 - /changelog_2021

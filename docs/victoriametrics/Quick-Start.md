@@ -6,6 +6,9 @@ menu:
     identifier: vm-quick-start
     parent: victoriametrics
     weight: 1
+tags:
+  - metrics
+  - guide
 aliases:
 - /Quick-Start.html
 - /quick-start/index.html
@@ -78,10 +81,10 @@ See more about [writing](https://docs.victoriametrics.com/quick-start/#write-dat
 ### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
 
 Clone [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docker environment 
-via `make docker-cluster-up` command:
+via `make docker-vm-cluster-up` command:
 ```sh
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
-make docker-cluster-up
+make docker-vm-cluster-up
 ```
 
 You should see:
@@ -93,11 +96,11 @@ You should see:
 ```
 
 The command starts a set of VictoriaMetrics components for metrics collection, storing, alerting and Grafana for user
-interface. See the full description [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster).
+interface. See the [description of deployed topology](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster).
 
 Visit Grafana `http://localhost:3000/` (admin:admin) or vmui `http://localhost:8427/select/0/vmui` to start exploring metrics.
 
-_Further customization is possible by editing the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
+_Further customization is possible by editing the [compose-vm-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vm-cluster.yml)
 file._
 
 See more details about [cluster architecture](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup).

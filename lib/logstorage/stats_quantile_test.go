@@ -413,7 +413,7 @@ func TestHistogramQuantile(t *testing.T) {
 }
 
 func TestStatsQuantile_ExportImportState(t *testing.T) {
-	f := func(sqp *statsQuantileProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(sqp *statsQuantileProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := sqp.exportState(nil, nil)
@@ -423,12 +423,9 @@ func TestStatsQuantile_ExportImportState(t *testing.T) {
 		}
 
 		var sqp2 statsQuantileProcessor
-		stateSize, err := sqp2.importState(data, nil)
+		_, err := sqp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(sqp, &sqp2) {
@@ -439,13 +436,12 @@ func TestStatsQuantile_ExportImportState(t *testing.T) {
 	var sqp statsQuantileProcessor
 
 	// zero state
-	f(&sqp, 4, 0)
-	/*
-	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
-	   	// non-zero state
-	   	sqp = statsQuantileProcessor{}
-	   	sqp.h.update("foo")
-	   	sqp.h.update("bar")
-	   	sqp.h.update("baz")
-	   	f(&sqp, 22, 63)*/
+	f(&sqp, 4)
+
+	// non-zero state
+	sqp = statsQuantileProcessor{}
+	sqp.h.update("foo")
+	sqp.h.update("bar")
+	sqp.h.update("baz")
+	f(&sqp, 22)
 }

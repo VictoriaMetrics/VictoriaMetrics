@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 7
 title: vmrestore
+tags:
+  - metrics
 aliases:
   - /vmrestore.html
   - /vmrestore/index.html
@@ -230,7 +232,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmrestore` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmrestore` binary and puts it into the `bin` folder.
 

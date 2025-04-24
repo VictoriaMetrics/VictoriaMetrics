@@ -38,7 +38,7 @@ services:
   #  VictoriaLogs instance, a single process responsible for
   #  storing logs and serving read queries.
   victorialogs:
-    image: victoriametrics/victoria-logs:v1.19.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
     volumes:

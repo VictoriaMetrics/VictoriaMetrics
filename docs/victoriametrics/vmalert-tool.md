@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 12
 title: vmalert-tool
+tags:
+  - metrics
 aliases:
   - /vmalert-tool.html
   - /vmalert-tool/index.html

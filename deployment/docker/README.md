@@ -28,6 +28,7 @@ To spin-up environment with VictoriaMetrics single server run the following comm
 ```
 make docker-vm-single-up
 ```
+_See [compose-vm-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vm-single.yml)_
 
 VictoriaMetrics will be accessible on the following ports:
 * `--graphiteListenAddr=:2003`
@@ -61,6 +62,7 @@ To spin-up environment with VictoriaMetrics cluster run the following command:
 ```
 make docker-vm-cluster-up
 ```
+_See [compose-vm-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vm-cluster.yml)_
 
 VictoriaMetrics cluster environment consists of `vminsert`, `vmstorage` and `vmselect` components.
 `vminsert` exposes port `:8480` for ingestion. Access to `vmselect` for reads goes through `vmauth` on port `:8427`,
@@ -107,6 +109,7 @@ To spin-up environment with VictoriaLogs run the following command:
 ```
 make docker-vl-single-up
 ```
+_See [compose-vl-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vl-single.yml)_
 
 VictoriaLogs will be accessible on the `--httpListenAddr=:9428` port.
 In addition to VictoriaLogs server, the docker compose contains the following components:
@@ -138,6 +141,7 @@ To spin-up environment with VictoriaLogs cluster run the following command:
 ```
 make docker-vl-cluster-up
 ```
+_See [compose-vl-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vl-cluster.yml)_
 
 VictoriaLogs cluster environment consists of `vlinsert`, `vlstorage` and `vlselect` components.
 `vlinsert` and `vlselect` are available through `vmauth` on port `:8427`.

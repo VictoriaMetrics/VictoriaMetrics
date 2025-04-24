@@ -5,6 +5,11 @@ menu:
   docs:
     parent: "get-started"
     weight: 3
+tags:
+  - metrics
+  - cloud
+  - enterprise
+  - guide
 aliases:
   - /victoriametrics-cloud/get-started/index.html
   - /victoriametrics-cloud/quickstart/index.html

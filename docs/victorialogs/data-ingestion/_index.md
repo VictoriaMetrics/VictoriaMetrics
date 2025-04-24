@@ -6,6 +6,8 @@ menu:
     identifier: victorialogs-data-ingestion
     parent: "victorialogs"
     weight: 3
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/
   - /victorialogs/data-ingestion/index.html

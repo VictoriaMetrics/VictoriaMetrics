@@ -478,6 +478,7 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeLimit,
 			*pipeOffset,
 			*pipeTop,
+			*pipeSample,
 			*pipeSort,
 			*pipeStats,
 			*pipeUnion,

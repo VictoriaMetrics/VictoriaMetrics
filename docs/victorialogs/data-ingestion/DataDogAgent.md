@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 5
 url: /victorialogs/data-ingestion/datadog-agent/
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/DataDogAgent.html
 ---

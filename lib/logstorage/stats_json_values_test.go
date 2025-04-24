@@ -38,7 +38,7 @@ func TestStatsJSONValues_ExportImportState(t *testing.T) {
 		return sjp
 	}
 
-	f := func(sjp *statsJSONValuesProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(sjp *statsJSONValuesProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := sjp.exportState(nil, nil)
@@ -48,12 +48,9 @@ func TestStatsJSONValues_ExportImportState(t *testing.T) {
 		}
 
 		sjp2 := newStatsJSONValuesProcessor()
-		stateSize, err := sjp2.importState(data, nil)
+		_, err := sjp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		sjp.a = nil
@@ -65,11 +62,10 @@ func TestStatsJSONValues_ExportImportState(t *testing.T) {
 
 	// empty state
 	sjp := newStatsJSONValuesProcessor()
-	f(sjp, 1, 0)
-	/*
-	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
-	   	// non-empty state
-	   	sjp = newStatsJSONValuesProcessor()
-	   	sjp.values = []string{"foo", "bar", "baz"}
-	   	f(sjp, 13, 57)*/
+	f(sjp, 1)
+
+	// non-empty state
+	sjp = newStatsJSONValuesProcessor()
+	sjp.values = []string{"foo", "bar", "baz"}
+	f(sjp, 13)
 }

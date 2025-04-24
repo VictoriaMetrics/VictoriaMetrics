@@ -1,13 +1,3 @@
-![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaMetrics?sort=semver&label=&filter=!*-victorialogs&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Freleases%2Flatest)
-![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-metrics)
-![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics)
-![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/actions/workflows/main.yml/badge.svg?branch=master&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
-![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg?link=https%3A%2F%2Fcodecov.io%2Fgh%2FVictoriaMetrics%2FVictoriaMetrics)
-![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Fblob%2Fmaster%2FLICENSE)
-![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
-![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
-![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
-
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
@@ -235,9 +225,8 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 
 ### Start with docker-compose
 
-[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
+[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme)
 helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent/) and Grafana with one command.
-More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 ## Playgrounds
 
@@ -445,25 +434,29 @@ It is possible to change the selected time range for the graphs in the top right
 
 ### Cardinality explorer
 
-VictoriaMetrics provides an ability to explore time series cardinality at `Explore cardinality` tab in [vmui](#vmui) in the following ways:
+VictoriaMetrics provides an ability to explore [time series cardinality](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#cardinality)
+at `Explore cardinality` tab in [vmui](#vmui):
 
-- To identify metric names with the highest number of series.
-- To identify labels with the highest number of series.
-- To identify values with the highest number of series for the selected label (aka `focusLabel`).
-- To identify label=name pairs with the highest number of series.
-- To identify labels with the highest number of unique values.
-  Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
-  may show lower than expected number of unique label values for labels with small number of unique values.
-  This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
+- [Metric](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#what-is-a-metric) names with the highest number of series.
+- [Labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) with the highest number of series.
+- Values with the highest number of series for the selected label (aka `focusLabel`).
+- `label=name` pairs with the highest number of series.
+- Labels with the highest number of unique values.
+- Read usage statistics of metric names, based on [metric name usage tracker](https://docs.victoriametrics.com/#track-ingested-metrics-usage).
+  Shows the number of times the metric name was queried (`Requests count`), and the last time (`Last request`) when it was queried.
+  
+Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
+may show lower than expected number of unique label values for labels with small number of unique values.
+This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
 
-By default, cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
-By default, all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
-matching the specified [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+By default, cardinality explorer analyzes time series for the **current date**. It provides the ability to **select different day at the top right corner**.
+By default, all the time series for the selected date are analyzed. To narrow down the analysis specify [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
-See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
+Resources:
+ * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
+ * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ### Cardinality explorer statistic inaccuracy
 
@@ -471,58 +464,6 @@ In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
-
-### Track ingested metrics usage
-
-VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
-For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
-VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls.
-
-To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)). It accepts the following query parameters:
-
-* `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
-* `le` -  `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. For example, with `?le=1` API returns metric names that were queried <=1 times.
-* `match_pattern` - a substring pattern to match metric names. For example, `?match_pattern=vm_` will match any metric names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`. It doesn't support regex syntax.
-
- The API endpoint returns the following `JSON` response:
-
-```json
-{
-  "status": "success",
-  "statsSollectedSince": 1737534094,
-  "statsCollectedRecordsTotal": 2,
-  "records": [
-    {
-      "metricName": "node_disk_writes_completed_total",
-      "queryRequests": 50,
-      "lastRequestTimestamp": 1737534262
-    },
-    {
-      "metricName": "node_network_transmit_errs_total",
-      "queryRequestsCount": 100,
-      "lastRequestTimestamp": 1737534262
-    }
-  ]
-}
-```
-
-VictoriaMetrics stores tracked metric names in memory and saves the state to disk in the data/cache folder during restarts.
-The size of the in-memory state is limited to 1% of the available memory by default.
-This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.
-
-When the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series.
-However, read request statistics for already tracked time series will continue to work as expected.
-
-VictoriaMetrics exposes the following metrics for the metric name tracker:
-* vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}
-* vm_cache_size{type="storage/metricNamesStatsTracker"}
-* vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}
-
-
-An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9` can be used to notify the user of cache utilization exceeding 90%.
-
-The metric name tracker state can be reset via the API endpoint `/api/v1/admin/status/metric_names_stats/reset` for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)) or
-via [cache removal](#cache-removal) procedure.
 
 ## How to apply new config to VictoriaMetrics
 
@@ -1146,7 +1087,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -1162,7 +1103,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -1176,7 +1117,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
@@ -1930,8 +1871,8 @@ Please note, [labels](https://docs.victoriametrics.com/keyconcepts/#labels) of r
 in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent/#high-availability)
 needs to be identically configured. 
 
-The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled.
-So it is safe to use deduplication and downsampling simultaneously.
+The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` in [downsampling](#downsampling).
+It is also safe to use deduplication and downsampling simultaneously.
 
 The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. 
 It is recommended to have a single `scrape_interval` across all the scrape targets. 
@@ -2184,7 +2125,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise/) supports multi-level downsampling via `-downsampling.period=offset:interval` command-line flag.
 This command-line flag instructs leaving the last sample per each `interval` for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
-[samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) older than the `offset`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
+[samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) older than the `offset`. The `offset` must be a multiple of `interval`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
 per each 5-minute interval for samples older than 30 days, while the rest of samples are dropped.
 
 The `-downsampling.period` command-line flag can be specified multiple times in order to apply different downsampling levels for different time ranges (aka multi-level downsampling).
@@ -2206,6 +2147,7 @@ even if their names start with `node_` prefix. All the other time series with na
 
 If downsampling shouldn't be applied to some time series matching the given `filter`, then pass `-downsampling.period=filter:0s:0s` command-line flag to VictoriaMetrics.
 For example, if series with `env="prod"` label shouldn't be downsampled, then pass `-downsampling.period='{env="prod"}:0s:0s'` command-line flag in front of other `-downsampling.period` flags.
+But `-downsampling.period=0s:interval` or `-downsampling.period=filter:0s:0s` cannot be used with [deduplication](#deduplication) simultaneously as they could conflict.
 
 Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the configured interval, in the same way as [deduplication](#deduplication) does.
@@ -2233,7 +2175,7 @@ It's expected that resource usage will temporarily increase when **downsampling 
 This is because additional operations are required to read historical data, downsample, and persist it back, 
 which will cost extra CPU and memory.
 
-Please, note that intervals of `-downsampling.period` must be multiples of each other.
+Please, note that intervals of `-downsampling.period` for a single filter must be multiples of each other.
 In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled, value of `-dedup.minScrapeInterval` command-line flag must also
 be multiple of `-downsampling.period` intervals. This is required to ensure consistency of deduplication and downsampling results.
 
@@ -2411,6 +2353,81 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 VictoriaMetrics provides UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
 
 VictoriaMetrics enhances Prometheus stats with `requestsCount` and `lastRequestTimestamp` for `seriesCountByMetricName`. This stats added if [tracking metric names stats](https://docs.victoriametrics.com/#track-ingested-metrics-usage) is configured.
+
+## Track ingested metrics usage
+
+VictoriaMetrics can track statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) 
+during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. It tracks
+only metric names, as the number of names is usually limited (thousands) compared to time series (millions or billions).
+This feature can be enabled via the flag `--storage.trackMetricNamesStats` (**disabled by default**) on a single-node 
+VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). 
+
+During querying, VictoriaMetrics tracks how many times the requested metric name was fetched from the database and 
+when was the last time it happened. In this way, it is possible to identify metric names that were never queried. 
+Or if metric was queried occasionally - when the last time it happened. 
+
+To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for 
+a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)). 
+It accepts the following query parameters:
+* `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
+* `le` - `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. 
+  For example, with `?le=1` API returns metric names that were queried <=1 times.
+* `match_pattern` - a regex pattern to match metric names. For example, `?match_pattern=vm_` will match any metric 
+  names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`.
+
+The API endpoint returns the following `JSON` response:
+
+```json
+{
+  "status": "success",
+  "statsCollectedSince": 1737534094, 
+  "statsCollectedRecordsTotal": 2,
+  "records": [
+    {
+      "metricName": "node_disk_writes_completed_total",
+      "queryRequests": 50,
+      "lastRequestTimestamp": 1737534262
+    },
+    {
+      "metricName": "node_network_transmit_errs_total",
+      "queryRequestsCount": 100,
+      "lastRequestTimestamp": 1737534262
+    }
+  ]
+}
+```
+
+* `statsCollectedSince` is a timestamp since tracker was enabled (or reset, see below); 
+* `statsCollectedRecordsTotal` total number of metric names it contains; 
+* `records`:
+  * `metricName` a metric name; 
+  * `queryRequests` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
+    then one read query `foo` will increment counter by 10. Querying a metric with non-matching filters doesn't increase
+    the counter for this particular metric name. For example, querying for `vm_log_messages_total{level!="info"}` won't 
+    increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
+  * `lastRequestTimestamp` a timestamp when last time this statistic was updated.
+
+_VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls._
+
+VictoriaMetrics stores tracked metric names in memory and saves the state to disk in the `<-storageDataPath>/cache` folder during restarts.
+The size of the in-memory state is limited to **1%** of the available memory by default.
+This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.
+
+When the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series.
+However, read request statistics for already tracked time series will continue to work as expected.
+
+VictoriaMetrics exposes the following metrics for the metric name tracker:
+* `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}`
+* `vm_cache_size{type="storage/metricNamesStatsTracker"}`
+* `vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}`
+
+An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9`
+can be used to notify the user of cache utilization exceeding 90%.
+
+The metric name tracker state can be **reset** via the API endpoint `/api/v1/admin/status/metric_names_stats/reset` 
+for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset` 
+in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)) or
+via [cache removal](#cache-removal) procedure.
 
 ## Query tracing
 
@@ -2951,7 +2968,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. The `offset` must be a multiple of `interval`, and when setting multiple downsampling periods for a single filter, those periods must also be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -dryRun

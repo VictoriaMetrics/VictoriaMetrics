@@ -5,6 +5,11 @@ menu:
   docs:
     parent: "cloud"
     weight: 5
+tags:
+  - metrics
+  - cloud
+  - enterprise
+  - guide
 aliases:
   - /victoriametrics-cloud/alerting-vmalert-victoria-metrics-cloud/index.html
   - /managed-victoriametrics/alerting-vmalert-victoria-metrics-cloud/index.html

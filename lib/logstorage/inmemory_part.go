@@ -67,7 +67,7 @@ func (mp *inmemoryPart) reset() {
 }
 
 // mustInitFromRows initializes mp from lr.
-func (mp *inmemoryPart) mustInitFromRows(lr *LogRows) {
+func (mp *inmemoryPart) mustInitFromRows(lr *logRows) {
 	mp.reset()
 
 	sort.Sort(lr)

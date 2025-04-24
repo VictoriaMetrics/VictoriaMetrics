@@ -6,7 +6,9 @@ menu:
     parent: 'victoriametrics'
     weight: 33
     identifier: vm-api-examples
-
+tags:
+  - metrics
+  - guide
 aliases:
   - /url-examples.html
   - /url-examples/index.html

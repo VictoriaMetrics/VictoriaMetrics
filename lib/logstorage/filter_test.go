@@ -272,4 +272,5 @@ func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)
+	s.DebugFlush()
 }

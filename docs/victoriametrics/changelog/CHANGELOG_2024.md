@@ -8,6 +8,8 @@ menu:
     identifier: vm-changelog-2024
     parent: vm-changelog
     weight: 3
+tags:
+  - metrics
 aliases:
 - /CHANGELOG_2024.html
 - /changelog_2024
@@ -672,7 +674,7 @@ Released at 2024-03-01
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): preserve [`WITH` templates](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) when clicking the `prettify query` button at the right side of query input field. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5383).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): allow filling gaps on graphs with interpolated lines as Grafana does. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5152) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5862).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/#vmalert): support filtering by group, rule or labels in [vmalert's UI](https://docs.victoriametrics.com/vmalert/#web) for `/groups` and `/alerts` pages. See [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5791) by @victoramsantos.
-* FEATURE: [docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics): create a separate [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-victorialogs.yml) for VictoriaLogs installation, including fluentbit and [VictoriaLogs Grafana datasource](https://github.com/VictoriaMetrics/victorialogs-datasource). See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victorialogs-server) for details.
+* FEATURE: [docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics): create a separate [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriaLogs-server) for VictoriaLogs installation, including fluentbit and [VictoriaLogs Grafana datasource](https://github.com/VictoriaMetrics/victorialogs-datasource). See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriaLogs-server) for details.
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): wait for up 30 seconds before making a [snapshot](https://docs.victoriametrics.com/#how-to-work-with-snapshots) for backup if `vmstorage` is temporarily unavailable. This should prevent from `vmbackupmanager` termination in this case. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5859).
 
 * BUGFIX: downgrade Go builder from `1.22.0` to `1.21.7`, since `1.22.0` contains [the bug](https://github.com/golang/go/issues/65705), which can lead to deadlocked HTTP connections to remote storage systems, scrape targets and service discovery endpoints at [vmagent](https://docs.victoriametrics.com/vmagent/). This may result in incorrect service discovery, target scraping and failed sending samples to remote storage.
