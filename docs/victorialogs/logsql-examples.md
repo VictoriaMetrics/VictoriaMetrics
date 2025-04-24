@@ -5,6 +5,9 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 100
+tags:
+  - logs
+  - guide
 ---
 
 ## How to select recently ingested logs?

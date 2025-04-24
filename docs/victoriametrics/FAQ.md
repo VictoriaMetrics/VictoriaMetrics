@@ -5,6 +5,8 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 24
+tags:
+  - metrics
 aliases:
 - /FAQ.html
 - /faq.html

@@ -5,6 +5,7 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 501
+tags: []
 aliases:
 - /Release-Guide.html
 - /release-guide/index.html

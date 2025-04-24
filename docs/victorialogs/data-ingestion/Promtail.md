@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 4
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/Promtail.html
   - /victorialogs/data-ingestion/promtail.html

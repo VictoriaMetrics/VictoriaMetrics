@@ -6,6 +6,9 @@ menu:
     identifier: vm-enterprise
     parent: 'victoriametrics'
     weight: 80
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /enterprise.html
 - /enterprise/index.html

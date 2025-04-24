@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 6
 title: vmbackup
+tags:
+  - metrics
 aliases:
   - /vmbackup.html
   - /vmbackup/index.html

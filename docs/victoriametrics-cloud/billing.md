@@ -6,6 +6,10 @@ menu:
     parent: "cloud"
     weight: 10
     name: Billing
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 VictoriaMetrics Cloud charges for three key components:

@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 5
 title: vmauth
+tags:
+  - metrics
 aliases:
   - /vmauth.html
   - /vmauth/index.html

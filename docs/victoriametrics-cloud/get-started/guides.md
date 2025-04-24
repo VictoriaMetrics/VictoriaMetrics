@@ -5,6 +5,11 @@ menu:
   docs:
     parent: get-started
     weight: 4
+tags:
+  - metrics
+  - cloud
+  - enterprise
+  - guide
 aliases:
   - /victoriametrics-cloud/quickstart/best-practices.html
   - /managed-victoriametrics/quickstart/best-practices.html

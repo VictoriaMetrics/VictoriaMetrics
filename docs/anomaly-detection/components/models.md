@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-models"
     parent: "vmanomaly-components"
     weight: 1
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /anomaly-detection/components/models.html
   - /anomaly-detection/components/models/custom_model.html

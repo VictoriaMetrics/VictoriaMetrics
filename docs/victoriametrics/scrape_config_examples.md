@@ -5,6 +5,9 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 37
+tags:
+  - metrics
+  - guide
 aliases:
 - /scrape_config_examples.html
 - /scrape_config_examples/index.html

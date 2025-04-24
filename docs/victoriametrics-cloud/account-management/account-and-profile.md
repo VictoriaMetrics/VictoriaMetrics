@@ -6,6 +6,10 @@ menu:
   docs:
     parent: account-management
     weight: 2
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 Upon registration, every user is assigned to a profile and a [role](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/roles-and-permissions/).

@@ -5,6 +5,8 @@ menu:
     parent: victoriametrics
     weight: 7
 title: vmrestore
+tags:
+  - metrics
 aliases:
   - /vmrestore.html
   - /vmrestore/index.html

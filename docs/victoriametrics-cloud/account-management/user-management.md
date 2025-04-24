@@ -6,6 +6,10 @@ menu:
     parent: account-management
     weight: 4
     name: User Management
+tags:
+  - metrics
+  - cloud
+  - enterprise
 aliases:
   - /victoriametrics-cloud/user-managment/index.html
   - /victoriametrics-cloud/user-management/index.html

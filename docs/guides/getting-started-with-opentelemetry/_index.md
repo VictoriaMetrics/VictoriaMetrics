@@ -5,6 +5,10 @@ menu:
   docs:
     parent: "guides"
     weight: 5
+tags:
+  - metrics
+  - guide
+  - kubernetes
 aliases:
   - /guides/how-to-use-opentelemetry-metrics-with-victoriametrics/
   - /guides/how-to-use-opentelemetry-with-victoriametrics-and-victorialogs/

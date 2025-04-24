@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version
+tags:
+  - metrics
 aliases:
   - /Cluster-VictoriaMetrics.html
   - /cluster-victoriametrics/index.html

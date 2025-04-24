@@ -7,6 +7,9 @@ menu:
     identifier: vl-quick-start
     weight: 1
     title: Quick Start
+tags:
+  - logs
+  - guide
 aliases:
 - /victorialogs/QuickStart.html
 - /victorialogs/quick-start.html

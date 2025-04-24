@@ -5,6 +5,9 @@ menu:
   docs:
     parent: "guides"
     weight: 10
+tags:
+  - metrics
+  - guide
 aliases:
 - /guides/guide-vmcluster-multiple-retention-setup.html
 ---

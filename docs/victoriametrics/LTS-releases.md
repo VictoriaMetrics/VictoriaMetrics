@@ -5,6 +5,9 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 300
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /LTS-releases.html
 - /lts-releases/index.html
