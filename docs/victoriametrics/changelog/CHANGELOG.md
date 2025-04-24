@@ -19,6 +19,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update Note 1:** Updated the RPC cluster protocol version for the [TSDB status API](https://docs.victoriametrics.com/#tsdb-stats) from `tsdbStatus_v5` to `tsdbStatus_v6`.
+**Update note 2:** [vmagent](https://docs.victoriametrics.com/vmagent/)'s data distribution algorithm of remote write is changed from round-robin to consistent hashing when remoteWrite.shardByURL is enabled. This means remote write destinations will receive different time series after a vmagent upgrade, resulting in a temporary higher churn rate and increased memory usage.
+
  The TSDB Status API will be temporarily unavailable during the version upgrade process.
  This update requires both vmselect and vmstorage components to be running version v1.116.0 or higher for full compatibility.
 
@@ -26,6 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: all the VictoriaMetrics components: mask `authKey` value from log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): add helpful hints to the unexpected EOF error message in the write concurrency limiter. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): use [VM remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) by default with automatic downgrade in runtime to Prometheus protocol when needed. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): use consistent hashing for data distribution for remote write when `remoteWrite.shardByURL` is enabled. It helps minimize changes in active time series when adding or removing remote write destinations. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8546) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): enhance  `/api/v1/status/metric_names_stats` with `match_pattern` regex support. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6145) for details and related [docs](https://docs.victoriametrics.com/#track-ingested-metrics-usage)
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): add additional metric name stats to TSDB Status API response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6145) for details and this [doc](https://docs.victoriametrics.com/#tsdb-stats).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): reduce log noise from remote write retries by throttling warning messages to one per 5 seconds. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8723) for details.
