@@ -33,13 +33,12 @@ const CardinalityMetricNameStats: FC<Props> = ({ metricNameStats }) => {
             <div className="vm-cardinality-totals-card__tooltip">
               {statsCollectedSince ? (
                 <>
-                  <p>Total entries in cache since tracking started.</p>
-                  <p>Stats collected since: {date}</p>
+                  <p>Total entries in cache since {date}</p>
                   <p>Cache utilization: {cache}</p>
                 </>
               ) : (
                 <>
-                  <p>Tracker is likely disabled.</p>
+                  <p>Metric names tracker is likely disabled.</p>
                   <p>No data available. See documentation for enabling the metric names tracker.</p>
                 </>
               )}
@@ -47,7 +46,7 @@ const CardinalityMetricNameStats: FC<Props> = ({ metricNameStats }) => {
         >
           <div className="vm-cardinality-totals-card__info-icon"><InfoOutlinedIcon/></div>
         </Tooltip>
-        Metric names tracker
+        Total metric names
       </h4>
       <span className="vm-cardinality-totals-card__value">{total}</span>
       <span className="vm-cardinality-totals-card__link">
