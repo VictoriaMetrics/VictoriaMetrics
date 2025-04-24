@@ -1,11 +1,10 @@
-package opentelemetry
+package logs
 
 import (
 	"fmt"
-	"testing"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	"testing"
 )
 
 func BenchmarkParseProtobufRequest(b *testing.B) {
