@@ -60,12 +60,12 @@ export const getLastFromArray = (a: number[]) => {
 
 export const formatNumberShort = (value: number) => {
   if (value >= 1_000_000_000) {
-    return (value / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "B"; // Миллиарды
+    return (value / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "B";
   } else if (value >= 1_000_000) {
-    return (value / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"; // Миллионы
+    return (value / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
   } else if (value >= 1_000) {
-    return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K"; // Тысячи
+    return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
   } else {
-    return value.toString(); // Для чисел меньше 1000
+    return value.toString();
   }
 };

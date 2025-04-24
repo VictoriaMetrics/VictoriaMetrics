@@ -1,13 +1,3 @@
-![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaMetrics?sort=semver&label=&filter=!*-victorialogs&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Freleases%2Flatest)
-![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-metrics)
-![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics)
-![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/actions/workflows/main.yml/badge.svg?branch=master&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
-![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg?link=https%3A%2F%2Fcodecov.io%2Fgh%2FVictoriaMetrics%2FVictoriaMetrics)
-![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Fblob%2Fmaster%2FLICENSE)
-![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
-![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
-![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Freddit.com%2Fr%2FVictoriaMetrics)
-
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 
@@ -470,58 +460,6 @@ In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victori
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
-
-### Track ingested metrics usage
-
-VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
-For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
-VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls.
-
-To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)). It accepts the following query parameters:
-
-* `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
-* `le` -  `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. For example, with `?le=1` API returns metric names that were queried <=1 times.
-* `match_pattern` - a regex pattern to match metric names. For example, `?match_pattern=vm_` will match any metric names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`.
-
- The API endpoint returns the following `JSON` response:
-
-```json
-{
-  "status": "success",
-  "statsSollectedSince": 1737534094,
-  "statsCollectedRecordsTotal": 2,
-  "records": [
-    {
-      "metricName": "node_disk_writes_completed_total",
-      "queryRequests": 50,
-      "lastRequestTimestamp": 1737534262
-    },
-    {
-      "metricName": "node_network_transmit_errs_total",
-      "queryRequestsCount": 100,
-      "lastRequestTimestamp": 1737534262
-    }
-  ]
-}
-```
-
-VictoriaMetrics stores tracked metric names in memory and saves the state to disk in the data/cache folder during restarts.
-The size of the in-memory state is limited to 1% of the available memory by default.
-This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.
-
-When the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series.
-However, read request statistics for already tracked time series will continue to work as expected.
-
-VictoriaMetrics exposes the following metrics for the metric name tracker:
-* vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}
-* vm_cache_size{type="storage/metricNamesStatsTracker"}
-* vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}
-
-
-An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9` can be used to notify the user of cache utilization exceeding 90%.
-
-The metric name tracker state can be reset via the API endpoint `/api/v1/admin/status/metric_names_stats/reset` for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)) or
-via [cache removal](#cache-removal) procedure.
 
 ## How to apply new config to VictoriaMetrics
 
@@ -2410,6 +2348,81 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 VictoriaMetrics provides UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
 
 VictoriaMetrics enhances Prometheus stats with `requestsCount` and `lastRequestTimestamp` for `seriesCountByMetricName`. This stats added if [tracking metric names stats](https://docs.victoriametrics.com/victoriametrics#track-ingested-metrics-usage) is configured.
+
+## Track ingested metrics usage
+
+VictoriaMetrics can track statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) 
+during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. It tracks
+only metric names, as the number of names is usually limited (thousands) compared to time series (millions or billions).
+This feature can be enabled via the flag `--storage.trackMetricNamesStats` (**disabled by default**) on a single-node 
+VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). 
+
+During querying, VictoriaMetrics tracks how many times the requested metric name was fetched from the database and 
+when was the last time it happened. In this way, it is possible to identify metric names that were never queried. 
+Or if metric was queried occasionally - when the last time it happened. 
+
+To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for 
+a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)). 
+It accepts the following query parameters:
+* `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
+* `le` - `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. 
+  For example, with `?le=1` API returns metric names that were queried <=1 times.
+* `match_pattern` - a regex pattern to match metric names. For example, `?match_pattern=vm_` will match any metric 
+  names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`.
+
+The API endpoint returns the following `JSON` response:
+
+```json
+{
+  "status": "success",
+  "statsCollectedSince": 1737534094, 
+  "statsCollectedRecordsTotal": 2,
+  "records": [
+    {
+      "metricName": "node_disk_writes_completed_total",
+      "queryRequests": 50,
+      "lastRequestTimestamp": 1737534262
+    },
+    {
+      "metricName": "node_network_transmit_errs_total",
+      "queryRequestsCount": 100,
+      "lastRequestTimestamp": 1737534262
+    }
+  ]
+}
+```
+
+* `statsCollectedSince` is a timestamp since tracker was enabled (or reset, see below); 
+* `statsCollectedRecordsTotal` total number of metric names it contains; 
+* `records`:
+  * `metricName` a metric name; 
+  * `queryRequests` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
+    then one read query `foo` will increment counter by 10. Querying a metric with non-matching filters doesn't increase
+    the counter for this particular metric name. For example, querying for `vm_log_messages_total{level!="info"}` won't 
+    increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
+  * `lastRequestTimestamp` a timestamp when last time this statistic was updated.
+
+_VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls._
+
+VictoriaMetrics stores tracked metric names in memory and saves the state to disk in the `<-storageDataPath>/cache` folder during restarts.
+The size of the in-memory state is limited to **1%** of the available memory by default.
+This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.
+
+When the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series.
+However, read request statistics for already tracked time series will continue to work as expected.
+
+VictoriaMetrics exposes the following metrics for the metric name tracker:
+* `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}`
+* `vm_cache_size{type="storage/metricNamesStatsTracker"}`
+* `vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}`
+
+An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9`
+can be used to notify the user of cache utilization exceeding 90%.
+
+The metric name tracker state can be **reset** via the API endpoint `/api/v1/admin/status/metric_names_stats/reset` 
+for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset` 
+in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)) or
+via [cache removal](#cache-removal) procedure.
 
 ## Query tracing
 

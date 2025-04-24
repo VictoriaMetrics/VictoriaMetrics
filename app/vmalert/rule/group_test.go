@@ -36,145 +36,178 @@ func TestMain(m *testing.M) {
 }
 
 func TestUpdateWith(t *testing.T) {
-	f := func(currentRules, newRules []config.Rule) {
+	f := func(oldG, newG config.Group) {
 		t.Helper()
 
 		ns := metrics.NewSet()
-		g := &Group{
-			Name:    "test",
-			metrics: &groupMetrics{set: ns},
-		}
 		qb := &datasource.FakeQuerier{}
-		for _, r := range currentRules {
-			r.ID = config.HashRule(r)
-			g.Rules = append(g.Rules, g.newRule(qb, r))
+		for i := range oldG.Rules {
+			oldG.Rules[i].ID = config.HashRule(oldG.Rules[i])
+		}
+		for i := range newG.Rules {
+			newG.Rules[i].ID = config.HashRule(newG.Rules[i])
 		}
 
-		ng := &Group{
-			Name: "test",
-		}
-		for _, r := range newRules {
-			r.ID = config.HashRule(r)
-			ng.Rules = append(ng.Rules, ng.newRule(qb, r))
-		}
+		g := NewGroup(oldG, qb, 0, nil)
+		g.metrics = &groupMetrics{set: ns}
+		expect := NewGroup(newG, qb, 0, nil)
 
-		err := g.updateWith(ng)
+		err := g.updateWith(expect)
 		if err != nil {
 			t.Fatalf("cannot update rule: %s", err)
 		}
 
-		if len(g.Rules) != len(newRules) {
-			t.Fatalf("expected to have %d rules; got: %d", len(g.Rules), len(newRules))
+		if len(g.Rules) != len(expect.Rules) {
+			t.Fatalf("expected to have %d rules; got: %d", len(expect.Rules), len(g.Rules))
 		}
 		sort.Slice(g.Rules, func(i, j int) bool {
 			return g.Rules[i].ID() < g.Rules[j].ID()
 		})
-		sort.Slice(ng.Rules, func(i, j int) bool {
-			return ng.Rules[i].ID() < ng.Rules[j].ID()
+		sort.Slice(expect.Rules, func(i, j int) bool {
+			return expect.Rules[i].ID() < expect.Rules[j].ID()
 		})
 		for i, r := range g.Rules {
-			got, want := r, ng.Rules[i]
+			got, want := r, expect.Rules[i]
 			if got.ID() != want.ID() {
 				t.Fatalf("expected to have rule %q; got %q", want, got)
 			}
 			if err := CompareRules(t, got, want); err != nil {
-				t.Fatalf("comparison error: %s", err)
+				t.Fatalf("comparison1 error: %s", err)
 			}
 		}
 	}
 
 	// new rule
-	f(nil, []config.Rule{
-		{Alert: "bar"},
-	})
+	f(config.Group{}, config.Group{
+		Rules: []config.Rule{
+			{Alert: "bar"},
+		}})
 
 	// update alerting rule
-	f([]config.Rule{
-		{
-			Alert: "foo",
-			Expr:  "up > 0",
-			For:   promutil.NewDuration(time.Second),
+	f(config.Group{
+		Rules: []config.Rule{
+			{
+				Alert: "foo",
+				Expr:  "up > 0",
+				For:   promutil.NewDuration(time.Second),
+				Labels: map[string]string{
+					"bar": "baz",
+				},
+				Annotations: map[string]string{
+					"summary":     "{{ $value|humanize }}",
+					"description": "{{$labels}}",
+				},
+			},
+			{
+				Alert: "bar",
+				Expr:  "up > 0",
+				For:   promutil.NewDuration(time.Second),
+				Labels: map[string]string{
+					"bar": "baz",
+				},
+			},
+		}}, config.Group{
+		Rules: []config.Rule{
+			{
+				Alert: "foo",
+				Expr:  "up > 10",
+				For:   promutil.NewDuration(time.Second),
+				Labels: map[string]string{
+					"baz": "bar",
+				},
+				Annotations: map[string]string{
+					"summary": "none",
+				},
+			},
+			{
+				Alert:         "bar",
+				Expr:          "up > 0",
+				For:           promutil.NewDuration(2 * time.Second),
+				KeepFiringFor: promutil.NewDuration(time.Minute),
+				Labels: map[string]string{
+					"bar": "baz",
+				},
+			},
+		}})
+
+	// update recording rule
+	f(config.Group{
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "max(up)",
 			Labels: map[string]string{
 				"bar": "baz",
 			},
-			Annotations: map[string]string{
-				"summary":     "{{ $value|humanize }}",
-				"description": "{{$labels}}",
-			},
-		},
-		{
-			Alert: "bar",
-			Expr:  "up > 0",
-			For:   promutil.NewDuration(time.Second),
-			Labels: map[string]string{
-				"bar": "baz",
-			},
-		},
-	}, []config.Rule{
-		{
-			Alert: "foo",
-			Expr:  "up > 10",
-			For:   promutil.NewDuration(time.Second),
+		}}}, config.Group{
+		Rules: []config.Rule{{
+			Record: "foo",
+			Expr:   "min(up)",
+			Debug:  true,
 			Labels: map[string]string{
 				"baz": "bar",
 			},
-			Annotations: map[string]string{
-				"summary": "none",
-			},
-		},
-		{
-			Alert:         "bar",
-			Expr:          "up > 0",
-			For:           promutil.NewDuration(2 * time.Second),
-			KeepFiringFor: promutil.NewDuration(time.Minute),
-			Labels: map[string]string{
-				"bar": "baz",
-			},
-		},
-	})
+		}}})
 
-	// update recording rule
-	f([]config.Rule{{
-		Record: "foo",
-		Expr:   "max(up)",
-		Labels: map[string]string{
-			"bar": "baz",
-		},
-	}}, []config.Rule{{
-		Record: "foo",
-		Expr:   "min(up)",
-		Debug:  true,
-		Labels: map[string]string{
-			"baz": "bar",
-		},
-	}})
+	// update debug
+	f(config.Group{
+		Rules: []config.Rule{
+			{
+				Record: "foo",
+				Expr:   "max(up)",
+			},
+			{
+				Alert: "foo",
+				Expr:  "up > 0",
+				Debug: true,
+				For:   promutil.NewDuration(time.Second),
+			},
+		}}, config.Group{
+		Rules: []config.Rule{
+			{
+				Record: "foo",
+				Expr:   "max(up)",
+				Debug:  true,
+			},
+			{
+				Alert: "foo",
+				Expr:  "up > 0",
+				For:   promutil.NewDuration(time.Second),
+			},
+		}})
 
 	// empty rule
-	f([]config.Rule{{Alert: "foo"}, {Record: "bar"}}, nil)
+	f(config.Group{
+		Rules: []config.Rule{{Alert: "foo"}, {Record: "bar"}}}, config.Group{})
 
 	// multiple rules
-	f([]config.Rule{
-		{Alert: "bar"},
-		{Alert: "baz"},
-		{Alert: "foo"},
-	}, []config.Rule{
-		{Alert: "baz"},
-		{Record: "foo"},
-	})
+	f(config.Group{
+		Rules: []config.Rule{
+			{Alert: "bar"},
+			{Alert: "baz"},
+			{Alert: "foo"},
+		}}, config.Group{
+		Rules: []config.Rule{
+			{Alert: "baz"},
+			{Record: "foo"},
+		}})
 
 	// replace rule
-	f([]config.Rule{{Alert: "foo1"}}, []config.Rule{{Alert: "foo2"}})
+	f(config.Group{
+		Rules: []config.Rule{{Alert: "foo1"}}}, config.Group{
+		Rules: []config.Rule{{Alert: "foo2"}}})
 
 	// replace multiple rules
-	f([]config.Rule{
-		{Alert: "foo1"},
-		{Record: "foo2"},
-		{Alert: "foo3"},
-	}, []config.Rule{
-		{Alert: "foo3"},
-		{Alert: "foo4"},
-		{Record: "foo5"},
-	})
+	f(config.Group{
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+			{Record: "foo2"},
+			{Alert: "foo3"},
+		}}, config.Group{
+		Rules: []config.Rule{
+			{Alert: "foo3"},
+			{Alert: "foo4"},
+			{Record: "foo5"},
+		}})
 }
 
 func TestUpdateDuringRandSleep(t *testing.T) {
