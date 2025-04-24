@@ -164,14 +164,16 @@ func matchAnyCasePhrase(s, phraseLowercase string) bool {
 		return false
 	}
 
-	if isASCIILowercase(s) {
+	n := firstNonASCIILowercaseIndex(s)
+	if n < 0 {
 		// Fast path - s is in lowercase
 		return matchPhrase(s, phraseLowercase)
 	}
 
 	// Slow path - convert s to lowercase before matching
 	bb := bbPool.Get()
-	bb.B = stringsutil.AppendLowercase(bb.B, s)
+	bb.B = append(bb.B, s[:n]...)
+	bb.B = stringsutil.AppendLowercase(bb.B, s[n:])
 	sLowercase := bytesutil.ToUnsafeString(bb.B)
 	ok := matchPhrase(sLowercase, phraseLowercase)
 	bbPool.Put(bb)
@@ -179,12 +181,30 @@ func matchAnyCasePhrase(s, phraseLowercase string) bool {
 	return ok
 }
 
-func isASCIILowercase(s string) bool {
+var asciiLowercaseMap = func() [256]bool {
+	m := [256]bool{}
+	// Mark all ASCII symbols as true
+	for i := 0; i < utf8.RuneSelf; i++ {
+		m[i] = true
+	}
+	// Exclude uppercase symbols
+	for i := 'A'; i <= 'Z'; i++ {
+		m[i] = false
+	}
+	return m
+}()
+
+// firstNonASCIILowercaseIndex returns the index of the first character in the string
+// that is not a lowercase ASCII letter (a-z). Returns -1 if all characters are ASCII and lowercase.
+func firstNonASCIILowercaseIndex(s string) int {
 	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= utf8.RuneSelf || (c >= 'A' && c <= 'Z') {
-			return false
+		if !asciiLowercaseMap[s[i]] {
+			return i
 		}
 	}
-	return true
+	return -1
+}
+
+func isASCIILowercase(s string) bool {
+	return firstNonASCIILowercaseIndex(s) < 0
 }
