@@ -96,8 +96,8 @@ var (
 
 var (
 	// rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
-	rwctxsGlobal []*remoteWriteCtx
-
+	rwctxsGlobal              []*remoteWriteCtx
+	rwctxsGlobalIdx           []int
 	rwctxConsistentHashGlobal *consistenthash.ConsistentHash
 
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
@@ -207,7 +207,7 @@ func Init() {
 
 	initStreamAggrConfigGlobal()
 
-	rwctxsGlobal = initRemoteWriteCtxs(*remoteWriteURLs)
+	initRemoteWriteCtxs(*remoteWriteURLs)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -292,7 +292,7 @@ var (
 	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-func initRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
+func initRemoteWriteCtxs(urls []string) {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
@@ -308,7 +308,7 @@ func initRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 		maxInmemoryBlocks = 2
 	}
 	rwctxs := make([]*remoteWriteCtx, len(urls))
-
+	rwctxIdx := make([]int, len(urls))
 	for i, remoteWriteURLRaw := range urls {
 		remoteWriteURL, err := url.Parse(remoteWriteURLRaw)
 		if err != nil {
@@ -319,6 +319,7 @@ func initRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxIdx[i] = i
 	}
 
 	if *shardByURL {
@@ -328,7 +329,9 @@ func initRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 		}
 		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(consistentHashNodes, 0)
 	}
-	return rwctxs
+
+	rwctxsGlobal = rwctxs
+	rwctxsGlobalIdx = rwctxIdx
 }
 
 var (
@@ -626,6 +629,11 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 // calculateHealthyRwctxIdx returns the index of healthyRwctxs in rwctxsGlobal.
 // It relies on the order of rwctx in healthyRwctxs, which is appended by getEligibleRemoteWriteCtxs.
 func calculateHealthyRwctxIdx(healthyRwctxs []*remoteWriteCtx) ([]int, []int) {
+	// fast path: all rwctxs are healthy.
+	if len(healthyRwctxs) == len(rwctxsGlobal) {
+		return rwctxsGlobalIdx, nil
+	}
+
 	unhealthyIdx := make([]int, 0, len(rwctxsGlobal))
 	healthyIdx := make([]int, 0, len(rwctxsGlobal))
 
