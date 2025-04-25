@@ -162,7 +162,7 @@ More details about multitenancy and tenants you can read in [Multitenancy sectio
 
 Cluster deployment also allows to [create Access tokens](#how-to-create-access-token) for specific tenants.
 In this case, the token will only be able to work with the specified tenant.
-For creating Access token for specific tenant you need to specify tenant id in the "Advanced Settings" section of the [token creation dialog](#how-to-create-access-token).
+In order to create an Access token for a specific tenant, you need to specify the tenant under the "Advanced Settings" section of the [token creation dialog](#how-to-create-access-token).
 API paths for such tokens will be the different from not-tenant-specific ones, for example:
 
 | Access token type     | URL                                                                    |
