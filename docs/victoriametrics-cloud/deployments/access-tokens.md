@@ -145,7 +145,7 @@ You can also open examples section of access tokens:
 4. Click "..." button in the Actions column next to the required token in the list
 5. Click "Delete" button
 
-## How to work with tenants in cluster deployments
+## How to work with tenants in Cluster deployments
 
 Please note that API paths are different for Single and Cluster deployments, for example:
 
