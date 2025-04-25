@@ -1,7 +1,6 @@
 package servers
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -107,7 +106,9 @@ func (s *VMInsertServer) run() {
 					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
-				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+				if handshake.IsClientNetworkError(err) {
+					logger.Warnf("cannot complete vminsert handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+				} else if !handshake.IsTCPHealthcheck(err) {
 					logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
 				}
 				_ = c.Close()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -56,17 +57,52 @@ func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	return genericServer(c, vmselectHello, compressionLevel)
 }
 
-// ErrIgnoreHealthcheck means the TCP healthckeck, which must be ignored.
+// errTCPHealthcheck indicates that the connection was opened as part of a TCP health check
+// and was closed immediately after being established.
 //
-// The TCP healthcheck is performed by opening and then immediately closing the connection.
-var ErrIgnoreHealthcheck = fmt.Errorf("TCP healthcheck - ignore it")
+// This is expected behavior and can be safely ignored.
+var errTCPHealthcheck = fmt.Errorf("TCP health check connection – safe to ignore")
+
+// IsTCPHealthcheck determines whether the provided error is a TCP health check
+func IsTCPHealthcheck(err error) bool {
+	return errors.Is(err, errTCPHealthcheck)
+}
+
+// IsClientNetworkError determines whether the provided error is a client-side network error,
+// such as io.EOF, io.ErrUnexpectedEOF, or a timeout.
+// These errors typically occur when a client disconnects abruptly or fails during the handshake,
+// and are generally non-actionable from the server point of view.
+// This function helps distinguish such errors from critical ones during the handshake process
+// and adjust logging accordingly.
+//
+// See: https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/pull/880
+func IsClientNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		return true
+	}
+
+	if errMsg := err.Error(); strings.Contains(errMsg, "broken pipe") || strings.Contains(errMsg, "reset by peer") {
+		return true
+	}
+
+	return false
+}
 
 func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
 	if err := readMessage(c, msg); err != nil {
 		if errors.Is(err, io.EOF) {
-			// This is TCP healthcheck, which must be ignored in order to prevent from logs pollution.
+			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
-			return nil, ErrIgnoreHealthcheck
+			return nil, errTCPHealthcheck
 		}
 		return nil, fmt.Errorf("cannot read hello: %w", err)
 	}

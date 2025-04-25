@@ -195,9 +195,12 @@ func (s *Server) run() {
 					// c is closed inside Server.MustStop
 					return
 				}
-				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+				if handshake.IsClientNetworkError(err) {
+					logger.Warnf("cannot complete vmselect handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+				} else if !handshake.IsTCPHealthcheck(err) {
 					logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
 				}
+
 				_ = c.Close()
 				return
 			}
