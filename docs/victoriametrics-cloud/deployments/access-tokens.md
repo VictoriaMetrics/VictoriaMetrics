@@ -96,7 +96,7 @@ The same Access endpoint can be shared between several deployments. Requests rou
 
 ## How to write data with access token
 
-To use Access token for writing data you need the following things:
+To use Access token for writing data, the following resources are needed:
 
 - [Secret value of the Access token](#how-to-use-secret-value-of-access-token)
 - [Access endpoint](#access-endpoint)
