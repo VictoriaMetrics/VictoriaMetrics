@@ -64,7 +64,7 @@ After that, you can get a [Secret value of the Access token](#working-with-acces
 
 Access tokens are immutable - this means that you can’t change any parameter set at the Access token creation phase. If you need to perform any changes, you should [revoke it](#how-to-revoke-access-tokens) and [create new one](#how-to-create-access-tokens) with the desired configuration.
 
-## How to use secret value of access token
+## Working with Access token Secrets
 
 For using Access token in your software you need secret value of the Access token:
 
