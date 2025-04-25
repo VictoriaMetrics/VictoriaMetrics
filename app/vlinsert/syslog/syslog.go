@@ -528,9 +528,9 @@ func putSyslogLineReader(slr *syslogLineReader) {
 var syslogLineReaderPool sync.Pool
 
 func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
-	p := logstorage.GetSyslogParser(currentYear, timezone)
+	p := logstorage.GetSyslogParser(currentYear, timezone, *severityAsLevel)
 	lineStr := bytesutil.ToUnsafeString(line)
-	p.Parse(lineStr, *severityAsLevel)
+	p.Parse(lineStr)
 
 	var ts int64
 	if useLocalTimestamp {
