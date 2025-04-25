@@ -17,7 +17,7 @@ func BenchmarkRowsBuffer(b *testing.B) {
 func benchmarkRowsBuffer(b *testing.B, rowsPerInsert int) {
 	var rb rowsBuffer
 	var wgBuffer sync.WaitGroup
-	rb.init(&wgBuffer, func(lr *logRows) {})
+	rb.init(&wgBuffer, func(_ *logRows) {})
 
 	b.ReportAllocs()
 	b.SetBytes(int64(rowsPerInsert))
