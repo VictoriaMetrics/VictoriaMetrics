@@ -24,7 +24,7 @@ You can easily manage them in the "Access tokens" tab inside the [deployment pag
 
 ![Access tokens](access-tokens.webp)
 
-One ‘default access token’ will always be automatically created after the deployment is created.
+One ‘default access token’ will always be automatically created for each deployment.
 
 You can use it, but we strongly recommend [creating a separate token](#how-to-create-access-token) for each individual access unit.
 For instance, if you have two separate kubernetes clusters, you can [create separate access tokens](#how-to-create-access-token) 
