@@ -53,7 +53,7 @@ Each Access token has a limit for concurrent requests. You may find more details
 3. Enter the name of the token (for example "vmagent prod")
 4. And select the access level:
    - **Read** - read-only access to the deployment (for data querying tools like Grafana, Perses, etc.)
-   - **Write** - write-only access to the deployment (for data collectors like [vmagent](https://docs.victoriametrics.com/vmagent/, Prometheus, telegraf, etc.)
+   - **Write** - write-only access to the deployment (for data collectors like [vmagent](https://docs.victoriametrics.com/vmagent/, Prometheus, OpenTelemetry Collector, Telegraf, etc.)
    - **Read/Write** - read and write access to the deployment (for tools which need to read and write data, like [vmalert](https://docs.victoriametrics.com/vmalert/))
 5. For cluster deployments you can also specify a specific tenant in the "Advanced Settings", in which case the token will only be able to work with the specified tenant. More details about this option you can read in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section. 
 6. Click "Generate" button
