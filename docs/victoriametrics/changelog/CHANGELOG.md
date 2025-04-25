@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0)
+
+Released at 2025-04-25
+
 **Update Note 1:** Updated the RPC cluster protocol version for the [TSDB status API](https://docs.victoriametrics.com/#tsdb-stats), so calls to `/api/v1/status/tsdb` may temporarily fail until vmstorage and vmselect are updated to the same version. 
 
 **Update note 2:** [vmagent](https://docs.victoriametrics.com/vmagent/)'s data distribution algorithm of remote write is changed from round-robin to consistent hashing when `-remoteWrite.shardByURL` is enabled. This means vmagents with `-remoteWrite.shardByURL` will re-shard series after the upgrade, which may result into temporary higher churn rate and memory usage on remote destinations. See [#8546](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8546) for details.
