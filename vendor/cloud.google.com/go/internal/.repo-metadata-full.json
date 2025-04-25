@@ -1459,6 +1459,26 @@
     "release_level": "stable",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/iam/apiv3": {
+    "api_shortname": "iam",
+    "distribution_name": "cloud.google.com/go/iam/apiv3",
+    "description": "Identity and Access Management (IAM) API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/iam/latest/apiv3",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
+  "cloud.google.com/go/iam/apiv3beta": {
+    "api_shortname": "iam",
+    "distribution_name": "cloud.google.com/go/iam/apiv3beta",
+    "description": "Identity and Access Management (IAM) API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/iam/latest/apiv3beta",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/iam/credentials/apiv1": {
     "api_shortname": "iamcredentials",
     "distribution_name": "cloud.google.com/go/iam/credentials/apiv1",
@@ -2678,6 +2698,16 @@
     "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/spanner/latest",
     "release_level": "stable",
     "library_type": "GAPIC_MANUAL"
+  },
+  "cloud.google.com/go/spanner/adapter/apiv1": {
+    "api_shortname": "spanner",
+    "distribution_name": "cloud.google.com/go/spanner/adapter/apiv1",
+    "description": "Cloud Spanner API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/spanner/latest/adapter/apiv1",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/spanner/admin/database/apiv1": {
     "api_shortname": "spanner",
