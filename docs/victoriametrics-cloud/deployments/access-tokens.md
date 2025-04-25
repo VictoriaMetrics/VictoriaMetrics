@@ -7,10 +7,20 @@ menu:
     weight: 2
 ---
 
-You need to use Access tokens to access the deployment.
-Access tokens are technical credentials for reading and writing data to your deployments.
+VictoriaMetrics Cloud handles data ingestion and querying in a secure way. That's why we need to
+have a way to authorize and authenticate requests. [Access tokens](https://en.wikipedia.org/wiki/Access_token)
+are a widely used mechanism to perform such operations. 
+You can think of them as _technical credentials for reading and writing data to your deployments_.
 
-You can manage them in the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments):
+In summary, in VictoriaMetrics Cloud, you can create and use different Access tokens (or credentials)
+to read or write (or both) for each deployment. By using these tokens, when
+a request is received, VictoriaMetrics Cloud is able to both authorize or deny it and direct it to the correct
+target deployment. 
+
+Another benefit from this mechanism is that **you only need a url and a token to start sending or
+retrieving data** to/from VictoriaMetrics Cloud.
+
+You can easily manage them in the "Access tokens" tab inside the [deployment page](https://console.victoriametrics.cloud/deployments):
 
 ![Access tokens](access-tokens.webp)
 
