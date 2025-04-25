@@ -36,15 +36,15 @@ for [vmagent](https://docs.victoriametrics.com/vmagent/) in each cluster. In thi
 identified and managed. The same applies to reading data: you may create separate tokens for different Grafana
 instances with read-only access.
 
-It allows:
+It allows to:
 
 - Reduce the blast radius in case of any human error
-- Easier to diagnose and debug problems
-- Manage rights more granularly and safely
+- Easily diagnose and debug problems
+- Manage rights with more granularity in a safer way
 - Limit the impact of overloading if limits are exceeded
 - Secure access partially in case of a leak
 
-Each Access token has limit for concurrent requests, more details about it you can read on [Tier Parameters and Flag Parameters Configuration](../tiers-parameters.md) page.
+Each Access token has a limit for concurrent requests. You may find more details about it on the [Tier Parameters and Flag Parameters Configuration](../tiers-parameters.md) page.
 
 ## How to create access token
 
