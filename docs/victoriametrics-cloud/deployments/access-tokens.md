@@ -70,7 +70,7 @@ For using Access token in your software you need secret value of the Access toke
 
 1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
 2. Find the required token in the list
-3. Click to the value in "Key" column of this Access token. After that secret value of the Access token will be in your clipboard.
+3. Click on the value under the "Key" column of this Access token. After that, the secret value of the Access token will be in your clipboard.
 
 Please be careful with this this value, treat it like a password - do not store or send it on in the open.
 
