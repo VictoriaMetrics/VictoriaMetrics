@@ -147,7 +147,7 @@ You can also open examples section of access tokens:
 
 ## How to work with tenants in cluster deployments
 
-Please note that API paths are different for single and cluster deployments, for example:
+Please note that API paths are different for Single and Cluster deployments, for example:
 
 | Deployment type    | URL                                                                    |
 |--------------------|------------------------------------------------------------------------|
