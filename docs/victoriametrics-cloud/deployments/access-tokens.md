@@ -92,7 +92,7 @@ You can find it in the "Overview" tab on the deployment page:
 
 You can click on the Access endpoint to copy it to the clipboard.
 
-Access endpoint can be shared for several deployments, requests routing to the required deployment is done using Access token.
+The same Access endpoint can be shared between several deployments. Requests routing to the required deployment is done using Access token.
 
 ## How to write data with access token
 
