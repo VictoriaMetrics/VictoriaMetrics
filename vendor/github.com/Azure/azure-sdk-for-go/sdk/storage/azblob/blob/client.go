@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -334,7 +335,8 @@ func (b *Client) downloadBuffer(ctx context.Context, writer io.WriterAt, o downl
 	if o.BlockSize == 0 {
 		o.BlockSize = DefaultDownloadBlockSize
 	}
-
+	dataDownloaded := int64(0)
+	computeReadLength := true
 	count := o.Range.Count
 	if count == CountToEnd { // If size not specified, calculate it
 		// If we don't have the length at all, get it
@@ -343,6 +345,8 @@ func (b *Client) downloadBuffer(ctx context.Context, writer io.WriterAt, o downl
 			return 0, err
 		}
 		count = *gr.ContentLength - o.Range.Offset
+		dataDownloaded = count
+		computeReadLength = false
 	}
 
 	if count <= 0 {
@@ -387,6 +391,9 @@ func (b *Client) downloadBuffer(ctx context.Context, writer io.WriterAt, o downl
 			if err != nil {
 				return err
 			}
+			if computeReadLength {
+				atomic.AddInt64(&dataDownloaded, *dr.ContentLength)
+			}
 			err = body.Close()
 			return err
 		},
@@ -394,7 +401,7 @@ func (b *Client) downloadBuffer(ctx context.Context, writer io.WriterAt, o downl
 	if err != nil {
 		return 0, err
 	}
-	return count, nil
+	return dataDownloaded, nil
 }
 
 // DownloadStream reads a range of bytes from a blob. The response also includes the blob's properties and metadata.

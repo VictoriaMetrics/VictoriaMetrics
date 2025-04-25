@@ -1,13 +1,13 @@
 # Universally Unique Lexicographically Sortable Identifier
 
-![Project status](https://img.shields.io/badge/version-1.3.0-yellow.svg)
-[![Build Status](https://secure.travis-ci.org/oklog/ulid.png)](http://travis-ci.org/oklog/ulid)
+[![Project status](https://img.shields.io/github/release/oklog/ulid.svg?style=flat-square)](https://github.com/oklog/ulid/releases/latest)
+![Build Status](https://github.com/oklog/ulid/actions/workflows/test.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/oklog/ulid?cache=0)](https://goreportcard.com/report/oklog/ulid)
 [![Coverage Status](https://coveralls.io/repos/github/oklog/ulid/badge.svg?branch=master&cache=0)](https://coveralls.io/github/oklog/ulid?branch=master)
-[![GoDoc](https://godoc.org/github.com/oklog/ulid?status.svg)](https://godoc.org/github.com/oklog/ulid)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/oklog/ulid/v2)
 [![Apache 2 licensed](https://img.shields.io/badge/license-Apache2-blue.svg)](https://raw.githubusercontent.com/oklog/ulid/master/LICENSE)
 
-A Go port of [alizain/ulid](https://github.com/alizain/ulid) with binary format implemented.
+A Go port of [ulid/javascript](https://github.com/ulid/javascript) with binary format implemented.
 
 ## Background
 
@@ -31,27 +31,111 @@ A ULID however:
 
 ## Install
 
+This package requires Go modules.
+
 ```shell
-go get github.com/oklog/ulid
+go get github.com/oklog/ulid/v2
 ```
 
 ## Usage
 
-An ULID is constructed with a `time.Time` and an `io.Reader` entropy source.
-This design allows for greater flexibility in choosing your trade-offs.
+ULIDs are constructed from two things: a timestamp with millisecond precision,
+and some random data.
 
-Please note that `rand.Rand` from the `math` package is *not* safe for concurrent use.
-Instantiate one per long living go-routine or use a `sync.Pool` if you want to avoid the potential contention of a locked `rand.Source` as its been frequently observed in the package level functions.
+Timestamps are modeled as uint64 values representing a Unix time in milliseconds.
+They can be produced by passing a [time.Time](https://pkg.go.dev/time#Time) to
+[ulid.Timestamp](https://pkg.go.dev/github.com/oklog/ulid/v2#Timestamp),
+or by calling  [time.Time.UnixMilli](https://pkg.go.dev/time#Time.UnixMilli)
+and converting the returned value to `uint64`.
 
+Random data is taken from a provided [io.Reader](https://pkg.go.dev/io#Reader).
+This design allows for greater flexibility when choosing trade-offs, but can be
+a bit confusing to newcomers.
+
+If you just want to generate a ULID and don't (yet) care about details like
+performance, cryptographic security, monotonicity, etc., use the
+[ulid.Make](https://pkg.go.dev/github.com/oklog/ulid/v2#Make) helper function.
+This function calls [time.Now](https://pkg.go.dev/time#Now) to get a timestamp,
+and uses a source of entropy which is process-global,
+[pseudo-random](https://pkg.go.dev/math/rand)), and
+[monotonic](https://pkg.go.dev/oklog/ulid/v2#LockedMonotonicReader)).
 
 ```go
-func ExampleULID() {
-	t := time.Unix(1000000, 0)
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
-	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
-}
+println(ulid.Make())
+// 01G65Z755AFWAKHE12NY0CQ9FH
+```
 
+More advanced use cases should utilize
+[ulid.New](https://pkg.go.dev/github.com/oklog/ulid/v2#New).
+
+```go
+entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
+ms := ulid.Timestamp(time.Now())
+println(ulid.New(ms, entropy))
+// 01G65Z755AFWAKHE12NY0CQ9FH
+```
+
+Care should be taken when providing a source of entropy.
+
+The above example utilizes [math/rand.Rand](https://pkg.go.dev/math/rand#Rand),
+which is not safe for concurrent use by multiple goroutines. Consider
+alternatives such as
+[x/exp/rand](https://pkg.go.dev/golang.org/x/exp/rand#LockedSource).
+Security-sensitive use cases should always use cryptographically secure entropy
+provided by [crypto/rand](https://pkg.go.dev/crypto/rand).
+
+Performance-sensitive use cases should avoid synchronization when generating
+IDs. One option is to use a unique source of entropy for each concurrent
+goroutine, which results in no lock contention, but cannot provide strong
+guarantees about the random data, and does not provide monotonicity within a
+given millisecond. One common performance optimization is to pool sources of
+entropy using a [sync.Pool](https://pkg.go.dev/sync#Pool).
+
+Monotonicity is a property that says each ULID is "bigger than" the previous
+one. ULIDs are automatically monotonic, but only to millisecond precision. ULIDs
+generated within the same millisecond are ordered by their random component,
+which means they are by default un-ordered. You can use
+[ulid.MonotonicEntropy](https://pkg.go.dev/oklog/ulid/v2#MonotonicEntropy) or
+[ulid.LockedMonotonicEntropy](https://pkg.go.dev/oklog/ulid/v2#LockedMonotonicEntropy)
+to create ULIDs that are monotonic within a given millisecond, with caveats. See
+the documentation for details.
+
+If you don't care about time-based ordering of generated IDs, then there's no
+reason to use ULIDs! There are many other kinds of IDs that are easier, faster,
+smaller, etc. Consider UUIDs.
+
+## Commandline tool
+
+This repo also provides a tool to generate and parse ULIDs at the command line.
+These commands should install the latest version of the tool at `bin/ulid`:
+
+```shell
+cd $(mktemp -d)
+env GOPATH=$(pwd) GO111MODULE=on go get -v github.com/oklog/ulid/v2/cmd/ulid
+```
+
+Usage:
+
+```shell
+Usage: ulid [-hlqz] [-f <format>] [parameters ...]
+ -f, --format=<format>  when parsing, show times in this format: default, rfc3339, unix, ms
+ -h, --help             print this help text
+ -l, --local            when parsing, show local time instead of UTC
+ -q, --quick            when generating, use non-crypto-grade entropy
+ -z, --zero             when generating, fix entropy to all-zeroes
+```
+
+Examples:
+
+```shell
+$ ulid
+01D78XYFJ1PRM1WPBCBT3VHMNV
+$ ulid -z
+01D78XZ44G0000000000000000
+$ ulid 01D78XZ44G0000000000000000
+Sun Mar 31 03:51:23.536 UTC 2019
+$ ulid --format=rfc3339 --local 01D78XZ44G0000000000000000
+2019-03-31T05:51:23.536+02:00
 ```
 
 ## Specification
@@ -63,7 +147,7 @@ Below is the current specification of ULID as implemented in this repository.
 **Timestamp**
 - 48 bits
 - UNIX-time in milliseconds
-- Won't run out of space till the year 10895 AD
+- Won't run out of space till the year 10889 AD
 
 **Entropy**
 - 80 bits
@@ -145,6 +229,6 @@ BenchmarkCompare-8                    200000000     7.34 ns/op    4359.23 MB/s  
 
 ## Prior Art
 
-- [alizain/ulid](https://github.com/alizain/ulid)
+- [ulid/javascript](https://github.com/ulid/javascript)
 - [RobThree/NUlid](https://github.com/RobThree/NUlid)
 - [imdario/go-ulid](https://github.com/imdario/go-ulid)
