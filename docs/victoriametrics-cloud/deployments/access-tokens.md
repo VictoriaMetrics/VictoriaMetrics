@@ -123,7 +123,7 @@ You can also open the Examples section of Access tokens:
 4. Click "Examples" button
 5. Choose one of the available examples: [vmagent](https://docs.victoriametrics.com/vmagent/), prometheus or curl. You can click on the button in the top right corner to copy command or config to clipboard with the access token substituted in it.
 
-## How to read data with access token
+## How to read data with Access tokens
 
 To use Access token for writing data you need the following things:
 
