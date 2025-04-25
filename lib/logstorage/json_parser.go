@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -78,7 +77,7 @@ func (p *JSONParser) parseLogMessage(msg []byte, maxFieldNameLen int) error {
 	msgStr := bytesutil.ToUnsafeString(msg)
 	v, err := p.p.Parse(msgStr)
 	if err != nil {
-		return fmt.Errorf("cannot parse json: %w", err)
+		return err
 	}
 	o, err := v.Object()
 	if err != nil {
