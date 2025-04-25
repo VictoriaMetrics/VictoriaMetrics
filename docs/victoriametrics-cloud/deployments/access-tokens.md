@@ -84,7 +84,7 @@ Authorization: Bearer <SECRET_VAUE>
 ## Access endpoint
 
 Each deployment has one access endpoint, i.e., the URL used to communicate with your deployment's API 
-for [writing](#how-to-write-data-with-access-token) and [reading](#how-to-read-data-with-access-token) data.
+for [writing](#how-to-write-data-with-access-tokens) and [reading](#how-to-read-data-with-access-tokens) data.
 
 You can find it in the "Overview" tab on the deployment page:
 
