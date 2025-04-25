@@ -153,7 +153,7 @@ You can also open examples section of access tokens:
 5. Go to "Read" tab in example dialog
 6. Choose on of available examples: grafana or curl. You can click on the button in the top right corner to copy command or config to clipboard with the access token substituted in it.
 
-## How to revoke access token
+## How to revoke Access tokens
 
 1. Make sure the token is no longer in use
 2. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
