@@ -117,7 +117,7 @@ If there’s an integration you would like to use and it is currently missing, p
 
 You can also open the Examples section of Access tokens:
 
-1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
+1. Go to the "Access tokens" tab on the [Deployment page](https://console.victoriametrics.cloud/deployments)
 2. Find the required token in the list
 3. Click "..." button in the Actions column next to the required token in the list
 4. Click "Examples" button
