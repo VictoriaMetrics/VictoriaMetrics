@@ -102,7 +102,7 @@ To use Access token for writing data, the following resources are needed:
 - [Access endpoint](#access-endpoint)
 - [Required API path of Victoria Metrics deployment](https://docs.victoriametrics.com/victoriametrics/url-examples/)
 
-You can use the following format for requests to yo deployment:
+You can use the following format for requests to your deployment:
 
 ```
 POST https://<ACCESS_ENDPOINT>/<API_PATH>
