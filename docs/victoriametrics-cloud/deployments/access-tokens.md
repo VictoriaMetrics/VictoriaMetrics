@@ -66,7 +66,8 @@ Access tokens are immutable - this means that you can’t change any parameter s
 
 ## Working with Access token Secrets
 
-For using Access token in your software you need secret value of the Access token:
+To enable communication between your software and VictoriaMetrics Cloud, you need to use the secret
+value of an Access token in the following way:
 
 1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
 2. Find the required token in the list
