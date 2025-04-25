@@ -123,31 +123,32 @@ func (lr *logRows) mustAddRow(streamID streamID, timestamp int64, fields []Field
 
 	fieldsBuf := lr.fieldsBuf
 	fieldsBufLen := len(fieldsBuf)
+	fieldsBuf = slicesutil.SetLength(fieldsBuf, fieldsBufLen+len(fields))
+	dstFields := fieldsBuf[fieldsBufLen:]
+	lr.fieldsBuf = fieldsBuf
+	lr.rows = append(lr.rows, dstFields)
+
 	for i := range fields {
 		f := &fields[i]
 
-		var fCopy Field
+		dstField := &dstFields[i]
 		if len(fieldsBuf) >= len(fields) {
 			fPrev := &fieldsBuf[len(fieldsBuf)-len(fields)]
 			if fPrev.Name == f.Name {
-				fCopy.Name = fPrev.Name
+				dstField.Name = fPrev.Name
 			} else {
-				fCopy.Name = lr.a.copyString(f.Name)
+				dstField.Name = lr.a.copyString(f.Name)
 			}
 			if fPrev.Value == f.Value {
-				fCopy.Value = fPrev.Value
+				dstField.Value = fPrev.Value
 			} else {
-				fCopy.Value = lr.a.copyString(f.Value)
+				dstField.Value = lr.a.copyString(f.Value)
 			}
 		} else {
-			fCopy.Name = lr.a.copyString(f.Name)
-			fCopy.Value = lr.a.copyString(f.Value)
+			dstField.Name = lr.a.copyString(f.Name)
+			dstField.Value = lr.a.copyString(f.Value)
 		}
-
-		fieldsBuf = append(fieldsBuf, fCopy)
 	}
-	lr.fieldsBuf = fieldsBuf
-	lr.rows = append(lr.rows, fieldsBuf[fieldsBufLen:])
 }
 
 // Len returns the number of items in lr.
