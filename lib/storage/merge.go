@@ -45,7 +45,25 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 	defer putBlock(pendingBlock)
 	tmpBlock := getBlock()
 	defer putBlock(tmpBlock)
-	for bsm.NextBlock() {
+
+	var localRowsMerged, localRowsDeleted atomic.Uint64
+	updateStats := func() {
+		local := localRowsDeleted.Swap(0)
+		if local > 0 {
+			rowsDeleted.Add(local)
+		}
+		local = localRowsMerged.Swap(0)
+		if local > 0 {
+			rowsMerged.Add(local)
+		}
+	}
+
+	defer updateStats()
+
+	for i := 0; bsm.NextBlock(); i++ {
+		if i%10000 == 0 {
+			updateStats()
+		}
 		select {
 		case <-stopCh:
 			return errForciblyStopped
@@ -54,13 +72,13 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		b := bsm.Block
 		if dmis.Has(b.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
-			rowsDeleted.Add(uint64(b.bh.RowsCount))
+			localRowsDeleted.Add(uint64(b.bh.RowsCount))
 			continue
 		}
 		retentionDeadline := bsm.getRetentionDeadline(&b.bh)
 		if b.bh.MaxTimestamp < retentionDeadline {
 			// Skip blocks out of the given retention.
-			rowsDeleted.Add(uint64(b.bh.RowsCount))
+			localRowsDeleted.Add(uint64(b.bh.RowsCount))
 			continue
 		}
 		if pendingBlockIsEmpty {
@@ -77,14 +95,14 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			if b.bh.TSID.Less(&pendingBlock.bh.TSID) {
 				logger.Panicf("BUG: the next TSID=%+v is smaller than the current TSID=%+v", &b.bh.TSID, &pendingBlock.bh.TSID)
 			}
-			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
+			bsw.WriteExternalBlock(pendingBlock, ph, &localRowsMerged)
 			pendingBlock.CopyFrom(b)
 			continue
 		}
 		if pendingBlock.tooBig() && pendingBlock.bh.MaxTimestamp <= b.bh.MinTimestamp {
 			// Fast path - pendingBlock is too big and it doesn't overlap with b.
 			// Write the pendingBlock and then deal with b.
-			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
+			bsw.WriteExternalBlock(pendingBlock, ph, &localRowsMerged)
 			pendingBlock.CopyFrom(b)
 			continue
 		}
@@ -98,7 +116,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		tmpBlock.bh.TSID = b.bh.TSID
 		tmpBlock.bh.Scale = b.bh.Scale
 		tmpBlock.bh.PrecisionBits = minUint8(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
-		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, rowsDeleted)
+		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, &localRowsDeleted)
 		if len(tmpBlock.timestamps) <= maxRowsPerBlock {
 			// More entries may be added to tmpBlock. Swap it with pendingBlock,
 			// so more entries may be added to pendingBlock on the next iteration.
@@ -120,13 +138,13 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		tmpBlock.timestamps = tmpBlock.timestamps[:maxRowsPerBlock]
 		tmpBlock.values = tmpBlock.values[:maxRowsPerBlock]
 		tmpBlock.fixupTimestamps()
-		bsw.WriteExternalBlock(tmpBlock, ph, rowsMerged)
+		bsw.WriteExternalBlock(tmpBlock, ph, &localRowsMerged)
 	}
 	if err := bsm.Error(); err != nil {
 		return fmt.Errorf("cannot read block to be merged: %w", err)
 	}
 	if !pendingBlockIsEmpty {
-		bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
+		bsw.WriteExternalBlock(pendingBlock, ph, &localRowsMerged)
 	}
 	return nil
 }
