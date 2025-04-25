@@ -46,7 +46,7 @@ It allows to:
 
 Each Access token has a limit for concurrent requests. You may find more details about it on the [Tier Parameters and Flag Parameters Configuration](../tiers-parameters.md) page.
 
-## How to create access token
+## How to create Access tokens
 
 1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
 2. Click "Generate Token" button
