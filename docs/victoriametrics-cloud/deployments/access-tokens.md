@@ -72,7 +72,7 @@ For using Access token in your software you need secret value of the Access toke
 2. Find the required token in the list
 3. Click on the value under the "Key" column of this Access token. After that, the secret value of the Access token will be in your clipboard.
 
-Please be careful with this this value, treat it like a password - do not store or send it on in the open.
+Please, be careful with this value, treat it like a password - do not store or share it in the open.
 
 This value is the [Bearer token](https://swagger.io/docs/specification/v3_0/authentication/bearer-authentication/), 
 you need to pass it as http header in each request in the following format:
