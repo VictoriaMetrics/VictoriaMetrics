@@ -18,6 +18,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.21.0-victorialogs)
+
+Released at 2025-04-25
+
 * FEATURE: [querying](https://docs.victoriametrics.com/victorialogs/querying/): support for multiple `extra_filters` and `extra_stream_filters` args. This should simplify applying multiple independent filters to the `query`. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) and [this comment](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/293#issuecomment-2827285583).
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add an ability to force flush the recently ingested logs, so they become available for querying. See [these docs](https://docs.victoriametrics.com/victorialogs/#forced-flush).
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`sample` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sample-pipe), which returns `1/Nth` random sample for the selected logs.
