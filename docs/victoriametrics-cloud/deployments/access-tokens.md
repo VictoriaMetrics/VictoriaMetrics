@@ -109,7 +109,7 @@ POST https://<ACCESS_ENDPOINT>/<API_PATH>
 Authotization: Bearer <SECRET_VALUE>
 ```
 
-Please note that API paths are different for single and cluster deployments, more details about it you can read in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section.
+Please note that API paths are different for Single and Cluster deployments, you can read more details about it  in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section.
 
 The best way to configure writing data to your deployment is to use the [integrations page](https://console.victoriametrics.cloud/integrations?integrationType=ingestion)
 in the [Victoria Metrics Cloud console](https://console.victoriametrics.cloud/integrations) or [Integrations section](../integrations) of the documentation. 
