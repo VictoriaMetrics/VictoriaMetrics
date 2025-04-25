@@ -58,7 +58,7 @@ Each Access token has a limit for concurrent requests. You may find more details
 5. For **Cluster deployments** you can also select a specific **tenant** in "Advanced Settings". This will make the token to only work for the specified tenant. Find more details about this option in [How to work with tenants in cluster deployments](#how-to-work-with-tenants-in-cluster-deployments)) section. 
 6. Click "Generate" button
 
-After that you can get [Secret value of the Access token](#how-to-use-secret-value-of-access-token) for using it.
+After that, you can get a [Secret value of the Access token](#working-with-access-token-secrets) and start using it!
 
 ## How to change access token parameters
 
