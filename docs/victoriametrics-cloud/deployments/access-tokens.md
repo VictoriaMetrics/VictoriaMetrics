@@ -176,4 +176,4 @@ Thus for tenant-specific tokens the `/insert/<TENANT>` and `/select/<TENANT>` su
 
 - Access tokens are used for using your deployment: [reading](#how-to-read-data-with-access-token) and [writing](#how-to-write-data-with-access-token) the data.
 - [API keys](../api.md) are used for managing your deployment: creating, updating and deleting it and their resources like Access tokens, alerting rules, etc. 
-  This is necessary if you want to manage your monitoring infrastructure (including Victoria Metrics Cloud deployments) as code, for example with Terraform.s
+  This is necessary if you want to manage your monitoring infrastructure (including Victoria Metrics Cloud deployments) as code, for example with Terraform
