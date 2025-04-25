@@ -62,7 +62,7 @@ After that, you can get a [Secret value of the Access token](#working-with-acces
 
 ## How to change access token parameters
 
-Access tokens are immutable - you can’t change access token parameters creation, you can only [revoke it](#how-to-revoke-access-token) and [create new one](#how-to-create-access-token).
+Access tokens are immutable - this means that you can’t change any parameter set at the Access token creation phase. If you need to perform any changes, you should [revoke it](#how-to-revoke-access-tokens) and [create new one](#how-to-create-access-tokens) with the desired configuration.
 
 ## How to use secret value of access token
 
