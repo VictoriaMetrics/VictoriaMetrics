@@ -26,9 +26,15 @@ You can easily manage them in the "Access tokens" tab inside the [deployment pag
 
 One ‘default access token’ will always be automatically created for each deployment.
 
-You can use it, but we strongly recommend [creating a separate token](#how-to-create-access-token) for each individual access unit.
-For instance, if you have two separate kubernetes clusters, you can [create separate access tokens](#how-to-create-access-token) 
-for [vmagent](https://docs.victoriametrics.com/vmagent/) in each cluster and separate tokens for Grafana.
+While you can always make use of this general purpose token, but we strongly
+recommend [creating a separate token](#how-to-create-access-tokens) for each individual access unit.
+This best practice will help you to, not only enforce security across your platform, but also easily identify
+different data sources and take action when/if needed.
+
+For instance, if you have two separate Kubernetes clusters, you can [create separate write access tokens](#how-to-create-access-tokens) 
+for [vmagent](https://docs.victoriametrics.com/vmagent/) in each cluster. In this way, every request is easily
+identified and managed. The same applies to reading data: you may create separate tokens for different Grafana
+instances with read-only access.
 
 It allows:
 
