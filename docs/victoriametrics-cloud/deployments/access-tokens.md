@@ -158,7 +158,7 @@ You can read about the difference in [URL format section](https://docs.victoriam
 and see examples on [URL examples page](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
 The main difference is that cluster deployments are multitenant by default and a special suffix must be added for them, which contains the component prefix (insert/select) and tenant id.
-More details about multitenancy and tenants you can read in [Multitenancy section](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
+More details about multitenancy and tenants can be found in [Multitenancy section](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 Cluster deployment also allows to [create Access tokens](#how-to-create-access-token) for specific tenants.
 In this case, the token will only be able to work with the specified tenant.
