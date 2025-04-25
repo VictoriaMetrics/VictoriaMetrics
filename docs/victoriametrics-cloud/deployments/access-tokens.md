@@ -115,7 +115,7 @@ The best way to configure writing data to your deployment is to use the [integra
 in the [Victoria Metrics Cloud console](https://console.victoriametrics.cloud/integrations) or [Integrations section](../integrations) of the documentation. 
 If there’s an integration you would like to use and it is currently missing, please [contact us](mailto:support-cloud@victoriametrics.com).
 
-You can also open examples section of access tokens:
+You can also open the Examples section of Access tokens:
 
 1. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
 2. Find the required token in the list
