@@ -5,6 +5,10 @@ menu:
   docs:
     parent: "guides"
     weight: 4
+tags:
+  - metrics
+  - guide
+  - kubernetes
 aliases:
 - /guides/getting-started-with-vm-operator.html
 ---

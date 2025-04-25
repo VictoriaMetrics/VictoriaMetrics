@@ -1428,6 +1428,9 @@ func TestParseQuery_Success(t *testing.T) {
 	// multiple offset pipes
 	f(`foo | offset 10 | offset 100`, `foo | offset 10 | offset 100`)
 
+	// sample pipe
+	f(`* | sample 10`, `* | sample 10`)
+
 	// stats pipe count
 	f(`* | STATS bY (foo, b.a/r, "b az",) count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d',) as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
@@ -2097,6 +2100,12 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | offset bar`)
 	f(`foo | offset -10`)
 
+	// invalid sample pipe
+	f(`foo | sample`)
+	f(`foo | sample bar`)
+	f(`foo | sample 0`)
+	f(`foo | sample -1`)
+
 	// missing stats
 	f(`foo | stats`)
 
@@ -2732,6 +2741,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | unpack_logfmt x", true)
 	f("* | unpack_syslog x", true)
 	f("* | hash(a)", true)
+	f("* | sample 10", false)
 
 	// There is no _time field
 	f("* | fields foo, bar", false)
@@ -2797,6 +2807,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | join by (a) (b)", true)
 	f("* | json_array_len (a)", true)
 	f("* | hash(a)", true)
+	f("* | sample 10", true)
 }
 
 func TestQueryDropAllPipes(t *testing.T) {

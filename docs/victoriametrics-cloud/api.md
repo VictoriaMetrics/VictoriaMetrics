@@ -6,6 +6,10 @@ menu:
     parent: "cloud"
     weight: 8
     name: API
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 VictoriaMetrics Cloud provides programmatic access for managing cloud resources and is useful for automation with tools like Terraform, OpenTofu, Infrastructure as a Code, GitOps framework, etc.
 

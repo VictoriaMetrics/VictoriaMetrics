@@ -1157,20 +1157,22 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	}
 
 	// Parse optional extra_filters
-	extraFiltersStr := r.FormValue("extra_filters")
-	extraFilters, err := parseExtraFilters(extraFiltersStr)
-	if err != nil {
-		return nil, nil, err
+	for _, extraFiltersStr := range r.Form["extra_filters"] {
+		extraFilters, err := parseExtraFilters(extraFiltersStr)
+		if err != nil {
+			return nil, nil, err
+		}
+		q.AddExtraFilters(extraFilters)
 	}
-	q.AddExtraFilters(extraFilters)
 
 	// Parse optional extra_stream_filters
-	extraStreamFiltersStr := r.FormValue("extra_stream_filters")
-	extraStreamFilters, err := parseExtraStreamFilters(extraStreamFiltersStr)
-	if err != nil {
-		return nil, nil, err
+	for _, extraStreamFiltersStr := range r.Form["extra_stream_filters"] {
+		extraStreamFilters, err := parseExtraStreamFilters(extraStreamFiltersStr)
+		if err != nil {
+			return nil, nil, err
+		}
+		q.AddExtraFilters(extraStreamFilters)
 	}
-	q.AddExtraFilters(extraStreamFilters)
 
 	return q, tenantIDs, nil
 }

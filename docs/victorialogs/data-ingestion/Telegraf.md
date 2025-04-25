@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 5
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/Telegraf.html
 ---

@@ -32,6 +32,12 @@
       flex-grow: 1;
     }
 
+    &-buttons {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: $padding-small;
+    }
+
     &-execute {
       position: relative;
       display: grid;

@@ -6,8 +6,13 @@ menu:
     identifier: vm-best-practices
     parent: 'victoriametrics'
     weight: 22
+tags:
+  - metrics
+  - guide
 aliases:
 - /BestPractices.html
+- /bestpractices/index.html
+- /bestpractices/
 ---
 ## Install Recommendation
 

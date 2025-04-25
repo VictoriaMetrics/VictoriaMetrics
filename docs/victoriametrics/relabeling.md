@@ -5,8 +5,12 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 38
+tags:
+  - metrics
 aliases:
 - /relabeling.html
+- /relabeling/index.html
+- /relabeling/
 ---
 VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) support
 [Prometheus-compatible relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)

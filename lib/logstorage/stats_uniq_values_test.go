@@ -448,7 +448,7 @@ func TestStatsUniqValues_ExportImportState(t *testing.T) {
 		return sup
 	}
 
-	f := func(sup *statsUniqValuesProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(sup *statsUniqValuesProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := sup.exportState(nil, nil)
@@ -458,12 +458,9 @@ func TestStatsUniqValues_ExportImportState(t *testing.T) {
 		}
 
 		sup2 := newStatsUniqValuesProcessor()
-		stateSize, err := sup2.importState(data, nil)
+		_, err := sup2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		itemsExpected := sup.mergeItemsParallel(nil)
@@ -476,31 +473,30 @@ func TestStatsUniqValues_ExportImportState(t *testing.T) {
 
 	// empty state
 	sup := newStatsUniqValuesProcessor()
-	f(sup, 1, 0)
-	/*
-	      See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8710
-	   	// non-empty m
-	   	sup = newStatsUniqValuesProcessor()
-	   	sup.m = map[string]struct{}{
-	   		"foo": {},
-	   		"bar": {},
-	   		"baz": {},
-	   	}
-	   	f(sup, 13, 57)
+	f(sup, 1)
 
-	   	// non-empty ms
-	   	sup = newStatsUniqValuesProcessor()
-	   	sup.ms = []map[string]struct{}{
-	   		{
-	   			"foo": {},
-	   			"bar": {},
-	   			"baz": {},
-	   		},
-	   		{
-	   			"foo": {},
-	   			"aa":  {},
-	   			"":    {},
-	   		},
-	   	}
-	   	f(sup, 17, 91)*/
+	// non-empty m
+	sup = newStatsUniqValuesProcessor()
+	sup.m = map[string]struct{}{
+		"foo": {},
+		"bar": {},
+		"baz": {},
+	}
+	f(sup, 13)
+
+	// non-empty ms
+	sup = newStatsUniqValuesProcessor()
+	sup.ms = []map[string]struct{}{
+		{
+			"foo": {},
+			"bar": {},
+			"baz": {},
+		},
+		{
+			"foo": {},
+			"aa":  {},
+			"":    {},
+		},
+	}
+	f(sup, 17)
 }

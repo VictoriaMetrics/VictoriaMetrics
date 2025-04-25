@@ -6,8 +6,12 @@ menu:
     identifier: data-ingestion-vmagent
     parent: data-ingestion
     weight: 2
+tags:
+  - metrics
 aliases:
   - /data-ingestion/vmagent.html
+  - /data-ingestion/vmagent/index.html
+  - /data-ingestion/vmagent/
   - /data-ingestion/VMAgent.html
 ---
 

@@ -58,7 +58,8 @@ It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
-We recommend installing [Grafana dashboard for VictoriaLogs](https://grafana.com/grafana/dashboards/22084).
+We recommend installing Grafana dashboard for [VictoriaLogs single-node](https://grafana.com/grafana/dashboards/22084) 
+or [cluster](https://grafana.com/grafana/dashboards/23274) (if link is unavailable use [source link](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json)).
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
 via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
@@ -82,7 +83,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 ## Retention
 
-By default VictoriaLogs stores log entries with timestamps in the time range `[now-7d, now]`, while dropping logs outside the given time range.
+By default, VictoriaLogs stores log entries with timestamps in the time range `[now-7d, now]`, while dropping logs outside the given time range.
 E.g. it uses the retention of 7 days. The retention can be configured with `-retentionPeriod` command-line flag.
 This flag accepts values starting from `1d` (one day) up to `100y` (100 years). See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
 for the supported duration formats.
@@ -181,13 +182,24 @@ merge for September 21, 2024 partition. The call to `/internal/force_merge` retu
 Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
 since VictoriaLogs automatically performs optimal merges in background when new data is ingested into it.
 
+## Forced flush
+
+VictoriaLogs puts the recently [ingested logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) into in-memory buffers,
+which aren't available for [querying](https://docs.victoriametrics.com/victorialogs/querying/) for up to a second.
+If you need querying logs immediately after their ingestion, then the `/internal/force_flush` HTTP endpoint must be requested
+before querying. This endpoint converts in-memory buffers with the recently ingested logs into searchable data blocks.
+
+It isn't recommended requesting the `/internal/force_flush` HTTP endpoint on a regular basis, since this increases CPU usage
+and slows down data ingestion. It is expected that the `/internal/force_flush` is requested in automated tests, which need querying
+the recently ingested data.
+
 ## High Availability
 
 ### High Availability (HA) Setup with VictoriaLogs Single-Node Instances
 
 This schema outlines how to configure a High Availability (HA) setup using VictoriaLogs Single-Node instances. The setup consists of the following components:
 
-- **Log Collector**: The log collector should support multiplexing incoming data to multiple outputs (destinations). Popular log collectors like [Fluent Bit](https://docs.fluentbit.io/manual/concepts/data-pipeline/router), [Logstash](https://www.elastic.co/guide/en/logstash/current/output-plugins.html), [Fluentd](https://docs.fluentd.org/output/copy), and [Vector](https://vector.dev/docs/setup/configuration/sinks/) already offer this capability. Refer to their documentation for configuration details.
+- **Log Collector**: The log collector should support multiplexing incoming data to multiple outputs (destinations). Popular log collectors like [Fluent Bit](https://docs.fluentbit.io/manual/concepts/data-pipeline/router), [Logstash](https://www.elastic.co/guide/en/logstash/current/output-plugins.html), [Fluentd](https://docs.fluentd.org/output/copy), and [Vector](https://vector.dev/docs/reference/configuration/sinks/) already offer this capability. Refer to their documentation for configuration details.
 
 - **VictoriaLogs Single-Node Instances**: Use two or more instances to achieve HA.
 
@@ -374,8 +386,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -flagsAuthKey value
     	Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -forceFlushAuthKey value
+    	authKey, which must be passed in query string to /internal/force_flush . It overrides -httpAuth.* . See https://docs.victoriametrics.com/victorialogs/#forced-flush
+    	Flag value can be read from the given file when using -forceFlushAuthKey=file:///abs/path/to/file or -forceFlushAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceFlushAuthKey=http://host/path or -forceFlushAuthKey=https://host/path
   -forceMergeAuthKey value
-    	authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*
+    	authKey, which must be passed in query string to /internal/force_merge . It overrides -httpAuth.* . See https://docs.victoriametrics.com/victorialogs/#forced-merge
     	Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()

@@ -5,8 +5,11 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 29
+tags: []
 aliases:
 - /Articles.html
+- /articles/index.html
+- /articles/
 ---
 See also [case studies](https://docs.victoriametrics.com/casestudies/).
 

@@ -6,9 +6,13 @@ menu:
     identifier: "Vector"
     parent: "data-ingestion"
     weight: 4
+tags:
+  - metrics
 aliases:
   - /data-ingestion/Vector.html
   - /data-ingestion/vector.html
+  - /data-ingestion/vector/index.html
+  - /data-ingestion/vector/
 ---
 To Send data to Vector you need to configure with a Prometheus remote write sink and forward metrics to that sink from at least 1 source.
 You will need to replace the values in `<>` to match your setup.

@@ -6,9 +6,13 @@ menu:
     identifier: "prometheus"
     parent: "data-ingestion"
     weight: 1
+tags:
+  - metrics
 aliases:
   - /data-ingestion/prometheus.html
   - /data-ingestion/Prometheus.html
+  - /data-ingestion/prometheus/index.html
+  - /data-ingestion/prometheus/
 ---
 
 VictoriaMetrics supports ingesting data from Prometheus via the Prometheus remote write protocol.

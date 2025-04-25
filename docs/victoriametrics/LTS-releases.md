@@ -5,8 +5,13 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 300
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /LTS-releases.html
+- /lts-releases/index.html
+- /lts-releases/
 ---
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) provides long-term support lines of releases (aka LTS releases).
 Every LTS line receives bugfixes and [security fixes](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md) for 12 months after

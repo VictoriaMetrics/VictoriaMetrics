@@ -404,6 +404,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/metric_names_stats":
 		metricNamesStatsRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := stats.MetricNamesStatsHandler(qt, w, r); err != nil {
 			metricNamesStatsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)

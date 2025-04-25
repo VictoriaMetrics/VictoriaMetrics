@@ -1,39 +1,5 @@
 
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.4.0"
-    },
-    {
-      "type": "panel",
-      "id": "piechart",
-      "name": "Pie chart",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "victoriametrics-metrics-datasource",
-      "name": "VictoriaMetrics",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -59,11 +25,9 @@
   "description": "Overview for enterprise cluster VictoriaMetrics v1.56.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "gnetId": 16399,
   "graphTooltip": 1,
-  "id": null,
+  "id": 3,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -96,6 +60,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -127,8 +92,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -160,11 +124,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -200,6 +165,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -231,8 +197,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -264,11 +229,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -306,6 +272,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -337,8 +304,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -377,11 +343,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -419,6 +386,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -450,8 +418,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -483,11 +450,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -525,6 +493,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -556,8 +525,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -588,11 +556,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -630,6 +599,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -661,8 +631,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -694,11 +663,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -717,12 +687,117 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "The higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by(accountID,projectID)",
+          "interval": "",
+          "legendFormat": "{{accountID}}:{{projectID}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Instant Churn Rate",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 33
       },
       "id": 14,
       "panels": [],
@@ -755,7 +830,7 @@
         "h": 14,
         "w": 4,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 16,
       "options": {
@@ -777,11 +852,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -824,7 +900,7 @@
         "h": 14,
         "w": 4,
         "x": 4,
-        "y": 26
+        "y": 34
       },
       "id": 18,
       "options": {
@@ -846,10 +922,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -892,7 +970,7 @@
         "h": 14,
         "w": 4,
         "x": 8,
-        "y": 26
+        "y": 34
       },
       "id": 32,
       "options": {
@@ -914,10 +992,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -960,7 +1040,7 @@
         "h": 14,
         "w": 4,
         "x": 12,
-        "y": 26
+        "y": 34
       },
       "id": 21,
       "options": {
@@ -984,10 +1064,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1030,7 +1112,7 @@
         "h": 14,
         "w": 4,
         "x": 16,
-        "y": 26
+        "y": 34
       },
       "id": 22,
       "options": {
@@ -1052,10 +1134,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1098,7 +1182,7 @@
         "h": 14,
         "w": 4,
         "x": 20,
-        "y": 26
+        "y": 34
       },
       "id": 24,
       "options": {
@@ -1120,10 +1204,12 @@
           "values": false
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1162,8 +1248,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1216,7 +1301,7 @@
         "h": 8,
         "w": 4,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 25,
       "options": {
@@ -1238,7 +1323,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1280,8 +1365,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1334,7 +1418,7 @@
         "h": 8,
         "w": 4,
         "x": 4,
-        "y": 40
+        "y": 48
       },
       "id": 26,
       "options": {
@@ -1356,7 +1440,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1398,8 +1482,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1452,7 +1535,7 @@
         "h": 8,
         "w": 4,
         "x": 8,
-        "y": 40
+        "y": 48
       },
       "id": 33,
       "options": {
@@ -1474,7 +1557,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1516,8 +1599,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1570,7 +1652,7 @@
         "h": 8,
         "w": 4,
         "x": 12,
-        "y": 40
+        "y": 48
       },
       "id": 27,
       "options": {
@@ -1592,7 +1674,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1634,8 +1716,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1688,7 +1769,7 @@
         "h": 8,
         "w": 4,
         "x": 16,
-        "y": 40
+        "y": 48
       },
       "id": 28,
       "options": {
@@ -1710,7 +1791,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1752,8 +1833,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1806,7 +1886,7 @@
         "h": 8,
         "w": 4,
         "x": 20,
-        "y": 40
+        "y": 48
       },
       "id": 30,
       "options": {
@@ -1828,7 +1908,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1849,8 +1929,9 @@
       "type": "table"
     }
   ],
+  "preload": false,
   "refresh": false,
-  "schemaVersion": 39,
+  "schemaVersion": 41,
   "tags": [
     "victoriametrics"
   ],
@@ -1858,20 +1939,15 @@
     "list": [
       {
         "current": {
-          "selected": false,
           "text": "cluster-monitoring",
           "value": "cluster-monitoring"
         },
-        "hide": 0,
         "includeAll": false,
-        "multi": false,
         "name": "ds",
         "options": [],
         "query": "victoriametrics-metrics-datasource",
-        "queryValue": "",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
         "type": "datasource"
       },
       {
@@ -1882,7 +1958,6 @@
           "uid": "$ds"
         },
         "definition": "label_values(vm_tenant_active_timeseries, accountID)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "account",
@@ -1893,12 +1968,7 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       },
       {
         "allValue": ".*",
@@ -1908,7 +1978,6 @@
           "uid": "$ds"
         },
         "definition": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "project",
@@ -1919,22 +1988,16 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       },
       {
+        "baseFilters": [],
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "PE8D8DB4BEE4E4B22"
         },
         "filters": [],
-        "hide": 0,
         "name": "adhoc",
-        "skipUrlSync": false,
         "type": "adhoc"
       }
     ]
@@ -1947,6 +2010,5 @@
   "timezone": "",
   "title": "VictoriaMetrics Cluster Per Tenant Statistic (VM)",
   "uid": "IZFqd3lMz_vm",
-  "version": 1,
-  "weekStart": ""
+  "version": 8
 }

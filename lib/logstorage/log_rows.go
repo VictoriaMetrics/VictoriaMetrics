@@ -26,17 +26,14 @@ type LogRows struct {
 	// streamIDs holds streamIDs for rows added to LogRows
 	streamIDs []streamID
 
-	// streamTagsCanonicals holds streamTagsCanonical entries for rows added to LogRows
-	streamTagsCanonicals []string
-
 	// timestamps holds stimestamps for rows added to LogRows
 	timestamps []int64
 
 	// rows holds fields for rows added to LogRows.
 	rows [][]Field
 
-	// sf is a helper for sorting fields in every added row
-	sf sortedFields
+	// streamTagsCanonicals holds streamTagsCanonical entries for rows added to LogRows
+	streamTagsCanonicals []string
 
 	// streamFields contains names for stream fields
 	streamFields map[string]struct{}
@@ -52,6 +49,156 @@ type LogRows struct {
 
 	// defaultMsgValue contains default value for missing _msg field
 	defaultMsgValue string
+}
+
+type logRows struct {
+	// a holds all the bytes referred by items in logRows
+	a arena
+
+	// fieldsBuf holds all the fields referred by items in logRows
+	fieldsBuf []Field
+
+	// streamIDs holds streamIDs for rows added to logRows
+	streamIDs []streamID
+
+	// timestamps holds stimestamps for rows added to logRows
+	timestamps []int64
+
+	// rows holds fields for rows added to logRows.
+	rows [][]Field
+
+	// sf is a helper for sorting fields in every added row
+	sf sortedFields
+}
+
+func (lr *logRows) reset() {
+	lr.a.reset()
+
+	fb := lr.fieldsBuf
+	for i := range fb {
+		fb[i].Reset()
+	}
+	lr.fieldsBuf = fb[:0]
+
+	sids := lr.streamIDs
+	for i := range sids {
+		sids[i].reset()
+	}
+	lr.streamIDs = sids[:0]
+
+	lr.timestamps = lr.timestamps[:0]
+
+	clear(lr.rows)
+	lr.rows = lr.rows[:0]
+
+	lr.sf = nil
+}
+
+// needFlush returns true if lr contains too much data, so it must be flushed to the storage.
+func (lr *logRows) needFlush() bool {
+	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7
+}
+
+func (lr *logRows) mustAddRows(src *LogRows) {
+	streamIDs := src.streamIDs
+	timestamps := src.timestamps
+	rows := src.rows
+
+	if len(rows) == 0 {
+		return
+	}
+
+	// a hint for the compiler for preventing from unnesesary bounds checks
+	_ = streamIDs[len(rows)-1]
+	_ = timestamps[len(rows)-1]
+
+	for i := range rows {
+		lr.mustAddRow(streamIDs[i], timestamps[i], rows[i])
+	}
+}
+
+func (lr *logRows) mustAddRow(streamID streamID, timestamp int64, fields []Field) {
+	lr.streamIDs = append(lr.streamIDs, streamID)
+	lr.timestamps = append(lr.timestamps, timestamp)
+
+	fieldsBuf := lr.fieldsBuf
+	fieldsBufLen := len(fieldsBuf)
+	for i := range fields {
+		f := &fields[i]
+
+		var fCopy Field
+		if len(fieldsBuf) >= len(fields) {
+			fPrev := &fieldsBuf[len(fieldsBuf)-len(fields)]
+			if fPrev.Name == f.Name {
+				fCopy.Name = fPrev.Name
+			} else {
+				fCopy.Name = lr.a.copyString(f.Name)
+			}
+			if fPrev.Value == f.Value {
+				fCopy.Value = fPrev.Value
+			} else {
+				fCopy.Value = lr.a.copyString(f.Value)
+			}
+		} else {
+			fCopy.Name = lr.a.copyString(f.Name)
+			fCopy.Value = lr.a.copyString(f.Value)
+		}
+
+		fieldsBuf = append(fieldsBuf, fCopy)
+	}
+	lr.fieldsBuf = fieldsBuf
+	lr.rows = append(lr.rows, fieldsBuf[fieldsBufLen:])
+}
+
+// Len returns the number of items in lr.
+func (lr *logRows) Len() int {
+	return len(lr.streamIDs)
+}
+
+// Less returns true if (streamID, timestamp) for row i is smaller than the (streamID, timestamp) for row j
+func (lr *logRows) Less(i, j int) bool {
+	a := &lr.streamIDs[i]
+	b := &lr.streamIDs[j]
+	if !a.equal(b) {
+		return a.less(b)
+	}
+	return lr.timestamps[i] < lr.timestamps[j]
+}
+
+// Swap swaps rows i and j in lr.
+func (lr *logRows) Swap(i, j int) {
+	a := &lr.streamIDs[i]
+	b := &lr.streamIDs[j]
+	*a, *b = *b, *a
+
+	tsA, tsB := &lr.timestamps[i], &lr.timestamps[j]
+	*tsA, *tsB = *tsB, *tsA
+
+	fieldsA, fieldsB := &lr.rows[i], &lr.rows[j]
+	*fieldsA, *fieldsB = *fieldsB, *fieldsA
+}
+
+func (lr *logRows) sortFieldsInRows() {
+	for _, row := range lr.rows {
+		lr.sf = row
+		sort.Sort(&lr.sf)
+	}
+}
+
+type sortedFields []Field
+
+func (sf *sortedFields) Len() int {
+	return len(*sf)
+}
+
+func (sf *sortedFields) Less(i, j int) bool {
+	a := *sf
+	return a[i].Name < a[j].Name
+}
+
+func (sf *sortedFields) Swap(i, j int) {
+	a := *sf
+	a[i], a[j] = a[j], a[i]
 }
 
 // ForEachRow calls callback for every row stored in the lr.
@@ -70,22 +217,6 @@ func (lr *LogRows) ForEachRow(callback func(streamHash uint64, r *InsertRow)) {
 		callback(streamHash, r)
 	}
 	PutInsertRow(r)
-}
-
-type sortedFields []Field
-
-func (sf *sortedFields) Len() int {
-	return len(*sf)
-}
-
-func (sf *sortedFields) Less(i, j int) bool {
-	a := *sf
-	return a[i].Name < a[j].Name
-}
-
-func (sf *sortedFields) Swap(i, j int) {
-	a := *sf
-	a[i], a[j] = a[j], a[i]
 }
 
 // Reset resets lr with all its settings.
@@ -132,8 +263,6 @@ func (lr *LogRows) ResetKeepSettings() {
 
 	clear(lr.rows)
 	lr.rows = lr.rows[:0]
-
-	lr.sf = nil
 }
 
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
@@ -307,6 +436,8 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 		fieldName := f.Name
 		if fieldName == "_msg" {
 			fieldName = ""
+		}
+		if fieldName == "" {
 			hasMsgField = true
 		}
 
@@ -333,13 +464,6 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 	lr.fieldsBuf = fb
 
 	return hasMsgField
-}
-
-func (lr *LogRows) sortFieldsInRows() {
-	for _, row := range lr.rows {
-		lr.sf = row
-		sort.Sort(&lr.sf)
-	}
 }
 
 // GetRowString returns string representation of the row with the given idx.
@@ -423,37 +547,6 @@ func PutLogRows(lr *LogRows) {
 }
 
 var logRowsPool sync.Pool
-
-// Len returns the number of items in lr.
-func (lr *LogRows) Len() int {
-	return len(lr.streamIDs)
-}
-
-// Less returns true if (streamID, timestamp) for row i is smaller than the (streamID, timestamp) for row j
-func (lr *LogRows) Less(i, j int) bool {
-	a := &lr.streamIDs[i]
-	b := &lr.streamIDs[j]
-	if !a.equal(b) {
-		return a.less(b)
-	}
-	return lr.timestamps[i] < lr.timestamps[j]
-}
-
-// Swap swaps rows i and j in lr.
-func (lr *LogRows) Swap(i, j int) {
-	a := &lr.streamIDs[i]
-	b := &lr.streamIDs[j]
-	*a, *b = *b, *a
-
-	tsA, tsB := &lr.timestamps[i], &lr.timestamps[j]
-	*tsA, *tsB = *tsB, *tsA
-
-	snA, snB := &lr.streamTagsCanonicals[i], &lr.streamTagsCanonicals[j]
-	*snA, *snB = *snB, *snA
-
-	fieldsA, fieldsB := &lr.rows[i], &lr.rows[j]
-	*fieldsA, *fieldsB = *fieldsB, *fieldsA
-}
 
 // EstimatedJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
 func EstimatedJSONRowLen(fields []Field) int {

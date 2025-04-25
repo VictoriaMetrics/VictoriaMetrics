@@ -21,10 +21,13 @@ func benchmarkInmemoryPartMustInitFromRows(b *testing.B, streams, rowsPerStream 
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rowsPerStream))
 	b.RunParallel(func(pb *testing.PB) {
-		lr := newTestLogRows(streams, rowsPerStream, 0)
+		lrOrig := newTestLogRows(streams, rowsPerStream, 0)
+		var lr logRows
+		lr.mustAddRows(lrOrig)
+
 		mp := getInmemoryPart()
 		for pb.Next() {
-			mp.mustInitFromRows(lr)
+			mp.mustInitFromRows(&lr)
 			if mp.ph.RowsCount != uint64(len(lr.timestamps)) {
 				panic(fmt.Errorf("unexpected number of entries in the output stream; got %d; want %d", mp.ph.RowsCount, len(lr.timestamps)))
 			}

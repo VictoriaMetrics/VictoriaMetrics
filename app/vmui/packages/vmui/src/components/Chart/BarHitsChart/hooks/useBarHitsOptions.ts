@@ -1,5 +1,5 @@
 import { useMemo, useState } from "preact/compat";
-import { getAxes, handleDestroy, setSelect } from "../../../../utils/uplot";
+import { getAxes, getMinMaxBuffer, handleDestroy, setSelect } from "../../../../utils/uplot";
 import dayjs from "dayjs";
 import { dateFromSeconds, formatDateForNativeInput } from "../../../../utils/time";
 import uPlot, { AlignedData, Band, Options, Series } from "uplot";
@@ -9,6 +9,7 @@ import { MinMax, SetMinMax } from "../../../../types";
 import { LogHits } from "../../../../api/types";
 import getSeriesPaths from "../../../../utils/uplot/paths";
 import { GraphOptions, GRAPH_STYLES } from "../types";
+import { getMaxFromArray } from "../../../../utils/math";
 
 const seriesColors = [
   "color-log-hits-bar-1",
@@ -44,6 +45,12 @@ export const getLabelFromLogHit = (logHit: LogHits) => {
   return fields.map((value) => value || "\"\"").join(", ");
 };
 
+const getYRange = (u: uPlot, _initMin = 0, initMax = 1) => {
+  const maxValues = u.series.filter(({ scale }) => scale === "y").map(({ max }) => max || initMax);
+  const max = getMaxFromArray(maxValues);
+  return getMinMaxBuffer(0, max || initMax);
+};
+
 const useBarHitsOptions = ({
   data,
   logHits,
@@ -64,25 +71,34 @@ const useBarHitsOptions = ({
   };
 
   const series: Series[] = useMemo(() => {
-    let colorN = 0;
+    let visibleColorIndex = 0;
+
     return data.map((_d, i) => {
-      if (i === 0) return {}; // 0 index is xAxis(timestamps)
-      const target = logHits?.[i - 1];
-      const label = getLabelFromLogHit(target);
-      const color = getCssVariable(target?._isOther ? "color-log-hits-bar-0" : seriesColors[colorN]);
-      if (!target?._isOther) colorN++;
+      if (i === 0) return {}; // x-axis
+
+      const logHit = logHits?.[i - 1];
+      const label = getLabelFromLogHit(logHit);
+
+      const isOther = logHit?._isOther;
+      const colorVar = isOther
+        ? "color-log-hits-bar-0"
+        : seriesColors[visibleColorIndex++];
+
+      const color = getCssVariable(colorVar);
+
       return {
         label,
         width: strokeWidth[graphOptions.graphStyle],
         spanGaps: true,
+        show: true,
         stroke: color,
-        fill: graphOptions.fill ? color + (target?._isOther ? "" : "80") : "",
+        fill: graphOptions.fill && !isOther ? `${color}80` : graphOptions.fill ? color : "",
         paths: getSeriesPaths(graphOptions.graphStyle),
       };
     });
   }, [isDarkTheme, data, graphOptions]);
 
-  const options: Options = useMemo(() => ({
+  const options: Options = {
     series,
     bands,
     width: containerSize.width || (window.innerWidth / 2),
@@ -99,6 +115,9 @@ const useBarHitsOptions = ({
       x: {
         time: true,
         range: () => [xRange.min, xRange.max]
+      },
+      y: {
+        range: getYRange
       }
     },
     hooks: {
@@ -111,7 +130,7 @@ const useBarHitsOptions = ({
     legend: { show: false },
     axes: getAxes([{}, { scale: "y" }]),
     tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
-  }), [isDarkTheme, series, bands]);
+  };
 
   return {
     options,
