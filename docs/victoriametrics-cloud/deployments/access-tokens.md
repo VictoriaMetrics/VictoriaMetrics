@@ -94,7 +94,7 @@ You can click on the Access endpoint to copy it to the clipboard.
 
 The same Access endpoint can be shared between several deployments. Requests routing to the required deployment is done using Access token.
 
-## How to write data with access token
+## How to write data with access tokens
 
 To use Access token for writing data, the following resources are needed:
 
