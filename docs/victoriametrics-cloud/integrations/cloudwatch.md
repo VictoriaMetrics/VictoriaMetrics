@@ -7,7 +7,7 @@ menu:
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/7;"
+    style="aspect-ratio: 1/9;"
     name="iframe" 
     id="integration" 
     frameborder="0"

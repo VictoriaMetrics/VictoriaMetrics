@@ -1,5 +1,5 @@
 ---
-title : "Cloud Alertmanager"
+title : "Custom Alertmanager"
 menu:
   docs:
     parent: "integrations"
