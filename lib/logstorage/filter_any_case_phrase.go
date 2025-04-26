@@ -204,7 +204,3 @@ func firstNonASCIILowercaseIndex(s string) int {
 	}
 	return -1
 }
-
-func isASCIILowercase(s string) bool {
-	return firstNonASCIILowercaseIndex(s) < 0
-}
