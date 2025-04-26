@@ -28,4 +28,6 @@ func benchmarkRowsBuffer(b *testing.B, rowsPerInsert int) {
 			rb.mustAddRows(lr)
 		}
 	})
+	rb.flush()
+	wgBuffer.Wait()
 }

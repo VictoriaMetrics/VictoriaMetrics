@@ -202,6 +202,21 @@ func (sf *sortedFields) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+func getLogRows() *logRows {
+	v := lrPool.Get()
+	if v == nil {
+		return &logRows{}
+	}
+	return v.(*logRows)
+}
+
+func putLogRows(lr *logRows) {
+	lr.reset()
+	lrPool.Put(lr)
+}
+
+var lrPool sync.Pool
+
 // ForEachRow calls callback for every row stored in the lr.
 func (lr *LogRows) ForEachRow(callback func(streamHash uint64, r *InsertRow)) {
 	r := GetInsertRow()

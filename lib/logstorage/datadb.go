@@ -687,7 +687,7 @@ type rowsBufferShard struct {
 	flushFunc func(lr *logRows)
 
 	mu         sync.Mutex
-	lr         logRows
+	lr         *logRows
 	flushTimer *time.Timer
 
 	// padding for preventing false sharing
@@ -724,6 +724,9 @@ func (rb *rowsBuffer) mustAddRows(lr *LogRows) {
 			shard.mu.Unlock()
 		})
 	}
+	if shard.lr == nil {
+		shard.lr = getLogRows()
+	}
 	shard.lr.mustAddRows(lr)
 	if shard.lr.needFlush() {
 		shard.flushLocked()
@@ -739,8 +742,11 @@ func (shard *rowsBufferShard) flushLocked() {
 		shard.flushTimer = nil
 	}
 
-	shard.flushFunc(&shard.lr)
-	shard.lr.reset()
+	if shard.lr != nil {
+		shard.flushFunc(shard.lr)
+		putLogRows(shard.lr)
+		shard.lr = nil
+	}
 }
 
 func (ddb *datadb) mustFlushLogRows(lr *logRows) {
