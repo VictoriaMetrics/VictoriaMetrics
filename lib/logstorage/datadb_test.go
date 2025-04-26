@@ -35,6 +35,7 @@ func TestRowsBuffer(t *testing.T) {
 	wg.Wait()
 
 	rb.flush()
+	wgBuffer.Wait()
 
 	rowsLen := rowsFlushed.Load()
 	rowsLenExpected := uint64(concurrency * rowsPerInsert * insertLoops)
