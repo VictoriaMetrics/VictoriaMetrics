@@ -59,9 +59,9 @@ Download the latest available [Docker image of VictoriaMetrics](https://hub.dock
 and start it at port 8428, while storing the ingested data at `victoria-metrics-data` subdirectory
 under the current directory:
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.115.0
+docker pull victoriametrics/victoria-metrics:v1.116.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.115.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.116.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 You should see:
