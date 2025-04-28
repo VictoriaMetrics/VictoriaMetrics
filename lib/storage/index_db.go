@@ -1933,7 +1933,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 // This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
 //
 // It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (idb *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
+func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
 	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
 	defer qt.Done()
 
@@ -1943,15 +1943,15 @@ func (idb *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []u
 	}
 
 	var metricIDs []uint64
-	idb.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := idb.prefetchedMetricIDs
+	db.prefetchedMetricIDsLock.Lock()
+	prefetchedMetricIDs := db.prefetchedMetricIDs
 	for _, metricID := range srcMetricIDs {
 		if prefetchedMetricIDs.Has(metricID) {
 			continue
 		}
 		metricIDs = append(metricIDs, metricID)
 	}
-	idb.prefetchedMetricIDsLock.Unlock()
+	db.prefetchedMetricIDsLock.Unlock()
 
 	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
 	if len(metricIDs) < 500 {
@@ -1959,14 +1959,14 @@ func (idb *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []u
 		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
 		return nil
 	}
-	idb.slowMetricNameLoads.Add(uint64(len(metricIDs)))
+	db.slowMetricNameLoads.Add(uint64(len(metricIDs)))
 
 	// Pre-fetch metricIDs.
 	var missingMetricIDs []uint64
 	var metricName []byte
 	var err error
-	is := idb.getIndexSearch(deadline)
-	defer idb.putIndexSearch(is)
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
 		if loops&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
@@ -1980,7 +1980,7 @@ func (idb *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []u
 			continue
 		}
 	}
-	idb.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
 		defer extDB.putIndexSearch(is)
 		for loops, metricID := range missingMetricIDs {
@@ -1998,16 +1998,16 @@ func (idb *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []u
 	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
-	idb.prefetchedMetricIDsLock.Lock()
-	if fasttime.UnixTimestamp() > idb.prefetchedMetricIDsDeadline.Load() {
+	db.prefetchedMetricIDsLock.Lock()
+	if fasttime.UnixTimestamp() > db.prefetchedMetricIDsDeadline.Load() {
 		// Periodically reset the prefetchedMetricIDs in order to limit its size.
-		idb.prefetchedMetricIDs = &uint64set.Set{}
+		db.prefetchedMetricIDs = &uint64set.Set{}
 		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
 		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
-		idb.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
+		db.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
 	}
-	idb.prefetchedMetricIDs.AddMulti(metricIDs)
-	idb.prefetchedMetricIDsLock.Unlock()
+	db.prefetchedMetricIDs.AddMulti(metricIDs)
+	db.prefetchedMetricIDsLock.Unlock()
 
 	qt.Printf("cache metric ids for pre-fetched metric names")
 	return nil
