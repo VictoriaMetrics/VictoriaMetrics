@@ -407,7 +407,7 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
   This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
 
-`vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "#" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
+`vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "v1.116.0" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). If needed, It can automatically downgrade to a Prometheus protocol at runtime.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
