@@ -95,7 +95,7 @@ func main() {
 	}
 
 	listenAddrs := []string{*httpListenAddr}
-	go httpserver.Serve(listenAddrs, nil, nil)
+	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
 
 	pushmetrics.Init()
 	err := makeBackup()

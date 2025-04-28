@@ -106,10 +106,10 @@ func main() {
 		UseProxyProtocol:     useProxyProtocol,
 		DisableBuiltinRoutes: disableInternalRoutes,
 	}
-	go httpserver.ServeWithOpts(listenAddrs, rh, serveOpts)
+	go httpserver.Serve(listenAddrs, rh, serveOpts)
 
 	if len(*httpInternalListenAddr) > 0 {
-		go httpserver.Serve(*httpInternalListenAddr, nil, internalRequestHandler)
+		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, serveOpts)
 	}
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
