@@ -203,6 +203,21 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.6)
+
+Released at 2025-04-25
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow using `-downsampling.period=filter:0s:0s` to skip downsampling for time series that match the specified `filter`. See [this doc](https://docs.victoriametrics.com/#downsampling).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly set the rule group id in `/rules` and `/alerts` APIs. Previously, the group id was not set, preventing rules from being toggled by group in the vmalert UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773).
+
 ## [v1.110.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.5)
 
 Released at 2025-04-04
@@ -384,6 +399,21 @@ See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11040)
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
+
+## [v1.102.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.19)
+
+Released at 2025-04-25
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow using `-downsampling.period=filter:0s:0s` to skip downsampling for time series that match the specified `filter`. See [this doc](https://docs.victoriametrics.com/#downsampling).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly set the rule group id in `/rules` and `/alerts` APIs. Previously, the group id was not set, preventing rules from being toggled by group in the vmalert UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773).
 
 ## [v1.102.18](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.18)
 
