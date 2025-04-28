@@ -1972,15 +1972,15 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mr := &mrs[i]
 		date := uint64(mr.Timestamp) / msecPerDay
 
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
-		if idb != nil && is != nil {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(mr.Timestamp) {
+			// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
+			if idb != nil && is != nil {
+				idb.putIndexSearch(is)
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(mr.Timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
-		idb = s.tb.MustGetIndexDB(mr.Timestamp)
-		is = idb.getIndexSearch(noDeadline)
 
 		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
 			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
@@ -2143,15 +2143,15 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		date := s.date(r.Timestamp)
 		hour := uint64(r.Timestamp) / msecPerHour
 
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
-		if idb != nil && is != nil {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
+			// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
+			if idb != nil && is != nil {
+				idb.putIndexSearch(is)
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(r.Timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
-		idb = s.tb.MustGetIndexDB(r.Timestamp)
-		is = idb.getIndexSearch(noDeadline)
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
@@ -2541,10 +2541,12 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 		}
 
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		idb = s.tb.MustGetIndexDB(r.Timestamp)
-		s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
+			if idb != nil {
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(r.Timestamp)
+		}
 
 		// Slower path: check global cache for (indexDB.id, date, metricID) entry.
 		if s.dateMetricIDCache.Has(idb.id, date, metricID) {
@@ -2556,6 +2558,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			tsid: &r.TSID,
 			mr:   mrs[i],
 		})
+	}
+	if idb != nil {
+		s.tb.PutIndexDB(idb)
+		idb = nil
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
 		s.pendingNextDayMetricIDsLock.Lock()
@@ -2588,11 +2594,15 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		date := dmid.date
 		metricID := dmid.tsid.MetricID
 
-		// TODO(rtm0): Optimize: use idb.HasDate(date) that checks
-		// whether the date is included into the partition the idb belongs to.
 		timestamp := int64(date) * msecPerDay
-		idb = s.tb.MustGetIndexDB(timestamp)
-		is = idb.getIndexSearch(noDeadline)
+		if idb == nil || !idb.HasTimestamp(timestamp) {
+			if idb != nil {
+				idb.putIndexSearch(is)
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(timestamp)
+			is = idb.getIndexSearch(noDeadline)
+		}
 
 		if !is.hasDateMetricIDNoExtDB(date, metricID) {
 			// The (date, metricID) entry is missing in the indexDB. Add it there together with per-day index.
@@ -2603,21 +2613,20 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 					firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", dmid.mr.MetricNameRaw, err)
 				}
 				s.invalidRawMetricNames.Add(1)
-
-				idb.putIndexSearch(is)
 				continue
 			}
 			mn.sortTags()
 			is.createPerDayIndexes(date, dmid.tsid, mn)
 		}
 
-		idb.putIndexSearch(is)
-		s.tb.PutIndexDB(idb)
-
 		dateMetricIDsForCache[idb.id] = append(dateMetricIDsForCache[idb.id], dateMetricID{
 			date:     date,
 			metricID: metricID,
 		})
+	}
+	if idb != nil && is != nil {
+		idb.putIndexSearch(is)
+		s.tb.PutIndexDB(idb)
 	}
 	PutMetricName(mn)
 	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.
