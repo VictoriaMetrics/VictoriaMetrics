@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
@@ -91,6 +92,8 @@ type indexDB struct {
 	// High rate may mean corrupted indexDB due to unclean shutdown.
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
+
+	slowMetricNameLoads atomic.Uint64
 
 	// minMissingTimestampByKey holds the minimum timestamps by index search key,
 	// which is missing in the given indexDB.
@@ -161,6 +164,13 @@ type indexDB struct {
 	deletedMetricIDsUpdateLock sync.Mutex
 
 	indexSearchPool sync.Pool
+
+	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
+	prefetchedMetricIDsLock sync.Mutex
+	prefetchedMetricIDs     *uint64set.Set
+
+	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
+	prefetchedMetricIDsDeadline atomic.Uint64
 }
 
 var maxTagFiltersCacheSize int
@@ -196,6 +206,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 		metricIDCache:              make(map[uint64]struct{}),
+		prefetchedMetricIDs:        &uint64set.Set{},
 	}
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
 	db.tb = tb
@@ -229,6 +240,11 @@ type IndexDBMetrics struct {
 	GlobalSearchCalls    uint64
 
 	MissingMetricNamesForMetricID uint64
+
+	SlowMetricNameLoads uint64
+
+	PrefetchedMetricIDsSize      uint64
+	PrefetchedMetricIDsSizeBytes uint64
 
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
@@ -277,6 +293,14 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.GlobalSearchCalls += db.globalSearchCalls.Load()
 
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
+
+	m.SlowMetricNameLoads += db.slowMetricNameLoads.Load()
+
+	db.prefetchedMetricIDsLock.Lock()
+	prefetchedMetricIDs := db.prefetchedMetricIDs
+	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
+	m.PrefetchedMetricIDsSizeBytes += prefetchedMetricIDs.SizeBytes()
+	db.prefetchedMetricIDsLock.Unlock()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 }
@@ -587,6 +611,11 @@ func putIndexItems(ii *indexItems) {
 }
 
 var indexItemsPool sync.Pool
+
+// HasTimestamp checks if index contains given timestamp.
+func (db *indexDB) HasTimestamp(timestamp int64) bool {
+	return timestamp >= db.tr.MinTimestamp && timestamp <= db.tr.MaxTimestamp
+}
 
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
@@ -1628,6 +1657,74 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 		db.deleteMetricIDs(metricIDsToDelete)
 	}
 	return tsids, nil
+}
+
+// prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
+//
+// This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
+//
+// It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
+func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
+	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
+	defer qt.Done()
+
+	if len(srcMetricIDs) < 500 {
+		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
+		return nil
+	}
+
+	var metricIDs []uint64
+	db.prefetchedMetricIDsLock.Lock()
+	prefetchedMetricIDs := db.prefetchedMetricIDs
+	for _, metricID := range srcMetricIDs {
+		if prefetchedMetricIDs.Has(metricID) {
+			continue
+		}
+		metricIDs = append(metricIDs, metricID)
+	}
+	db.prefetchedMetricIDsLock.Unlock()
+
+	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
+	if len(metricIDs) < 500 {
+		// It is cheaper to skip pre-fetching and obtain metricNames inline.
+		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
+		return nil
+	}
+	db.slowMetricNameLoads.Add(uint64(len(metricIDs)))
+
+	// Pre-fetch metricIDs.
+	prefetchedMetricIDs = &uint64set.Set{}
+	var metricName []byte
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
+	for loops, metricID := range metricIDs {
+		if loops&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		var ok bool
+		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
+		if ok {
+			prefetchedMetricIDs.Add(metricID)
+		}
+	}
+	qt.Printf("pre-fetch metric names for %d out of %d metric ids", prefetchedMetricIDs.Len(), len(metricIDs))
+
+	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
+	db.prefetchedMetricIDsLock.Lock()
+	if fasttime.UnixTimestamp() > db.prefetchedMetricIDsDeadline.Load() {
+		// Periodically reset the prefetchedMetricIDs in order to limit its size.
+		db.prefetchedMetricIDs = &uint64set.Set{}
+		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
+		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
+		db.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
+	}
+	db.prefetchedMetricIDs.UnionMayOwn(prefetchedMetricIDs)
+	db.prefetchedMetricIDsLock.Unlock()
+
+	qt.Printf("cache metric ids for pre-fetched metric names")
+	return nil
 }
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool

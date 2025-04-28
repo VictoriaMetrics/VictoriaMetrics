@@ -53,7 +53,6 @@ type Storage struct {
 	newTimeseriesCreated   atomic.Uint64
 	slowRowInserts         atomic.Uint64
 	slowPerDayIndexInserts atomic.Uint64
-	slowMetricNameLoads    atomic.Uint64
 
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
@@ -126,13 +125,6 @@ type Storage struct {
 	// Pending MetricIDs to be added to nextDayMetricIDs.
 	pendingNextDayMetricIDsLock sync.Mutex
 	pendingNextDayMetricIDs     *uint64set.Set
-
-	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
-	prefetchedMetricIDsLock sync.Mutex
-	prefetchedMetricIDs     *uint64set.Set
-
-	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
-	prefetchedMetricIDsDeadline atomic.Uint64
 
 	// legacyDeletedMetricIDs contains deleted metricIDs stored in legacy
 	// previous and current IndexDBs.
@@ -250,7 +242,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
-	s.prefetchedMetricIDs = &uint64set.Set{}
 	if opts.TrackMetricNamesStats {
 		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
@@ -513,7 +504,6 @@ type Metrics struct {
 	NewTimeseriesCreated   uint64
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
-	SlowMetricNameLoads    uint64
 
 	HourlySeriesLimitRowsDropped   uint64
 	HourlySeriesLimitMaxSeries     uint64
@@ -558,9 +548,6 @@ type Metrics struct {
 	NextDayMetricIDCacheSize      uint64
 	NextDayMetricIDCacheSizeBytes uint64
 
-	PrefetchedMetricIDsSize      uint64
-	PrefetchedMetricIDsSizeBytes uint64
-
 	NextRetentionSeconds uint64
 
 	MetricNamesUsageTrackerSize         uint64
@@ -591,7 +578,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NewTimeseriesCreated += s.newTimeseriesCreated.Load()
 	m.SlowRowInserts += s.slowRowInserts.Load()
 	m.SlowPerDayIndexInserts += s.slowPerDayIndexInserts.Load()
-	m.SlowMetricNameLoads += s.slowMetricNameLoads.Load()
 
 	if sl := s.hourlySeriesLimiter; sl != nil {
 		m.HourlySeriesLimitRowsDropped += s.hourlySeriesLimitRowsDropped.Load()
@@ -653,12 +639,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
 	m.NextDayMetricIDCacheSize += uint64(nextDayMetricIDs.Len())
 	m.NextDayMetricIDCacheSizeBytes += nextDayMetricIDs.SizeBytes()
-
-	s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := s.prefetchedMetricIDs
-	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
-	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
-	s.prefetchedMetricIDsLock.Unlock()
 
 	var tm metricnamestats.TrackerMetrics
 	s.metricsTracker.UpdateMetrics(&tm)
@@ -1236,7 +1216,7 @@ func (s *Storage) searchMetricNames(qt *querytracer.Tracer, idb *indexDB, tfss [
 	if len(metricIDs) == 0 {
 		return nil, nil
 	}
-	if err = s.prefetchMetricNames(qt, idb, metricIDs, deadline); err != nil {
+	if err = idb.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
 		return nil, err
 	}
 
@@ -1265,74 +1245,6 @@ func (s *Storage) searchMetricNames(qt *querytracer.Tracer, idb *indexDB, tfss [
 	}
 	qt.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
-}
-
-// prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
-//
-// This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
-//
-// It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, srcMetricIDs []uint64, deadline uint64) error {
-	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
-	defer qt.Done()
-
-	if len(srcMetricIDs) < 500 {
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
-		return nil
-	}
-
-	var metricIDs []uint64
-	s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := s.prefetchedMetricIDs
-	for _, metricID := range srcMetricIDs {
-		if prefetchedMetricIDs.Has(metricID) {
-			continue
-		}
-		metricIDs = append(metricIDs, metricID)
-	}
-	s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
-	if len(metricIDs) < 500 {
-		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
-		return nil
-	}
-	s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
-
-	// Pre-fetch metricIDs.
-	prefetchedMetricIDs = &uint64set.Set{}
-	var metricName []byte
-	is := idb.getIndexSearch(deadline)
-	defer idb.putIndexSearch(is)
-	for loops, metricID := range metricIDs {
-		if loops&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return err
-			}
-		}
-		var ok bool
-		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if ok {
-			prefetchedMetricIDs.Add(metricID)
-		}
-	}
-	qt.Printf("pre-fetch metric names for %d out of %d metric ids", prefetchedMetricIDs.Len(), len(metricIDs))
-
-	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
-	s.prefetchedMetricIDsLock.Lock()
-	if fasttime.UnixTimestamp() > s.prefetchedMetricIDsDeadline.Load() {
-		// Periodically reset the prefetchedMetricIDs in order to limit its size.
-		s.prefetchedMetricIDs = &uint64set.Set{}
-		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
-		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
-		s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
-	}
-	s.prefetchedMetricIDs.UnionMayOwn(prefetchedMetricIDs)
-	s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("cache metric ids for pre-fetched metric names")
-	return nil
 }
 
 // ErrDeadlineExceeded is returned when the request times out.
@@ -1954,15 +1866,15 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mr := &mrs[i]
 		date := uint64(mr.Timestamp) / msecPerDay
 
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
-		if idb != nil && is != nil {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(mr.Timestamp) {
+			// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
+			if idb != nil && is != nil {
+				idb.putIndexSearch(is)
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(mr.Timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
-		idb = s.tb.MustGetIndexDB(mr.Timestamp)
-		is = idb.getIndexSearch(noDeadline)
 
 		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
 			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
@@ -2125,15 +2037,15 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		date := s.date(r.Timestamp)
 		hour := uint64(r.Timestamp) / msecPerHour
 
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
-		if idb != nil && is != nil {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
+			// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
+			if idb != nil && is != nil {
+				idb.putIndexSearch(is)
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(r.Timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
-		idb = s.tb.MustGetIndexDB(r.Timestamp)
-		is = idb.getIndexSearch(noDeadline)
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
@@ -2523,10 +2435,12 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 		}
 
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		idb = s.tb.MustGetIndexDB(r.Timestamp)
-		s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
+			if idb != nil {
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(r.Timestamp)
+		}
 
 		// Slower path: check global cache for (indexDB.id, date, metricID) entry.
 		if s.dateMetricIDCache.Has(idb.id, date, metricID) {
@@ -2538,6 +2452,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			tsid: &r.TSID,
 			mr:   mrs[i],
 		})
+	}
+	if idb != nil {
+		s.tb.PutIndexDB(idb)
+		idb = nil
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
 		s.pendingNextDayMetricIDsLock.Lock()
@@ -2570,11 +2488,15 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		date := dmid.date
 		metricID := dmid.tsid.MetricID
 
-		// TODO(rtm0): Optimize: use idb.HasDate(date) that checks
-		// whether the date is included into the partition the idb belongs to.
 		timestamp := int64(date) * msecPerDay
-		idb = s.tb.MustGetIndexDB(timestamp)
-		is = idb.getIndexSearch(noDeadline)
+		if idb == nil || !idb.HasTimestamp(timestamp) {
+			if idb != nil {
+				idb.putIndexSearch(is)
+				s.tb.PutIndexDB(idb)
+			}
+			idb = s.tb.MustGetIndexDB(timestamp)
+			is = idb.getIndexSearch(noDeadline)
+		}
 
 		if !is.hasDateMetricID(date, metricID) {
 			// The (date, metricID) entry is missing in the indexDB. Add it there together with per-day index.
@@ -2585,21 +2507,20 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 					firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", dmid.mr.MetricNameRaw, err)
 				}
 				s.invalidRawMetricNames.Add(1)
-
-				idb.putIndexSearch(is)
 				continue
 			}
 			mn.sortTags()
 			is.createPerDayIndexes(date, dmid.tsid, mn)
 		}
 
-		idb.putIndexSearch(is)
-		s.tb.PutIndexDB(idb)
-
 		dateMetricIDsForCache[idb.id] = append(dateMetricIDsForCache[idb.id], dateMetricID{
 			date:     date,
 			metricID: metricID,
 		})
+	}
+	if idb != nil && is != nil {
+		idb.putIndexSearch(is)
+		s.tb.PutIndexDB(idb)
 	}
 	PutMetricName(mn)
 	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.

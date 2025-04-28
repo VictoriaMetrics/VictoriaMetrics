@@ -210,7 +210,7 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		if err == nil {
 			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 			if err == nil {
-				err = s.storage.prefetchMetricNames(qt, idb, metricIDs, deadline)
+				err = idb.prefetchMetricNames(qt, metricIDs, deadline)
 			}
 		}
 		return tsids, err
