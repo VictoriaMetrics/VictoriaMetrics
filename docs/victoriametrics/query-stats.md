@@ -81,4 +81,5 @@ you can build a dashboard to view and filter query stats easily:
 
 ![query-stats_dashboard.webp](query-stats_dashboard.webp)
 
-The example of Grafana datasource is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/query-stats.json).
+The example of Grafana datasource for VictoriaMetrics cluster
+is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/query-stats.json).
