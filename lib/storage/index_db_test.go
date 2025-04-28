@@ -114,64 +114,6 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 
 }
 
-func TestMergeSortedMetricIDs(t *testing.T) {
-	f := func(a, b []uint64) {
-		t.Helper()
-		m := make(map[uint64]bool)
-		var resultExpected []uint64
-		for _, v := range a {
-			if !m[v] {
-				m[v] = true
-				resultExpected = append(resultExpected, v)
-			}
-		}
-		for _, v := range b {
-			if !m[v] {
-				m[v] = true
-				resultExpected = append(resultExpected, v)
-			}
-		}
-		sort.Slice(resultExpected, func(i, j int) bool {
-			return resultExpected[i] < resultExpected[j]
-		})
-
-		result := mergeSortedMetricIDs(a, b)
-		if !reflect.DeepEqual(result, resultExpected) {
-			t.Fatalf("unexpected result for mergeSortedMetricIDs(%d, %d); got\n%d\nwant\n%d", a, b, result, resultExpected)
-		}
-		result = mergeSortedMetricIDs(b, a)
-		if !reflect.DeepEqual(result, resultExpected) {
-			t.Fatalf("unexpected result for mergeSortedMetricIDs(%d, %d); got\n%d\nwant\n%d", b, a, result, resultExpected)
-		}
-	}
-	f(nil, nil)
-	f([]uint64{1}, nil)
-	f(nil, []uint64{23})
-	f([]uint64{1234}, []uint64{0})
-	f([]uint64{1}, []uint64{1})
-	f([]uint64{1}, []uint64{1, 2, 3})
-	f([]uint64{1, 2, 3}, []uint64{1, 2, 3})
-	f([]uint64{1, 2, 3}, []uint64{2, 3})
-	f([]uint64{0, 1, 7, 8, 9, 13, 20}, []uint64{1, 2, 7, 13, 15})
-	f([]uint64{0, 1, 2, 3, 4}, []uint64{5, 6, 7, 8})
-	f([]uint64{0, 1, 2, 3, 4}, []uint64{4, 5, 6, 7, 8})
-	f([]uint64{0, 1, 2, 3, 4}, []uint64{3, 4, 5, 6, 7, 8})
-	f([]uint64{2, 3, 4}, []uint64{1, 5, 6, 7})
-	f([]uint64{2, 3, 4}, []uint64{1, 2, 5, 6, 7})
-	f([]uint64{2, 3, 4}, []uint64{1, 2, 4, 5, 6, 7})
-	f([]uint64{2, 3, 4}, []uint64{1, 2, 3, 4, 5, 6, 7})
-	f([]uint64{2, 3, 4, 6}, []uint64{1, 2, 3, 4, 5, 6, 7})
-	f([]uint64{2, 3, 4, 6, 7}, []uint64{1, 2, 3, 4, 5, 6, 7})
-	f([]uint64{2, 3, 4, 6, 7, 8}, []uint64{1, 2, 3, 4, 5, 6, 7})
-	f([]uint64{2, 3, 4, 6, 7, 8, 9}, []uint64{1, 2, 3, 4, 5, 6, 7})
-	f([]uint64{1, 2, 3, 4, 6, 7, 8, 9}, []uint64{1, 2, 3, 4, 5, 6, 7})
-	f([]uint64{1, 2, 3, 4, 6, 7, 8, 9}, []uint64{2, 3, 4, 5, 6, 7})
-	f([]uint64{}, []uint64{1, 2, 3})
-	f([]uint64{0}, []uint64{1, 2, 3})
-	f([]uint64{1}, []uint64{1, 2, 3})
-	f([]uint64{1, 2}, []uint64{3, 4})
-}
-
 func TestReverseBytes(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
@@ -676,7 +618,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 
 		// Create tsid for the metricName.
 		var tsid TSID
-		if !is.getTSIDByMetricNameNoExtDB(&tsid, metricNameBuf, date) {
+		if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 			generateTSID(&tsid, &mn)
 			createAllIndexesForMetricName(is, &mn, &tsid, date)
 		}
@@ -717,7 +659,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		metricName := mn.Marshal(nil)
 
 		is := db.getIndexSearch(noDeadline)
-		if !is.getTSIDByMetricNameNoExtDB(&tsidLocal, metricName, uint64(timestamp)/msecPerDay) {
+		if !is.getTSIDByMetricName(&tsidLocal, metricName, uint64(timestamp)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
 		db.putIndexSearch(is)
@@ -1555,7 +1497,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var tsid TSID
-			if !is.getTSIDByMetricNameNoExtDB(&tsid, metricNameBuf, date) {
+			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
 				createAllIndexesForMetricName(is, &mn, &tsid, date)
 			}
@@ -1605,7 +1547,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	mn.sortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
 	var tsid TSID
-	if !is3.getTSIDByMetricNameNoExtDB(&tsid, metricNameBuf, date) {
+	if !is3.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 		generateTSID(&tsid, &mn)
 		createAllIndexesForMetricName(is3, &mn, &tsid, date)
 	}

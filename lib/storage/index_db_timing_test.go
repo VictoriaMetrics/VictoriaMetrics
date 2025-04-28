@@ -308,7 +308,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 			is := db.getIndexSearch(noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				if !is.getTSIDByMetricNameNoExtDB(&tsidLocal, metricNameLocal, date) {
+				if !is.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}

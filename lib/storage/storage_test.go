@@ -2713,6 +2713,64 @@ func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr Tim
 	})
 }
 
+func TestStorageSearchLabelValues_EmptyValuesAreNotReturned(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numRows = 1000
+
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := make([]MetricRow, numRows)
+	want := make([]string, numRows)
+
+	for i := range numRows {
+		metricName := fmt.Sprintf("metric_%03d", i)
+		labelValue := fmt.Sprintf("value_%03d", i)
+		mn := MetricName{
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{
+					Key:   []byte("label_with_empty_value"),
+					Value: []byte(""),
+				},
+				{
+					Key:   []byte("label_with_non_empty_value"),
+					Value: []byte(labelValue),
+				},
+			},
+		}
+
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+		mrs[i].Value = float64(i)
+		want[i] = labelValue
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertSearchLabelValues := func(labelName string, want []string) {
+		got, err := s.SearchLabelValues(nil, labelName, nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	// First, ensure that non-empty label values are returned.
+	assertSearchLabelValues("label_with_non_empty_value", want)
+
+	// Now verify that empty label values are not returned.
+	assertSearchLabelValues("label_with_empty_value", []string{})
+}
+
 func TestStorageGetSeriesCount(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -4186,4 +4244,44 @@ func TestStorageMetricTracker(t *testing.T) {
 	if len(mus.Records) != int(numRows) {
 		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
 	}
+}
+
+func TestStorageSearchTagValueSuffixes_maxTagValueSuffixes(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	const numMetrics = 1000
+	mrs := testGenerateMetricRowsWithPrefix(rng, numMetrics, "metric.", tr)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertSuffixCount := func(maxTagValueSuffixes, want int) {
+		suffixes, err := s.SearchTagValueSuffixes(nil, tr, "", "metric.", '.', maxTagValueSuffixes, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
+		}
+
+		if got := len(suffixes); got != want {
+			t.Fatalf("unexpected tag value suffix count: got %d, want %d", got, want)
+		}
+	}
+
+	// First, check that all the suffixes are returned if tht limit is higher
+	// than numMetrics.
+	maxTagValueSuffixes := numMetrics + 1
+	wantCount := numMetrics
+	assertSuffixCount(maxTagValueSuffixes, wantCount)
+
+	// Now set the max value to one that is smaller than numMetrics. The search
+	// result must contain exactly that many suffixes.
+	maxTagValueSuffixes = numMetrics / 10
+	wantCount = maxTagValueSuffixes
+	assertSuffixCount(maxTagValueSuffixes, wantCount)
 }

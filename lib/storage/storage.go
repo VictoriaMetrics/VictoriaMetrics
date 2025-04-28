@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -1302,9 +1301,8 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, srcM
 	s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
 
 	// Pre-fetch metricIDs.
-	var missingMetricIDs []uint64
+	prefetchedMetricIDs = &uint64set.Set{}
 	var metricName []byte
-	var err error
 	is := idb.getIndexSearch(deadline)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
@@ -1315,27 +1313,11 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, srcM
 		}
 		var ok bool
 		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if !ok {
-			missingMetricIDs = append(missingMetricIDs, metricID)
-			continue
+		if ok {
+			prefetchedMetricIDs.Add(metricID)
 		}
 	}
-	idb.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		defer extDB.putIndexSearch(is)
-		for loops, metricID := range missingMetricIDs {
-			if loops&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
-					return
-				}
-			}
-			metricName, _ = is.searchMetricNameWithCache(metricName[:0], metricID)
-		}
-	})
-	if err != nil && err != io.EOF {
-		return err
-	}
-	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
+	qt.Printf("pre-fetch metric names for %d out of %d metric ids", prefetchedMetricIDs.Len(), len(metricIDs))
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	s.prefetchedMetricIDsLock.Lock()
@@ -1346,7 +1328,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, srcM
 		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
 		s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
 	}
-	s.prefetchedMetricIDs.AddMulti(metricIDs)
+	s.prefetchedMetricIDs.UnionMayOwn(prefetchedMetricIDs)
 	s.prefetchedMetricIDsLock.Unlock()
 
 	qt.Printf("cache metric ids for pre-fetched metric names")
@@ -2001,7 +1983,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				is.createGlobalIndexes(&lTSID.TSID, mn)
 			}
 			if !s.dateMetricIDCache.Has(idb.id, date, lTSID.TSID.MetricID) {
-				if !is.hasDateMetricIDNoExtDB(date, lTSID.TSID.MetricID) {
+				if !is.hasDateMetricID(date, lTSID.TSID.MetricID) {
 					if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 						if firstWarn == nil {
 							firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -2033,7 +2015,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
-		if is.getTSIDByMetricNameNoExtDB(&lTSID.TSID, metricNameBuf, date) {
+		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
@@ -2230,7 +2212,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		s.metricsTracker.RegisterIngestRequest(0, 0, mn.MetricGroup)
 
 		// Search for TSID for the given mr.MetricNameRaw in the indexdb.
-		if is.getTSIDByMetricNameNoExtDB(&lTSID.TSID, metricNameBuf, date) {
+		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
@@ -2423,7 +2405,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 		}
 
 		// Check whether the given (date, metricID) is already present in idbNext.
-		if isNext.hasDateMetricIDNoExtDB(date, metricID) {
+		if isNext.hasDateMetricID(date, metricID) {
 			// Indexes are already pre-filled at idbNext.
 			//
 			// Register the (indexDB.id, date, metricID) entry in the cache,
@@ -2594,7 +2576,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		idb = s.tb.MustGetIndexDB(timestamp)
 		is = idb.getIndexSearch(noDeadline)
 
-		if !is.hasDateMetricIDNoExtDB(date, metricID) {
+		if !is.hasDateMetricID(date, metricID) {
 			// The (date, metricID) entry is missing in the indexDB. Add it there together with per-day index.
 			// It is OK if the (date, metricID) entry is added multiple times to indexdb
 			// by concurrent goroutines.
