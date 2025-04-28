@@ -1,12 +1,14 @@
 ---
-weight: 98
+weight: 39
 title: Streaming aggregation
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 98
+    weight: 39
 aliases:
 - /stream-aggregation.html
+- /stream-aggregation/index.html
+- /stream-aggregation/
 ---
 [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
@@ -1124,27 +1126,54 @@ See also [aggregation outputs](#aggregation-outputs).
 
 ## Dropping unneeded labels
 
-If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
-and [stream aggregation](#aggregation-outputs), then the following options exist:
+To optimize performance and reduce [churn rate](https://docs.victoriametrics.com/guides/understand-your-setup-size/#churn-rate), it's important to drop unnecessary labels from incoming samples. 
+Dropping unnecessary labels can significantly enhance efficiency. 
+There are various strategies for label dropping, which can be implemented individually or combined.
 
-- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag
-  or via `-remoteWrite.streamAggr.dropInputLabels` individually per each `-remoteWrite.url`.
-  For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
-  before applying de-duplication and stream aggregation.
+**Global Label Dropping** is configured using the `-streamAggr.dropInputLabels` flag. 
+It works in conjunction with the `-streamAggr.config` flag and applies to all matching sections within it.
+The labels are dropped before [input relabeling](#relabeling), [de-duplication](#deduplication), and [stream aggregation](#aggregation-outputs) are applied.
+This flag can be used with [vmagent](https://docs.victoriametrics.com/vmagent/), vminsert, and [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/).
 
-- To specify `drop_input_labels` list with the labels to drop in [stream aggregation config](#stream-aggregation-config).
-  For example, the following config drops `replica` label from input samples with the name `process_resident_memory_bytes`
-  before calculating the average over one minute:
+The following example demonstrates how to drop the `replica` and `az` labels for both `foo` and `bar` remote write targets:
+```bash
+/path/to/vmagent \
+  -remoteWrite.url="http://foo/api/v1/write" \
+  -remoteWrite.url="http://bar/api/v1/write" \
+  -streamAggr.config="aggr.yaml" \
+  -streamAggr.dropInputLabels="replica,az"
+```
 
-  ```yaml
-  - match: process_resident_memory_bytes
-    interval: 1m
-    drop_input_labels: [replica]
-    outputs: [avg]
-    keep_metric_names: true
-  ```
+**Per Remote Write Label Drop** is configured using the `-remoteWrite.streamAggr.dropInputLabels` flag.  
+It should be defined as many times as there are `-remoteWrite.url` flags. 
+To drop multiple labels for a remote write, use `^^` to separate them.  
+The labels are dropped before [input relabeling](#relabeling), [de-duplication](#deduplication), and [stream aggregation](#aggregation-outputs) are applied.
+This flag is available for [vmagent](https://docs.victoriametrics.com/vmagent/) only.
 
-Typical use case is to drop `replica` label from samples, which are received from high availability replicas.
+In the example below, `replica` and `az` are dropped for the `foo` target,  
+while `instance` is dropped for the `bar` target:
+
+```bash
+/path/to/vmagent \
+  -remoteWrite.url="http://foo/api/v1/write" \
+  -remoteWrite.url="http://bar/api/v1/write" \
+  -remoteWrite.streamAggr.config="aggr.yaml" \
+  -remoteWrite.streamAggr.dropInputLabels="replica^^az" \
+  -remoteWrite.streamAggr.dropInputLabels="instance"
+```
+
+**Config based label drop** can be defined within the [stream aggregation config](#stream-aggregation-config) using the `drop_input_labels` key.
+This method applies to configurations provided via either the `-streamAggr.config` or `-remoteWrite.streamAggr.config` flag.
+When specified, `drop_input_labels` takes precedence over any label drop definitions set via flags.
+
+Below is an example of an `aggr.yaml` configuration that drops the `replica` and `az` labels from `process_resident_memory_bytes` metrics:
+```yaml
+- match: 'process_resident_memory_bytes'
+  interval: '1m'
+  drop_input_labels: ['replica', 'az']
+  outputs: ['avg']
+  keep_metric_names: true
+```
 
 # Troubleshooting
 

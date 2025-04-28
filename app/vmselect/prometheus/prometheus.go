@@ -806,7 +806,6 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	} else {
 		queryOffset = 0
 	}
-	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
 		Start:               start,
 		End:                 start,
@@ -822,9 +821,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
-
-		QueryStats: qs,
 	}
+	qs := promql.NewQueryStats(query, nil, ec)
+	ec.QueryStats = qs
+
 	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
@@ -853,6 +853,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
+
 	return nil
 }
 
@@ -914,7 +915,6 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
 		Start:               start,
 		End:                 end,
@@ -930,9 +930,10 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
-
-		QueryStats: qs,
 	}
+	qs := promql.NewQueryStats(query, nil, ec)
+	ec.QueryStats = qs
+
 	result, err := promql.Exec(qt, ec, query, false)
 	if err != nil {
 		return err
@@ -961,6 +962,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
+
 	return nil
 }
 

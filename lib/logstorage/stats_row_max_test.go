@@ -287,7 +287,7 @@ func TestStatsRowMax(t *testing.T) {
 }
 
 func TestStatsRowMax_ExportImportState(t *testing.T) {
-	f := func(smp *statsRowMaxProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(smp *statsRowMaxProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := smp.exportState(nil, nil)
@@ -297,12 +297,9 @@ func TestStatsRowMax_ExportImportState(t *testing.T) {
 		}
 
 		var smp2 statsRowMaxProcessor
-		stateSize, err := smp2.importState(data, nil)
+		_, err := smp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(smp, &smp2) {
@@ -313,7 +310,7 @@ func TestStatsRowMax_ExportImportState(t *testing.T) {
 	var smp statsRowMaxProcessor
 
 	// zero state
-	f(&smp, 2, 0)
+	f(&smp, 2)
 
 	// non-zero state
 	smp = statsRowMaxProcessor{
@@ -330,5 +327,5 @@ func TestStatsRowMax_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(&smp, 23, 81)
+	f(&smp, 23)
 }

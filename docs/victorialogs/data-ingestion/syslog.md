@@ -6,6 +6,10 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 10
+tags:
+   - logs
+aliases:
+   - /victorialogs/data-ingestion/syslog.html
 ---
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can accept logs in [Syslog formats](https://en.wikipedia.org/wiki/Syslog) at the specified TCP and UDP addresses
 via `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` command-line flags. The following syslog formats are supported:
@@ -206,4 +210,4 @@ plus it accepts TLS-encrypted syslog messages via TCP port 6514 and stores them 
    };
    ```
    Where `victoria-logs-server` is the hostname where VictoriaLogs runs.
-   See [these docs](https://support.oneidentity.com/technical-documents/doc/syslog-ng-open-source-edition/3.19/administration-guide/29#TOPIC-1094570) for details.
+   See [these docs](https://support.oneidentity.com/technical-documents/syslog-ng-open-source-edition/3.19/administration-guide/29#TOPIC-1094570) for details.

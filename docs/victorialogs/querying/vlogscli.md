@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-querying"
     weight: 1
+tags:
+  - logs
 ---
 
 `vlogsqcli` is an interactive command-line tool for querying [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
@@ -23,8 +25,8 @@ or from docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/v
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.18.0-victorialogs/vlogscli-linux-amd64-v1.18.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v1.18.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.21.0-victorialogs/vlogscli-linux-amd64-v1.21.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v1.21.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 

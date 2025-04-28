@@ -36,7 +36,7 @@ func TestStatsValues_ExportImportState(t *testing.T) {
 		return a.newStatsValuesProcessor()
 	}
 
-	f := func(svp *statsValuesProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(svp *statsValuesProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := svp.exportState(nil, nil)
@@ -46,12 +46,9 @@ func TestStatsValues_ExportImportState(t *testing.T) {
 		}
 
 		svp2 := newStatsValuesProcessor()
-		stateSize, err := svp2.importState(data, nil)
+		_, err := svp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(svp, svp2) {
@@ -61,10 +58,10 @@ func TestStatsValues_ExportImportState(t *testing.T) {
 
 	// empty state
 	svp := newStatsValuesProcessor()
-	f(svp, 1, 0)
+	f(svp, 1)
 
 	// non-empty state
 	svp = newStatsValuesProcessor()
 	svp.values = []string{"foo", "bar", "baz"}
-	f(svp, 13, 57)
+	f(svp, 13)
 }

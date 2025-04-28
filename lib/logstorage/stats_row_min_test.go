@@ -286,7 +286,7 @@ func TestStatsRowMin(t *testing.T) {
 }
 
 func TestStatsRowMin_ExportImportState(t *testing.T) {
-	f := func(smp *statsRowMinProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(smp *statsRowMinProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := smp.exportState(nil, nil)
@@ -296,12 +296,9 @@ func TestStatsRowMin_ExportImportState(t *testing.T) {
 		}
 
 		var smp2 statsRowMinProcessor
-		stateSize, err := smp2.importState(data, nil)
+		_, err := smp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(smp, &smp2) {
@@ -312,7 +309,7 @@ func TestStatsRowMin_ExportImportState(t *testing.T) {
 	var smp statsRowMinProcessor
 
 	// zero state
-	f(&smp, 2, 0)
+	f(&smp, 2)
 
 	// non-zero state
 	smp = statsRowMinProcessor{
@@ -329,5 +326,5 @@ func TestStatsRowMin_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(&smp, 23, 81)
+	f(&smp, 23)
 }

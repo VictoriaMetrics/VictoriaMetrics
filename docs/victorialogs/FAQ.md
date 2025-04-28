@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs"
     weight: 6
     title: FAQ
+tags:
+  - logs
 aliases:
 - /victorialogs/FAQ.html
 - /victorialogs/faq.html
@@ -191,7 +193,7 @@ Note that log records with sizes close to `2MB` aren't handled efficiently by
 VictoriaLogs because per-block overhead translates to a single log record, and
 this overhead is big.
 
-The `2MB` limit is hadrcoded and is unlikely to increase.
+The `2MB` limit is hardcoded and is unlikely to increase.
 
 The limit can be set to the lower value during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 via `-insert.maxLineSizeBytes` command-line flag.
@@ -199,7 +201,7 @@ via `-insert.maxLineSizeBytes` command-line flag.
 ## What is the maximum supported field name length
 
 VictoriaLogs limits [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) name length to 128 bytes -
-Log entries with longer field names are ignored during [date ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+Log entries with longer field names are ignored during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
 The maximum length of a field name is hardcoded and is unikely to increase, since this may increase RAM and CPU usage.
 

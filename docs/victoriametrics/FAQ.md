@@ -5,9 +5,13 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 24
+tags:
+  - metrics
 aliases:
 - /FAQ.html
 - /faq.html
+- /faq/index.html
+- /faq/
 ---
 ## What is the main purpose of VictoriaMetrics?
 
@@ -194,7 +198,7 @@ The main differences between Cortex and VictoriaMetrics:
 ## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
 
 * TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical usages of a TSDB. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
-* VictoriaMetrics requires [up to 70x less storage space compared to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be lowered from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/latest/using-timescaledb/compression) (it isn't an easy task in general :)).
+* VictoriaMetrics requires [up to 70x less storage space compared to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be lowered from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/use-timescale/latest/compression/) (it isn't an easy task in general :)).
 * VictoriaMetrics requires up to 10x less CPU and RAM resources than TimescaleDB for processing production data. See [this article](https://abiosgaming.com/press/high-cardinality-aggregations/) for details.
 * TimescaleDB is [harder to set up, configure and operate](https://docs.timescale.com/timescaledb/latest/how-to-guides/install-timescaledb/self-hosted/ubuntu/installation-apt-ubuntu/) than VictoriaMetrics (see [how to run VictoriaMetrics](https://docs.victoriametrics.com/#how-to-start-victoriametrics)).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols – InfluxDB, OpenTSDB, Graphite, CSV – while TimescaleDB supports only SQL inserts.
@@ -317,7 +321,7 @@ Yes. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage).
 ## What is an active time series?
 
 A time series is uniquely identified by its name plus a set of its labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}`
-are two distinct series, since they differ by the `city` label. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
+are two distinct series, since they differ by the `city` label. A time series is considered active if it received at least a single sample during the last hour.
 The number of active time series is displayed on the official Grafana dashboard for VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
 
 ## What is high churn rate?

@@ -278,6 +278,7 @@ func (rr *RecordingRule) updateWith(r Rule) error {
 	rr.Expr = nr.Expr
 	rr.Labels = nr.Labels
 	rr.q = nr.q
+	rr.Debug = nr.Debug
 	return nil
 }
 

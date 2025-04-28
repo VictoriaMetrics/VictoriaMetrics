@@ -7,6 +7,8 @@ menu:
     parent: "victorialogs"
     weight: 7
     title: CHANGELOG
+tags:
+  - logs
 aliases:
 - /victorialogs/CHANGELOG.html
 ---
@@ -16,9 +18,45 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
+## [v1.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.21.0-victorialogs)
+
+Released at 2025-04-25
+
+* FEATURE: [querying](https://docs.victoriametrics.com/victorialogs/querying/): support for multiple `extra_filters` and `extra_stream_filters` args. This should simplify applying multiple independent filters to the `query`. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) and [this comment](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/293#issuecomment-2827285583).
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add an ability to force flush the recently ingested logs, so they become available for querying. See [these docs](https://docs.victoriametrics.com/victorialogs/#forced-flush).
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`sample` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sample-pipe), which returns `1/Nth` random sample for the selected logs.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a toggle to handle ANSI escape sequences in log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6614).
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix the Group tab to display raw JSON when `_msg` is missing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8205).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix display of `Query history` icon in mobile view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8788).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix zoom behavior on logs chart. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8558).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): preserve zoom selection in the logs chart when auto-refresh is enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8557).
+
+## [v1.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.20.0-victorialogs)
+
+Released at 2025-04-22
+
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce CPU usage by up to 10x when ingesting small number of log entries per request.
+* FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/23274): add Grafana dashboard for cluster version of VictoriaLogs. The source of the dashboard is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json) and will continue improving with time.
+* FEATURE: [deployment/docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme): add [docker-compose environment for VictoriaLogs cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victorialogs-cluster) deployment. It is intended for demonstrative purposes, includes alerting and Grafana dashboards.
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix high CPU usage when hovering over log entries due to complex button styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8135).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add 0 label to the Y axis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8409).
+* BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): add missed WARN severity levels. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8647). Thanks to @090809 for [the bugfix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8648).
+
+## [v1.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.19.0-victorialogs)
+
+Released at 2025-04-17
 
 * FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add an ability to format [duration values](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values) as floating-point seconds via `<duration_seconds:field_with_duration_value>` syntax.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for downloading displayed logs. It supports downloading in the following formats: csv, json. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8604). Thanks to @arturminchukov .
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): optimize vmui for mobile layout to use space more efficiently. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8679). Thanks to @arturminchukov .
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add query history for quick access to previously executed queries, in the way similar to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8500). Thanks to @arturminchukov .
+
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): properly store the contents of the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for newly ingested logs. It was incorrectly replaced with `missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field` because of the bug in [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8707).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix incorrect table sorting for numeric columns. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8606).
+
+## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
 
 Released at 2025-04-10
 
@@ -62,7 +100,7 @@ Released at 2025-02-27
 * FEATURE: [`pack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_logfmt-pipe): allow packing fields, which start with the given prefixes. For example, `pack_logfmt fields (foo.*, bar.*)` creates [logfmt](https://brandur.org/logfmt) message containing all the fields, which start with either `foo.` or `bar.`.
 * FEATURE: expose `vl_http_request_duration_seconds` [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) for [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) at the [/metrics](https://docs.victoriametrics.com/victorialogs/#monitoring) page.
 * FEATURE: allow passing `*` as a subquery inside [`in(*)`, `contains_any(*)` and `contains_all(*)` filters](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter). Such filters are treated as `match all` aka `*`. This is going to be used by [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238#issuecomment-2685447673).
-* FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084-victorialogs/): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
+* FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
 * FEATURE: provide alternative registry for all VictoriaLogs components at [Quay.io](https://quay.io/organization/victoriametrics): [VictoriaLogs](https://quay.io/repository/victoriametrics/victoria-logs?tab=tags) and [vlogscli](https://quay.io/repository/victoriametrics/vlogscli?tab=tags).
 
 * BUGFIX: do not treat a string containing leading zeros as a number during data ingestion and querying. For example, `00123` string shouldn't be treated as `123` number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361).

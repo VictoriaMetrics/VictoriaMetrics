@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 2
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/fluentbit.html
   - /victorialogs/data-ingestion/Fluentbit.html

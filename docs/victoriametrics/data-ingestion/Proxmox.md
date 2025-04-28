@@ -6,9 +6,13 @@ menu:
     identifier: "proxmox"
     parent: "data-ingestion"
     weight: 6
+tags:
+  - metrics
 aliases:
   - /data-ingestion/proxmox.html
   - /data-ingestion/Proxmox.html
+  - /data-ingestion/proxmox/index.html
+  - /data-ingestion/proxmox/
 ---
 
 Since Proxmox Virtual Environment(PVE) and Proxmox Backup Server(PBS) support sending data using the InfluxDB 

@@ -18,17 +18,47 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-* FEATURE: all the VictoriaMetrics components: mask `authKey` value from log messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973) for details.
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): add helpful hints to the unexpected EOF error message in the write concurrency limiter. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704) for details.
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): use [VM remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) by default with automatic downgrade in runtime to Prometheus protocol when needed. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462) for details.
+## [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0)
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
-* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support `identity` value in `Content-Encoding` HTTP header. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fix timeseries with empty timestamp and value in Datadog sketches API. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
+Released at 2025-04-25
+
+**Update Note 1:** Updated the RPC cluster protocol version for the [TSDB status API](https://docs.victoriametrics.com/#tsdb-stats), so calls to `/api/v1/status/tsdb` may temporarily fail until vmstorage and vmselect are updated to the same version. 
+
+**Update note 2:** [vmagent](https://docs.victoriametrics.com/vmagent/)'s data distribution algorithm of remote write is changed from round-robin to consistent hashing when `-remoteWrite.shardByURL` is enabled. This means vmagents with `-remoteWrite.shardByURL` will re-shard series after the upgrade, which may result into temporary higher churn rate and memory usage on remote destinations. See [#8546](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8546) for details.
+
+* FEATURE: all the VictoriaMetrics components: mask `authKey` value from log messages. See [#5973](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973) for details.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add `Requests count` and `Last request` columns to Cardinality Explorer to [show metric usage](https://docs.victoriametrics.com/#track-ingested-metrics-usage). See [#6145](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6145).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.logSlowQueryStats`. This flag is available only in VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/). See [Query Stats](https://docs.victoriametrics.com/query-stats) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): use consistent hashing for data distribution for remote write when `remoteWrite.shardByURL` is enabled. It helps to minimize re-sharding when removing or adding new remote write destinations. See [#8546](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8546) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): dynamically upgrade to [VM remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) or downgrade to Prometheus protocol in runtime. This solves the problem of choosing the wrong protocol if remote destination was unavailable on vmagent start. See [#8462](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): reduce log noise from remote write retries by throttling warning messages to one per 5 seconds. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8723) for details.
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): enhance  `/api/v1/status/metric_names_stats` with `match_pattern` regex support. See [#6145](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6145) for details and how to [Track ingested metrics usage](https://docs.victoriametrics.com/#track-ingested-metrics-usage).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/)  and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add stats for metric name usage to TSDB Status API response. See [#6145](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6145) for details and [TSDB stats](https://docs.victoriametrics.com/#tsdb-stats) docs.
+* FEATURE: [vmui relabeling playground](https://docs.victoriametrics.com/#relabeling): enforce strict validation for `Labels` text area: it now accepts only labels enclosed in curly braces `{__name__="name", label="value"}`. See [#8584](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8584).
+* FEATURE: [dashboards/per-tenant-statistic](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/clusterbytenant.json): add panel for showing churn rate generated by each tenant on short time-window. The panel should make temporary spikes in churn more visible.
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): add helpful hints to the unexpected EOF error message in the write concurrency limiter. See [#8704](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704) for details.
+* FEATURE: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): log client network errors (EOFs, timeouts) during handshake as warnings, since they are not actionable from server point of view.
+
+* BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [#8808](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [#6019](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [#8650](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [#8668](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): enable support of HTTP/2 for connections to S3-compatible storage endpoints. It was disabled in [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0) and could lead to connection errors with some S3-compatible storage providers.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): correctly update the `debug` param for recording rule when updating the rule group.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly set the rule group id in `/rules` and `/alerts` APIs. Previously, the group id was not set, preventing rules from being toggled by group in the vmalert UI. See [#8773](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773).
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix [metric query stats API](https://docs.victoriametrics.com/#track-ingested-metrics-usage) to correctly handle metric names longer than 256 bytes, respecting the `-maxLabelValueLen` flag. See [#8759](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8759) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support `identity` value in `Content-Encoding` HTTP header. See [#8649](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fix timeseries with empty timestamp and value in Datadog sketches API. See [#8649](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): restore write concurrency limiter for data ingestion. The limiter was unintentionally removed in [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0) and potentially could lead to increased memory usage in certain scenarios. See [#8742](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8742).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow using `-downsampling.period=filter:0s:0s` to skip downsampling for time series that match the specified `filter`. See [Downsampling](https://docs.victoriametrics.com/#downsampling).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix duplicated series in the legend on the Raw Query page when deduplication is disabled. See [#8688](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8688).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): respect `-http.pathPrefix` flag when requesting `/flags` API endpoint in vmui. See [#8641](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8641) for details.
 
 ## [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0)
+
+**Update notes:** This release includes changes that may negatively impact data ingestion performance and could result in increased memory usage.
+We advise skipping this version and waiting for the fix in v1.116.0.
+See more details in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8674).
 
 Released at 2025-04-04
 
@@ -173,6 +203,21 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.6)
+
+Released at 2025-04-25
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow using `-downsampling.period=filter:0s:0s` to skip downsampling for time series that match the specified `filter`. See [this doc](https://docs.victoriametrics.com/#downsampling).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly set the rule group id in `/rules` and `/alerts` APIs. Previously, the group id was not set, preventing rules from being toggled by group in the vmalert UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773).
+
 ## [v1.110.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.5)
 
 Released at 2025-04-04
@@ -303,7 +348,7 @@ Released at 2025-01-14
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add export data functionality for the `Raw Query` page and the ability to import exported data into the `Query Analyzer` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7628).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add `markdown` support for comments during data export. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7828).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): added `min` and `max` metrics for Datadog Sketches API metrics, changed `_` metric name separator to `.` if metrics are not sanitized for consistency.
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add service discovery support for [Marathon](https://mesosphere.github.io/marathon/). See [these docs](https://docs.victoriametrics.com/sd_configs/#marathon_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6642).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add service discovery support for Marathon. See [these docs](https://docs.victoriametrics.com/sd_configs/#marathon_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6642).
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): support `-maxIngestionRate` cmd-line flag to ratelimit samples/sec ingested. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7377) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): improve query performance on systems with high number of CPU cores. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7416) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxBinaryOpPushdownLabelValues` to allow using labels with more candidate values as push down filter in binary operation. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7243). Thanks to @tydhot for implementation.
@@ -354,6 +399,21 @@ See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11040)
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
+
+## [v1.102.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.19)
+
+Released at 2025-04-25
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): remote write client sets correct content encoding header based on actual body content, rather than relying on configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly configure s3 client with if `configFilePath` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8668) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmstorage` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow using `-downsampling.period=filter:0s:0s` to skip downsampling for time series that match the specified `filter`. See [this doc](https://docs.victoriametrics.com/#downsampling).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly set the rule group id in `/rules` and `/alerts` APIs. Previously, the group id was not set, preventing rules from being toggled by group in the vmalert UI. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773).
 
 ## [v1.102.18](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.18)
 

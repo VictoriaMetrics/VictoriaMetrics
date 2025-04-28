@@ -456,6 +456,7 @@ func (tb *Table) startFlushCallbackWorker() {
 		for {
 			select {
 			case <-tb.stopCh:
+				tc.Stop()
 				tb.flushCallback()
 				tb.wg.Done()
 				return

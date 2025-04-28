@@ -3,6 +3,7 @@ package promrelabel
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
@@ -23,6 +24,12 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 	}
 	targetURL := ""
 	if err != nil {
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		return
+	}
+	metric = strings.TrimSpace(metric)
+	if !strings.HasPrefix(metric, "{") || !strings.HasSuffix(metric, "}") {
+		err = fmt.Errorf(`labels set must be using {label="value"} format; got: %q`, metric)
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}

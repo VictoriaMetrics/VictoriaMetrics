@@ -7,6 +7,8 @@ menu:
     parent: victorialogs
     weight: 2
     title: Key concepts
+tags:
+  - logs
 aliases:
 - /victorialogs/keyConcepts.html
 ---

@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -19,9 +19,7 @@ import (
 )
 
 const (
-	// metricNameBufSize can hold up to 64 metric name values
-	// max size of metric name label value is 256
-	// but usual size of metric name is 16-32
+	// metricNameBufSize defines size buffer for metric name allocations
 	metricNameBufSize = 16 * 1024
 	statItemBufSize   = 1024
 	// statKey + statItem + approx key-value at map in-memory size
@@ -176,6 +174,13 @@ func (mt *Tracker) nextRecordLocked() *statItem {
 // it allocates metricNamesBuf, copies provide metricGroup into it
 // and uses string *byte references for it via subslice.
 func (mt *Tracker) cloneMetricNameLocked(metricName []byte) string {
+	if len(metricName) > metricNameBufSize {
+		// metricName is too large for default buffer
+		// directly allocate it on heap as strings.Clone does
+		b := make([]byte, len(metricName))
+		copy(b, metricName)
+		return bytesutil.ToUnsafeString(b)
+	}
 	idx := len(mt.metricNamesBuf)
 	n := len(metricName) + len(mt.metricNamesBuf)
 	if n > cap(mt.metricNamesBuf) {
@@ -371,6 +376,14 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 	if mt == nil {
 		return result
 	}
+	var matchRe *regexp.Regexp
+	if len(matchPattern) > 0 {
+		var err error
+		matchRe, err = regexp.Compile(matchPattern)
+		if err != nil {
+			logger.Fatalf("BUG: expected valid regex=%q: %s", matchPattern, err)
+		}
+	}
 	mt.mu.RLock()
 
 	result = mt.getStatsLocked(limit, func(sk *statKey, si *statItem) bool {
@@ -380,7 +393,7 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 		if le >= 0 && int(si.requestsCount.Load()) > le {
 			return false
 		}
-		if len(matchPattern) > 0 && !strings.Contains(sk.metricName, matchPattern) {
+		if matchRe != nil && !matchRe.MatchString(sk.metricName) {
 			return false
 		}
 		return true
@@ -389,6 +402,33 @@ func (mt *Tracker) GetStatsForTenant(accountID, projectID uint32, limit, le int,
 
 	result.sort()
 	return result
+}
+
+// GetStatRecordsForNames returns stats records for the given metric names and tenant
+func (mt *Tracker) GetStatRecordsForNames(accountID, projectID uint32, metricNames []string) []StatRecord {
+	if mt == nil {
+		return nil
+	}
+	mt.mu.RLock()
+	records := make([]StatRecord, 0, len(metricNames))
+	for _, mn := range metricNames {
+		sk := statKey{
+			accountID:  accountID,
+			projectID:  projectID,
+			metricName: mn,
+		}
+		si, ok := mt.store[sk]
+		if !ok {
+			continue
+		}
+		records = append(records, StatRecord{
+			MetricName:    mn,
+			RequestsCount: si.requestsCount.Load(),
+			LastRequestTs: si.lastRequestTs.Load(),
+		})
+	}
+	mt.mu.RUnlock()
+	return records
 }
 
 // GetStats returns stats response for the tracked metrics
@@ -400,12 +440,19 @@ func (mt *Tracker) GetStats(limit, le int, matchPattern string) StatsResult {
 		return result
 	}
 	mt.mu.RLock()
-
+	var matchRe *regexp.Regexp
+	if len(matchPattern) > 0 {
+		var err error
+		matchRe, err = regexp.Compile(matchPattern)
+		if err != nil {
+			logger.Fatalf("BUG: expected valid regex=%q: %s", matchPattern, err)
+		}
+	}
 	result = mt.getStatsLocked(limit, func(sk *statKey, si *statItem) bool {
 		if le >= 0 && int(si.requestsCount.Load()) > le {
 			return false
 		}
-		if len(matchPattern) > 0 && !strings.Contains(sk.metricName, matchPattern) {
+		if matchRe != nil && !matchRe.MatchString(sk.metricName) {
 			return false
 		}
 		return true

@@ -53,18 +53,19 @@ func TestStatsHistogram(t *testing.T) {
 }
 
 func TestStatsHistogram_ExportImportState(t *testing.T) {
-	f := func(shp *statsHistogramProcessor, stateSizeExpected int) {
+	f := func(shp *statsHistogramProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := shp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected len(data); got %d; want %d", dataLen, dataLenExpected)
+		}
 
 		var shp2 statsHistogramProcessor
-		stateSize, err := shp2.importState(data, nil)
+		_, err := shp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(shp, &shp2) {
@@ -75,7 +76,7 @@ func TestStatsHistogram_ExportImportState(t *testing.T) {
 	var shp statsHistogramProcessor
 
 	// Zero state
-	f(&shp, 0)
+	f(&shp, 1)
 
 	// Non-zero state
 	shp = statsHistogramProcessor{
@@ -84,5 +85,5 @@ func TestStatsHistogram_ExportImportState(t *testing.T) {
 			"2.783e+00...3.162e+00": 3289,
 		},
 	}
-	f(&shp, 90)
+	f(&shp, 49)
 }

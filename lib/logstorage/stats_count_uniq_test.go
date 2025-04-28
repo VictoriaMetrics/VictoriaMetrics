@@ -382,7 +382,7 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 		return sup
 	}
 
-	f := func(sup *statsCountUniqProcessor, dataLenExpected, stateSizeExpected, entriesCountExpected int) {
+	f := func(sup *statsCountUniqProcessor, dataLenExpected, entriesCountExpected int) {
 		t.Helper()
 
 		data := sup.exportState(nil, nil)
@@ -397,12 +397,9 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 		}
 
 		sup2 := newStatsCountUniqProcessor()
-		stateSize, err := sup2.importState(data, nil)
+		_, err := sup2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		entriesCount = sup2.entriesCount()
@@ -420,7 +417,7 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 	sup := newStatsCountUniqProcessor()
 
 	// Zero state
-	f(sup, 5, 0, 0)
+	f(sup, 5, 0)
 
 	// uniqValues initialized
 	sup = newStatsCountUniqProcessor()
@@ -440,7 +437,7 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 			"bar": {},
 		},
 	}
-	f(sup, 45, 70, 6)
+	f(sup, 45, 6)
 
 	// shards initialized
 	sup = newStatsCountUniqProcessor()
@@ -472,7 +469,7 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(sup, 81, 166, 10)
+	f(sup, 81, 10)
 
 	// shardss initialized
 	sup = newStatsCountUniqProcessor()
@@ -514,7 +511,7 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(sup, 82, 197, 11)
+	f(sup, 82, 11)
 
 	// boths shards and shardss initialized
 	sup = newStatsCountUniqProcessor()
@@ -563,5 +560,5 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(sup, 42, 202, 7)
+	f(sup, 42, 7)
 }

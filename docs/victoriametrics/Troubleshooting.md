@@ -5,8 +5,12 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 35
+tags:
+  - metrics
 aliases:
 - /Troubleshooting.html
+- /troubleshooting/index.html
+- /troubleshooting/
 ---
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 

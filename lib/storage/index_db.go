@@ -1364,6 +1364,7 @@ type TSDBStatus struct {
 	SeriesCountByFocusLabelValue []TopHeapEntry
 	SeriesCountByLabelValuePair  []TopHeapEntry
 	LabelValueCountByLabelName   []TopHeapEntry
+	SeriesQueryStatsByMetricName []MetricNamesStatsRecord
 }
 
 func (status *TSDBStatus) hasEntries() bool {

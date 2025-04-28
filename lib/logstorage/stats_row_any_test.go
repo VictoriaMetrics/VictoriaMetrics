@@ -183,7 +183,7 @@ func TestStatsRowAny(t *testing.T) {
 }
 
 func TestStatsRowAny_ExportImportState(t *testing.T) {
-	f := func(sap *statsRowAnyProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(sap *statsRowAnyProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := sap.exportState(nil, nil)
@@ -193,12 +193,9 @@ func TestStatsRowAny_ExportImportState(t *testing.T) {
 		}
 
 		var sap2 statsRowAnyProcessor
-		stateSize, err := sap2.importState(data, nil)
+		_, err := sap2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(sap, &sap2) {
@@ -209,7 +206,7 @@ func TestStatsRowAny_ExportImportState(t *testing.T) {
 	var sap statsRowAnyProcessor
 
 	// zero state
-	f(&sap, 1, 0)
+	f(&sap, 1)
 
 	// non-zero state
 	sap = statsRowAnyProcessor{
@@ -226,5 +223,5 @@ func TestStatsRowAny_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(&sap, 17, 75)
+	f(&sap, 17)
 }

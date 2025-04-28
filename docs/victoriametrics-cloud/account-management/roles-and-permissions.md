@@ -6,6 +6,10 @@ menu:
   docs:
     parent: account-management
     weight: 3
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 ## User roles

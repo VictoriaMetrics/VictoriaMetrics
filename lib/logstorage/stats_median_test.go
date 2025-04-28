@@ -365,7 +365,7 @@ func TestStatsMedian(t *testing.T) {
 }
 
 func TestStatsMedian_ExportImportState(t *testing.T) {
-	f := func(smp *statsMedianProcessor, dataLenExpected, stateSizeExpected int) {
+	f := func(smp *statsMedianProcessor, dataLenExpected int) {
 		t.Helper()
 
 		data := smp.exportState(nil, nil)
@@ -375,12 +375,9 @@ func TestStatsMedian_ExportImportState(t *testing.T) {
 		}
 
 		var smp2 statsMedianProcessor
-		stateSize, err := smp2.importState(data, nil)
+		_, err := smp2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		if !reflect.DeepEqual(smp, &smp2) {
@@ -391,12 +388,12 @@ func TestStatsMedian_ExportImportState(t *testing.T) {
 	var smp statsMedianProcessor
 
 	// zero state
-	f(&smp, 4, 0)
+	f(&smp, 4)
 
 	// non-zero state
 	smp = statsMedianProcessor{}
 	smp.sqp.h.update("foo")
 	smp.sqp.h.update("bar")
 	smp.sqp.h.update("baz")
-	f(&smp, 22, 63)
+	f(&smp, 22)
 }

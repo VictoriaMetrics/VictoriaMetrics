@@ -6,5 +6,9 @@ menu:
     parent: "guides"
     weight: 12
 aliases: []
+tags:
+  - logs
+  - guide
+  - kubernetes
 ---
 {{% content "README.md" %}}

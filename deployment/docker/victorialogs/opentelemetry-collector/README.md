@@ -31,10 +31,10 @@ Querying the data
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
 OpenTelemetry collector configuration example can be found below:
-* [loki](./loki/config.yaml)
-* [otlp](./otlp/config.yaml)
-* [syslog](./syslog/config.yaml)
-* [elasticsearch single node](./elasticsearch/config.yaml)
-* [elasticsearch HA mode](./elasticsearch-ha/config.yaml)
+* [loki](./loki/config.yml)
+* [otlp](./otlp/config.yml)
+* [syslog](./syslog/config.yml)
+* [elasticsearch single node](./elasticsearch/config.yml)
+* [elasticsearch HA mode](./elasticsearch-ha/config.yml)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

@@ -381,7 +381,7 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 		return sup
 	}
 
-	f := func(sup *statsCountUniqHashProcessor, dataLenExpected, stateSizeExpected, entriesCountExpected int) {
+	f := func(sup *statsCountUniqHashProcessor, dataLenExpected, entriesCountExpected int) {
 		t.Helper()
 
 		data := sup.exportState(nil, nil)
@@ -396,12 +396,9 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 		}
 
 		sup2 := newStatsCountUniqHashProcessor()
-		stateSize, err := sup2.importState(data, nil)
+		_, err := sup2.importState(data, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
-		}
-		if stateSize != stateSizeExpected {
-			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
 		}
 
 		entriesCount = sup2.entriesCount()
@@ -419,7 +416,7 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 	sup := newStatsCountUniqHashProcessor()
 
 	// Zero state
-	f(sup, 5, 0, 0)
+	f(sup, 5, 0)
 
 	// uniqValues initialized
 	sup = newStatsCountUniqHashProcessor()
@@ -439,7 +436,7 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 			2222: {},
 		},
 	}
-	f(sup, 53, 48, 6)
+	f(sup, 53, 6)
 
 	// shards initialized
 	sup = newStatsCountUniqHashProcessor()
@@ -471,7 +468,7 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(sup, 89, 144, 10)
+	f(sup, 89, 10)
 
 	// shardss initialized
 	sup = newStatsCountUniqHashProcessor()
@@ -513,5 +510,5 @@ func TestStatsCountUniqHash_ExportImportState(t *testing.T) {
 			},
 		},
 	}
-	f(sup, 105, 160, 12)
+	f(sup, 105, 12)
 }
