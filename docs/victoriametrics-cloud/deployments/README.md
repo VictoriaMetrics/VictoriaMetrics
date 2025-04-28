@@ -9,4 +9,4 @@ running in different setups like on-prem, Private, Public or Hybrid Cloud, Edge 
 Here are you can find more information about deployments:
 
 - [How to create a deployment](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#creating-deployments)
-- [How to write and read data](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/)
+- [How to use Access tokens to write and read data](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/)
