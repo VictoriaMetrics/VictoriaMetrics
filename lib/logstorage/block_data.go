@@ -146,7 +146,7 @@ func (bd *blockData) mustReadFrom(a *arena, bh *blockHeader, sr *streamReaders) 
 	sr.columnsHeaderReader.MustReadFull(bb.B)
 
 	csh := getColumnsHeader()
-	if err := csh.unmarshalNoArena(bb.B, sr.partFormatVersion); err != nil {
+	if err := csh.unmarshalInplace(bb.B, sr.partFormatVersion); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal columnsHeader: %s", sr.columnsHeaderReader.Path(), err)
 	}
 	if sr.partFormatVersion >= 1 {
@@ -176,7 +176,7 @@ func readColumnNamesFromColumnsHeaderIndex(bh *blockHeader, sr *streamReaders, c
 	sr.columnsHeaderIndexReader.MustReadFull(bb.B)
 
 	cshIndex := getColumnsHeaderIndex()
-	if err := cshIndex.unmarshalNoArena(bb.B); err != nil {
+	if err := cshIndex.unmarshalInplace(bb.B); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal columnsHeaderIndex: %s", sr.columnsHeaderIndexReader.Path(), err)
 	}
 	if err := csh.setColumnNames(cshIndex, sr.columnNames); err != nil {

@@ -7,6 +7,10 @@ menu:
     identifier: "vmanomaly-quick-start"
     weight: 1
     title: Quick Start
+tags:
+  - metrics
+  - enterprise
+  - guide
 aliases:
 - /anomaly-detection/QuickStart.html
 ---

@@ -14,7 +14,7 @@ services:
       DD_API_KEY: test
       DD_DD_URL: http://dd-proxy:8427
       DD_PROFILING_ENABLED: false
-      DD_ENHANCED_METRICS: false
+      DD_ENHANCED_METRICS: true
       DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-proxy:8427
       DD_SERVERLESS_FLUSH_STRATEGY: periodically,100
     depends_on:

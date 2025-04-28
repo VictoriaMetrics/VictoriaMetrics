@@ -1,13 +1,19 @@
 ---
-weight: 31
+weight: 81
 title: Cluster Per Tenant Statistic
 menu:
   docs:
     identifier: vm-cluster-per-tenant-statistic
     parent: victoriametrics
-    weight: 31
+    weight: 81
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /PerTenantStatistic.html
+  - /pertenantstatistic
+  - /pertenantstatistic/index.html
+  - /pertenantstatistic/
 ---
 ![cluster-per-tenant-stat](PerTenantStatistic-stats.webp)
 

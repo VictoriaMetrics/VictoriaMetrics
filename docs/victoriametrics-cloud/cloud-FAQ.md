@@ -7,6 +7,10 @@ menu:
     parent: "cloud"
     weight: 13
     name: FAQ VictoriaMetrics Cloud
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 ## What authentication and authorization mechanisms does VictoriaMetrics Cloud support?

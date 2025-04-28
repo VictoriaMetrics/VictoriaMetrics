@@ -5,8 +5,11 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 501
+tags: []
 aliases:
 - /Release-Guide.html
+- /release-guide/index.html
+- /release-guide/
 ---
 ## Pre-reqs
 
@@ -95,7 +98,7 @@ Bumping the limits may significantly improve build speed.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
 1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
-1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
+1. Bump VictoriaMetrics version at `deployment/docker/*.yml`.
 1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 

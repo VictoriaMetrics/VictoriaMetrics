@@ -1,12 +1,18 @@
 ---
-weight: 200
+weight: 37
 title: Scrape config examples
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 200
+    weight: 37
+tags:
+  - metrics
+  - guide
 aliases:
 - /scrape_config_examples.html
+- /scrape_config_examples/index.html
+- /scrape_config_examples/
+
 ---
 - [Static configs](#static-configs)
 - [File-based target discovery](#file-based-target-discovery)
@@ -30,8 +36,8 @@ scrape_configs:
 After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to the same directory:
 
 ```
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.114.0/victoria-metrics-linux-amd64-v1.114.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.114.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.115.0/victoria-metrics-linux-amd64-v1.115.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.115.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
@@ -146,8 +152,8 @@ Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) acco
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.114.0/victoria-metrics-linux-amd64-v1.114.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.114.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.115.0/victoria-metrics-linux-amd64-v1.115.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.115.0.tar.gz
 
 # Run single-node VictoriaMetrics with the given scrape.yaml
 ./victoria-metrics-prod -promscrape.config=scrape.yaml

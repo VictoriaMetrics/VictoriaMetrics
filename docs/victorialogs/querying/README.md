@@ -784,6 +784,7 @@ Below is an example JSON output returned from this endpoint:
 ```
 
 The `/select/logsql/stream_field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N` with the biggest number of hits.
+If the `limit` is exceeded, then a random set of values is returned with zeroed `hits`.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns stream field values stats
@@ -920,9 +921,11 @@ See also:
 All the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the following optional query args:
 
 - `extra_filters` - this arg may contain extra [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters), which must be applied
-  to the `query` before returning the results.
+  to the `query` before returning the results. Multiple `extra_filters` args may be passed in a single request.
+  All the filters across all the `extra_filters` args are applied to the `query` then.
 - `extra_stream_filters` - this arg may contain extra [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter),
-  which must be applied to the `query` before returning results.
+  which must be applied to the `query` before returning results. Multiple `extra_stream_filters` args may be passed in a single request.
+  All the stream filters accross all the `extra_stream_filters` args are applied to the `query` then.
 
 The `extra_filters` and `extra_stream_filters` values can have the following format:
 
@@ -936,7 +939,7 @@ The `extra_filters` and `extra_stream_filters` values can have the following for
   into `field:in(v1, v2, ... vN)` [filter](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) when passed to `extra_filters`.
   The same array is converted into `{field=~"v1|v2|...|vN"}` [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
 
-- Arbitrary [LogsQL filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters). For example, `extra_filters=foo:~bar -baz:x`.
+The `extra_filters` may contain also arbitrary [LogsQL filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters). For example, `extra_filters=foo:~bar%20-baz:x`.
 
 The arg passed to `extra_filters` and `extra_stream_filters` must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
 

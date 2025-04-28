@@ -78,6 +78,15 @@ type datadb struct {
 	// partsLock protects parts from concurrent access
 	partsLock sync.Mutex
 
+	// lr is a buffer for the added rows. It is periodically converted to parts.
+	lr *logRows
+
+	// lrFlushTimer is used for periodic flushing of lr to parts.
+	lrFlushTimer *time.Timer
+
+	// lrLock protects lr and lrFlushTimer from concurrent access.
+	lrLock sync.Mutex
+
 	// wg is used for determining when background workers stop
 	//
 	// wg.Add() must be called under partsLock after checking whether stopCh isn't closed.
@@ -662,11 +671,56 @@ func (ddb *datadb) mustAddRows(lr *LogRows) {
 		return
 	}
 
+	var lrForFlush *logRows
+
+	ddb.lrLock.Lock()
+	if ddb.lr == nil {
+		ddb.lr = <-logRowsCh
+		ddb.lrFlushTimer = time.AfterFunc(time.Second, ddb.lrFlush)
+	}
+	ddb.lr.mustAddRows(lr)
+	if ddb.lr.needFlush() {
+		lrForFlush = ddb.lr
+		ddb.lr = nil
+
+		ddb.lrFlushTimer.Stop()
+		ddb.lrFlushTimer = nil
+	}
+	ddb.lrLock.Unlock()
+
+	if lrForFlush != nil {
+		ddb.mustFlushLogRows(lrForFlush)
+	}
+}
+
+func (ddb *datadb) lrFlush() {
+	var lrForFlush *logRows
+
+	ddb.lrLock.Lock()
+	if ddb.lrFlushTimer != nil {
+		ddb.lrFlushTimer.Stop()
+		ddb.lrFlushTimer = nil
+	}
+	if ddb.lr != nil {
+		lrForFlush = ddb.lr
+		ddb.lr = nil
+	}
+	ddb.lrLock.Unlock()
+
+	if lrForFlush != nil {
+		ddb.mustFlushLogRows(lrForFlush)
+	}
+}
+
+func (ddb *datadb) mustFlushLogRows(lr *logRows) {
 	inmemoryPartsConcurrencyCh <- struct{}{}
 	mp := getInmemoryPart()
 	mp.mustInitFromRows(lr)
 	p := mustOpenInmemoryPart(ddb.pt, mp)
 	<-inmemoryPartsConcurrencyCh
+
+	lr.reset()
+	logRowsCh <- lr
 
 	flushDeadline := time.Now().Add(ddb.flushInterval)
 	pw := newPartWrapper(p, mp, flushDeadline)
@@ -676,6 +730,14 @@ func (ddb *datadb) mustAddRows(lr *LogRows) {
 	ddb.startInmemoryPartsMergerLocked()
 	ddb.partsLock.Unlock()
 }
+
+var logRowsCh = func() chan *logRows {
+	ch := make(chan *logRows, cgroup.AvailableCPUs())
+	for i := 0; i < cap(ch); i++ {
+		ch <- &logRows{}
+	}
+	return ch
+}()
 
 // DatadbStats contains various stats for datadb.
 type DatadbStats struct {
@@ -788,7 +850,7 @@ func (ddb *datadb) updateStats(s *DatadbStats) {
 
 // debugFlush() makes sure that the recently ingested data is available for search.
 func (ddb *datadb) debugFlush() {
-	// Nothing to do, since all the ingested data is available for search via ddb.inmemoryParts.
+	ddb.lrFlush()
 }
 
 func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dstPartType partType) {
@@ -1008,6 +1070,9 @@ func needStop(stopCh <-chan struct{}) bool {
 
 // mustCloseDatadb can be called only when nobody accesses ddb.
 func mustCloseDatadb(ddb *datadb) {
+	// Flush ddb.lr for the last time
+	ddb.lrFlush()
+
 	// Notify background workers to stop.
 	// Make it under ddb.partsLock in order to prevent from calling ddb.wg.Add()
 	// after ddb.stopCh is closed and ddb.wg.Wait() is called.

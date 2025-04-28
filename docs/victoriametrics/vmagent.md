@@ -5,8 +5,12 @@ menu:
     parent: victoriametrics
     weight: 3
 title: vmagent
+tags:
+  - metrics
 aliases:
   - /vmagent.html
+  - /vmagent/index.html
+  - /vmagent/
 ---
 `vmagent` is a tiny agent which helps you collect metrics from various sources,
 [relabel and filter the collected metrics](#relabeling)
@@ -403,9 +407,9 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
   This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
 
-`vmagent` automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
+`vmagent` uses VictoriaMetrics remote write protocol by default {{% available_from "#" %}} when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/).
+or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). If needed, It can automatically downgrade to a Prometheus protocol at runtime.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
@@ -1683,7 +1687,7 @@ It may be needed to build `vmagent` from source code when developing or testing 
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -1712,7 +1716,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 

@@ -13,30 +13,32 @@ import (
 )
 
 func TestInmemoryPartMustInitFromRows(t *testing.T) {
-	f := func(lr *LogRows, blocksCountExpected int, compressionRateExpected float64) {
+	f := func(lrOrig *LogRows, blocksCountExpected int, compressionRateExpected float64) {
 		t.Helper()
 
-		uncompressedSizeBytesExpected := uncompressedRowsSizeBytes(lr.rows)
-		rowsCountExpected := len(lr.timestamps)
+		uncompressedSizeBytesExpected := uncompressedRowsSizeBytes(lrOrig.rows)
+		rowsCountExpected := len(lrOrig.timestamps)
 		minTimestampExpected := int64(math.MaxInt64)
 		maxTimestampExpected := int64(math.MinInt64)
 
-		// make a copy of lr - it is used for comparing the results later,
-		// since lr may be modified by inmemoryPart.mustInitFromRows()
-		lrOrig := GetLogRows(nil, nil, nil, "")
-		for i, timestamp := range lr.timestamps {
+		for _, timestamp := range lrOrig.timestamps {
 			if timestamp < minTimestampExpected {
 				minTimestampExpected = timestamp
 			}
 			if timestamp > maxTimestampExpected {
 				maxTimestampExpected = timestamp
 			}
-			lrOrig.mustAddInternal(lr.streamIDs[i], timestamp, lr.rows[i], lr.streamTagsCanonicals[i])
 		}
+
+		var lrExpected logRows
+		lrExpected.mustAddRows(lrOrig)
+
+		var lr logRows
+		lr.mustAddRows(lrOrig)
 
 		// Create inmemory part from lr
 		mp := getInmemoryPart()
-		mp.mustInitFromRows(lr)
+		mp.mustInitFromRows(&lr)
 
 		// Check mp.ph
 		ph := &mp.ph
@@ -67,8 +69,8 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		lrResult := mp.readLogRows(sbu, vd)
 		putInmemoryPart(mp)
 
-		// compare lrOrig to lrResult
-		if err := checkEqualRows(lrResult, lrOrig); err != nil {
+		// compare lrExpected to lrResult
+		if err := checkEqualRows(lrResult, &lrExpected); err != nil {
 			t.Fatalf("unequal log entries: %s", err)
 		}
 	}
@@ -92,12 +94,15 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 }
 
 func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
-	f := func(lr *LogRows, blocksCountExpected int, compressionRateExpected float64) {
+	f := func(lrOrig *LogRows, blocksCountExpected int, compressionRateExpected float64) {
 		t.Helper()
+
+		var lr logRows
+		lr.mustAddRows(lrOrig)
 
 		// Create inmemory part from lr
 		mp := getInmemoryPart()
-		mp.mustInitFromRows(lr)
+		mp.mustInitFromRows(&lr)
 
 		// Check mp.ph
 		ph := &mp.ph
@@ -131,8 +136,8 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		minTimestampExpected := int64(math.MaxInt64)
 		maxTimestampExpected := int64(math.MinInt64)
 
-		// make a copy of rrss in order to compare the results after merge.
-		lrOrig := GetLogRows(nil, nil, nil, "")
+		// make a copy of lrs in order to compare the results after merge.
+		var lrExpected logRows
 		for _, lr := range lrs {
 			uncompressedSizeBytesExpected += uncompressedRowsSizeBytes(lr.rows)
 			rowsCountExpected += len(lr.timestamps)
@@ -143,16 +148,19 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 				if timestamp > maxTimestampExpected {
 					maxTimestampExpected = timestamp
 				}
-				lrOrig.mustAddInternal(lr.streamIDs[j], timestamp, lr.rows[j], lr.streamTagsCanonicals[j])
+				lrExpected.mustAddRow(lr.streamIDs[j], timestamp, lr.rows[j])
 			}
 		}
 
 		// Initialize readers from lrs
 		var mpsSrc []*inmemoryPart
 		var bsrs []*blockStreamReader
-		for _, lr := range lrs {
+		for _, lrOrig := range lrs {
+			var lr logRows
+			lr.mustAddRows(lrOrig)
+
 			mp := getInmemoryPart()
-			mp.mustInitFromRows(lr)
+			mp.mustInitFromRows(&lr)
 			mpsSrc = append(mpsSrc, mp)
 
 			bsr := getBlockStreamReader()
@@ -204,8 +212,8 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		lrResult := mpDst.readLogRows(sbu, vd)
 		putInmemoryPart(mpDst)
 
-		// compare rrsOrig to lrResult
-		if err := checkEqualRows(lrResult, lrOrig); err != nil {
+		// compare lrExpected to lrResult
+		if err := checkEqualRows(lrResult, &lrExpected); err != nil {
 			t.Fatalf("unequal log entries: %s", err)
 		}
 	}
@@ -314,7 +322,7 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 	return lr
 }
 
-func checkEqualRows(lrResult, lrOrig *LogRows) error {
+func checkEqualRows(lrResult, lrOrig *logRows) error {
 	if len(lrResult.timestamps) != len(lrOrig.timestamps) {
 		return fmt.Errorf("unexpected length LogRows; got %d; want %d", len(lrResult.timestamps), len(lrOrig.timestamps))
 	}
@@ -351,8 +359,9 @@ func checkEqualRows(lrResult, lrOrig *LogRows) error {
 // readLogRows reads log entries from mp.
 //
 // This function is for testing and debugging purposes only.
-func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDecoder) *LogRows {
-	lr := GetLogRows(nil, nil, nil, "")
+func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDecoder) *logRows {
+	var lr logRows
+
 	bsr := getBlockStreamReader()
 	defer putBlockStreamReader(bsr)
 	bsr.MustInitFromInmemoryPart(mp)
@@ -364,12 +373,12 @@ func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDeco
 			logger.Panicf("BUG: cannot unmarshal log entries from inmemoryPart: %s", err)
 		}
 		for i, timestamp := range tmp.timestamps {
-			lr.MustAdd(streamID.tenantID, timestamp, tmp.rows[i], nil)
+			lr.mustAddRow(streamID, timestamp, tmp.rows[i])
 			lr.streamIDs[len(lr.streamIDs)-1] = streamID
 		}
 		tmp.reset()
 	}
-	return lr
+	return &lr
 }
 
 func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRows {

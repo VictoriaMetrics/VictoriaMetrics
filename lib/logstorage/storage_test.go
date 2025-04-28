@@ -25,8 +25,6 @@ func TestStorageMustAddRows(t *testing.T) {
 
 	path := t.Name()
 
-	var sStats StorageStats
-
 	cfg := &StorageConfig{}
 	s := MustOpenStorage(path, cfg)
 
@@ -37,11 +35,13 @@ func TestStorageMustAddRows(t *testing.T) {
 		lr.timestamps[0] = time.Now().UTC().UnixNano()
 		totalRowsCount += uint64(len(lr.timestamps))
 		s.MustAddRows(lr)
-		sStats.Reset()
-		s.UpdateStats(&sStats)
-		if n := sStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in storage; got %d; want %d", n, totalRowsCount)
-		}
+	}
+	s.DebugFlush()
+
+	var sStats StorageStats
+	s.UpdateStats(&sStats)
+	if n := sStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in storage; got %d; want %d", n, totalRowsCount)
 	}
 
 	s.MustClose()
@@ -61,6 +61,7 @@ func TestStorageMustAddRows(t *testing.T) {
 	}
 	totalRowsCount += uint64(len(lr.timestamps))
 	s.MustAddRows(lr)
+	s.DebugFlush()
 	sStats.Reset()
 	s.UpdateStats(&sStats)
 	if n := sStats.RowsCount(); n != totalRowsCount {
@@ -85,6 +86,7 @@ func TestStorageMustAddRows(t *testing.T) {
 	}
 	totalRowsCount += uint64(len(lr.timestamps))
 	s.MustAddRows(lr)
+	s.DebugFlush()
 	sStats.Reset()
 	s.UpdateStats(&sStats)
 	if n := sStats.RowsCount(); n != totalRowsCount {

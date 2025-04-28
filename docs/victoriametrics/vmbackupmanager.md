@@ -5,8 +5,13 @@ menu:
     parent: victoriametrics
     weight: 10
 title: vmbackupmanager
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /vmbackupmanager.html
+  - /vmbackupmanager/index.html
+  - /vmbackupmanager/
 ---
 ## vmbackupmanager
 

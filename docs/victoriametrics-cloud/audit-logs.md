@@ -6,6 +6,10 @@ menu:
     parent: "cloud"
     weight: 9
     name: Audit Logs
+tags:
+   - metrics
+   - cloud
+   - enterprise
 ---
 An [**audit log**](https://console.victoriametrics.cloud/audit) is a record of user and system activities within an organization. It captures details of who performed an action, what was done, and when it occurred. Audit logs are essential for security, compliance, and troubleshooting processes.
 

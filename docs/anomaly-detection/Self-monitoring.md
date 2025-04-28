@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-self-monitoring"
     parent: "anomaly-detection"
     weight: 4
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection/self-monitoring.html
 ---
@@ -29,7 +32,7 @@ The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompan
 
 ### Overview
 
-To visualize and interact with the self-monitoring metrics, `vmanomaly` provides a [Grafana Dashboard](https://grafana.com/grafana/dashboards/22337/). It offers an overview of service health (per job, instance) and performance metrics from different operational stages, including model behavior, reader, and writer components.
+To visualize and interact with the self-monitoring metrics, `vmanomaly` provides a [Grafana Dashboard](https://grafana.com/grafana/dashboards/22337). It offers an overview of service health (per job, instance) and performance metrics from different operational stages, including model behavior, reader, and writer components.
 
 The Grafana Dashboard is helpful for:
 

@@ -102,4 +102,5 @@ func generateTestLogStreams(s *Storage, tenantID TenantID, getMsgValue func(int)
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)
+	s.DebugFlush()
 }

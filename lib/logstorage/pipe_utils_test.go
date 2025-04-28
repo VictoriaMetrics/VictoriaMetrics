@@ -30,6 +30,12 @@ func expectParsePipeSuccess(t *testing.T, pipeStr string) {
 		t.Fatalf("unexpected tail after parsing [%s]: [%s]", pipeStr, lex.s)
 	}
 
+	// Verify pipe methods
+	_, _ = p.splitToRemoteAndLocal(0)
+	_ = p.canLiveTail()
+	_ = p.hasFilterInWithQuery()
+	p.visitSubqueries(func(_ *Query) {})
+
 	pipeStrResult := p.String()
 	if pipeStrResult != pipeStr {
 		t.Fatalf("unexpected string representation of pipe; got\n%s\nwant\n%s", pipeStrResult, pipeStr)

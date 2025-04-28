@@ -5,9 +5,13 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 23
+tags:
+  - metrics
 aliases:
 - /ExtendedPromQL.html
 - /MetricsQL.html
+- /metricsql/index.html
+- /metricsql/
 ---
 [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) implements MetricsQL -
 query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).

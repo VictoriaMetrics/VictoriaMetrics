@@ -6,6 +6,9 @@ menu:
     parent: "victorialogs"
     weight: 10
     identifier: "victorialogs-vmalert"
+tags:
+   - logs
+   - metrics
 aliases:
 - /victorialogs/vmalert.html
 ---

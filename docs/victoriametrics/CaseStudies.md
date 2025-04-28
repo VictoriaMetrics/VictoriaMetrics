@@ -5,8 +5,11 @@ menu:
   docs:
     parent: "victoriametrics"
     weight: 25
+tags: []
 aliases:
   - /CaseStudies.html
+  - /casestudies/index.html
+  - /casestudies/
 ---
 
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)

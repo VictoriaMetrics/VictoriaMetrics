@@ -946,6 +946,7 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
 	f(`'stats' foo`, `"stats" foo`)
+	f(`'stats_remote' abc`, `"stats_remote" abc`)
 	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
@@ -1427,10 +1428,14 @@ func TestParseQuery_Success(t *testing.T) {
 	// multiple offset pipes
 	f(`foo | offset 10 | offset 100`, `foo | offset 10 | offset 100`)
 
+	// sample pipe
+	f(`* | sample 10`, `* | sample 10`)
+
 	// stats pipe count
 	f(`* | STATS bY (foo, b.a/r, "b az",) count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d',) as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 	f(`* | stats count() x`, `* | stats count(*) as x`)
+	f(`* | stats_remote count() x`, `* | stats_remote count(*) as x`)
 	f(`* | stats count(*) x`, `* | stats count(*) as x`)
 	f(`* | stats count(foo,*,bar) x`, `* | stats count(*) as x`)
 	f(`* | stats count('') foo`, `* | stats count(_msg) as foo`)
@@ -1517,6 +1522,11 @@ func TestParseQuery_Success(t *testing.T) {
 	// stats pipe histogram
 	f(`* | stats histogram(foo) bar`, `* | stats histogram(foo) as bar`)
 	f(`* | histogram(foo)`, `* | stats histogram(foo) as "histogram(foo)"`)
+
+	// stats pipe json_values
+	f(`* | json_values(*) x`, `* | stats json_values(*) as x`)
+	f(`* | json_values(a, *, b) limit 5 y`, `* | stats json_values(*) limit 5 as y`)
+	f(`* | json_values(a, b) limit 5 x`, `* | stats json_values(a, b) limit 5 as x`)
 
 	// stats pipe quantile
 	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
@@ -2090,6 +2100,12 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | offset bar`)
 	f(`foo | offset -10`)
 
+	// invalid sample pipe
+	f(`foo | sample`)
+	f(`foo | sample bar`)
+	f(`foo | sample 0`)
+	f(`foo | sample -1`)
+
 	// missing stats
 	f(`foo | stats`)
 
@@ -2153,6 +2169,9 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | stats histogram()`)
 	f(`foo | stats histogram(a, b)`)
 	f(`foo | stats histogram(*)`)
+
+	// invalid stats json_values
+	f(`foo | stats json_values`)
 
 	// invalid stats quantile
 	f(`foo | stats quantile`)
@@ -2282,7 +2301,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 			t.Fatalf("cannot parse query [%s]: %s", s, err)
 		}
 
-		needed, unneeded := q.getNeededColumns()
+		needed, unneeded := getNeededColumns(q.pipes)
 		neededColumns := strings.Join(needed, ",")
 		unneededColumns := strings.Join(unneeded, ",")
 
@@ -2408,6 +2427,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats max(*) q`, `*`, ``)
 	f(`* | stats max(x) q`, `x`, ``)
 	f(`* | stats histogram(foo)`, `foo`, ``)
+	f(`* | stats json_values(foo)`, `foo`, ``)
 	f(`* | stats quantile(0.5) q`, `*`, ``)
 	f(`* | stats quantile(0.5, *) q`, `*`, ``)
 	f(`* | stats quantile(0.5, x) q`, `x`, ``)
@@ -2585,6 +2605,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | collapse_nums | count() r1`, ``, ``)
 	f(`* | copy a b, c d | count() r1`, ``, ``)
 	f(`* | delete a, b | count() r1`, ``, ``)
+	f(`* | drop_empty_fields | count() r1`, ``, ``)
 	f(`* | extract "<f1>bar" from x | count() r1`, ``, ``)
 	f(`* | extract if (q:w p:a) "<f1>bar" from x | count() r1`, `p,q`, ``)
 	f(`* | extract_regexp "(?P<f1>.*)bar" from x | count() r1`, ``, ``)
@@ -2695,7 +2716,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 
 	f("*", true)
 	f("error", true)
-	f("error | fields foo | filter foo:bar", true)
+	f("error | fields foo, _time | filter foo:bar", true)
 	f("error | extract '<foo>bar<baz>'", true)
 	f("* | rm x", true)
 	f("* | stats count() rows", false)
@@ -2720,7 +2741,16 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | unpack_logfmt x", true)
 	f("* | unpack_syslog x", true)
 	f("* | hash(a)", true)
+	f("* | sample 10", false)
 
+	// There is no _time field
+	f("* | fields foo, bar", false)
+	f("* | delete _time", false)
+
+	// There is _time field
+	f("* | fields foo, _time", true)
+	f("* | fields *", true)
+	f("* | delete a, b", true)
 }
 
 func TestQueryCanLiveTail(t *testing.T) {
@@ -2777,6 +2807,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | join by (a) (b)", true)
 	f("* | json_array_len (a)", true)
 	f("* | hash(a)", true)
+	f("* | sample 10", true)
 }
 
 func TestQueryDropAllPipes(t *testing.T) {
@@ -3033,14 +3064,14 @@ func TestQueryHasGlobalTimeFilter(t *testing.T) {
 	}
 
 	f(`* | count()`, false)
-	f(`error OR _time:5m  | count()`, false)
-	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, false)
+	f(`error OR _time:5m | count()`, false)
+	f(`(_time:5m AND error) OR (_time:5m AND warn) | count()`, false)
 	f(`* | error OR _time:5m | count()`, false)
 
 	f(`_time:5m | count()`, true)
 	f(`_time:2023-04-25T22:45:59Z | count()`, true)
 	f(`error AND _time:5m | count()`, true)
-	f(`error AND (_time: 5m AND warn) | count()`, true)
+	f(`error AND (_time:5m AND warn) | count()`, true)
 	f(`* | error AND _time:5m | count()`, true)
 }
 
@@ -3090,4 +3121,23 @@ func TestQuery_AddExtraFilters(t *testing.T) {
 	f(`foo x:contains_all(bar | keep x)`, `tenant:=123`, `tenant:=123 foo x:contains_all(tenant:=123 bar | fields x)`)
 	f(`foo x:contains_all(bar | union (baz) | keep x) | count() if (a:contains_all(b | keep a)) z`, `tenant:=123`, `tenant:=123 foo x:contains_all(tenant:=123 bar | union (tenant:=123 baz) | fields x) | stats count(*) if (a:contains_all(tenant:=123 b | fields a)) as z`)
 	f(`foo x:contains_all(bar | union (baz) | keep x) | count() if (a:contains_all(b | keep a)) z`, `{tenant=123}`, `{tenant="123"} foo x:contains_all({tenant="123"} bar | union ({tenant="123"} baz) | fields x) | stats count(*) if (a:contains_all({tenant="123"} b | fields a)) as z`)
+}
+
+func TestToFieldsFilters(t *testing.T) {
+	f := func(neededFields, unneededFields []string, resultExpected string) {
+		t.Helper()
+
+		result := toFieldsFilters(neededFields, unneededFields)
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(nil, nil, " | fields "+nonExistingFieldName)
+	f(nil, []string{"foo"}, " | fields "+nonExistingFieldName)
+	f([]string{"foo"}, nil, " | fields foo")
+	f([]string{"foo", "b,a| \n\"r"}, nil, ` | fields foo, "b,a| \n\"r"`)
+	f([]string{"*"}, nil, ``)
+	f([]string{"*"}, []string{"foo"}, ` | delete foo`)
+	f([]string{"*"}, []string{"foo", "b,a| \n\"r"}, ` | delete foo, "b,a| \n\"r"`)
 }

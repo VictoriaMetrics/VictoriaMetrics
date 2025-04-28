@@ -8,6 +8,11 @@ menu:
     parent: cloud
     identifier: get-started
     pageRef: /victoriametrics-cloud/get-started/
+tags:
+  - metrics
+  - cloud
+  - enterprise
+  - guide
 ---
 In this section you will find everything you need to start using [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_get_started).
 

@@ -37,6 +37,10 @@
         overflow: auto;
         margin-bottom: $padding-global;
 
+        @media(max-width: 500px) {
+          width: 100vw;
+        }
+
         &__item {
           width: 100%;
           font-size: $font-size;

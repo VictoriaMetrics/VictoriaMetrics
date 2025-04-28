@@ -37,10 +37,9 @@ const Button: FC<ButtonProps> = ({
     "vm-button": true,
     [`vm-button_${variant}_${color}`]: true,
     [`vm-button_${size}`]: size,
-    "vm-button_icon": (startIcon || endIcon) && !children,
+    "vm-button_icon_only": (startIcon || endIcon) && !children,
     "vm-button_full-width": fullWidth,
-    "vm-button_with-icon": startIcon || endIcon,
-    "vm-button_disabled": disabled,
+    "vm-button_with-icons": startIcon || endIcon,
     [className || ""]: className
   });
 
@@ -52,11 +51,7 @@ const Button: FC<ButtonProps> = ({
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
-      <>
-        {startIcon && <span className="vm-button__start-icon">{startIcon}</span>}
-        {children && <span>{children}</span>}
-        {endIcon && <span className="vm-button__end-icon">{endIcon}</span>}
-      </>
+      {startIcon}{children}{endIcon}
     </button>
   );
 };

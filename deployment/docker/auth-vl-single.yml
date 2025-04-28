@@ -1,0 +1,10 @@
+# route requests between VictoriaMetrics and VictoriaLogs
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/api/v1/.*"
+    url_prefix: http://victoriametrics:8428
+  - src_paths:
+    - "/select/.*"
+    url_prefix:
+    - http://victorialogs:9428
