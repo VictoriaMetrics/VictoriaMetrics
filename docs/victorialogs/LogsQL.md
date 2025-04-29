@@ -291,8 +291,8 @@ It uses various optimizations in order to accelerate full scan queries without t
 but such queries can be slow if the storage contains large number of logs over long time range. The easiest way to optimize queries
 is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
-For example, the following query returns [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
+For example, the following query returns logs ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word)
+at the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 _time:1h AND error
@@ -3967,6 +3967,8 @@ LogsQL supports the following transformations on the log entries selected with [
 - Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [`math` pipe](#math-pipe).
+
+See also [other pipes](#pipes), which can be applied to the selected logs.
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
 with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
