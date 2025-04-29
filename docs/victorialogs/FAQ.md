@@ -69,6 +69,8 @@ VictoriaLogs and Grafana Loki have the following differences:
 
   VictoriaLogs provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
+  See [how to convert LogQL to LogsQL](https://docs.victoriametrics.com/victorialogs/logql-to-logsql/).
+
 - VictoriaLogs usually needs less RAM and storage space than Grafana Loki for the same amounts of logs.
 
 See [this article](https://itnext.io/why-victorialogs-is-a-better-alternative-to-grafana-loki-7e941567c4d5) for more details.
