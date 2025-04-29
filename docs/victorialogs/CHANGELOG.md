@@ -18,7 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix log entry sorting in group mode (newest logs appear first). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8726).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix log entry sorting in group mode (newest logs appear first). See [#8726](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8726).
 
 ## [v1.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.21.0-victorialogs)
 
