@@ -55,7 +55,7 @@ func TestRecordingToApi(t *testing.T) {
 	}
 }
 
-func TestUrlValuesToStrings(t *testing.T) {
+func TestURLValuesToStrings(t *testing.T) {
 	mapQueryParams := map[string][]string{
 		"param1": {"param1"},
 		"param2": {"anotherparam"},
