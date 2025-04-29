@@ -841,6 +841,71 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 	return nil
 }
 
+func TestStorageDeleteSeries_EmptyFilters(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMetrics = 10
+	mrs := make([]MetricRow, numMetrics)
+	allMetricNames := make([]string, numMetrics)
+	tr := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	step := (tr.MaxTimestamp - tr.MinTimestamp) / numMetrics
+	for i := range numMetrics {
+		name := fmt.Sprintf("metric_%04d", i)
+		mn := MetricName{
+			MetricGroup: []byte(name),
+		}
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+		mrs[i].Value = float64(i)
+		allMetricNames[i] = name
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertAllMetricNames := func(want []string) {
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+
+	// Confirm that metric names have been written to the index.
+	assertAllMetricNames(allMetricNames)
+
+	got, err := s.DeleteSeries(nil, []*TagFilters{}, 1e9)
+	if err != nil {
+		t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+	}
+	if got != 0 {
+		t.Fatalf("unexpected deleted series count: got %d, want 0", got)
+	}
+
+	// Ensure that metric names haven't been deleted.
+	assertAllMetricNames(allMetricNames)
+}
+
 func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 

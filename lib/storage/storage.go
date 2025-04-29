@@ -1265,6 +1265,10 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	qt = qt.NewChild("deleting series for %s", tfss)
 	defer qt.Done()
 
+	if len(tfss) == 0 {
+		return 0, nil
+	}
+
 	// Not using Storage.searchAndMerge because this method does not follow the
 	// same search-then-merge pattern as most other public methods.
 
