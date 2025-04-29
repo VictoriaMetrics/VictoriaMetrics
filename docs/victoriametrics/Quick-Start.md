@@ -23,9 +23,8 @@ VictoriaMetrics is available in the following distributions:
   millions of metrics;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
   for building horizontally scalable clusters.
-* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) -  
-  VictoriaMetrics installation in the cloud. Users can pick a suitable installation size and don't think of typical DevOps 
-  tasks such as configuration tuning, monitoring, logs collection, access protection, software updates, backups, etc. 
+* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) - VictoriaMetrics installation in the cloud.
+  Users can pick a suitable installation size and don't think of typical DevOps tasks such as configuration tuning, monitoring, logs collection, access protection, software updates, backups, etc. 
 
 VictoriaMetrics is available as:
 
