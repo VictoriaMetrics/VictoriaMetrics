@@ -1206,8 +1206,7 @@ The range boundaries can contain any [supported numeric values](#numeric-values)
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), since the `4.2` number is surrounded by other text.
-Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
-and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
+Extract the numeric value from the message with [`extract` pipe](#extract-pipe) and then apply the `range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Performance tips:
 
@@ -1249,8 +1248,8 @@ user.ip:ipv4_range("1.2.3.4")
 
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
 doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
-and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
+since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with [`extract` pipe](#extract-pipe)
+and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Hints:
 
