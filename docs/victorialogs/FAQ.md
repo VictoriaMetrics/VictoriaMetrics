@@ -71,6 +71,8 @@ VictoriaLogs and Grafana Loki have the following differences:
 
 - VictoriaLogs usually needs less RAM and storage space than Grafana Loki for the same amounts of logs.
 
+See [this article](https://itnext.io/why-victorialogs-is-a-better-alternative-to-grafana-loki-7e941567c4d5) for more details.
+
 
 ## What is the difference between VictoriaLogs and ClickHouse?
 
