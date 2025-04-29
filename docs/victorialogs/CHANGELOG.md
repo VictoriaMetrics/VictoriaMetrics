@@ -18,6 +18,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add sorting of fields by key in the Group tab. See [#8438](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8438).
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix log entry sorting in group mode (newest logs appear first). See [#8726](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8726).
+
 ## [v1.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.21.0-victorialogs)
 
 Released at 2025-04-25
