@@ -101,6 +101,14 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 			continue
 		}
 		vals := numReg.FindAllString(item, -1)
+		if item == "Inf" || item == "+Inf" || item == "-Inf" || item == "NaN" {
+			v, err := strconv.ParseFloat(item, 64)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, sequenceValue{Value: v})
+			continue
+		}
 		switch len(vals) {
 		case 1:
 			if vals[0] == "_" {
