@@ -795,7 +795,6 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
 
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
-(available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
 to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
 See `./vmctl vm-native --help` for details and full list of flags.
@@ -833,10 +832,13 @@ Requests to make: 9 / 9 [██████████████████�
 _To disable explore phase and switch to the old way of data migration via single connection use 
 `--vm-native-disable-per-metric-migration` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
+_Migration speed via vmctl is limited by available resources on `--vm-native-src-addr` and `--vm-native-dst-addr`,
+and network between `src`=>vmctl=>`dst`. See the expeted migration speed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5366#issuecomment-1854251938)._
+
 Importing tips:
 
-1. vmctl acts as a proxy between `src` and `dst`. It doesn't use much of CPU or RAM, but network connection
-   between `src`=>vmctl=>`dst` should be as fast as possible for improving the migration speed.
+1. vmctl acts as a proxy between `src` and `dst`. vmctl doesn't use much of CPU or RAM, but network connection
+   between `src`=>vmctl=>`dst` should be **as fast as possible** for improving the migration speed.
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
    Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
    proper values for `src`. If hitting the limits, follow the recommendations 
