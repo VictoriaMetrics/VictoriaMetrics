@@ -52,8 +52,8 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
         const aTimestamp = getNanoTimestamp(a._time);
         const bTimestamp = getNanoTimestamp(b._time);
 
-        if (aTimestamp > bTimestamp) return 1;
-        if (aTimestamp < bTimestamp) return -1;
+        if (aTimestamp < bTimestamp) return 1;
+        if (aTimestamp > bTimestamp) return -1;
         return 0;
       });
 
