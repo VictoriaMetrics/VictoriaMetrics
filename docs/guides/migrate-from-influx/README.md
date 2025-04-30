@@ -208,9 +208,9 @@ To get a better understanding of how MetricsQL works, see the following resource
 Migrating data from other databases to VictoriaMetrics is as simple as importing data via any of
 [supported ingestion formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
 
-But migration from InfluxDB might get easier with [vmctl](https://docs.victoriametrics.com/vmctl/). See more about
-migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x).
-Migrating data from InfluxDB v2.x is not supported. But there is a useful [3rd party solution](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-2x) 
+But migration from InfluxDB might get easier with [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/). See more about
+migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x).
+Migrating data from InfluxDB v2.x is not supported. But there is a useful [3rd party solution](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-2x) 
 for this.
 
 Please note, data migration is a backfilling process, so read about [backfilling tips](https://docs.victoriametrics.com/single-server-victoriametrics/#backfilling).

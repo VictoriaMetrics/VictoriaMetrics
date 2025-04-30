@@ -388,13 +388,13 @@ See [vmalert quick start](https://docs.victoriametrics.com/victoriametrics/vmale
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
 [supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
 
-The migration might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl/) - VictoriaMetrics
+The migration might get easier when using [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:
-* [Prometheus using snapshot API](https://docs.victoriametrics.com/vmctl/#migrating-data-from-prometheus);
-* [Thanos](https://docs.victoriametrics.com/vmctl/#migrating-data-from-thanos);
-* [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x);
-* [OpenTSDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-opentsdb);
-* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
+* [Prometheus using snapshot API](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-prometheus);
+* [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-thanos);
+* [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x);
+* [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-opentsdb);
+* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
 
 ## Productionization
 
