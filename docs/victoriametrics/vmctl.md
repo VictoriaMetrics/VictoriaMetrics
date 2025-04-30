@@ -846,7 +846,7 @@ Importing tips:
    If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
    update `-search.maxSeries` command-line flag on vmselect/vmsingle;
 1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
-   for sources with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+   for sources with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
    See more about [step interval here](#using-time-based-chunking-of-migration).
 1. Migrating all the metrics from one VM to another may collide with existing application metrics
    (prefixed with `vm_`) at destination and lead to confusion when using

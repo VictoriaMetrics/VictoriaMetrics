@@ -218,9 +218,9 @@ Please note, data migration is a backfilling process, so read about [backfilling
 ## Frequently asked questions
 
 * How does VictoriaMetrics compare to InfluxDB?
-    * _[VictoriaMetrics is way more resource efficient](https://docs.victoriametrics.com/faq/#how-does-victoriametrics-compare-to-influxdb)._
+    * _[VictoriaMetrics is way more resource efficient](https://docs.victoriametrics.com/victoriametrics/faq/#how-does-victoriametrics-compare-to-influxdb)._
 * Why don't VictoriaMetrics support Remote Read API, so I don't need to learn MetricsQL?
-    * _[Remote Read API has very high performance overhead](https://docs.victoriametrics.com/faq/#why-doesnrsquot-victoriametrics-support-the-prometheus-remote-read-api)._
+    * _[Remote Read API has very high performance overhead](https://docs.victoriametrics.com/victoriametrics/faq/#why-doesnrsquot-victoriametrics-support-the-prometheus-remote-read-api)._
 * PromQL and MetricsQL are often mentioned together - why is that?
     * _MetricsQL - query language inspired by PromQL. MetricsQL is backward-compatible with PromQL, so Grafana
       dashboards backed by Prometheus datasource should work the same after switching from Prometheus to

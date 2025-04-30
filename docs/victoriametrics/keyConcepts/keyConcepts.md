@@ -56,14 +56,14 @@ A combination of a metric name and its labels defines a `time series`. For examp
 are two different time series because they have different values for `code` label.
 
 The number of unique time series has an impact on database resource usage.
-See [what is an active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) and
-[what is high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) docs for details.
+See [what is an active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) and
+[what is high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) docs for details.
 
 #### Cardinality
 
 The number of unique [time series](#time-series) is named `cardinality`. Too big number of unique time series is named `high cardinality`.
 High cardinality may result in increased resource usage at VictoriaMetrics.
-See [these docs](https://docs.victoriametrics.com/faq/#what-is-high-cardinality) for more details.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) for more details.
 
 #### Raw samples
 

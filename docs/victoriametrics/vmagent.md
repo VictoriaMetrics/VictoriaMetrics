@@ -50,8 +50,8 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 * Can load scrape configs from multiple files. See [these docs](#loading-scrape-configs-from-multiple-files).
 * Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/).
   See [these docs](#stream-parsing-mode).
-* Can deal with [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-  and [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time
+* Can deal with [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
+  and [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time
   and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can write collected metrics to multiple tenants. See [these docs](#multitenancy).
 * Can read and write data from / to Kafka. See [these docs](#kafka-integration).
@@ -535,7 +535,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 
 * `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target generates during the current scrape.
   This metric allows detecting targets (identified by `instance` label),
-  which lead to [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+  which lead to [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets,
   which generate more than 1000 new series during the last hour:
 
