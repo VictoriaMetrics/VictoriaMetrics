@@ -87,7 +87,7 @@ vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
 * By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) of your k8s cluster with following params:
-* `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/single-server-victoriametrics/#retention) to 12 months.
+* `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) to 12 months.
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
 
 Please note that it may take some time for the pods to start. To check that the pods are started, run the following command:

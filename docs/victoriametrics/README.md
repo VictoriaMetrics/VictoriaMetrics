@@ -2606,7 +2606,7 @@ and [cardinality explorer docs](#cardinality-explorer).
   Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
   It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
   to determine whether limits must be adjusted for your workload.
-  Alternatively, you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
+  Alternatively, you can use [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
   See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
@@ -3429,22 +3429,22 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storage.cacheSizeIndexDBDataBlocks size
-     Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBDataBlocksSparse size
-     Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
-     Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBTagFilters size
-     Overrides max size for indexdb/tagFiltersToMetricIDs cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Overrides max size for indexdb/tagFiltersToMetricIDs cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeMetricNamesStats size
-     Overrides max size for storage/metricNamesStatsTracker cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Overrides max size for storage/metricNamesStatsTracker cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeStorageTSID size
-     Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.finalDedupScheduleCheckInterval duration
      The interval for checking when final deduplication process should be started.Storage unconditionally adds 25% jitter to the interval value on each check evaluation.

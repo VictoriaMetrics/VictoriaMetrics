@@ -23,7 +23,7 @@ See [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/
 
 ## Which features does VictoriaMetrics have?
 
-See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#prominent-features).
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prominent-features).
 
 ## Are there performance comparisons with other solutions?
 
@@ -153,14 +153,14 @@ The main differences between Cortex and VictoriaMetrics:
   This may increase operational complexity and reduce system reliability compared to VictoriaMetrics' case,
   which doesn't use any external services. Compare [Cortex' Architecture](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md)
   to [VictoriaMetrics' architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
-* VictoriaMetrics provides [production-ready single-node solution](https://docs.victoriametrics.com/single-server-victoriametrics/),
+* VictoriaMetrics provides [production-ready single-node solution](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
   which is much easier to set up and operate than a Cortex cluster.
 * Cortex may lose up to 12 hours of recent data on Ingestor failure – see [the corresponding docs](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#ingesters-failure-and-data-loss).
   VictoriaMetrics may lose only a few seconds of recent data, which isn't synced to persistent storage yet.
   See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 * Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
-  See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 
@@ -176,13 +176,13 @@ The main differences between Cortex and VictoriaMetrics:
   VictoriaMetrics works perfectly with HDD-based block storage – there is no need for using more expensive SSD or NVMe disks in most cases.
 * Thanos may lose up to 2 hours of recent data, which wasn't uploaded yet to object storage. VictoriaMetrics may lose only a few seconds of recent data,
   which hasn't been synced to persistent storage yet. See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
-* VictoriaMetrics provides a [production-ready single-node solution](https://docs.victoriametrics.com/single-server-victoriametrics/),
+* VictoriaMetrics provides a [production-ready single-node solution](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
   which is much easier to set up and operate than Thanos components.
 * Thanos may be harder to set up and operate compared to VictoriaMetrics, since it has more moving parts, which can be connected with fewer reliable networks.
   See [this article for details](https://medium.com/faun/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
 * Thanos is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
 * VictoriaMetrics accepts data via multiple popular data ingestion protocols in addition to the Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
-  See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Thanos provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 
@@ -192,7 +192,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics needs lower amounts of storage space than InfluxDB for production data.
 * VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to InfluxDB – Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
-  See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 
 ## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
@@ -213,7 +213,7 @@ The architecture is [optimized for storing and querying large amounts of time se
 
 The following versions are open source and free:
 
-* [Single-node version](https://docs.victoriametrics.com/single-server-victoriametrics/).
+* [Single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
 * [Cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 We provide commercial support for both versions. [Contact us](mailto:info@victoriametrics.com) for the pricing.
@@ -240,7 +240,7 @@ or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/#graf
 
 ## Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
 
-Yes. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#deduplication) for details.
+Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details.
 
 ## Where is the source code of VictoriaMetrics?
 
@@ -258,11 +258,11 @@ and scales horizontally to multiple nodes.
 
 ## What is the difference between single-node and cluster versions of VictoriaMetrics?
 
-Both [single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) and
+Both [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
 [cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) versions of VictoriaMetrics
 share the core source code, so they have many common features. They have the following differences though:
 
-* [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) runs on a single host,
+* [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) runs on a single host,
   while [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can scale to many hosts.
   Single-node VictoriaMetrics scales vertically though, e.g. its capacity and performance scales almost linearly when increasing
   available CPU, RAM, disk IO and disk space. See [an article about vertical scalability of a single-node VictoriaMetrics](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
@@ -384,7 +384,7 @@ See also [troubleshooting slow queries](https://docs.victoriametrics.com/victori
 
 ## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
 
-Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and
+Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
 
 Single-node VictoriaMetrics is able to handle quite big workloads in production

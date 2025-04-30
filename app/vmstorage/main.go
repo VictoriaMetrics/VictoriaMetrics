@@ -75,25 +75,25 @@ var (
 		" See also https://docs.victoriametrics.com/#deduplication")
 
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBDataBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBDataBlocksSparse = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocksSparse", 0, "Overrides max size for indexdb/dataBlocksSparse cache. "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 
 	disablePerDayIndex = flag.Bool("disablePerDayIndex", false, "Disable per-day index and use global index for all searches. "+
 		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
 		"big time range (for example, when loading years of historical data). "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#index-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning")
 	trackMetricNamesStats = flag.Bool("storage.trackMetricNamesStats", false, "Whether to track ingest and query requests for timeseries metric names. "+
 		"This feature allows to track metric names unused at query requests. "+
 		"See https://docs.victoriametrics.com/#track-ingested-metrics-usage")
 	cacheSizeMetricNamesStats = flagutil.NewBytes("storage.cacheSizeMetricNamesStats", 0, "Overrides max size for storage/metricNamesStatsTracker cache. "+
-		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 )
 
 func main() {

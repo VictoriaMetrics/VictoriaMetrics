@@ -1,4 +1,4 @@
-VictoriaMetrics and VictoriaLogs support ingestion [metrics](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-data-via-opentelemetry)
+VictoriaMetrics and VictoriaLogs support ingestion [metrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry)
 and [logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/) in OpenTelemetry format.
 This guide covers examples of using [opentelemetry-collector](https://opentelemetry.io/docs/collector/) and direct pushing of metrics and logs from the Go application.
 
@@ -44,7 +44,7 @@ VictoriaMetrics helm chart provides the following URL for writing data:
 Write URL inside the kubernetes cluster:
   http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local.:8428/<protocol-specific-write-endpoint>
 
-All supported write endpoints can be found at https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data.
+All supported write endpoints can be found at https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data.
 ```
 
 For OpenTelemetry VictoriaMetrics write endpoint is:

@@ -66,7 +66,7 @@ By default the `/select/logsql/query` returns all the log entries matching the g
   curl http://localhost:9428/select/logsql/query -d 'query=error | limit 10'
   ```
 - By adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter). The time range for the query can be specified via optional
-  `start` and `end` query args formatted according to [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats).
+  `start` and `end` query args formatted according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
 - By adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query, which select lower number of logs.
 
 The `/select/logsql/query` endpoint returns [a stream of JSON lines](https://jsonlines.org/),

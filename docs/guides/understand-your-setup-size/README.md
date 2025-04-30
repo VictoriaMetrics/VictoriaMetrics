@@ -1,4 +1,4 @@
-This guide is based on capacity planning for [Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning),
+This guide is based on capacity planning for [Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning),
 [Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
 and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) docs.
 
@@ -174,6 +174,6 @@ You can collect metrics from
 
 ### On-Premise
 
-Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning),
+Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning),
 [Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs
 and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.

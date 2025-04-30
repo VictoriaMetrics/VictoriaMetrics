@@ -45,8 +45,8 @@ requests_total{path="/", code="200"}
 
 Labels can be automatically attached to the [time series](#time-series) 
 written via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) 
-or [Prometheus](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup).
-VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+or [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup).
+VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 #### Time series
@@ -348,9 +348,9 @@ avoid excessive resource usage and database slowdown.
 supports [multi-tenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
 for data isolation.
 
-Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
 version of VictoriaMetrics by adding [labels](#labels) on [write path](#write-data)
-and enforcing [labels filtering](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements) 
+and enforcing [labels filtering](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) 
 on [read path](#query-data).
 
 
@@ -371,7 +371,7 @@ We recommend using the [github.com/VictoriaMetrics/metrics](https://github.com/V
 for pushing application metrics to VictoriaMetrics.
 It is also possible to use already existing clients compatible with the protocols listed above
 like [Telegraf](https://github.com/influxdata/telegraf)
-for [InfluxDB line protocol](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+for [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
@@ -379,7 +379,7 @@ Creating custom clients or instrumenting the application for metrics writing is 
 curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"timestamps":[1549891472010,1549891487724,1549891503438]}' -X POST 'http://localhost:8428/api/v1/import'
 ```
 
-It is allowed to push/write metrics to [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/),
+It is allowed to push/write metrics to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
 to [cluster component vminsert](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview)
 and to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
@@ -455,17 +455,17 @@ VictoriaMetrics components allow building more advanced topologies. For example,
 
 ![two dcs](two_dcs.webp)
 
-VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). Vmagent also allows
 [replicating the same data to multiple destinations](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability).
 
 ## Query data
 
 VictoriaMetrics provides
-an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
+an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup). The same API is also used by
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - a graphical User Interface for querying
+[Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup). The same API is also used by
+[VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) - a graphical User Interface for querying
 and visualizing metrics.
 
 The API consists of two main handlers for serving [instant queries](#instant-query) and [range queries](#range-query).
@@ -481,7 +481,7 @@ GET | POST /api/v1/query?query=...&time=...&step=...&timeout=...
 Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
-* `time` - optional, [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
+* `time` - optional, [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
 * `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
@@ -577,9 +577,9 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...&timeout=...
 
 Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
-* `start` - the starting [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
+* `start` - the starting [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
-* `end` - the ending [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
+* `end` - the ending [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
 * `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
@@ -943,13 +943,13 @@ rate(node_network_receive_bytes_total) keep_metric_names
 ### Visualizing time series
 
 VictoriaMetrics has a built-in graphical User Interface for querying and visualizing metrics -
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui).
+[VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
 ![vmui](vmui.webp)
 
-VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
-which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup)
+VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
+which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup)
 in the same way as Grafana queries Prometheus.
 
 ## Modify data
@@ -961,20 +961,20 @@ it is stored. Due to this limitation, VictoriaMetrics does not support direct da
 
 ### Deletion
 
-See [How to delete time series](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-delete-time-series)
+See [How to delete time series](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series)
 .
 
 ### Relabeling
 
 Relabeling is a powerful mechanism for modifying time series before they have been written to the database. Relabeling
 may be applied for both [push](#push-model) and [pull](#pull-model) models. See more
-details [here](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling).
+details [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling).
 
 ### Deduplication
 
-VictoriaMetrics supports data deduplication. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#deduplication).
+VictoriaMetrics supports data deduplication. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication).
 
 
 ### Downsampling
 
-VictoriaMetrics supports data downsampling. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#downsampling).
+VictoriaMetrics supports data downsampling. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
