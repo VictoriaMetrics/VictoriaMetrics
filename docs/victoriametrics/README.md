@@ -103,7 +103,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/) -  a tool for validating alerting and recording rules.
 - [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
 - [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting capabilities.
-- [vmctl](https://docs.victoriametrics.com/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
+- [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
 - [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.
 - `vminsert`, `vmselect` and `vmstorage` - components of [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
@@ -2724,18 +2724,18 @@ Things to consider when copying data:
 1. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
 
 For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
-of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
+of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
 
 ### From other systems
 
-Use [vmctl](https://docs.victoriametrics.com/vmctl/) for data migration. It supports the following data migration types:
+Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) for data migration. It supports the following data migration types:
 
 * From Prometheus to VictoriaMetrics
 * From InfluxDB to VictoriaMetrics
 * From VictoriaMetrics to VictoriaMetrics
 * From OpenTSDB to VictoriaMetrics
 
-See [vmctl docs](https://docs.victoriametrics.com/vmctl/) for more details.
+See [vmctl docs](https://docs.victoriametrics.com/victoriametrics/vmctl/) for more details.
 
 ## Backfilling
 

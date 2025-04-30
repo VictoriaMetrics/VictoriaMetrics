@@ -43,7 +43,7 @@ COMMANDS:
    verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
-Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x))
+Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x))
 to the data source and common list of flags for destination (prefixed with `vm-` for VictoriaMetrics):
 
 ```sh
@@ -329,7 +329,7 @@ You may find useful a 3rd party solution for this - <https://github.com/jonppe/i
 
 [Promscale](https://github.com/timescale/promscale) supports [Prometheus Remote Read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
 To migrate historical data from Promscale to VictoriaMetrics we recommend using `vmctl`
-in [remote-read](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol) mode.
+in [remote-read](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-by-remote-read-protocol) mode.
 
 See the example of migration command below:
 ```sh
