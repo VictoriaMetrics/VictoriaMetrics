@@ -3023,7 +3023,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.\n\nThe panel uses MetricsQL functions and may not work with VictoriaMetrics.",
+          "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.\n\nThe panel uses MetricsQL functions and may not work with VictoriaMetrics.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3125,7 +3125,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rules which do not produce any [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) during the evaluation. Usually it means that such rules are misconfigured, since they give no output during the evaluation.\nPlease check if rule's expression is correct and it is working as expected.",
+          "description": "Shows the rules which do not produce any [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) during the evaluation. Usually it means that such rules are misconfigured, since they give no output during the evaluation.\nPlease check if rule's expression is correct and it is working as expected.",
           "fieldConfig": {
             "defaults": {
               "color": {

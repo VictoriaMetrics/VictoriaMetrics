@@ -147,7 +147,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victor
 
 By default `vmagent` replicates data among remote storage systems enumerated via `-remoteWrite.url` command-line flag.
 If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads evenly
-the outgoing [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) among all the remote storage systems
+the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) among all the remote storage systems
 enumerated via `-remoteWrite.url`.
 
 It is possible to replicate samples among remote storage systems by passing `-remoteWrite.shardByURLReplicas=N`
@@ -158,8 +158,8 @@ in addition to sharding.
 Samples for the same time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
 This allows building scalable data processing pipelines when a single remote storage cannot keep up with the data ingestion workload.
 For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/)
-by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
-and [histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) types from top-level `vmagent` instances
+by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter)
+and [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
 If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
@@ -171,7 +171,7 @@ command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name_
 label to the same `-remoteWrite.url`.
 
 Sometimes, it may be necessary to ignore some labels when sharding samples across multiple `-remoteWrite.url` backends.
-For example, if all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) with the same set of labels
+For example, if all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) with the same set of labels
 except of `instance` and `pod` labels must be routed to the same backend. In this case the list of ignored labels must be passed to
 `-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
 
@@ -237,12 +237,12 @@ There is also support for multitenant writes. See [these docs](#multitenancy).
 [Deduplication at stream aggregation](https://docs.victoriametrics.com/stream-aggregation/#deduplication) allows setting up arbitrary complex de-duplication schemes
 for the collected samples. Examples:
 
-- The following command instructs `vmagent` to send only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 60 seconds:
+- The following command instructs `vmagent` to send only the last sample per each seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 60 seconds:
   ```sh
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dedupInterval=60s
   ```
 
-- The following command instructs `vmagent` to merge [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with different `replica` label values
+- The following command instructs `vmagent` to merge [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) with different `replica` label values
   and then to send only the last sample per each merged series per every 60 seconds:
   ```sh
   ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
@@ -505,15 +505,15 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_response_size_bytes > 10MiB
   ```
 
-* `scrape_samples_scraped` - the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) parsed per each scrape. This allows detecting targets,
-  which expose too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series). For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/)
+* `scrape_samples_scraped` - the number of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) parsed per each scrape. This allows detecting targets,
+  which expose too many [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series). For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/)
   returns targets, which expose more than 10000 metrics:
 
   ```metricsql
   scrape_samples_scraped > 10000
   ```
 
-* `scrape_samples_limit` - the configured limit on the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) the given target can expose.
+* `scrape_samples_limit` - the configured limit on the number of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) the given target can expose.
   The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
   This metric is exposed only if the `sample_limit` is set. This allows detecting targets,
   which expose too many metrics compared to the configured `sample_limit`. For example, the following query
@@ -523,9 +523,9 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_samples_scraped / scrape_samples_limit > 0.8
   ```
 
-* `scrape_samples_post_metric_relabeling` - the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) left after applying metric-level relabeling
+* `scrape_samples_post_metric_relabeling` - the number of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) left after applying metric-level relabeling
   from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details).
-  This allows detecting targets with too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series) after the relabeling.
+  This allows detecting targets with too many [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) after the relabeling.
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets
   with more than 10000 metrics after the relabeling:
 
@@ -533,7 +533,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_samples_post_metric_relabeling > 10000
   ```
 
-* `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target generates during the current scrape.
+* `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target generates during the current scrape.
   This metric allows detecting targets (identified by `instance` label),
   which lead to [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets,
@@ -546,10 +546,10 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
-* `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
+* `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.
 
-* `scrape_series_current` - the number of unique [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target exposed so far.
+* `scrape_series_current` - the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target exposed so far.
   This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
   This metric allows alerting when the number of exposed series by the given target reaches the limit.
   For example, the following query would alert when the target exposes more than 90% of unique series compared to the configured limit.
@@ -559,7 +559,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   ```
 
 * `scrape_series_limit_samples_dropped` - exposes the number of dropped samples during the scrape because of the exceeded limit
-  on the number of unique [series](https://docs.victoriametrics.com/keyconcepts/#time-series). This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
+  on the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series). This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
   This metric allows alerting when scraped samples are dropped because of the exceeded limit.
   For example, the following query alerts when at least a single sample is dropped because of the exceeded limit during the last hour:
 
@@ -643,8 +643,8 @@ The following articles contain useful information about Prometheus relabeling:
   ```
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
-  arbitrary [time series selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-  The `action` is performed only for [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples), which match the provided `if` filter.
+  arbitrary [time series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
+  The `action` is performed only for [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples), which match the provided `if` filter.
   For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
 
   ```yaml
@@ -661,7 +661,7 @@ The following articles contain useful information about Prometheus relabeling:
   ```
 
   The `if` option may contain more than one filter. In this case the `action` is performed if at least a single filter
-  matches the given [sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+  matches the given [sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
   For example, the following relabeling rule adds `foo="bar"` label to samples with `job="foo"` or `instance="bar"` labels:
 
   ```yaml

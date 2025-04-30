@@ -10,7 +10,7 @@ const last_over_time = <Hyperlink
 
 const instant_query = <Hyperlink
   text="instant query"
-  href="https://docs.victoriametrics.com/keyconcepts/#instant-query"
+  href="https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query"
   underlined
 />;
 

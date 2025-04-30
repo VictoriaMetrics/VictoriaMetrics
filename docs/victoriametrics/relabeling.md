@@ -65,7 +65,7 @@ See also:
 
 ## How to rename scraped metrics
 
-Metric name is a regular label with special name - `__name__` (see [these docs](https://docs.victoriametrics.com/keyconcepts/#labels)).
+Metric name is a regular label with special name - `__name__` (see [these docs](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)).
 So renaming of metric name is performed in the same way as changing label value.
 
 Let's look at a few examples.
@@ -117,7 +117,7 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 
 ## How to add labels to scraped metrics
 
-The following config sets `foo="bar"` [label](https://docs.victoriametrics.com/keyconcepts/#labels) across all the scraped metrics:
+The following config sets `foo="bar"` [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) across all the scraped metrics:
 
 ```yaml
 scrape_configs:
@@ -129,7 +129,7 @@ scrape_configs:
     replacement: bar
 ```
 
-The following config sets `foo="bar"` label only for metrics matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering):
+The following config sets `foo="bar"` label only for metrics matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering):
 
 ```yaml
 scrape_configs:
@@ -161,7 +161,7 @@ scrape_configs:
 ```
 
 The following config adds `foo_` prefix to `job` label values only for metrics
-matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering):
+matching `{job=~"my-app-.*",env!="dev"}` [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering):
 
 ```yaml
 scrape_configs:

@@ -137,8 +137,8 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    
    cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...' -d 'reduce_mem_usage=1'
    ```
-   Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-   and from [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) contain **evaluated** data
+   Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+   and from [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) contain **evaluated** data
    instead of raw samples stored in VictoriaMetrics. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness)
    for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/#vmui) in `Raw Query` tab and shared via `export` button.
 
@@ -174,14 +174,14 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 1. If you observe gaps when plotting time series try simplifying your query according to p2 and follow the list.
    If problem still remains, then it is likely caused by irregular intervals for metrics collection (network delays
    or targets unavailability on scrapes, irregular pushes, irregular timestamps).
-   VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/keyconcepts/#range-query)
-   based on median interval between [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+   VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
+   based on median interval between [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
    This might work incorrect for irregular data as median will be skewed. In this case it is recommended to switch
    to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` cmd-line flag (`5m` is
    the static interval used by Prometheus).
 
 1. If you observe recently written data is not immediately visible/queryable, then read more about 
-   [query latency](https://docs.victoriametrics.com/keyconcepts/#query-latency) behavior.
+   [query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) behavior.
 
 1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
    and verifying whether the issue is fixed there.
@@ -332,8 +332,8 @@ There are the following solutions exist for improving performance of slow querie
   with long lookbehind windows in square brackets. These queries are frequently used in SLI/SLO calculations such as [Sloth](https://github.com/slok/sloth).
 
   For example, `avg_over_time(up[30d]) > 0.99` needs to read and process
-  all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
-  for `up` [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the last 30 days
+  all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+  for `up` [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the last 30 days
   each time it executes. If this query is executed frequently, then it can take significant share of CPU, disk read IO, network bandwidth and RAM.
   Such queries can be optimized in the following ways:
 

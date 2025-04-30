@@ -89,8 +89,8 @@ requests_total{path="/", code="200"} 123 4567890
 
 #### Time series resolution
 
-Resolution is the minimum interval between [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
-of the [time series](https://docs.victoriametrics.com/keyconcepts/#time-series). Consider the following example:
+Resolution is the minimum interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+of the [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series). Consider the following example:
 ```
 ----------------------------------------------------------------------
 |              <time series>                 | <value> | <timestamp> |
@@ -103,9 +103,9 @@ of the [time series](https://docs.victoriametrics.com/keyconcepts/#time-series).
 Here we have a time series `requests_total{path="/health", code="200"}` which has a value update each `30s`.
 This means, its resolution is also a `30s`.
 
-> In terms of [pull model](https://docs.victoriametrics.com/keyconcepts/#pull-model), resolution is equal 
+> In terms of [pull model](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model), resolution is equal 
 > to `scrape_interval` and is controlled by the monitoring system (server).
-> For [push model](https://docs.victoriametrics.com/keyconcepts/#push-model), resolution is an interval between
+> For [push model](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model), resolution is an interval between
 > samples timestamps and is controlled by a client (metrics collector).
 
 Try to keep time series resolution consistent, since some [MetricsQL](#metricsql) functions may expect it to be so.
@@ -493,7 +493,7 @@ Params:
   By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
   or to `vmselect` component of VictoriaMetrics cluster.
 
-The result of Instant query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+The result of Instant query is a list of [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains exactly one `(timestamp, value)` entry,
 where `timestamp` equals to the `time` query arg, while the `value` contains `query` result at the requested `time`.
 
@@ -592,7 +592,7 @@ Params:
   By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
   or to `vmselect` component in VictoriaMetrics cluster.
 
-The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+The result of Range query is a list of [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
 at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps. In other words, Range query is an [Instant query](#instant-query)
 executed independently at `start`, `start+step`, ..., `start+N*step` timestamps with the only difference that an instant query

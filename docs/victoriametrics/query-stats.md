@@ -15,8 +15,8 @@ aliases:
 ---
 
 [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports logging statistics {{% available_from "v1.116.0" %}} for
-read queries made through the [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) APIs.
+read queries made through the [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) APIs.
 
 To enable query statistics logging, add the `-search.logSlowQueryStats=<duration>` command line flag to [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
@@ -33,17 +33,17 @@ Here's how `<duration>` works:
 ## Log fields
 
 Each log entry contains the following fields:
-* `type`: the type of the query: either [instant](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-  or [range](https://docs.victoriametrics.com/keyconcepts/#range-query);
+* `type`: the type of the query: either [instant](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+  or [range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query);
 * `query`: the executed [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query;
 * `query_hash`: a hash of the `query`. This makes it easier to filter logs for a specific query;
-* `start_ms`, `end_ms`, `step_ms` are query params described [here](https://docs.victoriametrics.com/keyconcepts/#range-query);
+* `start_ms`, `end_ms`, `step_ms` are query params described [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query);
 * `range_ms`: a time range in milliseconds between `start_ms` and `end_ms`. If `range_ms==0` it means this query is instant;
 * `tenant`: a tenant ID. Available only in the cluster version;
 * `execution_duration_ms`: time it took in milliseconds to execute the query (not including time spent sending results over the network);
-* `series_fetched`: number of unique [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) fetched. 
+* `series_fetched`: number of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) fetched. 
   This may be higher than the number of series returned if there are filters like `cpu_usage > 0`;
-* `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) fetched;
+* `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched;
 * `bytes`: number of bytes transferred from storage to process the query;
 * `memory_estimated_bytes`: estimated memory needed to run the query. See `-search.maxMemoryPerQuery` cmd-line flag.
 

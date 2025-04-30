@@ -17,7 +17,7 @@ aliases:
 
 vmagent can receive data via the same protocols as VictoriaMetrics Single or Cluster versions,
 as well as scrape Prometheus endpoints. In other words, 
-it supports both [Push](https://docs.victoriametrics.com/keyconcepts/#push-model) and [Pull](https://docs.victoriametrics.com/keyconcepts/#pull-model) models.
+it supports both [Push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [Pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model) models.
 
 This section of the documentation only covers forwarding data from vmagent to another destination.
 For extra information about vmagent as well as quickstart guide please refer to the [vmagent documentation](https://docs.victoriametrics.com/victoriametrics/vmagent/).
