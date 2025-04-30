@@ -114,7 +114,7 @@ http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
 Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
 while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `accountID=7, projectID=9`.
 
-The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling/)
+The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
 The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
@@ -617,7 +617,7 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
     - `api/v1/status/top_queries` - for listing the most frequently executed queries and queries taking the most duration.
-    - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/relabeling/).
+    - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)

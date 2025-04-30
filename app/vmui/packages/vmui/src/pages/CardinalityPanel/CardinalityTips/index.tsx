@@ -27,7 +27,7 @@ export const TipHighNumberOfSeries: FC = () => (
       </li>
       <li>
         Find unused time series and&nbsp;
-        <Hyperlink href='https://docs.victoriametrics.com/relabeling.html'>drop entire metrics</Hyperlink>
+        <Hyperlink href='https://docs.victoriametrics.com/victoriametrics/relabeling/'>drop entire metrics</Hyperlink>
       </li>
       <li>
         Aggregate time series before they got ingested into the database via&nbsp;
@@ -42,7 +42,7 @@ export const TipHighNumberOfValues: FC = () => (
     <ul>
       <li>Decrease the number of unique label values to reduce cardinality</li>
       <li>Drop the label entirely via&nbsp;
-        <Hyperlink href='https://docs.victoriametrics.com/relabeling.html'>relabeling</Hyperlink></li>
+        <Hyperlink href='https://docs.victoriametrics.com/victoriametrics/relabeling/'>relabeling</Hyperlink></li>
       <li>For volatile label values (such as URL path, user session, etc.)
         consider printing them to the log file instead of adding to time series
       </li>

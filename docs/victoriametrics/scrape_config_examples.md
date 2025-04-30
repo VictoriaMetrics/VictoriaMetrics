@@ -116,8 +116,8 @@ label in all the metrics scraped from the target.
 can efficiently process tens of thousands of targets in production. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
-Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets).
-It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling/) if needed.
+Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets).
+It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) if needed.
 
 
 ## File-based target discovery
@@ -208,8 +208,8 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#fi
 can efficiently scrape tens of thousands of scrape targets. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
-Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets).
-It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling/) if needed.
+Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets).
+It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) if needed.
 
 
 ## HTTP-based target discovery
@@ -360,7 +360,7 @@ scrape_configs:
   relabel_configs:
 
     # Leave only targets with the container name, which matches the `job_name` specified above
-    # See https://docs.victoriametrics.com/relabeling/#how-to-modify-instance-and-job for details on `job` label.
+    # See https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-instance-and-job for details on `job` label.
     #
   - source_labels: [__meta_kubernetes_pod_container_name]
     target_label: job
