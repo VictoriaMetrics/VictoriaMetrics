@@ -136,11 +136,11 @@ const TracePage: FC = () => {
             In order to use tracing please refer to the doc:&nbsp;
             <a
               className="vm-link vm-link_colored"
-              href="https://docs.victoriametrics.com/#query-tracing"
+              href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing"
               target="_blank"
               rel="help noreferrer"
             >
-              https://docs.victoriametrics.com/#query-tracing
+              https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
             </a>
             {"\n"}
             Tracing graph will be displayed after file upload.

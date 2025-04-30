@@ -154,7 +154,7 @@ kubectl port-forward svc/victoria-metrics-victoria-metrics-single-server 8428
 ```
 
 Visit [http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready](http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready) to check if metric `k8s_container_ready` is present.
-Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) page.
+Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) page.
 
 Forward VictoriaLogs port to local machine to explore logs ingested by the collector:
 ```sh
@@ -244,7 +244,7 @@ After a few seconds you should start seeing metrics sent to VictoriaMetrics by v
 
 ![OTEL Metrics VMUI](vmui-direct-metrics.webp)
 
-Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) page.
+Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) page.
 
 Logs should be available by visiting [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui)
 using query `service.name: unknown_service:otel`.

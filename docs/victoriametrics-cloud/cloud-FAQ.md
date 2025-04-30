@@ -69,11 +69,11 @@ Let us know if you need more integrations at support-cloud@victoriametrics.com.
 In case of deployment issues, users are notified with alerts, which have recommendations for possible fixes. Instance logs are also available under the Logs tab (log messages also usually contains recommendations) and for instance metrics available in the Monitoring tab of each deployment.
 
 Apart from that, there are other mechanisms:
-* Cardinality explorer: https://docs.victoriametrics.com/#cardinality-explorer
-* Query tracing: https://docs.victoriametrics.com/#query-tracing
-* Top queries: https://docs.victoriametrics.com/#top-queries
-* Active queries: https://docs.victoriametrics.com/#active-queries
-* And other tools (https://docs.victoriametrics.com/#vmui) like Metric relabel debugger, Downsampling filters debugger, Retention filters debugger, Raw query view, etc…
+* Cardinality explorer: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer
+* Query tracing: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
+* Top queries: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#top-queries
+* Active queries: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#active-queries
+* And other tools (https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) like Metric relabel debugger, Downsampling filters debugger, Retention filters debugger, Raw query view, etc…
 
 Also, in case of problems, support is always available to help you at support-cloud@victoriametrics.com.
 
@@ -89,7 +89,7 @@ Yes. We charge $0.09 per GB for external traffic, which matches AWS’ rate. Est
 VictoriaMetrics Cloud does not charge extra for API calls.
 Regarding storage, the price is $1.46 for 10 Gb per Month. Since VictoriaMetrics Cloud is easy to
 scale, we recommend users to expand storage resources with consumption, instead of allocating all storage space from the beginning.
-We also offer deduplication and [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) mechanisms
+We also offer deduplication and [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) mechanisms
 to help reducing costs.
 
 ## Can VictoriaMetrics Cloud expenses be consolidated into my AWS bill?

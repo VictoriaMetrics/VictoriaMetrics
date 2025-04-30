@@ -13,8 +13,8 @@ aliases:
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
 (or local storage for single-node VictoriaMetrics).
-The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
+and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 **By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
@@ -39,7 +39,7 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Histograms over input metrics](#histograms-over-input-metrics)
 * [Aggregating histograms](#aggregating-histograms)
 
-Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ## Recording rules alternative
@@ -787,7 +787,7 @@ specified individually per each `-remoteWrite.url`:
   #
   # If it is set, then it is used as `name` label in the exposed metrics
   # for the given aggregation config at /metrics page.
-  # See https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring and https://docs.victoriametrics.com/#monitoring
+  # See https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring
 - name: 'foobar'
 
   # match is an optional filter for incoming samples to aggregate.
@@ -807,7 +807,7 @@ specified individually per each `-remoteWrite.url`:
 
   # dedup_interval is an optional interval for de-duplication of input samples before the aggregation.
   # Samples are de-duplicated on a per-series basis. See https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series
-  # and https://docs.victoriametrics.com/#deduplication
+  # and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
   # The deduplication is performed after input_relabel_configs relabeling is applied.
   # By default, the deduplication is disabled unless -remoteWrite.streamAggr.dedupInterval or -streamAggr.dedupInterval
   # command-line flags are set.
@@ -951,7 +951,7 @@ Typical scenarios for data routing with `vmagent`:
 
 # Deduplication
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) of samples
 before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
 - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
@@ -965,18 +965,18 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
   in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
 
 [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) supports two types of de-duplication:
-- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
+- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) command-line option.
 - Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
   - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
     For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VictoriaMetrics to leave only the last sample per each
     seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 30 seconds.
-    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/#relabeling).
+    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling).
 
   - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-streamAggr.config`.
 
 It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
 
-The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
+The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) at VictoriaMetrics.
 
 # Relabeling
 
@@ -1260,7 +1260,7 @@ These time series then can be aggregated later as needed during querying.
 
 If `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
 as a unique label value per each `vmagent` via `-remoteWrite.label=vmagent=%{HOSTNAME}` command-line flag.
-See [these docs](https://docs.victoriametrics.com/#environment-variables) on how to refer environment variables in VictoriaMetrics components.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables) on how to refer environment variables in VictoriaMetrics components.
 
 ## Common mistakes
 

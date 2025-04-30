@@ -40,7 +40,7 @@ COMMANDS:
    prometheus  Migrate timeseries from Prometheus
    vm-native   Migrate time series between VictoriaMetrics installations via native binary format
    remote-read Migrate timeseries by Prometheus remote read protocol
-   verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
+   verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format
 ```
 
 Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x))
@@ -794,7 +794,7 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#data-migration).
 
-vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
+vmctl uses [native binary protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format)
 to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
 See `./vmctl vm-native --help` for details and full list of flags.
@@ -842,7 +842,7 @@ Importing tips:
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
    Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
    proper values for `src`. If hitting the limits, follow the recommendations 
-   [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+   [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format).
    If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
    update `-search.maxSeries` command-line flag on vmselect/vmsingle;
 1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
@@ -1417,8 +1417,8 @@ Flags available only for the `vm-native` command:
      Defines whether to disable per-metric migration and migrate all data via one connection. 
      In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests. (default: false)
    --vm-native-disable-binary-protocol
-     Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format instead of 
-     https://docs.victoriametrics.com/#how-to-export-data-in-native-format API. 
+     Whether to use https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format instead of 
+     https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API. 
      Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks.
      Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side. (default: false)
    --vm-native-backoff-retries value

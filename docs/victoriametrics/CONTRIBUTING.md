@@ -17,7 +17,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 - Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))
   and helping other community members there.
 - Filing issues, feature requests and questions [at VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
+- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#documentation).
 - Spreading the word about VictoriaMetrics via various channels:
   - conference talks
   - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/CaseStudies.md)
@@ -36,7 +36,7 @@ instead of [enhancements](https://github.com/VictoriaMetrics/VictoriaMetrics/iss
 Helping other people with their [questions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Aquestion) is also a contribution.
 
 If you'd like to contribute to [documentation](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) please
-read the [guideline](https://docs.victoriametrics.com/#documentation).
+read the [guideline](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#documentation).
 
 ### Labels
 
@@ -51,7 +51,7 @@ to categorize GitHub issues. We have the following labels:
   to understand  that this issue wasn't forgotten but waits for the feedback from user.
 1. `waiting for release`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
   Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, remove the label, and close the issue.
-1. `vmui`, assigned to issues related to https://docs.victoriametrics.com/#vmui or https://docs.victoriametrics.com/victorialogs/querying/#web-ui
+1. `vmui`, assigned to issues related to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui or https://docs.victoriametrics.com/victorialogs/querying/#web-ui
 
 ## Pull request checklist
 
@@ -90,7 +90,7 @@ We are open to third-party pull requests provided they follow [KISS design princ
 - Prefer simple code and architecture.
 - Avoid complex abstractions.
 - Avoid magic code and fancy algorithms.
-- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/#profiling)
+- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#profiling)
   shows significant improvements in performance and scalability or significant reduction in RAM usage.
   Profiling must be performed on [Go benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks) and on production workload.
 - Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).

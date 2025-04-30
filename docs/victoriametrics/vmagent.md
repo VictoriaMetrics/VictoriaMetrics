@@ -34,7 +34,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 
 * Can be used as a drop-in replacement for Prometheus for discovering and scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
   Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way as `vmagent` does -
-  see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+  see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
 * Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation/).
@@ -91,7 +91,7 @@ Example command for scraping Prometheus targets and writing the data to single-n
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
 If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
-without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
 `vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
 
@@ -250,7 +250,7 @@ for the collected samples. Examples:
 
 ## How to push data to vmagent
 
-`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 in addition to the pull-based Prometheus-compatible targets' scraping:
 
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent).
@@ -349,7 +349,7 @@ There is no need in specifying top-level `scrape_configs` section in these files
   In this case the `-promscrape.config` file isn't needed.
 * `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API.
   It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics.
-  See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
+  See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage).
 * `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
 
 The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
@@ -803,7 +803,7 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 
 ### Relabel debug
 
-`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 provide the following tools for debugging target-level and metric-level relabeling:
 
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs))
@@ -829,7 +829,7 @@ See also [debugging scrape targets](#debugging-scrape-targets).
 
 ## Debugging scrape targets
 
-`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 provide the following tools for debugging scrape targets:
 
 - `http://vmagent:8429/targets` page, which contains information about all the targets, which are scraped at the moment.
@@ -967,7 +967,7 @@ Increase the `-promscrape.maxDroppedTargets` command-line flag value if the `/se
 
 If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
 The `-dedup.minScrapeInterval` must be set to the `scrape_interval` configured at `-promscrape.config`.
-See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details.
 
 The `-promscrape.cluster.memberLabel` command-line flag allows specifying a name for `member num` label to add to all the scraped metrics.
 The value of the `member num` label is set to `-promscrape.cluster.memberNum`. For example, the following config instructs adding `vmagent_instance="0"` label
@@ -986,9 +986,9 @@ It is possible to run multiple **identically configured** `vmagent` instances or
 the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems. 
 Two **identically configured** vmagent instances or clusters is usually called an HA pair.
 
-When running HA pairs, [deduplication](https://docs.victoriametrics.com/#deduplication) must be configured 
+When running HA pairs, [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) must be configured 
 at VictoriaMetrics side in order to de-duplicate received samples.
-See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details.
 
 It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` 
 instance or per each `vmagent` cluster in HA setup. This is needed for proper data de-duplication. 
@@ -1105,7 +1105,7 @@ if `-remoteWrite.disableOnDiskQueue` command-line flag is specified. It may also
 on startup.
 
 When `-remoteWrite.disableOnDiskQueue` command-line flag is set, `vmagent` may send the same samples multiple times to the configured remote storage
-if it cannot keep up with the data ingestion rate. In this case the [deduplication](https://docs.victoriametrics.com/#deduplication)
+if it cannot keep up with the data ingestion rate. In this case the [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
 must be enabled on all the configured remote storage systems.
 
 ## Cardinality limiter
@@ -1163,7 +1163,7 @@ them to remote storage systems. A sample of dropped series is put in the log wit
 
 These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
 
-See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinality-explorer).
+See also [cardinality explorer docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 
 ## Monitoring
 
@@ -1224,7 +1224,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 * Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling).
   Such storage systems include Prometheus, Mimir, Cortex and Thanos, which typically emit `out of order sample` errors.
-  The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling) such as VictoriaMetrics.
+  The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling) such as VictoriaMetrics.
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if the maximum directory size isn't limited
@@ -1295,7 +1295,7 @@ take into account the following attributes:
 
 1. The **size in bytes** of data stream sent by vmagent:
 
-   Run the query `sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance,url)` in [vmui](https://docs.victoriametrics.com/#vmui)
+   Run the query `sum(rate(vmagent_remotewrite_bytes_sent_total[1h])) by(instance,url)` in [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
    or Grafana to get the amount of bytes sent by each vmagent instance per second.
 
 1. The amount of **time** a persistent queue should keep the data before starting to drop it.
@@ -1334,7 +1334,7 @@ The following message formats are supported:
 * `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
   and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
-* `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+* `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 
 Every PubSub message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
 
@@ -1372,7 +1372,7 @@ See also [how to write metrics to multiple distinct tenants](https://docs.victor
 
 `vmagent` can read messages from different topics in different formats. For example, the following command starts `vmagent`, which reads plaintext
 [Influx](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) messages from `telegraf-testing` topic
-and gzipped [JSON line](https://docs.victoriametrics.com/#json-line-format) messages from `json-line-testing` topic:
+and gzipped [JSON line](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#json-line-format) messages from `json-line-testing` topic:
 
 ```sh
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
@@ -1465,7 +1465,7 @@ These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-
 * `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
   and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
-* `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+* `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 
 For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol) 
 or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
@@ -1778,15 +1778,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
+     Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableMultitenantHandlers
-     Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/#how-to-import-time-series-data .See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details
+     Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data .See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1879,12 +1879,12 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.forceStreamMode bool
-     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -influx.maxRequestSize size
-     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
@@ -2005,7 +2005,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.usePrometheusNaming
-     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/#sending-data-via-opentelemetry
+     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpenTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
   -opentsdbHTTPListenAddr.useProxyProtocol
@@ -2041,7 +2041,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -promscrape.cluster.replicationFactor int
      The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info (default 1)
   -promscrape.config string
-     Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+     Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
      Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
@@ -2146,7 +2146,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value

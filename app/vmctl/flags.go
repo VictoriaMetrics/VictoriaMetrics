@@ -617,8 +617,8 @@ var (
 		},
 		&cli.BoolFlag{
 			Name: vmNativeDisableBinaryProtocol,
-			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format " +
-				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
+			Usage: "Whether to use https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format " +
+				"instead of https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,
