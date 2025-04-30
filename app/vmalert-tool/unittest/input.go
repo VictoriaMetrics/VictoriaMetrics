@@ -101,7 +101,8 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 			continue
 		}
 		vals := numReg.FindAllString(item, -1)
-		if item == "Inf" || item == "+Inf" || item == "-Inf" || item == "NaN" {
+		itemLower := strings.ToLower(item)
+		if itemLower == "inf" || itemLower == "+inf" || itemLower == "-inf" || itemLower == "nan" {
 			v, err := strconv.ParseFloat(item, 64)
 			if err != nil {
 				return nil, err
