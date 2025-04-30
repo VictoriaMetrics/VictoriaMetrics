@@ -62,7 +62,7 @@ In addition, the Enterprise version includes extra features:
 - **Backup automation**: Automates regular backup procedures.
 - **Multiple retentions**: Reducing storage costs by specifying different retentions for different datasets.
 - **Downsampling**: Reducing storage costs and increasing performance for queries over historical data.
-- **Stable releases** with long-term support lines ([LTS](https://docs.victoriametrics.com/lts-releases/)).
+- **Stable releases** with long-term support lines ([LTS](https://docs.victoriametrics.com/victoriametrics/lts-releases/)).
 - **Comprehensive support**: First-class consulting, feature requests and technical support provided by the core VictoriaMetrics dev team.
 - Many other features, which you can read about on [the Enterprise page](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
