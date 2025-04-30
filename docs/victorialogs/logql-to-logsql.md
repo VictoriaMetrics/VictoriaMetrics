@@ -23,7 +23,7 @@ Hundreds of labels per every log entry is OK for VictoriaLogs.
 
 VictoriaLogs is also optimized for log labels with big number of unique values such as `trace_id`, `user_id`, `duration` and `ip` (aka high-cardinality labels).
 It is highly recommended storing all the labels as is without the need to pack them into a JSON and storing it into the log line (message).
-Sotring labels separately results in much faster filtering on such labels (1000x faster and more).
+Storing labels separately results in much faster filtering on such labels (1000x faster and more).
 This also results in storage space savings because of better compression for per-label values.
 
 It is recommended reading [VictoriaLogs key concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/) in order to understand VictoriaLogs data model.
