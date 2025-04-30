@@ -1,5 +1,5 @@
 # balance load among vmselects
-# see https://docs.victoriametrics.com/vmauth/#load-balancing
+# see https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing
 unauthorized_user:
   url_map:
   - src_paths:

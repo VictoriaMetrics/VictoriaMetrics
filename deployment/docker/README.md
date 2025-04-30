@@ -193,7 +193,7 @@ Please see more examples on integration of VictoriaLogs with other log shippers 
 
 ## vmauth
 
-[vmauth](https://docs.victoriametrics.com/vmauth/) acts as a [load balancer](https://docs.victoriametrics.com/vmauth/#load-balancing)
+[vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) acts as a [load balancer](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing)
 to spread the load across `vmselect`'s or `vlselect`'s. [Grafana](#grafana) and [vmalert](#vmalert) use vmauth for read queries.
 vmauth routes read queries to VictoriaMetrics or VictoriaLogs depending on requested path.
 vmauth config is available here for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/auth-vm-cluster.yml),
@@ -241,7 +241,7 @@ The list of alerting rules is the following:
 * [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml):
   alerting rules related to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) component;
 * [alerts-vmauth.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml):
-  alerting rules related to [vmauth](https://docs.victoriametrics.com/vmauth/) component;
+  alerting rules related to [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) component;
 * [alerts-vlogs.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml):
   alerting rules related to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/);
 * [alerts-vmanomaly.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmanomaly.yml):

@@ -12,8 +12,8 @@ aliases:
   - /vmauth/index.html
   - /vmauth/
 ---
-`vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/vmauth/#authorization), [route](https://docs.victoriametrics.com/vmauth/#routing)
-and [load balance](https://docs.victoriametrics.com/vmauth/#load-balancing) requests across [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) components
+`vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/victoriametrics/vmauth/#authorization), [route](https://docs.victoriametrics.com/victoriametrics/vmauth/#routing)
+and [load balance](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) requests across [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) components
 or any other HTTP backends.
 
 ## Quick start
@@ -365,11 +365,11 @@ unauthorized_user:
 
 `vmauth` supports the following authorization mechanisms:
 
-- [No authorization](https://docs.victoriametrics.com/vmauth/#simple-http-proxy)
-- [Basic Auth](https://docs.victoriametrics.com/vmauth/#basic-auth-proxy)
-- [Bearer token](https://docs.victoriametrics.com/vmauth/#bearer-token-auth-proxy)
-- [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/vmauth/#mtls-based-request-routing)
-- [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/vmauth/#reading-auth-tokens-from-other-http-headers)
+- [No authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#simple-http-proxy)
+- [Basic Auth](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy)
+- [Bearer token](https://docs.victoriametrics.com/victoriametrics/vmauth/#bearer-token-auth-proxy)
+- [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
+- [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
 
 See also [security docs](#security), [routing docs](#routing) and [load balancing docs](#load-balancing).
 
@@ -1230,24 +1230,24 @@ Pass `-help` command-line arg to `vmauth` in order to see all the configuration 
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://docs.victoriametrics.com/vmauth/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 
   -auth.config string
-     Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth/ for details on the format of this auth config
+     Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics/vmauth/ for details on the format of this auth config
   -backend.TLSCAFile string
-     Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/vmauth/#backend-tls-setup
+     Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
   -backend.TLSCertFile string
-     Optional path to TLS client certificate file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/vmauth/#backend-tls-setup
+     Optional path to TLS client certificate file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
   -backend.TLSKeyFile string
-     Optional path to TLS client key file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/vmauth/#backend-tls-setup
+     Optional path to TLS client key file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
   -backend.TLSServerName string
-     Optional TLS ServerName, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/vmauth/#backend-tls-setup
+     Optional TLS ServerName, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
   -backend.tlsInsecureSkipVerify
-     Whether to skip TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/vmauth/#backend-tls-setup
+     Whether to skip TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
   -configCheckInterval duration
      interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
   -discoverBackendIPs
-     Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips
+     Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips
   -discoverBackendIPsInterval duration
      The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
   -dryRun
@@ -1327,7 +1327,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loadBalancingPolicy string
-     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth/#load-balancing (default "least_loaded")
+     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing (default "least_loaded")
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
@@ -1402,7 +1402,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
   -retryStatusCodes array
-     Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. See https://docs.victoriametrics.com/vmauth/#load-balancing for details (default 0)
+     Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details (default 0)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -tls array
