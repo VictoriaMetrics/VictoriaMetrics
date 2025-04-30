@@ -126,7 +126,7 @@ func getColumnValuess(br *blockResult, fields []string) [][]string {
 
 func (pup *pipeUniqLocalProcessor) flush() error {
 	pu := pup.pu.pu
-	shards := pup.shards.GetSlice()
+	shards := pup.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}
