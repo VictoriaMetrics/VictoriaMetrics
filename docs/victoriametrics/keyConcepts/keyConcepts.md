@@ -134,9 +134,9 @@ was rapidly changing from 1:38 pm to 1:39 pm, then there were no changes until 1
 Counter is used for measuring the number of events, like the number of requests, errors, logs, messages, etc.
 The most common [MetricsQL](#metricsql) functions used with counters are:
 
-* [rate](https://docs.victoriametrics.com/metricsql/#rate) - calculates the average per-second speed of metric change.
+* [rate](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate) - calculates the average per-second speed of metric change.
   For example, `rate(requests_total)` shows how many requests are served per second on average;
-* [increase](https://docs.victoriametrics.com/metricsql/#increase) - calculates the growth of a metric on the given
+* [increase](https://docs.victoriametrics.com/victoriametrics/metricsql/#increase) - calculates the growth of a metric on the given
   time period specified in square brackets.
   For example, `increase(requests_total[1h])` shows the number of requests served over the last hour.
 
@@ -166,7 +166,7 @@ Gauge is used in the following scenarios:
   can store the timestamp of the last successful configuration reload.
 
 The most common [MetricsQL](#metricsql) functions used with gauges are [aggregation functions](#aggregation-and-grouping-functions)
-and [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions).
+and [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions).
 
 #### Histogram
 
@@ -193,7 +193,7 @@ that there were 2 queries with the number of rows in the range `(408.4 - 464.2]`
 since the last VictoriaMetrics start.
 
 The counters ending with `_bucket` suffix allow estimating arbitrary percentile
-for the observed measurement with the help of [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
+for the observed measurement with the help of [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile)
 function. For example, the following query returns the estimated 99th percentile
 on the number of rows read per each query during the last hour (see `1h` in square brackets):
 
@@ -251,7 +251,7 @@ and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#qua
 
 ![histogram](histogram.webp)
 
-Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/metricsql/#prometheus_buckets)
+Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/victoriametrics/metricsql/#prometheus_buckets)
 function must be used for converting buckets with `vmrange` labels to buckets with `le` labels before building heatmaps in Grafana.
 
 Histograms are usually used for measuring the distribution of latency, sizes of elements (batch size, for example) etc. There are two
@@ -480,7 +480,7 @@ GET | POST /api/v1/query?query=...&time=...&step=...&timeout=...
 
 Params:
 
-* `query` - [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression.
+* `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
   in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
@@ -563,7 +563,7 @@ Instant queries can return multiple time series, but always only one data sample
 the following scenarios:
 
 * Getting the last recorded value;
-* For [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions) such as `count_over_time`;
+* For [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) such as `count_over_time`;
 * For alerts and recording rules evaluation;
 * Plotting Stat or Table panels in Grafana.
 
@@ -576,7 +576,7 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...&timeout=...
 ```
 
 Params:
-* `query` - [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression.
+* `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
 * `start` - the starting [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
   of the time range for `query` evaluation.
 * `end` - the ending [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
@@ -763,7 +763,7 @@ performance and increase resource usage.
 
 ### MetricsQL
 
-VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
 It is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics)-like query language with a powerful set of
 functions and features for working specifically with time series data. MetricsQL is backward-compatible with PromQL,
 so it shares most of the query concepts. The basic concepts for PromQL and MetricsQL are
@@ -821,7 +821,7 @@ The query above returns series for two metrics: `requests_error_total` and `requ
 
 #### Filtering by multiple "or" filters
 
-[MetricsQL](https://docs.victoriametrics.com/metricsql/) supports selecting time series, which match at least one of multiple "or" filters.
+[MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) supports selecting time series, which match at least one of multiple "or" filters.
 Such filters must be delimited by `or` inside curly braces. For example, the following query selects time series with
 `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
 
@@ -832,9 +832,9 @@ Such filters must be delimited by `or` inside curly braces. For example, the fol
 The number of `or` groups can be arbitrary. The number of `,`-delimited label filters per each `or` group can be arbitrary.
 Per-group filters are applied with `and` operation, e.g. they select series simultaneously matching all the filters in the group.
 
-This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions)
-such as [rate()](https://docs.victoriametrics.com/metricsql/#rate)
-without the need to use [subqueries](https://docs.victoriametrics.com/metricsql/#subqueries):
+This functionality allows passing the selected series to [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions)
+such as [rate()](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate)
+without the need to use [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries):
 
 ```metricsql
 rate({job="app1",env="prod" or job="app2",env="dev"}[5m])
@@ -905,12 +905,12 @@ summary memory usage for each `job`:
 sum(process_resident_memory_bytes) by (job)
 ```
 
-See [docs for aggregate functions in MetricsQL](https://docs.victoriametrics.com/metricsql/#aggregate-functions).
+See [docs for aggregate functions in MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions).
 
 #### Calculating rates
 
 One of the most widely used functions for [counters](#counter)
-is [rate](https://docs.victoriametrics.com/metricsql/#rate). It calculates the average per-second increase rate individually
+is [rate](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate). It calculates the average per-second increase rate individually
 per each matching time series. For example, the following query shows the average per-second data receive speed
 per each monitored `node_exporter` instance, which exposes the `node_network_receive_bytes_total` metric:
 
@@ -931,7 +931,7 @@ In this case VictoriaMetrics uses the specified lookbehind window - `5m` (5 minu
 Bigger lookbehind windows usually lead to smoother graphs.
 
 `rate` strips metric name while leaving all the labels for the inner time series. If you need to keep the metric name,
-then add [keep_metric_names](https://docs.victoriametrics.com/metricsql/#keep_metric_names) modifier
+then add [keep_metric_names](https://docs.victoriametrics.com/victoriametrics/metricsql/#keep_metric_names) modifier
 after the `rate(..)`. For example, the following query leaves metric names after calculating the `rate()`:
 
 ```metricsql

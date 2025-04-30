@@ -12,7 +12,7 @@ aliases:
   - /anomaly-detection/components/reader.html
 ---
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
+VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 

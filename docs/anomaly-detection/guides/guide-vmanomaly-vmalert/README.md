@@ -46,7 +46,7 @@ Then, users can enable alerting rules based on the **anomaly score** with [vmale
 
 [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
 
-[Alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](https://docs.victoriametrics.com/metricsql/). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of `1.0`.
+[Alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](https://docs.victoriametrics.com/victoriametrics/metricsql/). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of `1.0`.
 
 ## 3. How does vmanomaly works with vmalert?
 
@@ -88,7 +88,7 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 
 In this context, the metric `node_cpu_seconds_total` provides a comprehensive breakdown of the time each CPU core has spent in various operational modes. These modes include: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, and _steal_. Each of these eight modes is mutually exclusive, offering distinct insights into CPU activity. For instance, a predominant _iowait_ suggests disk or network bottlenecks, while elevated levels in _user_ or _system_ indicate significant CPU utilization.
 
-The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyconcepts/#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/metricsql/#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
+The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyconcepts/#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
 
 Below is an illustrative example of how this query might be visualized in Grafana:
 ![node_cpu_rate_graph](guide-vmanomaly-vmalert-query.webp)

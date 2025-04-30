@@ -35,7 +35,7 @@ Here's how `<duration>` works:
 Each log entry contains the following fields:
 * `type`: the type of the query: either [instant](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [range](https://docs.victoriametrics.com/keyconcepts/#range-query);
-* `query`: the executed [MetricsQL](https://docs.victoriametrics.com/metricsql/) query;
+* `query`: the executed [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query;
 * `query_hash`: a hash of the `query`. This makes it easier to filter logs for a specific query;
 * `start_ms`, `end_ms`, `step_ms` are query params described [here](https://docs.victoriametrics.com/keyconcepts/#range-query);
 * `range_ms`: a time range in milliseconds between `start_ms` and `end_ms`. If `range_ms==0` it means this query is instant;
