@@ -50,7 +50,7 @@ var (
 		"See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
-		"See https://docs.victoriametrics.com/sd_configs/#file_sd_configs for details")
+		"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.
