@@ -31,7 +31,7 @@ export const TipHighNumberOfSeries: FC = () => (
       </li>
       <li>
         Aggregate time series before they got ingested into the database via&nbsp;
-        <Hyperlink href='https://docs.victoriametrics.com/stream-aggregation.html'>streaming aggregation</Hyperlink>
+        <Hyperlink href='https://docs.victoriametrics.com/victoriametrics/stream-aggregation/'>streaming aggregation</Hyperlink>
       </li>
     </ul>
   </TipCard>

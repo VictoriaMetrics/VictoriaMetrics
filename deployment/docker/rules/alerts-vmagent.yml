@@ -157,5 +157,5 @@ groups:
           severity: warning
         annotations:
           summary: "Deduplication \"{{ $labels.job }}\" (instance {{ $labels.instance }}) can't be finished within configured deduplication interval."
-          description: "Deduplication process can't keep up with the load and might produce incorrect results. Check docs https://docs.victoriametrics.com/stream-aggregation/#deduplication and logs for more details.
+          description: "Deduplication process can't keep up with the load and might produce incorrect results. Check docs https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication and logs for more details.
             Possible solutions: increase deduplication interval; deduplicate smaller number of series; reduce samples' ingestion rate."

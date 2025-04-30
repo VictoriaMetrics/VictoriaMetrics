@@ -102,7 +102,7 @@ alerting/recording rules into a different storage than the initial data that's
 queried. This allows using `vmalert` to aggregate data from a short-term,
 high-frequency, high-cardinality storage into a long-term storage with
 decreased cardinality and a bigger interval between samples.
-See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/).
+See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
@@ -652,7 +652,7 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
-_Please note, [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) might be more efficient
+_Please note, [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) might be more efficient
 for cases when downsampling or aggregation need to be applied **before data gets into the TSDB.**_
 
 `vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
@@ -706,7 +706,7 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
-See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
+See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
 
 #### Multiple remote writes
 
