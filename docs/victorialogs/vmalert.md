@@ -302,7 +302,7 @@ We recommend running separate instances of vmalert for VictoriaMetrics and Victo
 However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
 But only one `-datasource.url` cmd-line flag can be specified, so it can't be configured with more than 1 datasource.
 VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, so it is possible to use
-[vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
+[vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) to route requests of different types between datasources.
 See example of vmauth config for such routing below:
 ```yaml
     unauthorized_user:

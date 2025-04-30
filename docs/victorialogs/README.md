@@ -203,7 +203,7 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 - **VictoriaLogs Single-Node Instances**: Use two or more instances to achieve HA.
 
-- **[vmauth](https://docs.victoriametrics.com/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
+- **[vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
 
 ![VictoriaLogs Single-Node Instance High-Availability schema](ha-victorialogs-single-node.webp)
 
@@ -272,11 +272,11 @@ If `AccountID` and/or `ProjectID` request headers aren't set, then the default `
 
 VictoriaLogs has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaLogs instance.
 
-VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
+VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or similar tools for per-tenant authorization.
 
 ### Multitenancy access control
 
-Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/vmauth/). Access control can be configured for each tenant by setting up the following rules:
+Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/). Access control can be configured for each tenant by setting up the following rules:
 
 ```yaml
 users:
@@ -309,7 +309,7 @@ This configuration allows `foo` to use the `/select/.*` and `/insert/.*` endpoin
 
 It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
 It is recommended providing access to VictoriaLogs [data ingestion APIs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/vmauth/)
+and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 or similar authorization proxies.
 
 ## Benchmarks

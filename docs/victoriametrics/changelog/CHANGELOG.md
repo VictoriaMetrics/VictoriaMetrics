@@ -4,7 +4,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#building-from-sources)
 * [How to build vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-build-from-sources)
 * [How to build vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#how-to-build-from-sources)
-* [How to build vmauth](https://docs.victoriametrics.com/vmauth/#how-to-build-from-sources)
+* [How to build vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#how-to-build-from-sources)
 * [How to build vmbackup](https://docs.victoriametrics.com/vmbackup/#how-to-build-from-sources)
 * [How to build vmrestore](https://docs.victoriametrics.com/vmrestore/#how-to-build-from-sources)
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl/#how-to-build)
@@ -76,7 +76,7 @@ Released at 2025-04-04
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly set the `Host` header when routing requests to `-write.url` and `-read.url`, which is needed for reverse proxies like Traefik.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html): properly attach tenant labels `vm_account_id` and `vm_project_id` to alerting rules when enabling `-clusterMode`. Previously, these labels were lost in alert messages to Alertmanager. Bug was introduced in [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix auto-suggestion functionality inside functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8379).
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): return `502 Bad Gateway` status code in case request failed due to a network timeout. Previously, vmauth would incorrectly return `200 OK`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8621).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): return `502 Bad Gateway` status code in case request failed due to a network timeout. Previously, vmauth would incorrectly return `200 OK`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8621).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8634).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix compatibility with S3-compatible storages which do not support data integrity checks. See [this issue](https://github.com/victoriaMetrics/victoriaMetrics/issues/8622).
 
@@ -196,7 +196,7 @@ Released at 2025-02-10
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to switch the heatmap to a line chart. Now, vmui would suggest to switch to line graph display if heatmap can't be properly rendered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8057).
-* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `-httpInternalListenAddr` cmd-line flag to serve internal HTTP routes `/metrics`, `/flags`, etc. It allows properly route requests to backends with the same service routes as vmauth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6468) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7345) for details.
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `-httpInternalListenAddr` cmd-line flag to serve internal HTTP routes `/metrics`, `/flags`, etc. It allows properly route requests to backends with the same service routes as vmauth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6468) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7345) for details.
 * FEATURE: expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly perform graceful shutdown for kafka client.
@@ -232,7 +232,7 @@ The v1.110.x line will be supported for at least 12 months since [v1.110.0](http
 * SECURITY: upgrade Go builder from Go1.23.6 to Go1.23.8. See the list of issues addressed in [Go1.23.8](https://github.com/golang/go/issues?q=milestone%3AGo1.23.8+label%3ACherryPickApproved).
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly set the `Host` header when routing requests to `-write.url` and `-read.url`, which is needed for reverse proxies like Traefik.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): return `502 Bad Gateway` status code in case request failed due to a network timeout. Previously, vmauth would incorrectly return `200 OK`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8621).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): return `502 Bad Gateway` status code in case request failed due to a network timeout. Previously, vmauth would incorrectly return `200 OK`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8621).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix compatibility with S3-compatible storages which do not support data integrity checks. See [this issue](https://github.com/victoriaMetrics/victoriaMetrics/issues/8622).
 
 ## [v1.110.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.4)
@@ -321,7 +321,7 @@ Released at 2025-01-24
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): all dashboards that use [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) were updated to use a [new datasource ID](https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/tag/v0.12.0).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): reflect column settings for the table view in URL, so the table view can be shared via link. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7662).
 
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix possible runtime panic during requests processing under heavy load. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix possible runtime panic during requests processing under heavy load. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051) for details.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix panic when trying to delete series by using [multitenant read](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8126) for the details.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when `vmselect` receives an error response from `vmstorage` during the query execution and request processing for other `vmstorage` nodes is still in progress. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8114) for the details.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: properly trim whitespaces at the end of license provided via `-license` and `-licenseFile` command-line flags. Previously, the trailing whitespaces could cause the license verification to fail.
@@ -361,8 +361,8 @@ Released at 2025-01-14
 * BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): consistently use `vmagent_remotewrite_pending_data_bytes` on vmagent dashboard to represent persistent queue size.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the auto-generated metrics `ALERTS` and `ALERTS_FOR_STATE` for alerting rules. Previously, metrics might have incorrect labels and affect the restore process. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7796).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victorialogs/vmalert/): do not append tenant info to VictoriaLogs datasource request path in [clusterMode](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/#how-to-use-multitenancy-in-rules) for how to use multitenancy in VictoriaLogs.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly set `host` field at debug information formatted with `dump_request_on_errors: true` setting.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly set `host` field at debug information formatted with `dump_request_on_errors: true` setting.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest `influx` line protocol metrics with empty tags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7933) for details.
@@ -429,7 +429,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 * SECURITY: upgrade Go builder from Go1.23.6 to Go1.23.8. See the list of issues addressed in [Go1.23.8](https://github.com/golang/go/issues?q=milestone%3AGo1.23.8+label%3ACherryPickApproved).
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly set the `Host` header when routing requests to `-write.url` and `-read.url`, which is needed for reverse proxies like Traefik.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): return `502 Bad Gateway` status code in case request failed due to a network timeout. Previously, vmauth would incorrectly return `200 OK`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8621).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): return `502 Bad Gateway` status code in case request failed due to a network timeout. Previously, vmauth would incorrectly return `200 OK`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8621).
 
 ## [v1.102.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.17)
 
@@ -528,7 +528,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 * SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
 
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix possible runtime panic during requests processing under heavy load. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix possible runtime panic during requests processing under heavy load. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051) for details.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: properly trim whitespaces at the end of license provided via `-license` and `-licenseFile` command-line flags. Previously, the trailing whitespaces could cause the license verification to fail.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: remove unnecessary delay before failing if all online verification attempts have failed. This should reduce the time required for the component to proceed if all online verification attempts have failed.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): don't take into account the last raw sample before the lookbehind window is sample exceeds the staleness interval. This affects correctness of increase, increase_pure, delta functions when performing calculations on time series with gaps. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002) for details.
@@ -546,7 +546,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): make instant query results consistent. VictoriaMetrics detects and adjusts scrape interval and while this is very useful for range queries (i.e. this eliminates gaps on the graph), it may cause instant queries to return a non-empty result when no result is expected. The fix is to disable scrape interval detection and always use the step as the scrape interval in instant queries. This will guarantee that the samples are searched within the (time-step, time] interval. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix cursor reset in query input field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7288).
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 

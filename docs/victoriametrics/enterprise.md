@@ -65,12 +65,12 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/#automatic-issuing-of-tls-certificates).
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection).
-- [mTLS-based request routing](https://docs.victoriametrics.com/vmauth/#mtls-based-request-routing).
+- [mTLS-based request routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#google-pubsub-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage).
-- [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters).
+- [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
 

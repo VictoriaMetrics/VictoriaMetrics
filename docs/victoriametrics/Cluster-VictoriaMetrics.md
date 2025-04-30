@@ -79,7 +79,7 @@ Some facts about tenants in VictoriaMetrics:
 - Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth/)
+by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 or [vmgateway](https://docs.victoriametrics.com/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
 
 - Tenants are automatically created when the first data point is written into the given tenant.
@@ -262,7 +262,7 @@ It is recommended to run at least two nodes for each service for high availabili
 
 It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
 
-An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth/) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
+An http load balancer such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
 It must contain the following routing configs according to [the url format](#url-format):
 
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
@@ -291,7 +291,7 @@ if some of its components are temporarily unavailable.
 VictoriaMetrics cluster remains available if the following conditions are met:
 
 - HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
-  ([vmauth](https://docs.victoriametrics.com/vmauth/) stops routing requests to unavailable nodes).
+  ([vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) stops routing requests to unavailable nodes).
 
 - At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
   The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
@@ -483,7 +483,7 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 General security recommendations:
 
 - All the VictoriaMetrics cluster components must run in protected private network without direct access from untrusted networks such as Internet.
-- External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/vmauth/)
+- External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
   or [vmgateway](https://docs.victoriametrics.com/vmgateway/).
 - The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from MitM attacks.
 - It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
@@ -496,7 +496,7 @@ and [the general security page at VictoriaMetrics website](https://victoriametri
 ### mTLS protection
 
 By default `vminsert` and `vmselect` nodes accept http requests at `8480` and `8481` ports accordingly (these ports can be changed via `-httpListenAddr` command-line flags),
-since it is expected that [vmauth](https://docs.victoriametrics.com/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
+since it is expected that [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is used for authorization and [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy)
 in front of `vminsert` and `vmselect`.
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at `8480` and `8481` ports for `vminsert` and `vmselect` nodes, by specifying `-tls` and `-mtls` command-line flags.
