@@ -53,7 +53,7 @@ Although this mode is designed to be as flexible as possible, it includes a pre-
 
 ### Grafana Dashboard
 
-> Note: [For additional benefits](https://docs.victoriametrics.com/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics-datasource/#installation) to enable datasource in Grafana.
+> Note: [For additional benefits](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation) to enable datasource in Grafana.
 
 You can find the Grafana dashboard `.json` file either [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default/dashboard.json) or, for already running `vmanomaly` instance: `http://localhost:8490/presets/dashboard.json`. 
 
