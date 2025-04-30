@@ -97,18 +97,18 @@ scrape_configs:
     - http://localhost:8428/metrics
 ```
 
-The [`scrape_configs`](https://docs.victoriametrics.com/sd_configs/#scrape_configs) section contains a list of scrape configs.
+The [`scrape_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) section contains a list of scrape configs.
 Our `scrape.yaml` file contains two scrape configs - for `job_name: node-exporter` and for `job_name: victoriametrics`.
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 can efficiently process thousands of scrape configs in production.
 
 Every scrape config in the list **must** contain `job_name` field - its' value is used as [`job`](https://prometheus.io/docs/concepts/jobs_instances/) label
 in all the metrics scraped from targets defined in this scrape config.
-Every scrape config must contain at least a single section from [this list](https://docs.victoriametrics.com/sd_configs/#supported-service-discovery-configs).
-Every scrape config may contain other options described [here](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
+Every scrape config must contain at least a single section from [this list](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs).
+Every scrape config may contain other options described [here](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
 
-In our case only [`static_configs`](https://docs.victoriametrics.com/sd_configs/#static_configs) sections are used.
-These sections consist of a list of static configs according to [these docs](https://docs.victoriametrics.com/sd_configs/#static_configs).
+In our case only [`static_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs) sections are used.
+These sections consist of a list of static configs according to [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs).
 Every static config contains a list of `targets`, which need to be scraped. The target address is used as [`instance`](https://prometheus.io/docs/concepts/jobs_instances/)
 label in all the metrics scraped from the target.
 
@@ -122,8 +122,8 @@ It is possible to modify scrape urls via [relabeling](https://docs.victoriametri
 
 ## File-based target discovery
 
-It may be not so convenient updating `scrape.yaml` file with [`static_configs`](https://docs.victoriametrics.com/sd_configs/#static_configs)
-every time new scrape target is added, changed or removed. In this case [`file_sd_configs`](https://docs.victoriametrics.com/sd_configs/#file_sd_configs)
+It may be not so convenient updating `scrape.yaml` file with [`static_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs)
+every time new scrape target is added, changed or removed. In this case [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs)
 can come to rescue. It allows defining a list of scrape targets in `JSON` files, and automatically updating the list of scrape targets
 at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
 when the corresponding `JSON` files are updated.
@@ -178,7 +178,7 @@ and full urls in scrape target lists.
 Save the updated `node_exporter_targets.json`, wait for 30 seconds and then refresh the `http://localhost:8428/targets` page.
 Now this page must contain all the targets defined in the updated `node_exporter_targets.json`.
 By default [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
-check for updates in `files` specified at [`file_sd_configs`](https://docs.victoriametrics.com/sd_configs/#file_sd_configs)
+check for updates in `files` specified at [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs)
 every 30 seconds. This interval can be changed via `-promscrape.fileSDCheckInterval` command-line flag.
 For example, the following command starts VictoriaMetrics, which checks for updates in `file_sd_configs` every 5 seconds:
 
@@ -202,7 +202,7 @@ scrape_configs:
 ```
 
 It is possible to specify directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
-See [these docs](https://docs.victoriametrics.com/sd_configs/#file_sd_configs) for details.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs) for details.
 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
 can efficiently scrape tens of thousands of scrape targets. If you need scraping more targets,
@@ -214,8 +214,8 @@ It is possible to modify scrape urls via [relabeling](https://docs.victoriametri
 
 ## HTTP-based target discovery
 
-It may not so convenient maintaining a list of local files for [`file_sd_configs`](https://docs.victoriametrics.com/sd_configs/#file_sd_configs).
-In this case [`http_sd_configs`](https://docs.victoriametrics.com/sd_configs/#http_sd_configs) can help.
+It may not so convenient maintaining a list of local files for [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs).
+In this case [`http_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http_sd_configs) can help.
 They allow specifying a list of `http` or `https` urls, which return targets, which need to be scraped.
 For example, the following [`-promscrape.config`](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 periodically fetches the list of targets from the specified url:
@@ -263,7 +263,7 @@ scrape_configs:
     target_label: node
 ```
 
-See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
+See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
 See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
 
@@ -301,7 +301,7 @@ scrape_configs:
     action: keep
 ```
 
-See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
+See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
 See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
 
@@ -339,11 +339,11 @@ scrape_configs:
     target_label: instance
 ```
 
-See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
+See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
 See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
 
-See [these docs](https://docs.victoriametrics.com/sd_configs/#http-api-client-options) for details on `bearer_token_file` and `tls_config` options.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options) for details on `bearer_token_file` and `tls_config` options.
 
 ### Discovering and scraping metrics for a particular container in Kubernetes
 
@@ -380,6 +380,6 @@ scrape_configs:
     target_label: container
 ```
 
-See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) for more details.
+See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
 See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.

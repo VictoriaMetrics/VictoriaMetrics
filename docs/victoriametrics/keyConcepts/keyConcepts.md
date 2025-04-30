@@ -386,7 +386,7 @@ and to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 The pros of push model:
 
 * Simpler configuration at VictoriaMetrics side - there is no need to configure VictoriaMetrics with locations of the monitored applications.
-  There is no need in complex [service discovery schemes](https://docs.victoriametrics.com/sd_configs/).
+  There is no need in complex [service discovery schemes](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 * Simpler security setup - there is no need to set up access from VictoriaMetrics to each monitored application.
 
 See [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
@@ -429,7 +429,7 @@ The pros of the pull model:
 The cons of the pull model:
 
 * Harder security setup - monitoring system needs to have access to applications it monitors.
-* Pull model needs non-trivial [service discovery schemes](https://docs.victoriametrics.com/sd_configs/).
+* Pull model needs non-trivial [service discovery schemes](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 
 ### Common approaches for data collection
 

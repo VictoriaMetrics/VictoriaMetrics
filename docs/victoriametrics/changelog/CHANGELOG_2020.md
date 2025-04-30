@@ -107,7 +107,7 @@ Released at 2020-11-26
 * FEATURE: vmselect: add `-replicationFactor` command-line flag for reducing query duration when replication is enabled and a part of vmstorage nodes
   are temporarily slow and/or temporarily unavailable. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711>
 * FEATURE: vminsert: export `vm_rpc_vmstorage_is_reachable` metric, which can be used for monitoring reachability of vmstorage nodes from vminsert nodes.
-* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://docs.victoriametrics.com/sd_configs/#eureka_sd_configs)). See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851>
+* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#eureka_sd_configs)). See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851>
 * FEATURE: add `filters` option to `dockerswarm_sd_config` like Prometheus did in v2.23.0 - see <https://github.com/prometheus/prometheus/pull/8074>
 * FEATURE: expose `__meta_ec2_ipv6_addresses` label for `ec2_sd_config` like Prometheus will do in the next release.
 * FEATURE: add `-loggerWarnsPerSecondLimit` command-line flag for rate limiting of WARN messages in logs. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905>
@@ -220,7 +220,7 @@ Released at 2020-10-13
      node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
   ```
 
-* FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://docs.victoriametrics.com/sd_configs/#dockerswarm_sd_configs)).
+* FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#dockerswarm_sd_configs)).
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/656>
 * FEATURE: add ability to export data in CSV format. See [these docs](https://docs.victoriametrics.com/#how-to-export-csv-data) for details.
 * FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
@@ -277,7 +277,7 @@ Released at 2020-10-06
 
 * FEATURE: reduce CPU usage for repeated queries over sliding time window when no new time series are added to the database.
   Typical use cases: repeated evaluation of alerting rules in [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or dashboard auto-refresh in Grafana.
-* FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs).
+* FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#openstack_sd_configs).
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728> .
 * FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795> .
