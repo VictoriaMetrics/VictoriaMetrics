@@ -226,7 +226,7 @@ In order to use Enterprise components it is required to provide the license key 
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
-For example, the following custom resource for [VictoriaMetrics single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+For example, the following custom resource for [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
 is used to provide key in plain-text:
 
 ```yaml

@@ -12,7 +12,7 @@ aliases:
   - /vmbackup/index.html
   - /vmbackup/
 ---
-`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
+`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
@@ -48,8 +48,8 @@ Regular backup can be performed with the following command:
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
-  There is no need to stop VictoriaMetrics for creating backups since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
-* `http://victoriametrics:8428/snapshot/create` is the url for creating snapshots according to [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots). `vmbackup` creates a snapshot by querying the provided `-snapshot.createURL`, then performs the backup and then automatically removes the created snapshot.
+  There is no need to stop VictoriaMetrics for creating backups since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
+* `http://victoriametrics:8428/snapshot/create` is the url for creating snapshots according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots). `vmbackup` creates a snapshot by querying the provided `-snapshot.createURL`, then performs the backup and then automatically removes the created snapshot.
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
@@ -87,7 +87,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
-This command creates an [instant snapshot](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots)
+This command creates an [instant snapshot](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots)
 and uploads it to `gs://<bucket>/latest`. It uploads only the changed data (aka incremental backup). This saves network bandwidth costs and time
 when backing up large amounts of data.
 
@@ -181,7 +181,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If `vmbackup` eats all the network bandwidth or CPU, then either decrease the `-concurrency` command-line flag value or set `-maxBytesPerSecond` command-line flag value to lower value.
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
-* Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) cannot be restored
+* Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
 
 ## Advanced usage
@@ -481,7 +481,7 @@ Run `vmbackup -help` in order to see all the available options:
   -snapshot.tlsServerName string
      Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used
   -snapshotName string
-     Name for the snapshot to backup. See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
+     Name for the snapshot to backup. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls array

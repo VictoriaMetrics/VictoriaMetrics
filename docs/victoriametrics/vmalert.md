@@ -22,7 +22,7 @@ protocol and require `-remoteWrite.url` to be configured.
 `vmalert` is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
-A [single-node](https://docs.victoriametrics.com/single-server-victoriametrics/#vmalert)
+A [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
 or [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
 of VictoriaMetrics are capable of proxying requests to `vmalert` via `-vmalert.proxyURL` command-line flag. 
 Use this feature for the following cases:
@@ -444,7 +444,7 @@ Alerting notifications sent by vmalert always contain a `source` link. By defaul
 is the following `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>`. On click, it opens
 vmalert [web UI](https://docs.victoriametrics.com/victoriametrics/vmalert/#web) to show the alert status and its fields.
 
-It is possible to override the link format. For example, to make the link to [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui)
+It is possible to override the link format. For example, to make the link to [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
 specify the following cmd-line flags:
 ```
 ./bin/vmalert \
@@ -627,7 +627,7 @@ Alertmanagers.
 
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
-don't forget to configure [deduplication](https://docs.victoriametrics.com/single-server-victoriametrics/#deduplication).
+don't forget to configure [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication).
 Multiple equally configured vmalerts should evaluate rules at the same timestamps, so it is recommended 
 to set `-dedup.minScrapeInterval` as equal to vmalert's `-evaluationInterval`.
 
@@ -738,11 +738,11 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
-`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 This may be used for better integration with Grafana unified alerting system. See the following docs for details:
 
-* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#vmalert)
+* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
 * [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
 
 
@@ -767,7 +767,7 @@ data source for backfilling.
 
 Please note, that response caching may lead to unexpected results during and after backfilling process.
 In order to avoid this you need to reset cache contents or disable caching when using backfilling
-as described in [backfilling docs](https://docs.victoriametrics.com/single-server-victoriametrics/#backfilling).
+as described in [backfilling docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling).
 
 See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
 
@@ -928,7 +928,7 @@ becomes false, then alert's state resets to the initial state.
 
 If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
 `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
-[vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) or Grafana to track how alerts state
+[vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how alerts state
 changed in time.
 
 vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)) 
@@ -1012,7 +1012,7 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 ## Security
 
-See general recommendations regarding security [here](https://docs.victoriametrics.com/single-server-victoriametrics/#security).
+See general recommendations regarding security [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
 vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
 [alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached

@@ -792,7 +792,7 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
+The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#data-migration).
 
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
@@ -992,7 +992,7 @@ Run the following command to get all configuration options:
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
-[native format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-native-format)
+[native format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format)
 from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
@@ -1345,9 +1345,9 @@ Flags available only for the `vm-native` command:
      Time series selector to match series for export. For example, select {instance!="localhost"} will match all series with "instance" label different to "localhost".
      See more details here https://github.com/VictoriaMetrics/VictoriaMetrics#how-to-export-data-in-native-format (default: "{__name__!=\"\"}")
    --vm-native-filter-time-start value
-     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
+     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
    --vm-native-filter-time-end value
-     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
+     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
    --vm-native-step-interval value
      The time interval to split the migration into steps. For example, to migrate 1y of data with '--vm-native-step-interval=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--vm-native-filter-time-reverse'. Requires setting '--vm-native-filter-time-start'. Valid values are 'month','week','day','hour','minute'. (default: "month")
    --vm-native-filter-time-reverse

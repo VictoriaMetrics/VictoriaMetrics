@@ -112,12 +112,12 @@ In addition to InfluxDB line protocol, VictoriaMetrics supports many other ways 
 ## Query data
 
 VictoriaMetrics does not have a command-line interface (CLI). Instead, it provides
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - a graphical User Interface for
+[VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) - a graphical User Interface for
 querying and visualizing metrics:
 
 ![Migrate from Influx](vmui.webp)
 
-VictoriaMetrics can be configured as [Grafana datasource](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
+VictoriaMetrics can be configured as [Grafana datasource](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
 See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
 ### Basic concepts
@@ -213,7 +213,7 @@ migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/victori
 Migrating data from InfluxDB v2.x is not supported. But there is a useful [3rd party solution](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-2x) 
 for this.
 
-Please note, data migration is a backfilling process, so read about [backfilling tips](https://docs.victoriametrics.com/single-server-victoriametrics/#backfilling).
+Please note, data migration is a backfilling process, so read about [backfilling tips](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling).
 
 ## Frequently asked questions
 

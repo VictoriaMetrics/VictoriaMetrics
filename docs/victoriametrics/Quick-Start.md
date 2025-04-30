@@ -18,7 +18,7 @@ aliases:
 
 VictoriaMetrics is available in the following distributions:
 
-* [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
+* [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) - all-in-one
   binary that is easy to run and maintain. Single-server-VictoriaMetrics perfectly scales vertically and easily handles
   millions of metrics;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) - set of components
@@ -35,13 +35,13 @@ VictoriaMetrics is available as:
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
-  See [How to build from sources](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-build-from-sources)
+  See [How to build from sources](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-build-from-sources)
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
-Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-start-victoriametrics).
-Then read [Prometheus setup](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup)
-and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup) docs.
+Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
+Then read [Prometheus setup](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
+and [Grafana setup](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup) docs.
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) 
 and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
@@ -156,7 +156,7 @@ END'
 
 Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
 
-If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/single-server-victoriametrics/#running-as-windows-service).
+If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#running-as-windows-service).
 
 > Please note, `victoriametrics` service is listening on `:8428` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -366,12 +366,12 @@ See documentation for configuring [metrics collectors](https://docs.victoriametr
 
 ## Query data
 
-VictoriaMetrics has built-in [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical
+VictoriaMetrics has built-in [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) - graphical
 User Interface for querying and visualizing metrics. [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) - is the
 query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#metricsql).
 
-VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
-for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
+VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
+for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
 
 See more details on [querying data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
@@ -422,7 +422,7 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 ### Capacity planning
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
-[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning)
+[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
 and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
@@ -437,13 +437,13 @@ All of them are present in [Grafana dashboards](https://grafana.com/orgs/victori
 
 It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
-and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#backups).
+and [backups](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backups).
 
 ### Configuring limits
 
 To avoid excessive resource usage or performance degradation limits must be in place:
 * [Resource usage limits](https://docs.victoriametrics.com/victoriametrics/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
-* [Cardinality limiter](https://docs.victoriametrics.com/single-server-victoriametrics/#cardinality-limiter).
+* [Cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).
 
 ### Security recommendations
 
