@@ -636,7 +636,7 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 	stateSizeBudget := int(n)
 
 	// merge state across shards
-	shards := pcp.shards.GetSlice()
+	shards := pcp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

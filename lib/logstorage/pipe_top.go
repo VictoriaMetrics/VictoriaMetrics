@@ -429,7 +429,7 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() []*pipeTopEntry {
 		return nil
 	}
 
-	shards := ptp.shards.GetSlice()
+	shards := ptp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}
