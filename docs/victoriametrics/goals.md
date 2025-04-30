@@ -12,7 +12,7 @@ aliases:
 ---
 ## Goals
 
-1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/enterprise/) resolving issues with VictoriaMetrics components,
+1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/victoriametrics/enterprise/) resolving issues with VictoriaMetrics components,
    so they could use these components in the most efficient way**.
 1. Fixing bugs in the essential functionality of VictoriaMetrics components. Small usability bugs are usually the most annoying,
    so they **must be fixed first**.
@@ -53,7 +53,7 @@ aliases:
   with VictoriaMetrics components in the most efficient way. Nobody uses new shiny feature if it isn't documented properly.
 
 - **Happy users are more important than the momentary revenue.** Happy users spread the word about VictoriaMetrics,
-  so more people convert to VictoriaMetrics users. Happy users are eager to become happy [customers](https://docs.victoriametrics.com/enterprise/).
+  so more people convert to VictoriaMetrics users. Happy users are eager to become happy [customers](https://docs.victoriametrics.com/victoriametrics/enterprise/).
   This increases long-term revenue.
 
 - **Simple solution is better than smart solution.** Simple solution is easier to setup, operate, debug and troubleshoot than the smart solution.

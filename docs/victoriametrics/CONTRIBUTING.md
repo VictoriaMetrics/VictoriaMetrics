@@ -23,7 +23,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
   - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/CaseStudies.md)
   - comments at Hacker News, Twitter, LinkedIn, Reddit, Facebook, etc.
   - experience sharing with colleagues.
-- Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/enterprise/) with VictoriaMetrics.
+- Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/victoriametrics/enterprise/) with VictoriaMetrics.
 
 ## Issues
 

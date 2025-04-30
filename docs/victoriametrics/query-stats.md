@@ -14,7 +14,7 @@ aliases:
 - /query-stats/
 ---
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise/) supports logging statistics {{% available_from "v1.116.0" %}} for
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports logging statistics {{% available_from "v1.116.0" %}} for
 read queries made through the [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) APIs.
 
