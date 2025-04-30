@@ -82,7 +82,7 @@ func (app *Vminsert) ClusternativeListenAddr() string {
 // collection of records in Influx line format by sending a HTTP
 // POST request to /influx/write vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#influxwrite
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#influxwrite
 func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
@@ -118,7 +118,7 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 // tenant by sending a HTTP POST request to
 // /prometheus/api/v1/import/prometheus vminsert endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
