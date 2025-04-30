@@ -181,8 +181,8 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 ## How to remove labels from scraped metrics
 
 Sometimes it may be needed to remove labels from scraped metrics. For example, if some labels
-lead to [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-or [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issues,
+lead to [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
+or [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues,
 then it may be a good idea to drop these labels during scrapes.
 This can be done with `action: labeldrop` or `action: labelkeep` relabeling rules at `metric_relabel_configs` section:
 
@@ -218,8 +218,8 @@ See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling)
 ## How to drop metrics during scrape
 
 Sometimes it is needed to drop some metrics during scrapes. For example, if some metrics result
-in [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-or [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issues,
+in [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
+or [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues,
 then it may be a good idea to drop these metrics during scrapes. This can be done with the `action: drop` or `action: keep`
 relabeling rules at `metric_relabel_configs` section:
 

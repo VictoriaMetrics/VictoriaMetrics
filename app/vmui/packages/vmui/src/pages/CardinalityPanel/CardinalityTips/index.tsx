@@ -21,9 +21,9 @@ export const TipHighNumberOfSeries: FC = () => (
     <ul>
       <li>
         Identify and eliminate labels with frequently changed values to reduce their&nbsp;
-        <Hyperlink href='https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality'>cardinality</Hyperlink>
+        <Hyperlink href='https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality'>cardinality</Hyperlink>
         &nbsp;and&nbsp;
-        <Hyperlink href='https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate'>high churn rate</Hyperlink>
+        <Hyperlink href='https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate'>high churn rate</Hyperlink>
       </li>
       <li>
         Find unused time series and&nbsp;

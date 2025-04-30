@@ -388,7 +388,7 @@ Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-serve
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
 
 Single-node VictoriaMetrics is able to handle quite big workloads in production
-with tens of millions of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
+with tens of millions of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
 at the ingestion rate of million of samples per second. See [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#wixcom).
 
 Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
@@ -473,7 +473,7 @@ after historical data is removed from the old `vmstorage` nodes because it goes 
 The data ingestion load becomes even between old `vmstorage` nodes and new `vmstorage` nodes almost immediately
 after adding new `vmstorage` nodes to the cluster, since `vminsert` nodes evenly distribute incoming time series
 among the nodes specified in `-storageNode` command-line flag. The newly added `vmstorage` nodes may experience
-increased load during the first couple of minutes because they need to register [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
+increased load during the first couple of minutes because they need to register [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
 The query load becomes even between old `vmstorage` nodes and new `vmstorage` nodes after most of queries are executed
 over time ranges with data covered by new `vmstorage` nodes. Usually the most of queries are received

@@ -204,7 +204,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
 There are the following most commons reasons for slow data ingestion in VictoriaMetrics:
 
-1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
+1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
    VictoriaMetrics (or `vmstorage` in cluster version of VictoriaMetrics) maintains an in-memory cache
    for quick search for internal series ids per each incoming metric.
@@ -216,7 +216,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
    contain `Slow inserts` graph, which shows the cache miss percentage for `storage/tsid` cache
    during data ingestion. If `slow inserts` graph shows values greater than 5% for more than 10 minutes,
-   then it is likely the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
+   then it is likely the current number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
    cannot fit the `storage/tsid` cache.
 
    There are the following solutions exist for this issue:
@@ -229,20 +229,20 @@ There are the following most commons reasons for slow data ingestion in Victoria
    - To reduce the number of active time series. The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
      contain a graph showing the number of active time series. Recent versions of VictoriaMetrics
      provide [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
-     which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality).
+     which can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality).
 
-1. [High churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate),
+1. [High churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
    e.g. when old time series are substituted with new time series at a high rate.
    When VictoriaMetrics encounters a sample for new time series, it needs to register the time series
    in the internal index (aka `indexdb`), so it can be quickly located on subsequent select queries.
    The process of registering new time series in the internal index is an order of magnitude slower
    than the process of adding new sample to already registered time series.
-   So VictoriaMetrics may work slower than expected under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+   So VictoriaMetrics may work slower than expected under [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
    The [official Grafana dashboards for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
    provides `Churn rate` graph, which shows the average number of new time series registered
-   during the last 24 hours. If this number exceeds the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series),
-   then you need to identify and fix the source of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+   during the last 24 hours. If this number exceeds the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series),
+   then you need to identify and fix the source of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
    The most commons source of high churn rate is a label, which frequently changes its value. Try avoiding such labels.
    The [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help identifying
    such labels.
@@ -459,7 +459,7 @@ at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cl
     /
   sum(vm_data_size_bytes{type=~"(storage|indexdb)/.+"}) without(type)
   ```
-  If this query returns values bigger than 0.5, then it is likely there is a [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) issue,
+  If this query returns values bigger than 0.5, then it is likely there is a [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issue,
   which results in excess disk space usage for both `indexdb` and `data` folders under `-storageDataPath` folder.
   The solution is to identify and fix the source of high churn rate with [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer).
 

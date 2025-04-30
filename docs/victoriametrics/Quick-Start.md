@@ -427,10 +427,10 @@ and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/c
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
 Understanding resource usage and performance of VictoriaMetrics also requires knowing the tech terms
-[active series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series),
-[churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate),
-[cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality),
-[slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert).
+[active series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series),
+[churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
+[cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality),
+[slow inserts](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-a-slow-insert).
 All of them are present in [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 
 ### Data safety
@@ -442,7 +442,7 @@ and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#ba
 ### Configuring limits
 
 To avoid excessive resource usage or performance degradation limits must be in place:
-* [Resource usage limits](https://docs.victoriametrics.com/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
+* [Resource usage limits](https://docs.victoriametrics.com/victoriametrics/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
 * [Cardinality limiter](https://docs.victoriametrics.com/single-server-victoriametrics/#cardinality-limiter).
 
 ### Security recommendations

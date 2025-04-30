@@ -103,7 +103,7 @@ This global panel holds resource utilization (CPU, RAM, File Descriptors) on bot
 <img src="../vmanomaly-dashboard-3-global-panel-resources.webp" alt="vmanomaly-dashboard-3-global-resources" width="800px"/>
 
 **Healthy scenario**:
-- **Timeseries graphs**: Should appear stable over time, without significant spikes or drops. An absence of upward trends (e.g., trends in RAM usage may indicate a [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) in your input data).
+- **Timeseries graphs**: Should appear stable over time, without significant spikes or drops. An absence of upward trends (e.g., trends in RAM usage may indicate a [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) in your input data).
 
 ### Model Statistics
 
@@ -114,7 +114,7 @@ These panels contain repeated blocks for each unique `model_alias` (a distinct e
 **Healthy scenario**:
 - **Erroneous Runs**: There should be zero erroneous runs. Any errors suggest potential issues with the service or uncaught corner cases that need immediate attention.
 - **Skipped Runs**: Should be minimal, ideally none. A significant number of skipped runs may indicate missing data, configuration problems, high churn rate (resulting in no models trained yet for new time series), or other underlying issues.
-- **Timeseries graphs**: Should remain stable over time, without significant spikes or drops. An absence of upward trends (e.g., in RAM usage) could indicate normal operation without excessive [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+- **Timeseries graphs**: Should remain stable over time, without significant spikes or drops. An absence of upward trends (e.g., in RAM usage) could indicate normal operation without excessive [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
 ---
 
