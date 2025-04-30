@@ -36,7 +36,7 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 ## Features
 
-* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/metricsql/);
+* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/);
 * Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
@@ -224,7 +224,7 @@ rules:
 ### Rules
 
 Every rule contains `expr` field for [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression. `vmalert` will execute the configured
+or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression. `vmalert` will execute the configured
 expression and then act according to the Rule type.
 
 There are two types of Rules:
@@ -328,7 +328,7 @@ Additionally, `vmalert` provides some extra templating functions listed [here](#
 - `parseDurationTime` - parses the input string into [time.Duration](https://pkg.go.dev/time#Duration).
 - `pathEscape` - escapes the input string, so it can be safely put inside path part of URL.
 - `pathPrefix` - returns the path part of the `-external.url` command-line flag.
-- `query` - executes the [MetricsQL](https://docs.victoriametrics.com/metricsql/) query against `-datasource.url` and returns the query result.
+- `query` - executes the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query against `-datasource.url` and returns the query result.
   For example, `{{ query "sort_desc(process_resident_memory_bytes)" | first | value }}` executes the `sort_desc(process_resident_memory_bytes)`
   query at `-datasource.url` and returns the first result.
 - `queryEscape` - escapes the input string, so it can be safely put inside [query arg](https://en.wikipedia.org/wiki/Percent-encoding) part of URL.
@@ -994,7 +994,7 @@ For example, a rule with `expr: {__name__=~"vmalert_alerts_.*"} > 0` returns two
 ```
 
 As label `__name__` will be dropped during evaluation, leads to duplicated time series.
-To fix this, one could use function like [label_replace](https://docs.victoriametrics.com/metricsql/#label_replace) to preserve the distinct labelset.
+To fix this, one could use function like [label_replace](https://docs.victoriametrics.com/victoriametrics/metricsql/#label_replace) to preserve the distinct labelset.
 
 ## mTLS protection
 

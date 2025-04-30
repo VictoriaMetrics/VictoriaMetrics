@@ -124,9 +124,9 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
      to reduce the number of returned series.
 
    Sometimes the query may be improperly constructed, so it returns unexpected results.
-   It is recommended reading and understanding [MetricsQL docs](https://docs.victoriametrics.com/metricsql/),
-   especially [subqueries](https://docs.victoriametrics.com/metricsql/#subqueries)
-   and [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions) sections.
+   It is recommended reading and understanding [MetricsQL docs](https://docs.victoriametrics.com/victoriametrics/metricsql/),
+   especially [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries)
+   and [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) sections.
 
 1. If the simplest query continues returning unexpected / unreliable results, then try verifying correctness
    of raw unprocessed samples for this query via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
@@ -343,11 +343,11 @@ There are the following solutions exist for improving performance of slow querie
     For example, increasing `-evaluationInterval` command-line flag value at [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
     from `1m` to `2m` should reduce compute resource usage at VictoriaMetrics by 2x.
 
-  Another source of slow queries is improper use of [subqueries](https://docs.victoriametrics.com/metricsql/#subqueries).
+  Another source of slow queries is improper use of [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries).
   It is recommended avoiding subqueries if you don't understand clearly how they work.
   It is easy to create a subquery without knowing about it.
   For example, `rate(sum(some_metric))` is implicitly transformed into the following subquery
-  according to [implicit conversion rules for MetricsQL queries](https://docs.victoriametrics.com/metricsql/#implicit-query-conversions):
+  according to [implicit conversion rules for MetricsQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions):
 
   ```metricsql
   rate(

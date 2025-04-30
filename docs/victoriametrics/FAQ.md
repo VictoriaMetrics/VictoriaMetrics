@@ -119,7 +119,7 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 
 * QuestDB needs more than 20x storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
 * QuestDB is much harder to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
-* VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/metricsql/) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
+* VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 * Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/#grafana-setup), while QuestDB needs a full rewrite of existing dashboards in Grafana.
 * Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), while QuestDB has no integration with Prometheus.
@@ -161,7 +161,7 @@ The main differences between Cortex and VictoriaMetrics:
 * Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://docs.victoriametrics.com/casestudies/).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
-* VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
+* VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 
 ## What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)?
@@ -183,14 +183,14 @@ The main differences between Cortex and VictoriaMetrics:
 * Thanos is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
 * VictoriaMetrics accepts data via multiple popular data ingestion protocols in addition to the Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
-* VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/metricsql/) query language, while Thanos provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
+* VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Thanos provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 
 ## How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
 
 * VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [works faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 * VictoriaMetrics needs lower amounts of storage space than InfluxDB for production data.
-* VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
+* VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to InfluxDB – Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
@@ -421,7 +421,7 @@ If you need migrating data from single-node VictoriaMetrics to cluster version, 
 
 ## Why isn't MetricsQL 100% compatible with PromQL?
 
-[MetricsQL](https://docs.victoriametrics.com/metricsql/) provides better user experience than PromQL. It fixes a few annoying issues in PromQL. This prevents MetricsQL to be 100% compatible with PromQL. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
+[MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) provides better user experience than PromQL. It fixes a few annoying issues in PromQL. This prevents MetricsQL to be 100% compatible with PromQL. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
 ## How to migrate data from Prometheus to VictoriaMetrics?
 

@@ -406,7 +406,7 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 	}
 	if be.KeepMetricNames {
 		// Do not reset MetricGroup if it is explicitly requested via `a op b keep_metric_names`
-		// See https://docs.victoriametrics.com/metricsql/#keep_metric_names
+		// See https://docs.victoriametrics.com/victoriametrics/metricsql/#keep_metric_names
 		return
 	}
 

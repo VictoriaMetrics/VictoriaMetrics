@@ -367,7 +367,7 @@ See documentation for configuring [metrics collectors](https://docs.victoriametr
 ## Query data
 
 VictoriaMetrics has built-in [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical
-User Interface for querying and visualizing metrics. [MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the
+User Interface for querying and visualizing metrics. [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) - is the
 query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/keyconcepts/#metricsql).
 
 VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)

@@ -47,12 +47,12 @@ Please see example graph illustrating this logic below:
 
 
 ## What data does vmanomaly operate on?
-`vmanomaly` operates on data fetched from VictoriaMetrics, where you can leverage full power of [MetricsQL](https://docs.victoriametrics.com/metricsql/) for data selection, sampling, and processing. Users can also [apply global filters](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements) for more targeted data analysis, enhancing scope limitation and tenant visibility.
+`vmanomaly` operates on data fetched from VictoriaMetrics, where you can leverage full power of [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for data selection, sampling, and processing. Users can also [apply global filters](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements) for more targeted data analysis, enhancing scope limitation and tenant visibility.
 
 Respective config is defined in a [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) section.
 
 ## Handling noisy input data
-`vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries, so the initial data quality can be fine-tuned with aggregation, grouping, and filtering to reduce noise and improve anomaly detection accuracy.
+`vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries, so the initial data quality can be fine-tuned with aggregation, grouping, and filtering to reduce noise and improve anomaly detection accuracy.
 
 ## Handling timezones
 
@@ -163,7 +163,7 @@ While `vmanomaly` detects anomalies and produces scores, it *does not directly g
 <img src="https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp" alt="node_exporter_example_diagram" style="width:60%"/>
 
 ## Preventing alert fatigue
-Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can use [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
+Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
 
 ## How to backtest particular configuration on historical data?
 
@@ -392,7 +392,7 @@ Please note that this approach may not fully resolve the issue if subqueries are
 
 `vmanomaly` supports **vertical** scalability, benefiting from additional CPU cores (resulting in faster processing times) and increased RAM (allowing more models to be trained and larger volumes of timeseries data to be processed efficiently).
 
-For **horizontal** scalability, `vmanomaly` can be deployed as multiple independent instances, each configured with its own [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries and [configurations](https://docs.victoriametrics.com/anomaly-detection/components/):
+For **horizontal** scalability, `vmanomaly` can be deployed as multiple independent instances, each configured with its own [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries and [configurations](https://docs.victoriametrics.com/anomaly-detection/components/):
 
 - Splitting by **queries** [defined in the reader section](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) and assigning each subset to a separate service instance should be used when having *a single query returning a large number of timeseries*. This can be further split by applying global MetricsQL filters using the `extra_filters` [parameter in the reader](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=extra_filters#vm-reader). See example below.
 

@@ -8,7 +8,7 @@ const issueLink = {
 
 export const footerLinksByDefault = [
   {
-    href: "https://docs.victoriametrics.com/metricsql/",
+    href: "https://docs.victoriametrics.com/victoriametrics/metricsql/",
     Icon: CodeIcon,
     title: "MetricsQL",
   },

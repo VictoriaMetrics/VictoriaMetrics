@@ -473,14 +473,14 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 and attaches `instance`, `job` and other target-specific labels to these metrics:
 
 * `up` - this metric exposes `1` value on successful scrape and `0` value on unsuccessful scrape. This allows monitoring
-  failing scrapes with the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/):
+  failing scrapes with the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/):
 
   ```metricsql
   up == 0
   ```
 
 * `scrape_duration_seconds` - the duration of the scrape for the given target. This allows monitoring slow scrapes.
-  For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns scrapes,
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns scrapes,
   which take more than 1.5 seconds to complete:
 
   ```metricsql
@@ -489,7 +489,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 
 * `scrape_timeout_seconds` - the configured timeout for the current scrape target (aka `scrape_timeout`).
   This allows detecting targets with scrape durations close to the configured scrape timeout.
-  For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets (identified by `instance` label),
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets (identified by `instance` label),
   which take more than 80% of the configured `scrape_timeout` during scrapes:
 
   ```metricsql
@@ -498,7 +498,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 
 * `scrape_response_size_bytes` - response size in bytes for the given target. This allows to monitor amount of data scraped
   and to adjust [`max_scrape_size` option](https://docs.victoriametrics.com/sd_configs/#scrape_configs) for scraped targets.
-  For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets with scrape response
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets with scrape response
   bigger than `10MiB`:
 
   ```metricsql
@@ -506,7 +506,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   ```
 
 * `scrape_samples_scraped` - the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) parsed per each scrape. This allows detecting targets,
-  which expose too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series). For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/)
+  which expose too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series). For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/)
   returns targets, which expose more than 10000 metrics:
 
   ```metricsql
@@ -526,7 +526,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 * `scrape_samples_post_metric_relabeling` - the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) left after applying metric-level relabeling
   from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details).
   This allows detecting targets with too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series) after the relabeling.
-  For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets
   with more than 10000 metrics after the relabeling:
 
   ```metricsql
@@ -536,7 +536,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 * `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target generates during the current scrape.
   This metric allows detecting targets (identified by `instance` label),
   which lead to [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
-  For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets,
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets,
   which generate more than 1000 new series during the last hour:
 
   ```metricsql

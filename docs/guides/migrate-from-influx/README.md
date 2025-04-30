@@ -35,7 +35,7 @@ Let's list similarities and differences:
   [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
   or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization).
   All data in VictoriaMetrics is stored in a global namespace or within a [tenant](https://docs.victoriametrics.com/keyconcepts/#multi-tenancy). 
-* VictoriaMetrics query language is [MetricsQL](https://docs.victoriametrics.com/metricsql/). Influx has multiple versions
+* VictoriaMetrics query language is [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). Influx has multiple versions
   of query languages. VictoriaMetrics doesn't support any of them.
 
 Let's consider the following [sample data](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#sample-data)
@@ -156,7 +156,7 @@ GROUP BY time (1m)
 
 Now, let's [import](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 the same data sample in VictoriaMetrics and plot it in Grafana. To understand how the InfluxQL query might be translated
-to [MetricsQL](https://docs.victoriametrics.com/metricsql/) let's break it into components first:
+to [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) let's break it into components first:
 
 * `SELECT last("bar") FROM "foo"` - all requests to [instant](https://docs.victoriametrics.com/keyconcepts/#instant-query)
   or [range](https://docs.victoriametrics.com/keyconcepts/#range-query) VictoriaMetrics APIs are reads, so no need
@@ -193,14 +193,14 @@ Let's consider one of the most popular Grafana dashboards [Node Exporter Full](h
 It has almost 15 million downloads and about 230 queries in it! But a closer look at those queries shows the following:
 
 * ~120 queries are just selecting a metric with label filters, e.g. `node_textfile_scrape_error{instance="$node",job="$job"}`;
-* ~80 queries are using [rate](https://docs.victoriametrics.com/metricsql/#rate) function for selected metric,
+* ~80 queries are using [rate](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate) function for selected metric,
   e.g. `rate(node_netstat_Tcp_InSegs{instance="$node",job="$job"}[5m])`
 * and the rest are [aggregation functions](https://docs.victoriametrics.com/keyconcepts/#aggregation-and-grouping-functions)
-  like [sum](https://docs.victoriametrics.com/metricsql/#sum) or [count](https://docs.victoriametrics.com/metricsql/#count).
+  like [sum](https://docs.victoriametrics.com/victoriametrics/metricsql/#sum) or [count](https://docs.victoriametrics.com/victoriametrics/metricsql/#count).
 
 To get a better understanding of how MetricsQL works, see the following resources:
 * [MetricsQL concepts](https://docs.victoriametrics.com/keyconcepts/#metricsql);
-* [MetricsQL functions](https://docs.victoriametrics.com/metricsql/);
+* [MetricsQL functions](https://docs.victoriametrics.com/victoriametrics/metricsql/);
 * [PromQL tutorial for beginners](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085).
 
 ## How to migrate current data from InfluxDB to VictoriaMetrics
@@ -229,13 +229,13 @@ Please note, data migration is a backfilling process, so read about [backfilling
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than the actual data resolution. See
       more about this [here](https://docs.victoriametrics.com/keyconcepts/#range-query)._
 * How do I get the `real` last data point?
-    * _[last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time) function returns last value on 
+    * _[last_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#last_over_time) function returns last value on 
       the given look-behind window. For example, `last_over_time(metric[10s])` would return
       sample values only if the real samples are located closer than 10 seconds to the calculated timestamps
       according to `start`, `end` and `step` query args passed
       to [range query](https://docs.victoriametrics.com/keyconcepts/#range-query)._
-    * _[tlast_over_time](https://docs.victoriametrics.com/metricsql/#tlast_over_time) function returns last timestamp on
-      the given look-behind window, similarly to [last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time)._
+    * _[tlast_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#tlast_over_time) function returns last timestamp on
+      the given look-behind window, similarly to [last_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#last_over_time)._
 * How do I get raw data points with MetricsQL?
     * _For getting raw data points specify the interval at which you want them in square brackets and send
       as [instant query](https://docs.victoriametrics.com/keyconcepts/#instant-query). For

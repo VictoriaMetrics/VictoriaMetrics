@@ -254,7 +254,7 @@ response_size_bytes:60s_histogram_bucket{vmrange="start2...end2"} count2
 response_size_bytes:60s_histogram_bucket{vmrange="startN...endN"} countN
 ```
 
-The resulting histogram buckets can be queried with [MetricsQL](https://docs.victoriametrics.com/metricsql/) in the following ways:
+The resulting histogram buckets can be queried with [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) in the following ways:
 
 1. An estimated 50th and 99th [percentiles](https://en.wikipedia.org/wiki/Percentile) of the request duration over the last hour:
 
@@ -262,7 +262,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_quantiles("quantile", 0.50, 0.99, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_quantiles](https://docs.victoriametrics.com/metricsql/#histogram_quantiles) function.
+   This query uses [histogram_quantiles](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantiles) function.
 
 1. An estimated [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) of the request duration over the last hour:
 
@@ -270,7 +270,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_stddev(sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_stddev](https://docs.victoriametrics.com/metricsql/#histogram_stddev) function.
+   This query uses [histogram_stddev](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_stddev) function.
 
 1. An estimated share of requests with the duration smaller than `0.5s` over the last hour:
 
@@ -278,7 +278,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_share(0.5, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_share](https://docs.victoriametrics.com/metricsql/#histogram_share) function.
+   This query uses [histogram_share](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_share) function.
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
@@ -287,7 +287,7 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 
 [Histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) is a set of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
 metrics with different `vmrange` or `le` labels. Since typical usage of histograms is to calculate quantiles over the
-buckets change via [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) function the
+buckets change via [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) function the
 appropriate aggregation output for this is [total](https://docs.victoriametrics.com/stream-aggregation/#rate_sum):
 
 ```yaml
@@ -309,7 +309,7 @@ http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="3"}    val
 http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="+Inf"} value6
 ```
 
-The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
+The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile)
 function:
 
 ```metricsql
@@ -388,7 +388,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 `avg` returns the average over input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
 `avg` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
-The results of `avg` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `avg` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(sum_over_time(some_metric[interval])) / sum(count_over_time(some_metric[interval]))
@@ -410,7 +410,7 @@ See also:
 
 `count_samples` counts the number of input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `count_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `count_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(count_over_time(some_metric[interval]))
@@ -425,7 +425,7 @@ See also:
 
 `count_series` counts the number of unique [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
 
-The results of `count_series` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `count_series` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 count(last_over_time(some_metric[interval]))
@@ -443,7 +443,7 @@ for the input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-
 `histogram_bucket` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 See how to aggregate regular histograms [here](#aggregating-histograms).
 
-The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
@@ -464,7 +464,7 @@ See also:
 `increase` returns the increase of input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given 'interval'.
 `increase` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `increase` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `increase` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(increase_pure(some_counter[interval]))
@@ -493,7 +493,7 @@ See also:
 `increase_prometheus` returns the increase of input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
 `increase_prometheus` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `increase_prometheus` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `increase_prometheus` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(increase_prometheus(some_counter[interval]))
@@ -517,7 +517,7 @@ See also:
 
 `last` returns the last input [sample value](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 last_over_time(some_metric[interval])
@@ -534,7 +534,7 @@ See also:
 
 `max` returns the maximum input [sample value](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `max` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `max` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 max(max_over_time(some_metric[interval]))
@@ -555,7 +555,7 @@ See also:
 
 `min` returns the minimum input [sample value](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `min` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `min` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 min(min_over_time(some_metric[interval]))
@@ -577,7 +577,7 @@ See also:
 `rate_avg` returns the average of average per-second increase rates across input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
 `rate_avg` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `rate_avg` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `rate_avg` are equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 avg(rate(some_counter[interval]))
@@ -594,7 +594,7 @@ See also:
 `rate_sum` returns the sum of average per-second increase rates across input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
 `rate_sum` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(rate(some_counter[interval]))
@@ -612,7 +612,7 @@ See also:
 over the given `interval`.
 `stddev` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
-The results of `stddev` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `stddev` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 histogram_stddev(sum(histogram_over_time(some_metric[interval])) by (vmrange))
@@ -630,7 +630,7 @@ See also:
 over the given `interval`.
 `stdvar` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
-The results of `stdvar` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `stdvar` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 histogram_stdvar(sum(histogram_over_time(some_metric[interval])) by (vmrange))
@@ -651,7 +651,7 @@ See also:
 `sum_samples` sums input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 `sum_samples` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
-The results of `sum_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `sum_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(sum_over_time(some_metric[interval]))
@@ -671,7 +671,7 @@ See also:
 `total` generates output [counter](https://docs.victoriametrics.com/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_pure(some_counter)))
@@ -714,7 +714,7 @@ See also:
 `total_prometheus` generates output [counter](https://docs.victoriametrics.com/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total_prometheus` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `total_prometheus` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total_prometheus` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_prometheus(some_counter)))
@@ -743,7 +743,7 @@ See also:
 `unique_samples` counts the number of unique sample values over the given `interval`.
 `unique_samples` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
-The results of `unique_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `unique_samples` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 count(count_values_over_time(some_metric[interval]))
@@ -761,7 +761,7 @@ over the input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw
 `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while `1` means `100th` percentile.
 `quantiles(...)` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
-The results of `quantiles(phi1, ..., phiN)` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `quantiles(phi1, ..., phiN)` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
 ```metricsql
 histogram_quantiles("quantile", phi1, ..., phiN, sum(histogram_over_time(some_metric[interval])) by (vmrange))
