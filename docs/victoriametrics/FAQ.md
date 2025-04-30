@@ -380,7 +380,7 @@ See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metrics
 VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing) and [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
 which can help during query optimization.
 
-See also [troubleshooting slow queries](https://docs.victoriametrics.com/troubleshooting/#slow-queries).
+See also [troubleshooting slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries).
 
 ## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
 

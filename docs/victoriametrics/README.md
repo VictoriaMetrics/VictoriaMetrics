@@ -347,7 +347,7 @@ VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is
 (or at `http://<vmselect>:8481/select/<accountID>/vmui/` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)).
 The UI allows exploring query results via graphs and tables. It also provides the following features:
 
-- View [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) via `Raw Query` tab {{% available_from "v1.107.0" %}}. Helps in debugging of [unexpected query results](https://docs.victoriametrics.com/troubleshooting/#unexpected-query-results).
+- View [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) via `Raw Query` tab {{% available_from "v1.107.0" %}}. Helps in debugging of [unexpected query results](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#unexpected-query-results).
 - Explore:
   - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
   - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
@@ -380,7 +380,7 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
 When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling)
-or during [query troubleshooting](https://docs.victoriametrics.com/troubleshooting/#unexpected-query-results),
+or during [query troubleshooting](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#unexpected-query-results),
 it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
@@ -2333,7 +2333,7 @@ VictoriaMetrics exposes currently running queries and their execution times at [
 VictoriaMetrics exposes queries, which take the most time to execute, at [`top queries` page](#top-queries).
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
-and [troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/).
+and [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
 
 ## TSDB stats
 
@@ -2616,7 +2616,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 See also:
 
 - [Snapshot troubleshooting](#snapshot-troubleshooting).
-- [General troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/).
+- [General troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
 
 ## Push metrics
 

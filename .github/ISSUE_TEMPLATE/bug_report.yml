@@ -8,7 +8,7 @@ body:
         Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/#how-to-upgrade) 
         to [the latest available release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
         and verify whether the bug is reproducible there.
-        It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/) first.
+        It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) first.
   - type: textarea
     id: describe-the-bug
     attributes:

@@ -24,7 +24,7 @@ body:
       label: Troubleshooting docs
       description: I am familiar with the following troubleshooting docs
       options:
-        - label: General - https://docs.victoriametrics.com/troubleshooting/
+        - label: General - https://docs.victoriametrics.com/victoriametrics/troubleshooting/
           required: false
         - label: vmagent - https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting
           required: false

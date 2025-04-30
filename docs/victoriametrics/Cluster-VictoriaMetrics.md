@@ -563,7 +563,7 @@ See more details about cardinality limiter in [these docs](https://docs.victoria
   [rolling restarts and configuration updates](https://docs.victoriametrics.com/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes),
   then see [these docs](#improving-re-routing-performance-during-restart).
 
-[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/troubleshooting/) apply to VictoriaMetrics cluster as well.
+[Troubleshooting docs for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) apply to VictoriaMetrics cluster as well.
 
 ## Readonly mode
 
