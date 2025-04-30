@@ -60,7 +60,7 @@
       "title": "vmagent wiki",
       "tooltip": "",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent/"
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/"
     },
     {
       "icon": "external link",
@@ -88,7 +88,7 @@
       "title": "Troubleshooting",
       "tooltip": "",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
     }
   ],
   "panels": [
@@ -274,7 +274,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1127,7 +1127,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1355,7 +1355,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1574,7 +1574,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -3451,7 +3451,7 @@
             {
               "targetBlank": true,
               "title": "Relabeling",
-              "url": "https://docs.victoriametrics.com/vmagent/#relabeling"
+              "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling"
             }
           ],
           "options": {
@@ -7335,7 +7335,7 @@
           "links": [
             {
               "title": "Troubleshooting",
-              "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+              "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
             }
           ],
           "options": {

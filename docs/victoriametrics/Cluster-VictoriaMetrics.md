@@ -243,8 +243,8 @@ across multiple availability zones, since cross-AZ network usually has lower ban
 error rates comparing the network inside a single AZ.
 
 If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
-[vmagent](https://docs.victoriametrics.com/vmagent/) in front of these clusters, so it could replicate incoming data
-into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent/#multitenancy) for details.
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) in front of these clusters, so it could replicate incoming data
+into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
 ## Cluster setup
@@ -368,7 +368,7 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 * Data ingestion speed is limited by the slowest link to AZ.
 * `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
-These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent/#multitenancy).
+These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
 ### vmstorage groups at vmselect
@@ -533,7 +533,7 @@ By default, the following TCP ports are used:
 - `vmselect` - 8481
 - `vmstorage` - 8482
 
-It is recommended setting up [vmagent](https://docs.victoriametrics.com/vmagent/)
+It is recommended setting up [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
 with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
@@ -902,7 +902,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
   See [cardinality limiter docs](#cardinality-limiter).
 
-See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent/#cardinality-limiter).
+See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 
 ## Helm
 
@@ -929,7 +929,7 @@ for newly ingested data when `N-1` of storage nodes are unavailable.
 
 VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes when the replication is enabled,
 so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics
-from identically configured [vmagent](https://docs.victoriametrics.com/vmagent/) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set
+from identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set
 to `scrape_interval` from scrape configs according to [deduplication docs](#deduplication).
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),

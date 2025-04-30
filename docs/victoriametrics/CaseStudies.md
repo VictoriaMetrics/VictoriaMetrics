@@ -90,7 +90,7 @@ We ended up with the following configuration:
 
 We learned that remote write protocol generated too much traffic and connections so after 8 months we started looking for alternatives.
 
-Around the same time, VictoriaMetrics released [vmagent](https://docs.victoriametrics.com/vmagent/).
+Around the same time, VictoriaMetrics released [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 We tried to scrape all the metrics via a single instance of vmagent but that didn't work because vmagent wasn't able to catch up with writes
 into VictoriaMetrics. We tested different options and end up with the following scheme:
 

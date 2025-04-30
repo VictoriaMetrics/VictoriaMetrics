@@ -413,7 +413,7 @@ Clusters here are referred to as `source` and `destination`.
 ### Monitoring
 
 `vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://docs.victoriametrics.com/vmagent/) or via Prometheus, so the exported metrics could be analyzed later.
+either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via Prometheus, so the exported metrics could be analyzed later.
 
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798) for `vmbackupmanager` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.

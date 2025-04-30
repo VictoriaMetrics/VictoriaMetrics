@@ -137,7 +137,7 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 ### Load balancer for vmagent
 
-If [vmagent](https://docs.victoriametrics.com/vmagent/) is used for processing [data push requests](https://docs.victoriametrics.com/vmagent/#how-to-push-data-to-vmagent),
+If [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) is used for processing [data push requests](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-push-data-to-vmagent),
 then it is possible to scale the performance of data processing at `vmagent` by spreading load among multiple identically configured `vmagent` instances.
 This can be done with the following [config](#auth-config) for `vmauth`:
 
@@ -337,7 +337,7 @@ Sometimes it is needed to drop path prefix before proxying the request to the ba
 prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level or [`-auth.config`](#auth-config).
 
 For example, if you need serving requests to [vmalert](https://docs.victoriametrics.com/vmalert/) at `/vmalert/` path prefix,
-while serving requests to [vmagent](https://docs.victoriametrics.com/vmagent/) at `/vmagent/` path prefix,
+while serving requests to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) at `/vmagent/` path prefix,
 then the following [-auth.config](#auth-config) can be used:
 
 ```yaml
@@ -1113,7 +1113,7 @@ See also [security recommendations](#security).
 ## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://docs.victoriametrics.com/vmagent/) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
+either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/21394) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml)
 for `vmauth` monitoring.
 

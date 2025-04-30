@@ -340,7 +340,7 @@ See also [increases_over_time](#increases_over_time).
 
 `default_rollup(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-Compared to [last_over_time](#last_over_time) it accounts for [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) to detect stale series.
+Compared to [last_over_time](#last_over_time) it accounts for [staleness markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) to detect stale series.
 
 If the lookbehind window is skipped in square brackets, then it is automatically calculated as `max(step, scrape_interval)`, where `step` is the query arg value
 passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query),
@@ -925,7 +925,7 @@ See also [count_eq_over_time](#count_eq_over_time).
 #### stale_samples_over_time
 
 `stale_samples_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the number
-of [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) on the given lookbehind window `d`
+of [staleness markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) on the given lookbehind window `d`
 per each time series matching the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
