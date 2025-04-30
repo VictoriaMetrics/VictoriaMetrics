@@ -13,9 +13,9 @@ func TestParseInputValue_Failure(t *testing.T) {
 	f := func(input string) {
 		t.Helper()
 
-		_, err := parseInputValue(input, true)
+		val, err := parseInputValue(input, true)
 		if err == nil {
-			t.Fatalf("expecting non-nil error")
+			t.Fatalf("expecting non-nil error, got value %+v", val)
 		}
 	}
 

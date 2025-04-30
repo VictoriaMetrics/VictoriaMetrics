@@ -100,6 +100,9 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 			res = append(res, sequenceValue{Value: decimal.StaleNaN})
 			continue
 		}
+		if strings.HasPrefix(item, "stale") {
+			return nil, fmt.Errorf("stale metric doesnt support operations")
+		}
 		vals := numReg.FindAllString(item, -1)
 		switch len(vals) {
 		case 1:
