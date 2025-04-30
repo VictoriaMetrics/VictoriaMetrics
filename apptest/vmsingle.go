@@ -104,7 +104,7 @@ func (app *Vmsingle) ForceMerge(t *testing.T) {
 // collection of records in Influx line format by sending a HTTP
 // POST request to /influx/write vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#influxwrite
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#influxwrite
 func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
@@ -133,7 +133,7 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 // collection of records in Prometheus text exposition format by sending a HTTP
 // POST request to /prometheus/api/v1/import/prometheus vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
@@ -148,7 +148,7 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1export
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export
 func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 	values := opts.asURLValues()
@@ -163,7 +163,7 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query
 func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -177,7 +177,7 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 // PromQL/MetricsQL range query by sending a HTTP POST request to
 // /prometheus/api/v1/query_range vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query_range
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range
 func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -191,7 +191,7 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
 func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 

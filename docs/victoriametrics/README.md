@@ -515,7 +515,7 @@ DD_DD_URL=http://victoriametrics:8428/datadog
 ```
 
 
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples/#datadog)._
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog)._
 
 To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
@@ -525,7 +525,7 @@ dd_url: http://victoriametrics:8428/datadog
 ```
 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) also can accept DataDog metrics format. Depending on where vmagent will forward data,
-pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples/#datadog) formats.
+pick [single-node or cluster URL](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog) formats.
 
 ### Sending metrics to DataDog and VictoriaMetrics
 
@@ -540,7 +540,7 @@ Run DataDog using the following ENV variable with VictoriaMetrics as additional 
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 ```
 
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples/#datadog)._
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog)._
 
 
 To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
@@ -568,9 +568,9 @@ provider:
 
 ### Send via cURL
 
-See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/url-examples/#datadogapiv2series).
+See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadogapiv2series).
 
-The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples/#apiv1export).
+The imported data can be read via [export API](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export).
 
 ### Additional details
 
@@ -920,9 +920,9 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 
 * [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
 * [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
-* [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
-* [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
-* [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
+* [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series)
+* [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels)
+* [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues)
 * [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). See [these docs](#tsdb-stats) for details.
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 * [/federate](https://prometheus.io/docs/prometheus/latest/federation/) - see [these docs](#federation) for more details.
@@ -953,22 +953,22 @@ and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyco
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
-VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
-and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
+VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels)
+and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
 For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels.
 If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values,
 then limits specified in the command-line flags are used.
 
 By default, VictoriaMetrics returns time series for the last day starting at 00:00 UTC
-from [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series),
-[/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and
-[`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues),
+from [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series),
+[/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels) and
+[`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues),
 while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
 VictoriaMetrics rounds the specified `start..end` time range to day granularity because of performance optimization concerns.
 If you need the exact set of label names and label values on the given time range, then send queries
 to [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) or to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
 
-VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
+VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series)
 for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
 If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
@@ -1739,8 +1739,8 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   VictoriaMetrics provides `-search.maxQueueDuration` command-line flag for limiting the max wait time for paused queries. See also `-search.maxMemoryPerQuery` command-line flag.
 - `-search.maxQueueDuration` limits the maximum duration queries may wait for execution when `-search.maxConcurrentRequests` concurrent queries are executed.
 - `-search.ignoreExtraFiltersAtLabelsAPI` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
-  query args at [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues).
+  query args at [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels) and
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues).
   This may be useful for reducing the load on VictoriaMetrics if the provided extra filters match too many time series.
   The downside is that the endpoints can return labels and series, which do not match the provided extra filters.
 - `-search.maxSamplesPerSeries` limits the number of raw samples the query can process per each time series. VictoriaMetrics sequentially processes
@@ -1756,14 +1756,14 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   during [subquery](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries) evaluation.
 - `-search.maxSeriesPerAggrFunc` limits the number of time series, which can be generated by [MetricsQL aggregate functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)
   in a single query.
-- `-search.maxSeries` limits the number of time series, which may be returned from [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+- `-search.maxSeries` limits the number of time series, which may be returned from [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series).
   This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts
   of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
 - `-search.maxDeleteSeries` limits the number of unique time series that can be
   deleted by a single
-  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
+  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series)
   call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory and this limit guards against unplanned resource usage spikes. Also see
   [How to delete time series](#how-to-delete-time-series) section to learn about
@@ -1772,25 +1772,25 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   series that can be queried with topN argument by a single
   [/api/v1/status/tsdb?topN=N](#tsdb-stats)
   call.
-- `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels).
+- `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels).
   This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
-- `-search.maxTagValues` limits the number of items, which may be returned from [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues).
+- `-search.maxTagValues` limits the number of items, which may be returned from [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues).
   This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
-- `-search.maxLabelsAPISeries` limits the number of time series, which can be scanned when performing [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) or
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) requests.
+- `-search.maxLabelsAPISeries` limits the number of time series, which can be scanned when performing [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels) or
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues) requests.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxLabelsAPIDuration` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+- `-search.maxLabelsAPIDuration` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels),
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues)
+  or [/api/v1/series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series).
   The limit can be overridden to a smaller value by passing `timeout` GET parameter.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
@@ -2346,7 +2346,7 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
-vmselect requests stats via [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/#apiv1statustsdb) API from each vmstorage node and merges the results by summing per-series stats.
+vmselect requests stats via [/api/v1/status/tsdb](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1statustsdb) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
@@ -2747,7 +2747,7 @@ It is recommended disabling [query cache](#rollup-result-cache) with `-search.di
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples/#internalresetrollupresultcache)
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/victoriametrics/url-examples/#internalresetrollupresultcache)
 after the backfilling is complete. This will reset the [query cache](#rollup-result-cache), which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching

@@ -59,7 +59,7 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1export
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export
 func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -75,7 +75,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query
 func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -91,7 +91,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 // PromQL/MetricsQL range query by sending a HTTP POST request to
 // /prometheus/api/v1/query_range vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query_range
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range
 func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -106,7 +106,7 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
 func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
@@ -120,7 +120,7 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 // DeleteSeries sends a query to a /prometheus/api/v1/admin/tsdb/delete_series
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
 func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
 	t.Helper()
 

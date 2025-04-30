@@ -156,7 +156,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
      If you use Grafana, then this query arg can be specified in `Custom Query Parameters` field
      at Prometheus datasource settings - see [these docs](https://grafana.com/docs/grafana/latest/datasources/prometheus/) for details.
     
-    If the problem was in the cache, try resetting it via [resetRollupCache handler](https://docs.victoriametrics.com/url-examples/#internalresetrollupresultcache).
+    If the problem was in the cache, try resetting it via [resetRollupCache handler](https://docs.victoriametrics.com/victoriametrics/url-examples/#internalresetrollupresultcache).
 
 1. If you use cluster version of VictoriaMetrics, then it may return partial responses by default
    when some of `vmstorage` nodes are temporarily unavailable - see [cluster availability docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-availability)
