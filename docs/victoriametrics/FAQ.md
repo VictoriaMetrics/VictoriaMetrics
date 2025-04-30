@@ -19,7 +19,7 @@ To provide the best monitoring solution.
 
 ## Who uses VictoriaMetrics?
 
-See [case studies](https://docs.victoriametrics.com/casestudies/).
+See [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 
 ## Which features does VictoriaMetrics have?
 
@@ -158,7 +158,7 @@ The main differences between Cortex and VictoriaMetrics:
 * Cortex may lose up to 12 hours of recent data on Ingestor failure – see [the corresponding docs](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#ingesters-failure-and-data-loss).
   VictoriaMetrics may lose only a few seconds of recent data, which isn't synced to persistent storage yet.
   See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
-* Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://docs.victoriametrics.com/casestudies/).
+* Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
@@ -389,7 +389,7 @@ Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-serve
 
 Single-node VictoriaMetrics is able to handle quite big workloads in production
 with tens of millions of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
-at the ingestion rate of million of samples per second. See [this case study](https://docs.victoriametrics.com/casestudies/#wixcom).
+at the ingestion rate of million of samples per second. See [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#wixcom).
 
 Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
 to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
