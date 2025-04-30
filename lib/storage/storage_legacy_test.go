@@ -854,8 +854,6 @@ func testStorageConvertToLegacy(t *testing.T) {
 	var isReadOnly atomic.Bool
 	isReadOnly.Store(false)
 	legacyIDBCurr := mustOpenIndexDB(2, legacyIDBTimeRange, legacyIDBCurrName, legacyIDBCurrPath, s, &isReadOnly)
-	legacyISCurr := legacyIDBCurr.getIndexSearch(noDeadline)
-	legacyIDBCurr.putIndexSearch(legacyISCurr)
 
 	// Read index items from the partition indexDBs and write them to the legacy
 	// curr indexDB.
@@ -906,7 +904,7 @@ func testStorageConvertToLegacy(t *testing.T) {
 					t.Fatalf("Could not unmarshal metric name from bytes %q: %v", string(mnBytes), err)
 				}
 				if !seenGlobalIndexEntries[metricID] {
-					legacyISCurr.createGlobalIndexes(&tsid, &mn)
+					legacyIDBCurr.createGlobalIndexes(&tsid, &mn)
 					seenGlobalIndexEntries[metricID] = true
 				}
 				dateMetricID := dateMetricID{
@@ -914,7 +912,7 @@ func testStorageConvertToLegacy(t *testing.T) {
 					metricID: metricID,
 				}
 				if !seenPerDayIndexEntries[dateMetricID] {
-					legacyISCurr.createPerDayIndexes(date, &tsid, &mn)
+					legacyIDBCurr.createPerDayIndexes(date, &tsid, &mn)
 					seenPerDayIndexEntries[dateMetricID] = true
 				}
 			}
