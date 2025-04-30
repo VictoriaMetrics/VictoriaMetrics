@@ -1060,6 +1060,8 @@ command-line flags with their descriptions.
 The shortlist of configuration flags is the following:
 
 ```shellhelp
+  -blockcache.missesBeforeCaching int
+     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -clusterMode
      If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -configCheckInterval duration
@@ -1083,7 +1085,7 @@ The shortlist of configuration flags is the following:
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.idleConnTimeout duration
-     Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
+     Defines a duration for idle (keep-alive connections) to exist. Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -1115,7 +1117,7 @@ The shortlist of configuration flags is the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also -remoteRead.disablePathAppend and -datasource.showURL
+     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect endpoint. Required parameter. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also -remoteRead.disablePathAppend and -datasource.showURL
   -defaultTenant.graphite string
      Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -defaultTenant.prometheus string
@@ -1136,9 +1138,9 @@ The shortlist of configuration flags is the following:
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
-  -external.label array
-     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. In case of conflicts, original labels are kept with prefix `exported_`.
-     Supports an array of values separated by comma or specified via multiple flags.
+  -external.label exported_
+     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. In case of conflicts, original labels are kept with prefix exported_.
+     Supports an `array` of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.
@@ -1192,6 +1194,8 @@ The shortlist of configuration flags is the following:
      Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
+  -licenseFile.reloadInterval duration
+     Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1203,7 +1207,7 @@ The shortlist of configuration flags is the following:
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerMaxArgLen int
-     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 5000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1253,7 +1257,9 @@ The shortlist of configuration flags is the following:
   -notifier.config string
      Path to configuration file for notifiers
   -notifier.headers array
-     Optional HTTP headers to send with each request to the corresponding -notifier.url. For example, -notifier.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'.
+     Optional HTTP headers to send with each request to the corresponding -notifier.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.clientID array
      Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1278,8 +1284,10 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -notifier.sendTimeout
-     Timeout when sending alerts to the corresponding -notifier.url. (default 10s)
+  -notifier.sendTimeout array
+     Timeout when sending alerts to the corresponding -notifier.url (default 10s)
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to default value.
   -notifier.showURL
      Whether to avoid stripping sensitive information such as passwords from URL in log messages or UI for -notifier.url. It is hidden by default, since it can contain sensitive info such as auth key
   -notifier.suppressDuplicateTargetErrors
@@ -1382,7 +1390,7 @@ The shortlist of configuration flags is the following:
      Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url
   -remoteRead.tlsServerName string
      Optional TLS server name to use for connections to -remoteRead.url. By default, the server name from -remoteRead.url is used
-  -remoteRead.url string
+  -remoteRead.url vmalert
      Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
   -remoteWrite.basicAuth.password string
      Optional basic auth password for -remoteWrite.url
@@ -1395,7 +1403,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.
+     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores. (default 32)
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
@@ -1460,21 +1468,24 @@ The shortlist of configuration flags is the following:
       -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
       -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
       -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
-     Rule files support YAML multi-document. Files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.  
+     Rule files support YAML multi-document. Files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+     
      Enterprise version of vmalert supports S3 and GCS paths to rules.
      For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
      S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
      all files with prefix rule_ in folder dir.
+     See https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage
+     
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.defaultRuleType string
-     Default type for rule expressions, can be overridden by type parameter inside the rule group. Supported values: "graphite", "prometheus" and "vlogs". (default: "prometheus")
+     Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs". (default "prometheus")
   -rule.evalDelay time
-     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
+     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource. Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
   -rule.maxResolveDuration duration
      Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
-     MiniMum amount of time to wait before resending an alert to notifier
+     MiniMum amount of time to wait before resending an alert to notifier.
   -rule.stripFilePath
      Whether to strip file path in responses from the api/v1/rules API for files configured via -rule cmd-line flag. For example, the file path '/path/to/tenant_id/rules.yml' will be stripped to just 'rules.yml'. This flag might be useful to hide sensitive information in file path such as tenant ID. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -rule.templates array
@@ -1483,13 +1494,14 @@ The shortlist of configuration flags is the following:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
-      -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.   
+      -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
+     
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.updateEntriesLimit int
      Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param. (default 20)
   -rule.validateExpressions
-     Whether to validate rules expressions via MetricsQL engine (default true)
+     Whether to validate rules expressions for different types. (default true)
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
   -s3.configFilePath string
