@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/#how-to-upgrade) 
+        Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade) 
         to [the latest available release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
         and verify whether the bug is reproducible there.
         It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) first.
@@ -64,7 +64,7 @@ body:
           * [Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
         
         See how to setup monitoring here:
-          * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
+          * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring)
           * [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
     validations:
       required: false

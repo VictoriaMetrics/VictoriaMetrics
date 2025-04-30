@@ -44,7 +44,7 @@ Then read [Prometheus setup](https://docs.victoriametrics.com/victoriametrics/si
 and [Grafana setup](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup) docs.
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) 
-and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
+and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
 ### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
 
@@ -68,7 +68,7 @@ You should see:
  partition "2025_03" has been created
 ```
 
-Open `http://localhost:8428/vmui` in WEB browser to see graphical interface [vmui](https://docs.victoriametrics.com/#vmui).
+Open `http://localhost:8428/vmui` in WEB browser to see graphical interface [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
 With `--selfScrapeInterval=5s` VictoriaMetrics scrapes its own metrics, and they should become queryable 30s after start.
 Visit `http://localhost:8428/vmui/#/metrics` to explore available metrics or run an arbitrary query at 
 `http://localhost:8428/vmui` (i.e. `process_cpu_cores_available`).
@@ -154,7 +154,7 @@ WantedBy=multi-user.target
 END'
 ```
 
-Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
+Extra [command-line flags](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags) can be added to `ExecStart` line.
 
 If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#running-as-windows-service).
 
@@ -172,14 +172,14 @@ sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.serv
 sudo systemctl status victoriametrics.service
 ```
 
-8. After VictoriaMetrics is in `Running` state, verify [vmui](https://docs.victoriametrics.com/#vmui) is working 
+8. After VictoriaMetrics is in `Running` state, verify [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) is working 
 by going to `http://<ip_or_hostname>:8428/vmui`.
 
 
 ### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
 
 VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
-It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/#security)),
+It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)),
 but on the separate physical nodes for the best performance.
 
 On all nodes you will need to do the following:
@@ -353,7 +353,7 @@ sudo systemctl status vmselect.service
 ```
 
 5. After `vmselect` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8481/select/0/vmui` link.
-It should open [vmui](https://docs.victoriametrics.com/#vmui) page.
+It should open [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) page.
 
 ## Write data
 
@@ -447,5 +447,5 @@ To avoid excessive resource usage or performance degradation limits must be in p
 
 ### Security recommendations
 
-* [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
+* [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)
 * [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#security)

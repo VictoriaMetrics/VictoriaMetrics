@@ -22,7 +22,7 @@ LTS releases are published for [Enterprise versions of VictoriaMetrics](https://
 When a new LTS line is created, the new LTS release might be publicly available for everyone until the new major OS release will be published.
 
 All the bugfixes and security fixes, which are included in LTS releases, are also available in [the latest release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-so non-enterprise users are advised to regularly [upgrade](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics) VictoriaMetrics products
+so non-enterprise users are advised to regularly [upgrade](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics) VictoriaMetrics products
 to [the latest available releases](https://docs.victoriametrics.com/victoriametrics/changelog/).
 
 ## Currently supported LTS release lines

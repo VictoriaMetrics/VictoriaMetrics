@@ -76,7 +76,7 @@ You'll also be notified via email once your deployment is ready to use.
 * **Data point sizes** are approximated to 0.8 bytes, based on our own experience managing VictoriaMetrics Cloud. This magnitude is increases with **cardinality**. For high cardinality data, more storage is expected.
 * **Long time retention**: for 6 months or more retention times, we recommend to start with a smaller storage size and increase it over time.
 * **Storage size can be increased**, however, you cannot reduce it due to AWS limitations.
-* **Enterprise features** like [downsampling](https://docs.victoriametrics.com/#downsampling) and [retention filters](https://docs.victoriametrics.com/#retention-filters) may dramatically help to optimize disk space.
+* **Enterprise features** like [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) and [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) may dramatically help to optimize disk space.
 * The **formula** we use for calculating the recommended storage can be found [here](https://docs.victoriametrics.com/guides/understand-your-setup-size/#retention-perioddisk-space).
 
 > Feel free to adjust your deployment based on these recommendations.

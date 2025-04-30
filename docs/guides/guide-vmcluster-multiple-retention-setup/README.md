@@ -10,7 +10,7 @@ via [retention filters](https://docs.victoriametrics.com/victoriametrics/cluster
 
 **Open Source Solution**
 
-Community version of VictoriaMetrics supports only one retention period per `vmstorage` node via [-retentionPeriod](https://docs.victoriametrics.com/#retention) command-line flag.
+Community version of VictoriaMetrics supports only one retention period per `vmstorage` node via [-retentionPeriod](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) command-line flag.
 
 A multi-retention setup can be implemented by dividing a [victoriametrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) into logical groups with different retentions.
 
@@ -18,7 +18,7 @@ Example:
 Setup should handle 3 different retention groups 3months, 1year and 3 years.
 Solution contains 3 groups of vmstorages + vminserts and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 by [splitting data streams](https://docs.victoriametrics.com/victoriametrics/vmagent/#splitting-data-streams-among-multiple-systems). 
-The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how long to keep the metrics.
+The [-retentionPeriod](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) sets how long to keep the metrics.
 
 The diagram below shows a proposed solution
 

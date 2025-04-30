@@ -170,7 +170,7 @@ curl -v -X POST http://vminsert:8480/insert/0/prometheus/api/v1/import -T data.j
 
 _See URL example for single-node [here](https://docs.victoriametrics.com/url-examples/#apiv1import)._
 
-Please note, importing data with old timestamps is called **backfilling** and may require resetting caches as described [here](https://docs.victoriametrics.com/#backfilling). 
+Please note, importing data with old timestamps is called **backfilling** and may require resetting caches as described [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling). 
 
 ### Check imported metrics
 

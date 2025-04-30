@@ -123,7 +123,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
 
       <div className="vm-cardinality-configurator-bottom-helpful">
         <Hyperlink
-          href="https://docs.victoriametrics.com/#cardinality-explorer"
+          href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer"
           withIcon={true}
         >
           <WikiIcon/>

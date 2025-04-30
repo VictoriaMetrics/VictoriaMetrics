@@ -365,7 +365,7 @@ Client regularly sends the collected metrics to the server in the push model:
 ![push model](push_model.webp)
 
 The client (application) decides when and where to send its metrics. VictoriaMetrics supports many protocols
-for data ingestion (aka `push protocols`) - see [the full list here](https://docs.victoriametrics.com/#how-to-import-time-series-data).
+for data ingestion (aka `push protocols`) - see [the full list here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data).
 All the protocols are fully compatible with VictoriaMetrics [data model](#data-model) and can be used in production.
 We recommend using the [github.com/VictoriaMetrics/metrics](https://github.com/VictoriaMetrics/metrics) package
 for pushing application metrics to VictoriaMetrics.
@@ -413,9 +413,9 @@ In pull model, the monitoring system needs to be aware of all the applications i
 scraped (pulled) from the known applications (aka `scrape targets`) via HTTP protocol on a regular basis (aka `scrape_interval`).
 
 VictoriaMetrics supports discovering Prometheus-compatible targets and scraping metrics from them in the same way as Prometheus does -
-see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-Metrics scraping is supported by [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+Metrics scraping is supported by [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 and by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 The pros of the pull model:
@@ -483,7 +483,7 @@ Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expression.
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats)
   in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
-  The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
+  The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
 * `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
   For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
@@ -729,7 +729,7 @@ useful in the following scenarios:
 * Correlate changes between multiple metrics on the time interval;
 * Observe trends and dynamics of the metric change.
 
-If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
+If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-time-series).
 
 ### Query latency
 

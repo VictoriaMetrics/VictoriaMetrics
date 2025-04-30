@@ -10,7 +10,7 @@ and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-clo
 - [Churn Rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) - how frequently a new [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
   is created. For example, changing pod name in Kubernetes is a common source of time series churn;
 - Queries per Second - how many [read queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) are executed per second;
-- [Retention Period](https://docs.victoriametrics.com/#retention) - for how long data is stored in the database.
+- [Retention Period](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) - for how long data is stored in the database.
 
 ### Active Time Series
 
@@ -55,7 +55,7 @@ To see the Churn Rate in VictoriaMetrics over last 24h use the following query:
 sum(increase(vm_new_timeseries_created_total[24h]))
 ```
 
-The metrics with the highest number of time series can be tracked via VictoriaMetrics [Cardinality Explorer](https://docs.victoriametrics.com/#cardinality-explorer).
+The metrics with the highest number of time series can be tracked via VictoriaMetrics [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 
 ### Ingestion Rate
 
@@ -100,8 +100,8 @@ It is hard to predict the amount of compute resources (CPU, Mem) or cluster size
 Active Time Series. The much better approach is to run tests for your type of load (ingestion and reads) and extrapolate
 from there.
 
-For example, if you already run [Prometheus](https://docs.victoriametrics.com/#prometheus-setup)
-or [Telegraf](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+For example, if you already run [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
+or [Telegraf](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 for metrics collection then just configure them (or a part of them) to replicate data to VictoriaMetrics. In this way,
 you'd have the most precise simulation of your production environment.
 
@@ -140,8 +140,8 @@ A Kubernetes environment that produces 5k time series per second with 1-year of 
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate, the lower is disk space usage for the index.
 Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index.
 
-You can significantly reduce the amount of disk usage by using [Downsampling](https://docs.victoriametrics.com/#downsampling)
-and [Retention Filters](https://docs.victoriametrics.com/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise.
+You can significantly reduce the amount of disk usage by using [Downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
+and [Retention Filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise.
 See a blog post about [reducing expenses on monitoring](https://victoriametrics.com/blog/reducing-costs-p2/) for more techniques.
 
 ### Cluster size

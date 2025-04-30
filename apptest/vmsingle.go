@@ -205,7 +205,7 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //
-// See https://docs.victoriametrics.com/#track-ingested-metrics-usage
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
 func (app *Vmsingle) APIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
 	t.Helper()
 
@@ -228,7 +228,7 @@ func (app *Vmsingle) APIV1StatusMetricNamesStats(t *testing.T, limit, le, matchP
 
 // APIV1AdminStatusMetricNamesStatsReset sends a query to a /api/v1/admin/status/metric_names_stats/reset endpoint
 //
-// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
 func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 	t.Helper()
 
@@ -358,7 +358,7 @@ func (app *Vmsingle) HTTPAddr() string {
 
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
 // //
-// See https://docs.victoriametrics.com/#tsdb-stats
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
 func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
 	t.Helper()
 

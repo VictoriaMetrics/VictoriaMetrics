@@ -61,7 +61,7 @@ var (
 	maxTSDBStatusSeries     = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
 	maxSeriesLimit          = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 	maxDeleteSeries         = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
-	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of `topN` argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/#tsdb-stats")
+	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of `topN` argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats")
 	maxLabelsAPISeries      = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
@@ -176,7 +176,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 
 	format := r.FormValue("format")
 	if len(format) == 0 {
-		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/#how-to-export-csv-data")
+		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-csv-data")
 	}
 	fieldNames := strings.Split(format, ",")
 	reduceMemUsage := httputil.GetBool(r, "reduce_mem_usage")

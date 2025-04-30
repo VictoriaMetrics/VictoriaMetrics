@@ -316,10 +316,10 @@ The following formats are supported for `_time` filter:
 - `_time:<max_time` - matches logs with timestamps smaller than the `max_time`.
 - `_time:<=max_time` - matches logs with timestamps smaller or equal to the `max_time`.
 - `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
     For example, `_time:[2023-04-01Z, 2023-04-30Z]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04Z`.
 - `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
     For example, `_time:[2023-02-01Z, 2023-03-01Z)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02Z`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.

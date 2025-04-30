@@ -45,9 +45,9 @@ Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-v
 
 Yes in most cases. VictoriaMetrics can substitute Prometheus in the following aspects:
 
-* Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and with single-node VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and with single-node VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
-* Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#grafana-setup).
+* Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
 
 ## What is the difference between vmagent and Prometheus?
 
@@ -118,13 +118,13 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 ## What is the difference between VictoriaMetrics and [QuestDB](https://questdb.io/)?
 
 * QuestDB needs more than 20x storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
-* QuestDB is much harder to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-start-victoriametrics).
+* QuestDB is much harder to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
-* VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
-* Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/#grafana-setup), while QuestDB needs a full rewrite of existing dashboards in Grafana.
+* VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+* Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup), while QuestDB needs a full rewrite of existing dashboards in Grafana.
 * Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), while QuestDB has no integration with Prometheus.
-* QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-import-time-series-data)).
-* [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
+* QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)).
+* [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
 
 ## What is the difference between VictoriaMetrics and [Grafana Mimir](https://github.com/grafana/mimir)?
 
@@ -162,7 +162,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
 
 ## What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)?
 
@@ -184,7 +184,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics accepts data via multiple popular data ingestion protocols in addition to the Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Thanos provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
 
 ## How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
 
@@ -193,16 +193,16 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to InfluxDB – Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
 
 ## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
 
 * TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical usages of a TSDB. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
 * VictoriaMetrics requires [up to 70x less storage space compared to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be lowered from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/use-timescale/latest/compression/) (it isn't an easy task in general :)).
 * VictoriaMetrics requires up to 10x less CPU and RAM resources than TimescaleDB for processing production data. See [this article](https://abiosgaming.com/press/high-cardinality-aggregations/) for details.
-* TimescaleDB is [harder to set up, configure and operate](https://docs.timescale.com/timescaledb/latest/how-to-guides/install-timescaledb/self-hosted/ubuntu/installation-apt-ubuntu/) than VictoriaMetrics (see [how to run VictoriaMetrics](https://docs.victoriametrics.com/#how-to-start-victoriametrics)).
+* TimescaleDB is [harder to set up, configure and operate](https://docs.timescale.com/timescaledb/latest/how-to-guides/install-timescaledb/self-hosted/ubuntu/installation-apt-ubuntu/) than VictoriaMetrics (see [how to run VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics)).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols – InfluxDB, OpenTSDB, Graphite, CSV – while TimescaleDB supports only SQL inserts.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
 
 ## Does VictoriaMetrics use Prometheus technologies like other clustered TSDBs built on top of Prometheus such as [Thanos](https://github.com/thanos-io/thanos) or [Cortex](https://github.com/cortexproject/cortex)?
 
@@ -235,8 +235,8 @@ if a query covers 1000 metrics with 10K values each, then the remote read API ha
 This is slow and expensive.
 Prometheus' remote read API isn't intended for querying foreign data – aka `global query view`. See [this issue](https://github.com/prometheus/prometheus/issues/4456) for details.
 
-So just query VictoriaMetrics directly via [vmui](https://docs.victoriametrics.com/#vmui), the [Prometheus Querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/#grafana-setup).
+So just query VictoriaMetrics directly via [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui), the [Prometheus Querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
+or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
 
 ## Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
 
@@ -287,7 +287,7 @@ Questions about VictoriaMetrics can be asked via the following channels:
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
-See the full list of [community channels](https://docs.victoriametrics.com/#community-and-contributions).
+See the full list of [community channels](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#community-and-contributions).
 
 ## Where can I file bugs and feature requests regarding VictoriaMetrics?
 
@@ -303,10 +303,10 @@ All the VictoriaMetrics components provide command-line flags to control the siz
 
 Memory usage for VictoriaMetrics components can be tuned according to the following docs:
 
-* [Resource usage limits for single-node VictoriaMetrics](https://docs.victoriametrics.com/#resource-usage-limits)
+* [Resource usage limits for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits)
 * [Resource usage limits for cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#resource-usage-limits)
 * [Troubleshooting for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting)
-* [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
+* [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#troubleshooting)
 
 ## How can I run VictoriaMetrics on FreeBSD/OpenBSD?
 
@@ -316,13 +316,13 @@ or use pre-built binaries from [releases page](https://github.com/VictoriaMetric
 
 ## Does VictoriaMetrics support the Graphite query language?
 
-Yes. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage).
+Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
 
 ## What is an active time series?
 
 A time series is uniquely identified by its name plus a set of its labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}`
 are two distinct series, since they differ by the `city` label. A time series is considered active if it received at least a single sample during the last hour.
-The number of active time series is displayed on the official Grafana dashboard for VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
+The number of active time series is displayed on the official Grafana dashboard for VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
 
 ## What is high churn rate?
 
@@ -340,10 +340,10 @@ The main reason for high churn rate is a metric label with frequently changed va
 * A `hash` or `uuid` label, which changes frequently.
 
 The solution against high churn rate is to identify and eliminate labels with frequently changed values.
-[Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help determining these labels. If labels can't be removed, try pre-aggregating data
+[Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can help determining these labels. If labels can't be removed, try pre-aggregating data
 before it gets ingested into database with [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/).
 
-The official Grafana dashboards for VictoriaMetrics contain graphs for churn rate - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
+The official Grafana dashboards for VictoriaMetrics contain graphs for churn rate - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
 
 ## What is high cardinality?
 
@@ -355,10 +355,10 @@ a large number of unique values, which presents a big share of the ingested time
 * `url`
 * `ip`
 
-The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer).
+The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 
 The official Grafana dashboards for VictoriaMetrics contain graphs, which show the number of active time series -
-see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
+see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
 
 ## What is a slow insert?
 
@@ -366,18 +366,18 @@ VictoriaMetrics maintains in-memory cache for mapping of [active time series](#w
 The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache,
 then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache.
 This operation is much slower than the cache lookup, so such an insert is named a `slow insert`.
-A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/#monitoring) indicates
+A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) indicates
 a memory shortage for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads
 to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage.
 The solution is to add more memory or to reduce the number of [active time series](#what-is-an-active-time-series).
 
-[Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can be helpful for locating the source of high number of active time series.
+[Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can be helpful for locating the source of high number of active time series.
 
 ## How to optimize MetricsQL query?
 
 See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
 
-VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing) and [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
+VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing) and [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer),
 which can help during query optimization.
 
 See also [troubleshooting slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries).
@@ -437,7 +437,7 @@ Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/#
 
 ## How to migrate data from Graphite to VictoriaMetrics?
 
-Please use the [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading data from Graphite and pushing them to VictoriaMetrics via [Graphite's import API](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+Please use the [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading data from Graphite and pushing them to VictoriaMetrics via [Graphite's import API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
 
 ## Why do the same metrics have differences in VictoriaMetrics' and Prometheus' dashboards?
 
@@ -447,11 +447,11 @@ The query engine may behave differently for some functions. Please see [this art
 
 ## If downsampling and deduplication are enabled how will this work?
 
-[Deduplication](https://docs.victoriametrics.com/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
+[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
 
 ## How to upgrade or downgrade VictoriaMetrics without downtime?
 
-Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
+Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
 [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes).
 
@@ -459,7 +459,7 @@ Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without
 
 VictoriaMetrics doesn't rebalance data between `vmstorage` nodes when new `vmstorage` nodes are added to the cluster.
 This means that newly added `vmstorage` nodes will have less data at `-storageDataPath` comparing to the old `vmstorage` nodes
-until the historical data is removed from the old `vmstorage` nodes when it goes outside the configured [retention](https://docs.victoriametrics.com/#retention).
+until the historical data is removed from the old `vmstorage` nodes when it goes outside the configured [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
 
 The automatic rebalancing is the process of moving data between `vmstorage` nodes, so every node has the same amounts of data eventually.
 It is disabled by default because it may consume additional CPU, network bandwidth and disk IO at `vmstorage` nodes for long periods of time,
@@ -468,7 +468,7 @@ which, in turn, can negatively impact VictoriaMetrics cluster availability.
 Additionally, it is unclear how to handle the automatic re-balancing if cluster configuration changes when the re-balancing is in progress.
 
 The amounts of data stored in `vmstorage` becomes equal among old `vmstorage` nodes and new `vmstorage` nodes
-after historical data is removed from the old `vmstorage` nodes because it goes outside of configured [retention](https://docs.victoriametrics.com/#retention).
+after historical data is removed from the old `vmstorage` nodes because it goes outside of configured [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
 
 The data ingestion load becomes even between old `vmstorage` nodes and new `vmstorage` nodes almost immediately
 after adding new `vmstorage` nodes to the cluster, since `vminsert` nodes evenly distribute incoming time series
