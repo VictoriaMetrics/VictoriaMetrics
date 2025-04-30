@@ -91,7 +91,7 @@ when different tenants have different amounts of data and different query load.
 
 - The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
 
-- VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/pertenantstatistic/).
+- VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
 
 See also [multitenancy via labels](#multitenancy-via-labels).
 
