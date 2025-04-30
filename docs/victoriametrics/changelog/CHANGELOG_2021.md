@@ -221,7 +221,7 @@ Released at 2021-09-01
 * BUGFIX: vmagent: add `role: endpointslice` in [kubernetes_sd_config](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) in order to be consistent with Prometheus. Previously this role was supported with incorrect name: `role: endpointslices`. Now both `endpointslice` and `endpointslices` are supported. See [the corresponding code in Prometheus](https://github.com/prometheus/prometheus/blob/2ec6c7dbb82b72834021e01f1773eb90a67a371f/discovery/kubernetes/kubernetes.go#L99).
 * BUGFIX: improve the detection of the needed free space for background merge operation. This should prevent from possible out of disk space crashes during big merges. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1560).
 * BUGFIX: vmauth: remove trailing slash from the full url before requesting it from the backend. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1554).
-* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix timeout error when snapshot takes longer than 10 seconds. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1571).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): fix timeout error when snapshot takes longer than 10 seconds. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1571).
 * BUGFIX: properly parse OpenTSDB `put` messages with multiple spaces between message elements. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1574). Thanks to @envzhu for the fix.
 
 ## [v1.64.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.64.1)
