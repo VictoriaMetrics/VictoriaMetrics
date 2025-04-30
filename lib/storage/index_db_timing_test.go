@@ -79,8 +79,6 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, timestamp int64, startOffset, recordsPerLoop int) {
 	date := uint64(timestamp) / msecPerDay
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
 		mn.MetricGroup = strconv.AppendUint(mn.MetricGroup[:0], uint64(i+startOffset), 10)
 		for j := range mn.Tags {
@@ -89,7 +87,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, timestamp
 		mn.sortTags()
 
 		generateTSID(tsid, mn)
-		createAllIndexesForMetricName(is, mn, tsid, date)
+		createAllIndexesForMetricName(db, mn, tsid, date)
 	}
 }
 
@@ -102,8 +100,6 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	db := s.tb.MustGetIndexDB(timestamp)
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
 	var mn MetricName
 	var tsid TSID
 	date := uint64(timestamp) / msecPerDay
@@ -114,7 +110,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 		mn.sortTags()
 		generateTSID(&tsid, &mn)
-		createAllIndexesForMetricName(is, &mn, &tsid, date)
+		createAllIndexesForMetricName(db, &mn, &tsid, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -286,12 +282,9 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	var tsid TSID
 	date := uint64(timestamp) / msecPerDay
 
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
-
 	for i := 0; i < recordsCount; i++ {
 		generateTSID(&tsid, &mn)
-		createAllIndexesForMetricName(is, &mn, &tsid, date)
+		createAllIndexesForMetricName(db, &mn, &tsid, date)
 	}
 	db.s.DebugFlush()
 
@@ -305,14 +298,12 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.CopyFrom(&mn)
 		mnLocal.sortTags()
 		for pb.Next() {
-			is := db.getIndexSearch(noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				if !is.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {
+				if !db.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}
-			db.putIndexSearch(is)
 		}
 	})
 	b.StopTimer()

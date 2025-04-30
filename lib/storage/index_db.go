@@ -149,12 +149,8 @@ type indexDB struct {
 	// The cache is used solely for creating new index entries during the data
 	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
 	//
-	// TODO(@rtm0): Consider using uint64set and rotate and drop it every 5
-	// minutes. Use Mutex instead RWMutex or even get rid of mutex (fast path
-	// without lock, lock only in slow path, see other caches, such as
-	// dateMetricIDCache)
-	metricIDCache     map[uint64]struct{}
-	metricIDCacheLock sync.RWMutex
+	// TODO(@baidarov): Use a specialized cache for this, we don't need id/date here
+	metricIDCache *dateMetricIDCache
 
 	// An inmemory set of deleted metricIDs.
 	//
@@ -205,7 +201,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
-		metricIDCache:              make(map[uint64]struct{}),
+		metricIDCache:              newDateMetricIDCache(),
 		prefetchedMetricIDs:        &uint64set.Set{},
 	}
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
@@ -537,16 +533,14 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricID = generateUniqueMetricID()
 }
 
-func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
+func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	// Add new metricID to cache.
-	is.db.metricIDCacheLock.Lock()
-	is.db.metricIDCache[tsid.MetricID] = struct{}{}
-	is.db.metricIDCacheLock.Unlock()
+	db.metricIDCache.Set(db.id, globalIndexDate, tsid.MetricID)
 
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	if is.db.s.disablePerDayIndex {
+	if db.s.disablePerDayIndex {
 		// Create metricName -> TSID entry.
 		// This index is used for searching a TSID by metric name during data
 		// ingestion or metric name registration when -disablePerDayIndex flag
@@ -576,7 +570,7 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
 	kbPool.Put(kb)
 
-	is.db.tb.AddItems(ii.Items)
+	db.tb.AddItems(ii.Items)
 }
 
 type indexItems struct {
@@ -1730,12 +1724,16 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
-func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) bool {
-	dmis := is.db.getDeletedMetricIDs()
+func (db *indexDB) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) bool {
+	dmis := db.getDeletedMetricIDs()
+
+	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
+
 	ts := &is.ts
 	kb := &is.kb
 
-	if is.db.s.disablePerDayIndex {
+	if db.s.disablePerDayIndex {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
 	} else {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
@@ -2660,8 +2658,8 @@ const (
 	int64Max = int64((1 << 63) - 1)
 )
 
-func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
-	if is.db.s.disablePerDayIndex {
+func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
+	if db.s.disablePerDayIndex {
 		return
 	}
 	ii := getIndexItems()
@@ -2688,7 +2686,7 @@ func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricNa
 	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
 	kbPool.Put(kb)
 
-	is.db.tb.AddItems(ii.Items)
+	db.tb.AddItems(ii.Items)
 }
 
 func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {
@@ -2798,10 +2796,13 @@ func reverseBytes(dst, src []byte) []byte {
 	return dst
 }
 
-func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
+func (db *indexDB) hasDateMetricID(date, metricID uint64) bool {
 	if date == globalIndexDate {
-		return is.hasMetricID(metricID)
+		return db.hasMetricID(metricID)
 	}
+
+	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
 
 	ts := &is.ts
 	kb := &is.kb
@@ -2822,13 +2823,14 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 	return false
 }
 
-func (is *indexSearch) hasMetricID(metricID uint64) bool {
-	is.db.metricIDCacheLock.RLock()
-	_, ok := is.db.metricIDCache[metricID]
-	is.db.metricIDCacheLock.RUnlock()
+func (db *indexDB) hasMetricID(metricID uint64) bool {
+	ok := db.metricIDCache.Has(db.id, globalIndexDate, metricID)
 	if ok {
 		return true
 	}
+
+	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
 
 	ts := &is.ts
 	kb := &is.kb
@@ -2841,9 +2843,7 @@ func (is *indexSearch) hasMetricID(metricID uint64) bool {
 		logger.Panicf("FATAL: error when searching for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
 	}
 
-	is.db.metricIDCacheLock.Lock()
-	is.db.metricIDCache[metricID] = struct{}{}
-	is.db.metricIDCacheLock.Unlock()
+	db.metricIDCache.Set(db.id, globalIndexDate, metricID)
 
 	return true
 }
