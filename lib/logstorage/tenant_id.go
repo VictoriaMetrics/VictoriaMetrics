@@ -14,10 +14,10 @@ import (
 // Each log stream is associated with a single TenantID.
 type TenantID struct {
 	// AccountID is the id of the account for the log stream.
-	AccountID uint32
+	AccountID uint32 `json:"accountID"`
 
 	// ProjectID is the id of the project for the log stream.
-	ProjectID uint32
+	ProjectID uint32 `json:"projectID"`
 }
 
 // Reset resets tid.

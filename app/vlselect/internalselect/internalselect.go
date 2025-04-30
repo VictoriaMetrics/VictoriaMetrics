@@ -341,22 +341,14 @@ func writeValuesWithHits(w http.ResponseWriter, vhs []logstorage.ValueWithHits, 
 	return nil
 }
 
-func writeTenantIDs(w http.ResponseWriter, tenantIDs []string, disableCompression bool) error {
-	var b []byte
-	for i := range tenantIDs {
-		b = []byte(tenantIDs[i])
-	}
-
+func writeTenantIDs(w http.ResponseWriter, tenantIDs []byte, disableCompression bool) error {
 	if !disableCompression {
-		b = zstd.CompressLevel(nil, b, 1)
+		tenantIDs = zstd.CompressLevel(nil, tenantIDs, 1)
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-
-	if _, err := w.Write(b); err != nil {
+	if _, err := w.Write(tenantIDs); err != nil {
 		return fmt.Errorf("cannot send response to the client: %w", err)
 	}
-
 	return nil
 }
 

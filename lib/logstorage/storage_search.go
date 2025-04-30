@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"slices"
@@ -505,11 +506,11 @@ func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []TenantID, q *Que
 }
 
 // GetTenantIDs returns tenantIDs for the given start and end.
-func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]string, error) {
+func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]byte, error) {
 	return s.getTenantIDs(ctx, start, end)
 }
 
-func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]string, error) {
+func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]byte, error) {
 	workersCount := cgroup.AvailableCPUs()
 	stopCh := ctx.Done()
 
@@ -578,12 +579,16 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]string,
 			m[tid] = struct{}{}
 		}
 	}
-	tenants := make([]string, 0, len(m))
+
+	tenants := make([]TenantID, 0, len(m))
 	for tid := range m {
-		tenants = append(tenants, tid)
+		t, err := ParseTenantID(tid)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse tenantID %q: %w", tid, err)
+		}
+		tenants = append(tenants, t)
 	}
-	slices.Sort(tenants)
-	return tenants, nil
+	return json.Marshal(tenants)
 }
 
 func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {

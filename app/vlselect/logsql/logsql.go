@@ -938,7 +938,7 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 }
 
-// ProcessAdminTenantsRequest processes /select/logsql/admin_tenants request.
+// ProcessAdminTenantsRequest processes /select/admin/tenants request.
 func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	start, okStart, err := getTimeNsec(r, "start")
 	if err != nil {
@@ -966,7 +966,7 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 		shard.sw = sw
 	}
 	defer func() {
-		shards := bwShards.GetSlice()
+		shards := bwShards.All()
 		for _, shard := range shards {
 			shard.FlushIgnoreErrors()
 		}
@@ -980,9 +980,11 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 		return
 	}
 
-	bb := blockResultPool.Get()
-	WriteTenantsResponse(bb, tenants)
-	blockResultPool.Put(bb)
+	_, err = fmt.Fprintf(w, "{\"status\":\"success\",\"data\":%q}\n", tenants)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain tenantIDs: %s", err)
+		return
+	}
 }
 
 type syncWriter struct {
