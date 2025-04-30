@@ -1649,7 +1649,7 @@ The `-relabelConfig` also can point to http or https url. For example, `-relabel
 
 The following docs can be useful in understanding the relabeling:
 
-* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling/).
+* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 * [Relabeling tips and tricks](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2).
 
 The `-relabelConfig` files can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.

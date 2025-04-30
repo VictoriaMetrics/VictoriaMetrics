@@ -387,7 +387,7 @@ SRV urls are supported in the following places:
   `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
   uses randomly chosen address per each connection it establishes to the remote storage.
 
-- In scrape target addresses aka `__address__` label - see [these docs](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
+- In scrape target addresses aka `__address__` label - see [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
 
 - In urls used for [service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 
@@ -581,16 +581,16 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
 * At the `global -> relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
   Configuration from global section will be prepended to the `relabel_config` of targets from `scrape_config` section.
-  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 * At the `global -> metric_relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
   This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
   Configuration from global section will be prepended to the `metric_relabel_config` of targets from `scrape_config` section.
-  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
-  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
   This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
   or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
@@ -598,7 +598,7 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
 
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
-  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
   This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
@@ -621,7 +621,7 @@ is performed after applying all the relabeling stages mentioned above.
 
 The following articles contain useful information about Prometheus relabeling:
 
-* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling/)
+* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 * [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
@@ -1656,7 +1656,7 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
   between `vmagent` and scrape targets.
 
 - Disable tracking of original labels for the discovered targets via `-promscrape.dropOriginalLabels` command-line flag. This helps reducing RAM usage when `vmagent`
-  discovers big number of scrape targets and the majority of these targets are [dropped](https://docs.victoriametrics.com/relabeling/#how-to-drop-discovered-targets).
+  discovers big number of scrape targets and the majority of these targets are [dropped](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-drop-discovered-targets).
   This is a typical case when `vmagent` discovers Kubernetes targets. The downside of using `-promscrape.dropOriginalLabels` command-line flag
   is the reduced [debuggability](#debugging-scrape-targets) for improperly configured per-target relabeling.
 
