@@ -362,7 +362,7 @@ and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Both are u
 supported by VictoriaMetrics.
 
 See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
-See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/data-ingestion/).
+See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/victoriametrics/data-ingestion/).
 
 ## Query data
 
