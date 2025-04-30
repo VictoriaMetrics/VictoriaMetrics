@@ -5,6 +5,11 @@ menu:
   docs:
     parent: "cloud"
     weight: 3
+tags:
+   - metrics
+   - cloud
+   - enterprise
+   - guide
 aliases:
   - /victoriametrics-cloud/how-to-monitor-k8s/index.html
   - /managed-victoriametrics/how-to-monitor-k8s/index.html

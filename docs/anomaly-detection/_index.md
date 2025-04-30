@@ -6,6 +6,9 @@ menu:
     weight: 50
     identifier: anomaly-detection
     pageRef: /anomaly-detection/
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection.html
 - /vmanomaly.html

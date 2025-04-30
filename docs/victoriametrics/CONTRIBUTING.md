@@ -6,8 +6,11 @@ menu:
     identifier: vm-contributing
     parent: victoriametrics
     weight: 400
+tags: []
 aliases:
 - /CONTRIBUTING.html
+- /contributing/index.html
+- /contributing/
 ---
 If you like VictoriaMetrics and want to contribute, then it would be great:
 
@@ -17,7 +20,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 - Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
 - Spreading the word about VictoriaMetrics via various channels:
   - conference talks
-  - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CaseStudies.md)
+  - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/CaseStudies.md)
   - comments at Hacker News, Twitter, LinkedIn, Reddit, Facebook, etc.
   - experience sharing with colleagues.
 - Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/enterprise/) with VictoriaMetrics.

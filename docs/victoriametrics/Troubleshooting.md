@@ -5,8 +5,12 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 35
+tags:
+  - metrics
 aliases:
 - /Troubleshooting.html
+- /troubleshooting/index.html
+- /troubleshooting/
 ---
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 
@@ -324,7 +328,7 @@ There are the following solutions exist for improving performance of slow querie
 - Rewriting slow queries, so they become faster. Unfortunately it is hard determining
   whether the given query is slow by just looking at it.
 
-  The main source of slow queries in practice is [alerting and recording rules](https://docs.victoriametrics.com/vmalert/#rules)
+  The main source of slow queries in practice is [alerting and recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules)
   with long lookbehind windows in square brackets. These queries are frequently used in SLI/SLO calculations such as [Sloth](https://github.com/slok/sloth).
 
   For example, `avg_over_time(up[30d]) > 0.99` needs to read and process
@@ -336,7 +340,7 @@ There are the following solutions exist for improving performance of slow querie
   - To reduce the lookbehind window in square brackets. For example, `avg_over_time(up[10d])` takes up to 3x less compute resources
     than `avg_over_time(up[30d])` at VictoriaMetrics.
   - To increase evaluation interval for alerting and recording rules, so they are executed less frequently.
-    For example, increasing `-evaluationInterval` command-line flag value at [vmalert](https://docs.victoriametrics.com/vmalert/)
+    For example, increasing `-evaluationInterval` command-line flag value at [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
     from `1m` to `2m` should reduce compute resource usage at VictoriaMetrics by 2x.
 
   Another source of slow queries is improper use of [subqueries](https://docs.victoriametrics.com/metricsql/#subqueries).

@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 10
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/Journald.html
 ---

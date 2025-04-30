@@ -5,6 +5,9 @@ menu:
   docs:
     parent: "vmanomaly-components"
     weight: 4
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /anomaly-detection/components/writer.html
 ---

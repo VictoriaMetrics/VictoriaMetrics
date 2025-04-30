@@ -41,7 +41,10 @@ var (
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which "+
 		"the storage stops accepting new data")
 
-	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
+	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge . It overrides -httpAuth.* . "+
+		"See https://docs.victoriametrics.com/victorialogs/#forced-merge")
+	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush . It overrides -httpAuth.* . "+
+		"See https://docs.victoriametrics.com/victorialogs/#forced-flush")
 
 	storageNodeAddrs = flagutil.NewArrayString("storageNode", "Comma-separated list of TCP addresses for storage nodes to route the ingested logs to and to send select queries to. "+
 		"If the list is empty, then the ingested logs are stored and queried locally from -storageDataPath")
@@ -203,8 +206,11 @@ func Stop() {
 // RequestHandler is a storage request handler.
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
-	if path == "/internal/force_merge" {
+	switch path {
+	case "/internal/force_merge":
 		return processForceMerge(w, r)
+	case "/internal/force_flush":
+		return processForceFlush(w, r)
 	}
 	return false
 }
@@ -229,6 +235,21 @@ func processForceMerge(w http.ResponseWriter, r *http.Request) bool {
 		localStorage.MustForceMerge(partitionNamePrefix)
 		logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
 	}()
+	return true
+}
+
+func processForceFlush(w http.ResponseWriter, r *http.Request) bool {
+	if localStorage == nil {
+		// Force merge isn't supported by non-local storage
+		return false
+	}
+
+	if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey) {
+		return true
+	}
+
+	logger.Infof("flushing storage to make pending data available for reading")
+	localStorage.DebugFlush()
 	return true
 }
 

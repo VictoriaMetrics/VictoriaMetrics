@@ -31,7 +31,10 @@ const getGroupSeries = (
     }
 
     const groupEntry = groupMap.get(groupKey) as QueryGroup;
-    groupEntry.items.push(label);
+    const isDuplicate = groupEntry.items.some(item => item.label === label.label);
+    if (!isDuplicate) {
+      groupEntry.items.push(label);
+    }
   }
 
   return Array.from(groupMap.values());

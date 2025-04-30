@@ -6,6 +6,9 @@ menu:
     parent: "anomaly-detection"
     weight: 2
     title: Presets
+tags:
+  - metrics
+  - enterprise
 ---
 > Please check the [Quick Start Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/) to install and run `vmanomaly`
 

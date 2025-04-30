@@ -6,8 +6,13 @@ menu:
     identifier: vm-quick-start
     parent: victoriametrics
     weight: 1
+tags:
+  - metrics
+  - guide
 aliases:
 - /Quick-Start.html
+- /quick-start/index.html
+- /quick-start/
 ---
 ## How to install
 
@@ -17,15 +22,16 @@ VictoriaMetrics is available in the following distributions:
   binary that is easy to run and maintain. Single-server-VictoriaMetrics perfectly scales vertically and easily handles
   millions of metrics;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
-  for building horizontally scalable clusters.
-* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) -  
-  VictoriaMetrics installation in the cloud. Users can pick a suitable installation size and don't think of typical DevOps 
-  tasks such as configuration tuning, monitoring, logs collection, access protection, software updates, backups, etc. 
+  for building horizontally scalable clusters;
+* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) - VictoriaMetrics installation in the cloud. 
+  Users can pick a suitable installation size and don't think of typical DevOps tasks such as configuration tuning, 
+  monitoring, logs collection, access protection, software updates, backups, etc. 
 
 VictoriaMetrics is available as:
 
 * docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags)
-* [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
+* [Helm Charts](https://docs.victoriametrics.com/helm/)
+* [Kubernetes operator](https://docs.victoriametrics.com/operator/)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
@@ -33,8 +39,7 @@ VictoriaMetrics is available as:
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
-Just download VictoriaMetrics and follow
-[these instructions](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-start-victoriametrics).
+Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-start-victoriametrics).
 Then read [Prometheus setup](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup)
 and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup) docs.
 
@@ -43,7 +48,6 @@ and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgra
 
 ### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
 
-The following steps will guide you through starting VictoriaMetrics on VictoriaMetrics Cloud:
 1. Go to [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
 1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
 1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
@@ -51,12 +55,11 @@ The following steps will guide you through starting VictoriaMetrics on VictoriaM
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
 Download the latest available [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics)
-and start it at port 8428, while storing the ingested data at `victoria-metrics-data` subdirectory
-under the current directory:
+and start it at port `:8428`:
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.115.0
+docker pull victoriametrics/victoria-metrics:v1.116.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.115.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.116.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 You should see:
@@ -71,15 +74,16 @@ Visit `http://localhost:8428/vmui/#/metrics` to explore available metrics or run
 `http://localhost:8428/vmui` (i.e. `process_cpu_cores_available`).
 Other available HTTP endpoints are listed on `http://localhost:8428` page.
 
-See more about [writing](https://docs.victoriametrics.com/quick-start/#write-data) or [reading](https://docs.victoriametrics.com/quick-start/#query-data).
+See how to [write](https://docs.victoriametrics.com/quick-start/#write-data) or [read](https://docs.victoriametrics.com/quick-start/#query-data)
+from VictoriaMetrics.
 
 ### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
 
 Clone [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docker environment 
-via `make docker-cluster-up` command:
+via `make docker-vm-cluster-up` command:
 ```sh
 git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
-make docker-cluster-up
+make docker-vm-cluster-up
 ```
 
 You should see:
@@ -91,11 +95,11 @@ You should see:
 ```
 
 The command starts a set of VictoriaMetrics components for metrics collection, storing, alerting and Grafana for user
-interface. See the full description [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster).
+interface. See the [description of deployed topology](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster).
 
 Visit Grafana `http://localhost:3000/` (admin:admin) or vmui `http://localhost:8427/select/0/vmui` to start exploring metrics.
 
-_Further customization is possible by editing the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
+_Further customization is possible by editing the [compose-vm-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vm-cluster.yml)
 file._
 
 See more details about [cluster architecture](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup).
@@ -373,28 +377,28 @@ See more details on [querying data here](https://docs.victoriametrics.com/keycon
 
 ## Alerting
 
-To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/vmalert/). 
+To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/). 
 It allows creating set of conditions using MetricsQL expressions and send notifications to [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
 when such conditions are met.
 
-See [vmalert quick start](https://docs.victoriametrics.com/vmalert/#quickstart).
+See [vmalert quick start](https://docs.victoriametrics.com/victoriametrics/vmalert/#quickstart).
 
 ## Data migration
 
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
 [supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
 
-The migration might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl/) - VictoriaMetrics
+The migration might get easier when using [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:
-* [Prometheus using snapshot API](https://docs.victoriametrics.com/vmctl/#migrating-data-from-prometheus);
-* [Thanos](https://docs.victoriametrics.com/vmctl/#migrating-data-from-thanos);
-* [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x);
-* [OpenTSDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-opentsdb);
-* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
+* [Prometheus using snapshot API](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-prometheus);
+* [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-thanos);
+* [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x);
+* [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-opentsdb);
+* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
 
 ## Productionization
 
-When going to production with VictoriaMetrics we recommend following the recommendations.
+When going to production with VictoriaMetrics we recommend following the recommendations below.
 
 ### Monitoring
 

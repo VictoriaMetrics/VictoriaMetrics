@@ -44,7 +44,7 @@ requests_total{path="/", code="200"}
 ```
 
 Labels can be automatically attached to the [time series](#time-series) 
-written via [vmagent](https://docs.victoriametrics.com/vmagent/#adding-labels-to-metrics) 
+written via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) 
 or [Prometheus](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup).
 VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
@@ -381,7 +381,7 @@ curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"ti
 
 It is allowed to push/write metrics to [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/),
 to [cluster component vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview)
-and to [vmagent](https://docs.victoriametrics.com/vmagent/).
+and to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 The pros of push model:
 
@@ -416,7 +416,7 @@ VictoriaMetrics supports discovering Prometheus-compatible targets and scraping 
 see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
 Metrics scraping is supported by [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-and by [vmagent](https://docs.victoriametrics.com/vmagent/).
+and by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
 The pros of the pull model:
 
@@ -440,15 +440,15 @@ The most common approach for data collection is using both models:
 
 ![data collection](data_collection.webp)
 
-In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent/). Vmagent is
+In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). Vmagent is
 a lightweight agent whose main purpose is to collect, filter, relabel and deliver metrics to VictoriaMetrics.
 It supports all [push](#push-model) and [pull](#pull-model) protocols mentioned above.
 
 The basic monitoring setup of VictoriaMetrics and vmagent is described
-in the [example docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
-In this example vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
-and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9d7da130b5a873be334b38c8d8dec702c9e8fac5/deployment/docker/docker-compose.yml#L15).
-VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/provisioning/datasources)
+in the [example docker-compose manifest](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
+In this example vmagent [scrapes a list of targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-single.yml)
+and [forwards collected data to VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/compose-vm-single.yml#L16).
+VictoriaMetrics is then used as a [datasource for Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/provisioning/datasources/prometheus-datasource/single.yml)
 installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
@@ -457,7 +457,7 @@ VictoriaMetrics components allow building more advanced topologies. For example,
 
 VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/). Vmagent also allows
-[replicating the same data to multiple destinations](https://docs.victoriametrics.com/vmagent/#replication-and-high-availability).
+[replicating the same data to multiple destinations](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability).
 
 ## Query data
 

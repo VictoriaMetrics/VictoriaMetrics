@@ -116,7 +116,7 @@ func getCPUQuotaV2(sysPrefix, cgroupPath string) (float64, error) {
 // See https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu
 func parseCPUMax(data string) (float64, error) {
 	bounds := strings.Split(data, " ")
-	if len(bounds) != 2 {
+	if len(bounds) > 2 {
 		return 0, fmt.Errorf("unexpected line format: want 'quota period'; got: %s", data)
 	}
 	if bounds[0] == "max" {
@@ -126,9 +126,16 @@ func parseCPUMax(data string) (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse quota: %w", err)
 	}
-	period, err := strconv.ParseUint(bounds[1], 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse period: %w", err)
+	// The default is “max 100000”.
+	period := uint64(100_000)
+	if len(bounds) == 2 {
+		period, err = strconv.ParseUint(bounds[1], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse period: %w", err)
+		}
+		if period == 0 {
+			return 0, fmt.Errorf("zero value for period is not allowed")
+		}
 	}
 	return float64(quota) / float64(period), nil
 }

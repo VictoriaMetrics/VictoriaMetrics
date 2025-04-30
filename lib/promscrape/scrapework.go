@@ -43,7 +43,7 @@ var (
 		"See also -promscrape.suppressScrapeErrorsDelay")
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
-	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode")
+	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -146,7 +146,7 @@ type ScrapeWork struct {
 	SeriesLimit int
 
 	// Whether to process stale markers for the given target.
-	// See https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers
 	NoStaleMarkers bool
 
 	// The Tenant Info
@@ -286,7 +286,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		// Include clusterMemberID to the key in order to guarantee that each member in vmagent cluster
 		// scrapes replicated targets at different time offsets. This guarantees that the deduplication consistently leaves samples
 		// received from the same vmagent replica.
-		// See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
+		// See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets
 		key := fmt.Sprintf("clusterName=%s, clusterMemberID=%d, ScrapeURL=%s, Labels=%s", *clusterName, clusterMemberID, sw.Config.ScrapeURL, sw.Config.Labels.String())
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 64)))
@@ -525,7 +525,13 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 
 	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
 	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
-		wc.reset()
+		// use wc.writeRequest.Reset() instead of wc.reset()
+		// in order to keep the len(wc.labels), which is used for initializing sw.prevLabelsLen below.
+		//
+		// This prevents from excess memory allocations at wc for the next scrape for the given scrapeWork.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/commit/12f26668a6bbf804db0e41a2683f1bd232e985d6#r155481168
+		wc.writeRequest.Reset()
+
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
 		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
@@ -935,7 +941,7 @@ func isAutoMetric(s string) bool {
 
 // addAutoMetrics adds am with the given timestamp to wc.
 //
-// See https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics
+// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
 //
 // sw is used as read-only config source.
 func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, timestamp int64) {

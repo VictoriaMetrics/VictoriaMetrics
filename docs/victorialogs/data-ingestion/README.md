@@ -103,6 +103,10 @@ echo '{ "log": { "level": "info", "message": "hello world" }, "date": "0", "stre
 
 It is possible to push unlimited number of log lines in a single request to this API.
 
+VictoriaLogs skips invalid JSON lines and continues parsing the remaining lines. It logs the warning
+with the reason why it skipped invalid JSON lines. It also increments the `vl_http_errors_total{path="/insert/jsonline"}` counter
+at the [`/metrics` page](https://docs.victoriametrics.com/victorialogs/#monitoring) per every invalid JSON line.
+
 If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
 Otherwise the timestamp field must be in one of the following formats:
@@ -327,7 +331,7 @@ Here is the list of log collectors and their ingestion formats supported by Vict
 | How to setup the collector | Format: Elasticsearch | Format: JSON Stream | Format: Loki | Format: syslog | Format: OpenTelemetry | Format: Journald | Format: DataDog |
 |----------------------------|-----------------------|---------------------|--------------|----------------|-----------------------|------------------|-----------------|
 | [Rsyslog](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/) | [Yes](https://www.rsyslog.com/doc/configuration/modules/omelasticsearch.html) | No | No | [Yes](https://www.rsyslog.com/doc/configuration/modules/omfwd.html) | No | No | No |
-| [Syslog-ng](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | Yes, [v1](https://support.oneidentity.com/technical-documents/syslog-ng-open-source-edition/3.16/administration-guide/28#TOPIC-956489), [v2](https://support.oneidentity.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/29#TOPIC-956494) | No | No | [Yes](https://support.oneidentity.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/44#TOPIC-956553) | No | No | No |
+| [Syslog-ng](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | Yes, [v1](https://support.oneidentity.com/technical-documents/syslog-ng-open-source-edition/3.16/administration-guide/28#TOPIC-956489), [v2](https://support.oneidentity.com/technical-documents/syslog-ng-open-source-edition/3.16/administration-guide/29#TOPIC-956494) | No | No | [Yes](https://support.oneidentity.com/technical-documents/syslog-ng-open-source-edition/3.16/administration-guide/44#TOPIC-956553) | No | No | No |
 | [Filebeat](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) | No | No | No | No | No | No |
 | [Fluentbit](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/loki) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/syslog) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/opentelemetry) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/datadog) |
 | [Logstash](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-syslog.html) | [Yes](https://github.com/paulgrav/logstash-output-opentelemetry) | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-datadog.html) |

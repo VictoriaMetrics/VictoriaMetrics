@@ -284,6 +284,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'replace_regexp' pipe: %w", err)
 		}
 		return pr, nil
+	case lex.isKeyword("sample"):
+		ps, err := parsePipeSample(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sample' pipe: %w", err)
+		}
+		return ps, nil
 	case lex.isKeyword("sort", "order"):
 		ps, err := parsePipeSort(lex)
 		if err != nil {
@@ -419,6 +425,7 @@ var pipeNames = func() map[string]struct{} {
 		"rename", "mv",
 		"replace",
 		"replace_regexp",
+		"sample",
 		"sort", "order",
 		"stats", "stats_remote", "by",
 		"stream_context",

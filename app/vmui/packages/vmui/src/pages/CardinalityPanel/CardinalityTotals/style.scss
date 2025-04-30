@@ -19,6 +19,7 @@
     align-items: flex-end;
     justify-content: center;
     gap: $padding-small 4px;
+    padding: $padding-small;
 
     &__info-icon {
       width: 15px;
@@ -49,6 +50,12 @@
       font-size: $font-size-large;
       line-height: $font-size;
       text-align: center;
+    }
+
+    &__link {
+      text-align: right;
+      font-size: $font-size-small;
+      margin-left: $padding-small;
     }
   }
 }

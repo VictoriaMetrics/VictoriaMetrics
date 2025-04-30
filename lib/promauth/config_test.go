@@ -679,7 +679,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 
 func mustGenerateCertificates() ([]byte, []byte, []byte) {
 	// Small key size for faster tests
-	const testCertificateBits = 1024
+	const testCertificateBits = 4096
 
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2024),
@@ -692,6 +692,7 @@ func mustGenerateCertificates() ([]byte, []byte, []byte) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
+		SubjectKeyId:          []byte{1, 2, 3, 4},
 	}
 	caPrivKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
 	if err != nil {

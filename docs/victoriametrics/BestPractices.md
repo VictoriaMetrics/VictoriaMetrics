@@ -6,8 +6,13 @@ menu:
     identifier: vm-best-practices
     parent: 'victoriametrics'
     weight: 22
+tags:
+  - metrics
+  - guide
 aliases:
 - /BestPractices.html
+- /bestpractices/index.html
+- /bestpractices/
 ---
 ## Install Recommendation
 
@@ -79,7 +84,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 ## Backup Recommendations
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/), which simplifies backup automation.
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/), which simplifies backup automation.
 
 ## Technical Support and Services
 

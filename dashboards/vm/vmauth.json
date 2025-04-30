@@ -72,7 +72,7 @@
       "title": "vmauth docs",
       "tooltip": "vmauth docs",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmauth.html"
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/"
     },
     {
       "asDropdown": false,

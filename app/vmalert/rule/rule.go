@@ -35,7 +35,7 @@ type Rule interface {
 	registerMetrics(set *metrics.Set)
 }
 
-var errDuplicate = errors.New("result contains metrics with the same labelset during evaluation. See https://docs.victoriametrics.com/vmalert/#series-with-the-same-labelset for details")
+var errDuplicate = errors.New("result contains metrics with the same labelset during evaluation. See https://docs.victoriametrics.com/victoriametrics/vmalert/#series-with-the-same-labelset for details")
 
 type ruleState struct {
 	sync.RWMutex

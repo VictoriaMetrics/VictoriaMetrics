@@ -6,9 +6,13 @@ menu:
     parent: 'victoriametrics'
     weight: 33
     identifier: vm-api-examples
-
+tags:
+  - metrics
+  - guide
 aliases:
   - /url-examples.html
+  - /url-examples/index.html
+  - /url-examples/
 ---
 ### /api/v1/admin/tsdb/delete_series
 

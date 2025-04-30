@@ -134,4 +134,5 @@ func generateRowsFromTimestamps(s *Storage, tenantID TenantID, timestamps []int6
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)
+	s.DebugFlush()
 }

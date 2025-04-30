@@ -5,8 +5,12 @@ menu:
     parent: victoriametrics
     weight: 8
 title: vmctl
+tags:
+   - metrics
 aliases:
   - /vmctl.html
+  - /vmctl/index.html
+  - /vmctl/
 ---
 VictoriaMetrics command-line tool (vmctl) provides the following list of actions:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
@@ -39,7 +43,7 @@ COMMANDS:
    verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
-Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x))
+Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x))
 to the data source and common list of flags for destination (prefixed with `vm-` for VictoriaMetrics):
 
 ```sh
@@ -325,7 +329,7 @@ You may find useful a 3rd party solution for this - <https://github.com/jonppe/i
 
 [Promscale](https://github.com/timescale/promscale) supports [Prometheus Remote Read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
 To migrate historical data from Promscale to VictoriaMetrics we recommend using `vmctl`
-in [remote-read](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol) mode.
+in [remote-read](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-by-remote-read-protocol) mode.
 
 See the example of migration command below:
 ```sh
@@ -791,7 +795,6 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
 
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
-(available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
 to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
 See `./vmctl vm-native --help` for details and full list of flags.
@@ -829,10 +832,13 @@ Requests to make: 9 / 9 [██████████████████�
 _To disable explore phase and switch to the old way of data migration via single connection use 
 `--vm-native-disable-per-metric-migration` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
+_Migration speed via vmctl is limited by available resources on `--vm-native-src-addr` and `--vm-native-dst-addr`,
+and network between `src`=>vmctl=>`dst`. See the expeted migration speed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5366#issuecomment-1854251938)._
+
 Importing tips:
 
-1. vmctl acts as a proxy between `src` and `dst`. It doesn't use much of CPU or RAM, but network connection
-   between `src`=>vmctl=>`dst` should be as fast as possible for improving the migration speed.
+1. vmctl acts as a proxy between `src` and `dst`. vmctl doesn't use much of CPU or RAM, but network connection
+   between `src`=>vmctl=>`dst` should be **as fast as possible** for improving the migration speed.
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
    Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
    proper values for `src`. If hitting the limits, follow the recommendations 
@@ -1083,7 +1089,7 @@ Limiting the rate of data transfer could help to reduce pressure on disk or on d
 The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag. Note that the rate limit is applied per worker,
 see `--vm-concurrency` flag.
 
-Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent/)
+Please note, you can also use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
 ## How to build
@@ -1092,7 +1098,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl` binary and puts it into the `bin` folder.
 
@@ -1121,7 +1127,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
 

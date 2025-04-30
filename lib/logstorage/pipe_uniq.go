@@ -460,7 +460,7 @@ func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHi
 }
 
 func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
-	shards := pup.shards.GetSlice()
+	shards := pup.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

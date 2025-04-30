@@ -7,13 +7,17 @@ menu:
     parent: "cloud"
     weight: 13
     name: FAQ VictoriaMetrics Cloud
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 ## What authentication and authorization mechanisms does VictoriaMetrics Cloud support?
 
 * Console (UI) login options can be found in the [Registration and trial](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/registration-and-trial/) section.
-* To interact programmatically with VictoriaMetrics Cloud deployments (sending or querying data), bearer tokens are used. See an example in [Quick start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#vmagent) or tailored examples under the [Integrations](https://cloud.victoriametrics.com/integrations) section.
-* To perform console API operations (automated actions with deployments, access tokens, alerting/recording rules), [API Keys](https://docs.victoriametrics.com/victoriametrics-cloud/api/) are used.
+* To interact programmatically with VictoriaMetrics Cloud deployments (sending or querying data), [bearer tokens](deployments/access-tokens.md) are used. See an example in [Quick start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#vmagent) or tailored examples under the [Integrations](https://cloud.victoriametrics.com/integrations) section.
+* To perform console API operations (automated actions with deployments, [access tokens](deployments/access-tokens.md), alerting/recording rules), [API Keys](https://docs.victoriametrics.com/victoriametrics-cloud/api/) are used.
 
 Our roadmap is always evolving, so feel free to let us know any requirements you may have at support-cloud@victoriametrics.com.
 

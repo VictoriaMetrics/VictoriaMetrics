@@ -5,8 +5,13 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 300
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /LTS-releases.html
+- /lts-releases/index.html
+- /lts-releases/
 ---
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) provides long-term support lines of releases (aka LTS releases).
 Every LTS line receives bugfixes and [security fixes](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md) for 12 months after
@@ -22,5 +27,5 @@ to [the latest available releases](https://docs.victoriametrics.com/changelog/).
 
 ## Currently supported LTS release lines
 
-- v1.110.x - the latest one is [v1.110.5 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.5)
-- v1.102.x - the latest one is [v1.102.18 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.18)
+- v1.110.x - the latest one is [v1.110.6 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.6)
+- v1.102.x - the latest one is [v1.102.19 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.19)

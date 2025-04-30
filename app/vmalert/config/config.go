@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"hash/fnv"
@@ -11,15 +10,16 @@ import (
 	"sort"
 	"strings"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
-	"gopkg.in/yaml.v2"
 )
 
 var (
-	defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
+	defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
 )
 
 // Group contains list of Rules grouped into
@@ -67,7 +67,7 @@ func (g *Group) UnmarshalYAML(unmarshal func(any) error) error {
 	if g.Type.Get() == "" {
 		g.Type = NewRawType(*defaultRuleType)
 	}
-	h := md5.New()
+	h := fnv.New64a()
 	h.Write(b)
 	g.Checksum = fmt.Sprintf("%x", h.Sum(nil))
 	return nil

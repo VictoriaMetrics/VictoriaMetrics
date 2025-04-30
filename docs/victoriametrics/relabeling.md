@@ -5,12 +5,16 @@ menu:
   docs:
     parent: 'victoriametrics'
     weight: 38
+tags:
+  - metrics
 aliases:
 - /relabeling.html
+- /relabeling/index.html
+- /relabeling/
 ---
-VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) support
-[Prometheus-compatible relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)
-with [additional enhancements](https://docs.victoriametrics.com/vmagent/#relabeling-enhancements).
+VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) support
+[Prometheus-compatible relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling)
+with [additional enhancements](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling-enhancements).
 
 The relabeling is mostly used for the following tasks:
 
@@ -31,7 +35,7 @@ The relabeling is mostly used for the following tasks:
 * Removing some labels from metrics matching some [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
   See [how to remove labels from metrics subset](#how-to-remove-labels-from-metrics-subset).
 
-See also [relabeling docs at vmagent](https://docs.victoriametrics.com/vmagent/#relabeling).
+See also [relabeling docs at vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 
 ## How to remove labels from metrics subset
@@ -371,7 +375,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## How to modify instance and job
 
-Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) automatically add `instance` and `job` labels per each discovered target:
+Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) automatically add `instance` and `job` labels per each discovered target:
 
 * The `job` label is set to `job_name` value specified in the corresponding [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
 * The `instance` label is set to the `host:port` part of `__address__` label value after target-level relabeling.
@@ -572,7 +576,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 ## Useful tips for target relabeling
 
 * Target relabeling can be debugged by clicking the `debug` link for the needed target on the `http://vmagent:8429/target`
-  or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/vmagent/#relabel-debug).
+  or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
 * Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
   The specific sets of labels per each supported service discovery option are listed
   [here](https://docs.victoriametrics.com/sd_configs/#prometheus-service-discovery).
@@ -590,7 +594,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 ## Useful tips for metric relabeling
 
 * Metric relabeling can be debugged at `http://vmagent:8429/metric-relabel-debug` page.
-  See [these docs](https://docs.victoriametrics.com/vmagent/#relabel-debug).
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
 * All the labels, which start with `__` prefix, are automatically removed from metrics after the relabeling.
   So it is common practice to store temporary labels with names starting with `__` during metrics relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets,

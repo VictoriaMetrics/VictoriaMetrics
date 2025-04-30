@@ -1,11 +1,12 @@
 import React, { FC } from "preact/compat";
 import { InfoOutlinedIcon } from "../../../components/Main/Icons";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import { TopHeapEntry } from "../types";
+import { MetricNameStats, TopHeapEntry } from "../types";
 import { useSearchParams } from "react-router-dom";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import "./style.scss";
+import CardinalityMetricNameStats from "./CardinalityMetricNameStats";
 
 export interface CardinalityTotalsProps {
   totalSeries: number;
@@ -13,6 +14,7 @@ export interface CardinalityTotalsProps {
   totalSeriesPrev: number;
   totalLabelValuePairs: number;
   seriesCountByMetricName: TopHeapEntry[];
+  metricNameStats: MetricNameStats;
   isPrometheus?: boolean;
   isCluster: boolean;
 }
@@ -22,6 +24,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   totalSeriesPrev = 0,
   totalSeriesAll = 0,
   seriesCountByMetricName = [],
+  metricNameStats,
   isPrometheus,
 }) => {
   const { isMobile } = useDeviceDetect();
@@ -80,7 +83,10 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
           </h4>
           <span className="vm-cardinality-totals-card__value">{value}</span>
           {!!dynamic && (
-            <Tooltip title={`in relation to the previous day: ${totalSeriesPrev.toLocaleString("en-US")}`}>
+            <Tooltip
+              title={`in relation to the previous day: ${totalSeriesPrev.toLocaleString("en-US")}`}
+              placement="bottom-left"
+            >
               <span
                 className={classNames({
                   "vm-dynamic-number": true,
@@ -94,6 +100,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
           )}
         </div>
       ))}
+      <CardinalityMetricNameStats metricNameStats={metricNameStats}/>
     </div>
   );
 };

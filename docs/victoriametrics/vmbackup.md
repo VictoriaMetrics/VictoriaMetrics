@@ -5,8 +5,12 @@ menu:
     parent: victoriametrics
     weight: 6
 title: vmbackup
+tags:
+  - metrics
 aliases:
   - /vmbackup.html
+  - /vmbackup/index.html
+  - /vmbackup/
 ---
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
 
@@ -16,11 +20,11 @@ data between the existing backup and new backup. It saves time and costs on data
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 
-Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/vmrestore/).
+Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
-See also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
+See also [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 
 ## Supported storage types
@@ -30,7 +34,7 @@ creation of hourly, daily, weekly and monthly backups.
 * [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
 * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<container>/<path/to/backup>`
-* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
+* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio) or [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
 ## Use cases
@@ -106,7 +110,7 @@ Note that hourly backup shouldn't run when creating daily backup.
 
 Do not forget to remove old backups when they are no longer needed in order to save storage costs.
 
-See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager/) for automating smart backups.
+See also [vmbackupmanager tool](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) for automating smart backups.
 
 ### Server-side copy of the existing backup
 
@@ -229,7 +233,7 @@ Obtaining credentials from env variables.
 
   The `AZURE_STORAGE_DOMAIN` can be used for optionally overriding the default domain for the Azure storage service.
 
-Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/vmbackup/#using-cloud-providers-metadata-service).
+Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/victoriametrics/vmbackup/#using-cloud-providers-metadata-service).
 
 ### Using cloud providers metadata service
 
@@ -312,7 +316,7 @@ You have to add a custom url endpoint via flag:
 
 ### Permanent deletion of objects in S3-compatible storages
 
-`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) use standard delete operation
+`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) use standard delete operation
 for S3-compatible object storage when performing [incremental backups](#incremental-backups).
 This operation removes only the current version of the object. This works OK in most cases.
 
@@ -339,7 +343,7 @@ Run `vmbackup -help` in order to see all the available options:
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -deleteAllObjectVersions
-     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
   -dst string
      Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
@@ -518,7 +522,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 

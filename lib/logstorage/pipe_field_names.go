@@ -142,7 +142,7 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 	}
 
 	// merge state across shards
-	shards := pfp.shards.GetSlice()
+	shards := pfp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

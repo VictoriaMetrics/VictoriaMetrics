@@ -5,13 +5,15 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 5
+tags:
+  - logs
 aliases:
 - /victorialogs/LogsQL.html
 ---
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial)
-and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/)
-in order to feel the language.
+See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial),
+[how to convert Loki queries to VictoriaLogs queries](https://docs.victoriametrics.com/victorialogs/logql-to-logsql/)
+and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/).
 
 LogsQL provides the following features:
 
@@ -289,8 +291,8 @@ It uses various optimizations in order to accelerate full scan queries without t
 but such queries can be slow if the storage contains large number of logs over long time range. The easiest way to optimize queries
 is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
-For example, the following query returns [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
+For example, the following query returns logs ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word)
+at the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 _time:1h AND error
@@ -1204,8 +1206,7 @@ The range boundaries can contain any [supported numeric values](#numeric-values)
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), since the `4.2` number is surrounded by other text.
-Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
-and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
+Extract the numeric value from the message with [`extract` pipe](#extract-pipe) and then apply the `range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Performance tips:
 
@@ -1247,8 +1248,8 @@ user.ip:ipv4_range("1.2.3.4")
 
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
 doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
-and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
+since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with [`extract` pipe](#extract-pipe)
+and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Hints:
 
@@ -1517,6 +1518,7 @@ LogsQL supports the following pipes:
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
+- [`sample`](#sample-pipe) returns a sample of the matching logs according to the provided `sample` value.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
@@ -2321,6 +2323,7 @@ By default rows are selected in arbitrary order because of performance reasons, 
 
 See also:
 
+- [`sample` pipe](#sample-pipe)
 - [`sort` pipe](#sort-pipe)
 - [`offset` pipe](#offset-pipe)
 
@@ -2636,6 +2639,20 @@ with `***` in the `foo` field only if `user_type` field equals to `admin`:
 ```logsql
 _time:5m | replace_regexp if (user_type:=admin) ("password: [^ ]+", "") at foo
 ```
+
+### sample pipe
+
+The `<q> | sample N` [pipe](#pipes) returns `1/N`th random sample of logs for the `<q>` [query](#query-syntax).
+For example, the following query returns ~1% (1/100th random sample) of logs over the last 5 minutes with the `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:1h error | sample 100
+```
+
+See also:
+
+- [`limit` pipe](#limit-pipe)
 
 ### sort pipe
 
@@ -3950,6 +3967,8 @@ LogsQL supports the following transformations on the log entries selected with [
 - Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [`math` pipe](#math-pipe).
+
+See also [other pipes](#pipes), which can be applied to the selected logs.
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
 with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).

@@ -164,7 +164,7 @@ func usage() {
 vmbackup performs backups for VictoriaMetrics data from instant snapshots to gcs, s3, azblob
 or local filesystem. Backed up data can be restored with vmrestore.
 
-See the docs at https://docs.victoriametrics.com/vmbackup/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmbackup/ .
 `
 	flagutil.Usage(s)
 }

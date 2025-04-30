@@ -5,6 +5,11 @@ menu:
   docs:
     parent: "cloud"
     weight: 5
+tags:
+  - metrics
+  - cloud
+  - enterprise
+  - guide
 aliases:
   - /victoriametrics-cloud/alerting-vmalert-victoria-metrics-cloud/index.html
   - /managed-victoriametrics/alerting-vmalert-victoria-metrics-cloud/index.html
@@ -16,7 +21,7 @@ This guide explains the different ways in which you can use vmalert in conjuncti
 
 ## Preconditions 
 
-* [vmalert](https://docs.victoriametrics.com/vmalert/) is installed. You can obtain it by building it from [source](https://docs.victoriametrics.com/vmalert/#quickstart), downloading it from the [GitHub releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), or using the docker image [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert) or [Quay](https://quay.io/repository/victoriametrics/vmalert?tab=tags) for the container ecosystem (such as docker, k8s, etc.).
+* [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) is installed. You can obtain it by building it from [source](https://docs.victoriametrics.com/victoriametrics/vmalert/#quickstart), downloading it from the [GitHub releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), or using the docker image [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert) or [Quay](https://quay.io/repository/victoriametrics/vmalert?tab=tags) for the container ecosystem (such as docker, k8s, etc.).
 * [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) is installed.
 * You have a [single or cluster](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployment) deployment in [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/overview/).
 * If you are using helm, add the [VictoriaMetrics helm chart](https://docs.victoriametrics.com/helm/victoriametrics-alert#how-to-install) repository to your helm repositories. This step is optional.

@@ -22,7 +22,7 @@ Key links:
 
 ### Prerequisites
 
-- Go, version 1.18 or higher - [Install Go](https://go.dev/doc/install)
+- [Supported](https://aka.ms/azsdk/go/supported-versions) version of Go - [Install Go](https://go.dev/doc/install)
 - Azure subscription - [Create a free account](https://azure.microsoft.com/free/)
 - Azure storage account - To create a storage account, use tools including the [Azure portal][storage_account_create_portal],
 [Azure PowerShell][storage_account_create_ps], or the [Azure CLI][storage_account_create_cli].
@@ -249,7 +249,7 @@ For more information see the [Code of Conduct FAQ][coc_faq]
 or contact [opencode@microsoft.com][coc_contact] with any
 additional questions or comments.
 
-![Impressions](https://azure-sdk-impressions.azurewebsites.net/api/impressions/azure-sdk-for-go%2Fsdk%2Fstorage%2Fazblob%2FREADME.png)
+
 
 <!-- LINKS -->
 [source]: https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azblob
