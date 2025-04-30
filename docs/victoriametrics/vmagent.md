@@ -65,7 +65,7 @@ unpack it and pass the following flags to the `vmagent` binary in order to start
 and sending the data to the Prometheus-compatible remote storage:
 
 * `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/victoriametrics/sd_configs/) (usually located at `/etc/prometheus/prometheus.yml`).
-  The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/).
+  The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/).
   `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or
   to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
@@ -280,7 +280,7 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders w
 
 See also:
 
-- [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
+- [scrape config examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/)
 - [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
 
 
