@@ -487,7 +487,7 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, 
 
 See also:
 
-- [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
+- [scrape config examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/)
 - [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/)
 
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
