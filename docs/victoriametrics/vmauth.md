@@ -38,7 +38,7 @@ See how `vmauth` used in [docker-compose env](https://github.com/VictoriaMetrics
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML,
-accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/vmgateway/).
+accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 
 ## Use cases
 
