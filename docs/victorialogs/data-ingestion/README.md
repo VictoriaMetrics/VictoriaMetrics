@@ -105,7 +105,7 @@ It is possible to push unlimited number of log lines in a single request to this
 
 VictoriaLogs skips invalid JSON lines and continues parsing the remaining lines. It logs the warning
 with the reason why it skipped invalid JSON lines. It also increments the `vl_http_errors_total{path="/insert/jsonline"}` counter
-per every invalid JSON line.
+at the [`/metrics` page](https://docs.victoriametrics.com/victorialogs/#monitoring) per every invalid JSON line.
 
 If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
