@@ -336,7 +336,7 @@ By default `vmauth` doesn't drop the path prefix from the original request when 
 Sometimes it is needed to drop path prefix before proxying the request to the backend. This can be done by specifying the number of `/`-delimited
 prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level or [`-auth.config`](#auth-config).
 
-For example, if you need serving requests to [vmalert](https://docs.victoriametrics.com/vmalert/) at `/vmalert/` path prefix,
+For example, if you need serving requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) at `/vmalert/` path prefix,
 while serving requests to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) at `/vmagent/` path prefix,
 then the following [-auth.config](#auth-config) can be used:
 

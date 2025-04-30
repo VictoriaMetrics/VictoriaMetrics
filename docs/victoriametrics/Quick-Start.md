@@ -377,11 +377,11 @@ See more details on [querying data here](https://docs.victoriametrics.com/keycon
 
 ## Alerting
 
-To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/vmalert/). 
+To run periodic conditions checks use [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/). 
 It allows creating set of conditions using MetricsQL expressions and send notifications to [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
 when such conditions are met.
 
-See [vmalert quick start](https://docs.victoriametrics.com/vmalert/#quickstart).
+See [vmalert quick start](https://docs.victoriametrics.com/victoriametrics/vmalert/#quickstart).
 
 ## Data migration
 

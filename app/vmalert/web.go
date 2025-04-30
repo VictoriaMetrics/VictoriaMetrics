@@ -39,7 +39,7 @@ var (
 		{Name: "Groups", URL: "groups"},
 		{Name: "Alerts", URL: "alerts"},
 		{Name: "Notifiers", URL: "notifiers"},
-		{Name: "Docs", URL: "https://docs.victoriametrics.com/vmalert/"},
+		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
 	}
 )
 
