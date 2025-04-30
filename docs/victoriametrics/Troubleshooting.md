@@ -29,9 +29,9 @@ If you hit some issue or have some question about VictoriaMetrics components,
 then please follow the following steps in order to quickly find the solution:
 
 1. Check the version of VictoriaMetrics component, which needs to be troubleshot and compare
-   it to [the latest available version](https://docs.victoriametrics.com/changelog/).
+   it to [the latest available version](https://docs.victoriametrics.com/victoriametrics/changelog/).
    If the used version is lower than the latest available version, then there are high chances
-   that the issue is already resolved in newer versions. Carefully read [the changelog](https://docs.victoriametrics.com/changelog/)
+   that the issue is already resolved in newer versions. Carefully read [the changelog](https://docs.victoriametrics.com/victoriametrics/changelog/)
    between your version and the latest version and check whether the issue is already fixed there.
 
    If the issue is already fixed in newer versions, then upgrade to the newer version and verify whether the issue is fixed:
@@ -43,7 +43,7 @@ then please follow the following steps in order to quickly find the solution:
    by sending `SIGINT` signal to it and starting the new version of the component.
 
    There may be breaking changes between different versions of VictoriaMetrics components in rare cases.
-   These cases are documented in [the changelog](https://docs.victoriametrics.com/changelog/).
+   These cases are documented in [the changelog](https://docs.victoriametrics.com/victoriametrics/changelog/).
    So please read the changelog before the upgrade.
 
 1. Inspect command-line flags passed to VictoriaMetrics components and remove flags which unclear outcomes for your workload.

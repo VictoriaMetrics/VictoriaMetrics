@@ -34,7 +34,7 @@ Enterprise binaries can be downloaded and evaluated for free
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 
 VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
 
@@ -726,7 +726,7 @@ This strategy allows upgrading the cluster without downtime if the following con
   the current workload when a single node of any type (`vminsert`, `vmselect` or `vmstorage`)
   is temporarily unavailable during its restart.
 - The updated config / upgraded binary is compatible with the remaining components in the cluster.
-  See the [CHANGELOG](https://docs.victoriametrics.com/changelog/) for compatibility notes between different releases.
+  See the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) for compatibility notes between different releases.
 
 If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
 during the config update / version upgrade. In this case the following strategy is recommended.
@@ -762,7 +762,7 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
   Note that the `-disableReroutingOnUnavailable` flag may pause data ingestion for long time when some `vmstorage` nodes are unavailable
   for long time.
 
-- To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/changelog/#v1950))
+- To pass bigger values to `-storage.vminsertConnsShutdownDuration` (available from [v1.95.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1950))
   command-line flag at `vmstorage` nodes.In this case `vmstorage` increases the interval between gradual closing of `vminsert` connections during graceful shutdown.
   This reduces data ingestion slowdown during rollout restarts.
 

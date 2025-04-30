@@ -273,7 +273,7 @@ expr: <string>
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
 # Overrides `rule.updateEntriesLimit` value for this specific rule.
-# Available starting from https://docs.victoriametrics.com/changelog/#v1860
+# Available starting from https://docs.victoriametrics.com/victoriametrics/changelog/#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
@@ -932,7 +932,7 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 changed in time.
 
 vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)) 
-state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/changelog/#v1860).
+state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/victoriametrics/changelog/#v1860).
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
@@ -963,7 +963,7 @@ Sensitive info is stripped from the `curl` examples - see [security](#security) 
 ### Never-firing alerts
 
 vmalert can detect{{% available_from "v1.91.0" %}} if alert's expression doesn't match any time series in runtime 
-starting from [v1.91](https://docs.victoriametrics.com/changelog/#v1910). This problem usually happens
+starting from [v1.91](https://docs.victoriametrics.com/victoriametrics/changelog/#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=prod`). Such alerting rules will be marked with special icon in 
 vmalerts UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric value will
