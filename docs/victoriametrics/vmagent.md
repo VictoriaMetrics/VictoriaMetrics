@@ -350,7 +350,7 @@ There is no need in specifying top-level `scrape_configs` section in these files
 * `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API.
   It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics.
   See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
-* `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/vmalert/).
+* `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
 
 The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
 

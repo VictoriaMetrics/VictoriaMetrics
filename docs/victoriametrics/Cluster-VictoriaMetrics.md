@@ -543,7 +543,7 @@ If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMet
 command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
 See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
-It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
+It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
 See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
 ## Cardinality limiter
@@ -646,7 +646,7 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...` .
 The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
 
-- URL for accessing [vmalerts](https://docs.victoriametrics.com/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
+- URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
@@ -1067,7 +1067,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 ## vmalert
 
-vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert/)
+vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
 * for accessing vmalert UI through vmselect Web interface.
