@@ -24,7 +24,7 @@ Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
-See also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
+See also [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 
 ## Supported storage types
@@ -110,7 +110,7 @@ Note that hourly backup shouldn't run when creating daily backup.
 
 Do not forget to remove old backups when they are no longer needed in order to save storage costs.
 
-See also [vmbackupmanager tool](https://docs.victoriametrics.com/vmbackupmanager/) for automating smart backups.
+See also [vmbackupmanager tool](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) for automating smart backups.
 
 ### Server-side copy of the existing backup
 
@@ -316,7 +316,7 @@ You have to add a custom url endpoint via flag:
 
 ### Permanent deletion of objects in S3-compatible storages
 
-`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) use standard delete operation
+`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) use standard delete operation
 for S3-compatible object storage when performing [incremental backups](#incremental-backups).
 This operation removes only the current version of the object. This works OK in most cases.
 
