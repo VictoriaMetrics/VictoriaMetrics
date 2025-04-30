@@ -80,7 +80,7 @@ Some facts about tenants in VictoriaMetrics:
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
 by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
-or [vmgateway](https://docs.victoriametrics.com/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
+or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
 
 - Tenants are automatically created when the first data point is written into the given tenant.
 
@@ -484,7 +484,7 @@ General security recommendations:
 
 - All the VictoriaMetrics cluster components must run in protected private network without direct access from untrusted networks such as Internet.
 - External clients must access `vminsert` and `vmselect` via auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
-  or [vmgateway](https://docs.victoriametrics.com/vmgateway/).
+  or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 - The auth proxy must accept auth tokens from untrusted networks only via https in order to protect the auth tokens from MitM attacks.
 - It is recommended using distinct auth tokens for distinct [tenants](#multitenancy) in order to reduce potential damage in case of compromised auth token for some tenants.
 - Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.

@@ -61,7 +61,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Backup automation](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/).
 - [Advanced per-tenant stats](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
 - [Query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/).
-- [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway/).
+- [Advanced auth and rate limiter](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 - [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#automatic-issuing-of-tls-certificates).
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#mtls-protection).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection).

@@ -102,7 +102,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) - a service for processing Prometheus-compatible alerting and recording rules.
 - [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/) -  a tool for validating alerting and recording rules.
 - [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
-- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) rate limiting capabilities.
+- [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) rate limiting capabilities.
 - [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
 - [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.
@@ -937,14 +937,14 @@ for enforcing additional label filters for queries. For example, `/api/v1/query_
 would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`.
 This functionality can be used for limiting the scope of time series visible to the given tenant.
 It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics.
-See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/) as examples of such proxies.
+See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.
 
 VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries.
 For example, `/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically
 add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting
 the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically
 set by auth proxy sitting in front of VictoriaMetrics.
-See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/) as examples of such proxies.
+See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.
 
 VictoriaMetrics accepts multiple formats for `time`, `start` and `end` query args - see [these docs](#timestamp-formats).
 
@@ -1026,7 +1026,7 @@ VictoriaMetrics supports the following Graphite querying APIs, which are needed 
 
 All the Graphite handlers can be prepended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
 
-VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector` query args for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/) as examples of such proxies.
+VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector` query args for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.
 
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
@@ -2218,10 +2218,10 @@ Additionally, alerting can be set up with the following tools:
 General security recommendations:
 
 - All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
-  The exception is [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/),
+  The exception is [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/),
   which are intended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
 - All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
-  or [vmgateway](https://docs.victoriametrics.com/vmgateway/). The proxy must be set up with proper authentication and authorization.
+  or [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/). The proxy must be set up with proper authentication and authorization.
 - Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
   in front of VictoriaMetrics components.
 - Set reasonable [`Strict-Transport-Security`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) header value to all the components to mitigate [MitM attacks](https://en.wikipedia.org/wiki/Man-in-the-middle_attack), for example: `max-age=31536000; includeSubDomains`. See `-http.header.hsts` flag.
