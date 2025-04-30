@@ -107,7 +107,7 @@ See more details about [cluster architecture](https://docs.victoriametrics.com/v
 ### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
 
 1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). 
-For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
+For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
 ```sh
@@ -185,7 +185,7 @@ but on the separate physical nodes for the best performance.
 On all nodes you will need to do the following:
 
 1. Download the correct binary for your OS and architecture with `-cluster` suffix from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
+For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
 

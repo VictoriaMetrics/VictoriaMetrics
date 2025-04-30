@@ -14,7 +14,7 @@ VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for d
 
 Please refer to [our QuickStart section](https://docs.victoriametrics.com/anomaly-detection/#practical-guides-and-installation) to find out more.
 
-> **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
+> **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
 ## What is anomaly score?
 Among the metrics produced by `vmanomaly` (as detailed in [vmanomaly output metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output)), `anomaly_score` is a pivotal one. It is **a continuous score > 0**, calculated in such a way that **scores ranging from 0.0 to 1.0 usually represent normal data**, while **scores exceeding 1.0 are typically classified as anomalous**. However, it's important to note that the threshold for anomaly detection can be customized in the alert configuration settings.

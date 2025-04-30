@@ -23,7 +23,7 @@ Here are some resources and information about VictoriaMetrics:
 - Documentation: [docs.victoriametrics.com](https://docs.victoriametrics.com)
 - Case studies: [Grammarly, Roblox, Wix,...](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 - Available: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics)
-- Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), and [Enterprise version](https://docs.victoriametrics.com/enterprise/)
+- Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), and [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/)
 - Changelog: [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/), and [How to upgrade](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics)
 - Community: [Slack](https://slack.victoriametrics.com/), [X (Twitter)](https://x.com/VictoriaMetrics), [LinkedIn](https://www.linkedin.com/company/victoriametrics/), [YouTube](https://www.youtube.com/@VictoriaMetrics)
 
@@ -35,7 +35,7 @@ VictoriaMetrics is optimized for timeseries data, even when old time series are 
 
 * **Long-term storage for Prometheus** or as a drop-in replacement for Prometheus and Graphite in Grafana.
 * **Powerful stream aggregation**: Can be used as a StatsD alternative.
-* **Ideal for big data**: Works well with large amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise/).
+* **Ideal for big data**: Works well with large amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 * **Query language**: Supports both PromQL and the more performant MetricsQL.
 * **Easy to setup**: No dependencies, single [small binary](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d), configuration through command-line flags, but the default is also fine-tuned; backup and restore with [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * **Global query view**: Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics and queried via a single query.
@@ -64,7 +64,7 @@ In addition, the Enterprise version includes extra features:
 - **Downsampling**: Reducing storage costs and increasing performance for queries over historical data.
 - **Stable releases** with long-term support lines ([LTS](https://docs.victoriametrics.com/lts-releases/)).
 - **Comprehensive support**: First-class consulting, feature requests and technical support provided by the core VictoriaMetrics dev team.
-- Many other features, which you can read about on [the Enterprise page](https://docs.victoriametrics.com/enterprise/).
+- Many other features, which you can read about on [the Enterprise page](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. Or you can request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/), downloaded Enterprise binaries are available at [Github Releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 

@@ -269,7 +269,7 @@ To persist different rule results to different tenants in VictoriaMetrics, there
             expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
     ```
 
-2. To run [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise/) with `-clusterMode` enabled, and specify tenant parameter per each group.
+2. To run [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/) with `-clusterMode` enabled, and specify tenant parameter per each group.
 
     For example, run vmalert with:
     ```
