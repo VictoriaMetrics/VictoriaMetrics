@@ -316,7 +316,7 @@ Then build graphs and dashboards for the created datasource using [PromQL](https
 or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
 
 Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/victoriametrics-datasource) with support of extra features. 
-See more in [description](https://docs.victoriametrics.com/victoriametrics-datasource/).
+See more in [description](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/).
 
 Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator.
