@@ -133,7 +133,7 @@ If the `-dst` already contains some data, then its' contents is synced with the 
 
 ### Backups for VictoriaMetrics cluster
 
-`vmbackup` can be used for creating backups for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
+`vmbackup` can be used for creating backups for [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 In order to perform a complete backup for the cluster, `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
 be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
 
@@ -182,7 +182,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) cannot be restored
-  at [cluster VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) and vice versa.
+  at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
 
 ## Advanced usage
 

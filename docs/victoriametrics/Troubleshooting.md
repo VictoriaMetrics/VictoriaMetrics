@@ -37,7 +37,7 @@ then please follow the following steps in order to quickly find the solution:
    If the issue is already fixed in newer versions, then upgrade to the newer version and verify whether the issue is fixed:
 
    - [How to upgrade single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics)
-   - [How to upgrade VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes)
+   - [How to upgrade VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes)
 
    Upgrade procedure for other VictoriaMetrics components is as simple as gracefully stopping the component
    by sending `SIGINT` signal to it and starting the new version of the component.
@@ -159,7 +159,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
     If the problem was in the cache, try resetting it via [resetRollupCache handler](https://docs.victoriametrics.com/url-examples/#internalresetrollupresultcache).
 
 1. If you use cluster version of VictoriaMetrics, then it may return partial responses by default
-   when some of `vmstorage` nodes are temporarily unavailable - see [cluster availability docs](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-availability)
+   when some of `vmstorage` nodes are temporarily unavailable - see [cluster availability docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-availability)
    for details. If you want to prioritize query consistency over cluster availability,
    then you can pass `-search.denyPartialResponse` command-line flag to all the `vmselect` nodes.
    In this case VictoriaMetrics returns an error during querying if at least a single `vmstorage` node is unavailable.
@@ -282,7 +282,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    If the network latency between `vminsert` and `vmstorage` is high (for example, if they run in different datacenters),
    then this may become limiting factor for data ingestion speed.
 
-   The [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
+   The [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
    contain `connection saturation` graph for `vminsert` components. If this graph reaches 100% (1s),
    then it is likely you have issues with network latency between `vminsert` and `vmstorage`.
    Another possible issue for 100% connection saturation between `vminsert` and `vmstorage`
@@ -291,7 +291,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
 
 1. Noisy neighbor. Make sure VictoriaMetrics components run in an environments without other resource-hungry apps.
    Such apps may steal RAM, CPU, disk IO and network bandwidth, which is needed for VictoriaMetrics components.
-   Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
+   Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
    and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
 
 1. If you see `TooHighSlowInsertsRate` [alert](https://docs.victoriametrics.com/#monitoring) when single-node VictoriaMetrics or `vmstorage` has enough
@@ -321,7 +321,7 @@ There are the following solutions exist for improving performance of slow querie
   with more CPU and RAM should help improving speed for slow queries. Query performance
   is always limited by resources of one `vmselect` which processes the query. For example, if 2vCPU cores on `vmselect`
   isn't enough to process query fast enough, then migrating `vmselect` to a machine with 4vCPU cores should increase heavy query performance by up to 2x.
-  If the line on `concurrent select` graph form the [official Grafana dashboard for VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
+  If the line on `concurrent select` graph form the [official Grafana dashboard for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
   is close to the limit, then prefer adding more `vmselect` nodes to the cluster.
   Sometimes adding more `vmstorage` nodes also can help improving the speed for slow queries.
 
@@ -394,7 +394,7 @@ There are the following most common sources of out of memory (aka OOM) crashes i
    This would protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
    of free memory for graceful handling of possible workload spikes.
    See [capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/#capacity-planning)
-   and [capacity planning for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning).
+   and [capacity planning for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
 
 
 ## Cluster instability
@@ -408,7 +408,7 @@ The most common sources of cluster instability are:
   the cluster has no enough free resources for processing the increased workload,
   then it may become unstable.
   VictoriaMetrics provides various configuration settings, which can be used for limiting unexpected workload spikes.
-  See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#resource-usage-limits) for details.
 
 - Various maintenance tasks such as rolling upgrades or rolling restarts during configuration changes.
   For example, if a cluster contains `N=3` `vmstorage` nodes and they are restarted one-by-one (aka rolling restart),
@@ -426,10 +426,10 @@ The most common sources of cluster instability are:
   `N=11` `vmstorage` nodes, then the workload increase during rolling restart of `vmstorage` nodes
   would be `100%/(N-1)=10%`. It is recommended to have at least 8 `vmstorage` nodes in the cluster.
   The recommended number of `vmstorage` nodes should be multiplied by `-replicationFactor` if replication is enabled -
-  see [replication and data safety docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)
+  see [replication and data safety docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
   for details.
 
-- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview)
+- Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview)
   by `vminsert` between configured `vmstorage` nodes. As a sharding key `vminsert` is using time series name and labels,
   respecting their order. If the order of labels in time series is constantly changing, this could cause wrong sharding
   calculation and result in un-even and sub-optimal time series distribution across available vmstorages. It is expected
@@ -439,15 +439,15 @@ The most common sources of cluster instability are:
 
 The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
 have enough free resources for graceful processing of the increased workload.
-See [capacity planning docs](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)
-and [cluster resizing and scalability docs](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-resizing-and-scalability)
+See [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
+and [cluster resizing and scalability docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability)
 for details.
 
 
 ## Too much disk space used
 
 If too much disk space is used by a [single-node VictoriaMetrics](https://docs.victoriametrics.com/) or by `vmstorage` component
-at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/), then please check the following:
+at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), then please check the following:
 
 - Make sure that there are no old snapsots, since they can occupy disk space. See [how to work with snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots)
   and [snapshot troubleshooting](https://docs.victoriametrics.com/#snapshot-troubleshooting).

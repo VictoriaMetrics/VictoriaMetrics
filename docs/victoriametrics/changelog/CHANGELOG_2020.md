@@ -234,7 +234,7 @@ Released at 2020-10-13
 * FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
   The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
   due to [relabeling](https://docs.victoriametrics.com/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
-  than `sum(rate(vm_rows_inserted_total))` if [replication](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) is enabled.
+  than `sum(rate(vm_rows_inserted_total))` if [replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) is enabled.
 * FEATURE: keep metric name after applying [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, which don't change time series meaning.
   The list of such functions:
   * `keep_last_value`

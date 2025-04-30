@@ -857,7 +857,7 @@ Importing tips:
    This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps. Ignore this recommendation
    if you already have `-dedup.minScrapeInterval` set to 1ms or higher values at destination.
 1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
-   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format):
+   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format):
    ```sh
    # Migrating from cluster specific tenantID to single
    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
@@ -883,7 +883,7 @@ Importing tips:
    of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
    destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
    the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
-   See more about replication [here](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety).
+   See more about replication [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 1. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
    workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
    So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
@@ -1356,7 +1356,7 @@ Flags available only for the `vm-native` command:
      Disable HTTP persistent connections for requests made to VictoriaMetrics components during export (default: false)
    --vm-native-src-addr value
      VictoriaMetrics address to perform export from. 
-     Should be the same as --httpListenAddr value for single-node version or vmselect component. If exporting from cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+     Should be the same as --httpListenAddr value for single-node version or vmselect component. If exporting from cluster version see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
    --vm-native-src-user value
      VictoriaMetrics username for basic auth [$VM_NATIVE_SRC_USERNAME]
    --vm-native-src-password value
@@ -1380,7 +1380,7 @@ Flags available only for the `vm-native` command:
    --vm-native-dst-addr value
      VictoriaMetrics address to perform import to. 
      Should be the same as --httpListenAddr value for single-node version or vminsert component. 
-     If importing into cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+     If importing into cluster version see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
    --vm-native-dst-user value
      VictoriaMetrics username for basic auth [$VM_NATIVE_DST_USERNAME]
    --vm-native-dst-password value

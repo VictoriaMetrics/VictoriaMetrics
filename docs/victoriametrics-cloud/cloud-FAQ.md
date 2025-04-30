@@ -43,7 +43,7 @@ In summary, PrivateLink can be set up manually on an individual basis, upon requ
 In any case, it’s important to note that connecting via public access is always secured via TLS with all endpoints.
 
 ## How does VictoriaMetrics Cloud ensure data integrity and consistency?
-We use the VictoriaMetrics Open Source project. To learn more, visit the [Open Source documentation](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+We use the VictoriaMetrics Open Source project. To learn more, visit the [Open Source documentation](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 
 ## How does VictoriaMetrics Cloud handle scalability within AWS resources?
 VictoriaMetrics Cloud deployments run in isolated environments, so scaling can be done freely. We have processes that ensure zero-downtime in cluster setups and very low downtime for single setups.

@@ -30,7 +30,7 @@ func ParsePath(path string) (*Path, error) {
 	n := strings.IndexByte(s, '/')
 	if n < 0 {
 		return nil, fmt.Errorf("cannot find {prefix} in %q; expecting /{prefix}/{tenantID}/{suffix} format; "+
-			"see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format", path)
+			"see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format", path)
 	}
 	prefix := s[:n]
 
@@ -38,7 +38,7 @@ func ParsePath(path string) (*Path, error) {
 	n = strings.IndexByte(s, '/')
 	if n < 0 {
 		return nil, fmt.Errorf("cannot find {tenantID} in %q; expecting /{prefix}/{tenantID}/{suffix} format; "+
-			"see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format", path)
+			"see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format", path)
 	}
 	tenantID := s[:n]
 

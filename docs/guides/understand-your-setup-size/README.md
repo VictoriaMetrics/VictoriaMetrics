@@ -1,5 +1,5 @@
 This guide is based on capacity planning for [Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning),
-[Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)
+[Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
 and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) docs.
 
 ## Terminology
@@ -35,7 +35,7 @@ For [pushed](https://docs.victoriametrics.com/keyconcepts/#push-model) metrics t
 amount of unique [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) pushed by one application
 and multiply it by the number of applications.
 
-Applying [replication Factor](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)
+Applying [replication Factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 multiplies the number of Active Time Series since each series will be stored ReplicationFactor times.
 
 ### Churn Rate
@@ -90,7 +90,7 @@ There are two types of queries **light** and **heavy**:
 
 The larger the time range and the more series are needed to be scanned - the more heavy and expensive query is.
 
-To scale VictoriaMetrics cluster for high RPS, consider deploying more [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview)
+To scale VictoriaMetrics cluster for high RPS, consider deploying more [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview)
 replicas (scale horizontally).
 To improve latency of **heavy** queries, consider giving more compute resources to vmselects (scale vertically).
 
@@ -146,7 +146,7 @@ See a blog post about [reducing expenses on monitoring](https://victoriametrics.
 
 ### Cluster size
 
-It is [recommended](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup) to run many small vmstorage
+It is [recommended](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) to run many small vmstorage
 nodes over a few big vmstorage nodes. This reduces the workload increase on the remaining vmstorage nodes when some of
 vmstorage nodes become temporarily unavailable. Prefer giving at least 2 vCPU per each vmstorage node.
 
@@ -175,5 +175,5 @@ You can collect metrics from
 ### On-Premise
 
 Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning),
-[Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs
+[Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs
 and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.

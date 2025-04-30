@@ -141,9 +141,9 @@ deployment's page. It is important to know that downgrade for clusters is curren
 
 Additional configuration options may be found under `Advanced Settings`  where the following additional parameters can be set:
 
-* [`Deduplication`](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
+* [`Deduplication`](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
 * `Maintenance Window` when deployment should start an upgrade process if needed;
-* `Settings` to define VictoriaMetrics deployment flags, depending on your deployment type: [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags) or [Single-node](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags).
+* `Settings` to define VictoriaMetrics deployment flags, depending on your deployment type: [Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags) or [Single-node](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags).
 
 > These updates require a deployment restart and may result in a short downtime for **single-node** deployments.
 

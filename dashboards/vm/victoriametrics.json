@@ -4258,7 +4258,7 @@
             {
               "targetBlank": true,
               "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode"
+              "url": "https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode"
             }
           ],
           "options": {

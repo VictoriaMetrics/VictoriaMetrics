@@ -106,7 +106,7 @@ Such a scheme has generated the following benefits compared with Prometheus:
 
 Cons are the following:
 
-- VictoriaMetrics didn't support replication (it [supports replication now](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)) - we run an extra instance of VictoriaMetrics and Promxy in front of a VictoriaMetrics pair for high availability.
+- VictoriaMetrics didn't support replication (it [supports replication now](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)) - we run an extra instance of VictoriaMetrics and Promxy in front of a VictoriaMetrics pair for high availability.
 - VictoriaMetrics stores 1 extra month for defined retention (if retention is set to N months, then VM stores N+1 months of data), but this is still better than other solutions.
 
 Here are some numbers from our single-node VictoriaMetrics setup:
@@ -574,7 +574,7 @@ Numbers:
 
 ## Wedos.com
 
-> [Wedos](https://www.wedos.com/) is the biggest hosting provider in the Czech Republic. We have two our own private data centers that hold our servers and technologies, such as cooling the servers in bath oils. We started using [cluster VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) to store Prometheus metrics from all our infrastructure after receiving positive references from people who had successfully used VictoriaMetrics. We're using it throughout our services, including the new WEDOS Global Protection.
+> [Wedos](https://www.wedos.com/) is the biggest hosting provider in the Czech Republic. We have two our own private data centers that hold our servers and technologies, such as cooling the servers in bath oils. We started using [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) to store Prometheus metrics from all our infrastructure after receiving positive references from people who had successfully used VictoriaMetrics. We're using it throughout our services, including the new WEDOS Global Protection.
 
 Numbers:
 

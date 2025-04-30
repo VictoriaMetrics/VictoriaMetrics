@@ -4,7 +4,7 @@ Data deletion is an operation people expect a database to have. [VictoriaMetrics
 ### Precondition
 
 - [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/);
-- [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/);
+- [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/);
 - [curl](https://curl.se/docs/manual.html)
 - [jq tool](https://stedolan.github.io/jq/)
 

@@ -39,7 +39,7 @@ See [these docs](https://docs.victoriametrics.com/contributing/).
 
 ## Does VictoriaMetrics support replication?
 
-Yes. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.
+Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for details.
 
 ## Can I use VictoriaMetrics instead of Prometheus?
 
@@ -140,9 +140,9 @@ VictoriaMetrics is similar to Cortex in the following aspects:
 * Both systems accept data from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or Prometheus
   via the standard [remote_write API](https://prometheus.io/docs/practices/remote_write/), so there is no need for running sidecars
   unlike in [Thanos](https://github.com/thanos-io/thanos)' case.
-* Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
-* Both systems support data replication. See [replication in Cortex](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#hashing) and [replication in VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety).
-* Both systems scale horizontally to multiple nodes. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-resizing-and-scalability) for details.
+* Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
+* Both systems support data replication. See [replication in Cortex](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#hashing) and [replication in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
+* Both systems scale horizontally to multiple nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability) for details.
 * Both systems support alerting and recording rules via the corresponding tools such as [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
 * Both systems can be queried via the [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/) and integrate perfectly with Grafana.
 
@@ -152,7 +152,7 @@ The main differences between Cortex and VictoriaMetrics:
 * Cortex heavily relies on third-party services such as Consul, Memcache, DynamoDB, BigTable, Cassandra, etc.
   This may increase operational complexity and reduce system reliability compared to VictoriaMetrics' case,
   which doesn't use any external services. Compare [Cortex' Architecture](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md)
-  to [VictoriaMetrics' architecture](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+  to [VictoriaMetrics' architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 * VictoriaMetrics provides [production-ready single-node solution](https://docs.victoriametrics.com/single-server-victoriametrics/),
   which is much easier to set up and operate than a Cortex cluster.
 * Cortex may lose up to 12 hours of recent data on Ingestor failure – see [the corresponding docs](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#ingesters-failure-and-data-loss).
@@ -259,20 +259,20 @@ and scales horizontally to multiple nodes.
 ## What is the difference between single-node and cluster versions of VictoriaMetrics?
 
 Both [single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) and
-[cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) versions of VictoriaMetrics
+[cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) versions of VictoriaMetrics
 share the core source code, so they have many common features. They have the following differences though:
 
 * [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) runs on a single host,
-  while [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) can scale to many hosts.
+  while [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can scale to many hosts.
   Single-node VictoriaMetrics scales vertically though, e.g. its capacity and performance scales almost linearly when increasing
   available CPU, RAM, disk IO and disk space. See [an article about vertical scalability of a single-node VictoriaMetrics](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
-* Cluster version of VictoriaMetrics supports [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy),
+* Cluster version of VictoriaMetrics supports [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy),
   while single-node VictoriaMetrics doesn't support it.
 
 * Cluster version of VictoriaMetrics supports data replication, while single-node VictoriaMetrics relies on the durability
   of the persistent storage pointed by `-storageDataPath` command-line flag.
-  See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for details.
 
 * Single-node VictoriaMetrics provides higher capacity and performance comparing to cluster version of VictoriaMetrics
   when running on the same hardware with the same amounts of CPU and RAM, since it has no overhead on data transfer
@@ -295,7 +295,7 @@ File bugs and feature requests [here](https://github.com/VictoriaMetrics/Victori
 
 ## Where can I find information about multi-tenancy?
 
-See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). Multitenancy is supported only by the [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/) of VictoriaMetrics.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). Multitenancy is supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
 
 ## How to set a memory limit for VictoriaMetrics components?
 
@@ -304,7 +304,7 @@ All the VictoriaMetrics components provide command-line flags to control the siz
 Memory usage for VictoriaMetrics components can be tuned according to the following docs:
 
 * [Resource usage limits for single-node VictoriaMetrics](https://docs.victoriametrics.com/#resource-usage-limits)
-* [Resource usage limits for cluster VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits)
+* [Resource usage limits for cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#resource-usage-limits)
 * [Troubleshooting for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting)
 * [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
 
@@ -385,7 +385,7 @@ See also [troubleshooting slow queries](https://docs.victoriametrics.com/victori
 ## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
 
 Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and
-[VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) are production-ready.
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
 
 Single-node VictoriaMetrics is able to handle quite big workloads in production
 with tens of millions of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series)
@@ -393,7 +393,7 @@ at the ingestion rate of million of samples per second. See [this case study](ht
 
 Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
 to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
-between [cluster components](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+between [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 
 The performance of a single-node VictoriaMetrics scales almost perfectly with the available CPU, RAM and disk IO resources on the host where it runs -
 see [this article](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
@@ -404,14 +404,14 @@ Given the facts above **it is recommended to use single-node VictoriaMetrics in 
 
 Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMetrics in the following relatively rare cases:
 
-- If [multitenancy support](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) is needed,
+- If [multitenancy support](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is needed,
   since single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
   instances - one per each tenant - and route incoming requests from particular tenant to the needed VictoriaMetrics instance
   via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/).
 
 - If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
   at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics,
-  since its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-resizing-and-scalability).
+  since its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability).
 
 ## How to migrate data from single-node VictoriaMetrics to cluster version?
 
@@ -453,7 +453,7 @@ The query engine may behave differently for some functions. Please see [this art
 
 Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
-[Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes).
+[Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes).
 
 ## Why VictoriaMetrics misses automatic data re-balancing between vmstorage nodes?
 
@@ -483,7 +483,7 @@ should become even in a few hours / days after adding new `vmstorage` nodes.
 
 ## Why VictoriaMetrics misses automatic recovery of replication factor?
 
-VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)
+VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 when some of `vmstorage` nodes are removed from the cluster because of the following reasons:
 
 - Automatic replication factor recovery needs copying non-trivial amounts of data between the remaining `vmstorage` nodes.
@@ -493,5 +493,5 @@ when some of `vmstorage` nodes are removed from the cluster because of the follo
 - It is unclear when the automatic replication factor recovery must be started. How to distinguish the expected temporary
   `vmstorage` node unavailability because of maintenance, upgrade or config changes from permanent loss of data at the `vmstorage` node?
 
-It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)
+It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 for more details.

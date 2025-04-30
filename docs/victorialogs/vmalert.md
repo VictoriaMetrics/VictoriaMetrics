@@ -239,7 +239,7 @@ For example, the following config will execute all the rules within the group ag
 ```
 By default, vmalert persists all results to the specific tenant in VictoriaMetrics that specified by `-remotewrite.url`. For example, if the `-remotewrite.url=http://vminsert:8480/insert/0/prometheus/`, all data goes to tenant `0`.
 To persist different rule results to different tenants in VictoriaMetrics, there are following approaches:
-1. To use the [multitenant endpoint of vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) as the `-remoteWrite.url`, and add tenant labels under the group configuration. 
+1. To use the [multitenant endpoint of vminsert](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) as the `-remoteWrite.url`, and add tenant labels under the group configuration. 
 
     For example, run vmalert with:
     ```
