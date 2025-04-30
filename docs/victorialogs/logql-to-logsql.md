@@ -22,21 +22,22 @@ The main difference is that VictoriaLogs is optimized for structured logs with b
 Hundreds of labels per every log entry is OK for VictoriaLogs.
 
 VictoriaLogs is also optimized for log labels with big number of unique values such as `trace_id`, `user_id`, `duration` and `ip` (aka high-cardinality labels).
-It is highly recommended storing all the labels (fields) as is without the need to pack them into a JSON and storing it into log line (message), since
-this results in much faster filtering on such labels (1000x faster and more). This also results in storage space savings because of better compression for per-label values.
+It is highly recommended storing all the labels as is without the need to pack them into a JSON and storing it into the log line (message).
+Sotring labels separately results in much faster filtering on such labels (1000x faster and more).
+This also results in storage space savings because of better compression for per-label values.
 
 It is recommended reading [VictoriaLogs key concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/) in order to understand VictoriaLogs data model.
 
 ## Log stream selector
 
-The basic practical [LogQL query](https://grafana.com/docs/loki/latest/query/) consists of a [log stream selector](https://grafana.com/docs/loki/latest/query/log_queries/#log-stream-selector).
-For example:
+The basic practical [LogQL query](https://grafana.com/docs/loki/latest/query/) consists of a [log stream selector](https://grafana.com/docs/loki/latest/query/log_queries/#log-stream-selector),
+which returns logs for the matching log streams. For example:
 
 ```logql
 {app="nginx",host="host-42"}
 ```
 
-VictoriaLogs supports the same `log streams` concept as Loki. See [Loki docs about log streams](https://grafana.com/docs/loki/latest/get-started/overview/)
+VictoriaLogs supports the same `log streams` concept as Loki does. See [Loki docs about log streams](https://grafana.com/docs/loki/latest/get-started/overview/)
 and [VictoriaLogs docs about log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). That's why log stream selector
 in VictoriaLogs looks identical to the log stream selector in Loki:
 
@@ -45,9 +46,8 @@ in VictoriaLogs looks identical to the log stream selector in Loki:
 ```
 
 Log stream selector is required in Loki query, while it is optional in VictoriaLogs query.
-If it is missing in VictoriaLogs query, then the rest of filters are applied to all the logs stored in the database.
 
-Log stream filters in VictoriaLogs provide additional functionality compared to the log stream selectors from Loki.
+Log stream filters in VictoriaLogs provide additional functionality compared to the log stream selectors in Loki.
 Read [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) for more details.
 
 See also [this article](https://itnext.io/why-victorialogs-is-a-better-alternative-to-grafana-loki-7e941567c4d5) for more details.
@@ -61,14 +61,13 @@ Loki allows filtering log lines (log messages) with the following filters:
   and [phrase filter](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter),
   so the similar LogsQL query is `{...} "some_text"`, e.g. it is enough replacing `|=` with a whitespace in order
   to convert LogQL query to LogsQL query.
-  A sequence of substring filters - `{...} |= "foo" |= "bar"` - is replaced with `{...} "foo" "bar"`.
+  A sequence of substring filters - `{...} |= "foo" |= "bar"` - is converted into the following VictoriaLogs query - `{...} "foo" "bar"`.
 
   There is a subtle difference between substring filter in Loki and word / phrase filter in VictoriaLogs:
   substring filter matches substrings inside words, while word / phrase filters match full words only.
-  For example, `{...} |= "error"` in Loki matches `foo error bar`, `foo errors bar` and `foo someerror bar`,
-  while `{...} "error"` in VictoriaLogs matches only `foo error bar`, while doesn't match other the cases which have
-  no full `error` word. The other cases are very rare in practice, so it is OK. If such cases must be covered
-  because of some reason, then the following VictoriaLogs filters can be used:
+  For example, `{...} |= "error"` in Loki matches `foo error bar`, `foo errors bar` and `foo someerrors bar`,
+  while `{...} "error"` in VictoriaLogs matches only `foo error bar`, while it doesn't match other cases which have
+  no `error` word. Such cases are very rare in practice. They can be covered with the following VictoriaLogs filters if needed:
 
   * [Prefix filter](https://docs.victoriametrics.com/victorialogs/logsql/#prefix-filter), which matches word / phrase prefix.
   * [Regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter), which matches the given regexp at any position of the log line.
@@ -91,7 +90,7 @@ Loki allows applying filters to log labels with `{...} | label op value` syntax:
 * `{...} | label = value` or `{...} | label == value`. This is equivalent to `{...} label:=value` in VictoriaLogs.
   See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter).
 
-* `label != value`. This is equivalent to `{...} -label:=value` in VictoriaLogs
+* `label != value`. This is equivalent to `{...} -label:=value` in VictoriaLogs. E.g. just add `-` in front of `label:=value`
   according to [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
 
 * `{...} | label > value`, `{...} label >= value`, `{...} label < value` and `{...} label <= value`.
@@ -101,10 +100,10 @@ Loki allows applying filters to log labels with `{...} | label op value` syntax:
 * `{...} | label ~= value`. This is equivalent to `{...} label:~value` in VictoriaLogs.
   See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter).
 
-* `{...} | label !~ value`. This is equivalent to `{...} -label:~value` in VictoriaLogs
+* `{...} | label !~ value`. This is equivalent to `{...} -label:~value` in VictoriaLogs. E.g. just add `-` in front of `label:~value`
   according to [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
 
-Note that you must put `:` after field names in VictoriaLogs filters on fields (labels).
+Note that VictoriaLogs expects `:` after log labels (field names) in query filters.
 
 Multiple label filters can be combined with `and`, `or` and `(...)` in both Loki and VictoriaLogs.
 Additionally, VictoriaLogs supports `not` in front of any filter or combination of filters.
@@ -150,7 +149,7 @@ in VictoriaLogs, then the following query can be used instead of the query above
 {...} | unpack_json fields (trace_id) | trace_id:=abcdef
 ```
 
-Note that this query will be much slower than the recommended query above (though it is likely it will be still faster than the corresponding Loki query :) ).
+Note that this query will be much slower than the recommended query above (though it should be still faster than the corresponding Loki query :) ).
 
 See [this article](https://itnext.io/why-victorialogs-is-a-better-alternative-to-grafana-loki-7e941567c4d5) for more details.
 
@@ -178,14 +177,14 @@ Such a query can be replaced with `{...} | extract_regexp "..."` at VictoriaLogs
 Loki provides the ability to format log lines with the `{...} | line_format "..."` syntax according to [these docs](https://grafana.com/docs/loki/latest/query/log_queries/#line-format-expression).
 Such a query can be replaced with `{...} | format "..."` at VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe).
 
-Note that VictoriaLogs uses `<label>` format syntax identical to [pattern parser](#pattern parser) syntax instead of `{{.label}}` format syntax from Loki.
+Note that VictoriaLogs uses `<label>` format syntax identical to [pattern parser](#pattern-parser) syntax instead of `{{.label}}` format syntax from Loki.
 
 ## Label formatting
 
 Loki provides the ability to format log labels with the `{...} | label_format label_name="..."` syntax according to [these docs](https://grafana.com/docs/loki/latest/query/log_queries/#labels-format-expression).
 Such a query can be replaced with `{...} | format  "..." as label_name` at VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe).
 
-Note that VictoriaLogs uses `<label>` format syntax identical to [pattern parser](#pattern parser) syntax instead of `{{.label}}` format syntax from Loki.
+Note that VictoriaLogs uses `<label>` format syntax identical to [pattern parser](#pattern-parser) syntax instead of `{{.label}}` format syntax from Loki.
 
 ## Dropping labels
 
