@@ -74,7 +74,7 @@ Visit `http://localhost:8428/vmui/#/metrics` to explore available metrics or run
 `http://localhost:8428/vmui` (i.e. `process_cpu_cores_available`).
 Other available HTTP endpoints are listed on `http://localhost:8428` page.
 
-See how to [write](https://docs.victoriametrics.com/quick-start/#write-data) or [read](https://docs.victoriametrics.com/quick-start/#query-data)
+See how to [write](https://docs.victoriametrics.com/victoriametrics/quick-start/#write-data) or [read](https://docs.victoriametrics.com/victoriametrics/quick-start/#query-data)
 from VictoriaMetrics.
 
 ### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}

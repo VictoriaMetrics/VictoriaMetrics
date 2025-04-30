@@ -7,7 +7,7 @@ Docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/) of VictoriaMetrics and follow the 
-[quick start guide](https://docs.victoriametrics.com/quick-start/) for a better experience.
+[quick start guide](https://docs.victoriametrics.com/victoriametrics/quick-start/) for a better experience.
 
 If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
@@ -115,7 +115,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 
 To quickly try VictoriaMetrics, just download the [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 or docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags) and start it with the desired command-line flags.
-See also [QuickStart guide](https://docs.victoriametrics.com/quick-start/) for additional information.
+See also [QuickStart guide](https://docs.victoriametrics.com/victoriametrics/quick-start/) for additional information.
 
 VictoriaMetrics can also be installed via these installation methods:
 
@@ -241,7 +241,7 @@ VictoriaMetrics has the following publicly available resources:
 
 Additionally, we provide a [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics)
 for VictoriaMetrics and VictoriaLogs components. They are already configured, provisioned and interconnected.
-It can be used as an example for a [quick start](https://docs.victoriametrics.com/quick-start/).
+It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
 
 ## Prometheus setup
 

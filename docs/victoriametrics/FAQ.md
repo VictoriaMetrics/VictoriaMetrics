@@ -31,7 +31,7 @@ Yes. See [these benchmarks](https://docs.victoriametrics.com/victoriametrics/art
 
 ## How to start using VictoriaMetrics?
 
-See [these docs](https://docs.victoriametrics.com/quick-start/).
+See [these docs](https://docs.victoriametrics.com/victoriametrics/quick-start/).
 
 ## How to contribute to VictoriaMetrics?
 
