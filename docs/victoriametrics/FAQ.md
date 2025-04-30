@@ -88,7 +88,7 @@ Both [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [P
 * vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#loading-scrape-configs-from-multiple-files).
 * vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
 * vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can read them only from the local file system.
-* vmagent supports [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) feature for performing aggregates on collected or received samples before sending them to remote storage.
+* vmagent supports [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) feature for performing aggregates on collected or received samples before sending them to remote storage.
 
 ## Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 
@@ -341,7 +341,7 @@ The main reason for high churn rate is a metric label with frequently changed va
 
 The solution against high churn rate is to identify and eliminate labels with frequently changed values.
 [Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can help determining these labels. If labels can't be removed, try pre-aggregating data
-before it gets ingested into database with [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/).
+before it gets ingested into database with [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 The official Grafana dashboards for VictoriaMetrics contain graphs for churn rate - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
 
