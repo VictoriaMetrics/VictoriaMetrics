@@ -90,7 +90,7 @@ VictoriaMetrics has the following prominent features:
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/)
   and [Google Filestore](https://cloud.google.com/filestore).
 
-See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/) and [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/articles/).
+See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/) and [various Articles about VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/articles/).
 
 ## Components
 
@@ -2795,7 +2795,7 @@ the best parts of their product, while highlighting the worst parts of competing
 So we encourage users and all independent third parties to conduct their benchmarks for various products
 they are evaluating in production and publish the results.
 
-As a reference, please see [benchmarks](https://docs.victoriametrics.com/articles/#benchmarks) conducted by
+As a reference, please see [benchmarks](https://docs.victoriametrics.com/victoriametrics/articles/#benchmarks) conducted by
 VictoriaMetrics team. Please also see the [helm chart](https://github.com/VictoriaMetrics/benchmark)
 for running ingestion benchmarks based on node_exporter metrics.
 
