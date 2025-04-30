@@ -101,7 +101,6 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 			continue
 		}
 		vals := numReg.FindAllString(item, -1)
-
 		switch len(vals) {
 		case 1:
 			if vals[0] == "_" {

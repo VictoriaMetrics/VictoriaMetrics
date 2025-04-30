@@ -43,7 +43,8 @@ func TestParseInputValue_Success(t *testing.T) {
 				t.Fatalf("unexpected Omitted field in the output\ngot\n%v\nwant\n%v", output, outputExpected)
 			}
 			if outputExpected[i].Value != output[i].Value {
-				if decimal.IsStaleNaN(outputExpected[i].Value) && decimal.IsStaleNaN(output[i].Value) {
+				if (math.IsNaN(outputExpected[i].Value) && math.IsNaN(output[i].Value)) ||
+					(decimal.IsStaleNaN(outputExpected[i].Value) && decimal.IsStaleNaN(output[i].Value)) {
 					continue
 				}
 				t.Fatalf("unexpected Value field in the output\ngot\n%v\nwant\n%v", output, outputExpected)
@@ -69,10 +70,9 @@ func TestParseInputValue_Success(t *testing.T) {
 
 	f("Inf +Inf -Inf", []sequenceValue{{Value: math.Inf(1)}, {Value: math.Inf(1)}, {Value: math.Inf(-1)}})
 
-	f("Nan Infx2", []sequenceValue{{Value: math.NaN()}, {Value: math.Inf(1)}, {Value: math.Inf(1)}})
+	f("Nan Infx2", []sequenceValue{{Value: math.NaN()}, {Value: math.Inf(1)}, {Value: math.Inf(1)}, {Value: math.Inf(1)}})
 
-	f("NaNx3", []sequenceValue{{Value: math.NaN()}, {Value: math.NaN()}, {Value: math.NaN()}, {Value: math.NaN()}})
-
+	f("NaNx2", []sequenceValue{{Value: math.NaN()}, {Value: math.NaN()}, {Value: math.NaN()}})
 }
 
 func TestParseInputSeries_Success(t *testing.T) {
