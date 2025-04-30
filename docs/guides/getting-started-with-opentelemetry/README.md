@@ -119,7 +119,7 @@ config:
       compression: gzip
       encoding: proto
       # Setting below will work for sending data to VictoriaMetrics single-node version.
-      # Cluster version of VictoriaMetrics will require a different URL - https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+      # Cluster version of VictoriaMetrics will require a different URL - https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
       metrics_endpoint: http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local:8428/opentelemetry/v1/metrics
       logs_endpoint: http://victoria-logs-victoria-logs-single-server.default.svc.cluster.local:9428/insert/opentelemetry/v1/logs
       tls:

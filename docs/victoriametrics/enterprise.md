@@ -55,7 +55,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
   and increasing performance for queries over historical data.
 - [Multiple retentions](https://docs.victoriametrics.com/#retention-filters) - this feature allows reducing storage costs
   by specifying different retentions for different datasets.
-- [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery) -
+- [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) -
   this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
 - [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection) - this feature allows automation and simplification of your alerting rules, covering [complex anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) found in metrics data.
 - [Backup automation](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/).
@@ -64,7 +64,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway/).
 - [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/#automatic-issuing-of-tls-certificates).
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
-- [mTLS for communications between cluster components](https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection).
+- [mTLS for communications between cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection).
 - [mTLS-based request routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#google-pubsub-integration).

@@ -107,7 +107,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
-Rate limiting only works for the [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/). It supports read and write limiting by tenant.
+Rate limiting only works for the [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). It supports read and write limiting by tenant.
 
 ![vmgateway-rl](vmgateway-rate-limiting.webp)
 

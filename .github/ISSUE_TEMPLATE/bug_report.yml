@@ -65,7 +65,7 @@ body:
         
         See how to setup monitoring here:
           * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
-          * [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
+          * [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
     validations:
       required: false
   - type: textarea

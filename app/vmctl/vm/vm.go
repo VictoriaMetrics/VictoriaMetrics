@@ -122,7 +122,7 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	importPath := addr + "/api/v1/import"
 	if cfg.AccountID != "" {
 		// if cluster version
-		// see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+		// see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
 		importPath = fmt.Sprintf("%s/insert/%s/prometheus/api/v1/import", addr, cfg.AccountID)
 	}
 	importPath, err := AddExtraLabelsToImportPath(importPath, cfg.ExtraLabels)

@@ -21,7 +21,7 @@ VictoriaMetrics is available in the following distributions:
 * [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
   binary that is easy to run and maintain. Single-server-VictoriaMetrics perfectly scales vertically and easily handles
   millions of metrics;
-* [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
+* [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) - set of components
   for building horizontally scalable clusters;
 * [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) - VictoriaMetrics installation in the cloud. 
   Users can pick a suitable installation size and don't think of typical DevOps tasks such as configuration tuning, 
@@ -102,7 +102,7 @@ Visit Grafana `http://localhost:3000/` (admin:admin) or vmui `http://localhost:8
 _Further customization is possible by editing the [compose-vm-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vm-cluster.yml)
 file._
 
-See more details about [cluster architecture](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup).
+See more details about [cluster architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup).
 
 ### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
 
@@ -178,7 +178,7 @@ by going to `http://<ip_or_hostname>:8428/vmui`.
 
 ### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
 
-VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/#security)),
 but on the separate physical nodes for the best performance.
 
@@ -201,7 +201,7 @@ Replace `<victoriametrics-archive>` with the path to the archive you downloaded 
 sudo useradd -s /usr/sbin/nologin victoriametrics
 ```
 
-See recommendations for installing each type of [cluster component](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) below.
+See recommendations for installing each type of [cluster component](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) below.
 
 ##### Installing vmstorage
 
@@ -233,7 +233,7 @@ WantedBy=multi-user.target
 END'
 ```
 
-Extra [command-line flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
+Extra [command-line flags](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
 for vmstorage can be added to `ExecStart` line.
 
 > Please note, `vmstorage` service is listening on `:8400` for vminsert connections (see `-vminsertAddr` flag),
@@ -282,7 +282,7 @@ END'
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services. 
 To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
-in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
 
 > Please note, `vminsert` service is listening on `:8480` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -336,7 +336,7 @@ END'
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services.
 To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
-in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
 
 > Please note, `vmselect` service is listening on `:8481` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -405,7 +405,7 @@ When going to production with VictoriaMetrics we recommend following the recomme
 Each VictoriaMetrics component emits its own metrics with various details regarding performance
 and health state. Docs for the components also contain a `Monitoring` section with an explanation
 of what and how should be monitored. For example,
-[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring).
+[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring).
 
 VictoriaMetrics has a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 Each dashboard contains a lot of useful information and tips. It is recommended to have these dashboards installed and up to date.
@@ -423,7 +423,7 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
 [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning)
-and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning).
+and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
 Understanding resource usage and performance of VictoriaMetrics also requires knowing the tech terms
@@ -435,7 +435,7 @@ All of them are present in [Grafana dashboards](https://grafana.com/orgs/victori
 
 ### Data safety
 
-It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety),
+It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
 and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#backups).
 
@@ -448,4 +448,4 @@ To avoid excessive resource usage or performance degradation limits must be in p
 ### Security recommendations
 
 * [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
-* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#security)
+* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#security)
