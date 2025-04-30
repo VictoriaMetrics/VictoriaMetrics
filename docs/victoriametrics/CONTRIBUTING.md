@@ -69,7 +69,7 @@ A pull request should contain the following attributes:
 1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
    to the documentation. It will be later automatically replaced with an actual release version.
-1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
+1. A line in the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/#tip) mentioning the change and related issue in a way
   that would be clear to other readers even if they don't have the full context. Use the same guidelines as for commit message.
 1. Reviewers who you think have the best expertise on the matter.
 

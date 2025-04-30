@@ -939,7 +939,7 @@ Requests to make: 45 / 45 [█████████████████�
 
 Using cluster-to-cluster migration mode helps to migrate all tenants data in a single `vmctl` run.
 
-Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/changelog/#v1840)) to discover list of tenants from source cluster.
+Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1840)) to discover list of tenants from source cluster.
 
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 

@@ -30,7 +30,7 @@ Released at 2024-12-18
 
 Released at 2024-12-13
 
-It is recommended upgrading to [v1.108.1](https://docs.victoriametrics.com/changelog/#v11081) because [v1.108.0](https://docs.victoriametrics.com/changelog/#v11080) contains a bug introduced at [v1.108.0](https://docs.victoriametrics.com/changelog/#v11080), which incorrectly applies `-relabelConfig` rules at `vmsingle` components. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7865) for details.
+It is recommended upgrading to [v1.108.1](https://docs.victoriametrics.com/victoriametrics/changelog/#v11081) because [v1.108.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11080) contains a bug introduced at [v1.108.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11080), which incorrectly applies `-relabelConfig` rules at `vmsingle` components. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7865) for details.
 
 **Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead. These events are reflected in logs and in `vm_rows_ignored_total` metric. The previous metrics `vm_too_long_label_values_total`, `vm_too_long_label_names_total`, `vm_metrics_with_dropped_labels_total` are deprecated.**
 
@@ -56,7 +56,7 @@ It is recommended upgrading to [v1.108.1](https://docs.victoriametrics.com/chang
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix requests routing by host when using `src_hosts`. Previously, request header could be ignored.See [this PR]() for details.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): prevent backup scheduler from scheduling two backups immediately one after another.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly parse the query rollup window specified in milliseconds. Previous implementation could lead to precision issues resulting in the parsed window being smaller by 1ms. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly schedule historical data de-duplication at enterprise version with `-dedup.minScrapeInterval` configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7764) for details. Issue was introduced at [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) release.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly schedule historical data de-duplication at enterprise version with `-dedup.minScrapeInterval` configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7764) for details. Issue was introduced at [v1.106.1](https://docs.victoriametrics.com/victoriametrics/changelog/#v11061) release.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): prevent accordion from collapsing when selecting text in headers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7742).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix query interval display in the instant query info. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7401).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): respect `-search.skipSlowReplicas` when `-globalReplicationFactor` > 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6924).
@@ -97,7 +97,7 @@ Released at 2024-11-29
 
 Released at 2024-11-15
 
-It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11070) because [v1.106.1](https://docs.victoriametrics.com/victoriametrics/changelog/#v11061) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 * SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
 
@@ -119,7 +119,7 @@ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/chang
 
 Released at 2024-11-04
 
-It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.106.0](https://docs.victoriametrics.com/changelog/#v11060) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11070) because [v1.106.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11060) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be useful when rules are retrieved via HTTP URL where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
@@ -141,7 +141,7 @@ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/chang
 
 Released at 2024-10-21
 
-It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.105.0](https://docs.victoriametrics.com/changelog/#v11050) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11070) because [v1.105.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11050) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 **Update note 1: `-search.maxUniqueTimeseries` limit on `vmselect` can no longer exceed `-search.maxUniqueTimeseries` limit on `vmstorage`. If you don't set this flag at `vmstorage`, then it will be automatically calculated based on available resources. This can result into rejecting expensive read queries if they exceed auto-calculated limit. The limit can be overridden by manually setting `-search.maxUniqueTimeseries` at vmstorage, but for better reliability we recommend sticking to default values. Refer to the CHANGELOG below and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6930).**
 
@@ -163,7 +163,7 @@ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/chang
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): allow specifying empty labels list `labels: '{}'` in the same way as promtool does. This improves compatibility between these tools.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): support `m` unit for `minutes` duration in command-line flag `-streamAggr.dedupInterval`. Previously unit `m` wasn't supported correctly.
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly apply replication factor when storage node groups are used and replication factor is configured via global value such as `-replicationFactor=2`. Previously, global replication factor was ignored for storage node groups. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect) for more information about storage groups configuration.
-* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly process response in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, vmselect could return no data in multi-level setup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7270) for details. The issue was introduced in [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly process response in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, vmselect could return no data in multi-level setup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7270) for details. The issue was introduced in [v1.104.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11040).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): properly apply configuration changes during hot-reload to rule groups that haven't started yet. Previously, configuration updates to such groups could have resulted into blocking all evaluations within the group, until vmalert restart.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/)  and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly update `max_scrape_size` param change during [hot-reload](https://docs.victoriametrics.com/victoriametrics/vmagent/#configuration-update). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7260).
 
@@ -171,7 +171,7 @@ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/chang
 
 Released at 2024-10-02
 
-It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040) contains a bug, which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11070) because [v1.104.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11040) contains a bug, which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 **Update note 1: `*.passwordFile` and similar flags are trimming trailing whitespaces at the end of content. If authorization check performed with `*.passwordFile` content, make sure to update authorization settings to not include trailing whitespaces before the upgrade. In case of [operator](https://docs.victoriametrics.com/operator/) managed installations, make sure to update operator version to [v0.48.*](https://docs.victoriametrics.com/operator/changelog/#v0480---25-sep-2024). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986) for the details. This change reverts behavior introduced at [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2) release**
 
@@ -243,7 +243,7 @@ Released at 2024-08-28
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): account for `-usePromCompatibleNaming` cmd-line flag during when pushing data to remote storages. Thanks to @12345XXX  for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6776).
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce CPU usage by limiting the number of concurrently running inserts. The issue was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/498fe1cfa523be5bfecaa372293c3cded85e75ab) starting from v1.101.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6733) issue for details.
-* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) and snapshot API: verify correctness of URLs provided via cmd-line flags before executing HTTP requests. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6740) issue for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): reduce memory usage when parsing responses with big number of metrics in response. The memory usage was increased in [v1.102.0-rc1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc1) after attempt to reduce CPU usage for heavy loaded vmalerts.
 * BUGFIX: all VictoriaMetrics components: forcefully set owner/group for release tars to 1000:1000. This helps to avoid unpacking [issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6788) on systems with limitations around UID:GID configuration. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6846).
@@ -258,7 +258,7 @@ Released at 2024-12-13
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.20.3 to 3.21.0. See [alpine 3.21.0 release notes](https://alpinelinux.org/posts/Alpine-3.21.0-released.html).
 * SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
@@ -280,7 +280,7 @@ Released at 2024-11-29
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly parse `multitenant` token value for multitenant endpoints. Before, pushing data into vmagent using [multitenant URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) resulted in unsupported path. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7694).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
@@ -296,7 +296,7 @@ Released at 2024-11-15
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
 
@@ -314,7 +314,7 @@ Released at 2024-11-04
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outside of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
@@ -326,7 +326,7 @@ Released at 2024-10-21
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly add metrics tags for `opentsdb` migration source. Previously it could have empty values. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
@@ -341,7 +341,7 @@ Released at 2024-10-02
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix `-remoteWrite.streamAggr.dropInputLabels` labels parsing. Now, this flag allows specifying a list of labels to drop (by using '^^' separator, i.e. `dropInputLabels='replica^^az,replica'`) per each corresponding `remoteWrite.url`. Before, `-remoteWrite.streamAggr.dropInputLabels` labels were incorrectly applied to all configured `remoteWrite.url`s. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6780) for the details.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix duplicated aggregation results if there are multiple concurrent writing samples with the same label. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118).
@@ -375,7 +375,7 @@ Released at 2024-08-28
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fixes `proxy_url` authorization for scrape targets. Previously proxy authorization configuration was ignored for `https` targets. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6771) issue for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6784).
@@ -385,7 +385,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): account for `-usePromCompatibleNaming` cmd-line flag during when pushing data to remote storages. Thanks to @12345XXX  for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6776).
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce CPU usage by limiting the number of concurrently running inserts. The issue was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/498fe1cfa523be5bfecaa372293c3cded85e75ab) starting from v1.101.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6733) issue for details.
-* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) and snapshot API: verify correctness of URLs provided via cmd-line flags before executing HTTP requests. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6740) issue for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): reduce memory usage when parsing responses with big number of metrics in response. The memory usage was increased in [v1.102.0-rc1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc1) after attempt to reduce CPU usage for heavy loaded vmalerts.
 * BUGFIX: all VictoriaMetrics components: forcefully set owner/group for release tars to 1000:1000. This helps to avoid unpacking [issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6788) on systems with limitations around UID:GID configuration. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6846).
@@ -400,7 +400,7 @@ Released at 2024-08-01
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 **Update note 1: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) HTTP response code has changed from 503 to 502 for a case when all upstream backends were not available. This was changed to align [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) behaviour with other well-known reverse-proxies behaviour.**
 
@@ -423,7 +423,7 @@ Released at 2024-07-17
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 **Update note 1: support for snap packages was removed due to lack of interest from community. See this [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6543) for details. Please read about supported package types [here](https://docs.victoriametrics.com/#install).**
 
@@ -534,7 +534,7 @@ Released at 2024-06-07
 * FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): improve filtering speed of the received data samples if [match](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config) field is matching only [metric name](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric).
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): adds `-relabelConfigCheckInterval` flag and `/-/reload` endpoint for reloading relabeling rules. See this [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3923) for details.
 
-* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix bug that prevents the first query trace from expanding on click event. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6186). The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) release.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix bug that prevents the first query trace from expanding on click event. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6186). The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11000) release.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix calendar display when `UTC+00:00` timezone is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6239).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): remove redundant requests on the `Explore Cardinality` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6240).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix handling of URL params for browser history navigation (back and forward buttons). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6126) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5516#issuecomment-1867507232).
@@ -542,12 +542,12 @@ Released at 2024-06-07
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): skip empty data blocks before sending to the remote write destination. Thanks to @viperstars for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): set correct suffix `<output>_prometheus` for aggregation outputs [increase_prometheus](https://docs.victoriametrics.com/stream-aggregation/#increase_prometheus) and [total_prometheus](https://docs.victoriametrics.com/stream-aggregation/#total_prometheus). Before, outputs `total` and `total_prometheus` or `increase` and `increase_prometheus` had the same suffix.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): prevent from excessive resource usage when stream aggregation config file is empty.
-* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/changelog_2022/#v1830).
+* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1830).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): correctly apply `-inmemoryDataFlushInterval` when it's set to minimum supported value 1s.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce the default value for `-maxLabelValueLen` command-line flag from `16KiB` to `1KiB`. This should prevent from issues like [this one](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6176) when time series with too long labels are ingested into VictoriaMetrics.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly release memory used for metrics during config reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6247).
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): fix `AnnotationQueryRunner` error in Grafana when executing annotations query against Prometheus backend. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6309) for details.
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/changelog_2022/#v1810).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1810).
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix float values template in `input_series`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6391).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix misleading error logs in vmalert's stdout when unsupported HTTP path is requested.
 * BUGFIX: retry files delete attempts on vXFS file system for `EEXIST` error type. See the [related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6396). Thanks to @pludov for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6398).
@@ -575,8 +575,8 @@ Released at 2024-04-26
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): auto-suggestion triggers at any cursor position in the query input. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5864).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): update error messages on the Query page for enhanced clarity. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6177).
 
-* BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): skip unnecessary index lookups if downsampling wasn't set for ENT versions of VictoriaMetrics. Before, users of VictoriaMetrics ENT could have experience elevated CPU usage even if no downsampling was configured. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000).
-* BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): properly populate downsampling metadata for data parts created by VictoriaMetrics ENT versions lower than v1.100.0. The bug could trigger the downsampling actions for parts that were downsampled already. This bug doesn't have any negative effect apart from spending extra CPU resources on the repeated downsampling. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000).
+* BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): skip unnecessary index lookups if downsampling wasn't set for ENT versions of VictoriaMetrics. Before, users of VictoriaMetrics ENT could have experience elevated CPU usage even if no downsampling was configured. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11000).
+* BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): properly populate downsampling metadata for data parts created by VictoriaMetrics ENT versions lower than v1.100.0. The bug could trigger the downsampling actions for parts that were downsampled already. This bug doesn't have any negative effect apart from spending extra CPU resources on the repeated downsampling. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11000).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): supported any status codes from the range 200-299 from alertmanager. Previously, only 200 status code considered a successful action. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6110).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): avoid blocking `/api/v1/rules`, `/api/v1/alerts`, `/metrics` APIs when alerting rule uses template functions `query`, which could takes a while to execute. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6079).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix links with anchors in vmalert's UI. Starting from [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0) vmalert could ignore anchors pointing to specific rule groups if `search` param was present in URL.
@@ -586,9 +586,9 @@ Released at 2024-04-26
 
 Released at 2024-04-11
 
-**Update note 1: This release contains the issue which could lead to extra CPU usage of storage component in ENT distribution of VictoriaMetrics. The issue is caused by [downsampling per distinct sets of time series](https://docs.victoriametrics.com/#downsampling) feature introduced in 1.100.0 ENT version. Please, upgrade to [v1.101.0](https://docs.victoriametrics.com/changelog/#v11010) or rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) ENT version if you're affected.**
+**Update note 1: This release contains the issue which could lead to extra CPU usage of storage component in ENT distribution of VictoriaMetrics. The issue is caused by [downsampling per distinct sets of time series](https://docs.victoriametrics.com/#downsampling) feature introduced in 1.100.0 ENT version. Please, upgrade to [v1.101.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11010) or rollback to [v1.98.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1980) ENT version if you're affected.**
 
-**Update note 2: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
+**Update note 2: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
 
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
 
@@ -599,7 +599,7 @@ Released at 2024-04-11
 
 Released at 2024-04-04
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
 
@@ -659,7 +659,7 @@ Released at 2024-04-04
 
 Released at 2024-03-01
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) via all the [label manipulation functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#label-manipulation-functions). For example, `label_del(some_metric{job="foo"}, "instance") + other_metric{pod="bar"}` is now transformed to `label_del(some_metric{job="foo",pod="bar"}, "instance") + other_metric{job="foo",pod="bar"}`. This should reduce the amounts of time series processed during query execution.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): add [count_values_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#count_values_over_time) function. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5847).
@@ -734,7 +734,7 @@ Released at 2024-12-13
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.20.3 to 3.21.0. See [alpine 3.21.0 release notes](https://alpinelinux.org/posts/Alpine-3.21.0-released.html).
 * SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
@@ -754,7 +754,7 @@ Released at 2024-11-29
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
@@ -768,7 +768,7 @@ Released at 2024-11-15
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
@@ -782,7 +782,7 @@ Released at 2024-11-04
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outside of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
@@ -793,7 +793,7 @@ Released at 2024-10-21
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly add metrics tags for `opentsdb` migration source. Previously it could have empty values. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
@@ -806,7 +806,7 @@ Released at 2024-10-02
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): consistently return the first non-`NaN` value from [`range_first`](https://docs.victoriametrics.com/victoriametrics/metricsql/#range_first) function across all the returned data points. Previously `NaN` data points weren't replaced with the first non-`NaN` value.
 
@@ -836,14 +836,14 @@ Released at 2024-08-28
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fixes `proxy_url` authorization for scrape targets. Previously proxy authorization configuration was ignored for `https` targets. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6771) issue for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6784).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): respect HTTP headers defined in [notifier configuration file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file) for each request to notifiers. Previously, this param was ignored by mistake.
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): account for `-usePromCompatibleNaming` cmd-line flag during when pushing data to remote storages. Thanks to @12345XXX  for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6776).
-* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/victoriametrics/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) and snapshot API: verify correctness of URLs provided via cmd-line flags before executing HTTP requests. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6740) issue for details.
 * BUGFIX: all VictoriaMetrics components: forcefully set owner/group for release tars to 1000:1000. This helps to avoid unpacking [issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6788) on systems with limitations around UID:GID configuration. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6846).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly register index metrics for previous index part. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6868) for details.
@@ -855,7 +855,7 @@ Released at 2024-07-17
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * SECURITY: upgrade Go builder from Go1.22.4 to Go1.22.5. See the list of issues addressed in [Go1.22.5](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.20.0 to 3.20.1. See [alpine 3.20.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.1-released.html).
@@ -879,7 +879,7 @@ Released at 2024-06-07
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.4. See the list of issues addressed in [Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved) and [Go1.22.4](https://github.com/golang/go/issues?q=milestone%3AGo1.22.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
@@ -888,10 +888,10 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): remove redundant requests on the `Explore Cardinality` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6240).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix handling of URL params for browser history navigation (back and forward buttons). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6126) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5516#issuecomment-1867507232).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): skip empty data blocks before sending to the remote write destination. Thanks to @viperstars for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241).
-* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/changelog_2022/#v1830).
+* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1830).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): correctly apply `-inmemoryDataFlushInterval` when it's set to minimum supported value 1s.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly release memory used for metrics during config reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6247).
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/changelog_2022/#v1810).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1810).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix misleading error logs in vmalert's stdout when unsupported HTTP path is requested.
 * BUGFIX: retry files delete attempts on vXFS file system for `EEXIST` error type. See the [related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6396). Thanks to @pludov for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6398).
 
@@ -901,7 +901,7 @@ Released at 2024-04-19
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
@@ -921,7 +921,7 @@ Released at 2024-03-01
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: downgrade Go builder from `1.22.0` to `1.21.7`, since `1.22.0` contains [the bug](https://github.com/golang/go/issues/65705), which can lead to deadlocked HTTP connections to remote storage systems, scrape targets and service discovery endpoints at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This may result in incorrect service discovery, target scraping and failed sending samples to remote storage.
 * BUGFIX: take into account `-search.maxUniqueTimeseries` limit at [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels), [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) and [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series). This limit was ignored at these endpoints starting from [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0) when trying to address [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5055). It has been appeared that this can result in high CPU usage when heavyweight queries hit these endpoints. This can prevent from executing lightweight queries to these endpoints. It is better to return `limit exceeded` error to heavyweight queries instead of burning CPU.
@@ -941,7 +941,7 @@ Released at 2024-02-14
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved),
   plus [the changelog for Go1.22.0](https://go.dev/doc/go1.22).
@@ -961,7 +961,7 @@ Released at 2024-02-01
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add support for `username_file` option at `basic_auth` section in [`scrape_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5511). Thanks to @wasim-nihal for [the initial implementation](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5720).
 
@@ -976,7 +976,7 @@ Released at 2024-01-30
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
 * SECURITY: upgrade Go builder from Go1.21.5 to Go1.21.6. See [the list of issues addressed in Go1.21.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.6+label%3ACherryPickApproved).
@@ -1046,30 +1046,30 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly process queries with too big lookbehind window such as `foo[100y]`. Previously, such queries could return empty responses even if `foo` is present in database. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly handle possible negative results caused by float operations precision error in rollup functions like rate() or increase(). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571).
 * BUGFIX: `vmselect`: vmsingle/vmselect returns http status 429 (TooManyRequests) instead of 503 (ServiceUnavailable) when max concurrent requests limit is reached.
-* BUGFIX: `vmselect`: set proper timestamps in [instant query](https://docs.victoriametrics.com/keyconcepts/#instant-query) results if the query contains [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) with lookbehind windows in square brackets exceeding 3 hours. For example, `sum(avg_over_time(up[24h]))`. This bug has been introduced in [v1.95.0](https://docs.victoriametrics.com/changelog_2023/#v1950). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5659) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5730) issues.
+* BUGFIX: `vmselect`: set proper timestamps in [instant query](https://docs.victoriametrics.com/keyconcepts/#instant-query) results if the query contains [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) with lookbehind windows in square brackets exceeding 3 hours. For example, `sum(avg_over_time(up[24h]))`. This bug has been introduced in [v1.95.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1950). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5659) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5730) issues.
 
 ## [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1960)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1960)
 
 ## [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1951)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1951)
 
 ## [v1.95.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1950)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1950)
 
 ## [v1.94.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.94.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1940)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1940)
 
 ## [v1.93.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.16)
 
 Released at 2024-07-17
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.22.4 to Go1.22.5. See the list of issues addressed in [Go1.22.5](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.20.0 to 3.20.1. See [alpine 3.20.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.1-released.html).
@@ -1087,15 +1087,15 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-06-07
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.4. See the list of issues addressed in [Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved) and [Go1.22.4](https://github.com/golang/go/issues?q=milestone%3AGo1.22.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix calendar display when `UTC+00:00` timezone is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6239).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): skip empty data blocks before sending to the remote write destination. Thanks to @viperstars for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241).
-* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/changelog_2022/#v1830).
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/changelog_2022/#v1810).
+* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1830).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1810).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix misleading error logs in vmalert's stdout when unsupported HTTP path is requested.
 * BUGFIX: retry files delete attempts on vXFS file system for `EEXIST` error type. See the [related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6396). Thanks to @pludov for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6398).
 
@@ -1104,7 +1104,7 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-04-19
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/changelog/#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
@@ -1118,7 +1118,7 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-03-01
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/changelog/#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * BUGFIX: downgrade Go builder from `1.22.0` to `1.21.7`, since `1.22.0` contains [the bug](https://github.com/golang/go/issues/65705), which can lead to deadlocked HTTP connections to remote storage systems, scrape targets and service discovery endpoints at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This may result in incorrect service discovery, target scraping and failed sending samples to remote storage.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): accept OpenTelemetry data at `/opentelemetry/v1/metrics`, since the `/v1/metrics` suffix is hardcoded at [OpenTelemetry protocol specification](https://opentelemetry.io/docs/specs/otlp/#otlphttp-request).
@@ -1135,7 +1135,7 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-02-14
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/changelog/#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.21.6 to Go1.22.0. See [the list of issues addressed in Go1.21.7](https://github.com/golang/go/issues?q=milestone%3AGo1.21.7+label%3ACherryPickApproved), plus [the changelog for Go1.22.0](https://go.dev/doc/go1.22).
 
@@ -1149,7 +1149,7 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-02-01
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/changelog/#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
 
@@ -1164,7 +1164,7 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-01-17
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/changelog/#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.21.5 to Go1.21.6. See [the list of issues addressed in Go1.21.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.6+label%3ACherryPickApproved).
 
@@ -1181,94 +1181,94 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 
 ## [v1.93.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.9)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1939)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1939)
 
 ## [v1.93.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.8)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1938)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1938)
 
 ## [v1.93.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.7)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1937)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1937)
 
 ## [v1.93.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.6)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1936)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1936)
 
 ## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1935)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1935)
 
 ## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1934)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1934)
 
 ## [v1.93.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1933)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1933)
 
 ## [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1932)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1932)
 
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1931)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1931)
 
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1930)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1930)
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1921)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1921)
 
 ## [v1.92.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1920)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1920)
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1913)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1913)
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1912)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1912)
 
 ## [v1.91.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1911)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1911)
 
 ## [v1.91.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1910)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1910)
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1900)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1900)
 
 ## [v1.89.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1891)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1891)
 
 ## [v1.89.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1890)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1890)
 
 ## [v1.88.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1881)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1881)
 
 ## [v1.88.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1880)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1880)
 
 ## [v1.87.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.14)
 
 Released at 2024-02-01
 
 **v1.87.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/changelog/#v1870) release**
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1870) release**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.19.0 to 3.19.1. See [alpine 3.19.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.1-released.html).
 
@@ -1282,7 +1282,7 @@ The v1.87.x line will be supported for at least 12 months since [v1.87.0](https:
 Released at 2024-01-17
 
 **v1.87.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/changelog/#v1870) release**
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1870) release**
 
 * SECURITY: upgrade Go builder from Go1.21.5 to Go1.21.6. See [the list of issues addressed in Go1.21.6](https://github.com/golang/go/issues?q=milestone%3AGo1.21.6+label%3ACherryPickApproved).
 
@@ -1294,4 +1294,4 @@ The v1.87.x line will be supported for at least 12 months since [v1.87.0](https:
 
 ## Previous releases
 
-See changes for older releases [here](https://docs.victoriametrics.com/changelog_2023/).
+See changes for older releases [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/).

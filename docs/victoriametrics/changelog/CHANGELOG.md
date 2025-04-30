@@ -212,7 +212,7 @@ Released at 2025-04-25
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
 * BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
@@ -227,7 +227,7 @@ Released at 2025-04-04
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
 * SECURITY: upgrade Go builder from Go1.23.6 to Go1.23.8. See the list of issues addressed in [Go1.23.8](https://github.com/golang/go/issues?q=milestone%3AGo1.23.8+label%3ACherryPickApproved).
 
@@ -241,7 +241,7 @@ Released at 2025-03-21
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
 * SECURITY: upgrade golang.org/x/net from v0.33.0 to v0.36.0 to address [CVE-2025-22870](https://github.com/advisories/GHSA-qxp5-gwg8-xv66).
 
@@ -261,7 +261,7 @@ Released at 2025-03-07
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
@@ -284,7 +284,7 @@ Released at 2025-02-21
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
@@ -300,7 +300,7 @@ Released at 2025-02-10
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly perform graceful shutdown for kafka client.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly add message metadata headers for kafka remoteWrite target.
@@ -337,7 +337,7 @@ Released at 2025-01-17
 * SECURITY: upgrade base docker image (Alpine) from 3.21.0 to 3.21.2. See [Alpine 3.21.1 release notes](https://alpinelinux.org/posts/Alpine-3.21.1-released.html) and [Alpine 3.21.2 release notes](https://alpinelinux.org/posts/Alpine-3.18.11-3.19.6-3.20.5-3.21.2-released.html).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix incorrect behavior of increase, increase_pure, delta caused by [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002). This fix reverts to the previous behavior before [v1.109.0](https://docs.victoriametrics.com/changelog/#v11090). But allows controlling staleness detection for these functions explicitly via `-search.maxStalenessInterval`.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix incorrect behavior of increase, increase_pure, delta caused by [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002). This fix reverts to the previous behavior before [v1.109.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11090). But allows controlling staleness detection for these functions explicitly via `-search.maxStalenessInterval`.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: remove unnecessary delay before failing if all online verification attempts have failed. This should reduce the time required for the component to proceed if all online verification attempts have failed.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when sending `multitenant` [read request](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) to `/api/v1/series/count`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8126) for the details.
 
@@ -345,7 +345,7 @@ Released at 2025-01-17
 
 Released at 2025-01-14
 
-**Update note: This release contains [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045) that might affect correctness of increase, increase_pure and delta functions. It affects only vmselect or VictoriaMetrics single-node on query time. Please, rollback vmselects to the closest previous version or update to [v1.109.1](https://docs.victoriametrics.com/changelog/#v11091).**
+**Update note: This release contains [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045) that might affect correctness of increase, increase_pure and delta functions. It affects only vmselect or VictoriaMetrics single-node on query time. Please, rollback vmselects to the closest previous version or update to [v1.109.1](https://docs.victoriametrics.com/victoriametrics/changelog/#v11091).**
 
 * FEATURE: all the VictoriaMetrics components: increase the default value for [`GOGC`](https://tip.golang.org/doc/gc-guide#GOGC) from `30` to `100`. This should reduce CPU usage at the cost of slightly higher memory usage. [Single-node VictoriaMetrics](https://docs.victoriametrics.com/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) components continue using `GOGC=30`, since they are optimized for low memory allocations and low memory usage, so they do not benefit from the increased GOGC value too much. It is possible to override the default `GOGC` value in any VictoriaMetrics component by setting `GOGC` environment variable to the desired value. For example, `GOGC=200 ./path/to/vmagent` starts `vmagent` with `GOGC=200`. See [these docs](https://tip.golang.org/doc/gc-guide#GOGC) about `GOGC` tuning. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7902).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add export data functionality for the `Raw Query` page and the ability to import exported data into the `Query Analyzer` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7628).
@@ -373,35 +373,35 @@ Released at 2025-01-14
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11081)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11081)
 
 ## [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11080)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11080)
 
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11070)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11070)
 
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11061)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11061)
 
 ## [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11060)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11060)
 
 ## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11050)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11050)
 
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11040)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11040)
 
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11030)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
 
 ## [v1.102.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.19)
 
@@ -409,7 +409,7 @@ Released at 2025-04-25
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: all the VictoriaMetrics components: properly detect `cgroupv2` [CPU limits](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8808) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): properly init [enterprise](https://docs.victoriametrics.com/enterprise/) version for `linux/arm` and non-CGO buids. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6019) for details.
@@ -424,7 +424,7 @@ Released at 2025-04-04
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * SECURITY: upgrade Go builder from Go1.23.6 to Go1.23.8. See the list of issues addressed in [Go1.23.8](https://github.com/golang/go/issues?q=milestone%3AGo1.23.8+label%3ACherryPickApproved).
 
@@ -437,7 +437,7 @@ Released at 2025-03-21
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * SECURITY: upgrade golang.org/x/net from v0.33.0 to v0.36.0 to address [CVE-2025-22870](https://github.com/advisories/GHSA-qxp5-gwg8-xv66).
 
@@ -456,7 +456,7 @@ Released at 2025-03-07
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly apply the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter) for the `rows_inserted` limit type. Previously, the rate limit for this type was ignored.
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): properly handle HTTP requests with path ending with a trailing `/` when using the [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter). Previously, the trailing slash was removed and caused an incorrect redirect path when visiting VMUI. Thanks to @jindov for [the bug report issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8439).
@@ -469,7 +469,7 @@ Released at 2025-02-28
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
@@ -485,7 +485,7 @@ Released at 2025-02-21
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
@@ -499,7 +499,7 @@ Released at 2025-02-10
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [export API](https://docs.victoriametrics.com/#how-to-export-time-series): cancel export process on client connection close. Previously client connection close was ignored and VictoriaMetrics started to hog CPU by exporting metrics to nowhere until it export all of them.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
@@ -511,7 +511,7 @@ Released at 2025-01-28
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): respect staleness detection in increase, increase_pure and delta functions when time series has gaps and `-search.maxStalenessInterval` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072) for details.
@@ -520,11 +520,11 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2025-01-24
 
-It is recommended upgrading to [v1.102.12](https://docs.victoriametrics.com/changelog/#v110212) because [v1.102.11](https://docs.victoriametrics.com/changelog/#v110211) contains a bug with staleness detection.
+It is recommended upgrading to [v1.102.12](https://docs.victoriametrics.com/victoriametrics/changelog/#v110212) because [v1.102.11](https://docs.victoriametrics.com/victoriametrics/changelog/#v110211) contains a bug with staleness detection.
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
 
@@ -540,7 +540,7 @@ Released at 2025-01-14
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
@@ -552,71 +552,71 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 ## [v1.102.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.9)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11029)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11029)
 
 ## [v1.102.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.8)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11028)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11028)
 
 ## [v1.102.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.7)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11027)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11027)
 
 ## [v1.102.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.6)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11026)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11026)
 
 ## [v1.102.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.5)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11025)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11025)
 
 ## [v1.102.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.4)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11024)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11024)
 
 ## [v1.102.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11023)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11023)
 
 ## [v1.102.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11022)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11022)
 
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11021)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11021)
 
 ## [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11020)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11020)
 
 ## [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11020-rc2)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11020-rc2)
 
 ## [v1.102.0-rc1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11020-rc1)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11020-rc1)
 
 ## [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11010)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11010)
 
 ## [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11001)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11001)
 
 ## [v1.100.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11000)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11000)
 
 ## [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1990)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1990)
 
 ## [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1980)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1980)
 
 ## [v1.97.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.17)
 
@@ -624,7 +624,7 @@ Released at 2025-01-28
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): respect staleness detection in increase, increase_pure and delta functions when time series has gaps and `-search.maxStalenessInterval` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072) for details.
@@ -633,11 +633,11 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2025-01-24
 
-It is recommended upgrading to [v1.97.17](https://docs.victoriametrics.com/changelog/#v19717) because [v1.97.16](https://docs.victoriametrics.com/changelog/#v19716) contains a bug with staleness detection.
+It is recommended upgrading to [v1.97.17](https://docs.victoriametrics.com/victoriametrics/changelog/#v19717) because [v1.97.16](https://docs.victoriametrics.com/victoriametrics/changelog/#v19716) contains a bug with staleness detection.
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: remove unnecessary delay before failing if all online verification attempts have failed. This should reduce the time required for the component to proceed if all online verification attempts have failed.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): don't take into account the last raw sample before the lookbehind window is sample exceeds the staleness interval. This affects correctness of increase, increase_pure, delta functions when performing calculations on time series with gaps. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002) for details.
@@ -649,7 +649,7 @@ Released at 2025-01-14
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/changelog/#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 
@@ -659,587 +659,587 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 ## [v1.97.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.14)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19714)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19714)
 
 ## [v1.97.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.13)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19713)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19713)
 
 ## [v1.97.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.12)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19712)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19712)
 
 ## [v1.97.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.11)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19711)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19711)
 
 ## [v1.97.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.10)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19710)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19710)
 
 ## [v1.97.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.9)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1979)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1979)
 
 ## [v1.97.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.8)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1978)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1978)
 
 ## [v1.97.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.7)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1977)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1977)
 
 ## [v1.97.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.6)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1976)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1976)
 
 ## [v1.97.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.5)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1975)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1975)
 
 ## [v1.97.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.4)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1974)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1974)
 
 ## [v1.97.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1973)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1973)
 
 ## [v1.97.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1972)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1972)
 
 ## [v1.97.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1971)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1971)
 
 ## [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v1970)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v1970)
 
 ## [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1960)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1960)
 
 ## [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1951)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1951)
 
 ## [v1.95.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1950)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1950)
 
 ## [v1.94.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.94.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1940)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1940)
 
 ## [v1.93.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.16)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19316)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19316)
 
 ## [v1.93.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.15)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19315)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19315)
 
 ## [v1.93.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.14)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19314)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19314)
 
 ## [v1.93.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.13)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19313)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19313)
 
 ## [v1.93.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.12)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19311)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19311)
 
 ## [v1.93.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.11)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19311)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19311)
 
 ## [v1.93.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.10)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v19310)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v19310)
 
 ## [v1.93.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.9)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1939)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1939)
 
 ## [v1.93.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.8)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1938)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1938)
 
 ## [v1.93.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.7)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1937)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1937)
 
 ## [v1.93.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.6)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1936)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1936)
 
 ## [v1.93.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.5)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1935)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1935)
 
 ## [v1.93.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.4)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1934)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1934)
 
 ## [v1.93.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1933)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1933)
 
 ## [v1.93.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1932)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1932)
 
 ## [v1.93.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1931)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1931)
 
 ## [v1.93.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1930)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1930)
 
 ## [v1.92.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1921)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1921)
 
 ## [v1.92.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.92.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1920)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1920)
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1913)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1913)
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1912)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1912)
 
 ## [v1.91.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1911)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1911)
 
 ## [v1.91.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1910)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1910)
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1900)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1900)
 
 ## [v1.89.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1891)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1891)
 
 ## [v1.89.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1890)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1890)
 
 ## [v1.88.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1881)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1881)
 
 ## [v1.88.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1880)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1880)
 
 ## [v1.87.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.14)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v18714)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v18714)
 
 ## [v1.87.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.13)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2024/#v18713)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v18713)
 
 ## [v1.87.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.12)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v18712)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v18712)
 
 ## [v1.87.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.11)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v18711)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v18711)
 
 ## [v1.87.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.10)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v18710)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v18710)
 
 ## [v1.87.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.9)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1879)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1879)
 
 ## [v1.87.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.8)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1878)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1878)
 
 ## [v1.87.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.7)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1877)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1877)
 
 ## [v1.87.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.6)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1876)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1876)
 
 ## [v1.87.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.5)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1875)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1875)
 
 ## [v1.87.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.4)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1874)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1874)
 
 ## [v1.87.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1873)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1873)
 
 ## [v1.87.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1872)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1872)
 
 ## [v1.87.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1871)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1871)
 
 ## [v1.87.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1870)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1870)
 
 ## [v1.86.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1862)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1862)
 
 ## [v1.86.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1861)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1861)
 
 ## [v1.86.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1860)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2023/#v1860)
 
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1853)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1853)
 
 ## [v1.85.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1852)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1852)
 
 ## [v1.85.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1851)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1851)
 
 ## [v1.85.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1850)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1850)
 
 ## [v1.84.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.84.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1840)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1840)
 
 ## [v1.83.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1831)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1831)
 
 ## [v1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1830)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1830)
 
 ## [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1821)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1821)
 
 ## [v1.82.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1820)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1820)
 
 ## [v1.81.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1812)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1812)
 
 ## [v1.81.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1811)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1811)
 
 ## [v1.81.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1810)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1810)
 
 ## [v1.80.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.80.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1800)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1800)
 
 ## [v1.79.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.14)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v17914)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v17914)
 
 ## [v1.79.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.13)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v17913)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v17913)
 
 ## [v1.79.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.12)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v17912)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v17912)
 
 ## [v1.79.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.11)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v17911)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v17911)
 
 ## [v1.79.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.10)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v17910)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v17910)
 
 ## [v1.79.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.9)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1799)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1799)
 
 ## [v1.79.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.8)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1798)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1798)
 
 ## [v1.79.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.7)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1797)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1797)
 
 ## [v1.79.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.6)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1796)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1796)
 
 ## [v1.79.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.5)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1795)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1795)
 
 ## [v1.79.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.4)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1794)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1794)
 
 ## [v1.79.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.3)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1793)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1793)
 
 ## [v1.79.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1792)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1792)
 
 ## [v1.79.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1791)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1791)
 
 ## [v1.79.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1790)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1790)
 
 ## [v1.78.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1781)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1781)
 
 ## [v1.78.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.78.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1780)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1780)
 
 ## [v1.77.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1772)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1772)
 
 ## [v1.77.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1771)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1771)
 
 ## [v1.77.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.77.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1770)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1770)
 
 ## [v1.76.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1761)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1761)
 
 ## [v1.76.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.76.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1760)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1760)
 
 ## [v1.75.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.75.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1751)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1751)
 
 ## [v1.75.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.75.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1750)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1750)
 
 ## [v1.74.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.74.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1740)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1740)
 
 ## [v1.73.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1731)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1731)
 
 ## [v1.73.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.73.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1730)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1730)
 
 ## [v1.72.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.72.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2022/#v1720)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2022/#v1720)
 
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1710)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1710)
 
 ## [v1.70.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.70.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1700)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1700)
 
 ## [v1.69.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.69.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1690)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1690)
 
 ## [v1.68.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.68.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1680)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1680)
 
 ## [v1.67.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.67.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1670)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1670)
 
 ## [v1.66.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1662)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1662)
 
 ## [v1.66.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1661)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1661)
 
 ## [v1.66.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.66.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1660)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1660)
 
 ## [v1.65.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.65.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1650)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1650)
 
 ## [v1.64.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.64.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1641)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1641)
 
 ## [v1.64.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.64.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1640)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1640)
 
 ## [v1.63.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.63.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1630)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1630)
 
 ## [v1.62.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.62.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1620)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1620)
 
 ## [v1.61.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.61.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1611)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1611)
 
 ## [v1.61.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.61.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1610)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1610)
 
 ## [v1.60.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.60.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1600)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1600)
 
 ## [v1.59.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.59.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1590)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1590)
 
 ## [v1.58.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.58.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1580)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1580)
 
 ## [v1.57.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.57.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1571)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1571)
 
 ## [v1.57.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.57.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1570)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1570)
 
 ## [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1560)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1560)
 
 ## [v1.55.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1551)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1551)
 
 ## [v1.55.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1550)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1550)
 
 ## [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1541)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1541)
 
 ## [v1.54.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1540)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1540)
 
 ## [v1.53.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1531)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1531)
 
 ## [v1.53.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1530)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1530)
 
 ## [v1.52.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.52.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2021/#v1520)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2021/#v1520)
 
 ## [v1.51.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.51.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1510)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1510)
 
 ## [v1.50.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.2)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1502)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1502)
 
 ## [v1.50.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.1)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1501)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1501)
 
 ## [v1.50.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1500)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1500)
 
 ## [v1.49.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.49.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1490)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1490)
 
 ## [v1.48.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.48.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1480)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1480)
 
 ## [v1.47.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.47.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1470)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1470)
 
 ## [v1.46.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.46.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1460)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1460)
 
 ## [v1.45.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.45.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1450)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1450)
 
 ## [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1440)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1440)
 
 ## [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1430)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1430)
 
 ## [v1.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
 
-See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1420)
+See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2020/#v1420)
 
 ## Previous releases
 
