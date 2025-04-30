@@ -42,13 +42,13 @@ var (
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
 		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
-		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details")
 
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url. "+
-		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
+		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages . "+
 		"See also -remoteWrite.shardByURLReplicas")
 	shardByURLReplicas = flag.Int("remoteWrite.shardByURLReplicas", 1, "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
-		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
+		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages")
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels")
@@ -81,17 +81,17 @@ var (
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
-		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter")
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
-		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter")
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
 	disableOnDiskQueue = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. "+
-		"See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
-		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
+		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 )
 
 var (
@@ -104,7 +104,7 @@ var (
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
 		Err: fmt.Errorf("remote storage systems cannot keep up with the data ingestion rate; retry the request later " +
 			"or remove -remoteWrite.disableOnDiskQueue from vmagent command-line flags, so it could save pending data to -remoteWrite.tmpDataPath; " +
-			"see https://docs.victoriametrics.com/vmagent/#disabling-on-disk-persistence"),
+			"see https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence"),
 		StatusCode: http.StatusTooManyRequests,
 	}
 
@@ -185,7 +185,7 @@ func Init() {
 
 	if len(*shardByURLLabels) > 0 && len(*shardByURLIgnoreLabels) > 0 {
 		logger.Fatalf("-remoteWrite.shardByURL.labels and -remoteWrite.shardByURL.ignoreLabels cannot be set simultaneously; " +
-			"see https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
+			"see https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages")
 	}
 	shardByURLLabelsMap = newMapFromStrings(*shardByURLLabels)
 	shardByURLIgnoreLabelsMap = newMapFromStrings(*shardByURLIgnoreLabels)

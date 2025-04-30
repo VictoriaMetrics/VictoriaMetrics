@@ -30,9 +30,9 @@ import (
 
 var (
 	forcePromProto = flagutil.NewArrayBool("remoteWrite.forcePromProto", "Whether to force Prometheus remote write protocol for sending data "+
-		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
+		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol")
 	forceVMProto = flagutil.NewArrayBool("remoteWrite.forceVMProto", "Whether to force VictoriaMetrics remote write protocol for sending data "+
-		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
+		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol")
 
 	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", 0, "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
@@ -458,13 +458,13 @@ again:
 	} else if statusCode == 415 || statusCode == 400 {
 		if c.canDowngradeVMProto.Swap(false) {
 			logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
-				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
 			c.useVMProto.Store(false)
 		}
 
 		if encoding.IsZstd(block) {
 			logger.Infof("received unsupported media type or bad request from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
-				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
 
 			block = mustRepackBlockFromZstdToSnappy(block)
 

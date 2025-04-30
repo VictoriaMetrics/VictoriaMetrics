@@ -237,7 +237,7 @@ The list of alerting rules is the following:
 * [alerts-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-cluster.yml):
   alerting rules related to [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/);
 * [alerts-vmagent.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmagent.yml):
-  alerting rules related to [vmagent](https://docs.victoriametrics.com/vmagent/) component;
+  alerting rules related to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) component;
 * [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml):
   alerting rules related to [vmalert](https://docs.victoriametrics.com/vmalert/) component;
 * [alerts-vmauth.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml):

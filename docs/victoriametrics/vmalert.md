@@ -712,15 +712,15 @@ See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregatio
 
 For persisting recording or alerting rule results `vmalert` requires `-remoteWrite.url` to be set.
 But this flag supports only one destination. To persist rule results to multiple destinations
-we recommend using [vmagent](https://docs.victoriametrics.com/vmagent/) as fan-out proxy:
+we recommend using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) as fan-out proxy:
 
 ![vmalert multiple remote write destinations](vmalert_multiple_rw.webp)
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
 Using `vmagent` as a proxy provides additional benefits such as
-[data persisting when storage is unreachable](https://docs.victoriametrics.com/vmagent/#replication-and-high-availability),
-or time series modification via [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
+[data persisting when storage is unreachable](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability),
+or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
 
 ### Web
@@ -871,7 +871,7 @@ See more details [here](https://docs.victoriametrics.com/vmalert-tool.html#Unit-
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
 The default list of alerting rules for these metric can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
-We recommend setting up regular scraping of this page either through [vmagent](https://docs.victoriametrics.com/vmagent/) or by Prometheus-compatible scraper,
+We recommend setting up regular scraping of this page either through [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or by Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
@@ -1745,13 +1745,13 @@ dns_sd_configs:
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
-# See https://docs.victoriametrics.com/vmagent/#relabeling
+# See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
 relabel_configs:
   [ - <relabel_config> ... ]
 
 # List of relabel configurations for alert labels sent via Notifier.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
-# See https://docs.victoriametrics.com/vmagent/#relabeling
+# See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
 alert_relabel_configs:
   [ - <relabel_config> ... ]
 ```

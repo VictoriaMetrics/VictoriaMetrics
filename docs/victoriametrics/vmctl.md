@@ -1089,7 +1089,7 @@ Limiting the rate of data transfer could help to reduce pressure on disk or on d
 The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag. Note that the rate limit is applied per worker,
 see `--vm-concurrency` flag.
 
-Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent/)
+Please note, you can also use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
 ## How to build
