@@ -41,7 +41,7 @@ VictoriaMetrics has the following prominent features:
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory specified by the `-storageDataPath` command-line flag.
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-    can be done with [vmbackup](https://docs.victoriametrics.com/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools.
+    can be done with [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools.
     See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 * It implements a PromQL-like query language - [MetricsQL](https://docs.victoriametrics.com/metricsql/), which provides improved functionality on top of PromQL.
 * It provides a global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics. Later this data may be queried via a single query.
@@ -104,7 +104,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
 - [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting capabilities.
 - [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
-- [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) -
+- [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.
 - `vminsert`, `vmselect` and `vmstorage` - components of [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
 - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) - user-friendly cost-efficient database for logs.
@@ -1159,7 +1159,7 @@ The page returns the following JSON response on successful creation of snapshot:
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
 is the corresponding command-line flag value. Snapshots can be archived to backup storage at any time
-with [vmbackup](https://docs.victoriametrics.com/vmbackup/).
+with [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
 Snapshots consist of a mix of hard-links and soft-links to various files and directories inside `-storageDataPath`.
 See [this article](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
@@ -1168,7 +1168,7 @@ for more details. This adds some restrictions on what can be done with the conte
 - Do not delete subdirectories inside `<-storageDataPath>/snapshots` with `rm` or similar commands, since this will leave some snapshot data undeleted.
   Prefer using the `/snapshot/delete` API for deleting snapshot. See below for more details about this API.
 - Do not copy subdirectories inside `<-storageDataPath>/snapshot` with `cp`, `rsync` or similar commands, since there are high chances
-  that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/vmbackup/) for making copies of snapshot data.
+  that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) for making copies of snapshot data.
 
 See also [snapshot troubleshooting](#snapshot-troubleshooting).
 
@@ -2772,7 +2772,7 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 ## Backups
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/)
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
