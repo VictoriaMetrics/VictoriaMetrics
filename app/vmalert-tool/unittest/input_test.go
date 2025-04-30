@@ -1,6 +1,7 @@
 package unittest
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -65,6 +66,13 @@ func TestParseInputValue_Success(t *testing.T) {
 	f("2-1x4", []sequenceValue{{Value: 2}, {Value: 1}, {Value: 0}, {Value: -1}, {Value: -2}})
 
 	f("1+1x1 _ -4 stale 3+20x1", []sequenceValue{{Value: 1}, {Value: 2}, {Omitted: true}, {Value: -4}, {Value: decimal.StaleNaN}, {Value: 3}, {Value: 23}})
+
+	f("Inf +Inf -Inf", []sequenceValue{{Value: math.Inf(1)}, {Value: math.Inf(1)}, {Value: math.Inf(-1)}})
+
+	f("Nan Infx2", []sequenceValue{{Value: math.NaN()}, {Value: math.Inf(1)}, {Value: math.Inf(1)}})
+
+	f("NaNx3", []sequenceValue{{Value: math.NaN()}, {Value: math.NaN()}, {Value: math.NaN()}, {Value: math.NaN()}})
+
 }
 
 func TestParseInputSeries_Success(t *testing.T) {

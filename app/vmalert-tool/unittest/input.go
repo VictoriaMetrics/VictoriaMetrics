@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-var numReg = regexp.MustCompile(`\D?\d*\.?\d*\D?`)
+var numReg = regexp.MustCompile(`(?i)[+-]?(?:\d+(?:\.\d*)?|\.\d+|inf|nan|_)[+x-]?`)
 
 // series holds input_series defined in the test file
 type series struct {
@@ -101,15 +101,7 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 			continue
 		}
 		vals := numReg.FindAllString(item, -1)
-		itemLower := strings.ToLower(item)
-		if itemLower == "inf" || itemLower == "+inf" || itemLower == "-inf" || itemLower == "nan" {
-			v, err := strconv.ParseFloat(item, 64)
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, sequenceValue{Value: v})
-			continue
-		}
+
 		switch len(vals) {
 		case 1:
 			if vals[0] == "_" {
