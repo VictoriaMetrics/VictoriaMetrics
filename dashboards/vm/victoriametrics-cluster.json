@@ -109,7 +109,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are in storage",
+      "description": "How many [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are in storage",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -907,7 +907,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are inserted into cluster per second by protocol before the replication. Check vminsert metrics if there are any issues with ingestion.",
+      "description": "How many [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are inserted into cluster per second by protocol before the replication. Check vminsert metrics if there are any issues with ingestion.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3118,7 +3118,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
+          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3903,7 +3903,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows rate of deduplicated samples during [deduplication](https://docs.victoriametrics.com/#deduplication) or [downsampling](https://docs.victoriametrics.com/#downsampling), according to the configured `-dedup.minScrapeInterval` or `-downsampling.period`.\n\nShould be empty if `-dedup.minScrapeInterval` and `-downsampling.period` isn't set.\n\nDeduplication happens in two places:\n* `type=\"merge\"` - during [background merges](https://docs.victoriametrics.com/#storage) by vmstorages. Deduplication during merges is permanent.\n* `type=\"select\"` - during [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data) by vmselects. Deduplication happens in-flight and has no permanent effect.\n\nThe more samples need to be deduplicated, the higher will be resource usage on vmselects or vmstorages.",
+          "description": "Shows rate of deduplicated samples during [deduplication](https://docs.victoriametrics.com/#deduplication) or [downsampling](https://docs.victoriametrics.com/#downsampling), according to the configured `-dedup.minScrapeInterval` or `-downsampling.period`.\n\nShould be empty if `-dedup.minScrapeInterval` and `-downsampling.period` isn't set.\n\nDeduplication happens in two places:\n* `type=\"merge\"` - during [background merges](https://docs.victoriametrics.com/#storage) by vmstorages. Deduplication during merges is permanent.\n* `type=\"select\"` - during [read queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) by vmselects. Deduplication happens in-flight and has no permanent effect.\n\nThe more samples need to be deduplicated, the higher will be resource usage on vmselects or vmstorages.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7594,7 +7594,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per queried time series.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per queried time series.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7700,7 +7700,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per query.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per query.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7806,7 +7806,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://victoriametrics-metrics-datasource.io/docs/victoriametrics-metrics-datasource/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://victoriametrics-metrics-datasource.io/docs/victoriametrics-metrics-datasource/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {

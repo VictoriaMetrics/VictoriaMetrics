@@ -357,23 +357,23 @@ It should open [vmui](https://docs.victoriametrics.com/#vmui) page.
 
 ## Write data
 
-There are two main models in monitoring for data collection: [push](https://docs.victoriametrics.com/keyconcepts/#push-model) 
-and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Both are used in modern monitoring and both are 
+There are two main models in monitoring for data collection: [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) 
+and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Both are used in modern monitoring and both are 
 supported by VictoriaMetrics.
 
-See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
+See more details on [writing data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data).
 See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/victoriametrics/data-ingestion/).
 
 ## Query data
 
 VictoriaMetrics has built-in [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical
 User Interface for querying and visualizing metrics. [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) - is the
-query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/keyconcepts/#metricsql).
+query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#metricsql).
 
 VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
 
-See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data).
+See more details on [querying data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
 ## Alerting
 
@@ -386,7 +386,7 @@ See [vmalert quick start](https://docs.victoriametrics.com/victoriametrics/vmale
 ## Data migration
 
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
-[supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
+[supported formats](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model).
 
 The migration might get easier when using [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:

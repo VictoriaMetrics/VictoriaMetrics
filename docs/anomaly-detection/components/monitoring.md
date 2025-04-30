@@ -12,7 +12,7 @@ tags:
 aliases:
   - ./monitoring.html
 ---
-There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
+There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
 
 > **Note**: there was an enhancement of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics for consistency across the components ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)). Documentation was updated accordingly. Key changes included:
 - Converting several [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics from `Summary` to `Histogram` to enable quantile calculation. This addresses the limitation of the `prometheus_client`'s [Summary](https://prometheus.github.io/client_python/instrumenting/summary/) implementation, which does not support quantiles. The change ensures metrics are more informative for performance analysis. Affected metrics are:

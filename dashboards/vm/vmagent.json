@@ -110,7 +110,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the rate of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scraped from configured targets.",
+      "description": "Shows the rate of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scraped from configured targets.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -388,7 +388,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the rate of ingested [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)",
+      "description": "Shows the rate of ingested [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -914,7 +914,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows in/out [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) rate including push and pull models. \n\nThe out-rate could be different to in-rate because of replication or additional timeseries added by vmagent for every scraped target.\n\nClick on the line and choose Drilldown to show CPU usage per instance\n",
+      "description": "Shows in/out [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) rate including push and pull models. \n\nThe out-rate could be different to in-rate because of replication or additional timeseries added by vmagent for every scraped target.\n\nClick on the line and choose Drilldown to show CPU usage per instance\n",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1285,7 +1285,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows rate of dropped [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) from persistent queue. vmagent drops samples from queue if in-memory and on-disk queues are full and it is unable to flush them to remote storage.\nThe max size of on-disk queue is configured by `-remoteWrite.maxDiskUsagePerURL` flag.",
+      "description": "Shows rate of dropped [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) from persistent queue. vmagent drops samples from queue if in-memory and on-disk queues are full and it is unable to flush them to remote storage.\nThe max size of on-disk queue is configured by `-remoteWrite.maxDiskUsagePerURL` flag.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3382,7 +3382,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate of dropped [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) due to relabeling. \nMetric tracks drops for `-remoteWrite.relabelConfig` configuration only.",
+          "description": "Shows the rate of dropped [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) due to relabeling. \nMetric tracks drops for `-remoteWrite.relabelConfig` configuration only.",
           "fieldConfig": {
             "defaults": {
               "color": {

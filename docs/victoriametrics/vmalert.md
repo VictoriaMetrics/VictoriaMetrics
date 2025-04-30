@@ -151,7 +151,7 @@ name: <string>
 # Adjust the `time` parameter of group evaluation requests to compensate intentional query delay from the datasource.
 # By default, the value is inherited from the `-rule.evalDelay` cmd-line flag - see its description for details.
 # If group has `latency_offset` set in `params`, then it is recommended to set `eval_delay` equal to `latency_offset`.
-# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/keyconcepts/#query-latency.
+# See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 and https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency.
 [ eval_delay: <duration> ]
 
 # Limit limits the number of alerts or recording results the rule within this group can produce.
@@ -424,7 +424,7 @@ in the memory. To prevent `vmalert` from losing the state on restarts configure 
 to the remote database via the following flags:
 
 * `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
-  to the configured address in the form of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+  to the configured address in the form of [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
   `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
   These time series can be queried from VictoriaMetrics just as any other time series.
   The state will be persisted to the configured address on each evaluation.
@@ -814,7 +814,7 @@ max range per request:  8h20m0s
 
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
 executed sequentially as well (`concurrency` setting is ignored). vmalert sends rule's expression
-to [/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) endpoint
+to [/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
@@ -900,19 +900,19 @@ may get empty response from the datasource and produce empty recording rules or 
 
 Try the following recommendations to reduce the chance of hitting the data delay issue:
 * Always configure group's `-evaluationInterval` to be bigger or at least equal to
-  [time series resolution](https://docs.victoriametrics.com/keyconcepts/#time-series-resolution);
+  [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution);
 * Ensure that `[duration]` value is at least twice bigger than
-  [time series resolution](https://docs.victoriametrics.com/keyconcepts/#time-series-resolution). For example,
+  [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution). For example,
   if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`.
 * Extend `[duration]` in expr to help tolerate the delay. For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
-* If [time series resolution](https://docs.victoriametrics.com/keyconcepts/#time-series-resolution)
+* If [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution)
   in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
   how far search query can look back for the recent datapoint. The recommendation is to have the step
   at least two times bigger than the resolution.
 
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
-By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyconcepts/#query-latency)
+By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency)
 for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of
 incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
 To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to `30s` by default.
@@ -984,7 +984,7 @@ vmalert can produce the following error message:
 result contains metrics with the same labelset during evaluation
 ```
 
-The error means there is a collision between [time series](https://docs.victoriametrics.com/keyconcepts#time-series)
+The error means there is a collision between [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
 during evaluation.
 
 For example, a rule with `expr: {__name__=~"vmalert_alerts_.*"} > 0` returns two distinct time series in response:
