@@ -5,8 +5,8 @@ analytics. It has its query language, unique data model, and rich tooling for co
 VictoriaMetrics is a high-performance opensource time series database specifically designed to deal with huge volumes of
 monitoring data while remaining cost-efficient at the same time. Many companies are choosing to migrate from InfluxDB to
 VictoriaMetrics specifically for performance and scalability reasons. Along them see case studies provided by
-[ARNES](https://docs.victoriametrics.com/casestudies/#arnes)
-and [Brandwatch](https://docs.victoriametrics.com/casestudies/#brandwatch).
+[ARNES](https://docs.victoriametrics.com/victoriametrics/casestudies/#arnes)
+and [Brandwatch](https://docs.victoriametrics.com/victoriametrics/casestudies/#brandwatch).
 
 This guide covers the differences between two solutions, most commonly asked questions, and approaches for migrating
 from InfluxDB to VictoriaMetrics.
