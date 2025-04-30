@@ -396,7 +396,7 @@ Released at 2022-08-08
 
 Released at 2023-08-12
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: upgrade Go builder from Go1.20.4 to Go1.21.0.
@@ -412,7 +412,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-05-18
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: upgrade Go builder from Go1.20.3 to Go1.20.4. See [the list of issues addressed in Go1.20.4](https://github.com/golang/go/issues?q=milestone%3AGo1.20.4+label%3ACherryPickApproved).
@@ -423,7 +423,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-04-06
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: upgrade base docker image (alpine) from 3.17.2 to 3.17.3. See [alpine 3.17.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.3-released.html).
@@ -437,7 +437,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-03-12
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: upgrade Go builder from Go1.20.1 to Go1.20.2. See [the list of issues addressed in Go1.20.2](https://github.com/golang/go/issues?q=milestone%3AGo1.20.2+label%3ACherryPickApproved).
@@ -450,7 +450,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-02-27
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * BUGFIX: prevent from high CPU usage on the first UTC hour of the data. The issue has been introduced in [v1.79.5](https://docs.victoriametrics.com/victoriametrics/changelog/#v1795) when fixing [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309).
@@ -459,7 +459,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-02-24
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: upgrade base docker image (alpine) from 3.17.1 to 3.17.2. See [alpine 3.17.2 release notes](https://alpinelinux.org/posts/Alpine-3.17.2-released.html).
@@ -471,7 +471,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-02-03
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * BUGFIX: fix a bug, which could prevent background merges for the previous partitions until restart if the storage didn't have enough disk space for final deduplication and down-sampling.
@@ -486,7 +486,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2023-01-10
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * BUGFIX: properly parse floating-point numbers without integer or fractional parts such as `.123` and `20.` during [data import](https://docs.victoriametrics.com/#how-to-import-time-series-data). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3544).
@@ -500,7 +500,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-12-11
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: update Go builder from v1.19.3 to v1.19.4. See [the changelog](https://github.com/golang/go/issues?q=milestone%3AGo1.19.4+label%3ACherryPickApproved).
@@ -516,7 +516,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-11-10
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 **Update note 1:** [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): the `crlfEscape` [template function](https://docs.victoriametrics.com/victoriametrics/vmalert/#template-functions) becomes obsolete starting from this release. It can be safely removed from alerting templates, since `\n` chars are properly escaped with other `*Escape` functions now. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3139) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890) issue for details.
@@ -534,7 +534,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-10-07
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 **Update note 1:** [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) changes default value for command-line flag `-datasource.queryStep` from `0s` to `5m`. The change supposed to improve reliability of the rules evaluation when evaluation interval is lower than scraping interval.
@@ -558,7 +558,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-08-30
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): do not expose `-remoteWrite.url`, `-remoteRead.url` and `-datasource.url` command-line flag values in logs and at `http://vmalert:8880/flags` page by default, since they may contain sensitive data such as auth keys. This aligns `vmalert` behaviour with [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), which doesn't expose `-remoteWrite.url` command-line flag value in logs and at `http://vmagent:8429/flags` page by default. Specify `-remoteWrite.showURL`, `-remoteRead.showURL` and `-datasource.showURL` command-line flags for showing values for the corresponding `-*.url` flags in logs. Thanks to @mble for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2965).
@@ -573,7 +573,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-08-08
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix potential panic in [multi-level cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup) when top-level `vmselect` is configured with `-replicationFactor` bigger than 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2961).
@@ -594,7 +594,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-08-02
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 * SECURITY: upgrade base docker image (alpine) from 3.16.0 to 3.16.1 . See [alpine 3.16.1 release notes](https://alpinelinux.org/posts/Alpine-3.16.1-released.html).
@@ -604,7 +604,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 Released at 2022-07-14
 
-**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+**v1.79.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes.
 The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1790) release**
 
 **Update note 1:** this release introduces backwards-incompatible changes to `vm_partial_results_total` metric by changing its labels to be consistent with `vm_requests_total` metric. If you use alerting rules or Grafana dashboards, which rely on this metric, then they must be updated. The official dashboards for VictoriaMetrics don't use this metric.
