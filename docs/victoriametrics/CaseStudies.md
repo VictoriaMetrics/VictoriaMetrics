@@ -47,7 +47,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [zhihu](#zhihu)
   - [Zomato](#zomato)
 
-You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/articles/#third-party-articles-and-slides-about-victoriametrics).
+You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/victoriametrics/articles/#third-party-articles-and-slides-about-victoriametrics).
 
 ## AbiosGaming
 
