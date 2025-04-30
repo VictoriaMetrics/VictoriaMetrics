@@ -1251,7 +1251,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -discoverBackendIPsInterval duration
      The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
   -dryRun
-        Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.
+     Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -1267,8 +1267,6 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
-  -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
@@ -1297,23 +1295,21 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpInternalListenAddr array
-     TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc.
-     If flag is set, vmauth no longer serves internal API at -httpListenAddr.
+     TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. If flag is set, vmauth no longer serves internal API at -httpListenAddr.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
-     TCP address to listen for incoming http requests. By default, serves internal API and proxy requests.
-     See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.
+     TCP address to listen for incoming http requests. By default, serves internal API and proxy requests.  See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
- -httpRealIPHeader string
-        HTTP request header to use for obtaining IP address of client for applying 'ip_filters'. By default vmauth uses IP address of TCP the client. Useful if vmauth is behind reverse-proxy
+  -httpRealIPHeader string
+     HTTP request header to use for obtaining IP address of client for applying 'ip_filters'. By default vmauth uses IP address of TCP the client. Useful if vmauth is behind reverse-proxy
   -idleConnTimeout duration
-    The timeout for HTTP keep-alive connections to backend services. It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services (default 50s)
+     The timeout for HTTP keep-alive connections to backend services. It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services (default 50s)
   -internStringCacheExpireDuration duration
      The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
@@ -1326,6 +1322,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
+  -licenseFile.reloadInterval duration
+     Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
   -loadBalancingPolicy string
      The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing (default "least_loaded")
   -logInvalidAuthTokens
@@ -1341,7 +1339,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerMaxArgLen int
-     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
+     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 5000)
   -loggerOutput string
      Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -1398,7 +1396,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -removeXFFHTTPHeaderValue
-        Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
+     Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
   -retryStatusCodes array
