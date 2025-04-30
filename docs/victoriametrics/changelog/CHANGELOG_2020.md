@@ -33,7 +33,7 @@ Released at 2020-12-27
 
 Released at 2020-12-19
 
-* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/), [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/), since they are identical to images without `-cluster` tag suffix.
+* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/), [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/), since they are identical to images without `-cluster` tag suffix.
 
 * BUGFIX: vmalert: properly populate template variables. This has been broken in v1.50.0. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/974>
 * BUGFIX: properly parse negative combined duration in MetricsQL such as `-1h3m4s`. It must be parsed as `-(1h + 3m + 4s)`. Previously it was parsed as `-1h + 3m + 4s`.

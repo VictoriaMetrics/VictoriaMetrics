@@ -75,7 +75,7 @@ func (fs *FS) newClient() (*service.Client, error) {
 		accountName := fs.env("AZURE_STORAGE_ACCOUNT_NAME")
 		if accountName == "" {
 			return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT_NAME environment variable when AZURE_STORAGE_ACCOUNT_KEY is set; " +
-				"see https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables")
+				"see https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables")
 		}
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
@@ -96,7 +96,7 @@ func (fs *FS) newClient() (*service.Client, error) {
 		accountName := fs.env("AZURE_STORAGE_ACCOUNT_NAME")
 		if accountName == "" {
 			return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT_NAME environment variable when AZURE_USE_DEFAULT_CREDENTIAL=true is set; " +
-				"see https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables")
+				"see https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables")
 		}
 
 		serviceURL := fs.getServiceURL(accountName)
@@ -104,7 +104,7 @@ func (fs *FS) newClient() (*service.Client, error) {
 	}
 
 	return nil, fmt.Errorf("failed to detect credentials for AZBlob; ensure that one of the options listed at " +
-		"https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables is set")
+		"https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables is set")
 }
 
 func (fs *FS) env(name string) string {

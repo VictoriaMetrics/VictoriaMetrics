@@ -30,7 +30,7 @@ The required flags for running the service are as follows:
 * `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/enterprise/#running-victoriametrics-enterprise).
 * `-storageDataPath` - path to VictoriaMetrics or vmstorage data path to make backup from.
 * `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create
-* `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup/#supported-storage-types).
+* `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/victoriametrics/vmbackup/#supported-storage-types).
 * `-credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
   See [https://cloud.google.com/iam/docs/creating-managing-service-account-keys](https://cloud.google.com/iam/docs/creating-managing-service-account-keys)
   and [https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html](https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html).
@@ -65,7 +65,7 @@ To get the full list of supported flags please run the following command:
 The service creates a **full** backup each run. This means that the system can be restored fully
 from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore/).
 Backup manager uploads only the data that has been changed or created since the most recent backup
-([incremental backup](https://docs.victoriametrics.com/vmbackup/#incremental-backups)).
+([incremental backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
 
@@ -131,13 +131,13 @@ The result on the GCS bucket
 
   ![latest folder](vmbackupmanager_latest_folder.webp)
 
-`vmbackupmanager` uses [smart backups](https://docs.victoriametrics.com/vmbackup/#smart-backups) technique in order
+`vmbackupmanager` uses [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) technique in order
 to accelerate backups and save both data transfer costs and data copying costs. This includes server-side copy of already existing
 objects. Typical object storage systems implement server-side copy by creating new names for already existing objects.
 This is very fast and efficient. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
 which perform full object copy during server-side copying. This may be slow and expensive.
 
-Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup/#advanced-usage) for more examples of authentication with different
+Please, see [vmbackup docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#advanced-usage) for more examples of authentication with different
 storage types.
 
 ### Backup Retention Policy
@@ -151,7 +151,7 @@ Backup retention policy is controlled by:
 
 > *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
-> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
+> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
@@ -454,7 +454,7 @@ command-line flags:
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -deleteAllObjectVersions
-     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
   -disableDaily
      Disable daily run. Default false
   -disableHourly

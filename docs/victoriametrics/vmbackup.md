@@ -233,7 +233,7 @@ Obtaining credentials from env variables.
 
   The `AZURE_STORAGE_DOMAIN` can be used for optionally overriding the default domain for the Azure storage service.
 
-Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/vmbackup/#using-cloud-providers-metadata-service).
+Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/victoriametrics/vmbackup/#using-cloud-providers-metadata-service).
 
 ### Using cloud providers metadata service
 
@@ -343,7 +343,7 @@ Run `vmbackup -help` in order to see all the available options:
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -deleteAllObjectVersions
-     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
   -dst string
      Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded

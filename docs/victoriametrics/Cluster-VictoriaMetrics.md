@@ -964,7 +964,7 @@ for protecting from user errors such as accidental data deletion.
 The following steps must be performed for each `vmstorage` node for creating a backup:
 
 1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
-1. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/vmbackup/).
+1. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
    The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
 1. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
 
