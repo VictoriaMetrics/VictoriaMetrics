@@ -35,7 +35,7 @@ See [these docs](https://docs.victoriametrics.com/quick-start/).
 
 ## How to contribute to VictoriaMetrics?
 
-See [these docs](https://docs.victoriametrics.com/contributing/).
+See [these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 
 ## Does VictoriaMetrics support replication?
 

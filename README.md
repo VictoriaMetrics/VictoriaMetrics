@@ -93,7 +93,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
-If you like VictoriaMetrics and want to contribute, then please [read these docs](https://docs.victoriametrics.com/contributing/).
+If you like VictoriaMetrics and want to contribute, then please [read these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 
 ## VictoriaMetrics Logo
 
