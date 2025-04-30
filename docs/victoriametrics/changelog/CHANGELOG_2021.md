@@ -69,7 +69,7 @@ Released at 2021-12-02
 * FEATURE: expose `/-/healthy` and `/-/ready` endpoints as Prometheus does. This is needed for improving integration with third-party solutions, which rely on these endpoints. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833).
 
 * BUGFIX: vmagent: prevent from scraping duplicate targets if `-promscrape.dropOriginalLabels` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1830). Thanks to @guidao for the fix.
-* BUGFIX: vmstorage [enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/): added missing `vm_tenant_used_tenant_bytes` metric, which shows the approximate per-tenant disk usage. See [these docs](https://docs.victoriametrics.com/pertenantstatistic/) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1605).
+* BUGFIX: vmstorage [enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/): added missing `vm_tenant_used_tenant_bytes` metric, which shows the approximate per-tenant disk usage. See [these docs](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1605).
 * BUGFIX: vmauth: properly take into account the value passed to `-maxIdleConnsPerBackend` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1300).
 * BUGFIX: vmagent: fix [reading data from Kafka](https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka).
 * BUGFIX: vmalert: fix [replay mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) in enterprise version.
