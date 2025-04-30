@@ -973,7 +973,7 @@ There is no need in synchronizing backups among all the `vmstorage` nodes.
 Restoring from backup:
 
 1. Stop `vmstorage` node with `kill -INT`.
-1. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/vmrestore/) into `-storageDataPath` directory.
+1. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) into `-storageDataPath` directory.
 1. Start `vmstorage` node.
 
 ## Retention filters

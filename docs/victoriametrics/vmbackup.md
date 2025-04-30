@@ -20,7 +20,7 @@ data between the existing backup and new backup. It saves time and costs on data
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 
-Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/vmrestore/).
+Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
