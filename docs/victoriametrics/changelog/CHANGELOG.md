@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `debug` option for [group](https://docs.victoriametrics.com/vmalert/#groups) for enabling [debug mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode) for all rules within the group.
+
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `retentionFilter` flag name in debugging interface to make it consistent with flag definition. Previously, flag name in debugging interface was different from command-line configuration so copying command-line flags for debugging produced an error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8697).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix various UI glitches and tidy up the visual styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773) for details.
 

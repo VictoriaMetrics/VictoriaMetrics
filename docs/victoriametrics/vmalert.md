@@ -208,7 +208,7 @@ headers:
 #  notifier_headers:
 #    - "TenantID: foo"
 notifier_headers:
-        [ <string>, ...]
+  [ <string>, ...]
 
 # Optional list of labels added to every rule within a group.
 # It has priority over the external labels.
@@ -219,6 +219,10 @@ labels:
 
 rules:
   [ - <rule> ... ]
+
+# Enable debug mode for all rules in the group.
+# This can be overridden by the `debug` field in rule.
+[ debug: <bool> | default = false ]
 ```
 
 ### Rules

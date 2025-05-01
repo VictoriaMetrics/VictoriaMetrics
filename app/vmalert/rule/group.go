@@ -57,6 +57,7 @@ type Group struct {
 	// checksum stores the hash of yaml definition for this group.
 	checksum       string
 	LastEvaluation time.Time
+	Debug          bool
 
 	Labels          map[string]string
 	Params          url.Values
@@ -118,6 +119,7 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Headers:         make(map[string]string),
 		NotifierHeaders: make(map[string]string),
 		Labels:          cfg.Labels,
+		Debug:           cfg.Debug,
 		evalAlignment:   cfg.EvalAlignment,
 
 		doneCh:     make(chan struct{}),
@@ -271,6 +273,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
+	g.Debug = newGroup.Debug
 	return nil
 }
 
