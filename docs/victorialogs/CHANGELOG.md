@@ -23,6 +23,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix log entry sorting in group mode (newest logs appear first). See [#8726](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8726).
 * BUGFIX: [replace_regexp](https://docs.victoriametrics.com/victorialogs/logsql/#replace_regexp-pipe): fixed infinite loop when regex pattern matches empty strings (e.g. `\d*`, `()`, `\b`). Also fixed incorrect behavior with anchors (`^`) due to repeated string slicing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8625).
+* BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly handle nested attributes by expanding them into separate top-level fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8862).
+
 ## [v1.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.21.0-victorialogs)
 
 Released at 2025-04-25
