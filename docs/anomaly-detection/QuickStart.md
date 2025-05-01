@@ -25,13 +25,13 @@ The following options are available:
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
-> **Note**: There is a mode {{% available_from "v1.13.0" anomaly %}} to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be set for data read from VictoriaMetrics TSDB. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
+> There is a mode {{% available_from "v1.13.0" anomaly %}} to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be set for data read from VictoriaMetrics TSDB. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 ### Command-line arguments
 
 The `vmanomaly` service supports several command-line arguments to configure its behavior, including options for licensing, logging levels, and more. These arguments can be passed when starting the service via Docker or any other setup. Below is the list of available options:
 
-> **Note**: `vmanomaly` support {{% available_from "v1.18.5" anomaly %}} running on config *directories*, see the `config` positional arg description in help message below.
+> `vmanomaly` support {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
 ```shellhelp
 usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {INFO,DEBUG,ERROR,WARNING,FATAL}] [--watch] config [config ...]
@@ -251,7 +251,8 @@ writer:
 **Models**:
 - Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. Where possible, incorporate [domain knowledge](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge) for optimal results.
 - (Optional) Develop or integrate your [custom models](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
-- Adding `y` to `provide_series` arg values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) can be used in `provide_series`. <br>**Note:** Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output.
+- Adding `y` to `provide_series` arg values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) can be used in `provide_series`. 
+  > **Note:** Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output.
 
 ## Check also
 

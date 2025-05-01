@@ -19,7 +19,7 @@ Future updates will introduce additional readers, expanding the range of data so
 
 ## VM reader
 
-> **Note**: There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+> There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
 
 Old format like
 
@@ -60,15 +60,15 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 
 - `step` (string): query-level frequency of the points returned, i.e. `30s`. Will be converted to `/query_range?step=%s` param (in seconds). Useful to optimize total amount of data read from VictoriaMetrics, where different queries may have **different frequencies for different [machine learning models](https://docs.victoriametrics.com/anomaly-detection/components/models)** to run on.
 
-    > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `sampling_period` arg.
+    > If not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `sampling_period` arg.
 
-    > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
+    > Having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
 
 - `data_range`{{% available_from "v1.15.1" anomaly %}} (list[float | string]): It allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
 
-  > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg{{% available_from "v1.18.1" anomaly %}}
+  > If not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg{{% available_from "v1.18.1" anomaly %}}
 
 - `max_points_per_query`{{% available_from "v1.17.0" anomaly %}} (int): Optional arg, overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
 
@@ -81,7 +81,7 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
   - *raises config validation warning*, if `writer.tenant_id` is not explicitly set to `multitenant` when reader uses tenants, meaning [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) will be used for data querying.
   - also *raises config validation error* if a set of `reader.queries` for [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) has *different* tenant_ids (meaning tenant data is mixed, and special labels like `vm_project_id`, `vm_account_id` will have [ambiguous values](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels))
 
-  > **Note:** The recommended approach for using per-query `tenant_id`s is to set both `reader.tenant_id` and `writer.tenant_id` to `multitenant`. See [this section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support) for more details. Configurations where `reader.tenant_id` equals `writer.tenant_id` and is not `multitenant` are also considered safe, provided there is a single, DISTINCT `tenant_id` defined in the reader (either at the reader level or the query level, if set).
+  > The recommended approach for using per-query `tenant_id`s is to set both `reader.tenant_id` and `writer.tenant_id` to `multitenant`. See [this section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support) for more details. Configurations where `reader.tenant_id` equals `writer.tenant_id` and is not `multitenant` are also considered safe, provided there is a single, DISTINCT `tenant_id` defined in the reader (either at the reader level or the query level, if set).
 
 ### Per-query config example
 ```yaml
