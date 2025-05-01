@@ -11,9 +11,9 @@
 
 ![typical setup diagram](guide-vmanomaly-vmalert_overview.webp)
 
-> **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
+> **Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
+> Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
 
 ## 1. What is vmanomaly?
 
@@ -21,9 +21,9 @@
 
 All the service parameters are defined in a config file.
 
-> **Note**: Starting from [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section for more details.
+> Starting from [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section for more details.
 
-> **Note**: Starting from [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config sections for more details.
+> Starting from [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config sections for more details.
 
 
 **vmanomaly** does the following:
@@ -514,4 +514,4 @@ Key takeaways include:
 
 As you continue to use VictoriaMetrics Anomaly Detection and `vmalert`, remember that the effectiveness of anomaly detection largely depends on the appropriateness of the model chosen, the accuracy of configurations and the data patterns observed. This guide serves as a starting point, and we encourage you to experiment with different configurations and models to best suit your specific data needs and use cases. In case you need a helping hand - [contact us](https://victoriametrics.com/contact-us/).
 
-> **Note:** `node-exporter` observability preset{{% available_from "v1.13.0" anomaly %}} is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
+> `node-exporter` observability preset{{% available_from "v1.13.0" anomaly %}} is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).

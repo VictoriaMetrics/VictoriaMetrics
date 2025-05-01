@@ -21,13 +21,13 @@ VictoriaMetrics Anomaly Detection (`vmanomaly`) supports self-monitoring by gene
 
 Self-monitoring metrics are available in both the [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model) models, providing flexibility to fit into different monitoring environments. By specifying relevant parameters in the `monitoring` section of the configuration, `vmanomaly` components can seamlessly integrate with VictoriaMetrics, Prometheus or other monitoring solutions, enabling centralized visibility into both service and anomaly detection outcomes.
 
-> **Note**: For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring) section docs.
+> For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring) section docs.
 
 The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompanying alerting rules.
 
 ## Grafana Dashboard
 
-> **Note**: Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.
+> Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.
 
 
 ### Overview
@@ -42,7 +42,7 @@ The Grafana Dashboard is helpful for:
 
 ### Navigating the Dashboard
 
-> **Note**: Use the top-level filters to refine metrics by job, instance, or specific components for more focused monitoring. The time range filter, along with `job` and `instance` filters, is applied across all components. All other filters apply to all dashboard sections except "Instance Overview." Hover over the (i) icon for detailed filter descriptions.
+> Use the **top-level dashboard filters** to refine metrics by job, instance, or specific components for more focused monitoring. The time range filter, along with `job` and `instance` filters, is applied across all components. All other filters apply to all dashboard sections except "Instance Overview." Hover over the (i) icon for detailed filter descriptions.
 
 <img src="../vmanomaly-dashboard-1-filters.webp" alt="vmanomaly-dashboard-1-filters" width="800px"/>
 
