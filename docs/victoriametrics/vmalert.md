@@ -1450,8 +1450,8 @@ The shortlist of configuration flags is the following:
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
-  -replay.maxDatapointsPerQuery /query_range
-     Max number of data points expected in one request. It affects the max time range for every /query_range request during the replay. The higher the value, the less requests will be made during replay. (default 1000)
+  -replay.maxDatapointsPerQuery int
+     Max number of data points expected in one request. It affects the max time range for every '/query_range' request during the replay. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
      Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
@@ -1480,8 +1480,8 @@ The shortlist of configuration flags is the following:
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.defaultRuleType string
      Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs". (default "prometheus")
-  -rule.evalDelay time
-     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource. Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
+  -rule.evalDelay duration
+     Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
   -rule.maxResolveDuration duration
      Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
