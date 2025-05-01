@@ -47,7 +47,7 @@ var (
 		"see https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
 		"The path can point to local file and to http url. "+
-		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
+		"See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
 		"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs for details")

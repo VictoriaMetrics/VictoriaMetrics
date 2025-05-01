@@ -205,7 +205,7 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#track-ingested-metrics-usage
 func (app *Vmsingle) APIV1StatusMetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
 	t.Helper()
 
@@ -228,7 +228,7 @@ func (app *Vmsingle) APIV1StatusMetricNamesStats(t *testing.T, limit, le, matchP
 
 // APIV1AdminStatusMetricNamesStatsReset sends a query to a /api/v1/admin/status/metric_names_stats/reset endpoint
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#track-ingested-metrics-usage
 func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 	t.Helper()
 
@@ -244,7 +244,7 @@ func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts Qu
 // SnapshotCreate creates a database snapshot by sending a query to the
 // /snapshot/create endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-work-with-snapshots
 func (app *Vmsingle) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
@@ -286,7 +286,7 @@ func (app *Vmsingle) APIV1AdminTSDBSnapshot(t *testing.T) *APIV1AdminTSDBSnapsho
 // SnapshotList lists existing database snapshots by sending a query to the
 // /snapshot/list endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-work-with-snapshots
 func (app *Vmsingle) SnapshotList(t *testing.T) *SnapshotListResponse {
 	t.Helper()
 
@@ -307,7 +307,7 @@ func (app *Vmsingle) SnapshotList(t *testing.T) *SnapshotListResponse {
 // SnapshotDelete deletes a snapshot by sending a query to the
 // /snapshot/delete endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-work-with-snapshots
 func (app *Vmsingle) SnapshotDelete(t *testing.T, snapshotName string) *SnapshotDeleteResponse {
 	t.Helper()
 
@@ -332,7 +332,7 @@ func (app *Vmsingle) SnapshotDelete(t *testing.T, snapshotName string) *Snapshot
 // SnapshotDeleteAll deletes all snapshots by sending a query to the
 // /snapshot/delete_all endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-work-with-snapshots
 func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse {
 	t.Helper()
 
@@ -352,7 +352,7 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
 // //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#tsdb-stats
 func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
 	t.Helper()
 

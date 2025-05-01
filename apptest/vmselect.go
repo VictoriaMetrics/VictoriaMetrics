@@ -138,7 +138,7 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 // MetricNamesStats sends a query to a /select/tenant/prometheus/api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#track-ingested-metrics-usage
 func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
 	t.Helper()
 
@@ -161,7 +161,7 @@ func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern stri
 
 // MetricNamesStatsReset sends a query to a /admin/api/v1/status/metric_names_stats/reset endpoint
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#track-ingested-metrics-usage
 func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 	t.Helper()
 
@@ -176,7 +176,7 @@ func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
 // //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#tsdb-stats
 func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
 	t.Helper()
 

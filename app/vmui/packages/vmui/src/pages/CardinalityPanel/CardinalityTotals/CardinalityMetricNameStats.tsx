@@ -50,7 +50,7 @@ const CardinalityMetricNameStats: FC<Props> = ({ metricNameStats }) => {
       </h4>
       <span className="vm-cardinality-totals-card__value">{total}</span>
       <span className="vm-cardinality-totals-card__link">
-        <Hyperlink href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage">Docs ↗</Hyperlink>
+        <Hyperlink href="https://docs.victoriametrics.com/victoriametrics/single-node-version/#track-ingested-metrics-usage">Docs ↗</Hyperlink>
       </span>
     </div>
   );

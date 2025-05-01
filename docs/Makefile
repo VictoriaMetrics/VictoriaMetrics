@@ -5,7 +5,7 @@ DOCKER_PLATFORM := "linux/$(if $(findstring $(PLATFORM),arm64),arm64,amd64)"
 # These commands must be run from the VictoriaMetrics repository root
 
 # Converts images at docs folder to webp format
-# See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#images-in-documentation
+# See https://docs.victoriametrics.com/victoriametrics/single-node-version/#images-in-documentation
 docs-image:
 	if [ ! -d vmdocs ]; then \
 		git clone --depth 1 git@github.com:VictoriaMetrics/vmdocs vmdocs; \

@@ -18,7 +18,7 @@ aliases:
    so they **must be fixed first**.
 1. Improving [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) for VictoriaMetrics components,
    so users could find answers to their questions via Google or [Perplexity](https://www.perplexity.ai/) without the need
-   to ask these questions at our [support channels](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#community-and-contributions).
+   to ask these questions at our [support channels](https://docs.victoriametrics.com/victoriametrics/single-node-version/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics components without breaking backwards compatibility, so users could regularly
    upgrade to [the latest available release](https://docs.victoriametrics.com/victoriametrics/changelog/) and remain happy.
 1. Improving usability for the existing functionality of VictoriaMetrics components.

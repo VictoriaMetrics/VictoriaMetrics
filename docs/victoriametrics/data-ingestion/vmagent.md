@@ -30,13 +30,13 @@ configure the `-remoteWrite.url` cmd-line flag:
 ```
 
 For pushing data to VictoriaMetrics cluster the `-remoteWrite.url` should point to vminsert and include
-the [tenantID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format):
+the [tenantID](https://docs.victoriametrics.com/victoriametrics/cluster-version/#url-format):
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<vminsert-addr>/insert/<tenant_id>/prometheus/api/v1/write
 ```
 
-> Note: read more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
-> or [multitenancy via labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
+> Note: read more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-version/#multitenancy)
+> or [multitenancy via labels](https://docs.victoriametrics.com/victoriametrics/cluster-version/#multitenancy-via-labels).
 
 Please note, `-remoteWrite.url` cmd-line flag can be specified multiple times with different values. In this case,
 vmagent will [replicate](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability) data to each 

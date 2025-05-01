@@ -1,6 +1,6 @@
 **The guide covers:**
 
-* High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) with Helm charts
+* High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-version/) in [Kubernetes](https://kubernetes.io/) with Helm charts
 * How to store metrics 
 * How to scrape metrics from k8s components using a service discovery 
 * How to visualize stored data 
@@ -50,8 +50,8 @@ vmstorage:
 EOF
 ```
 
-* The `Helm install vmcluster vm/victoria-metrics-cluster` command installs [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/).
-* `dedup.minScrapeInterval: 1ms` configures [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for the cluster that de-duplicates data points in the same time series if they fall within the same discrete 1ms bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept.
+* The `Helm install vmcluster vm/victoria-metrics-cluster` command installs [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-version/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/).
+* `dedup.minScrapeInterval: 1ms` configures [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-node-version/#deduplication) for the cluster that de-duplicates data points in the same time series if they fall within the same discrete 1ms bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept.
 * `replicationFactor: 2` Replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
 * `podAnnotations: prometheus.io/scrape: "true"` enables the scraping of metrics from the vmselect, vminsert and vmstorage pods.
 * `podAnnotations:prometheus.io/port: "some_port" ` enables the scraping of metrics from the vmselect, vminsert and vmstorage pods from corresponding ports.
@@ -337,7 +337,7 @@ The expected output is:
 }
 ```
 
-* Query `http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range` uses [VictoriaMetrics querying API](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) to fetch previously stored data points;
+* Query `http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range` uses [VictoriaMetrics querying API](https://docs.victoriametrics.com/victoriametrics/cluster-version/#url-format) to fetch previously stored data points;
 * Argument `query=count(up{kubernetes_pod_name=~".*vmselect.*"})` specifies the query we want to execute. Specifically, we calculate the number of `vmselect` pods.
 * Additional arguments `start=-10m&step=1m'` set requested time range from -10 minutes (10 minutes ago) to now (default value if `end` argument is omitted) and step (the distance between returned data points) of 1 minute;
 * By adding `| jq` we pass the output to the jq utility which outputs information in json format 

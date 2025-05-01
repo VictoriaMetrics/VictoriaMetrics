@@ -13,7 +13,7 @@ export const footerLinksByDefault = [
     title: "MetricsQL",
   },
   {
-    href: "https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui",
+    href: "https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmui",
     Icon: WikiIcon,
     title: "Documentation",
   },

@@ -18,7 +18,7 @@ aliases:
 read queries made through the [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) APIs.
 
-To enable query statistics logging, add the `-search.logSlowQueryStats=<duration>` command line flag to [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
+To enable query statistics logging, add the `-search.logSlowQueryStats=<duration>` command line flag to [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-version/)
 or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
 Here's how `<duration>` works:
 * `-search.logSlowQueryStats=5s` logs statistics for queries that take longer than `5s`;

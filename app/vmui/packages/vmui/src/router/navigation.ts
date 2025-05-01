@@ -25,7 +25,7 @@ interface NavigationConfig {
  * Special case for alert link
  */
 const getAlertLink = (url: string, showAlertLink: boolean) => {
-  // see more https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert
+  // see more https://docs.victoriametrics.com/victoriametrics/cluster-version/#vmalert
   const isCluster = !!getTenantIdFromUrl(url);
   const value = isCluster ? `${url}/vmalert` : url.replace(/\/prometheus$/, "/vmalert");
   return {

@@ -43,7 +43,7 @@ In summary, PrivateLink can be set up manually on an individual basis, upon requ
 In any case, it’s important to note that connecting via public access is always secured via TLS with all endpoints.
 
 ## How does VictoriaMetrics Cloud ensure data integrity and consistency?
-We use the VictoriaMetrics Open Source project. To learn more, visit the [Open Source documentation](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
+We use the VictoriaMetrics Open Source project. To learn more, visit the [Open Source documentation](https://docs.victoriametrics.com/victoriametrics/cluster-version/#architecture-overview).
 
 ## How does VictoriaMetrics Cloud handle scalability within AWS resources?
 VictoriaMetrics Cloud deployments run in isolated environments, so scaling can be done freely. We have processes that ensure zero-downtime in cluster setups and very low downtime for single setups.
@@ -69,11 +69,11 @@ Let us know if you need more integrations at support-cloud@victoriametrics.com.
 In case of deployment issues, users are notified with alerts, which have recommendations for possible fixes. Instance logs are also available under the Logs tab (log messages also usually contains recommendations) and for instance metrics available in the Monitoring tab of each deployment.
 
 Apart from that, there are other mechanisms:
-* Cardinality explorer: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer
-* Query tracing: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
-* Top queries: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#top-queries
-* Active queries: https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#active-queries
-* And other tools (https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) like Metric relabel debugger, Downsampling filters debugger, Retention filters debugger, Raw query view, etc…
+* Cardinality explorer: https://docs.victoriametrics.com/victoriametrics/single-node-version/#cardinality-explorer
+* Query tracing: https://docs.victoriametrics.com/victoriametrics/single-node-version/#query-tracing
+* Top queries: https://docs.victoriametrics.com/victoriametrics/single-node-version/#top-queries
+* Active queries: https://docs.victoriametrics.com/victoriametrics/single-node-version/#active-queries
+* And other tools (https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmui) like Metric relabel debugger, Downsampling filters debugger, Retention filters debugger, Raw query view, etc…
 
 Also, in case of problems, support is always available to help you at support-cloud@victoriametrics.com.
 
@@ -89,7 +89,7 @@ Yes. We charge $0.09 per GB for external traffic, which matches AWS’ rate. Est
 VictoriaMetrics Cloud does not charge extra for API calls.
 Regarding storage, the price is $1.46 for 10 Gb per Month. Since VictoriaMetrics Cloud is easy to
 scale, we recommend users to expand storage resources with consumption, instead of allocating all storage space from the beginning.
-We also offer deduplication and [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) mechanisms
+We also offer deduplication and [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-node-version/#cardinality-explorer) mechanisms
 to help reducing costs.
 
 ## Can VictoriaMetrics Cloud expenses be consolidated into my AWS bill?
