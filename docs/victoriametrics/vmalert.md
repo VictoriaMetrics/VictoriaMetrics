@@ -951,7 +951,8 @@ for more details.
 ### Debug mode
 
 vmalert allows configuring more detailed logging for specific alerting or recording rule starting from {{% available_from "v1.116.0" %}}.
-Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
+Or for all rules within the [group](#groups) {{% available_from "#" %}}.
+Just set `debug: true` in configuration and vmalert will start printing additional log messages:
 ```shell-session
 2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms, isPartial: false)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
