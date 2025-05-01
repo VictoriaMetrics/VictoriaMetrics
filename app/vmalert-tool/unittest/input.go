@@ -18,7 +18,8 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-var numReg = regexp.MustCompile(`(?i)[+-]?(?:\d+(?:\.\d*)?|\.\d+|inf|nan|_)[+x-]?`)
+// var numReg = regexp.MustCompile(`(?i)[+-]?(?:\d+(?:\.\d*)?|\.\d+|inf|nan|_)[+x-]?`)
+var numReg = regexp.MustCompile(`(?i)[+-]?(?:\d+(?:\.\d*)?|\.\d+|inf|nan|_)(?:e[+-]?\d+)?[+x-]?`)
 
 // series holds input_series defined in the test file
 type series struct {

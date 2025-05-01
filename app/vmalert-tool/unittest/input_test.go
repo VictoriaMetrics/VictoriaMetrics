@@ -73,6 +73,8 @@ func TestParseInputValue_Success(t *testing.T) {
 	f("Nan Infx2", []sequenceValue{{Value: math.NaN()}, {Value: math.Inf(1)}, {Value: math.Inf(1)}, {Value: math.Inf(1)}})
 
 	f("NaNx2", []sequenceValue{{Value: math.NaN()}, {Value: math.NaN()}, {Value: math.NaN()}})
+
+	f("4e9x2", []sequenceValue{{Value: 4000000000}, {Value: 4000000000}, {Value: 4000000000}})
 }
 
 func TestParseInputSeries_Success(t *testing.T) {
