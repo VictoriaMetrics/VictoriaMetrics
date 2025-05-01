@@ -14,7 +14,7 @@ aliases:
 ---
 There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
 
-> **Note**: there was an enhancement of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics for consistency across the components ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)). Documentation was updated accordingly. Key changes included:
+> There was an enhancement of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics for consistency across the components ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)). Documentation was updated accordingly. Key changes included:
 - Converting several [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics from `Summary` to `Histogram` to enable quantile calculation. This addresses the limitation of the `prometheus_client`'s [Summary](https://prometheus.github.io/client_python/instrumenting/summary/) implementation, which does not support quantiles. The change ensures metrics are more informative for performance analysis. Affected metrics are:
     - `vmanomaly_reader_request_duration_seconds` ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics))
     - `vmanomaly_reader_response_parsing_seconds` ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics))
@@ -330,7 +330,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 ### Reader behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: To improve consistency across the components additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics{{% available_from "v1.17.0" anomaly %}}. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
+> To improve consistency across the components additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics{{% available_from "v1.17.0" anomaly %}}. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
 
 <table class="params">
     <thead>
@@ -439,9 +439,9 @@ Label names [description](#labelnames)
 ### Models behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: There is a new label key `model_alias` introduced in multi-model support{{% available_from "v1.10.0" anomaly %}}. This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
+> There is a new label key `model_alias` introduced in multi-model support{{% available_from "v1.10.0" anomaly %}}. This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
 
-> **Note**: as a part of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics enhancement{{% available_from "v1.17.0" anomaly %}}, new metrics, like `vmanomaly_model_run_errors`, was added. Some of them changed the type (`Summary` -> `Histogram`), like `vmanomaly_model_run_duration_seconds`.
+> As a part of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics enhancement{{% available_from "v1.17.0" anomaly %}}, new metrics, like `vmanomaly_model_run_errors`, was added. Some of them changed the type (`Summary` -> `Histogram`), like `vmanomaly_model_run_duration_seconds`.
 
 <table class="params">
     <thead>
@@ -565,7 +565,7 @@ Label names [description](#labelnames)
 ### Writer behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: additional labels (`scheduler_alias`, `preset`){{% available_from "v1.17.0" anomaly %}} were added to writer and reader metrics to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
+> Additional labels (`scheduler_alias`, `preset`){{% available_from "v1.17.0" anomaly %}} were added to writer and reader metrics to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
 
 <table class="params">
     <thead>
@@ -694,7 +694,7 @@ The `vmanomaly` service logs operations, errors, and performance for its compone
 `{{X}}` indicates a placeholder in the log message templates described below, which will be replaced with the appropriate entity during logging.
 
 
-> **Note**: By default, `vmanomaly` uses the `INFO` logging level. You can change this by specifying the `--loggerLevel` argument. See command-line arguments [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments).
+> By default, `vmanomaly` uses the `INFO` logging level. You can change this by specifying the `--loggerLevel` argument. See command-line arguments [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments).
 
 - [Startup logs](#startup-logs)
 - [Reader  logs](#reader-logs)
