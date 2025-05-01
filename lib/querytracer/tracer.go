@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 )
 
-var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing")
+var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics/single-node-version/#query-tracing")
 
 // Tracer represents query tracer.
 //

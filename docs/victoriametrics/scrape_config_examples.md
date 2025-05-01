@@ -41,7 +41,7 @@ tar xzf victoria-metrics-linux-amd64-v1.116.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
-to local storage according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
+to local storage according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
 
 ```
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
@@ -51,7 +51,7 @@ Now open the `http://localhost:8428/targets` page in web browser in order to see
 The page must contain the information about the target at `http://localhost:9100/metrics` url.
 It is likely the target has `state: down` if you didn't start [`node-exporter`](https://github.com/prometheus/node_exporter) on `localhost`.
 
-Let's add a new scrape config to `scrape.yaml` for scraping [VictoriaMetrics metrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring):
+Let's add a new scrape config to `scrape.yaml` for scraping [VictoriaMetrics metrics](https://docs.victoriametrics.com/victoriametrics/single-node-version/#monitoring):
 
 ```yaml
 scrape_configs:
@@ -78,10 +78,10 @@ kill -HUP `pidof victoria-metrics-prod`
 Now the `http://localhost:8428/targets` page must contain two targets - `http://localhost:9100/metrics` and `http://localhost:8428/metrics`.
 The last one should have `state: up`, since this is VictoriaMetrics itself.
 
-Let's query the scraped metrics. Open `http://localhost:8428/vmui/` aka [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui), enter `up` in the query input field
+Let's query the scraped metrics. Open `http://localhost:8428/vmui/` aka [vmui](https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmui), enter `up` in the query input field
 and press `enter`. You'll see a graph for `up` metrics. It must contain two lines for the targets defined in `scrape.yaml` file above.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) about `up` metric. You can explore other scraped metrics
-in `vmui` via [Prometheus metrics explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-explorer).
+in `vmui` via [Prometheus metrics explorer](https://docs.victoriametrics.com/victoriametrics/single-node-version/#metrics-explorer).
 
 Let's look closely to the contents of the `scrape.yaml` file created above:
 
@@ -148,7 +148,7 @@ scrape_configs:
     - node_exporter_targets.json
 ```
 
-Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
+Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
@@ -217,7 +217,7 @@ It is possible to modify scrape urls via [relabeling](https://docs.victoriametri
 It may not so convenient maintaining a list of local files for [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs).
 In this case [`http_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http_sd_configs) can help.
 They allow specifying a list of `http` or `https` urls, which return targets, which need to be scraped.
-For example, the following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+For example, the following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 periodically fetches the list of targets from the specified url:
 
 ```yaml
@@ -238,7 +238,7 @@ If you feel brave, let's look at a few typical cases for Kubernetes monitoring.
 
 ### Discovering and scraping `node-exporter` targets in Kubernetes
 
-The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping all the [`node-exporter`](https://github.com/prometheus/node_exporter) targets inside Kubernetes cluster:
 
 ```yaml
@@ -274,7 +274,7 @@ which exposes `state` metrics for all the Kubernetes objects such as `container`
 It already sets `namespace`, `container`, `pod` and `node` labels for every exposed metric,
 so these metrics shouldn't be set in [target relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
 
-The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) target inside Kubernetes cluster:
 
 ```yaml
@@ -308,7 +308,7 @@ See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#
 ### Discovering and scraping metrics from `cadvisor`
 
 [cadvisor](https://github.com/google/cadvisor) exposes resource usage metrics for every container in Kubernetes.
-The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 can be used for collecting `cadvisor` metrics in Kubernetes:
 
 ```yaml
@@ -347,7 +347,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#ht
 
 ### Discovering and scraping metrics for a particular container in Kubernetes
 
-The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping metrics for all the containers with the name `my-super-app`.
 It is expected that these containers expose only a single TCP port, which serves its metrics at `/metrics` page
 according to [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format):

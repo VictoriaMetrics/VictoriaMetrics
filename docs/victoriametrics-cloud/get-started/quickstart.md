@@ -76,7 +76,7 @@ You'll also be notified via email once your deployment is ready to use.
 * **Data point sizes** are approximated to 0.8 bytes, based on our own experience managing VictoriaMetrics Cloud. This magnitude is increases with **cardinality**. For high cardinality data, more storage is expected.
 * **Long time retention**: for 6 months or more retention times, we recommend to start with a smaller storage size and increase it over time.
 * **Storage size can be increased**, however, you cannot reduce it due to AWS limitations.
-* **Enterprise features** like [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) and [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) may dramatically help to optimize disk space.
+* **Enterprise features** like [downsampling](https://docs.victoriametrics.com/victoriametrics/single-node-version/#downsampling) and [retention filters](https://docs.victoriametrics.com/victoriametrics/single-node-version/#retention-filters) may dramatically help to optimize disk space.
 * The **formula** we use for calculating the recommended storage can be found [here](https://docs.victoriametrics.com/guides/understand-your-setup-size/#retention-perioddisk-space).
 
 > Feel free to adjust your deployment based on these recommendations.
@@ -141,9 +141,9 @@ deployment's page. It is important to know that downgrade for clusters is curren
 
 Additional configuration options may be found under `Advanced Settings`  where the following additional parameters can be set:
 
-* [`Deduplication`](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
+* [`Deduplication`](https://docs.victoriametrics.com/victoriametrics/cluster-version/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
 * `Maintenance Window` when deployment should start an upgrade process if needed;
-* `Settings` to define VictoriaMetrics deployment flags, depending on your deployment type: [Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags) or [Single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags).
+* `Settings` to define VictoriaMetrics deployment flags, depending on your deployment type: [Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-version/#list-of-command-line-flags) or [Single-node](https://docs.victoriametrics.com/victoriametrics/single-node-version/#list-of-command-line-flags).
 
 > These updates require a deployment restart and may result in a short downtime for **single-node** deployments.
 

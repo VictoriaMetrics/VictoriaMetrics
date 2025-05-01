@@ -15,7 +15,7 @@ aliases:
 
 The following functionality is planned in the future versions of VictoriaLogs:
 
-- [ ] Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
+- [ ] Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-work-with-snapshots).
 - [ ] Ability to store data to object storage (such as S3, GCS, Minio).
 - [ ] Data migration tool from Grafana Loki to VictoriaLogs (similar to [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/)).
-- [ ] Retention filters based on tenant and stream fields similar to [Victoriametrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) (Enterprise only)
+- [ ] Retention filters based on tenant and stream fields similar to [Victoriametrics](https://docs.victoriametrics.com/victoriametrics/single-node-version/#retention-filters) (Enterprise only)

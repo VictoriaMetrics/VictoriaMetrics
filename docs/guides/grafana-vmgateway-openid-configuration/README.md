@@ -1,4 +1,4 @@
-Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics.
+Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-version/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
 to restrict access to metrics to only those that belong to the tenant.
@@ -138,7 +138,7 @@ or manually managing access at another proxy level.
 
 In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
 or `extra_filters` filled dynamically by using Identity Provider's user information.
-vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-node-version/#prometheus-querying-api-enhancements)
 to provide additional filtering capabilities.
 
 For example, the following claims can be used to restrict user access to specific metrics:

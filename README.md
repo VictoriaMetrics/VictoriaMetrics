@@ -23,8 +23,8 @@ Here are some resources and information about VictoriaMetrics:
 - Documentation: [docs.victoriametrics.com](https://docs.victoriametrics.com)
 - Case studies: [Grammarly, Roblox, Wix,...](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 - Available: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics)
-- Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), and [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/)
-- Changelog: [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/), and [How to upgrade](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics)
+- Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-version/), and [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/)
+- Changelog: [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/), and [How to upgrade](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-upgrade-victoriametrics)
 - Community: [Slack](https://slack.victoriametrics.com/), [X (Twitter)](https://x.com/VictoriaMetrics), [LinkedIn](https://www.linkedin.com/company/victoriametrics/), [YouTube](https://www.youtube.com/@VictoriaMetrics)
 
 Yes, we open-source both the single-node VictoriaMetrics and the cluster version.
@@ -40,17 +40,17 @@ VictoriaMetrics is optimized for timeseries data, even when old time series are 
 * **Easy to setup**: No dependencies, single [small binary](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d), configuration through command-line flags, but the default is also fine-tuned; backup and restore with [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * **Global query view**: Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics and queried via a single query.
 * **Various Protocols**: Support metric scraping, ingestion and backfilling in various protocol.
-    * [Prometheus exporters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter), [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup), [Prometheus exposition format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format).
-    * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
-    * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-    * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-telnet-put-protocol).
-    * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests).
-    * [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-    * [Arbitrary CSV data](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data).
-    * [Native binary format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
-    * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent).
-    * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent).
-    * [OpenTelemetry metrics format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+    * [Prometheus exporters](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-scrape-prometheus-exporters-such-as-node-exporter), [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/single-node-version/#prometheus-setup), [Prometheus exposition format](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-import-data-in-prometheus-exposition-format).
+    * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
+    * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+    * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/single-node-version/#sending-data-via-telnet-put-protocol).
+    * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/single-node-version/#sending-opentsdb-data-via-http-apiput-requests).
+    * [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-import-data-in-json-line-format).
+    * [Arbitrary CSV data](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-import-csv-data).
+    * [Native binary format](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-import-data-in-native-format).
+    * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-datadog-agent).
+    * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-newrelic-agent).
+    * [OpenTelemetry metrics format](https://docs.victoriametrics.com/victoriametrics/single-node-version/#sending-data-via-opentelemetry).
 * **NFS-based storages**: Supports storing data on NFS-based storages such as Amazon EFS, Google Filestore.
 * And many other features such as metrics relabeling, cardinality limiter, etc.
 

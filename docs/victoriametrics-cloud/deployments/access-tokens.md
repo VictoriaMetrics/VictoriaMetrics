@@ -146,11 +146,11 @@ Please note that API paths are different for Single and Cluster deployments, for
 | Single deployment  | `https://<ACCESS_ENDPOINT>/api/v1/write`                               |
 | Cluster deployment | `https://<ACCESS_ENDPOINT>/insert/<TENANT_ID>/prometheus/api/v1/write` |
 
-You can read about the difference in [URL format section](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) 
+You can read about the difference in [URL format section](https://docs.victoriametrics.com/victoriametrics/cluster-version/#url-format) 
 and see examples on [URL examples page](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
 The main difference is that cluster deployments are multitenant by default and a special suffix must be added for them, which contains the component prefix (insert/select) and tenant id.
-More details about multitenancy and tenants can be found in [Multitenancy section](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
+More details about multitenancy and tenants can be found in [Multitenancy section](https://docs.victoriametrics.com/victoriametrics/cluster-version/#multitenancy).
 
 Cluster deployment also allows to [create Access tokens](#how-to-create-access-tokens) for specific tenants.
 In this case, the token will only be able to work with the specified tenant.

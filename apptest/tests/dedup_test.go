@@ -79,7 +79,7 @@ func TestClusterDeduplication_deduplicationIsOn(t *testing.T) {
 	testDeduplication(tc, sut, true)
 }
 
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#deduplication
 func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplicationIsOn bool) {
 	t := tc.T()
 

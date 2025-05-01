@@ -10,7 +10,7 @@ import (
 
 // ParseTimeMsec parses time s in different formats.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#timestamp-formats
 //
 // It returns unix timestamp in milliseconds.
 func ParseTimeMsec(s string) (int64, error) {
@@ -31,7 +31,7 @@ const (
 
 // ParseTimeAt parses time s in different formats, assuming the given currentTimestamp.
 //
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#timestamp-formats
 //
 // If s doesn't contain timezone information, then the local timezone is used.
 //

@@ -22,8 +22,8 @@ protocol and require `-remoteWrite.url` to be configured.
 `vmalert` is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
-A [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-or [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
+A [single-node](https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmalert)
+or [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-version/#vmalert)
 of VictoriaMetrics are capable of proxying requests to `vmalert` via `-vmalert.proxyURL` command-line flag. 
 Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
@@ -444,7 +444,7 @@ Alerting notifications sent by vmalert always contain a `source` link. By defaul
 is the following `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>`. On click, it opens
 vmalert [web UI](https://docs.victoriametrics.com/victoriametrics/vmalert/#web) to show the alert status and its fields.
 
-It is possible to override the link format. For example, to make the link to [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
+It is possible to override the link format. For example, to make the link to [vmui](https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmui)
 specify the following cmd-line flags:
 ```
 ./bin/vmalert \
@@ -473,18 +473,18 @@ to link alerting rule and the corresponding panel on Grafana dashboard.
 ### Multitenancy
 
 There are the following approaches exist for alerting and recording rules across
-[multiple tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy):
+[multiple tenants](https://docs.victoriametrics.com/victoriametrics/cluster-version/#multitenancy):
 
 * To run a separate `vmalert` instance per each tenant.
   The corresponding tenant must be specified in `-datasource.url` command-line flag
-  according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
+  according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-version/#url-format).
   For example, `/path/to/vmalert -datasource.url=http://vmselect:8481/select/123/prometheus`
   would run alerts against `AccountID=123`. For recording rules the `-remoteWrite.url` command-line
   flag must contain the url for the specific tenant as well.
   For example, `-remoteWrite.url=http://vminsert:8480/insert/123/prometheus` would write recording
   rules to `AccountID=123`.
 
-* To use the [multitenant endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) {{% available_from "v1.104.0" %}} of vminsert as
+* To use the [multitenant endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-version/#multitenancy-via-labels) {{% available_from "v1.104.0" %}} of vminsert as
   the `-remoteWrite.url` and vmselect as the `-datasource.url`, add `extra_label` with tenant ID as an HTTP URL parameter for each group.
   For example, run vmalert using `-datasource.url=http://vmselect:8481/select/multitenant/prometheus -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus`,
   along with the rule group:
@@ -497,7 +497,7 @@ groups:
     # Rules for accountID=456, projectID=789
 ```
 
-The multitenant endpoint in vmselect is less efficient than [specifying tenants in URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
+The multitenant endpoint in vmselect is less efficient than [specifying tenants in URL](https://docs.victoriametrics.com/victoriametrics/cluster-version/#url-format).
 
 For security considerations, it is recommended restricting access to multitenant endpoints only to trusted sources, since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
@@ -583,7 +583,7 @@ rules execution, storing recording rules results and alerts state.
 
 #### Cluster VictoriaMetrics
 
-In [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
+In [cluster mode](https://docs.victoriametrics.com/victoriametrics/cluster-version/)
 VictoriaMetrics has separate components for writing and reading path:
 `vminsert` and `vmselect` components respectively. `vmselect` is used for executing rules expressions
 and `vminsert` is used to persist recording rules results and alerts state.
@@ -603,7 +603,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
-[here](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
+[here](https://docs.victoriametrics.com/victoriametrics/cluster-version/#architecture-overview).
 
 #### HA vmalert
 
@@ -627,7 +627,7 @@ Alertmanagers.
 
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
-don't forget to configure [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication).
+don't forget to configure [deduplication](https://docs.victoriametrics.com/victoriametrics/single-node-version/#deduplication).
 Multiple equally configured vmalerts should evaluate rules at the same timestamps, so it is recommended 
 to set `-dedup.minScrapeInterval` as equal to vmalert's `-evaluationInterval`.
 
@@ -648,7 +648,7 @@ for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert 
 to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
 This example uses single-node VM server for the sake of simplicity.
-Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed.
+Check how to replace it with [cluster VictoriaMetrics](#cluster-version) if needed.
 
 #### Downsampling and aggregation via vmalert
 
@@ -706,7 +706,7 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
-See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
+See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-node-version/#downsampling).
 
 #### Multiple remote writes
 
@@ -738,12 +738,12 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
-`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
-and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-node-version/)
+and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-version/).
 This may be used for better integration with Grafana unified alerting system. See the following docs for details:
 
-* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
+* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmalert)
+* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-version/#vmalert)
 
 
 ## Graphite
@@ -767,7 +767,7 @@ data source for backfilling.
 
 Please note, that response caching may lead to unexpected results during and after backfilling process.
 In order to avoid this you need to reset cache contents or disable caching when using backfilling
-as described in [backfilling docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling).
+as described in [backfilling docs](https://docs.victoriametrics.com/victoriametrics/single-node-version/#backfilling).
 
 See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
 
@@ -928,7 +928,7 @@ becomes false, then alert's state resets to the initial state.
 
 If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
 `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
-[vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how alerts state
+[vmui](https://docs.victoriametrics.com/victoriametrics/single-node-version/#vmui) or Grafana to track how alerts state
 changed in time.
 
 vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)) 
@@ -1012,7 +1012,7 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 ## Security
 
-See general recommendations regarding security [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
+See general recommendations regarding security [here](https://docs.victoriametrics.com/victoriametrics/single-node-version/#security).
 
 vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
 [alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
@@ -1129,7 +1129,7 @@ The shortlist of configuration flags is the following:
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-node-version/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1342,7 +1342,7 @@ The shortlist of configuration flags is the following:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-node-version/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value

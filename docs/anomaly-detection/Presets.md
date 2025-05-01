@@ -194,7 +194,7 @@ The Node-Exporter preset simplifies the monitoring and anomaly detection of key 
 
 > **Note: Node-Exporter preset assets can be also found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/)**
 
-For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)) in `reader` and `writer` sections, like that:
+For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-version/)) in `reader` and `writer` sections, like that:
 
 ```yaml
 preset: "node-exporter"

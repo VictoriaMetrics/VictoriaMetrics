@@ -210,7 +210,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 }
 
 // isDuplicate returns true if b is duplicate of a
-// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
+// See https://docs.victoriametrics.com/victoriametrics/single-node-version/#deduplication
 func isDuplicate(a *dedupAggrSample, b pushSample) bool {
 	if b.timestamp > a.timestamp {
 		return false

@@ -11,7 +11,7 @@ import (
 
 var (
 	usePrometheusNaming = flag.Bool("opentelemetry.usePrometheusNaming", false, "Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested "+
-		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
+		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-node-version/#sending-data-via-opentelemetry")
 )
 
 // unitMap is obtained from https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L19

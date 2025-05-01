@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	pushURL = flagutil.NewArrayString("pushmetrics.url", "Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . "+
+	pushURL = flagutil.NewArrayString("pushmetrics.url", "Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-node-version/#push-metrics . "+
 		"By default, metrics exposed at /metrics page aren't pushed to any remote storage")
 	pushInterval   = flag.Duration("pushmetrics.interval", 10*time.Second, "Interval for pushing metrics to every -pushmetrics.url")
 	pushExtraLabel = flagutil.NewArrayString("pushmetrics.extraLabel", "Optional labels to add to metrics pushed to every -pushmetrics.url . "+

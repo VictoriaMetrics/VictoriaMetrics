@@ -17,12 +17,12 @@ import (
 )
 
 var (
-	maxLineSize    = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
-	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
+	maxLineSize    = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
+	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 	trimTimestamp  = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 	forceStreamMode = flag.Bool("influx.forceStreamMode", false, "Force stream mode parsing for ingested data. "+
-		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
+		"See https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 )
 
 // Parse parses r with the given args and calls callback for the parsed rows.
@@ -53,7 +53,7 @@ func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string
 	})
 	if err != nil {
 		readErrors.Inc()
-		return fmt.Errorf("cannot process influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
+		return fmt.Errorf("cannot process influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string
 func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string, callback func(db string, rows []influx.Row) error) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
-		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
+		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/single-node-version/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
 
