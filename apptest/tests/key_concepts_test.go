@@ -10,8 +10,8 @@ import (
 )
 
 // Data used in examples in
-// https://docs.victoriametrics.com/keyconcepts/#instant-query and
-// https://docs.victoriametrics.com/keyconcepts/#range-query
+// https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query and
+// https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query
 var docData = []string{
 	"foo_bar 1.00 1652169600000", // 2022-05-10T08:00:00Z
 	"foo_bar 2.00 1652169660000", // 2022-05-10T08:01:00Z
@@ -28,7 +28,7 @@ var docData = []string{
 	"foo_bar 4.00 1652170560000", // 2022-05-10T08:16:00Z
 }
 
-// TestSingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// TestSingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data
 // for vm-single.
 func TestSingleKeyConceptsQuery(t *testing.T) {
 	tc := at.NewTestCase(t)
@@ -39,7 +39,7 @@ func TestSingleKeyConceptsQuery(t *testing.T) {
 	testKeyConceptsQueryData(t, sut)
 }
 
-// TestClusterKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// TestClusterKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data
 // for vm-cluster.
 func TestClusterKeyConceptsQueryData(t *testing.T) {
 	tc := at.NewTestCase(t)
@@ -50,7 +50,7 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 	testKeyConceptsQueryData(t, sut)
 }
 
-// testKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// testKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data
 func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
 
 	// Insert example data from documentation.
@@ -64,7 +64,7 @@ func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
 
 // testInstantQuery verifies the statements made in the `Instant query` section
 // of the VictoriaMetrics documentation. See:
-// https://docs.victoriametrics.com/keyconcepts/#instant-query
+// https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query
 func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 	// Get the value of the foo_bar time series at 2022-05-10T08:03:00Z with the
 	// step of 5m and timeout 5s. There is no sample at exactly this timestamp.
@@ -90,7 +90,7 @@ func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 
 // testRangeQuery verifies the statements made in the `Range query` section of
 // the VictoriaMetrics documentation. See:
-// https://docs.victoriametrics.com/keyconcepts/#range-query
+// https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query
 func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
 	f := func(start, end, step string, wantSamples []*at.Sample) {
 		t.Helper()
@@ -163,7 +163,7 @@ func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
 // time range from start to end. The only difference is that instant queries
 // will not produce ephemeral points.
 //
-// See: https://docs.victoriametrics.com/keyconcepts/#range-query
+// See: https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query
 func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.PrometheusQuerier) {
 	f := func(timestamp string, want *at.Sample) {
 		t.Helper()

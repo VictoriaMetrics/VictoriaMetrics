@@ -93,9 +93,9 @@ func StreamQueryResponse(qw422016 *qt422016.Writer, isPartial bool, rs []netstor
 	qw422016.N().DL(qs.SeriesFetched.Load())
 //line app/vmselect/prometheus/query_response.qtpl:39
 	qw422016.N().S(`","executionTimeMsec":`)
-//line app/vmselect/prometheus/query_response.qtpl:40
+//line app/vmselect/prometheus/query_response.qtpl:39
 	qw422016.N().DL(qs.ExecutionDuration.Load().Milliseconds())
-//line app/vmselect/prometheus/query_response.qtpl:40
+//line app/vmselect/prometheus/query_response.qtpl:39
 	qw422016.N().S(`}`)
 //line app/vmselect/prometheus/query_response.qtpl:43
 	qt.Printf("generate /api/v1/query response for series=%d", seriesCount)

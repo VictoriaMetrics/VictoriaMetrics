@@ -195,9 +195,12 @@ func (s *Server) run() {
 					// c is closed inside Server.MustStop
 					return
 				}
-				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+				if handshake.IsClientNetworkError(err) {
+					logger.Warnf("cannot complete vmselect handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+				} else if !handshake.IsTCPHealthcheck(err) {
 					logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
 				}
+
 				_ = c.Close()
 				return
 			}
@@ -818,7 +821,7 @@ func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
 	if len(suffixes) >= s.limits.MaxTagValueSuffixes {
 		err := fmt.Errorf("more than %d tag value suffixes found "+
 			"for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
-			"either narrow down the query or increase -search.max* command-line flag value; see https://docs.victoriametrics.com/#resource-usage-limits",
+			"either narrow down the query or increase -search.max* command-line flag value; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits",
 			s.limits.MaxTagValueSuffixes, tagKey, tagValuePrefix, delimiter, tr.String())
 		return ctx.writeErrorMessage(err)
 	}

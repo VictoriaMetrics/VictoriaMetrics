@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
 )
 
 // ProviderSettings are the settings to initialize a Provider.
@@ -19,6 +19,9 @@ type ProviderSettings struct {
 	// when instantiating a Provider with a ProviderFactory,
 	// nil Logger references should be replaced with a no-op Logger.
 	Logger *zap.Logger
+
+	// prevent unkeyed literal initialization
+	_ struct{}
 }
 
 // ProviderFactory defines a factory that can be used to instantiate

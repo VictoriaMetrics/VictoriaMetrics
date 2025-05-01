@@ -53,7 +53,7 @@ Although this mode is designed to be as flexible as possible, it includes a pre-
 
 ### Grafana Dashboard
 
-> Note: [For additional benefits](https://docs.victoriametrics.com/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics-datasource/#installation) to enable datasource in Grafana.
+> Note: [For additional benefits](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation) to enable datasource in Grafana.
 
 You can find the Grafana dashboard `.json` file either [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default/dashboard.json) or, for already running `vmanomaly` instance: `http://localhost:8490/presets/dashboard.json`. 
 
@@ -194,7 +194,7 @@ The Node-Exporter preset simplifies the monitoring and anomaly detection of key 
 
 > **Note: Node-Exporter preset assets can be also found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/)**
 
-For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)) in `reader` and `writer` sections, like that:
+For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)) in `reader` and `writer` sections, like that:
 
 ```yaml
 preset: "node-exporter"
@@ -209,7 +209,7 @@ writer:
 Run a service using such config file with one of the [available options](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
 
 ### Generated anomaly scores
-Machine learning models will be fit for each timeseries, returned by underlying [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries.
+Machine learning models will be fit for each timeseries, returned by underlying [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries.
 In addition to preset label, anomaly score metric labels will also contain [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) aliases for labelset uniqueness (`preset`, `model_alias`, `scheduler_alias` labels, respectively).
 
 Here's an example of produced metrics:

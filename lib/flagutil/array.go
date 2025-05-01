@@ -79,6 +79,14 @@ func NewArrayBytes(name string, defaultValue int64, description string) *ArrayBy
 // Flag values may be quoted. For instance, the following arg creates an array of ("a", "b,c") items:
 //
 //	-foo='a,"b,c"'
+//
+// Multiple flags can be combined with comma-separated values.
+// In this case, values are joined into an array of ("a", "b", "c", "d", "e") in the order they are defined:
+//
+//	-foo=a,b -foo=c -foo=d,e
+//
+// While this is possible, we do not recommend mixing comma-separated and repeated flags,
+// as it may lead to ambiguity or unexpected parsing behavior.
 type ArrayString []string
 
 // String implements flag.Value interface

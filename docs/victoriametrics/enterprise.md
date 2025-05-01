@@ -39,10 +39,10 @@ See [these docs](#running-victoriametrics-enterprise) for details on how to run 
 
 ## VictoriaMetrics enterprise features
 
-VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/#prominent-features),
+VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prominent-features),
 plus the following additional features:
 
-- Stable releases with long-term support, which contains important bugfixes and security fixes. See [these docs](https://docs.victoriametrics.com/lts-releases/).
+- Stable releases with long-term support, which contains important bugfixes and security fixes. See [these docs](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
 - First-class consulting and technical support provided by the core VictoriaMetrics dev team.
 - [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
   and preventing possible issues in VictoriaMetrics setups.
@@ -51,26 +51,26 @@ plus the following additional features:
 
 On top of this, Enterprise package of VictoriaMetrics includes the following features:
 
-- [Downsampling](https://docs.victoriametrics.com/#downsampling) - this feature allows reducing storage costs
+- [Downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) - this feature allows reducing storage costs
   and increasing performance for queries over historical data.
-- [Multiple retentions](https://docs.victoriametrics.com/#retention-filters) - this feature allows reducing storage costs
+- [Multiple retentions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) - this feature allows reducing storage costs
   by specifying different retentions for different datasets.
-- [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery) -
+- [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) -
   this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
 - [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection) - this feature allows automation and simplification of your alerting rules, covering [complex anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) found in metrics data.
-- [Backup automation](https://docs.victoriametrics.com/vmbackupmanager/).
-- [Advanced per-tenant stats](https://docs.victoriametrics.com/pertenantstatistic/).
-- [Advanced query execution stats](https://docs.victoriametrics.com/query-stats/).
-- [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway/).
-- [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/#automatic-issuing-of-tls-certificates).
-- [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/#mtls-protection).
-- [mTLS for communications between cluster components](https://docs.victoriametrics.com/cluster-victoriametrics/#mtls-protection).
-- [mTLS-based request routing](https://docs.victoriametrics.com/vmauth/#mtls-based-request-routing).
-- [Kafka integration](https://docs.victoriametrics.com/vmagent/#kafka-integration).
-- [Google PubSub integration](https://docs.victoriametrics.com/vmagent/#google-pubsub-integration).
-- [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert/#multitenancy).
-- [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage).
-- [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters).
+- [Backup automation](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/).
+- [Advanced per-tenant stats](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
+- [Query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/).
+- [Advanced auth and rate limiter](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
+- [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#automatic-issuing-of-tls-certificates).
+- [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#mtls-protection).
+- [mTLS for communications between cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection).
+- [mTLS-based request routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing).
+- [Kafka integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
+- [Google PubSub integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#google-pubsub-integration).
+- [Multitenant support in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
+- [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage).
+- [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
 
@@ -88,7 +88,7 @@ VictoriaMetrics Enterprise components are available in the following forms:
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
 Binary releases of VictoriaMetrics Enterprise are available [at the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.115.0-enterprise.tar.gz`.
+Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.116.0-enterprise.tar.gz`.
 
 In order to run binary release of VictoriaMetrics Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and unpack it. Then run the unpacked binary.
@@ -106,8 +106,8 @@ For example, the following command runs VictoriaMetrics Enterprise binary with t
 obtained at [this page](https://victoriametrics.com/products/enterprise/trial/):
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.115.0/victoria-metrics-linux-amd64-v1.115.0-enterprise.tar.gz
-tar -xzf victoria-metrics-linux-amd64-v1.115.0-enterprise.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.116.0/victoria-metrics-linux-amd64-v1.116.0-enterprise.tar.gz
+tar -xzf victoria-metrics-linux-amd64-v1.116.0-enterprise.tar.gz
 ./victoria-metrics-prod -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
@@ -122,7 +122,7 @@ Alternatively, VictoriaMetrics Enterprise license can be stored in the file and 
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
 Docker images for VictoriaMetrics Enterprise are available at VictoriaMetrics [Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay](https://quay.io/organization/victoriametrics).
-Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.115.0-enterprise`.
+Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.116.0-enterprise`.
 
 In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via command-line
 flag as described [here](#binary-releases).
@@ -132,13 +132,13 @@ Enterprise license key can be obtained at [this page](https://victoriametrics.co
 For example, the following command runs VictoriaMetrics Enterprise Docker image with the specified license key:
 
 ```sh
-docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.115.0-enterprise -license=BASE64_ENCODED_LICENSE_KEY
+docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.116.0-enterprise -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
 Alternatively, the license code can be stored in the file and then referred via `-licenseFile` command-line flag:
 
 ```sh
-docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.115.0-enterprise -licenseFile=/path/to/vm-license
+docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.116.0-enterprise -licenseFile=/path/to/vm-license
 ```
 
 Example docker-compose configuration:
@@ -147,7 +147,7 @@ version: "3.5"
 services:
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.115.0
+    image: victoriametrics/victoria-metrics:v1.116.0
     ports:
       - 8428:8428
     volumes:
@@ -179,7 +179,7 @@ is used to provide key in plain-text:
 ```yaml
 server:
   image:
-    tag: v1.115.0-enterprise
+    tag: v1.116.0-enterprise
 
 license:
   key: {BASE64_ENCODED_LICENSE_KEY}
@@ -190,7 +190,7 @@ In order to provide key via existing secret, the following values file is used:
 ```yaml
 server:
   image:
-    tag: v1.115.0-enterprise
+    tag: v1.116.0-enterprise
 
 license:
   secret:
@@ -226,7 +226,7 @@ In order to use Enterprise components it is required to provide the license key 
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
-For example, the following custom resource for [VictoriaMetrics single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+For example, the following custom resource for [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
 is used to provide key in plain-text:
 
 ```yaml
@@ -239,7 +239,7 @@ spec:
   license:
     key: {BASE64_ENCODED_LICENSE_KEY}
   image:
-    tag: v1.115.0-enterprise
+    tag: v1.116.0-enterprise
 ```
 
 In order to provide key via existing secret, the following custom resource is used:
@@ -256,7 +256,7 @@ spec:
       name: vm-license
       key: license
   image:
-    tag: v1.115.0-enterprise
+    tag: v1.116.0-enterprise
 ```
 
 Example secret with license key:
@@ -286,7 +286,7 @@ All the VictoriaMetrics Enterprise components expose the following metrics at th
 * `vm_license_expires_at` - license expiration date in unix timestamp format
 * `vm_license_expires_in_seconds` - the number of seconds left until the license expires
 
-Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert/) based on these metrics:
+Example alerts for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) based on these metrics:
 
 ```yaml
 groups:

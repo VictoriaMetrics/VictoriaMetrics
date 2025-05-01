@@ -1,7 +1,6 @@
 package servers
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -26,7 +25,7 @@ var (
 	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
 		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
 		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
-		"See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 )
 
 // VMInsertServer processes connections from vminsert.
@@ -107,7 +106,9 @@ func (s *VMInsertServer) run() {
 					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
-				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+				if handshake.IsClientNetworkError(err) {
+					logger.Warnf("cannot complete vminsert handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+				} else if !handshake.IsTCPHealthcheck(err) {
 					logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
 				}
 				_ = c.Close()

@@ -1,7 +1,6 @@
 package clusternative
 
 import (
-	"errors"
 	"fmt"
 	"net"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -27,9 +27,14 @@ func InsertHandler(c net.Conn) error {
 	// lower-level vminsert sends only small packets to upper-level vminsert.
 	bc, err := handshake.VMInsertServer(c, 0)
 	if err != nil {
-		if errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+		if handshake.IsTCPHealthcheck(err) {
 			return nil
 		}
+		if handshake.IsClientNetworkError(err) {
+			logger.Warnf("cannot complete vminsert handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+			return nil
+		}
+
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
 	return stream.Parse(bc, func(rows []storage.MetricRow) error {

@@ -51,7 +51,7 @@ import (
 
 var (
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for data from other vminsert nodes in multi-level cluster setup. "+
-		"See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty")
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty")
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. "+
 		"See also -graphiteListenAddr.useProxyProtocol")
 	graphiteUseProxyProtocol = flag.Bool("graphiteListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -graphiteListenAddr . "+
@@ -77,7 +77,7 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	storageNodes = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
-		"See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery")
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 40, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 256, "The maximum length of label name in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
@@ -204,7 +204,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `vminsert - a component of VictoriaMetrics cluster<br/>
-			<a href="https://docs.victoriametrics.com/cluster-victoriametrics/">docs</a><br>
+			<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>
 `)
 		return true
 	}
@@ -458,7 +458,7 @@ func usage() {
 	const s = `
 vminsert accepts data via popular data ingestion protocols and routes it to vmstorage nodes configured via -storageNode.
 
-See the docs at https://docs.victoriametrics.com/cluster-victoriametrics/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/ .
 `
 	flagutil.Usage(s)
 }

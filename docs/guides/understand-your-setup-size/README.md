@@ -1,20 +1,20 @@
-This guide is based on capacity planning for [Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning),
-[Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)
+This guide is based on capacity planning for [Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning),
+[Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
 and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) docs.
 
 ## Terminology
 
-- [Active Time Series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) - a [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+- [Active Time Series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) - a [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
   that was update at least one time during the last hour;
-- Ingestion Rate - how many [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are ingest into the database per second;
-- [Churn Rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) - how frequently a new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+- Ingestion Rate - how many [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are ingest into the database per second;
+- [Churn Rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) - how frequently a new [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
   is created. For example, changing pod name in Kubernetes is a common source of time series churn;
-- Queries per Second - how many [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data) are executed per second;
-- [Retention Period](https://docs.victoriametrics.com/#retention) - for how long data is stored in the database.
+- Queries per Second - how many [read queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) are executed per second;
+- [Retention Period](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) - for how long data is stored in the database.
 
 ### Active Time Series
 
-Time series [exposed](https://docs.victoriametrics.com/keyconcepts/#push-model) by applications on `/metrics` page
+Time series [exposed](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) by applications on `/metrics` page
 during the last 1h are considered as Active Time Series. For example, [Node exporter](https://prometheus.io/docs/guides/node-exporter/)
 exposes **1000** time series per instance. Therefore, if you collect metrics from 50 node exporters, the approximate
 amount of Active Time Series is **1000 * 50 = 50,000** series.
@@ -31,11 +31,11 @@ sum(max_over_time(vm_cache_entries{type="storage/hour_metric_ids"}[24h]))
 
 _Note: if you have more than one Prometheus, you need to run this query across all of them and summarise the results._
 
-For [pushed](https://docs.victoriametrics.com/keyconcepts/#push-model) metrics the math is the same. Find the average
-amount of unique [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) pushed by one application
+For [pushed](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) metrics the math is the same. Find the average
+amount of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) pushed by one application
 and multiply it by the number of applications.
 
-Applying [replication Factor](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)
+Applying [replication Factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 multiplies the number of Active Time Series since each series will be stored ReplicationFactor times.
 
 ### Churn Rate
@@ -55,13 +55,13 @@ To see the Churn Rate in VictoriaMetrics over last 24h use the following query:
 sum(increase(vm_new_timeseries_created_total[24h]))
 ```
 
-The metrics with the highest number of time series can be tracked via VictoriaMetrics [Cardinality Explorer](https://docs.victoriametrics.com/#cardinality-explorer).
+The metrics with the highest number of time series can be tracked via VictoriaMetrics [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 
 ### Ingestion Rate
 
 Ingestion rate is how many time series are pulled (scraped) or pushed per second into the database. For example,
 if you scrape a service that exposes **1000** time series with an interval of **15s**, the Ingestion Rate would be
-**1000/15 = 66** [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) per second. The more services are
+**1000/15 = 66** [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) per second. The more services are
 scraped or the lower scrape interval is, the higher would be the Ingestion Rate.
 
 For Prometheus, get the Ingestion Rate by running the following query:
@@ -90,7 +90,7 @@ There are two types of queries **light** and **heavy**:
 
 The larger the time range and the more series are needed to be scanned - the more heavy and expensive query is.
 
-To scale VictoriaMetrics cluster for high RPS, consider deploying more [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview)
+To scale VictoriaMetrics cluster for high RPS, consider deploying more [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview)
 replicas (scale horizontally).
 To improve latency of **heavy** queries, consider giving more compute resources to vmselects (scale vertically).
 
@@ -100,8 +100,8 @@ It is hard to predict the amount of compute resources (CPU, Mem) or cluster size
 Active Time Series. The much better approach is to run tests for your type of load (ingestion and reads) and extrapolate
 from there.
 
-For example, if you already run [Prometheus](https://docs.victoriametrics.com/#prometheus-setup)
-or [Telegraf](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+For example, if you already run [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
+or [Telegraf](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 for metrics collection then just configure them (or a part of them) to replicate data to VictoriaMetrics. In this way,
 you'd have the most precise simulation of your production environment.
 
@@ -140,13 +140,13 @@ A Kubernetes environment that produces 5k time series per second with 1-year of 
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate, the lower is disk space usage for the index.
 Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index.
 
-You can significantly reduce the amount of disk usage by using [Downsampling](https://docs.victoriametrics.com/#downsampling)
-and [Retention Filters](https://docs.victoriametrics.com/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise.
+You can significantly reduce the amount of disk usage by using [Downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
+and [Retention Filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise.
 See a blog post about [reducing expenses on monitoring](https://victoriametrics.com/blog/reducing-costs-p2/) for more techniques.
 
 ### Cluster size
 
-It is [recommended](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup) to run many small vmstorage
+It is [recommended](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) to run many small vmstorage
 nodes over a few big vmstorage nodes. This reduces the workload increase on the remaining vmstorage nodes when some of
 vmstorage nodes become temporarily unavailable. Prefer giving at least 2 vCPU per each vmstorage node.
 
@@ -174,6 +174,6 @@ You can collect metrics from
 
 ### On-Premise
 
-Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning),
-[Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs
+Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning),
+[Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs
 and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.

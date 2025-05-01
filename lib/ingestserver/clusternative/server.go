@@ -18,7 +18,7 @@ var (
 	vminsertConnsShutdownDuration = flag.Duration("clusternative.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of upstream "+
 		"vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining lower-level clusters "+
 		"during rolling restart. Smaller duration reduces the time needed to close all the upstream vminsert connections, thus reducing the time for graceful shutdown. "+
-		"See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 )
 
 var (

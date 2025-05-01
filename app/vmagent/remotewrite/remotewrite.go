@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -39,22 +40,21 @@ var (
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
 		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
-		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
-		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
-		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
+		"https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
+		"according to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data ."+
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details")
 
-	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
-		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
+	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url. "+
+		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages . "+
 		"See also -remoteWrite.shardByURLReplicas")
 	shardByURLReplicas = flag.Int("remoteWrite.shardByURLReplicas", 1, "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
-		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
+		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages")
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels")
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
-
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -81,28 +81,30 @@ var (
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
-		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter")
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
-		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter")
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
 	disableOnDiskQueue = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. "+
-		"See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
-		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
+		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 )
 
 var (
 	// rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
-	rwctxsGlobal []*remoteWriteCtx
+	rwctxsGlobal              []*remoteWriteCtx
+	rwctxsGlobalIdx           []int
+	rwctxConsistentHashGlobal *consistenthash.ConsistentHash
 
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
 		Err: fmt.Errorf("remote storage systems cannot keep up with the data ingestion rate; retry the request later " +
 			"or remove -remoteWrite.disableOnDiskQueue from vmagent command-line flags, so it could save pending data to -remoteWrite.tmpDataPath; " +
-			"see https://docs.victoriametrics.com/vmagent/#disabling-on-disk-persistence"),
+			"see https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence"),
 		StatusCode: http.StatusTooManyRequests,
 	}
 
@@ -183,7 +185,7 @@ func Init() {
 
 	if len(*shardByURLLabels) > 0 && len(*shardByURLIgnoreLabels) > 0 {
 		logger.Fatalf("-remoteWrite.shardByURL.labels and -remoteWrite.shardByURL.ignoreLabels cannot be set simultaneously; " +
-			"see https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
+			"see https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages")
 	}
 	shardByURLLabelsMap = newMapFromStrings(*shardByURLLabels)
 	shardByURLIgnoreLabelsMap = newMapFromStrings(*shardByURLIgnoreLabels)
@@ -205,7 +207,7 @@ func Init() {
 
 	initStreamAggrConfigGlobal()
 
-	rwctxsGlobal = newRemoteWriteCtxs(*remoteWriteURLs)
+	initRemoteWriteCtxs(*remoteWriteURLs)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -290,7 +292,7 @@ var (
 	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
+func initRemoteWriteCtxs(urls []string) {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
@@ -306,6 +308,7 @@ func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 		maxInmemoryBlocks = 2
 	}
 	rwctxs := make([]*remoteWriteCtx, len(urls))
+	rwctxIdx := make([]int, len(urls))
 	for i, remoteWriteURLRaw := range urls {
 		remoteWriteURL, err := url.Parse(remoteWriteURLRaw)
 		if err != nil {
@@ -316,8 +319,19 @@ func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxIdx[i] = i
 	}
-	return rwctxs
+
+	if *shardByURL {
+		consistentHashNodes := make([]string, 0, len(urls))
+		for i, url := range urls {
+			consistentHashNodes = append(consistentHashNodes, fmt.Sprintf("%d:%s", i+1, url))
+		}
+		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(consistentHashNodes, 0)
+	}
+
+	rwctxsGlobal = rwctxs
+	rwctxsGlobalIdx = rwctxIdx
 }
 
 var (
@@ -501,6 +515,10 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	return true
 }
 
+// getEligibleRemoteWriteCtxs checks whether writes to configured remote storage systems are blocked and
+// returns only the unblocked rwctx.
+//
+// calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
 func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
 	if !disableOnDiskQueueAny {
 		return rwctxsGlobal, true
@@ -517,6 +535,12 @@ func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamples
 				return nil, false
 			}
 			rowsCount := getRowsCount(tss)
+			if *shardByURL {
+				// Todo: When shardByURL is enabled, the following metrics won't be 100% accurate. Because vmagent don't know
+				// which rwctx should data be pushed to yet. Let's consider the hashing algorithm fair and will distribute
+				// data to all rwctxs evenly.
+				rowsCount = rowsCount / len(rwctxsGlobal)
+			}
 			rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		}
 	}
@@ -528,6 +552,7 @@ func pushToRemoteStoragesTrackDropped(tss []prompbmarshal.TimeSeries) {
 	if len(rwctxs) == 0 {
 		return
 	}
+
 	if !tryPushBlockToRemoteStorages(rwctxs, tss, true) {
 		logger.Panicf("BUG: tryPushBlockToRemoteStorages() must return true when forceDropSamplesOnFailure=true")
 	}
@@ -578,42 +603,7 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 	defer putTSSShards(x)
 
 	shards := x.shards
-	tmpLabels := promutil.GetLabels()
-	for _, ts := range tssBlock {
-		hashLabels := ts.Labels
-		if len(shardByURLLabelsMap) > 0 {
-			hashLabels = tmpLabels.Labels[:0]
-			for _, label := range ts.Labels {
-				if _, ok := shardByURLLabelsMap[label.Name]; ok {
-					hashLabels = append(hashLabels, label)
-				}
-			}
-			tmpLabels.Labels = hashLabels
-		} else if len(shardByURLIgnoreLabelsMap) > 0 {
-			hashLabels = tmpLabels.Labels[:0]
-			for _, label := range ts.Labels {
-				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
-					hashLabels = append(hashLabels, label)
-				}
-			}
-			tmpLabels.Labels = hashLabels
-		}
-		h := getLabelsHash(hashLabels)
-		idx := h % uint64(len(shards))
-		i := 0
-		for {
-			shards[idx] = append(shards[idx], ts)
-			i++
-			if i >= replicas {
-				break
-			}
-			idx++
-			if idx >= uint64(len(shards)) {
-				idx = 0
-			}
-		}
-	}
-	promutil.PutLabels(tmpLabels)
+	shardAmountRemoteWriteCtx(tssBlock, shards, rwctxs, replicas)
 
 	// Push sharded samples to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
@@ -634,6 +624,86 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
+}
+
+// calculateHealthyRwctxIdx returns the index of healthyRwctxs in rwctxsGlobal.
+// It relies on the order of rwctx in healthyRwctxs, which is appended by getEligibleRemoteWriteCtxs.
+func calculateHealthyRwctxIdx(healthyRwctxs []*remoteWriteCtx) ([]int, []int) {
+	// fast path: all rwctxs are healthy.
+	if len(healthyRwctxs) == len(rwctxsGlobal) {
+		return rwctxsGlobalIdx, nil
+	}
+
+	unhealthyIdx := make([]int, 0, len(rwctxsGlobal))
+	healthyIdx := make([]int, 0, len(rwctxsGlobal))
+
+	var i int
+	for j := range rwctxsGlobal {
+		if i < len(healthyRwctxs) && rwctxsGlobal[j].idx == healthyRwctxs[i].idx {
+			healthyIdx = append(healthyIdx, j)
+			i++
+		} else {
+			unhealthyIdx = append(unhealthyIdx, j)
+		}
+	}
+
+	return healthyIdx, unhealthyIdx
+}
+
+// shardAmountRemoteWriteCtx distribute time series to shards by consistent hashing.
+func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]prompbmarshal.TimeSeries, rwctxs []*remoteWriteCtx, replicas int) {
+	tmpLabels := promutil.GetLabels()
+	defer promutil.PutLabels(tmpLabels)
+
+	healthyIdx, unhealthyIdx := calculateHealthyRwctxIdx(rwctxs)
+
+	// shardsIdxMap is a map to find which the shard idx by rwctxs idx.
+	// rwctxConsistentHashGlobal will tell which the rwctxs idx a time series should be written to.
+	// And this time series should be appended to the shards by correct shard idx.
+	shardsIdxMap := make(map[int]int, len(healthyIdx))
+	for idx, rwctxsIdx := range healthyIdx {
+		shardsIdxMap[rwctxsIdx] = idx
+	}
+
+	for _, ts := range tssBlock {
+		hashLabels := ts.Labels
+		if len(shardByURLLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLLabelsMap[label.Name]; ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		} else if len(shardByURLIgnoreLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		}
+		h := getLabelsHash(hashLabels)
+
+		// Get the rwctxIdx through consistent hashing and then map it to the index in shards.
+		// The rwctxIdx is not always equal to the shardIdx, for example, when some rwctx are not available.
+		rwctxIdx := rwctxConsistentHashGlobal.GetNodeIdx(h, unhealthyIdx)
+		shardIdx := shardsIdxMap[rwctxIdx]
+
+		replicated := 0
+		for {
+			shards[shardIdx] = append(shards[shardIdx], ts)
+			replicated++
+			if replicated >= replicas {
+				break
+			}
+			shardIdx++
+			if shardIdx >= len(shards) {
+				shardIdx = 0
+			}
+		}
+	}
 }
 
 type tssShards struct {

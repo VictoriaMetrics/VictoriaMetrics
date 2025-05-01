@@ -133,7 +133,7 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 
 	// Send the remaining data
-	for _, bb := range bufs.GetSlice() {
+	for _, bb := range bufs.All() {
 		if err := sendBuf(bb); err != nil {
 			return err
 		}
