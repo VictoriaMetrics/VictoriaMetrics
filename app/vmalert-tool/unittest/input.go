@@ -94,7 +94,7 @@ func parseInputSeries(input []series, interval *promutils.Duration, startStamp t
 // parseInputValue support input like "1", "1+1x1 _ -4 3+20x1", see more examples in test.
 func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 	var res []sequenceValue
-	items := strings.Split(input, " ")
+	items := strings.Fields(input)
 	for _, item := range items {
 		if item == "stale" {
 			res = append(res, sequenceValue{Value: decimal.StaleNaN})

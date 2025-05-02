@@ -58,6 +58,8 @@ func TestParseInputValue_Success(t *testing.T) {
 
 	f("stale", []sequenceValue{{Value: decimal.StaleNaN}})
 
+	f(" stale    2", []sequenceValue{{Value: decimal.StaleNaN}, {Value: 2}})
+
 	f("-4x1", []sequenceValue{{Value: -4}, {Value: -4}})
 
 	f("_x1", []sequenceValue{{Omitted: true}})
