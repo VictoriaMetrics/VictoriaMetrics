@@ -1,9 +1,9 @@
 ---
 title: Integrations 
-weight: 50
+weight: 11
 menu:
   docs:
     parent: 'victoriametrics'
     identifier: 'integrations-vm'
-    weight: 50
+    weight: 11
 ---
