@@ -53,7 +53,7 @@ This allows Grafana to use a more efficient API to get label values:
 
 ![Datasource](grafana-datasource-prometheus.webp)
 
-Then you can build graphs and dashboards using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+Once connected, you can build graphs and dashboards using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
 _Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator._
