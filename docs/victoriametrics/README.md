@@ -138,7 +138,7 @@ The following docs may be useful during initial VictoriaMetrics setup:
 * [How to set up scraping of Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 * [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
 * [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
-* [How to query VictoriaMetrics via Grafana](#grafana-setup)
+* [How to query VictoriaMetrics via Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
 * [How to query VictoriaMetrics via Graphite API](#graphite-api-usage)
 * [How to handle alerts](#alerting)
 
@@ -298,30 +298,7 @@ which can be used as faster and less resource-hungry alternative to Prometheus.
 
 ## Grafana setup
 
-Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure-prometheus-data-source/) 
-in Grafana with the following url:
-```url
-http://<victoriametrics-addr>:8428
-```
-
-Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
-
-In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
-
-![Datasource](grafana-datasource-prometheus.webp)
-
-This allows Grafana to use a more efficient API to get label values.
-
-Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
-
-Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/victoriametrics-datasource) with support of extra features. 
-See more in [description](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/).
-
-Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
-If you don't see an option to create a data source - try contacting system administrator.
-
-Grafana playground is available for viewing at our [sandbox](https://play-grafana.victoriametrics.com).
+Moved to [integrations/grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
 
 ## How to upgrade VictoriaMetrics
 

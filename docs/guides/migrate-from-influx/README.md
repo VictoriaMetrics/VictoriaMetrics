@@ -117,7 +117,7 @@ querying and visualizing metrics:
 
 ![Migrate from Influx](vmui.webp)
 
-VictoriaMetrics can be configured as [Grafana datasource](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
+VictoriaMetrics can be configured as [Grafana datasource](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
 See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
 ### Basic concepts

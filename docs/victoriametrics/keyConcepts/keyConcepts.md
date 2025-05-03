@@ -464,7 +464,7 @@ or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cl
 VictoriaMetrics provides
 an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup). The same API is also used by
+[Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana). The same API is also used by
 [VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) - a graphical User Interface for querying
 and visualizing metrics.
 
@@ -949,7 +949,7 @@ Open `http://victoriametrics:8428/vmui` page, type the query and see the results
 ![vmui](vmui.webp)
 
 VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
-which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup)
+which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
 in the same way as Grafana queries Prometheus.
 
 ## Modify data
