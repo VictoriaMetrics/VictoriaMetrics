@@ -100,7 +100,7 @@ It is hard to predict the amount of compute resources (CPU, Mem) or cluster size
 Active Time Series. The much better approach is to run tests for your type of load (ingestion and reads) and extrapolate
 from there.
 
-For example, if you already run [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
+For example, if you already run [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
 or [Telegraf](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 for metrics collection then just configure them (or a part of them) to replicate data to VictoriaMetrics. In this way,
 you'd have the most precise simulation of your production environment.

@@ -31,7 +31,7 @@ We apply strict security measures in everything we do. See [Security page](https
 
 VictoriaMetrics has the following prominent features:
 
-* It can be used as long-term storage for Prometheus. See [these docs](#prometheus-setup) for details.
+* It can be used as long-term storage for Prometheus. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports the [Prometheus querying API](#prometheus-querying-api-usage).
 * It can be used as a drop-in replacement for Graphite in Grafana, because it supports the [Graphite API](#graphite-api-usage).
   VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite - see [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#grammarly).
@@ -68,7 +68,7 @@ VictoriaMetrics has the following prominent features:
   [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * It supports metrics scraping, ingestion and [backfilling](#backfilling) via the following protocols:
   * [Metrics scraping from Prometheus exporters](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-  * [Prometheus remote write API](#prometheus-setup).
+  * [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
@@ -137,7 +137,7 @@ Other flags have good enough default values, so set them only if you really need
 The following docs may be useful during initial VictoriaMetrics setup:
 * [How to set up scraping of Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 * [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
-* [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
+* [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
 * [How to query VictoriaMetrics via Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
 * [How to query VictoriaMetrics via Graphite API](#graphite-api-usage)
 * [How to handle alerts](#alerting)
@@ -245,56 +245,7 @@ It can be used as an example for a [quick start](https://docs.victoriametrics.co
 
 ## Prometheus setup
 
-Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
-```yaml
-remote_write:
-  - url: http://<victoriametrics-addr>:8428/api/v1/write
-```
-
-Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
-Then apply new config via the following command:
-```sh
-kill -HUP `pidof prometheus`
-```
-
-Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
-This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
-even if remote storage is unavailable.
-
-If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
-of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
-
-```yaml
-global:
-  external_labels:
-    datacenter: dc-123
-```
-
-This instructs Prometheus to add `datacenter=dc-123` label to each sample before sending it to remote storage.
-The label name can be arbitrary - `datacenter` is just an example. The label value must be unique
-across Prometheus instances, so time series could be filtered and grouped by this label.
-
-For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
-```yaml
-remote_write:
-  - url: http://<victoriametrics-addr>:8428/api/v1/write
-    queue_config:
-      max_samples_per_send: 10000
-      capacity: 20000
-      max_shards: 30
-```
-
-Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
-too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
-Keep in mind that these two params are tightly connected.
-Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
-
-It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases/latest) or newer,
-since previous versions may have issues with `remote_write`.
-
-Take a look also at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
-and [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/),
-which can be used as faster and less resource-hungry alternative to Prometheus.
+Moved to [integrations/prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
 
 ## Grafana setup
 
@@ -1344,7 +1295,7 @@ VictoriaMetrics can discover and scrape metrics from Prometheus-compatible targe
 see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 Additionally, VictoriaMetrics can accept metrics via the following popular data ingestion protocols (aka "push" protocols):
 
-* [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](#prometheus-setup) for details.
+* [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.

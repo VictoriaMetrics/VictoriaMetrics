@@ -40,8 +40,8 @@ VictoriaMetrics is available as:
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
 Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
-Then read [Prometheus setup](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup)
-and [Grafana setup](https://docs.victoriametrics.com/victoriametrics/integrations/grafana) docs.
+Then read [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
+and [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana) setup docs.
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) 
 and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).

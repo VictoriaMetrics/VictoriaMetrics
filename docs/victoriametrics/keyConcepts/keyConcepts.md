@@ -45,7 +45,7 @@ requests_total{path="/", code="200"}
 
 Labels can be automatically attached to the [time series](#time-series) 
 written via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) 
-or [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-setup).
+or [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
 VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 

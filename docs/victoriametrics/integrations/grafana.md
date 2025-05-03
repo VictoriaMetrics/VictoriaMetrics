@@ -28,7 +28,8 @@ For the cluster version, use `vmselect` address:
 ```url
 http://<vmselect-addr>:8481/select/<tenant>/prometheus
 ```
-Replace `<vmselect-addr>` with the hostname or IP address of vmselect service. 
+_Replace `<vmselect-addr>` with the hostname or IP address of vmselect service._ 
+
 If you have more than 1 vmselect, configure [load-balancing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup).
 Replace `<tenant>` based on your [multitenancy settings](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
