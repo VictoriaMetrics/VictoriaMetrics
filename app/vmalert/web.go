@@ -35,7 +35,7 @@ var (
 		{"-/reload", "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", URL: "../vmalert"},
+		{Name: "vmalert", URL: "../vmalert", Icon: "vm"},
 		{Name: "Groups", URL: "groups"},
 		{Name: "Alerts", URL: "alerts"},
 		{Name: "Notifiers", URL: "notifiers"},

@@ -19,7 +19,7 @@
 </head>
 <body>
     {%= printNavItems(r, title, navItems, userErr) %}
-    <main class="px-2">
+    <main class="px-4 py-2">
     {%= errorBody(userErr) %}
 {% endfunc %}
 
@@ -28,6 +28,7 @@
 type NavItem struct {
 	Name string
 	URL  string
+	Icon string
 }
 %}
 
@@ -36,14 +37,17 @@ type NavItem struct {
 <nav class="navbar navbar-expand navbar-dark fixed-top bg-dark">
   <div class="container-fluid">
     <div class="collapse navbar-collapse" id="navbarCollapse">
-        <ul class="navbar-nav me-auto mb-0">
+        <ul class="navbar-nav me-auto mb-0 align-items-center">
             {% for _, item := range items  %}
                 <li class="nav-item">
                     {% code
                     u, _ := url.Parse(item.URL)
                     %}
-                    <a class="nav-link{% if current == item.Name %} active{% endif %}"
+                    <a class="d-flex gap-2 align-items-center nav-link{% if current == item.Name %} active{% endif %}"
                        href="{% if u.IsAbs() %}{%s item.URL %}{% else %}{%s path.Join(prefix, item.URL) %}{% endif %}">
+                        {% if item.Icon != "" %}
+                        <svg width="40" height="40"><use href="{%s prefix %}static/icons/icons.svg#{%s item.Icon %}"></svg>
+                        {% endif %}
                         {%s item.Name %}
                     </a>
                 </li>
