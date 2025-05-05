@@ -85,12 +85,11 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
           "vm-explore-logs-body__table_mobile": isMobile,
         })}
       >
-        {!data.length && <div className="vm-explore-logs-body__empty">No logs found</div>}
-        {!!data.length && ActiveTabComponent &&
-          <ActiveTabComponent
-            data={data}
-            settingsRef={settingsRef}
-          />}
+        {ActiveTabComponent &&
+            <ActiveTabComponent
+              data={data}
+              settingsRef={settingsRef}
+            />}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import TableLogs from "../../TableLogs";
 import SelectLimit from "../../../../../components/Main/Pagination/SelectLimit/SelectLimit";
 import TableSettings from "../../../../../components/Table/TableSettings/TableSettings";
 import useSearchParamsFromObject from "../../../../../hooks/useSearchParamsFromObject";
+import EmptyLogs from "../components/EmptyLogs/EmptyLogs";
 
 const MemoizedTableView = React.memo(TableLogs);
 
@@ -57,7 +58,7 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
     );
   };
 
-  if (!data.length) return null;
+  if (!data.length) return <EmptyLogs />;
 
   return (
     <>
