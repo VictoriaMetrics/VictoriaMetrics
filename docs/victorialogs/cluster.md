@@ -34,7 +34,7 @@ See [quick start guide](#quick-start) on how to start working with VictoriaLogs 
 VictoriaLogs in cluster mode consists of `vlinsert`, `vlselect` and `vlstorage` components:
 
 - `vlinsert` accepts the ingested logs via [all the supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-  and spreads them among the `vlstorage` nodes listed via the `-storageNode` command-line flag.
+  and spreads them evenly among the `vlstorage` nodes listed via the `-storageNode` command-line flag.
 
 - `vlselect` accepts incoming queries via [all the supported HTTP querying endpoints](https://docs.victoriametrics.com/victorialogs/querying/),
   requests the needed data from `vlstorage` nodes listed via the `-storageNode` command-line flag, processes the queries and returns the corresponding responses.
@@ -84,7 +84,7 @@ by running it with `-internalinsert.disable` and `-internalselect.disable` comma
 ## Multi-level cluster setup
 
 - `vlinsert` can send the ingested logs to other `vlinsert` nodes if they are specified via `-storageNode` command-line flag.
-  This allows building multi-level data ingestion schemes when top-level `vlinsert` spreads the incoming logs among multiple lower-level clusters of VictoriaLogs.
+  This allows building multi-level data ingestion schemes when top-level `vlinsert` spreads the incoming logs evenly among multiple lower-level clusters of VictoriaLogs.
 
 - `vlselect` can send queries to other `vlselect` nodes if they are specified via `-storageNode` command-line flag.
   This allows building multi-level cluster schemes when top-level `vlselect` queries multiple lower-level clusters of VictoriaLogs.
@@ -164,7 +164,7 @@ Start the second `vlstorage` node, which accepts incoming requests at the port `
 ./victoria-logs-prod -httpListenAddr=:9492 -storageDataPath=victoria-logs-data-2 &
 ```
 
-Start `vlinsert` node, which [accepts logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) at the port `9481` and spreads them among the two `vlstorage` nodes started above:
+Start `vlinsert` node, which [accepts logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) at the port `9481` and spreads them evenly among the two `vlstorage` nodes started above:
 
 ```sh
 ./victoria-logs-prod -httpListenAddr=:9481 -storageNode=localhost:9491,localhost:9492 &
