@@ -23,10 +23,18 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
-// PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
-type PrometheusWriter interface {
+// Writer contains methods for writing new data
+type Writer interface {
+	// Prometheus APIs
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+
+	// Graphit APIs
+	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
+
+	// OpenTSDB APIs
+	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
 
 // StorageFlusher defines a method that forces the flushing of data inserted
@@ -44,7 +52,7 @@ type StorageMerger interface {
 // PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
 type PrometheusWriteQuerier interface {
-	PrometheusWriter
+	Writer
 	PrometheusQuerier
 	StorageFlusher
 	StorageMerger
@@ -62,6 +70,9 @@ type QueryOpts struct {
 	ExtraLabels    []string
 	Trace          string
 	ReduceMemUsage string
+	MaxLookback    string
+	LatencyOffset  string
+	Format         string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -83,6 +94,9 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
 	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
+	addNonEmpty("max_lookback", qos.MaxLookback)
+	addNonEmpty("latency_offset", qos.LatencyOffset)
+	addNonEmpty("format", qos.Format)
 
 	return uv
 }
