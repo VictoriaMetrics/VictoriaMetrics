@@ -19,13 +19,14 @@ Resources:
 
 Create [VictoriaMetrics datasource](https://grafana.com/grafana/plugins/victoriametrics-metrics-datasource/)
 in Grafana with the following URL for single-server:
-```url
+```
+
 http://<victoriametrics-addr>:8428
 ```
 _Replace `<victoriametrics-addr>` with the VictoriaMetrics hostname or IP address._
 
 For the cluster version, use `vmselect` address:
-```url
+```
 http://<vmselect-addr>:8481/select/<tenant>/prometheus
 ```
 _Replace `<vmselect-addr>` with the hostname or IP address of vmselect service._ 
