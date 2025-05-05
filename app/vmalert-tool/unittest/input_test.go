@@ -24,6 +24,8 @@ func TestParseInputValue_Failure(t *testing.T) {
 
 	// stale doesn't support operations
 	f("stalex3")
+
+	f("1+stalex3")
 }
 
 func TestParseInputValue_Success(t *testing.T) {
