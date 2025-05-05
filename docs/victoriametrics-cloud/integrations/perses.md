@@ -19,7 +19,7 @@ These need to be replaced with your actual access token.
 To generate your access token (with **read access**, for querying metrics), follow the steps in the
 [Access Tokens documentation](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens).
 
-To connect Perses with VictoriaMetrics Cloud, visit the [cloud console](https://console.victoriametrics.cloud/public/integrations/perses),
+To connect Perses with VictoriaMetrics Cloud, visit the [cloud console](https://console.victoriametrics.cloud/integrations/perses),
 or follow this interactive guide:
 
 <iframe 
