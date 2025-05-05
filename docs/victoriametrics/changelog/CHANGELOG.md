@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all the VictoriaMetrics components: add `-http.disableCORS` cmd-line flag for disabling CORS headers. See [#8680](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680) for details. Thanks to @jmehrs for [#8684](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8684).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `debug` option for [group](https://docs.victoriametrics.com/vmalert/#groups) for enabling [debug mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode) for all rules within the group. Thanks to @eyazici90 for [#8658](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8658).
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): add alerting rule `ScrapePoolHasNoTargets` to vmagent default rules. The new rule should notify user when there is a job with 0 configured or discovered targets, which is usually a sign of misconfiguration.
 

@@ -1165,6 +1165,8 @@ Below is the output for `/path/to/vminsert -help`:
      Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+     Disable CORS for all origins (*)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -1469,6 +1471,8 @@ Below is the output for `/path/to/vmselect -help`:
      Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+     Disable CORS for all origins (*)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -1808,6 +1812,8 @@ Below is the output for `/path/to/vmstorage -help`:
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+     Disable CORS for all origins (*)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
