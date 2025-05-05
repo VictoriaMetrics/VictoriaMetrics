@@ -113,7 +113,7 @@ func (app *Vmsingle) ForceMerge(t *testing.T) {
 // POST request to /influx/write vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#influxwrite
-func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
+func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
@@ -202,7 +202,7 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 // POST request to /prometheus/api/v1/import/prometheus vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
-func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	// add extra label
