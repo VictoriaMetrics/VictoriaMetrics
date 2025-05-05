@@ -18,7 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): Fix parsing for (+/-)Inf values and scientific notation in tests, also allow additional spaces between values. Thanks to @evkuzin for [#8847](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8847).
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): Fix parsing for (+/-)Inf values and scientific notation in tests, also allow additional spaces between values. Thanks to @evkuzin for [#8847](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8847).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `debug` option for [group](https://docs.victoriametrics.com/vmalert/#groups) for enabling [debug mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode) for all rules within the group. Thanks to @eyazici90 for [#8658](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8658).
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): add alerting rule `ScrapePoolHasNoTargets` to vmagent default rules. The new rule should notify user when there is a job with 0 configured or discovered targets, which is usually a sign of misconfiguration.
 
