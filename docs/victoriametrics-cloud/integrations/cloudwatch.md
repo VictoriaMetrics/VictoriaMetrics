@@ -1,5 +1,5 @@
 ---
-title : "Agentless AWS monitoring"
+title : "CloudWatch - Agentless AWS monitoring"
 menu:
   docs:
     parent: "integrations"
