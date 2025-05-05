@@ -18,7 +18,7 @@ _Replace `<victoriametrics-addr>` with the VictoriaMetrics hostname or IP addres
 
 For cluster version use vminsert address:
 ```url
-http://<vminsert-addr>:8480/select/<tenant>/prometheus
+http://<vminsert-addr>:8480/insert/<tenant>/prometheus
 ```
 _Replace `<vminsert-addr>` with the hostname or IP address of vminsert service._
 
