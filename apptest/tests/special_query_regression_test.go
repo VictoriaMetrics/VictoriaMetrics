@@ -1,11 +1,12 @@
 package tests
 
 import (
+	"os"
+	"testing"
+
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"os"
-	"testing"
 )
 
 // TestSingleSpecialQueryRegression is used to test queries that have experienced issues for specific data sets.
@@ -238,7 +239,7 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 
 	// comparison-not-inf-not-nan
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150
-	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := getRowsInsertedTotal(t, sut)
 	sut.GraphiteWrite(t, []string{
 		"not_nan_not_inf;item=x 1 1707123456", // 2024-02-05T08:57:36.000Z
 		"not_nan_not_inf;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
@@ -248,7 +249,7 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -285,7 +286,7 @@ func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 
 	// empty-label-match
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395
-	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := getRowsInsertedTotal(t, sut)
 	sut.GraphiteWrite(t, []string{
 		"empty_label_match 1 1707123456",         // 2024-02-05T08:57:36.000Z
 		"empty_label_match;foo=bar 2 1707123456", // 2024-02-05T08:57:36.000Z
@@ -294,7 +295,7 @@ func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 3
+			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 3
 		},
 		Want: true,
 	})
@@ -337,7 +338,7 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 
 	// max_lookback_set
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
-	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := getRowsInsertedTotal(t, sut)
 	sut.GraphiteWrite(t, []string{
 		"max_lookback_set 1 1707123426", // 2024-02-05T08:57:06.000Z
 		"max_lookback_set 2 1707123396", // 2024-02-05T08:56:36.000Z
@@ -347,7 +348,7 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -384,7 +385,7 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 
 	// max_lookback_unset
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209
-	rowInserted = GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted = getRowsInsertedTotal(t, sut)
 	sut.GraphiteWrite(t, []string{
 		"max_lookback_unset 1 1707123426", // 2024-02-05T08:57:06.000Z
 		"max_lookback_unset 2 1707123396", // 2024-02-05T08:56:36.000Z
@@ -394,7 +395,7 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -445,7 +446,7 @@ func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 
 	// not-nan-as-missing-data
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
-	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := getRowsInsertedTotal(t, sut)
 	sut.GraphiteWrite(t, []string{
 		"not_nan_as_missing_data;item=x 2 1707123454", // 2024-02-05T08:57:34.000Z
 		"not_nan_as_missing_data;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
@@ -455,7 +456,7 @@ func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -500,7 +501,7 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 
 	// subquery-aggregation
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/184
-	rowInserted := GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`)
+	rowInserted := getRowsInsertedTotal(t, sut)
 	sut.GraphiteWrite(t, []string{
 		"forms_daily_count;item=x 1 1707123396", // 2024-02-05T08:56:36.000Z
 		"forms_daily_count;item=x 2 1707123336", // 2024-02-05T08:55:36.000Z
@@ -510,7 +511,7 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
-			return (GetIntMetricTotal(t, sut, `vm_rows_inserted_total{type="graphite"}`) - rowInserted) >= 4
+			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
 		},
 		Want: true,
 	})
@@ -545,18 +546,17 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func GetIntMetricTotal(t *testing.T, sut at.PrometheusWriteQuerier, selector string) int {
+func getRowsInsertedTotal(t *testing.T, sut at.PrometheusWriteQuerier) int {
+	t.Helper()
+
+	selector := `vm_rows_inserted_total{type="graphite"}`
 	switch tt := sut.(type) {
 	case *at.Vmsingle:
 		return tt.GetIntMetric(t, selector)
 	case *at.Vmcluster:
-		total := 0
-		for _, vms := range tt.Vmstorages {
-			total += vms.GetIntMetric(t, selector)
-		}
-		return total
+		return tt.Vminsert.GetIntMetric(t, selector)
 	default:
-		t.Fatalf("GetIntMetricTotal unknown type: %T, expect *Vmsingle or *Vmcluster.", sut)
+		t.Fatalf("unexpected type: got %T, want *Vmsingle or *Vminsert", sut)
 	}
 	return 0
 }
