@@ -83,6 +83,10 @@ func (rr *RecordingRule) ID() uint64 {
 
 // NewRecordingRule creates a new RecordingRule
 func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
+	debug := group.Debug
+	if cfg.Debug != nil {
+		debug = *cfg.Debug
+	}
 	rr := &RecordingRule{
 		Type:      group.Type,
 		RuleID:    cfg.ID,
@@ -92,14 +96,14 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
-		Debug:     cfg.Debug,
+		Debug:     debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
-			Debug:                     cfg.Debug,
+			Debug:                     debug,
 		}),
 	}
 

@@ -54,6 +54,11 @@
     },
     {
       "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.asia-northeast3.rep.googleapis.com/",
+      "location": "asia-northeast3"
+    },
+    {
+      "description": "Regional Endpoint",
       "endpointUrl": "https://storage.asia-south1.rep.googleapis.com/",
       "location": "asia-south1"
     },
@@ -233,7 +238,7 @@
       "location": "northamerica-northeast1"
     }
   ],
-  "etag": "\"3138323537363430373936393234303439393430\"",
+  "etag": "\"36333136333838383435323333303139303231\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -4504,7 +4509,7 @@
       }
     }
   },
-  "revision": "20250416",
+  "revision": "20250420",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AdvanceRelocateBucketOperationRequest": {

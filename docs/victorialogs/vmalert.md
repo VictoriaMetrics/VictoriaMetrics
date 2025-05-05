@@ -13,12 +13,12 @@ aliases:
 - /victorialogs/vmalert.html
 ---
 
-[vmalert](https://docs.victoriametrics.com/vmalert/){{% available_from "v1.106.0" %}} integrates with VictoriaLogs {{% available_from "v0.36.0" "logs" %}} via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
+[vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/){{% available_from "v1.106.0" %}} integrates with VictoriaLogs {{% available_from "v0.36.0" "logs" %}} via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
 and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats).
 These endpoints return the log stats in a format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). 
 It allows using VictoriaLogs as the datasource in vmalert, creating alerting and recording rules via [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
-_Note: This page provides only integration instructions for vmalert and VictoriaLogs. See the full textbook for vmalert [here](https://docs.victoriametrics.com/vmalert)._
+_Note: This page provides only integration instructions for vmalert and VictoriaLogs. See the full textbook for vmalert [here](https://docs.victoriametrics.com/victoriametrics/vmalert/)._
 
 ## Quick Start
 
@@ -35,7 +35,7 @@ Run vmalert with the following settings:
 > For rules in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) specify `type: vlogs` on [Group level](#groups). 
 > Or set `-rule.defaultRuleType=vlogs` cmd-line flag to apply `type: vlogs` to all configured groups.
 
-Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups). 
+Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups). 
 See examples in [Groups](#groups) section. See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
 
 With configuration example above, vmalert will perform the following interactions:
@@ -45,14 +45,14 @@ With configuration example above, vmalert will perform the following interaction
 1. Triggered alerting notifications are sent to [Alertmanager](https://github.com/prometheus/alertmanager) service configured via `-notifier.url`;
 1. Results of recording rules expressions and alerts state are persisted to Prometheus-compatible remote-write endpoint
    (i.e. VictoriaMetrics) configured via `-remoteWrite.url`;
-1. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts)
+1. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts)
    by querying Prometheus-compatible HTTP API endpoint (i.e. VictoriaMetrics) configured via `-remoteRead.url`.
 
 ## Configuration
 
 ### Flags
 
-For a complete list of command-line flags, visit https://docs.victoriametrics.com/vmalert/#flags or execute `./vmalert --help` command.
+For a complete list of command-line flags, visit https://docs.victoriametrics.com/victoriametrics/vmalert/#flags or execute `./vmalert --help` command.
 The following are key flags related to integration with VictoriaLogs:
 
 ```shellhelp
@@ -89,11 +89,11 @@ The following are key flags related to integration with VictoriaLogs:
    Since there is no intentional search delay in VictoriaLogs, `-rule.evalDelay` can be reduced to a few seconds to accommodate network and ingestion time.
 ```
 
-See full list of configuration options [here](https://docs.victoriametrics.com/vmalert/#configuration).
+See full list of configuration options [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#configuration).
 
 ### Groups
 
-Check the complete group attributes [here](https://docs.victoriametrics.com/vmalert/#groups).
+Check the complete group attributes [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups).
 
 #### Alerting rules
 
@@ -183,7 +183,7 @@ vmalert supports alerting and recording rules backfilling (aka replay) against V
     -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, is optional
 ```
 
-See more details about backfilling [here](https://docs.victoriametrics.com/vmalert/#rules-backfilling).
+See more details about backfilling [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
 
 ## Performance tip
 
@@ -226,8 +226,8 @@ For additional tips on writing LogsQL, refer to this [doc](https://docs.victoria
 
 ### How to use [multitenancy](https://docs.victoriametrics.com/victorialogs/#multitenancy) in rules?
 
-vmalert doesn't support multi-tenancy for VictoriaLogs in the same way as it [supports it for VictoriaMetrics in ENT version](https://docs.victoriametrics.com/vmalert/#multitenancy).
-However, it is possible to specify the queried tenant from VictoriaLogs datasource via `headers` param in [Group config](https://docs.victoriametrics.com/vmalert/#groups).
+vmalert doesn't support multi-tenancy for VictoriaLogs in the same way as it [supports it for VictoriaMetrics in ENT version](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
+However, it is possible to specify the queried tenant from VictoriaLogs datasource via `headers` param in [Group config](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups).
 For example, the following config will execute all the rules within the group against tenant with `AccountID=1` and `ProjectID=2`:
 ```yaml
     groups:
@@ -239,7 +239,7 @@ For example, the following config will execute all the rules within the group ag
 ```
 By default, vmalert persists all results to the specific tenant in VictoriaMetrics that specified by `-remotewrite.url`. For example, if the `-remotewrite.url=http://vminsert:8480/insert/0/prometheus/`, all data goes to tenant `0`.
 To persist different rule results to different tenants in VictoriaMetrics, there are following approaches:
-1. To use the [multitenant endpoint of vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) as the `-remoteWrite.url`, and add tenant labels under the group configuration. 
+1. To use the [multitenant endpoint of vminsert](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) as the `-remoteWrite.url`, and add tenant labels under the group configuration. 
 
     For example, run vmalert with:
     ```
@@ -269,7 +269,7 @@ To persist different rule results to different tenants in VictoriaMetrics, there
             expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
     ```
 
-2. To run [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise/) with `-clusterMode` enabled, and specify tenant parameter per each group.
+2. To run [enterprise version of vmalert](https://docs.victoriametrics.com/victoriametrics/enterprise/) with `-clusterMode` enabled, and specify tenant parameter per each group.
 
     For example, run vmalert with:
     ```
@@ -302,7 +302,7 @@ We recommend running separate instances of vmalert for VictoriaMetrics and Victo
 However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
 But only one `-datasource.url` cmd-line flag can be specified, so it can't be configured with more than 1 datasource.
 VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, so it is possible to use
-[vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
+[vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) to route requests of different types between datasources.
 See example of vmauth config for such routing below:
 ```yaml
     unauthorized_user:

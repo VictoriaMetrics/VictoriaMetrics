@@ -76,7 +76,7 @@ You'll also be notified via email once your deployment is ready to use.
 * **Data point sizes** are approximated to 0.8 bytes, based on our own experience managing VictoriaMetrics Cloud. This magnitude is increases with **cardinality**. For high cardinality data, more storage is expected.
 * **Long time retention**: for 6 months or more retention times, we recommend to start with a smaller storage size and increase it over time.
 * **Storage size can be increased**, however, you cannot reduce it due to AWS limitations.
-* **Enterprise features** like [downsampling](https://docs.victoriametrics.com/#downsampling) and [retention filters](https://docs.victoriametrics.com/#retention-filters) may dramatically help to optimize disk space.
+* **Enterprise features** like [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) and [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) may dramatically help to optimize disk space.
 * The **formula** we use for calculating the recommended storage can be found [here](https://docs.victoriametrics.com/guides/understand-your-setup-size/#retention-perioddisk-space).
 
 > Feel free to adjust your deployment based on these recommendations.
@@ -92,15 +92,15 @@ Many integrations are supported. Comprehensive examples and guides may be found 
 > To read or write data into VictoriaMetrics Cloud, you just need to point your application to your deployment's `Access endpoint` and authorize with an `Access token`.
 
 In brief, you will **only need to perform 2 steps**:
-1. Obtain the **`Access endpoint`** for your deployment, which can be found in the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) overview. Typically, it looks like: `https://<xxxx>.cloud.victoriametrics.com`.
-2. Create or reuse an **`Access token`** to allow any application to read or write data into VictoriaMetrics Cloud. Just pick a `Name`, select read and/or write `Permission` and `Generate` it. For every deployment, you can `Generate tokens` in the `Access tokens` tab.
+1. Obtain the [**`Access endpoint`**](../deployments/access-tokens.md#access-endpoint) for your deployment, which can be found in the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) overview. Typically, it looks like: `https://<xxxx>.cloud.victoriametrics.com`.
+2. Create or reuse an [**`Access token`**](../deployments/access-tokens.md) to allow any application to read or write data into VictoriaMetrics Cloud. Just pick a `Name`, select read and/or write `Permission` and `Generate` it. For every deployment, you can `Generate tokens` in the `Access tokens` tab.
 
 {{% collapse name="Expand to discover examples for vmagent, Prometheus, Grafana or any other software" %}}
 
 ### Examples for Reading and Writing data into VictoriaMetrics Cloud
 
 Apart from the mentioned [integrations](https://cloud.victoriametrics.com/integrations?utm_source=website&utm_campaign=docs_quickstart) section,
-you can always check for quick and easy Copy-paste examples by clicking on the three dots of the desired Access Token and select `Show examples`.
+you can always check for quick and easy Copy-paste examples by clicking on the three dots of the desired [Access Token](../deployments/access-tokens.md) and select `Show examples`.
 
 It will provide snippets like:
 
@@ -141,9 +141,9 @@ deployment's page. It is important to know that downgrade for clusters is curren
 
 Additional configuration options may be found under `Advanced Settings`  where the following additional parameters can be set:
 
-* [`Deduplication`](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
+* [`Deduplication`](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
 * `Maintenance Window` when deployment should start an upgrade process if needed;
-* `Settings` to define VictoriaMetrics deployment flags, depending on your deployment type: [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags) or [Single-node](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags).
+* `Settings` to define VictoriaMetrics deployment flags, depending on your deployment type: [Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#list-of-command-line-flags) or [Single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags).
 
 > These updates require a deployment restart and may result in a short downtime for **single-node** deployments.
 

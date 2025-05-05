@@ -460,7 +460,7 @@ func (psp *pipeSortProcessor) flush() error {
 	}
 
 	// Sort every shard in parallel
-	shards := psp.shards.GetSlice()
+	shards := psp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

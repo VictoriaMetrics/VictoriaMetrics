@@ -55,14 +55,14 @@ If you want playing with [LogsQL](https://docs.victoriametrics.com/victorialogs/
 
 VictoriaLogs exposes internal metrics in Prometheus exposition format at `http://localhost:9428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
-(see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
-vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
+(see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
+vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
 We recommend installing Grafana dashboard for [VictoriaLogs single-node](https://grafana.com/grafana/dashboards/22084) 
 or [cluster](https://grafana.com/grafana/dashboards/23274) (if link is unavailable use [source link](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json)).
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
-via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
+via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via Prometheus.
 
 VictoriaLogs emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
 
@@ -102,7 +102,7 @@ It automatically drops partition directories outside the configured retention.
 VictoriaLogs automatically drops logs at [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) stage
 if they have timestamps outside the configured retention. A sample of dropped logs is logged with `WARN` message in order to simplify troubleshooting.
 The `vl_rows_dropped_total` [metric](#monitoring) is incremented each time an ingested log entry is dropped because of timestamp outside the retention.
-It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert/) in order to be notified
+It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) in order to be notified
 when logs with wrong timestamps are ingested into VictoriaLogs:
 
 ```metricsql
@@ -203,7 +203,7 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 - **VictoriaLogs Single-Node Instances**: Use two or more instances to achieve HA.
 
-- **[vmauth](https://docs.victoriametrics.com/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
+- **[vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
 
 ![VictoriaLogs Single-Node Instance High-Availability schema](ha-victorialogs-single-node.webp)
 
@@ -272,11 +272,11 @@ If `AccountID` and/or `ProjectID` request headers aren't set, then the default `
 
 VictoriaLogs has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaLogs instance.
 
-VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
+VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or similar tools for per-tenant authorization.
 
 ### Multitenancy access control
 
-Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/vmauth/). Access control can be configured for each tenant by setting up the following rules:
+Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/). Access control can be configured for each tenant by setting up the following rules:
 
 ```yaml
 users:
@@ -309,7 +309,7 @@ This configuration allows `foo` to use the `/select/.*` and `/insert/.*` endpoin
 
 It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
 It is recommended providing access to VictoriaLogs [data ingestion APIs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/vmauth/)
+and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 or similar authorization proxies.
 
 ## Benchmarks
@@ -326,7 +326,7 @@ It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/vic
 log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as Elasticsearch or Grafana Loki.
 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
-via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
+via [VictoriaMetrics community channels](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#community-and-contributions).
 
 ## Profiling
 
@@ -378,7 +378,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-    	Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+    	Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -filestream.disableFadvise
@@ -511,11 +511,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-    	Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
     	Supports array of values separated by comma or specified via multiple flags.
     	Empty values are set to false.
   -mtlsCAFile array
-    	Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -opentelemetry.maxRequestSize size
@@ -537,7 +537,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -pushmetrics.interval duration
     	Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-    	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+    	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retention.maxDiskSpaceUsageBytes size
@@ -688,11 +688,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Supports array of values separated by comma or specified via multiple flags.
     	Empty values are set to false.
   -tlsAutocertCacheDir string
-    	Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-    	Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-    	Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array

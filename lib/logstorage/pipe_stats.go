@@ -1159,7 +1159,7 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 }
 
 func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
-	shards := psp.shards.GetSlice()
+	shards := psp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}
