@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	graphiteparser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -22,22 +22,22 @@ import (
 
 var (
 	maxGraphiteTagKeysPerSearch = flag.Int("search.maxGraphiteTagKeys", 100e3, "The maximum number of tag keys returned from Graphite API, which returns tags. "+
-		"See https://docs.victoriametrics.com/#graphite-tags-api-usage")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage")
 	maxGraphiteTagValuesPerSearch = flag.Int("search.maxGraphiteTagValues", 100e3, "The maximum number of tag values returned from Graphite API, which returns tag values. "+
-		"See https://docs.victoriametrics.com/#graphite-tags-api-usage")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage")
 )
 
 // TagsDelSeriesHandler implements /tags/delSeries handler.
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb
 func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	paths := r.Form["path"]
 	totalDeleted := 0
 	var row graphiteparser.Row
 	var tagsPool []graphiteparser.Tag
 	ct := startTime.UnixNano() / 1e6
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -91,7 +91,7 @@ func TagsTagMultiSeriesHandler(startTime time.Time, w http.ResponseWriter, r *ht
 }
 
 func registerMetrics(startTime time.Time, w http.ResponseWriter, r *http.Request, isJSONResponse bool) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	_ = deadline // TODO: use the deadline as in the cluster branch
 	paths := r.Form["path"]
 	var row graphiteparser.Row
@@ -164,8 +164,8 @@ var (
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
 func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	limit, err := httputils.GetInt(r, "limit")
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 	valuePrefix := r.FormValue("valuePrefix")
 	exprs := r.Form["expr"]
 	var tagValues []string
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -254,8 +254,8 @@ var tagsAutoCompleteValuesDuration = metrics.NewSummary(`vm_request_duration_sec
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
 func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	limit, err := httputils.GetInt(r, "limit")
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 	tagPrefix := r.FormValue("tagPrefix")
 	exprs := r.Form["expr"]
 	var labels []string
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -337,8 +337,8 @@ var tagsAutoCompleteTagsDuration = metrics.NewSummary(`vm_request_duration_secon
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	limit, err := httputils.GetInt(r, "limit")
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if len(exprs) == 0 {
 		return fmt.Errorf("expecting at least one `expr` query arg")
 	}
-	etfs, err := searchutils.GetExtraTagFilters(r)
+	etfs, err := searchutil.GetExtraTagFilters(r)
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
@@ -412,8 +412,8 @@ var tagsFindSeriesDuration = metrics.NewSummary(`vm_request_duration_seconds{pat
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	limit, err := httputils.GetInt(r, "limit")
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -443,8 +443,8 @@ var tagValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/t
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
 func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	limit, err := httputils.GetInt(r, "limit")
+	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	limit, err := httputil.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
@@ -522,5 +522,5 @@ func parseFilterExpr(s string) (*storage.TagFilter, error) {
 }
 
 func joinTagFilterss(tfs []storage.TagFilter, extraFilters [][]storage.TagFilter) [][]storage.TagFilter {
-	return searchutils.JoinTagFilterss([][]storage.TagFilter{tfs}, extraFilters)
+	return searchutil.JoinTagFilterss([][]storage.TagFilter{tfs}, extraFilters)
 }

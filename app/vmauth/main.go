@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -56,15 +57,15 @@ var (
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
 		"Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSCertFile = flag.String("backend.TLSCertFile", "", "Optional path to TLS client certificate file, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSKeyFile = flag.String("backend.TLSKeyFile", "", "Optional path to TLS client key file, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	dryRun                   = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
 	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. "+
 		"Recommended when vmauth is exposed to the internet.")
@@ -318,7 +319,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				ui.backendErrors.Inc()
 			}
-			return true, false
+			return false, false
 		}
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
@@ -507,7 +508,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 		return nil, fmt.Errorf("cannot initialize promauth.Config: %w", err)
 	}
 
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr := httputil.NewTransport(false, "vmauth_backend")
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
@@ -516,7 +517,6 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
-	tr.DialContext = netutil.NewStatDialFunc("vmauth_backend")
 
 	rt := cfg.NewRoundTripper(tr)
 	return rt, nil
@@ -543,7 +543,7 @@ func usage() {
 	const s = `
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://docs.victoriametrics.com/vmauth/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 `
 	flagutil.Usage(s)
 }

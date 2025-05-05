@@ -16,6 +16,7 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -92,7 +93,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		cfg.FlushInterval = defaultFlushInterval
 	}
 	if cfg.Transport == nil {
-		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+		cfg.Transport = httputil.NewTransport(false, "vmalert_remotewrite")
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {
@@ -145,8 +146,13 @@ func (c *Client) Close() error {
 		return fmt.Errorf("client is already closed")
 	}
 	close(c.input)
+
+	start := time.Now()
+	logger.Infof("shutting down remote write client: flushing remained series")
 	close(c.doneCh)
 	c.wg.Wait()
+	logger.Infof("shutting down remote write client: finished in %v", time.Since(start))
+
 	return nil
 }
 
@@ -155,21 +161,16 @@ func (c *Client) run(ctx context.Context) {
 	wr := &prompbmarshal.WriteRequest{}
 	shutdown := func() {
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
-		logger.Infof("shutting down remote write client and flushing remained series")
 
-		shutdownFlushCnt := 0
 		for ts := range c.input {
 			wr.Timeseries = append(wr.Timeseries, ts)
 			if len(wr.Timeseries) >= c.maxBatchSize {
-				shutdownFlushCnt += len(wr.Timeseries)
 				c.flush(lastCtx, wr)
 			}
 		}
 		// flush the last batch. `flush` will re-check and avoid flushing empty batch.
-		shutdownFlushCnt += len(wr.Timeseries)
 		c.flush(lastCtx, wr)
 
-		logger.Infof("shutting down remote write client flushed %d series", shutdownFlushCnt)
 		cancel()
 	}
 	c.wg.Add(1)

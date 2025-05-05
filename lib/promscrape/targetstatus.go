@@ -18,7 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -68,13 +68,13 @@ func WriteServiceDiscovery(w http.ResponseWriter, r *http.Request) {
 }
 
 // WriteAPIV1Targets writes /api/v1/targets to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
-func WriteAPIV1Targets(w io.Writer, state string) {
+func WriteAPIV1Targets(w io.Writer, state, scrapePool string) {
 	if state == "" {
 		state = "any"
 	}
 	fmt.Fprintf(w, `{"status":"success","data":{"activeTargets":`)
 	if state == "active" || state == "any" {
-		tsmGlobal.WriteActiveTargetsJSON(w)
+		tsmGlobal.WriteActiveTargetsJSON(w, scrapePool)
 	} else {
 		fmt.Fprintf(w, `[]`)
 	}
@@ -219,7 +219,7 @@ func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork
 	return nil
 }
 
-func getLabelsID(labels *promutils.Labels) string {
+func getLabelsID(labels *promutil.Labels) string {
 	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(labels)))
 }
 
@@ -254,15 +254,24 @@ func (tsm *targetStatusMap) getActiveTargetStatuses() []targetStatus {
 }
 
 // WriteActiveTargetsJSON writes `activeTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
-func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
+func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer, scrapePoolFilter string) {
 	tss := tsm.getActiveTargetStatuses()
 	fmt.Fprintf(w, `[`)
-	for i, ts := range tss {
+	var needComma bool
+	for _, ts := range tss {
+		scrapePool := ts.sw.Config.jobNameOriginal
+		if scrapePoolFilter != "" && scrapePool != scrapePoolFilter {
+			continue
+		}
+		if needComma {
+			fmt.Fprintf(w, `,`)
+		}
 		fmt.Fprintf(w, `{"discoveredLabels":`)
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
-		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.Job()))
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343
+		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(scrapePool))
 		fmt.Fprintf(w, `,"scrapeUrl":%s`, stringsutil.JSONString(ts.sw.Config.ScrapeURL))
 		errMsg := ""
 		if ts.err != nil {
@@ -277,14 +286,12 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 			state = "down"
 		}
 		fmt.Fprintf(w, `,"health":%s}`, stringsutil.JSONString(state))
-		if i+1 < len(tss) {
-			fmt.Fprintf(w, `,`)
-		}
+		needComma = true
 	}
 	fmt.Fprintf(w, `]`)
 }
 
-func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
+func writeLabelsJSON(w io.Writer, labels *promutil.Labels) {
 	fmt.Fprintf(w, `{`)
 	labelsList := labels.GetLabels()
 	for i, label := range labelsList {
@@ -332,7 +339,7 @@ type droppedTargets struct {
 }
 
 type droppedTarget struct {
-	originalLabels    *promutils.Labels
+	originalLabels    *promutil.Labels
 	relabelConfigs    *promrelabel.ParsedConfigs
 	dropReason        targetDropReason
 	clusterMemberNums []int
@@ -344,7 +351,7 @@ const (
 	targetDropReasonRelabeling       = targetDropReason("relabeling")         // target dropped because of relabeling
 	targetDropReasonMissingScrapeURL = targetDropReason("missing scrape URL") // target dropped because of missing scrape URL
 	targetDropReasonDuplicate        = targetDropReason("duplicate")          // target with the given set of labels already exists
-	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped becase of sharding https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
+	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped because of sharding https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets
 )
 
 func (dt *droppedTargets) getTargetsList() []droppedTarget {
@@ -367,7 +374,7 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 //
 // The relabelConfigs must contain relabel configs, which were applied to originalLabels.
 // The reason must contain the reason why the target has been dropped.
-func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
+func (dt *droppedTargets) Register(originalLabels *promutil.Labels, relabelConfigs *promrelabel.ParsedConfigs, reason targetDropReason, clusterMemberNums []int) {
 	if originalLabels == nil {
 		// Do not register target without originalLabels. This is the case when *dropOriginalLabels is set to true.
 		return
@@ -402,7 +409,7 @@ func (dt *droppedTargets) getTotalTargets() int {
 	return n
 }
 
-func labelsHash(labels *promutils.Labels) uint64 {
+func labelsHash(labels *promutil.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
 	for _, label := range labels.GetLabels() {
 		_, _ = d.WriteString(label.Name)
@@ -618,8 +625,8 @@ type targetsStatusResult struct {
 
 type targetLabels struct {
 	up                bool
-	originalLabels    *promutils.Labels
-	labels            *promutils.Labels
+	originalLabels    *promutil.Labels
+	labels            *promutil.Labels
 	dropReason        targetDropReason
 	clusterMemberNums []int
 }
@@ -630,7 +637,7 @@ type targetLabelsByJob struct {
 	droppedTargets int
 }
 
-func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutil.Labels, bool) {
 	tsmGlobal.mu.Lock()
 	defer tsmGlobal.mu.Unlock()
 
@@ -643,9 +650,9 @@ func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConf
 	return nil, nil, false
 }
 
-func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutil.Labels, bool) {
 	var relabelConfigs *promrelabel.ParsedConfigs
-	var labels *promutils.Labels
+	var labels *promutil.Labels
 	found := false
 
 	// Search for relabel context in tsmGlobal (aka active targets)

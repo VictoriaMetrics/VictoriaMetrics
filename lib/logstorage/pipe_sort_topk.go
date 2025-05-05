@@ -3,29 +3,23 @@ package logstorage
 import (
 	"container/heap"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func newPipeTopkProcessor(ps *pipeSort, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
-
-	shards := make([]pipeTopkProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeTopkProcessorShard{
-			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
-				ps: ps,
-			},
-		}
-	}
 
 	ptp := &pipeTopkProcessor{
 		ps:     ps,
@@ -33,9 +27,10 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	ptp.shards.Init = func(shard *pipeTopkProcessorShard) {
+		shard.ps = ps
 	}
 	ptp.stateSizeBudget.Store(maxStateSize)
 
@@ -48,20 +43,13 @@ type pipeTopkProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	shards []pipeTopkProcessorShard
+	shards atomicutil.Slice[pipeTopkProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeTopkProcessorShard struct {
-	pipeTopkProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeTopkProcessorShardNopad{})%128]byte
-}
-
-type pipeTopkProcessorShardNopad struct {
 	// ps points to the parent pipeSort.
 	ps *pipeSort
 
@@ -136,6 +124,13 @@ type pipeTopkRow struct {
 	timestamp       int64
 }
 
+func (r *pipeTopkRow) init(byColumns []string, byColumnsIsTime []bool, timestamp int64) {
+	r.byColumns = byColumns
+	r.byColumnsIsTime = byColumnsIsTime
+	r.otherColumns = nil
+	r.timestamp = timestamp
+}
+
 func (r *pipeTopkRow) clone() *pipeTopkRow {
 	byColumnsCopy := make([]string, len(r.byColumns))
 	for i := range byColumnsCopy {
@@ -201,22 +196,20 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		}
 		shard.byColumnValues = byColumnValues
 
-		byColumns := shard.byColumns[:0]
-		byColumnsIsTime := shard.byColumnsIsTime[:0]
+		byColumns := slicesutil.SetLength(shard.byColumns, 1)
+		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, 1)
 		bb := bbPool.Get()
-		timestamps := br.getTimestamps()
-		for rowIdx, timestamp := range timestamps {
-			byColumns = byColumns[:0]
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			bb.B = bb.B[:0]
 			for i, values := range byColumnValues {
 				v := values[rowIdx]
 				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
-			byColumns = append(byColumns, bytesutil.ToUnsafeString(bb.B))
-			byColumnsIsTime = append(byColumnsIsTime, false)
+			byColumns[0] = bytesutil.ToUnsafeString(bb.B)
+			byColumnsIsTime[0] = false
 
-			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, timestamp)
+			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, 0)
 		}
 		bbPool.Put(bb)
 		shard.byColumns = byColumns
@@ -224,18 +217,18 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 	} else {
 		// Sort by byFields
 
-		byColumnValues := shard.byColumnValues[:0]
-		byColumnsIsTime := shard.byColumnsIsTime[:0]
-		for _, bf := range byFields {
+		byColumnValues := slicesutil.SetLength(shard.byColumnValues, len(byFields))
+		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, len(byFields))
+		for i, bf := range byFields {
 			c := br.getColumnByName(bf.name)
 
-			byColumnsIsTime = append(byColumnsIsTime, c.isTime)
+			byColumnsIsTime[i] = c.isTime
 
 			var values []string
 			if !c.isTime {
 				values = c.getValues(br)
 			}
-			byColumnValues = append(byColumnValues, values)
+			byColumnValues[i] = values
 		}
 		shard.byColumnValues = byColumnValues
 		shard.byColumnsIsTime = byColumnsIsTime
@@ -256,17 +249,23 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		shard.csOther = csOther
 
 		// add rows to shard
-		byColumns := shard.byColumns[:0]
-		timestamps := br.getTimestamps()
-		for rowIdx, timestamp := range timestamps {
-			byColumns = byColumns[:0]
-
+		byColumns := slicesutil.SetLength(shard.byColumns, len(byFields))
+		var timestamps []int64
+		if slices.Contains(byColumnsIsTime, true) {
+			timestamps = br.getTimestamps()
+		}
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			for i, values := range byColumnValues {
 				v := ""
 				if !byColumnsIsTime[i] {
 					v = values[rowIdx]
 				}
-				byColumns = append(byColumns, v)
+				byColumns[i] = v
+			}
+
+			timestamp := int64(0)
+			if timestamps != nil {
+				timestamp = timestamps[rowIdx]
 			}
 
 			shard.addRow(br, byColumns, byColumnsIsTime, csOther, rowIdx, timestamp)
@@ -286,9 +285,7 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 
 	// Construct a temporary row
 	r := &shard.tmpRow
-	r.byColumns = byColumns
-	r.byColumnsIsTime = byColumnsIsTime
-	r.timestamp = timestamp
+	r.init(byColumns, byColumnsIsTime, timestamp)
 
 	rs := shard.getRowsByPartition(bytesutil.ToUnsafeString(shard.partitionKey))
 	maxRows := shard.ps.offset + shard.ps.limit
@@ -300,13 +297,13 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	// Slow path - add r to rs.
 
 	// Populate r.otherColumns
-	otherColumns := shard.otherColumns[:0]
-	for _, c := range csOther {
+	otherColumns := slicesutil.SetLength(shard.otherColumns, len(csOther))
+	for i, c := range csOther {
 		v := c.getValueAtRow(br, rowIdx)
-		otherColumns = append(otherColumns, Field{
+		otherColumns[i] = Field{
 			Name:  c.name,
 			Value: v,
-		})
+		}
 	}
 	shard.otherColumns = otherColumns
 	r.otherColumns = otherColumns
@@ -362,7 +359,7 @@ func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &ptp.shards[workerID]
+	shard := ptp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -391,14 +388,18 @@ func (ptp *pipeTopkProcessor) flush() error {
 	}
 
 	// Sort every shard in parallel
+	shards := ptp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	var wg sync.WaitGroup
-	shards := ptp.shards
-	for i := range shards {
+	for _, shard := range shards {
 		wg.Add(1)
 		go func(shard *pipeTopkProcessorShard) {
+			defer wg.Done()
 			shard.sortRows(ptp.stopCh)
-			wg.Done()
-		}(&shards[i])
+		}(shard)
 	}
 	wg.Wait()
 
@@ -409,8 +410,8 @@ func (ptp *pipeTopkProcessor) flush() error {
 	// Obtain all the partition keys
 	partitionKeysMap := make(map[string]struct{})
 	var partitionKeys []string
-	for i := range shards {
-		for k := range shards[i].rowsByPartition {
+	for _, shard := range shards {
+		for k := range shard.rowsByPartition {
 			if _, ok := partitionKeysMap[k]; !ok {
 				partitionKeysMap[k] = struct{}{}
 				partitionKeys = append(partitionKeys, k)
@@ -708,16 +709,28 @@ func lessString(a, b string) bool {
 		return false
 	}
 
-	nA, okA := tryParseUint64(a)
-	nB, okB := tryParseUint64(b)
-	if okA && okB {
-		return nA < nB
+	if iA, okA := tryParseInt64(a); okA {
+		if iB, okB := tryParseInt64(b); okB {
+			return iA < iB
+		}
 	}
 
-	fA, okA := tryParseNumber(a)
-	fB, okB := tryParseNumber(b)
-	if okA && okB {
-		return fA < fB
+	if uA, okA := tryParseUint64(a); okA {
+		if uB, okB := tryParseUint64(b); okB {
+			return uA < uB
+		}
+	}
+
+	if tsA, okA := TryParseTimestampRFC3339Nano(a); okA {
+		if tsB, okB := TryParseTimestampRFC3339Nano(b); okB {
+			return tsA < tsB
+		}
+	}
+
+	if fA, okA := tryParseNumber(a); okA {
+		if fB, okB := tryParseNumber(b); okB {
+			return fA < fB
+		}
 	}
 
 	return stringsutil.LessNatural(a, b)

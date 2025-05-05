@@ -3,8 +3,8 @@ package storage
 import (
 	"path/filepath"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -14,10 +14,10 @@ import (
 type inmemoryPart struct {
 	ph partHeader
 
-	timestampsData bytesutil.ByteBuffer
-	valuesData     bytesutil.ByteBuffer
-	indexData      bytesutil.ByteBuffer
-	metaindexData  bytesutil.ByteBuffer
+	timestampsData chunkedbuffer.Buffer
+	valuesData     chunkedbuffer.Buffer
+	indexData      chunkedbuffer.Buffer
+	metaindexData  chunkedbuffer.Buffer
 
 	creationTime uint64
 }
@@ -39,16 +39,16 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	fs.MustWriteSync(timestampsPath, mp.timestampsData.B)
+	fs.MustWriteStreamSync(timestampsPath, &mp.timestampsData)
 
 	valuesPath := filepath.Join(path, valuesFilename)
-	fs.MustWriteSync(valuesPath, mp.valuesData.B)
+	fs.MustWriteStreamSync(valuesPath, &mp.valuesData)
 
 	indexPath := filepath.Join(path, indexFilename)
-	fs.MustWriteSync(indexPath, mp.indexData.B)
+	fs.MustWriteStreamSync(indexPath, &mp.indexData)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
+	fs.MustWriteStreamSync(metaindexPath, &mp.metaindexData)
 
 	mp.ph.MustWriteMetadata(path)
 
@@ -72,14 +72,14 @@ func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 // NewPart creates new part from mp.
 //
 // It is safe calling NewPart multiple times.
-// It is unsafe re-using mp while the returned part is in use.
+// It is unsafe reusing mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
 	size := mp.size()
 	return newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
 }
 
 func (mp *inmemoryPart) size() uint64 {
-	return uint64(cap(mp.timestampsData.B) + cap(mp.valuesData.B) + cap(mp.indexData.B) + cap(mp.metaindexData.B))
+	return uint64(mp.timestampsData.SizeBytes() + mp.valuesData.SizeBytes() + mp.indexData.SizeBytes() + mp.metaindexData.SizeBytes())
 }
 
 func getInmemoryPart() *inmemoryPart {

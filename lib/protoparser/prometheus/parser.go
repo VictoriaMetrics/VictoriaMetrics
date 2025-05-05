@@ -23,14 +23,10 @@ type Rows struct {
 func (rs *Rows) Reset() {
 	// Reset items, so they can be GC'ed
 
-	for i := range rs.Rows {
-		rs.Rows[i].reset()
-	}
+	clear(rs.Rows)
 	rs.Rows = rs.Rows[:0]
 
-	for i := range rs.tagsPool {
-		rs.tagsPool[i].reset()
-	}
+	clear(rs.tagsPool)
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
@@ -66,10 +62,7 @@ type Row struct {
 }
 
 func (r *Row) reset() {
-	r.Metric = ""
-	r.Tags = nil
-	r.Value = 0
-	r.Timestamp = 0
+	*r = Row{}
 }
 
 func skipTrailingComment(s string) string {
@@ -303,11 +296,6 @@ type Tag struct {
 	Value string
 }
 
-func (t *Tag) reset() {
-	t.Key = ""
-	t.Value = ""
-}
-
 func findClosingQuote(s string) int {
 	if len(s) == 0 || s[0] != '"' {
 		return -1
@@ -526,6 +514,9 @@ func marshalMetricNameWithTags(dst []byte, r *Row) []byte {
 //
 // This function is optimized for speed.
 func AreIdenticalSeriesFast(s1, s2 string) bool {
+	if s1 == s2 {
+		return true
+	}
 	for {
 		if len(s1) == 0 {
 			// The last byte on the line reached.

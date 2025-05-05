@@ -8,20 +8,34 @@
 
     &_mobile {
       margin: -$padding-global 0-$padding-global 0;
+      display: block;
+      border-bottom: none;
     }
 
     &__settings {
       display: flex;
       align-items: center;
       gap: $padding-small;
+      justify-content: flex-end;
+    }
+
+    &__table-settings {
+      display: flex;
+      flex-direction: row;
     }
 
     &__log-info {
       flex-grow: 1;
       text-align: right;
-      padding-right: $padding-global;
+      padding-right: $padding-large;
       color: $color-text-secondary;
+      font-size: $font-size-small;
+    }
 
+    &__tabs {
+      &_mobile {
+        border-bottom: var(--border-divider);
+      }
     }
   }
 
@@ -45,6 +59,7 @@
 
     &_mobile {
       width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+      padding-top: $padding-large;
     }
 
     .vm-table {

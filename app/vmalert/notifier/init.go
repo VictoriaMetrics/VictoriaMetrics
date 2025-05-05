@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 var (
@@ -54,6 +54,7 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 	oauth2Scopes = flagutil.NewArrayString("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
+	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", 10*time.Second, "Timeout when sending alerts to the corresponding -notifier.url")
 )
 
 // cw holds a configWatcher for configPath configuration file
@@ -101,9 +102,9 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 		if len(*addrs) > 0 || *configPath != "" {
 			return nil, fmt.Errorf("only one of -notifier.blackhole, -notifier.url and -notifier.config flags must be specified")
 		}
-
+		notifier := newBlackHoleNotifier()
 		staticNotifiersFn = func() []Notifier {
-			return []Notifier{newBlackHoleNotifier()}
+			return []Notifier{notifier}
 		}
 		return staticNotifiersFn, nil
 	}
@@ -175,7 +176,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 		}
 
 		addr = strings.TrimSuffix(addr, "/")
-		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, time.Second*10)
+		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, sendTimeout.GetOptionalArg(i))
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +189,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 // list of labels added during discovery.
 type Target struct {
 	Notifier
-	Labels *promutils.Labels
+	Labels *promutil.Labels
 }
 
 // TargetType defines how the Target was discovered

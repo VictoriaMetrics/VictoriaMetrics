@@ -13,7 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -244,7 +244,7 @@ func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
 	if !ok {
 		return rvs
 	}
-	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
+	tfss := searchutil.ToTagFilterss(me.LabelFilterss)
 	if len(tfss) != 1 {
 		return rvs
 	}

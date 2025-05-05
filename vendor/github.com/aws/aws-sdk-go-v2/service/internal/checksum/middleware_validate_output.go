@@ -55,7 +55,7 @@ func (m *validateOutputPayloadChecksum) ID() string {
 }
 
 // HandleDeserialize is a Deserialize middleware that wraps the HTTP response
-// body with an io.ReadCloser that will validate its checksum.
+// body with an io.ReadCloser that will validate the its checksum.
 func (m *validateOutputPayloadChecksum) HandleDeserialize(
 	ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler,
 ) (
@@ -66,7 +66,8 @@ func (m *validateOutputPayloadChecksum) HandleDeserialize(
 		return out, metadata, err
 	}
 
-	if mode := getContextOutputValidationMode(ctx); mode != checksumValidationModeEnabled {
+	// If there is no validation mode specified nothing is supported.
+	if mode := getContextOutputValidationMode(ctx); mode != "ENABLED" {
 		return out, metadata, err
 	}
 
@@ -88,6 +89,8 @@ func (m *validateOutputPayloadChecksum) HandleDeserialize(
 		expectedChecksum = value
 		algorithmToUse = algorithm
 	}
+
+	// TODO this must validate the validation mode is set to enabled.
 
 	logger := middleware.GetLogger(ctx)
 

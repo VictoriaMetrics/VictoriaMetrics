@@ -39,7 +39,7 @@ func (b *block) reset() {
 	b.constColumns = ccs[:0]
 }
 
-// uncompressedSizeBytes returns the total size of the origianl log entries stored in b.
+// uncompressedSizeBytes returns the total size of the original log entries stored in b.
 //
 // It is supposed that every log entry has the following format:
 //
@@ -280,7 +280,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) {
 			for k := range columnIdxs {
 				fieldNames = append(fieldNames, k)
 			}
-			logger.Warnf("ignoring %d rows in the block, becasue they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
+			logger.Warnf("ignoring %d rows in the block, because they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
 			break
 		}
 		for j := range fields {
@@ -473,7 +473,7 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 }
 
 // mustWriteTo writes b with the given sid to sw and updates bh accordingly.
-func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
+func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	b.assertValid()
 	bh.reset()
 
@@ -485,17 +485,18 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g
 	mustWriteTimestampsTo(&bh.timestampsHeader, b.timestamps, sw)
 
 	// Marshal columns
-	cs := b.columns
 
 	csh := getColumnsHeader()
 
+	cs := b.columns
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
 		cs[i].mustWriteTo(&chs[i], sw)
 	}
+
 	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
 
-	csh.mustWriteTo(bh, sw, g)
+	csh.mustWriteTo(bh, sw)
 
 	putColumnsHeader(csh)
 }
@@ -506,9 +507,18 @@ func (b *block) appendRowsTo(dst *rows) {
 	dst.timestamps = append(dst.timestamps, b.timestamps...)
 
 	// copy columns
-	fieldsBuf := dst.fieldsBuf
 	ccs := b.constColumns
 	cs := b.columns
+
+	// Pre-allocate dst.fieldsBuf for all the fields across rows.
+	fieldsCount := len(b.timestamps) * (len(ccs) + len(cs))
+	fieldsBuf := slicesutil.SetLength(dst.fieldsBuf, len(dst.fieldsBuf)+fieldsCount)
+	fieldsBuf = fieldsBuf[:len(fieldsBuf)-fieldsCount]
+
+	// Pre-allocate dst.rows
+	dst.rows = slicesutil.SetLength(dst.rows, len(dst.rows)+len(b.timestamps))
+	dstRows := dst.rows[len(dst.rows)-len(b.timestamps):]
+
 	for i := range b.timestamps {
 		fieldsLen := len(fieldsBuf)
 		// copy const columns
@@ -525,7 +535,7 @@ func (b *block) appendRowsTo(dst *rows) {
 				Value: value,
 			})
 		}
-		dst.rows = append(dst.rows, fieldsBuf[fieldsLen:])
+		dstRows[i] = fieldsBuf[fieldsLen:]
 	}
 	dst.fieldsBuf = fieldsBuf
 }

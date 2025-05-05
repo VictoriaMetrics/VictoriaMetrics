@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.yandexcloudSDCheckInterval", 30*time.Second, "Interval for checking for changes in Yandex Cloud API. "+
 	"This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#yandexcloud_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#yandexcloud_sd_configs for details")
 
 // SDConfig is the configuration for Yandex Cloud service discovery.
 type SDConfig struct {
@@ -25,7 +25,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns labels for Yandex Cloud according to service discover config.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

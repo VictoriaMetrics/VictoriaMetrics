@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/contextutil"
@@ -15,10 +14,10 @@ type pipeUnion struct {
 	q *Query
 
 	// runUnionQuery must be initialized by the caller via initUnionQuery before query execution
-	runUnionQuery func(ctx context.Context, q *Query, writeBlock func(workerID uint, br *blockResult)) error
+	runUnionQuery runUnionQueryFunc
 }
 
-func (pu *pipeUnion) initUnionQuery(runUnionQuery func(ctx context.Context, q *Query, writeblock func(workerID uint, br *blockResult)) error) pipe {
+func (pu *pipeUnion) initUnionQuery(runUnionQuery runUnionQueryFunc) pipe {
 	puNew := *pu
 	puNew.runUnionQuery = runUnionQuery
 	return &puNew
@@ -26,6 +25,10 @@ func (pu *pipeUnion) initUnionQuery(runUnionQuery func(ctx context.Context, q *Q
 
 func (pu *pipeUnion) String() string {
 	return fmt.Sprintf("union (%s)", pu.q.String())
+}
+
+func (pu *pipeUnion) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return nil, []pipe{pu}
 }
 
 func (pu *pipeUnion) canLiveTail() bool {
@@ -37,7 +40,7 @@ func (pu *pipeUnion) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUnion) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnion) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	// The values for in(..) filters at pu.q query are obtained independently at pu.flush().
 	return pu, nil
 }
@@ -85,20 +88,10 @@ func parsePipeUnion(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' before the union query")
-	}
-	lex.nextToken()
-
-	q, err := parseQuery(lex)
+	q, err := parseQueryInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside union(...): %w", err)
+		return nil, fmt.Errorf("cannot parse union(...): %w", err)
 	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after the union query")
-	}
-	lex.nextToken()
 
 	pu := &pipeUnion{
 		q: q,

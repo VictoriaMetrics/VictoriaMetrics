@@ -55,7 +55,10 @@ func (r *readerWithStats) MustClose() {
 
 // streamReaders contains readers for blockStreamReader
 type streamReaders struct {
+	partFormatVersion uint
+
 	columnNamesReader        readerWithStats
+	columnIdxsReader         readerWithStats
 	metaindexReader          readerWithStats
 	indexReader              readerWithStats
 	columnsHeaderIndexReader readerWithStats
@@ -65,6 +68,12 @@ type streamReaders struct {
 	messageBloomValuesReader bloomValuesReader
 	oldBloomValuesReader     bloomValuesReader
 	bloomValuesShards        []bloomValuesReader
+
+	// columnIdxs contains bloomValuesShards indexes for column names seen in the part
+	columnIdxs map[string]uint64
+
+	// columnNames contains id->columnName mapping for all the columns seen in the part
+	columnNames []string
 }
 
 type bloomValuesReader struct {
@@ -97,7 +106,10 @@ type bloomValuesStreamReader struct {
 }
 
 func (sr *streamReaders) reset() {
+	sr.partFormatVersion = 0
+
 	sr.columnNamesReader.reset()
+	sr.columnIdxsReader.reset()
 	sr.metaindexReader.reset()
 	sr.indexReader.reset()
 	sr.columnsHeaderIndexReader.reset()
@@ -110,12 +122,19 @@ func (sr *streamReaders) reset() {
 		sr.bloomValuesShards[i].reset()
 	}
 	sr.bloomValuesShards = sr.bloomValuesShards[:0]
+
+	sr.columnIdxs = nil
+	sr.columnNames = nil
 }
 
-func (sr *streamReaders) init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader filestream.ReadCloser,
+func (sr *streamReaders) init(partFormatVersion uint, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,
+	columnsHeaderIndexReader, columnsHeaderReader, timestampsReader filestream.ReadCloser,
 	messageBloomValuesReader, oldBloomValuesReader bloomValuesStreamReader, bloomValuesShards []bloomValuesStreamReader,
 ) {
+	sr.partFormatVersion = partFormatVersion
+
 	sr.columnNamesReader.init(columnNamesReader)
+	sr.columnIdxsReader.init(columnIdxsReader)
 	sr.metaindexReader.init(metaindexReader)
 	sr.indexReader.init(indexReader)
 	sr.columnsHeaderIndexReader.init(columnsHeaderIndexReader)
@@ -129,12 +148,20 @@ func (sr *streamReaders) init(columnNamesReader, metaindexReader, indexReader, c
 	for i := range sr.bloomValuesShards {
 		sr.bloomValuesShards[i].init(bloomValuesShards[i])
 	}
+
+	if partFormatVersion >= 1 {
+		sr.columnNames, _ = mustReadColumnNames(&sr.columnNamesReader)
+	}
+	if partFormatVersion >= 3 {
+		sr.columnIdxs = mustReadColumnIdxs(&sr.columnIdxsReader, sr.columnNames, uint64(len(bloomValuesShards)))
+	}
 }
 
 func (sr *streamReaders) totalBytesRead() uint64 {
 	n := uint64(0)
 
 	n += sr.columnNamesReader.bytesRead
+	n += sr.columnIdxsReader.bytesRead
 	n += sr.metaindexReader.bytesRead
 	n += sr.indexReader.bytesRead
 	n += sr.columnsHeaderIndexReader.bytesRead
@@ -152,6 +179,7 @@ func (sr *streamReaders) totalBytesRead() uint64 {
 
 func (sr *streamReaders) MustClose() {
 	sr.columnNamesReader.MustClose()
+	sr.columnIdxsReader.MustClose()
 	sr.metaindexReader.MustClose()
 	sr.indexReader.MustClose()
 	sr.columnsHeaderIndexReader.MustClose()
@@ -165,21 +193,28 @@ func (sr *streamReaders) MustClose() {
 	}
 }
 
-func (sr *streamReaders) getBloomValuesReaderForColumnName(name string, partFormatVersion uint) *bloomValuesReader {
+func (sr *streamReaders) getBloomValuesReaderForColumnName(name string) *bloomValuesReader {
 	if name == "" {
 		return &sr.messageBloomValuesReader
 	}
-	if partFormatVersion < 1 {
+	if sr.partFormatVersion < 1 {
 		return &sr.oldBloomValuesReader
 	}
-
-	n := len(sr.bloomValuesShards)
-	idx := uint64(0)
-	if n > 1 {
-		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
-		idx = h % uint64(n)
+	if sr.partFormatVersion < 3 {
+		n := len(sr.bloomValuesShards)
+		shardIdx := uint64(0)
+		if n > 1 {
+			h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
+			shardIdx = h % uint64(n)
+		}
+		return &sr.bloomValuesShards[shardIdx]
 	}
-	return &sr.bloomValuesShards[idx]
+
+	shardIdx, ok := sr.columnIdxs[name]
+	if !ok {
+		logger.Panicf("BUG: missing column index for %q; columnIdxs=%v", name, sr.columnIdxs)
+	}
+	return &sr.bloomValuesShards[shardIdx]
 }
 
 // blockStreamReader is used for reading blocks in streaming manner from a part.
@@ -195,12 +230,6 @@ type blockStreamReader struct {
 
 	// streamReaders contains data readers in stream mode
 	streamReaders streamReaders
-
-	// columnNameIDs contains columnName->id mapping for all the column names seen in the part
-	columnNameIDs map[string]uint64
-
-	// columnNames constains id->columnName mapping for all the columns seen in the part
-	columnNames []string
 
 	// indexBlockHeaders contains the list of all the indexBlockHeader entries for the part
 	indexBlockHeaders []indexBlockHeader
@@ -230,15 +259,12 @@ type blockStreamReader struct {
 	minTimestampLast int64
 }
 
-// reset resets bsr, so it can be re-used
+// reset resets bsr, so it can be reused
 func (bsr *blockStreamReader) reset() {
 	bsr.blockData.reset()
 	bsr.a.reset()
 	bsr.ph.reset()
 	bsr.streamReaders.reset()
-
-	bsr.columnNameIDs = nil
-	bsr.columnNames = nil
 
 	ihs := bsr.indexBlockHeaders
 	if len(ihs) > 10e3 {
@@ -280,6 +306,7 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 
 	// Initialize streamReaders
 	columnNamesReader := mp.columnNames.NewReader()
+	columnIdxsReader := mp.columnIdxs.NewReader()
 	metaindexReader := mp.metaindex.NewReader()
 	indexReader := mp.index.NewReader()
 	columnsHeaderIndexReader := mp.columnsHeaderIndex.NewReader()
@@ -292,11 +319,9 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 		mp.fieldBloomValues.NewStreamReader(),
 	}
 
-	bsr.streamReaders.init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
+	bsr.streamReaders.init(bsr.ph.FormatVersion, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,
+		columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
 		messageBloomValuesReader, oldBloomValuesReader, bloomValuesShards)
-
-	// Read columnNames data
-	bsr.columnNames, bsr.columnNameIDs = mustReadColumnNames(&bsr.streamReaders.columnNamesReader)
 
 	// Read metaindex data
 	bsr.indexBlockHeaders = mustReadIndexBlockHeaders(bsr.indexBlockHeaders[:0], &bsr.streamReaders.metaindexReader)
@@ -313,6 +338,7 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	bsr.ph.mustReadMetadata(path)
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
+	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
@@ -323,6 +349,10 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	var columnNamesReader filestream.ReadCloser
 	if bsr.ph.FormatVersion >= 1 {
 		columnNamesReader = filestream.MustOpen(columnNamesPath, nocache)
+	}
+	var columnIdxsReader filestream.ReadCloser
+	if bsr.ph.FormatVersion >= 3 {
+		columnIdxsReader = filestream.MustOpen(columnIdxsPath, nocache)
 	}
 	metaindexReader := filestream.MustOpen(metaindexPath, nocache)
 	indexReader := filestream.MustOpen(indexPath, nocache)
@@ -361,13 +391,9 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	}
 
 	// Initialize streamReaders
-	bsr.streamReaders.init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
+	bsr.streamReaders.init(bsr.ph.FormatVersion, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,
+		columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
 		messageBloomValuesReader, oldBloomValuesReader, bloomValuesShards)
-
-	if bsr.ph.FormatVersion >= 1 {
-		// Read columnNames data
-		bsr.columnNames, bsr.columnNameIDs = mustReadColumnNames(&bsr.streamReaders.columnNamesReader)
-	}
 
 	// Read metaindex data
 	bsr.indexBlockHeaders = mustReadIndexBlockHeaders(bsr.indexBlockHeaders[:0], &bsr.streamReaders.metaindexReader)
@@ -407,7 +433,7 @@ func (bsr *blockStreamReader) NextBlock() bool {
 
 	// Read bsr.blockData
 	bsr.a.reset()
-	bsr.blockData.mustReadFrom(&bsr.a, bh, &bsr.streamReaders, bsr.ph.FormatVersion, bsr.columnNames)
+	bsr.blockData.mustReadFrom(&bsr.a, bh, &bsr.streamReaders)
 
 	bsr.globalUncompressedSizeBytes += bh.uncompressedSizeBytes
 	bsr.globalRowsCount += bh.rowsCount
@@ -423,7 +449,7 @@ func (bsr *blockStreamReader) NextBlock() bool {
 		logger.Panicf("FATAL: %s: too many blocks read so far: %d; mustn't exceed partHeader.BlocksCount=%d", bsr.Path(), bsr.globalBlocksCount, bsr.ph.BlocksCount)
 	}
 
-	// The block has been sucessfully read
+	// The block has been successfully read
 	bsr.nextBlockIdx++
 	return true
 }

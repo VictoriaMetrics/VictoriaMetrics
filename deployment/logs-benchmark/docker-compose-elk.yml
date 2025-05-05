@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   filebeat-elastic:
@@ -18,7 +18,7 @@ services:
       - vlogs
 
   generator:
-    image: golang:1.23.5-alpine
+    image: golang:1.24.2-alpine
     restart: always
     working_dir: /go/src/app
     volumes:
@@ -33,7 +33,7 @@ services:
       - -syslog.addr=filebeat-elastic:12345
       - -syslog.addr2=filebeat-vlogs:12345
       - -logs.randomSuffix=false
-    depends_on: [ filebeat-elastic, filebeat-vlogs ]
+    depends_on: [filebeat-elastic, filebeat-vlogs]
 
   elastic:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
@@ -48,8 +48,8 @@ services:
     volumes:
       - ./elk/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
-      - '5601:5601'
-    depends_on: [ elastic ]
+      - "5601:5601"
+    depends_on: [elastic]
 
   beat-exporter-elastic:
     image: trustpilot/beat-exporter:0.4.0

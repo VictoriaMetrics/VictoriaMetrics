@@ -17,6 +17,8 @@ import (
 var (
 	storageDataPathRE           = regexp.MustCompile(`successfully opened storage "(.*)"`)
 	httpListenAddrRE            = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
+	graphiteListenAddrRE        = regexp.MustCompile(`started TCP Graphite server at "(.*:\d{1,5})"`)
+	openTSDBListenAddrRE        = regexp.MustCompile(`started TCP OpenTSDB collector at "(.*:\d{1,5})"`)
 	vminsertAddrRE              = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
 	vminsertClusterNativeAddrRE = regexp.MustCompile(`started TCP clusternative server at "(.*:\d{1,5})"`)
 	vmselectAddrRE              = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
@@ -237,8 +239,8 @@ func newREExtractor(re *regexp.Regexp, timeout <-chan time.Time) *reExtractor {
 }
 
 // extractRE is a line processor that extracts some information from a line
-// based on a regular expression. The function returns trun (to request the
-// caller to not to be called again) either when the match is found or due to
+// based on a regular expression. The function returns true to indicate that
+// it should not be called again, either when the match is found or due to
 // the timeout. The found match is written to the x.result channel and it is
 // important that this channel is monitored by a separate goroutine, otherwise
 // the function will block.

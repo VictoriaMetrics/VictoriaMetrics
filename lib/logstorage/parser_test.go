@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,13 +68,21 @@ func TestQuery_AddTimeFilter(t *testing.T) {
 
 	// or, plus non-query in(...)
 	f(`foo or bar:in(baz)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:in(baz))`)
+	f(`foo or bar:contains_any(baz)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:contains_any(baz))`)
+	f(`foo or bar:contains_all(baz)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:contains_all(baz))`)
 
 	// or, plus query in(...)
 	f(`foo or bar:in(baz | fields bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:in(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] baz | fields bar))`)
+	f(`foo or bar:contains_any(baz | fields bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:contains_any(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] baz | fields bar))`)
+	f(`foo or bar:contains_all(baz | fields bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:contains_all(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] baz | fields bar))`)
 
 	// ignore global time filter
 	f(`options(ignore_global_time_filter=true) foo or bar:in(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar)`)
 	f(`foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:in(options(ignore_global_time_filter=true) baz | fields bar))`)
+	f(`options(ignore_global_time_filter=true) foo or bar:contains_any(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar)`)
+	f(`foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:contains_any(options(ignore_global_time_filter=true) baz | fields bar))`)
+	f(`options(ignore_global_time_filter=true) foo or bar:contains_all(baz | fields bar)`, `options(ignore_global_time_filter=true) foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar)`)
+	f(`foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] (foo or bar:contains_all(options(ignore_global_time_filter=true) baz | fields bar))`)
 
 	// join pipe
 	f(`foo | join by (x) (bar)`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] foo | join by (x) (_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] bar)`)
@@ -87,10 +96,18 @@ func TestQuery_AddTimeFilter(t *testing.T) {
 	// stats pipe with if conditions
 	f(`* | count() if (x:in(y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | stats count(*) if (x:in(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] y | fields x) abc) as a, count(*) as b`)
 	f(`* | count() if (x:in(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | stats count(*) if (x:in(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_any(y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | stats count(*) if (x:contains_any(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_any(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | stats count(*) if (x:contains_any(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_all(y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | stats count(*) if (x:contains_all(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] y | fields x) abc) as a, count(*) as b`)
+	f(`* | count() if (x:contains_all(options(ignore_global_time_filter=true) y | keep x) abc) a, count() b`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | stats count(*) if (x:contains_all(options(ignore_global_time_filter=true) y | fields x) abc) as a, count(*) as b`)
 
 	// other pipes with if conditions
 	f(`* | format if (x:in(y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | format if (x:in(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] y | fields x)) foo`)
 	f(`* | format if (x:in(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | format if (x:in(options(ignore_global_time_filter=true) y | fields x)) foo`)
+	f(`* | format if (x:contains_any(y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | format if (x:contains_any(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] y | fields x)) foo`)
+	f(`* | format if (x:contains_any(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | format if (x:contains_any(options(ignore_global_time_filter=true) y | fields x)) foo`)
+	f(`* | format if (x:contains_all(y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | format if (x:contains_all(_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] y | fields x)) foo`)
+	f(`* | format if (x:contains_all(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z, 2025-01-13T12:45:34Z] * | format if (x:contains_all(options(ignore_global_time_filter=true) y | fields x)) foo`)
 }
 
 func TestParseQuery_OptimizeStreamFilters(t *testing.T) {
@@ -152,7 +169,7 @@ func TestParseDayRange(t *testing.T) {
 	}
 
 	f("[00:00, 24:00]", 0, nsecsPerDay-1, 0)
-	f("[10:20, 125:00]", 10*nsecsPerHour+20*nsecsPerMinute, nsecsPerDay-1, 0)
+	f("[10:20, 24:00]", 10*nsecsPerHour+20*nsecsPerMinute, nsecsPerDay-1, 0)
 	f("(00:00, 24:00)", 1, nsecsPerDay-2, 0)
 	f("[08:00, 18:00)", 8*nsecsPerHour, 18*nsecsPerHour-1, 0)
 	f("[08:00, 18:00) offset 2h", 8*nsecsPerHour, 18*nsecsPerHour-1, 2*nsecsPerHour)
@@ -209,7 +226,7 @@ func TestParseTimeDuration(t *testing.T) {
 			t.Fatalf("unexpected filter; got %T; want *filterTime; filter: %s", q.f, q.f)
 		}
 		if ft.stringRepr != s {
-			t.Fatalf("unexpected string represenation for filterTime; got %q; want %q", ft.stringRepr, s)
+			t.Fatalf("unexpected string representation for filterTime; got %q; want %q", ft.stringRepr, s)
 		}
 		duration := time.Duration(ft.maxTimestamp - ft.minTimestamp)
 		if duration != durationExpected {
@@ -237,7 +254,7 @@ func TestParseTimeRange(t *testing.T) {
 			t.Fatalf("unexpected filter; got %T; want *filterTime; filter: %s", q.f, q.f)
 		}
 		if ft.stringRepr != s {
-			t.Fatalf("unexpected string represenation for filterTime; got %q; want %q", ft.stringRepr, s)
+			t.Fatalf("unexpected string representation for filterTime; got %q; want %q", ft.stringRepr, s)
 		}
 		if ft.minTimestamp != minTimestampExpected {
 			t.Fatalf("unexpected minTimestamp; got %s; want %s", timestampToString(ft.minTimestamp), timestampToString(minTimestampExpected))
@@ -374,6 +391,11 @@ func TestParseTimeRange(t *testing.T) {
 	maxTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() - 1
 	f("2023-03-01T00:59:59+01:00", minTimestamp, maxTimestamp)
 
+	// _time:=YYYY-MM-DDTHH:MM:SS+hh:mm
+	minTimestamp = time.Date(2023, time.February, 28, 23, 59, 59, 0, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() - 1
+	f("=2023-03-01T00:59:59+01:00", minTimestamp, maxTimestamp)
+
 	// _time:(start, end)
 	minTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() + 1
 	maxTimestamp = time.Date(2023, time.April, 6, 0, 0, 0, 0, time.UTC).UnixNano() - 1
@@ -424,6 +446,25 @@ func TestParseTimeRange(t *testing.T) {
 	minTimestamp = 1562529662678901234
 	maxTimestamp = 1562529662678901235
 	f(`[1562529662678901234,1562529662678901235]`, minTimestamp, maxTimestamp)
+
+	// time range in half-open form
+	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano()
+	maxTimestamp = math.MaxInt64
+	f(`>=2023-03-01+02:20`, minTimestamp, maxTimestamp)
+
+	offset = int64(30*time.Minute + 5*time.Second)
+	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset + 1
+	maxTimestamp = math.MaxInt64 - offset
+	f(`>2023-03-01+02:20 offset 30m5s`, minTimestamp, maxTimestamp)
+
+	minTimestamp = math.MinInt64
+	maxTimestamp = time.Date(2023, time.March, 1, 21, 40, 0, 0, time.UTC).UnixNano() - 1
+	f(`<=2023-03-01+02:20`, minTimestamp, maxTimestamp)
+
+	offset = int64(30*time.Minute + 5*time.Second)
+	minTimestamp = math.MinInt64 - offset
+	maxTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset - 1
+	f(`<2023-03-01+02:20 offset 30m5s`, minTimestamp, maxTimestamp)
 }
 
 func TestParseFilterSequence(t *testing.T) {
@@ -465,8 +506,8 @@ func TestParseFilterIn(t *testing.T) {
 		if f.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", f.fieldName, fieldNameExpected)
 		}
-		if !reflect.DeepEqual(f.values, valuesExpected) {
-			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", f.values, valuesExpected)
+		if !reflect.DeepEqual(f.values.values, valuesExpected) {
+			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", f.values.values, valuesExpected)
 		}
 	}
 
@@ -479,6 +520,79 @@ func TestParseFilterIn(t *testing.T) {
 	// verify `in(query)` - it shouldn't set values
 	f(`in(x|fields foo)`, ``, nil)
 	f(`a:in(* | fields bar)`, `a`, nil)
+}
+
+func TestParseFilterInStar(t *testing.T) {
+	s := "in(*)"
+
+	q, err := ParseQuery(s)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	_, ok := q.f.(*filterNoop)
+	if !ok {
+		t.Fatalf("unexpected filter type; got %T; want *filterNoop; filter: %s", q.f, q.f)
+	}
+}
+
+func TestParseFilterContainsAll(t *testing.T) {
+	f := func(s, fieldNameExpected string, valuesExpected []string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		f, ok := q.f.(*filterContainsAll)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterContainsAll; filter: %s", q.f, q.f)
+		}
+		if f.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", f.fieldName, fieldNameExpected)
+		}
+		if !reflect.DeepEqual(f.values.values, valuesExpected) {
+			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", f.values.values, valuesExpected)
+		}
+	}
+
+	f(`contains_all()`, ``, nil)
+	f(`foo:contains_all(foo)`, `foo`, []string{"foo"})
+	f(`:contains_all("foo bar,baz")`, ``, []string{"foo bar,baz"})
+	f(`ip:contains_all(1.2.3.4, 5.6.7.8, 9.10.11.12)`, `ip`, []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"})
+	f(`foo-bar:contains_all(foo,bar-baz.aa"bb","c,)d")`, `foo-bar`, []string{"foo", `bar-baz.aa"bb"`, "c,)d"})
+
+	// verify `contains_all(query)` - it shouldn't set values
+	f(`contains_all(x|fields foo)`, ``, nil)
+	f(`a:contains_all(* | fields bar)`, `a`, nil)
+}
+
+func TestParseFilterContainsAny(t *testing.T) {
+	f := func(s, fieldNameExpected string, valuesExpected []string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		f, ok := q.f.(*filterContainsAny)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterContainsAny; filter: %s", q.f, q.f)
+		}
+		if f.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", f.fieldName, fieldNameExpected)
+		}
+		if !reflect.DeepEqual(f.values.values, valuesExpected) {
+			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", f.values.values, valuesExpected)
+		}
+	}
+
+	f(`contains_any()`, ``, nil)
+	f(`foo:contains_any(foo)`, `foo`, []string{"foo"})
+	f(`:contains_any("foo bar,baz")`, ``, []string{"foo bar,baz"})
+	f(`ip:contains_any(1.2.3.4, 5.6.7.8, 9.10.11.12)`, `ip`, []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"})
+	f(`foo-bar:contains_any(foo,bar-baz.aa"bb","c,)d")`, `foo-bar`, []string{"foo", `bar-baz.aa"bb"`, "c,)d"})
+
+	// verify `contains_any(query)` - it shouldn't set values
+	f(`contains_any(x|fields foo)`, ``, nil)
+	f(`a:contains_any(* | fields bar)`, `a`, nil)
 }
 
 func TestParseFilterIPv4Range(t *testing.T) {
@@ -583,7 +697,7 @@ func TestParseFilterRegexp(t *testing.T) {
 		}
 	}
 
-	f(`""`, ``)
+	f(`"."`, `.`)
 	f(`foo`, `foo`)
 	f(`"foo.+|bar.*"`, `foo.+|bar.*`)
 	f(`"foo(bar|baz),x[y]"`, `foo(bar|baz),x[y]`)
@@ -832,6 +946,7 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
 	f(`'stats' foo`, `"stats" foo`)
+	f(`'stats_remote' abc`, `"stats_remote" abc`)
 	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
@@ -868,6 +983,9 @@ func TestParseQuery_Success(t *testing.T) {
 		`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,0000007b000001c850d9950ea6196b1a4812081265faa1c7)`)
 	f(`_stream_id:in(_time:5m | fields _stream_id)`, `_stream_id:in(_time:5m | fields _stream_id)`)
 
+	// _stream_id filter with star
+	f(`_stream_id:in(*)`, `*`)
+
 	// _stream filters
 	f(`_stream:{}`, `{}`)
 	f(`_stream:{foo="bar", baz=~"x" OR or!="b", "x=},"="d}{"}`, `{foo="bar",baz=~"x" or "or"!="b","x=},"="d}{"}`)
@@ -889,8 +1007,14 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`_time:[2023-06-07T23:56:34.3456-02:30, now)`, `_time:[2023-06-07T23:56:34.3456-02:30,now)`)
 	f(`_time:("2024-01-02+02:00", now)`, `_time:(2024-01-02+02:00,now)`)
 	f(`_time:now`, `_time:now`)
-	f(`_time:"now"`, `_time:now`)
+	f(`_time:>now`, `_time:>now`)
+	f(`_time:>=now`, `_time:>=now`)
+	f(`_time:<=now`, `_time:<=now`)
+	f(`_time:<now`, `_time:<now`)
+	f(`_time:2024`, `_time:2024`)
 	f(`_time:2024Z`, `_time:2024Z`)
+	f(`_time:"2024Z"`, `_time:2024Z`)
+	f(`_time:=2024Z`, `_time:=2024Z`)
 	f(`_time:2024-02:30`, `_time:2024-02:30`)
 	f(`_time:2024-01-02:30`, `_time:2024-01-02:30`)
 	f(`_time:2024-01-02:30`, `_time:2024-01-02:30`)
@@ -903,14 +1027,25 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`_time:2023-01-02T04:05:06.789Z`, `_time:2023-01-02T04:05:06.789Z`)
 	f(`_time:2023-01-02T04:05:06.789-02:30`, `_time:2023-01-02T04:05:06.789-02:30`)
 	f(`_time:2023-01-02T04:05:06.789+02:30`, `_time:2023-01-02T04:05:06.789+02:30`)
+	f(`_time:=2023-01-02T04:05:06.789+02:30`, `_time:=2023-01-02T04:05:06.789+02:30`)
+	f(`_time:<2023-01-02T04:05:06.789+02:30`, `_time:<2023-01-02T04:05:06.789+02:30`)
+	f(`_time:>2023-01-02T04:05:06.789+02:30`, `_time:>2023-01-02T04:05:06.789+02:30`)
+	f(`_time:<=2023-01-02T04:05:06.789+02:30`, `_time:<=2023-01-02T04:05:06.789+02:30`)
+	f(`_time:>=2023-01-02T04:05:06.789+02:30`, `_time:>=2023-01-02T04:05:06.789+02:30`)
 	f(`_time:[1234567890, 1400000000]`, `_time:[1234567890,1400000000]`)
 	f(`_time:2d3h5.5m3s45ms`, `_time:2d3h5.5m3s45ms`)
+	f(`_time:=2d`, `_time:=2d`)
+	f(`_time:<2d`, `_time:<2d`)
+	f(`_time:<=2d`, `_time:<=2d`)
+	f(`_time:>=2d`, `_time:>=2d`)
+	f(`_time:>2d`, `_time:>2d`)
 	f(`_time:2023-01-05 OFFSET 5m`, `_time:2023-01-05 offset 5m`)
 	f(`_time:[2023-01-05, 2023-01-06] OFFset 5m`, `_time:[2023-01-05,2023-01-06] offset 5m`)
 	f(`_time:[2023-01-05, 2023-01-06) OFFset 5m`, `_time:[2023-01-05,2023-01-06) offset 5m`)
 	f(`_time:(2023-01-05, 2023-01-06] OFFset 5m`, `_time:(2023-01-05,2023-01-06] offset 5m`)
 	f(`_time:(2023-01-05, 2023-01-06) OFFset 5m`, `_time:(2023-01-05,2023-01-06) offset 5m`)
 	f(`_time:1h offset 5.3m`, `_time:1h offset 5.3m`)
+	f(`_time:=1h offset 5.3m`, `_time:=1h offset 5.3m`)
 	f(`_time:offset 1d`, `_time:offset 1d`)
 	f(`_time:offset -1.5d`, `_time:offset -1.5d`)
 	f(`_time:1h "offSet"`, `_time:1h "offSet"`) // "offset" is a search word, since it is quoted
@@ -945,6 +1080,15 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`''`, `""`)
 
 	// reserved functions
+	f("eq_field", `"eq_field"`)
+	f("eq_field:a", `"eq_field":a`)
+	f("a:eq_field", `a:"eq_field"`)
+	f("le_field", `"le_field"`)
+	f("le_field:a", `"le_field":a`)
+	f("a:le_field", `a:"le_field"`)
+	f("lt_field", `"lt_field"`)
+	f("lt_field:a", `"lt_field":a`)
+	f("a:lt_field", `a:"lt_field"`)
 	f("exact", `"exact"`)
 	f("exact:a", `"exact":a`)
 	f("exact-foo", `"exact-foo"`)
@@ -997,6 +1141,30 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`"options" foo`, `"options" foo`)
 	f("`options(x)`", `"options(x)"`)
 
+	// eq_field filter
+	f("eq_field(foo)", "eq_field(foo)")
+	f(`"a":eq_field('b')`, "a:eq_field(b)")
+	f("-eq_field(a)", `!eq_field(a)`)
+	f(`-a:eq_field(b)`, `!a:eq_field(b)`)
+	f(`a:!eq_field(b)`, `!a:eq_field(b)`)
+	f(`a:-eq_field(b)`, `!a:eq_field(b)`)
+
+	// le_field filter
+	f("le_field(foo)", "le_field(foo)")
+	f(`"a":le_field('b')`, "a:le_field(b)")
+	f("-le_field(a)", `!le_field(a)`)
+	f(`-a:le_field(b)`, `!a:le_field(b)`)
+	f(`a:!le_field(b)`, `!a:le_field(b)`)
+	f(`a:-le_field(b)`, `!a:le_field(b)`)
+
+	// lt_field filter
+	f("lt_field(foo)", "lt_field(foo)")
+	f(`"a":lt_field('b')`, "a:lt_field(b)")
+	f("-lt_field(a)", `!lt_field(a)`)
+	f(`-a:lt_field(b)`, `!a:lt_field(b)`)
+	f(`a:!lt_field(b)`, `!a:lt_field(b)`)
+	f(`a:-lt_field(b)`, `!a:lt_field(b)`)
+
 	// exact filter
 	f("exact(foo)", `=foo`)
 	f("exact(foo*)", `=foo*`)
@@ -1025,12 +1193,52 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`in("foo bar", baz)`, `in("foo bar",baz)`)
 	f(`foo:in(foo-bar/baz)`, `foo:in("foo-bar/baz")`)
 
+	// in filter with star
+	f(`in(*)`, `*`)
+	f(`foo:in(*)`, `*`)
+
 	// in filter with query
 	f(`in(err|fields x)`, `in(err | fields x)`)
 	f(`ip:in(foo and user:in(admin, moderator)|fields ip)`, `ip:in(foo user:in(admin,moderator) | fields ip)`)
 	f(`x:in(_time:5m y:in(*|fields z) | stats by (q) count() rows|fields q)`, `x:in(_time:5m y:in(* | fields z) | stats by (q) count(*) as rows | fields q)`)
 	f(`in(bar:in(1,2,3) | uniq (x)) | stats count() rows`, `in(bar:in(1,2,3) | uniq by (x)) | stats count(*) as rows`)
 	f(`in((1) | fields z) | stats count() rows`, `in(1 | fields z) | stats count(*) as rows`)
+
+	// contains_any filter with values
+	f(`contains_any()`, `contains_any()`)
+	f(`contains_any(foo)`, `contains_any(foo)`)
+	f(`contains_any(foo, bar)`, `contains_any(foo,bar)`)
+	f(`contains_any("foo bar", baz)`, `contains_any("foo bar",baz)`)
+	f(`foo:contains_any(foo-bar/baz)`, `foo:contains_any("foo-bar/baz")`)
+
+	// contains_any filter with star
+	f(`contains_any(*)`, `*`)
+	f(`foo:contains_any(*)`, `*`)
+
+	// contains_any filter with query
+	f(`contains_any(err|fields x)`, `contains_any(err | fields x)`)
+	f(`ip:contains_any(foo and user:contains_any(admin, moderator)|fields ip)`, `ip:contains_any(foo user:contains_any(admin,moderator) | fields ip)`)
+	f(`x:contains_any(_time:5m y:contains_any(*|fields z) | stats by (q) count() rows|fields q)`, `x:contains_any(_time:5m y:contains_any(* | fields z) | stats by (q) count(*) as rows | fields q)`)
+	f(`contains_any(bar:contains_any(1,2,3) | uniq (x)) | stats count() rows`, `contains_any(bar:contains_any(1,2,3) | uniq by (x)) | stats count(*) as rows`)
+	f(`contains_any((1) | fields z) | stats count() rows`, `contains_any(1 | fields z) | stats count(*) as rows`)
+
+	// contains_all filter with values
+	f(`contains_all()`, `contains_all()`)
+	f(`contains_all(foo)`, `contains_all(foo)`)
+	f(`contains_all(foo, bar)`, `contains_all(foo,bar)`)
+	f(`contains_all("foo bar", baz)`, `contains_all("foo bar",baz)`)
+	f(`foo:contains_all(foo-bar/baz)`, `foo:contains_all("foo-bar/baz")`)
+
+	// contains_all filter with star
+	f(`contains_all(*)`, `*`)
+	f(`foo:contains_all(*)`, `*`)
+
+	// contains_all filter with query
+	f(`contains_all(err|fields x)`, `contains_all(err | fields x)`)
+	f(`ip:contains_all(foo and user:contains_all(admin, moderator)|fields ip)`, `ip:contains_all(foo user:contains_all(admin,moderator) | fields ip)`)
+	f(`x:contains_all(_time:5m y:contains_all(*|fields z) | stats by (q) count() rows|fields q)`, `x:contains_all(_time:5m y:contains_all(* | fields z) | stats by (q) count(*) as rows | fields q)`)
+	f(`contains_all(bar:contains_all(1,2,3) | uniq (x)) | stats count() rows`, `contains_all(bar:contains_all(1,2,3) | uniq by (x)) | stats count(*) as rows`)
+	f(`contains_all((1) | fields z) | stats count() rows`, `contains_all(1 | fields z) | stats count(*) as rows`)
 
 	// ipv4_range filter
 	f(`ipv4_range(1.2.3.4, "5.6.7.8")`, `ipv4_range(1.2.3.4, 5.6.7.8)`)
@@ -1080,7 +1288,13 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`foo:re(foo-bar/baz.)`, `foo:~"foo-bar/baz."`)
 	f(`~foo.bar.baz !~bar`, `~foo.bar.baz !~bar`)
 	f(`foo:~~foo~ba/ba>z`, `foo:~"~foo~ba/ba>z"`)
-	f(`foo:~'.*'`, `foo:~".*"`)
+	f(`foo:~'.*'`, `*`)
+	f(`foo:~'.+'`, `foo:*`)
+	f(`~".*"`, `*`)
+	f(`~".+"`, `*`)
+	f(`foo bar:~".*"`, `foo`)
+	f(`foo bar:~""`, `foo`)
+	f(`foo bar:~".+"`, `foo bar:*`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
@@ -1214,10 +1428,14 @@ func TestParseQuery_Success(t *testing.T) {
 	// multiple offset pipes
 	f(`foo | offset 10 | offset 100`, `foo | offset 10 | offset 100`)
 
+	// sample pipe
+	f(`* | sample 10`, `* | sample 10`)
+
 	// stats pipe count
 	f(`* | STATS bY (foo, b.a/r, "b az",) count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d',) as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 	f(`* | stats count() x`, `* | stats count(*) as x`)
+	f(`* | stats_remote count() x`, `* | stats_remote count(*) as x`)
 	f(`* | stats count(*) x`, `* | stats count(*) as x`)
 	f(`* | stats count(foo,*,bar) x`, `* | stats count(*) as x`)
 	f(`* | stats count('') foo`, `* | stats count(_msg) as foo`)
@@ -1304,6 +1522,11 @@ func TestParseQuery_Success(t *testing.T) {
 	// stats pipe histogram
 	f(`* | stats histogram(foo) bar`, `* | stats histogram(foo) as bar`)
 	f(`* | histogram(foo)`, `* | stats histogram(foo) as "histogram(foo)"`)
+
+	// stats pipe json_values
+	f(`* | json_values(*) x`, `* | stats json_values(*) as x`)
+	f(`* | json_values(a, *, b) limit 5 y`, `* | stats json_values(*) limit 5 as y`)
+	f(`* | json_values(a, b) limit 5 x`, `* | stats json_values(a, b) limit 5 as x`)
 
 	// stats pipe quantile
 	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
@@ -1437,6 +1660,16 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`* | join on (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 	f(`* | join (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 
+	// json_array_len pipe
+	f(`* | json_array_len x`, `* | json_array_len(x)`)
+	f(`* | json_array_len x y`, `* | json_array_len(x) as y`)
+	f(`* | json_array_len (x) as y`, `* | json_array_len(x) as y`)
+
+	// unpack_words pipe
+	f(`* | unpack_words`, `* | unpack_words`)
+	f(`* | unpack_words x`, `* | unpack_words from x`)
+	f(`* | unpack_words x y`, `* | unpack_words from x as y`)
+
 	// hash pipe
 	f(`* | hash(x)`, `* | hash(x)`)
 	f(`* | hash(x) y`, `* | hash(x) as y`)
@@ -1465,11 +1698,19 @@ func TestParseQuery_Success(t *testing.T) {
 	// nested options
 	f(`options (concurrency=2) foo bar:in(a:b | uniq(bar)) | union (abc) | join on (x) (y)`, `options(concurrency=2) foo bar:in(options(concurrency=2) a:b | uniq by (bar)) | union (options(concurrency=2) abc) | join by (x) (options(concurrency=2) y)`)
 	f(`options (concurrency=2) foo bar:in(options (concurrency=10, ignore_global_time_filter=true) a:b | uniq(bar)) | union (abc) | join on(x) (y)`, `options(concurrency=2) foo bar:in(options(concurrency=10, ignore_global_time_filter=true) a:b | uniq by (bar)) | union (options(concurrency=2) abc) | join by (x) (options(concurrency=2) y)`)
+	f(`options (concurrency=2) foo bar:contains_any(a:b | uniq(bar)) | union (abc) | join on (x) (y)`, `options(concurrency=2) foo bar:contains_any(options(concurrency=2) a:b | uniq by (bar)) | union (options(concurrency=2) abc) | join by (x) (options(concurrency=2) y)`)
+	f(`options (concurrency=2) foo bar:contains_any(options (concurrency=10, ignore_global_time_filter=true) a:b | uniq(bar)) | union (abc) | join on(x) (y)`, `options(concurrency=2) foo bar:contains_any(options(concurrency=10, ignore_global_time_filter=true) a:b | uniq by (bar)) | union (options(concurrency=2) abc) | join by (x) (options(concurrency=2) y)`)
+	f(`options (concurrency=2) foo bar:contains_all(a:b | uniq(bar)) | union (abc) | join on (x) (y)`, `options(concurrency=2) foo bar:contains_all(options(concurrency=2) a:b | uniq by (bar)) | union (options(concurrency=2) abc) | join by (x) (options(concurrency=2) y)`)
+	f(`options (concurrency=2) foo bar:contains_all(options (concurrency=10, ignore_global_time_filter=true) a:b | uniq(bar)) | union (abc) | join on(x) (y)`, `options(concurrency=2) foo bar:contains_all(options(concurrency=10, ignore_global_time_filter=true) a:b | uniq by (bar)) | union (options(concurrency=2) abc) | join by (x) (options(concurrency=2) y)`)
 
 	// verify that the query optimizations are applied to subqueries
 	f(`foo x:in(bar | filter baz | sort (a) | offset 10 | limit 20 | keep x)`, `foo x:in(bar baz | sort by (a) offset 10 limit 20 | fields x)`)
+	f(`foo x:contains_any(bar | filter baz | sort (a) | offset 10 | limit 20 | keep x)`, `foo x:contains_any(bar baz | sort by (a) offset 10 limit 20 | fields x)`)
+	f(`foo x:contains_all(bar | filter baz | sort (a) | offset 10 | limit 20 | keep x)`, `foo x:contains_all(bar baz | sort by (a) offset 10 limit 20 | fields x)`)
 	f(`foo | union (bar | uniq(x) | limit 10)`, `foo | union (bar | uniq by (x) limit 10)`)
 	f(`* | join (x) ({foo=bar} {baz=x}) | count() if (a:in((a b) c (d e) | keep a)) z`, `* | join by (x) ({foo="bar",baz="x"}) | stats count(*) if (a:in(a b c d e | fields a)) as z`)
+	f(`* | join (x) ({foo=bar} {baz=x}) | count() if (a:contains_any((a b) c (d e) | keep a)) z`, `* | join by (x) ({foo="bar",baz="x"}) | stats count(*) if (a:contains_any(a b c d e | fields a)) as z`)
+	f(`* | join (x) ({foo=bar} {baz=x}) | count() if (a:contains_all((a b) c (d e) | keep a)) z`, `* | join by (x) ({foo="bar",baz="x"}) | stats count(*) if (a:contains_all(a b c d e | fields a)) as z`)
 }
 
 func TestParseQuery_Failure(t *testing.T) {
@@ -1617,6 +1858,27 @@ func TestParseQuery_Failure(t *testing.T) {
 	// unknown function
 	f(`unknown_function(foo)`)
 
+	// invalid eq_field
+	f(`eq_field(`)
+	f(`eq_field(foo bar)`)
+	f(`eq_field(foo, bar)`)
+	f(`eq_field(foo`)
+	f(`eq_field(foo,`)
+
+	// invalid le_field
+	f(`le_field(`)
+	f(`le_field(foo bar)`)
+	f(`le_field(foo, bar)`)
+	f(`le_field(foo`)
+	f(`le_field(foo,`)
+
+	// invalid lt_field
+	f(`lt_field(`)
+	f(`lt_field(foo bar)`)
+	f(`lt_field(foo, bar)`)
+	f(`lt_field(foo`)
+	f(`lt_field(foo,`)
+
 	// invalid exact
 	f(`exact(`)
 	f(`exact(f, b)`)
@@ -1651,6 +1913,38 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`in(|foo`)
 	f(`in(x | limit 10)`)
 	f(`in(x | fields a,b)`)
+
+	// invalid contains_any
+	f(`contains_any(`)
+	f(`contains_any(,)`)
+	f(`contains_any(f, b c)`)
+	f(`contains_any(foo`)
+	f(`contains_any(foo,`)
+	f(`contains_any(foo*)`)
+	f(`contains_any(foo, "bar baz"*)`)
+	f(`contains_any(foo, "bar baz"*, abc)`)
+	f(`contains_any(foo bar)`)
+	f(`contains_any(foo, bar`)
+	f(`contains_any(foo|bar)`)
+	f(`contains_any(|foo`)
+	f(`contains_any(x | limit 10)`)
+	f(`contains_any(x | fields a,b)`)
+
+	// invalid contains_all
+	f(`contains_all(`)
+	f(`contains_all(,)`)
+	f(`contains_all(f, b c)`)
+	f(`contains_all(foo`)
+	f(`contains_all(foo,`)
+	f(`contains_all(foo*)`)
+	f(`contains_all(foo, "bar baz"*)`)
+	f(`contains_all(foo, "bar baz"*, abc)`)
+	f(`contains_all(foo bar)`)
+	f(`contains_all(foo, bar`)
+	f(`contains_all(foo|bar)`)
+	f(`contains_all(|foo`)
+	f(`contains_all(x | limit 10)`)
+	f(`contains_all(x | fields a,b)`)
 
 	// invalid ipv4_range
 	f(`ipv4_range(`)
@@ -1727,7 +2021,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	// missing pipe keyword
 	f(`foo |`)
 
-	// invlaid pipe
+	// invalid pipe
 	f(`foo | bar(`)
 	f(`foo | fields bar | baz(`)
 
@@ -1806,6 +2100,12 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | offset bar`)
 	f(`foo | offset -10`)
 
+	// invalid sample pipe
+	f(`foo | sample`)
+	f(`foo | sample bar`)
+	f(`foo | sample 0`)
+	f(`foo | sample -1`)
+
 	// missing stats
 	f(`foo | stats`)
 
@@ -1870,6 +2170,9 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | stats histogram(a, b)`)
 	f(`foo | stats histogram(*)`)
 
+	// invalid stats json_values
+	f(`foo | stats json_values`)
+
 	// invalid stats quantile
 	f(`foo | stats quantile`)
 	f(`foo | stats quantile() foo`)
@@ -1920,7 +2223,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | sort by(bar) offset 10 offset 20`)
 
 	// invalid uniq pipe
-	f(`foo | uniq bar`)
+	f(`foo | uniq bar,`)
 	f(`foo | uniq limit`)
 	f(`foo | uniq by(`)
 	f(`foo | uniq by(a`)
@@ -1963,14 +2266,14 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | union (bar | count)`)
 
 	// invalid unpack_json pipe
-	f(`foo | unpack_json bar`)
+	f(`foo | unpack_json bar,`)
 	f(`foo | unpack_json from`)
 	f(`foo | unpack_json result_prefix`)
 	f(`foo | unpack_json result_prefix x from y`)
 	f(`foo | unpack_json from x result_prefix`)
 
 	// invalid unpack_logfmt pipe
-	f(`foo | unpack_logfmt bar`)
+	f(`foo | unpack_logfmt bar,`)
 	f(`foo | unpack_logfmt from`)
 	f(`foo | unpack_logfmt result_prefix`)
 	f(`foo | unpack_logfmt result_prefix x from y`)
@@ -1998,7 +2301,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 			t.Fatalf("cannot parse query [%s]: %s", s, err)
 		}
 
-		needed, unneeded := q.getNeededColumns()
+		needed, unneeded := getNeededColumns(q.pipes)
 		neededColumns := strings.Join(needed, ",")
 		unneededColumns := strings.Join(unneeded, ",")
 
@@ -2124,6 +2427,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats max(*) q`, `*`, ``)
 	f(`* | stats max(x) q`, `x`, ``)
 	f(`* | stats histogram(foo)`, `foo`, ``)
+	f(`* | stats json_values(foo)`, `foo`, ``)
 	f(`* | stats quantile(0.5) q`, `*`, ``)
 	f(`* | stats quantile(0.5, *) q`, `*`, ``)
 	f(`* | stats quantile(0.5, x) q`, `x`, ``)
@@ -2301,6 +2605,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | collapse_nums | count() r1`, ``, ``)
 	f(`* | copy a b, c d | count() r1`, ``, ``)
 	f(`* | delete a, b | count() r1`, ``, ``)
+	f(`* | drop_empty_fields | count() r1`, ``, ``)
 	f(`* | extract "<f1>bar" from x | count() r1`, ``, ``)
 	f(`* | extract if (q:w p:a) "<f1>bar" from x | count() r1`, `p,q`, ``)
 	f(`* | extract_regexp "(?P<f1>.*)bar" from x | count() r1`, ``, ``)
@@ -2341,9 +2646,13 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_logfmt from x fields (a,b) | count() r1`, ``, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x | count() r1`, `p,q`, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x fields(a,b) | count() r1`, `p,q`, ``)
+	f(`* | unpack_words a | count() r1`, ``, ``)
+	f(`* | unpack_words a b | count() r1`, ``, ``)
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 	f(`* | join on (a, b) (xxx) | count() r1`, `a,b`, ``)
+	f(`* | json_array_len (x) | count() r1`, ``, ``)
+	f(`* | json_array_len (x) y | count() r1`, ``, ``)
 	f(`* | len(a) as b | count() r1`, ``, ``)
 	f(`* | hash(a) as b | count() r1`, ``, ``)
 }
@@ -2367,7 +2676,8 @@ func TestQueryClone(t *testing.T) {
 	f("*")
 	f("error")
 	f("_time:5m error | fields foo, bar")
-	f("ip:in(foo | fields user_ip) bar | stats by (x:1h, y) count(*) if (user_id:in(q:w | fields abc)) as ccc")
+	f("ip:in(foo | fields user_ip) bar | stats by (x:1h, y) count(*) if (user_id:contains_any(q:w | fields abc)) as ccc")
+	f("ip:in(foo | fields user_ip) bar | stats by (x:1h, y) count(*) if (user_id:contains_all(q:w | fields abc)) as ccc")
 }
 
 func TestQueryGetFilterTimeRange(t *testing.T) {
@@ -2406,7 +2716,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 
 	f("*", true)
 	f("error", true)
-	f("error | fields foo | filter foo:bar", true)
+	f("error | fields foo, _time | filter foo:bar", true)
 	f("error | extract '<foo>bar<baz>'", true)
 	f("* | rm x", true)
 	f("* | stats count() rows", false)
@@ -2425,8 +2735,22 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_values x", false)
 	f("* | top 5 by (x)", false)
 	f("* | join by (x) (foo)", false)
+	f("* | json_array_len (x)", true)
+	f("* | unpack_fields x", true)
+	f("* | unpack_json x", true)
+	f("* | unpack_logfmt x", true)
+	f("* | unpack_syslog x", true)
 	f("* | hash(a)", true)
+	f("* | sample 10", false)
 
+	// There is no _time field
+	f("* | fields foo, bar", false)
+	f("* | delete _time", false)
+
+	// There is _time field
+	f("* | fields foo, _time", true)
+	f("* | fields *", true)
+	f("* | delete a, b", true)
 }
 
 func TestQueryCanLiveTail(t *testing.T) {
@@ -2478,9 +2802,12 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_json", true)
 	f("* | unpack_logfmt", true)
 	f("* | unpack_syslog", true)
+	f("* | unpack_words a", true)
 	f("* | unroll by (a)", true)
 	f("* | join by (a) (b)", true)
+	f("* | json_array_len (a)", true)
 	f("* | hash(a)", true)
+	f("* | sample 10", true)
 }
 
 func TestQueryDropAllPipes(t *testing.T) {
@@ -2686,8 +3013,10 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_json`)
 	f(`foo | count() | unpack_logfmt`)
 	f(`foo | count() | unpack_syslog`)
+	f(`foo | count() | unpack_words x`)
 	f(`foo | count() | unroll by (x)`)
 	f(`foo | count() | join by (x) (y)`)
+	f(`foo | count() | json_array_len(a)`)
 	f(`foo | count() | len(a)`)
 	f(`foo | count() | hash(a)`)
 
@@ -2735,14 +3064,14 @@ func TestQueryHasGlobalTimeFilter(t *testing.T) {
 	}
 
 	f(`* | count()`, false)
-	f(`error OR _time:5m  | count()`, false)
-	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, false)
+	f(`error OR _time:5m | count()`, false)
+	f(`(_time:5m AND error) OR (_time:5m AND warn) | count()`, false)
 	f(`* | error OR _time:5m | count()`, false)
 
 	f(`_time:5m | count()`, true)
 	f(`_time:2023-04-25T22:45:59Z | count()`, true)
 	f(`error AND _time:5m | count()`, true)
-	f(`error AND (_time: 5m AND warn) | count()`, true)
+	f(`error AND (_time:5m AND warn) | count()`, true)
 	f(`* | error AND _time:5m | count()`, true)
 }
 
@@ -2786,4 +3115,29 @@ func TestQuery_AddExtraFilters(t *testing.T) {
 	f(`foo x:in(bar | keep x)`, `tenant:=123`, `tenant:=123 foo x:in(tenant:=123 bar | fields x)`)
 	f(`foo x:in(bar | union (baz) | keep x) | count() if (a:in(b | keep a)) z`, `tenant:=123`, `tenant:=123 foo x:in(tenant:=123 bar | union (tenant:=123 baz) | fields x) | stats count(*) if (a:in(tenant:=123 b | fields a)) as z`)
 	f(`foo x:in(bar | union (baz) | keep x) | count() if (a:in(b | keep a)) z`, `{tenant=123}`, `{tenant="123"} foo x:in({tenant="123"} bar | union ({tenant="123"} baz) | fields x) | stats count(*) if (a:in({tenant="123"} b | fields a)) as z`)
+	f(`foo x:contains_any(bar | keep x)`, `tenant:=123`, `tenant:=123 foo x:contains_any(tenant:=123 bar | fields x)`)
+	f(`foo x:contains_any(bar | union (baz) | keep x) | count() if (a:contains_any(b | keep a)) z`, `tenant:=123`, `tenant:=123 foo x:contains_any(tenant:=123 bar | union (tenant:=123 baz) | fields x) | stats count(*) if (a:contains_any(tenant:=123 b | fields a)) as z`)
+	f(`foo x:contains_any(bar | union (baz) | keep x) | count() if (a:contains_any(b | keep a)) z`, `{tenant=123}`, `{tenant="123"} foo x:contains_any({tenant="123"} bar | union ({tenant="123"} baz) | fields x) | stats count(*) if (a:contains_any({tenant="123"} b | fields a)) as z`)
+	f(`foo x:contains_all(bar | keep x)`, `tenant:=123`, `tenant:=123 foo x:contains_all(tenant:=123 bar | fields x)`)
+	f(`foo x:contains_all(bar | union (baz) | keep x) | count() if (a:contains_all(b | keep a)) z`, `tenant:=123`, `tenant:=123 foo x:contains_all(tenant:=123 bar | union (tenant:=123 baz) | fields x) | stats count(*) if (a:contains_all(tenant:=123 b | fields a)) as z`)
+	f(`foo x:contains_all(bar | union (baz) | keep x) | count() if (a:contains_all(b | keep a)) z`, `{tenant=123}`, `{tenant="123"} foo x:contains_all({tenant="123"} bar | union ({tenant="123"} baz) | fields x) | stats count(*) if (a:contains_all({tenant="123"} b | fields a)) as z`)
+}
+
+func TestToFieldsFilters(t *testing.T) {
+	f := func(neededFields, unneededFields []string, resultExpected string) {
+		t.Helper()
+
+		result := toFieldsFilters(neededFields, unneededFields)
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(nil, nil, " | fields "+nonExistingFieldName)
+	f(nil, []string{"foo"}, " | fields "+nonExistingFieldName)
+	f([]string{"foo"}, nil, " | fields foo")
+	f([]string{"foo", "b,a| \n\"r"}, nil, ` | fields foo, "b,a| \n\"r"`)
+	f([]string{"*"}, nil, ``)
+	f([]string{"*"}, []string{"foo"}, ` | delete foo`)
+	f([]string{"*"}, []string{"foo", "b,a| \n\"r"}, ` | delete foo, "b,a| \n\"r"`)
 }

@@ -9,11 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -50,54 +52,18 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors        *utils.Counter
-	pending       *utils.Gauge
-	active        *utils.Gauge
-	samples       *utils.Gauge
-	seriesFetched *utils.Gauge
+	errors        *vmalertutil.Counter
+	pending       *vmalertutil.Gauge
+	active        *vmalertutil.Gauge
+	samples       *vmalertutil.Gauge
+	seriesFetched *vmalertutil.Gauge
 }
 
-// NewAlertingRule creates a new AlertingRule
-func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
-	ar := &AlertingRule{
-		Type:          group.Type,
-		RuleID:        cfg.ID,
-		Name:          cfg.Alert,
-		Expr:          cfg.Expr,
-		For:           cfg.For.Duration(),
-		KeepFiringFor: cfg.KeepFiringFor.Duration(),
-		Labels:        cfg.Labels,
-		Annotations:   cfg.Annotations,
-		GroupID:       group.ID(),
-		GroupName:     group.Name,
-		File:          group.File,
-		EvalInterval:  group.Interval,
-		Debug:         cfg.Debug,
-		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:            group.Type.String(),
-			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
-			EvaluationInterval:        group.Interval,
-			QueryParams:               group.Params,
-			Headers:                   group.Headers,
-			Debug:                     cfg.Debug,
-		}),
-		alerts:  make(map[uint64]*notifier.Alert),
-		metrics: &alertingRuleMetrics{},
-	}
+func newAlertingRuleMetrics(set *metrics.Set, ar *AlertingRule) *alertingRuleMetrics {
+	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, ar.GroupName, ar.File, ar.ID())
+	arm := &alertingRuleMetrics{}
 
-	entrySize := *ruleUpdateEntriesLimit
-	if cfg.UpdateEntriesLimit != nil {
-		entrySize = *cfg.UpdateEntriesLimit
-	}
-	if entrySize < 1 {
-		entrySize = 1
-	}
-	ar.state = &ruleState{
-		entries: make([]StateEntry, entrySize),
-	}
-
-	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, group.Name, group.File, ar.ID())
-	ar.metrics.pending = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
+	arm.pending = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
 			defer ar.alertsMu.RUnlock()
@@ -109,7 +75,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.active = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
+	arm.active = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
 			defer ar.alertsMu.RUnlock()
@@ -121,13 +87,13 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
-	ar.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
+	arm.errors = vmalertutil.NewCounter(set, fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
+	arm.samples = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
 			return float64(e.Samples)
 		})
-	ar.metrics.seriesFetched = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
+	arm.seriesFetched = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
 			if e.SeriesFetched == nil {
@@ -142,16 +108,71 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return seriesFetched
 		})
+	return arm
+}
+
+func (arm *alertingRuleMetrics) close() {
+	if arm == nil {
+		return
+	}
+	arm.errors.Unregister()
+	arm.active.Unregister()
+	arm.pending.Unregister()
+	arm.samples.Unregister()
+	arm.seriesFetched.Unregister()
+}
+
+// NewAlertingRule creates a new AlertingRule
+func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
+	debug := group.Debug
+	if cfg.Debug != nil {
+		debug = *cfg.Debug
+	}
+	ar := &AlertingRule{
+		Type:          group.Type,
+		RuleID:        cfg.ID,
+		Name:          cfg.Alert,
+		Expr:          cfg.Expr,
+		For:           cfg.For.Duration(),
+		KeepFiringFor: cfg.KeepFiringFor.Duration(),
+		Labels:        cfg.Labels,
+		Annotations:   cfg.Annotations,
+		GroupID:       group.GetID(),
+		GroupName:     group.Name,
+		File:          group.File,
+		EvalInterval:  group.Interval,
+		Debug:         debug,
+		q: qb.BuildWithParams(datasource.QuerierParams{
+			DataSourceType:            group.Type.String(),
+			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
+			EvaluationInterval:        group.Interval,
+			QueryParams:               group.Params,
+			Headers:                   group.Headers,
+			Debug:                     debug,
+		}),
+		alerts: make(map[uint64]*notifier.Alert),
+	}
+
+	entrySize := *ruleUpdateEntriesLimit
+	if cfg.UpdateEntriesLimit != nil {
+		entrySize = *cfg.UpdateEntriesLimit
+	}
+	if entrySize < 1 {
+		entrySize = 1
+	}
+	ar.state = &ruleState{
+		entries: make([]StateEntry, entrySize),
+	}
 	return ar
 }
 
+func (ar *AlertingRule) registerMetrics(set *metrics.Set) {
+	ar.metrics = newAlertingRuleMetrics(set, ar)
+}
+
 // close unregisters rule metrics
-func (ar *AlertingRule) close() {
-	ar.metrics.active.Unregister()
-	ar.metrics.pending.Unregister()
-	ar.metrics.errors.Unregister()
-	ar.metrics.samples.Unregister()
-	ar.metrics.seriesFetched.Unregister()
+func (ar *AlertingRule) unregisterMetrics() {
+	ar.metrics.close()
 }
 
 // String implements Stringer interface
@@ -190,8 +211,8 @@ func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string
 	if !ar.Debug {
 		return
 	}
-	prefix := fmt.Sprintf("DEBUG rule %q:%q (%d) at %v: ",
-		ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
+	prefix := fmt.Sprintf("DEBUG alerting rule %q, %q:%q (%d) at %v: ",
+		ar.File, ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
 
 	if a != nil {
 		labelKeys := make([]string, len(a.Labels))
@@ -391,8 +412,8 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
-	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.Samples, curState.Duration)
 
+	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err

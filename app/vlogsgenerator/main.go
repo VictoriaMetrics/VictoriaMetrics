@@ -18,20 +18,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
 	addr    = flag.String("addr", "stdout", "HTTP address to push the generated logs to; if it is set to stdout, then logs are generated to stdout")
 	workers = flag.Int("workers", 1, "The number of workers to use to push logs to -addr")
 
-	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/#timestamp-formats")
-	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/#timestamp-formats")
+	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats")
+	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats")
 	activeStreams = flag.Int("activeStreams", 100, "The number of active log streams to generate; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields")
 	totalStreams  = flag.Int("totalStreams", 0, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
 		"during data generation")
 	logsPerStream     = flag.Int64("logsPerStream", 1_000, "The number of log entries to generate per each log stream. Log entries are evenly distributed between -start and -end")
-	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constaint values to generate per each log entry; "+
+	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constant values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	varFieldsPerLog = flag.Int("varFieldsPerLog", 1, "The number of fields with variable values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
@@ -177,7 +177,10 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 	sw := &statWriter{
 		w: pw,
 	}
-	bw := bufio.NewWriter(sw)
+
+	// The 1MB write buffer increases data ingestion performance by reducing the number of send() syscalls
+	bw := bufio.NewWriterSize(sw, 1024*1024)
+
 	doneCh := make(chan struct{})
 	go func() {
 		generateLogs(bw, workerID, cfg.activeStreams, cfg.totalStreams)
@@ -306,7 +309,7 @@ type timeFlag struct {
 }
 
 func (tf *timeFlag) Set(s string) error {
-	msec, err := promutils.ParseTimeMsec(s)
+	msec, err := timeutil.ParseTimeMsec(s)
 	if err != nil {
 		return fmt.Errorf("cannot parse time from %q: %w", s, err)
 	}

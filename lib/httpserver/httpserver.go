@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -51,7 +52,7 @@ var (
 	httpAuthPassword = flagutil.NewPassword("httpAuth.password", "Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty")
 	metricsAuthKey   = flagutil.NewPassword("metricsAuthKey", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
-	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It -httpAuth.*")
+	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*")
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
@@ -92,7 +93,7 @@ type ServeOptions struct {
 	// /health, /debug/pprof and few others
 	// In addition basic auth check and authKey checks will be disabled for the given addr
 	//
-	// Mostly required by http proxy servers, which peforms own authorization and requests routing
+	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
 }
 
@@ -386,9 +387,6 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 }
 
 func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh RequestHandler) bool {
-	if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
-		return true
-	}
 
 	h := w.Header()
 
@@ -482,7 +480,7 @@ func isProtectedByAuthFlag(path string) bool {
 	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
 		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
 		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/")
+		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
@@ -648,7 +646,7 @@ func (rwa *responseWriterWithAbort) abort() {
 		logger.Panicf("BUG: abort can be called only after http response headers are sent")
 	}
 	if rwa.aborted {
-		logger.WarnfSkipframes(2, "cannot abort the connection, since it has been already aborted")
+		// Nothing to do. The connection has been already aborted.
 		return
 	}
 	hj, ok := rwa.ResponseWriter.(http.Hijacker)
@@ -755,15 +753,32 @@ func GetRequestURI(r *http.Request) string {
 		return requestURI
 	}
 	_ = r.ParseForm()
-	queryArgs := r.PostForm.Encode()
-	if len(queryArgs) == 0 {
+	if len(r.PostForm) == 0 {
 		return requestURI
+	}
+	// code copied from url.Query.Encode
+	var queryArgs strings.Builder
+	for k := range r.PostForm {
+		vs := r.PostForm[k]
+		// mask authKey as well-known secret
+		if k == "authKey" {
+			vs = []string{"secret"}
+		}
+		keyEscaped := url.QueryEscape(k)
+		for _, v := range vs {
+			if queryArgs.Len() > 0 {
+				queryArgs.WriteByte('&')
+			}
+			queryArgs.WriteString(keyEscaped)
+			queryArgs.WriteByte('=')
+			queryArgs.WriteString(url.QueryEscape(v))
+		}
 	}
 	delimiter := "?"
 	if strings.Contains(requestURI, delimiter) {
 		delimiter = "&"
 	}
-	return requestURI + delimiter + queryArgs
+	return requestURI + delimiter + queryArgs.String()
 }
 
 // Redirect redirects to the given url.

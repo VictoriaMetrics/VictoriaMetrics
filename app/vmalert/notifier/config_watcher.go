@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // configWatcher supports dynamic reload of Notifier objects
@@ -157,7 +157,7 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 	return targets, errors
 }
 
-type getLabels func() ([]*promutils.Labels, error)
+type getLabels func() ([]*promutil.Labels, error)
 
 func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
@@ -183,8 +183,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.ConsulSDConfigs) > 0 {
-		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]*promutils.Labels, error) {
-			var labels []*promutils.Labels
+		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]*promutil.Labels, error) {
+			var labels []*promutil.Labels
 			for i := range cw.cfg.ConsulSDConfigs {
 				sdc := &cw.cfg.ConsulSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
@@ -201,8 +201,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.DNSSDConfigs) > 0 {
-		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]*promutils.Labels, error) {
-			var labels []*promutils.Labels
+		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]*promutil.Labels, error) {
+			var labels []*promutil.Labels
 			for i := range cw.cfg.DNSSDConfigs {
 				sdc := &cw.cfg.DNSSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)

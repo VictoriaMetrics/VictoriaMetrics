@@ -6,7 +6,7 @@ services:
     restart: on-failure
     user: 0:0
     volumes:
-      - ${PWD}/config.yaml:/etc/otelcol-contrib/config.yaml
+      - ${PWD}/config.yml:/etc/otelcol-contrib/config.yaml
       - /var/lib/docker/containers:/var/lib/docker/containers
     depends_on:
       victorialogs:

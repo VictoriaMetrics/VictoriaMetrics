@@ -1,6 +1,14 @@
-import { Containers, Tabs, TSDBStatus } from "./types";
+import { Containers, MetricNameStats, Tabs, TSDBStatus } from "./types";
 import { useRef } from "preact/compat";
 import { HeadCell } from "./Table/types";
+
+import {
+  METRIC_NAMES_HEADERS,
+  LABEL_NAMES_HEADERS,
+  FOCUS_LABEL_VALUES_HEADERS,
+  LABEL_VALUE_PAIRS_HEADERS,
+  LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS,
+} from "./appTableHeaders";
 
 interface AppState {
   tabs: Tabs;
@@ -9,11 +17,13 @@ interface AppState {
 
 export default class AppConfigurator {
   private tsdbStatus: TSDBStatus;
+  private metricNameStats: MetricNameStats;
   private tabsNames: string[];
   private isPrometheus: boolean;
 
   constructor() {
     this.tsdbStatus = this.defaultTSDBStatus;
+    this.metricNameStats = this.defaultMetricNameStats;
     this.tabsNames = ["table", "graph"];
     this.isPrometheus = false;
     this.getDefaultState = this.getDefaultState.bind(this);
@@ -24,8 +34,16 @@ export default class AppConfigurator {
     this.tsdbStatus = tsdbStatus;
   }
 
+  set metricNameStatsData(metricNameStats: MetricNameStats) {
+    this.metricNameStats = metricNameStats;
+  }
+
   get tsdbStatusData(): TSDBStatus {
     return this.tsdbStatus;
+  }
+
+  get metricNameStatsData(): MetricNameStats {
+    return this.metricNameStats;
   }
 
   get defaultTSDBStatus(): TSDBStatus {
@@ -39,6 +57,15 @@ export default class AppConfigurator {
       seriesCountByFocusLabelValue: [],
       seriesCountByLabelValuePair: [],
       labelValueCountByLabelName: [],
+    };
+  }
+
+  get defaultMetricNameStats(): MetricNameStats {
+    return {
+      statsCollectedSince: 0,
+      statsCollectedRecordsTotal: 0,
+      trackerMemoryMaxSizeBytes: 0,
+      trackerCurrentMemoryUsageBytes: 0,
     };
   }
 
@@ -161,99 +188,3 @@ export default class AppConfigurator {
     return prev ? this.tsdbStatus.totalSeriesPrev : this.tsdbStatus.totalSeries;
   }
 }
-
-const METRIC_NAMES_HEADERS = [
-  {
-    id: "name",
-    label: "Metric name",
-  },
-  {
-    id: "value",
-    label: "Number of series",
-  },
-  {
-    id: "percentage",
-    label: "Share in total",
-    info: "Shows the share of a metric to the total number of series"
-  },
-  {
-    id: "action",
-    label: "",
-  }
-] as HeadCell[];
-
-const LABEL_NAMES_HEADERS = [
-  {
-    id: "name",
-    label: "Label name",
-  },
-  {
-    id: "value",
-    label: "Number of series",
-  },
-  {
-    id: "percentage",
-    label: "Share in total",
-    info: "Shows the share of the label to the total number of series"
-  },
-  {
-    id: "action",
-    label: "",
-  }
-] as HeadCell[];
-
-const FOCUS_LABEL_VALUES_HEADERS = [
-  {
-    id: "name",
-    label: "Label value",
-  },
-  {
-    id: "value",
-    label: "Number of series",
-  },
-  {
-    id: "percentage",
-    label: "Share in total",
-  },
-  {
-    disablePadding: false,
-    id: "action",
-    label: "",
-    numeric: false,
-  }
-] as HeadCell[];
-
-export const LABEL_VALUE_PAIRS_HEADERS = [
-  {
-    id: "name",
-    label: "Label=value pair",
-  },
-  {
-    id: "value",
-    label: "Number of series",
-  },
-  {
-    id: "percentage",
-    label: "Share in total",
-    info: "Shows the share of the label value pair to the total number of series"
-  },
-  {
-    id: "action",
-    label: "",
-  }
-] as HeadCell[];
-
-export const LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS = [
-  {
-    id: "name",
-    label: "Label name",
-  },
-  {
-    id: "value",
-    label: "Number of unique values",
-  },
-  {
-    id: "action",
-    label: "",
-  }
-] as HeadCell[];

@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.httpSDCheckInterval", time.Minute, "Interval for checking for changes in http endpoint service discovery. "+
 	"This works only if http_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#http_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http_sd_configs for details")
 
 // SDConfig represents service discovery config for http.
 //
@@ -26,7 +26,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns http service discovery labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -38,12 +38,12 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	return addHTTPTargetLabels(hts, sdc.URL), nil
 }
 
-func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutils.Labels {
-	ms := make([]*promutils.Labels, 0, len(src))
+func addHTTPTargetLabels(src []httpGroupTarget, sourceURL string) []*promutil.Labels {
+	ms := make([]*promutil.Labels, 0, len(src))
 	for _, targetGroup := range src {
 		labels := targetGroup.Labels
 		for _, target := range targetGroup.Targets {
-			m := promutils.NewLabels(2 + labels.Len())
+			m := promutil.NewLabels(2 + labels.Len())
 			m.AddFrom(labels)
 			m.Add("__address__", target)
 			m.Add("__meta_url", sourceURL)

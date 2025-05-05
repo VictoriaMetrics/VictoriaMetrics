@@ -1,11 +1,16 @@
 package logstorage
 
 import (
+	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // LogRows holds a set of rows needed for Storage.MustAddRows
@@ -21,23 +26,20 @@ type LogRows struct {
 	// streamIDs holds streamIDs for rows added to LogRows
 	streamIDs []streamID
 
-	// streamTagsCanonicals holds streamTagsCanonical entries for rows added to LogRows
-	streamTagsCanonicals [][]byte
-
 	// timestamps holds stimestamps for rows added to LogRows
 	timestamps []int64
 
 	// rows holds fields for rows added to LogRows.
 	rows [][]Field
 
-	// sf is a helper for sorting fields in every added row
-	sf sortedFields
+	// streamTagsCanonicals holds streamTagsCanonical entries for rows added to LogRows
+	streamTagsCanonicals []string
 
 	// streamFields contains names for stream fields
 	streamFields map[string]struct{}
 
-	// ignoreFields contains names for log fields, which must be skipped during data ingestion
-	ignoreFields map[string]struct{}
+	// ignoreFields is a filter for fields, which must be ignored during data ingestion
+	ignoreFields fieldsFilter
 
 	// extraFields contains extra fields to add to all the logs at MustAdd().
 	extraFields []Field
@@ -47,6 +49,141 @@ type LogRows struct {
 
 	// defaultMsgValue contains default value for missing _msg field
 	defaultMsgValue string
+}
+
+type logRows struct {
+	// a holds all the bytes referred by items in logRows
+	a arena
+
+	// fieldsBuf holds all the fields referred by items in logRows
+	fieldsBuf []Field
+
+	// streamIDs holds streamIDs for rows added to logRows
+	streamIDs []streamID
+
+	// timestamps holds stimestamps for rows added to logRows
+	timestamps []int64
+
+	// rows holds fields for rows added to logRows.
+	rows [][]Field
+
+	// sf is a helper for sorting fields in every added row
+	sf sortedFields
+}
+
+func (lr *logRows) reset() {
+	lr.a.reset()
+
+	fb := lr.fieldsBuf
+	for i := range fb {
+		fb[i].Reset()
+	}
+	lr.fieldsBuf = fb[:0]
+
+	sids := lr.streamIDs
+	for i := range sids {
+		sids[i].reset()
+	}
+	lr.streamIDs = sids[:0]
+
+	lr.timestamps = lr.timestamps[:0]
+
+	clear(lr.rows)
+	lr.rows = lr.rows[:0]
+
+	lr.sf = nil
+}
+
+// needFlush returns true if lr contains too much data, so it must be flushed to the storage.
+func (lr *logRows) needFlush() bool {
+	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7
+}
+
+func (lr *logRows) mustAddRows(src *LogRows) {
+	streamIDs := src.streamIDs
+	timestamps := src.timestamps
+	rows := src.rows
+
+	if len(rows) == 0 {
+		return
+	}
+
+	// a hint for the compiler for preventing from unnesesary bounds checks
+	_ = streamIDs[len(rows)-1]
+	_ = timestamps[len(rows)-1]
+
+	for i := range rows {
+		lr.mustAddRow(streamIDs[i], timestamps[i], rows[i])
+	}
+}
+
+func (lr *logRows) mustAddRow(streamID streamID, timestamp int64, fields []Field) {
+	lr.streamIDs = append(lr.streamIDs, streamID)
+	lr.timestamps = append(lr.timestamps, timestamp)
+
+	fieldsBuf := lr.fieldsBuf
+	fieldsBufLen := len(fieldsBuf)
+	fieldsBuf = slicesutil.SetLength(fieldsBuf, fieldsBufLen+len(fields))
+	dstFields := fieldsBuf[fieldsBufLen:]
+	lr.fieldsBuf = fieldsBuf
+	lr.rows = append(lr.rows, dstFields)
+
+	for i := range fields {
+		f := &fields[i]
+
+		dstField := &dstFields[i]
+		if len(fieldsBuf) >= len(fields) {
+			fPrev := &fieldsBuf[len(fieldsBuf)-len(fields)]
+			if fPrev.Name == f.Name {
+				dstField.Name = fPrev.Name
+			} else {
+				dstField.Name = lr.a.copyString(f.Name)
+			}
+			if fPrev.Value == f.Value {
+				dstField.Value = fPrev.Value
+			} else {
+				dstField.Value = lr.a.copyString(f.Value)
+			}
+		} else {
+			dstField.Name = lr.a.copyString(f.Name)
+			dstField.Value = lr.a.copyString(f.Value)
+		}
+	}
+}
+
+// Len returns the number of items in lr.
+func (lr *logRows) Len() int {
+	return len(lr.streamIDs)
+}
+
+// Less returns true if (streamID, timestamp) for row i is smaller than the (streamID, timestamp) for row j
+func (lr *logRows) Less(i, j int) bool {
+	a := &lr.streamIDs[i]
+	b := &lr.streamIDs[j]
+	if !a.equal(b) {
+		return a.less(b)
+	}
+	return lr.timestamps[i] < lr.timestamps[j]
+}
+
+// Swap swaps rows i and j in lr.
+func (lr *logRows) Swap(i, j int) {
+	a := &lr.streamIDs[i]
+	b := &lr.streamIDs[j]
+	*a, *b = *b, *a
+
+	tsA, tsB := &lr.timestamps[i], &lr.timestamps[j]
+	*tsA, *tsB = *tsB, *tsA
+
+	fieldsA, fieldsB := &lr.rows[i], &lr.rows[j]
+	*fieldsA, *fieldsB = *fieldsB, *fieldsA
+}
+
+func (lr *logRows) sortFieldsInRows() {
+	for _, row := range lr.rows {
+		lr.sf = row
+		sort.Sort(&lr.sf)
+	}
 }
 
 type sortedFields []Field
@@ -65,6 +202,39 @@ func (sf *sortedFields) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+func getLogRows() *logRows {
+	v := lrPool.Get()
+	if v == nil {
+		return &logRows{}
+	}
+	return v.(*logRows)
+}
+
+func putLogRows(lr *logRows) {
+	lr.reset()
+	lrPool.Put(lr)
+}
+
+var lrPool sync.Pool
+
+// ForEachRow calls callback for every row stored in the lr.
+func (lr *LogRows) ForEachRow(callback func(streamHash uint64, r *InsertRow)) {
+	r := GetInsertRow()
+	for i, timestamp := range lr.timestamps {
+		sid := &lr.streamIDs[i]
+
+		streamHash := sid.id.lo ^ sid.id.hi
+
+		r.TenantID = sid.tenantID
+		r.StreamTagsCanonical = lr.streamTagsCanonicals[i]
+		r.Timestamp = timestamp
+		r.Fields = lr.rows[i]
+
+		callback(streamHash, r)
+	}
+	PutInsertRow(r)
+}
+
 // Reset resets lr with all its settings.
 //
 // Call ResetKeepSettings() for resetting lr without resetting its settings.
@@ -76,12 +246,11 @@ func (lr *LogRows) Reset() {
 		delete(sfs, k)
 	}
 
-	ifs := lr.ignoreFields
-	for k := range ifs {
-		delete(ifs, k)
-	}
+	lr.ignoreFields.reset()
 
 	lr.extraFields = nil
+
+	clear(lr.extraStreamFields)
 	lr.extraStreamFields = lr.extraStreamFields[:0]
 
 	lr.defaultMsgValue = ""
@@ -103,26 +272,45 @@ func (lr *LogRows) ResetKeepSettings() {
 	}
 	lr.streamIDs = sids[:0]
 
-	sns := lr.streamTagsCanonicals
-	for i := range sns {
-		sns[i] = nil
-	}
-	lr.streamTagsCanonicals = sns[:0]
+	clear(lr.streamTagsCanonicals)
+	lr.streamTagsCanonicals = lr.streamTagsCanonicals[:0]
 
 	lr.timestamps = lr.timestamps[:0]
 
-	rows := lr.rows
-	for i := range rows {
-		rows[i] = nil
-	}
-	lr.rows = rows[:0]
-
-	lr.sf = nil
+	clear(lr.rows)
+	lr.rows = lr.rows[:0]
 }
 
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
 func (lr *LogRows) NeedFlush() bool {
 	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7
+}
+
+// MustAddInsertRow adds r to lr.
+func (lr *LogRows) MustAddInsertRow(r *InsertRow) {
+	// verify r.StreamTagsCanonical
+	st := GetStreamTags()
+	streamTagsCanonical := bytesutil.ToUnsafeBytes(r.StreamTagsCanonical)
+	tail, err := st.UnmarshalCanonical(streamTagsCanonical)
+	if err != nil {
+		line := MarshalFieldsToJSON(nil, r.Fields)
+		logger.Warnf("cannot unmarshal streamTagsCanonical: %w; skipping the log entry; log entry: %s", err, line)
+		return
+	}
+	if len(tail) > 0 {
+		line := MarshalFieldsToJSON(nil, r.Fields)
+		logger.Warnf("unexpected tail left after unmarshaling streamTagsCanonical; len(tail)=%d; streamTags: %s; log entry: %s", len(tail), st, line)
+		return
+	}
+	PutStreamTags(st)
+
+	// Calculate the id for the StreamTags
+	var sid streamID
+	sid.tenantID = r.TenantID
+	sid.id = hash128(streamTagsCanonical)
+
+	// Store the row
+	lr.mustAddInternal(sid, r.Timestamp, r.Fields, r.StreamTagsCanonical)
 }
 
 // MustAdd adds a log entry with the given args to lr.
@@ -166,9 +354,9 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	// Compose StreamTags from fields according to streamFields, lr.streamFields and lr.extraStreamFields
 	st := GetStreamTags()
 	if streamFields != nil {
-		// streamFields overrride lr.streamFields
+		// streamFields override lr.streamFields
 		for _, f := range streamFields {
-			if _, ok := lr.ignoreFields[f.Name]; !ok {
+			if !lr.ignoreFields.match(f.Name) {
 				st.Add(f.Name, f.Value)
 			}
 		}
@@ -194,42 +382,50 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	sid.id = hash128(bb.B)
 
 	// Store the row
-	lr.mustAddInternal(sid, timestamp, fields, bb.B)
+	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
+	lr.mustAddInternal(sid, timestamp, fields, streamTagsCanonical)
 	bbPool.Put(bb)
 }
 
-func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical []byte) {
-	streamTagsCanonicalCopy := lr.a.copyBytes(streamTagsCanonical)
-	lr.streamTagsCanonicals = append(lr.streamTagsCanonicals, streamTagsCanonicalCopy)
+func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical string) {
+	stcs := lr.streamTagsCanonicals
+	if len(stcs) > 0 && string(stcs[len(stcs)-1]) == streamTagsCanonical {
+		stcs = append(stcs, stcs[len(stcs)-1])
+	} else {
+		streamTagsCanonicalCopy := lr.a.copyString(streamTagsCanonical)
+		stcs = append(stcs, streamTagsCanonicalCopy)
+	}
+	lr.streamTagsCanonicals = stcs
 
 	lr.streamIDs = append(lr.streamIDs, sid)
 	lr.timestamps = append(lr.timestamps, timestamp)
 
 	fieldsLen := len(lr.fieldsBuf)
-	hasMsgField := lr.addFieldsInternal(fields, lr.ignoreFields)
-	if lr.addFieldsInternal(lr.extraFields, nil) {
+	hasMsgField := lr.addFieldsInternal(fields, &lr.ignoreFields, true)
+	if lr.addFieldsInternal(lr.extraFields, nil, false) {
 		hasMsgField = true
 	}
 
 	// Add optional default _msg field
 	if !hasMsgField && lr.defaultMsgValue != "" {
-		value := lr.a.copyString(lr.defaultMsgValue)
 		lr.fieldsBuf = append(lr.fieldsBuf, Field{
-			Value: value,
+			Value: lr.defaultMsgValue,
 		})
 	}
 
-	// Sort fields by name
-	lr.sf = lr.fieldsBuf[fieldsLen:]
-	sort.Sort(&lr.sf)
-
-	// Add log row with sorted fields to lr.rows
-	lr.rows = append(lr.rows, lr.sf)
+	// Add log row fields to lr.rows
+	row := lr.fieldsBuf[fieldsLen:]
+	lr.rows = append(lr.rows, row)
 }
 
-func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]struct{}) bool {
+func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter, mustCopyFields bool) bool {
 	if len(fields) == 0 {
 		return false
+	}
+
+	var prevRow []Field
+	if len(lr.rows) > 0 {
+		prevRow = lr.rows[len(lr.rows)-1]
 	}
 
 	fb := lr.fieldsBuf
@@ -237,12 +433,17 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 	for i := range fields {
 		f := &fields[i]
 
-		if _, ok := ignoreFields[f.Name]; ok {
+		if ignoreFields.match(f.Name) {
 			continue
 		}
 		if f.Value == "" {
 			// Skip fields without values
 			continue
+		}
+
+		var prevField *Field
+		if prevRow != nil && i < len(prevRow) {
+			prevField = &prevRow[i]
 		}
 
 		fb = append(fb, Field{})
@@ -251,10 +452,30 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 		fieldName := f.Name
 		if fieldName == "_msg" {
 			fieldName = ""
+		}
+		if fieldName == "" {
 			hasMsgField = true
 		}
-		dstField.Name = lr.a.copyString(fieldName)
-		dstField.Value = lr.a.copyString(f.Value)
+
+		if prevField != nil && prevField.Name == fieldName {
+			dstField.Name = prevField.Name
+		} else {
+			if mustCopyFields {
+				dstField.Name = lr.a.copyString(fieldName)
+			} else {
+				dstField.Name = fieldName
+			}
+			prevRow = nil
+		}
+		if prevField != nil && prevField.Value == f.Value {
+			dstField.Value = prevField.Value
+		} else {
+			if mustCopyFields {
+				dstField.Value = lr.a.copyString(f.Value)
+			} else {
+				dstField.Value = f.Value
+			}
+		}
 	}
 	lr.fieldsBuf = fb
 
@@ -285,8 +506,12 @@ func (lr *LogRows) GetRowString(idx int) string {
 // GetLogRows returns LogRows from the pool for the given streamFields.
 //
 // streamFields is a set of field names, which must be associated with the stream.
+//
 // ignoreFields is a set of field names, which must be ignored during data ingestion.
+// ignoreFields entries may end with `*`. In this case they match any fields with the prefix until '*'.
+//
 // extraFields is a set of fields, which must be added to all the logs passed to MustAdd().
+//
 // defaultMsgValue is the default value to store in non-existing or empty _msg.
 //
 // Return back it to the pool with PutLogRows() when it is no longer needed.
@@ -297,6 +522,14 @@ func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaul
 	}
 	lr := v.(*LogRows)
 
+	// initialize ignoreFields
+	lr.ignoreFields.addMulti(ignoreFields)
+	for _, f := range extraFields {
+		// Extra fields must override the existing fields for the sake of consistency and security,
+		// so the client won't be able to override them.
+		lr.ignoreFields.add(f.Name)
+	}
+
 	// Initialize streamFields
 	sfs := lr.streamFields
 	if sfs == nil {
@@ -304,33 +537,17 @@ func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaul
 		lr.streamFields = sfs
 	}
 	for _, f := range streamFields {
-		sfs[f] = struct{}{}
+		if !lr.ignoreFields.match(f) {
+			sfs[f] = struct{}{}
+		}
 	}
 
 	// Initialize extraStreamFields
 	for _, f := range extraFields {
-		if _, ok := sfs[f.Name]; ok {
+		if slices.Contains(streamFields, f.Name) {
 			lr.extraStreamFields = append(lr.extraStreamFields, f)
 			delete(sfs, f.Name)
 		}
-	}
-
-	// Initialize ignoreFields
-	ifs := lr.ignoreFields
-	if ifs == nil {
-		ifs = make(map[string]struct{}, len(ignoreFields))
-		lr.ignoreFields = ifs
-	}
-	for _, f := range ignoreFields {
-		if f != "" {
-			ifs[f] = struct{}{}
-			delete(sfs, f)
-		}
-	}
-	for _, f := range extraFields {
-		// Extra fields must orverride the existing fields for the sake of consistency and security,
-		// so the client won't be able to override them.
-		ifs[f.Name] = struct{}{}
 	}
 
 	lr.extraFields = extraFields
@@ -347,37 +564,6 @@ func PutLogRows(lr *LogRows) {
 
 var logRowsPool sync.Pool
 
-// Len returns the number of items in lr.
-func (lr *LogRows) Len() int {
-	return len(lr.streamIDs)
-}
-
-// Less returns true if (streamID, timestamp) for row i is smaller than the (streamID, timestamp) for row j
-func (lr *LogRows) Less(i, j int) bool {
-	a := &lr.streamIDs[i]
-	b := &lr.streamIDs[j]
-	if !a.equal(b) {
-		return a.less(b)
-	}
-	return lr.timestamps[i] < lr.timestamps[j]
-}
-
-// Swap swaps rows i and j in lr.
-func (lr *LogRows) Swap(i, j int) {
-	a := &lr.streamIDs[i]
-	b := &lr.streamIDs[j]
-	*a, *b = *b, *a
-
-	tsA, tsB := &lr.timestamps[i], &lr.timestamps[j]
-	*tsA, *tsB = *tsB, *tsA
-
-	snA, snB := &lr.streamTagsCanonicals[i], &lr.streamTagsCanonicals[j]
-	*snA, *snB = *snB, *snA
-
-	fieldsA, fieldsB := &lr.rows[i], &lr.rows[j]
-	*fieldsA, *fieldsB = *fieldsB, *fieldsA
-}
-
 // EstimatedJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
 func EstimatedJSONRowLen(fields []Field) int {
 	n := len("{}\n")
@@ -390,4 +576,100 @@ func EstimatedJSONRowLen(fields []Field) int {
 		n += len(`,"":""`) + nameLen + len(f.Value)
 	}
 	return n
+}
+
+// GetInsertRow returns InsertRow from a pool.
+//
+// Pass the returned row to PutInsertRow when it is no longer needed, so it could be re-used.
+func GetInsertRow() *InsertRow {
+	v := insertRowsPool.Get()
+	if v == nil {
+		return &InsertRow{}
+	}
+	return v.(*InsertRow)
+}
+
+// PutInsertRow returns r to the pool, so it could be re-used via GetInsertRow.
+func PutInsertRow(r *InsertRow) {
+	r.Reset()
+	insertRowsPool.Put(r)
+}
+
+var insertRowsPool sync.Pool
+
+// InsertRow represents a row to insert into VictoriaLogs via native protocol.
+type InsertRow struct {
+	TenantID            TenantID
+	StreamTagsCanonical string
+	Timestamp           int64
+	Fields              []Field
+}
+
+// Reset resets r to zero value.
+func (r *InsertRow) Reset() {
+	r.TenantID.Reset()
+	r.StreamTagsCanonical = ""
+	r.Timestamp = 0
+
+	clear(r.Fields)
+	r.Fields = r.Fields[:0]
+}
+
+// Marshal appends marshaled r to dst and returns the result.
+func (r *InsertRow) Marshal(dst []byte) []byte {
+	dst = r.TenantID.marshal(dst)
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(r.StreamTagsCanonical))
+	dst = encoding.MarshalUint64(dst, uint64(r.Timestamp))
+	dst = encoding.MarshalVarUint64(dst, uint64(len(r.Fields)))
+	for _, field := range r.Fields {
+		dst = field.marshal(dst, true)
+	}
+	return dst
+}
+
+// UnmarshalInplace unmarshals r from src and returns the remaining tail.
+//
+// The r is valid until src contents isn't changed.
+func (r *InsertRow) UnmarshalInplace(src []byte) ([]byte, error) {
+	srcOrig := src
+
+	tail, err := r.TenantID.unmarshal(src)
+	if err != nil {
+		return srcOrig, fmt.Errorf("cannot unmarshal tenantID: %w", err)
+	}
+	src = tail
+
+	streamTagsCanonical, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal streamTagCanonical")
+	}
+	r.StreamTagsCanonical = bytesutil.ToUnsafeString(streamTagsCanonical)
+	src = src[n:]
+
+	if len(src) < 8 {
+		return srcOrig, fmt.Errorf("cannot unmarshal timestamp")
+	}
+	timestamp := encoding.UnmarshalUint64(src)
+	r.Timestamp = int64(timestamp)
+	src = src[8:]
+
+	fieldsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal the number of fields")
+	}
+	if fieldsLen > maxColumnsPerBlock {
+		return srcOrig, fmt.Errorf("too many fields in the log entry: %d; mustn't exceed %d", fieldsLen, maxColumnsPerBlock)
+	}
+	src = src[n:]
+
+	r.Fields = slicesutil.SetLength(r.Fields, int(fieldsLen))
+	for i := range r.Fields {
+		tail, err = r.Fields[i].unmarshalInplace(src, true)
+		if err != nil {
+			return srcOrig, fmt.Errorf("cannot unmarshal field #%d: %w", i, err)
+		}
+		src = tail
+	}
+
+	return src, nil
 }

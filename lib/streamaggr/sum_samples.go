@@ -1,77 +1,28 @@
 package streamaggr
 
-import (
-	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-)
-
-// sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
-type sumSamplesAggrState struct {
-	m sync.Map
+type sumSamplesAggrValue struct {
+	sum float64
 }
 
-type sumSamplesStateValue struct {
-	mu      sync.Mutex
-	sum     float64
-	deleted bool
+func (av *sumSamplesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	av.sum += sample.value
 }
 
-func newSumSamplesAggrState() *sumSamplesAggrState {
-	return &sumSamplesAggrState{}
+func (av *sumSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
+	ctx.appendSeries(key, "sum_samples", av.sum)
+	av.sum = 0
 }
 
-func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
-	for i := range samples {
-		s := &samples[i]
-		outputKey := getOutputKey(s.key)
-
-	again:
-		v, ok := as.m.Load(outputKey)
-		if !ok {
-			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesStateValue{
-				sum: s.value,
-			}
-			outputKey = bytesutil.InternString(outputKey)
-			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
-			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
-		}
-		sv := v.(*sumSamplesStateValue)
-		sv.mu.Lock()
-		deleted := sv.deleted
-		if !deleted {
-			sv.sum += s.value
-		}
-		sv.mu.Unlock()
-		if deleted {
-			// The entry has been deleted by the concurrent call to flushState
-			// Try obtaining and updating the entry again.
-			goto again
-		}
-	}
+func (*sumSamplesAggrValue) state() any {
+	return nil
 }
 
-func (as *sumSamplesAggrState) flushState(ctx *flushCtx) {
-	m := &as.m
-	m.Range(func(k, v any) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
+func newSumSamplesAggrConfig() aggrConfig {
+	return &sumSamplesAggrConfig{}
+}
 
-		sv := v.(*sumSamplesStateValue)
-		sv.mu.Lock()
-		sum := sv.sum
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
-		sv.mu.Unlock()
+type sumSamplesAggrConfig struct{}
 
-		key := k.(string)
-		ctx.appendSeries(key, "sum_samples", sum)
-		return true
-	})
+func (*sumSamplesAggrConfig) getValue(_ any) aggrValue {
+	return &sumSamplesAggrValue{}
 }

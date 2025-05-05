@@ -1,6 +1,6 @@
 **This guide covers:**
 
-* The setup of a [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
+* The setup of a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
 * How to scrape metrics from k8s components using service discovery 
 * How to visualize stored data 
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com) tsdb
@@ -17,7 +17,7 @@ We will use:
 
 ## 1. VictoriaMetrics Helm repository
 
-You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/). You can do this by running the following command:
+You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). You can do this by running the following command:
 
 ```shell
 helm repo add vm https://victoriametrics.github.io/helm-charts/
@@ -38,14 +38,19 @@ helm search repo vm/
 The expected output is:
 
 ```text
-NAME                         	CHART VERSION	APP VERSION	DESCRIPTION                                       
-vm/victoria-metrics-agent    	0.7.20       	v1.62.0    	Victoria Metrics Agent - collects metrics from ...
-vm/victoria-metrics-alert    	0.3.34       	v1.62.0    	Victoria Metrics Alert - executes a list of giv...
-vm/victoria-metrics-auth     	0.2.23       	1.62.0     	Victoria Metrics Auth - is a simple auth proxy ...
-vm/victoria-metrics-cluster  	0.8.32       	1.62.0     	Victoria Metrics Cluster version - high-perform...
-vm/victoria-metrics-k8s-stack	0.2.9        	1.16.0     	Kubernetes monitoring on VictoriaMetrics stack....
-vm/victoria-metrics-operator 	0.1.17       	0.16.0     	Victoria Metrics Operator                         
-vm/victoria-metrics-single   	0.7.5        	1.62.0     	Victoria Metrics Single version - high-performa...
+NAME                           	CHART VERSION	APP VERSION	DESCRIPTION                                       
+vm/victoria-logs-single        	0.9.3        	v1.16.0    	Victoria Logs Single version - high-performance...
+vm/victoria-metrics-agent      	0.17.2       	v1.113.0   	Victoria Metrics Agent - collects metrics from ...
+vm/victoria-metrics-alert      	0.15.0       	v1.113.0   	Victoria Metrics Alert - executes a list of giv...
+vm/victoria-metrics-anomaly    	1.9.0        	v1.21.0    	Victoria Metrics Anomaly Detection - a service ...
+vm/victoria-metrics-auth       	0.10.0       	v1.113.0   	Victoria Metrics Auth - is a simple auth proxy ...
+vm/victoria-metrics-cluster    	0.19.2       	v1.113.0   	Victoria Metrics Cluster version - high-perform...
+vm/victoria-metrics-common     	0.0.42       	           	Victoria Metrics Common - contains shared templ...
+vm/victoria-metrics-distributed	0.9.0        	v1.113.0   	A Helm chart for Running VMCluster on Multiple ...
+vm/victoria-metrics-gateway    	0.8.0        	v1.113.0   	Victoria Metrics Gateway - Auth & Rate-Limittin...
+vm/victoria-metrics-k8s-stack  	0.39.0       	v1.113.0   	Kubernetes monitoring on VictoriaMetrics stack....
+vm/victoria-metrics-operator   	0.43.0       	v0.54.1    	Victoria Metrics Operator                         
+vm/victoria-metrics-single     	0.15.1       	v1.113.0   	Victoria Metrics Single version - high-performa...
 ```
 
 ## 2. Install VictoriaMetrics Cluster from the Helm chart
@@ -71,7 +76,7 @@ vmstorage:
 EOF
 ```
 
-* By running `Helm install vmcluster vm/victoria-metrics-cluster` we install [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
+* By running `Helm install vmcluster vm/victoria-metrics-cluster` we install [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
 * By adding `podAnnotations: prometheus.io/scrape: "true"` we enable the scraping of metrics from the vmselect, vminsert and vmstorage pods.
 * By adding `podAnnotations:prometheus.io/port: "some_port" ` we  enable the scraping of metrics from the vmselect, vminsert and vmstorage pods from their ports as well.
 
@@ -80,7 +85,7 @@ As a result of this command you will see the following output:
 
 ```text
 NAME: vmcluster
-LAST DEPLOYED: Thu Jul  1 09:41:57 2021
+LAST DEPLOYED: Fri Mar 21 11:55:50 2025
 NAMESPACE: default
 STATUS: deployed
 REVISION: 1
@@ -89,10 +94,10 @@ NOTES:
 Write API:
 
 The Victoria Metrics write api can be accessed via port 8480 with the following DNS name from within your cluster:
-vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local
+vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.
 
 Get the Victoria Metrics insert service URL by running these commands in the same shell:
-  export POD_NAME=$(kubectl get pods --namespace default -l "app=vminsert" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace default -l "app=" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace default port-forward $POD_NAME 8480
 
 You need to update your Prometheus configuration file and add the following lines to it:
@@ -102,38 +107,35 @@ prometheus.yml
     remote_write:
       - url: "http://<insert-service>/insert/0/prometheus/"
 
-
-
 for example -  inside the Kubernetes cluster:
 
     remote_write:
-      - url: "http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/"
+      - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
 Read API:
 
 The VictoriaMetrics read api can be accessed via port 8481 with the following DNS name from within your cluster:
-vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local
+vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.
 
 Get the VictoriaMetrics select service URL by running these commands in the same shell:
-  export POD_NAME=$(kubectl get pods --namespace default -l "app=vmselect" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace default -l "app=" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace default port-forward $POD_NAME 8481
 
-You will need to specify select service URL in your Grafana:
- NOTE: you need to use Prometheus Data Source
+You need to specify select service URL into your Grafana:
+ NOTE: you need to use the Prometheus Data Source
 
-Input this URL field in Grafana
+Input this URL field into Grafana
 
     http://<select-service>/select/0/prometheus/
 
 
 for example - inside the Kubernetes cluster:
 
-    http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local:8481/select/0/prometheus/"
-
+    http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
 ```
 
 For us it’s important to remember the url for the datasource (copy lines from the output).
 
-Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) pods are up and running by executing the following command:
+Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) pods are up and running by executing the following command:
 
 
 ```sh
@@ -154,7 +156,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running  
 
 ## 3. Install vmagent from the Helm chart
 
-To scrape metrics from Kubernetes with a [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) we need to install [vmagent](https://docs.victoriametrics.com/vmagent/) with additional configuration. To do so, please run these commands in your terminal:
+To scrape metrics from Kubernetes with a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) we need to install [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with additional configuration. To do so, please run these commands in your terminal:
 
 
 ```shell
@@ -165,7 +167,7 @@ Here is full file content `guide-vmcluster-vmagent-values.yaml`
 
 ```yaml
 remoteWrite:
-   - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
+  - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
 
 config:
   global:
@@ -388,7 +390,7 @@ config:
           target_label: kubernetes_pod_name
 ```
 
-* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/vmagent/) to write scraped metrics into the `vminsert` service.
+* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) to write scraped metrics into the `vminsert` service.
 * The second part of this yaml file is needed to add the `metric_relabel_configs` section that helps us to show Kubernetes metrics on the Grafana dashboard.
 
 
@@ -469,8 +471,8 @@ EOF
 By running this command we:
 * Install Grafana from the Helm repository.
 * Provision a VictoriaMetrics data source with the url from the output above which we remembered.
-* Add [this dashboard](https://grafana.com/grafana/dashboards/11176) for [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
-* Add [this dashboard](https://grafana.com/grafana/dashboards/12683) for [VictoriaMetrics Agent](https://docs.victoriametrics.com/vmagent/).
+* Add [this dashboard](https://grafana.com/grafana/dashboards/11176) for [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+* Add [this dashboard](https://grafana.com/grafana/dashboards/12683) for [VictoriaMetrics Agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 * Add [this dashboard](https://grafana.com/grafana/dashboards/14205) dashboard to see Kubernetes cluster metrics.
 
 

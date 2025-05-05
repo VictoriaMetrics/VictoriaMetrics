@@ -4,13 +4,13 @@ import (
 	"container/heap"
 	"fmt"
 	"math"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/contextutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -31,6 +31,11 @@ type pipeStreamContext struct {
 
 	// timeWindow is the time window in nanoseconds for searching for surrounding logs
 	timeWindow int64
+
+	// runQuery, neededColumnNames and unneededColumnNames must be initialized via withRunQuery().
+	runQuery            runQueryFunc
+	neededColumnNames   []string
+	unneededColumnNames []string
 }
 
 func (pc *pipeStreamContext) String() string {
@@ -50,6 +55,10 @@ func (pc *pipeStreamContext) String() string {
 	return s
 }
 
+func (pc *pipeStreamContext) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return nil, []pipe{pc}
+}
+
 func (pc *pipeStreamContext) canLiveTail() bool {
 	return false
 }
@@ -57,6 +66,14 @@ func (pc *pipeStreamContext) canLiveTail() bool {
 var neededFieldsForStreamContext = []string{
 	"_time",
 	"_stream_id",
+}
+
+func (pc *pipeStreamContext) withRunQuery(runQuery runQueryFunc, neededColumnNames, unneededColumnNames []string) pipe {
+	pcNew := *pc
+	pcNew.runQuery = runQuery
+	pcNew.neededColumnNames = neededColumnNames
+	pcNew.unneededColumnNames = unneededColumnNames
+	return &pcNew
 }
 
 func (pc *pipeStreamContext) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -68,7 +85,7 @@ func (pc *pipeStreamContext) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeStreamContext) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeStreamContext) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pc, nil
 }
 
@@ -76,17 +93,8 @@ func (pc *pipeStreamContext) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pc *pipeStreamContext) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func (pc *pipeStreamContext) newPipeProcessor(_ int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
-
-	shards := make([]pipeStreamContextProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeStreamContextProcessorShard{
-			pipeStreamContextProcessorShardNopad: pipeStreamContextProcessorShardNopad{
-				pc: pc,
-			},
-		}
-	}
 
 	pcp := &pipeStreamContextProcessor{
 		pc:     pc,
@@ -94,9 +102,10 @@ func (pc *pipeStreamContext) newPipeProcessor(workersCount int, stopCh <-chan st
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	pcp.shards.Init = func(shard *pipeStreamContextProcessorShard) {
+		shard.pc = pc
 	}
 	pcp.stateSizeBudget.Store(maxStateSize)
 
@@ -109,20 +118,10 @@ type pipeStreamContextProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	s                   *Storage
-	neededColumnNames   []string
-	unneededColumnNames []string
-
-	shards []pipeStreamContextProcessorShard
+	shards atomicutil.Slice[pipeStreamContextProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
-}
-
-func (pcp *pipeStreamContextProcessor) init(s *Storage, neededColumnNames, unneededColumnNames []string) {
-	pcp.s = s
-	pcp.neededColumnNames = neededColumnNames
-	pcp.unneededColumnNames = unneededColumnNames
 }
 
 type timeRange struct {
@@ -165,7 +164,7 @@ func (pcp *pipeStreamContextProcessor) getTimeRangesForStreamRowss(streamID stri
 	// construct the query for selecting only timestamps across all the logs for the given streamID
 	tr := pcp.getTimeRangeForNeededTimestamps(neededTimestamps)
 	timeFilter := getTimeFilter(tr.start, tr.end)
-	qStr := fmt.Sprintf("_stream_id:%s %s | keep _time | rm _time", streamID, timeFilter)
+	qStr := fmt.Sprintf("_stream_id:%s %s | fields _time", streamID, timeFilter)
 
 	rowss, stateSize, err := pcp.executeQuery(streamID, qStr, neededTimestamps, stateSizeBudget)
 	if err != nil {
@@ -247,15 +246,7 @@ func (pcp *pipeStreamContextProcessor) getStreamRowssByTimeRanges(streamID strin
 	if len(timeFilters) > 1 {
 		qStr += " (" + strings.Join(timeFilters, " OR ") + ")"
 	}
-	if slices.Contains(pcp.neededColumnNames, "*") {
-		if len(pcp.unneededColumnNames) > 0 {
-			qStr += " | delete " + fieldNamesString(pcp.unneededColumnNames)
-		}
-	} else {
-		if len(pcp.neededColumnNames) > 0 {
-			qStr += " | fields " + fieldNamesString(pcp.neededColumnNames)
-		}
-	}
+	qStr += toFieldsFilters(pcp.pc.neededColumnNames, pcp.pc.unneededColumnNames)
 
 	rowss, _, err := pcp.executeQuery(streamID, qStr, neededTimestamps, stateSizeBudget)
 	if err != nil {
@@ -330,7 +321,7 @@ func (pcp *pipeStreamContextProcessor) executeQuery(streamID, qStr string, neede
 	if !ok {
 		logger.Panicf("BUG: cannot obtain tenantID from streamID %q", streamID)
 	}
-	if err := pcp.s.runQuery(ctxWithCancel, []TenantID{tenantID}, q, writeBlock); err != nil {
+	if err := pcp.pc.runQuery(ctxWithCancel, []TenantID{tenantID}, q, writeBlock); err != nil {
 		return nil, 0, err
 	}
 	if stateSize > stateSizeBudget {
@@ -499,10 +490,15 @@ func getTenantIDFromStreamIDString(s string) (TenantID, bool) {
 }
 
 type pipeStreamContextProcessorShard struct {
-	pipeStreamContextProcessorShardNopad
+	// pc points to the parent pipeStreamContext.
+	pc *pipeStreamContext
 
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeStreamContextProcessorShardNopad{})%128]byte
+	// m holds per-stream matching rows
+	m map[string][]streamContextRow
+
+	// stateSizeBudget is the remaining budget for the whole state size for the shard.
+	// The per-shard budget is provided in chunks from the parent pipeStreamContextProcessor.
+	stateSizeBudget int
 }
 
 type streamContextRow struct {
@@ -546,18 +542,6 @@ func (r *streamContextRow) less(other *streamContextRow) bool {
 	}
 
 	return false
-}
-
-type pipeStreamContextProcessorShardNopad struct {
-	// pc points to the parent pipeStreamContext.
-	pc *pipeStreamContext
-
-	// m holds per-stream matching rows
-	m map[string][]streamContextRow
-
-	// stateSizeBudget is the remaining budget for the whole state size for the shard.
-	// The per-shard budget is provided in chunks from the parent pipeStreamContextProcessor.
-	stateSizeBudget int
 }
 
 // writeBlock writes br to shard.
@@ -622,7 +606,7 @@ func (pcp *pipeStreamContextProcessor) writeBlock(workerID uint, br *blockResult
 		return
 	}
 
-	shard := &pcp.shards[workerID]
+	shard := pcp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -652,15 +636,19 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 	stateSizeBudget := int(n)
 
 	// merge state across shards
-	shards := pcp.shards
+	shards := pcp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	m := shards[0].getM()
 	shards = shards[1:]
-	for i := range shards {
+	for _, shard := range shards {
 		if needStop(pcp.stopCh) {
 			return nil
 		}
 
-		for streamID, rowsSrc := range shards[i].getM() {
+		for streamID, rowsSrc := range shard.getM() {
 			rows, ok := m[streamID]
 			if !ok {
 				m[streamID] = rowsSrc

@@ -10,9 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
@@ -34,7 +34,7 @@ var (
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
 func InsertHandlerForReader(r io.Reader) error {
-	return stream.Parse(r, true, false, "", "", func(db string, rows []parser.Row) error {
+	return stream.Parse(r, "", true, "", "", func(db string, rows []influx.Row) error {
 		return insertRows(db, rows, nil)
 	})
 }
@@ -43,22 +43,22 @@ func InsertHandlerForReader(r io.Reader) error {
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
 func InsertHandlerForHTTP(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	isStreamMode := req.Header.Get("Stream-Mode") == "1"
 	q := req.URL.Query()
 	precision := q.Get("precision")
 	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 	db := q.Get("db")
-	return stream.Parse(req.Body, isStreamMode, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	isStreamMode := req.Header.Get("Stream-Mode") == "1"
+	return stream.Parse(req.Body, encoding, isStreamMode, precision, db, func(db string, rows []influx.Row) error {
 		return insertRows(db, rows, extraLabels)
 	})
 }
 
-func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(db string, rows []influx.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 

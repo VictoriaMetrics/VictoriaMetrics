@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -64,7 +64,7 @@ func TestExecSuccess(t *testing.T) {
 			Step:               step,
 			MaxPointsPerSeries: 1e4,
 			MaxSeries:          1000,
-			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
 		for i := 0; i < 5; i++ {
@@ -9798,7 +9798,7 @@ func TestExecError(t *testing.T) {
 			Step:               100,
 			MaxPointsPerSeries: 1e4,
 			MaxSeries:          1000,
-			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
 		for i := 0; i < 4; i++ {
@@ -10195,7 +10195,7 @@ max_over_time(cpuIdle[1h:])`)
 	f("avg(foo[5m])")
 	f("sort(foo[5m])")
 
-	// These are valid subqueries with MetricsQL extention, which allows omitting lookbehind window for rollup functions
+	// These are valid subqueries with MetricsQL extension, which allows omitting lookbehind window for rollup functions
 	f("rate(rate(http_total)[5m:1m])")
 	f("rate(sum(rate(http_total))[5m:1m])")
 	f("rate(sum(rate(http_total))[5m:1m])")

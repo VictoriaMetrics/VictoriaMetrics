@@ -7,13 +7,13 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute, "Interval for checking for changes in ec2. "+
 	"This works only if ec2_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#ec2_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#ec2_sd_configs for details")
 
 // SDConfig represents service discovery config for ec2.
 //
@@ -35,7 +35,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns ec2 labels according to sdc.
-func (sdc *SDConfig) GetLabels(_ string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(_ string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

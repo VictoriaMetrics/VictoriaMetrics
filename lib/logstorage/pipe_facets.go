@@ -2,11 +2,13 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
@@ -26,7 +28,7 @@ type pipeFacets struct {
 	// limit is the maximum number of values to return per each field with the maximum number of hits.
 	limit uint64
 
-	// the maximum unique values to track per each field.
+	// the maximum unique values to track per each field. Fields with bigger number of unique values are ignored.
 	maxValuesPerField uint64
 
 	// fields with values longer than maxValueLen are ignored, since it is hard to use them in faceted search.
@@ -55,6 +57,16 @@ func (pf *pipeFacets) String() string {
 	return s
 }
 
+func (pf *pipeFacets) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
+	pRemote := *pf
+	pRemote.limit = math.MaxUint64
+
+	psLocalStr := fmt.Sprintf("stats by (field_name, field_value) sum(hits) as hits | sort by (hits desc) limit %d partition by (field_name) | sort by (field_name, hits desc)", pf.limit)
+	psLocal := mustParsePipes(psLocalStr, timestamp)
+
+	return &pRemote, psLocal
+}
+
 func (pf *pipeFacets) canLiveTail() bool {
 	return false
 }
@@ -68,7 +80,7 @@ func (pf *pipeFacets) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFacets) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFacets) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pf, nil
 }
 
@@ -76,53 +88,40 @@ func (pf *pipeFacets) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pf *pipeFacets) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func (pf *pipeFacets) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	pfp := &pipeFacetsProcessor{
-		pf:     pf,
-		stopCh: stopCh,
-		cancel: cancel,
-		ppNext: ppNext,
+		pf:          pf,
+		concurrency: concurrency,
+		stopCh:      stopCh,
+		cancel:      cancel,
+		ppNext:      ppNext,
 
 		maxStateSize: maxStateSize,
 	}
-
-	shards := make([]pipeFacetsProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeFacetsProcessorShard{
-			pipeFacetsProcessorShardNopad: pipeFacetsProcessorShardNopad{
-				pfp: pfp,
-			},
-		}
+	pfp.shards.Init = func(shard *pipeFacetsProcessorShard) {
+		shard.pfp = pfp
 	}
-	pfp.shards = shards
-
 	pfp.stateSizeBudget.Store(maxStateSize)
 
 	return pfp
 }
 
 type pipeFacetsProcessor struct {
-	pf     *pipeFacets
-	stopCh <-chan struct{}
-	cancel func()
-	ppNext pipeProcessor
+	pf          *pipeFacets
+	concurrency int
+	stopCh      <-chan struct{}
+	cancel      func()
+	ppNext      pipeProcessor
 
-	shards []pipeFacetsProcessorShard
+	shards atomicutil.Slice[pipeFacetsProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeFacetsProcessorShard struct {
-	pipeFacetsProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeFacetsProcessorShardNopad{})%128]byte
-}
-
-type pipeFacetsProcessorShardNopad struct {
 	// pfp points to the parent pipeFacetsProcessor.
 	pfp *pipeFacetsProcessor
 
@@ -164,7 +163,7 @@ func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c 
 	if fhs.mustIgnore {
 		return
 	}
-	if fhs.m.entriesCount() >= shard.pfp.pf.maxValuesPerField {
+	if fhs.m.entriesCount() > shard.pfp.pf.maxValuesPerField {
 		// Ignore fields with too many unique values
 		fhs.enableIgnoreField()
 		return
@@ -304,7 +303,7 @@ func (shard *pipeFacetsProcessorShard) getFieldHits(fieldName string) *pipeFacet
 	fhs, ok := shard.m[fieldName]
 	if !ok {
 		fhs = &pipeFacetsFieldHits{}
-		fhs.m.init(uint(len(shard.pfp.shards)), &shard.stateSizeBudget)
+		fhs.m.init(uint(shard.pfp.concurrency), &shard.stateSizeBudget)
 		fieldNameCopy := shard.a.cloneString(fieldName)
 		shard.m[fieldNameCopy] = fhs
 		shard.stateSizeBudget -= len(fieldNameCopy) + int(unsafe.Sizeof(fhs)+unsafe.Sizeof(*fhs))
@@ -317,7 +316,7 @@ func (pfp *pipeFacetsProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &pfp.shards[workerID]
+	shard := pfp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -342,9 +341,14 @@ func (pfp *pipeFacetsProcessor) flush() error {
 	}
 
 	// merge state across shards
+	shards := pfp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	hmasByFieldName := make(map[string][]*hitsMapAdaptive)
 	rowsTotal := uint64(0)
-	for _, shard := range pfp.shards {
+	for _, shard := range shards {
 		if needStop(pfp.stopCh) {
 			return nil
 		}

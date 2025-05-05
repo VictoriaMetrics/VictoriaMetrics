@@ -8,7 +8,7 @@ dashboard-copy:
 	rm -rf dashboards/vm/*.tmp
 
 # Copies listed dashboards to vm/* but changes the datasource type from Prometheus to VictoriaMetrics.
-# The command should be called before commiting changes to dashboards/* files.
+# The command should be called before committing changes to dashboards/* files.
 dashboards-sync:
 	SRC=victoriametrics.json D_UID=wNf0q_kZk TITLE="VictoriaMetrics - single-node" $(MAKE) dashboard-copy
 	SRC=victoriametrics-cluster.json D_UID=oS7Bi_0Wz TITLE="VictoriaMetrics - cluster" $(MAKE) dashboard-copy
@@ -19,3 +19,4 @@ dashboards-sync:
 	SRC=backupmanager.json D_UID=gF-lxRdVz TITLE="VictoriaMetrics - backupmanager" $(MAKE) dashboard-copy
 	SRC=clusterbytenant.json D_UID=IZFqd3lMz TITLE="VictoriaMetrics Cluster Per Tenant Statistic" $(MAKE) dashboard-copy
 	SRC=victorialogs.json D_UID=OqPIZTX4z TITLE="VictoriaLogs" $(MAKE) dashboard-copy
+	SRC=victorialogs-cluster.json D_UID=XqCOFEX4z TITLE="VictoriaLogs - cluster" $(MAKE) dashboard-copy

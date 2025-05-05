@@ -34,15 +34,15 @@ import (
 
 var (
 	authConfigPath = flag.String("auth.config", "", "Path to auth config. It can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmauth/ for details on the format of this auth config")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/ for details on the format of this auth config")
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "interval for config file re-read. "+
 		"Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.")
 	defaultRetryStatusCodes = flagutil.NewArrayInt("retryStatusCodes", 0, "Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. "+
-		"See https://docs.victoriametrics.com/vmauth/#load-balancing for details")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details")
 	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
-		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth/#load-balancing")
+		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing")
 	discoverBackendIPsGlobal = flag.Bool("discoverBackendIPs", false, "Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. "+
-		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips")
+		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
 		"Too low value may lead to DNS errors")
 	httpAuthHeader = flagutil.NewArrayString("httpAuthHeader", "HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header")
@@ -141,7 +141,7 @@ func (h *Header) UnmarshalYAML(f func(any) error) error {
 
 	n := strings.IndexByte(s, ':')
 	if n < 0 {
-		return fmt.Errorf("missing speparator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
+		return fmt.Errorf("missing separator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
 	}
 	h.Name = strings.TrimSpace(s[:n])
 	h.Value = strings.TrimSpace(s[n+1:])
@@ -173,7 +173,7 @@ type URLMap struct {
 	// DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS.
 	DiscoverBackendIPs *bool `yaml:"discover_backend_ips,omitempty"`
 
-	// HeadersConf is the config for augumenting request and response headers.
+	// HeadersConf is the config for augmenting request and response headers.
 	HeadersConf HeadersConf `yaml:",inline"`
 
 	// RetryStatusCodes is the list of response status codes used for retrying requests.
@@ -438,7 +438,7 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 		return bu
 	}
 
-	// Slow path - the first url is temporarily unavailabel. Fall back to the remaining urls.
+	// Slow path - the first url is temporarily unavailable. Fall back to the remaining urls.
 	for i := 1; i < len(bus); i++ {
 		if !bus[i].isBroken() {
 			bu = bus[i]

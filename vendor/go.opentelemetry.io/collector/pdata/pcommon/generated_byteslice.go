@@ -7,6 +7,9 @@
 package pcommon
 
 import (
+	"iter"
+	"slices"
+
 	"go.opentelemetry.io/collector/pdata/internal"
 )
 
@@ -55,6 +58,17 @@ func (ms ByteSlice) At(i int) byte {
 	return (*ms.getOrig())[i]
 }
 
+// All returns an iterator over index-value pairs in the slice.
+func (ms ByteSlice) All() iter.Seq2[int, byte] {
+	return func(yield func(int, byte) bool) {
+		for i := 0; i < ms.Len(); i++ {
+			if !yield(i, ms.At(i)) {
+				return
+			}
+		}
+	}
+}
+
 // SetAt sets byte item at particular index.
 // Equivalent of byteSlice[i] = val
 func (ms ByteSlice) SetAt(i int, val byte) {
@@ -92,6 +106,10 @@ func (ms ByteSlice) Append(elms ...byte) {
 func (ms ByteSlice) MoveTo(dest ByteSlice) {
 	ms.getState().AssertMutable()
 	dest.getState().AssertMutable()
+	// If they point to the same data, they are the same, nothing to do.
+	if ms.getOrig() == dest.getOrig() {
+		return
+	}
 	*dest.getOrig() = *ms.getOrig()
 	*ms.getOrig() = nil
 }
@@ -100,6 +118,11 @@ func (ms ByteSlice) MoveTo(dest ByteSlice) {
 func (ms ByteSlice) CopyTo(dest ByteSlice) {
 	dest.getState().AssertMutable()
 	*dest.getOrig() = copyByteSlice(*dest.getOrig(), *ms.getOrig())
+}
+
+// Equal checks equality with another ByteSlice
+func (ms ByteSlice) Equal(val ByteSlice) bool {
+	return slices.Equal(*ms.getOrig(), *val.getOrig())
 }
 
 func copyByteSlice(dst, src []byte) []byte {

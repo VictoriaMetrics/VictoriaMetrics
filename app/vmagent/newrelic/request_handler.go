@@ -10,9 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 )
 
@@ -24,13 +24,12 @@ var (
 
 // InsertHandlerForHTTP processes remote write for NewRelic POST /infra/v2/metrics/events/bulk request.
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	ce := req.Header.Get("Content-Encoding")
-	isGzip := ce == "gzip"
-	return stream.Parse(req.Body, isGzip, func(rows []newrelic.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, encoding, func(rows []newrelic.Row) error {
 		return insertRows(at, rows, extraLabels)
 	})
 }

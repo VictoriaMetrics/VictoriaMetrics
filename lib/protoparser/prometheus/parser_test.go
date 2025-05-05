@@ -44,7 +44,7 @@ func TestAreIdenticalSeriesFast(t *testing.T) {
 	f("foo 1  ", "foo 2 ", false) // different number of spaces
 	f("foo 1 ", "foo 2  ", false) // different number of spaces
 	f("foo nan", "foo -inf", true)
-	f("foo 1 # coment x", "foo 2 #comment y", true)
+	f("foo 1 # comment x", "foo 2 #comment y", true)
 	f(" foo 1", " foo 1", true)
 	f(" foo 1", "  foo 1", false) // different number of spaces in front of metric
 	f("  foo 1", " foo 1", false) // different number of spaces in front of metric
@@ -52,6 +52,7 @@ func TestAreIdenticalSeriesFast(t *testing.T) {
 	f("foo 1", "fooo 1", false)   // different metric name
 	f("foo  123", "foo  32.32", true)
 	f(`foo{bar="x"} -3.3e-6`, `foo{bar="x"} 23343`, true)
+	f(`foo{bar="x"} 1`, `foo{bar="y"} 1`, false)
 	f(`foo{} 1`, `foo{} 234`, true)
 	f(`foo {x="y   x" }  234`, `foo {x="y   x" }  43.342`, true)
 	f(`foo {x="y x"} 234`, `foo{x="y x"} 43.342`, false) // different spaces

@@ -5,13 +5,17 @@ menu:
   docs:
     parent: "vmanomaly-components"
     weight: 3
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /anomaly-detection/components/scheduler.html
 ---
+
 Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
 Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 
-> **Note: Scheduler section in config supports multiple schedulers via aliasing{{% available_from "v1.11.0" anomaly %}}. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
+> Scheduler section in config supports multiple schedulers via **aliasing** {{% available_from "v1.11.0" anomaly %}}. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.
 
 ```yaml
 schedulers:
@@ -60,7 +64,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 -  `"scheduler.oneoff.OneoffScheduler"`: runs the process once and exits. Useful for testing.
 -  `"scheduler.backtesting.BacktestingScheduler"`: imitates consecutive backtesting runs of OneoffScheduler. Runs the process once and exits. Use to get more granular control over testing on historical data.
 
-> **Note**: Class aliases are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
+> **Class aliases** are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
 **Depending on selected class, different parameters should be used**
 

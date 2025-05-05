@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo } from "preact/compat";
-import { useState } from "react";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import "./style.scss";
 import { Logs } from "../../../api/types";
 import Accordion from "../../../components/Main/Accordion/Accordion";
@@ -13,7 +12,14 @@ import { getStreamPairs } from "../../../utils/logs";
 import GroupLogsConfigurators
   from "../../../components/LogsConfigurators/GroupLogsConfigurators/GroupLogsConfigurators";
 import GroupLogsHeader from "./GroupLogsHeader";
-import { LOGS_DISPLAY_FIELDS, LOGS_GROUP_BY, LOGS_URL_PARAMS, WITHOUT_GROUPING } from "../../../constants/logs";
+import { LOGS_DISPLAY_FIELDS, LOGS_GROUP_BY, LOGS_URL_PARAMS } from "../../../constants/logs";
+import Pagination from "../../../components/Main/Pagination/Pagination";
+import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
+import { usePaginateGroups } from "../hooks/usePaginateGroups";
+import { GroupLogsType } from "../../../types";
+import { getNanoTimestamp } from "../../../utils/time";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
 
 interface Props {
   logs: Logs[];
@@ -21,30 +27,47 @@ interface Props {
 }
 
 const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
-  const [searchParams] = useSearchParams();
+  const { isMobile } = useDeviceDetect();
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  const [page, setPage] = useState(1);
   const [expandGroups, setExpandGroups] = useState<boolean[]>([]);
 
   const groupBy = searchParams.get(LOGS_URL_PARAMS.GROUP_BY) || LOGS_GROUP_BY;
   const displayFieldsString = searchParams.get(LOGS_URL_PARAMS.DISPLAY_FIELDS) || LOGS_DISPLAY_FIELDS;
-  const displayFields = displayFieldsString.split(",");
+  const displayFields = useMemo(() => displayFieldsString.split(","), [displayFieldsString]);
+
+  const rowsPerPageRaw = Number(searchParams.get(LOGS_URL_PARAMS.ROWS_PER_PAGE));
+  const rowsPerPage = isNaN(rowsPerPageRaw) ? 0 : rowsPerPageRaw;
 
   const expandAll = useMemo(() => expandGroups.every(Boolean), [expandGroups]);
 
-  const groupData = useMemo(() => {
+  const groupData: GroupLogsType[] = useMemo(() => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = getStreamPairs(streamValue);
+
       // values sorting by time
-      const values = item.values.sort((a, b) => new Date(b._time).getTime() - new Date(a._time).getTime());
+      const values = item.values.sort((a, b) => {
+        const aTimestamp = getNanoTimestamp(a._time);
+        const bTimestamp = getNanoTimestamp(b._time);
+
+        if (aTimestamp < bTimestamp) return 1;
+        if (aTimestamp > bTimestamp) return -1;
+        return 0;
+      });
+
       return {
         keys: item.keys,
         keysString: item.keys.join(""),
         values,
         pairs,
+        total: values.length,
       };
     }).sort((a, b) => b.values.length - a.values.length); // groups sorting
   }, [logs, groupBy]);
+
+  const paginatedGroups = usePaginateGroups(groupData, page, rowsPerPage);
 
   const handleToggleExpandAll = useCallback(() => {
     setExpandGroups(new Array(groupData.length).fill(!expandAll));
@@ -58,29 +81,52 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
     });
   }, []);
 
+  const handleSetRowsPerPage = (limit?: number) => {
+    if (limit) {
+      searchParams.set(LOGS_URL_PARAMS.ROWS_PER_PAGE, String(limit));
+    } else {
+      searchParams.delete(LOGS_URL_PARAMS.ROWS_PER_PAGE);
+    }
+
+    setSearchParams(searchParams);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0 });
+  };
 
   useEffect(() => {
-    setExpandGroups(new Array(groupData.length).fill(true));
+    setExpandGroups(new Array(groupData.length).fill(!isMobile));
   }, [groupData]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [rowsPerPage]);
 
   return (
     <>
       <div className="vm-group-logs">
-        {groupData.map((item, i) => (
+        {paginatedGroups.map((group, groupN) => (
           <div
             className="vm-group-logs-section"
-            key={item.keysString}
+            key={group.keysString}
           >
             <Accordion
-              defaultExpanded={expandGroups[i]}
-              onChange={handleChangeExpand(i)}
-              title={groupBy !== WITHOUT_GROUPING && <GroupLogsHeader group={item}/>}
+              defaultExpanded={expandGroups[groupN]}
+              onChange={handleChangeExpand(groupN)}
+              title={(
+                <GroupLogsHeader
+                  group={group}
+                  index={groupN}
+                />
+              )}
             >
               <div className="vm-group-logs-section-rows">
-                {item.values.map((value) => (
+                {group.values.map((log, rowN) => (
                   <GroupLogsItem
-                    key={`${value._msg}${value._time}`}
-                    log={value}
+                    key={`${groupN}_${rowN}_${log._time}`}
+                    log={log}
                     displayFields={displayFields}
                   />
                 ))}
@@ -88,11 +134,26 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
             </Accordion>
           </div>
         ))}
+
+        <Pagination
+          currentPage={page}
+          totalItems={logs.length}
+          itemsPerPage={rowsPerPage || Infinity}
+          onPageChange={handlePageChange}
+        />
       </div>
 
 
       {settingsRef.current && React.createPortal((
         <div className="vm-group-logs-header">
+          <div className="vm-explore-logs-body-header__log-info">
+            Total groups: <b>{groupData.length}</b>
+          </div>
+          <SelectLimit
+            allowUnlimited
+            limit={rowsPerPage}
+            onChange={handleSetRowsPerPage}
+          />
           <Tooltip title={expandAll ? "Collapse All" : "Expand All"}>
             <Button
               variant="text"
@@ -101,6 +162,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
+          <DownloadLogsButton logs={logs} />
           <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}

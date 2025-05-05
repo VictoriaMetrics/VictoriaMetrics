@@ -7,11 +7,35 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
+
+func TestNewRecordingRule(t *testing.T) {
+	f := func(group *Group, rule config.Rule, expectRule *AlertingRule) {
+		t.Helper()
+
+		r := NewAlertingRule(&datasource.FakeQuerier{}, group, rule)
+		if err := CompareRules(t, expectRule, r); err != nil {
+			t.Fatalf("unexpected rule mismatch: %s", err)
+		}
+	}
+
+	f(&Group{Name: "foo"},
+		config.Rule{
+			Alert:  "health",
+			Expr:   "up == 0",
+			Labels: map[string]string{},
+		}, &AlertingRule{
+			Name:   "health",
+			Expr:   "up == 0",
+			Labels: map[string]string{},
+		})
+}
 
 func TestRecordingRule_Exec(t *testing.T) {
 	ts, _ := time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
@@ -193,7 +217,7 @@ func TestRecordingRule_ExecRange(t *testing.T) {
 			t.Fatalf("unexpected RecordingRule.execRange error: %s", err)
 		}
 		if err := compareTimeSeries(t, tssExpected, tss); err != nil {
-			t.Fatalf("timeseries missmatch: %s", err)
+			t.Fatalf("timeseries mismatch: %s", err)
 		}
 	}
 
@@ -306,15 +330,13 @@ func TestRecordingRuleLimit_Failure(t *testing.T) {
 
 		fq := &datasource.FakeQuerier{}
 		fq.Add(testMetrics...)
-
-		rule := &RecordingRule{Name: "job:foo",
+		rule := &RecordingRule{
+			Name:  "job:foo",
 			state: &ruleState{entries: make([]StateEntry, 10)},
 			Labels: map[string]string{
 				"source": "test_limit",
 			},
-			metrics: &recordingRuleMetrics{
-				errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
-			},
+			metrics: getTestRecordingRuleMetrics(),
 		}
 		rule.q = fq
 
@@ -344,15 +366,13 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 
 		fq := &datasource.FakeQuerier{}
 		fq.Add(testMetrics...)
-
-		rule := &RecordingRule{Name: "job:foo",
+		rule := &RecordingRule{
+			Name:  "job:foo",
 			state: &ruleState{entries: make([]StateEntry, 10)},
 			Labels: map[string]string{
 				"source": "test_limit",
 			},
-			metrics: &recordingRuleMetrics{
-				errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
-			},
+			metrics: getTestRecordingRuleMetrics(),
 		}
 		rule.q = fq
 
@@ -366,16 +386,19 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 	f(-1)
 }
 
+func getTestRecordingRuleMetrics() *recordingRuleMetrics {
+	m := newRecordingRuleMetrics(metrics.NewSet(), &RecordingRule{})
+	return m
+}
+
 func TestRecordingRuleExec_Negative(t *testing.T) {
 	rr := &RecordingRule{
 		Name: "job:foo",
 		Labels: map[string]string{
 			"job": "test",
 		},
-		state: &ruleState{entries: make([]StateEntry, 10)},
-		metrics: &recordingRuleMetrics{
-			errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
-		},
+		state:   &ruleState{entries: make([]StateEntry, 10)},
+		metrics: getTestRecordingRuleMetrics(),
 	}
 	fq := &datasource.FakeQuerier{}
 	expErr := "connection reset by peer"
@@ -386,7 +409,7 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 		t.Fatalf("expected to get err; got nil")
 	}
 	if !strings.Contains(err.Error(), expErr) {
-		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
+		t.Fatalf("expected to get err %q; got %q instead", expErr, err)
 	}
 
 	fq.Reset()
@@ -422,4 +445,37 @@ func TestSetIntervalAsTimeFilter(t *testing.T) {
 	f(`_time:2023-04-25T22:45:59Z | count()`, "vlogs", false)
 	f(`error AND _time:5m | count()`, "vlogs", false)
 	f(`* | error AND _time:5m | count()`, "vlogs", false)
+}
+
+func TestRecordingRuleExec_Partial(t *testing.T) {
+	ts, _ := time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
+	fq := &datasource.FakeQuerier{}
+
+	m := metricWithValueAndLabels(t, 10, "__name__", "bar")
+	fq.Add(m)
+	fq.SetPartialResponse(true)
+	rule := &RecordingRule{
+		GroupName: "Bar",
+		Name:      "foo",
+		state: &ruleState{
+			entries: make([]StateEntry, 10),
+		},
+	}
+	rule.Debug = true
+	rule.q = fq
+	got, err := rule.exec(context.TODO(), ts, 0)
+	want := []prompbmarshal.TimeSeries{
+		newTimeSeries([]float64{10}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo",
+			},
+		}),
+	}
+	if err != nil {
+		t.Fatalf("fail to test rule %s: unexpected error: %s", rule.Name, err)
+	}
+	if err := compareTimeSeries(t, want, got); err != nil {
+		t.Fatalf("fail to test rule %s: time series mismatch: %s", rule.Name, err)
+	}
 }

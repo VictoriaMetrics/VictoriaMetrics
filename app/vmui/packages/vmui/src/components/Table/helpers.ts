@@ -1,19 +1,43 @@
 import { Order } from "../../pages/CardinalityPanel/Table/types";
-import dayjs from "dayjs";
+import { getNanoTimestamp } from "../../utils/time";
 
 const dateColumns = ["date", "timestamp", "time"];
 
 export function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   const valueA = a[orderBy];
   const valueB = b[orderBy];
-  const parsedValueA = dateColumns.includes(`${orderBy}`) ? dayjs(`${valueA}`).unix() : valueA;
-  const parsedValueB = dateColumns.includes(`${orderBy}`) ? dayjs(`${valueB}`).unix() : valueB;
-  if (parsedValueB < parsedValueA) {
-    return -1;
+
+  // null/undefined
+  if (valueA == null && valueB == null) return 0;
+  if (valueA == null) return 1;
+  if (valueB == null) return -1;
+
+  const strA = String(valueA);
+  const strB = String(valueB);
+
+  // Dates
+  const isDate = dateColumns.includes(String(orderBy));
+  if (isDate) {
+    const timeA = getNanoTimestamp(strA);
+    const timeB = getNanoTimestamp(strB);
+
+    if (timeB < timeA) return -1;
+    if (timeB > timeA) return 1;
+    return 0;
   }
-  if (parsedValueB > parsedValueA) {
-    return 1;
+
+  // Numbers
+  const numA = Number(strA);
+  const numB = Number(strB);
+  const isNumeric = !isNaN(numA) && !isNaN(numB);
+
+  if (isNumeric) {
+    return numB - numA;
   }
+
+  // Strings
+  if (strB < strA) return -1;
+  if (strB > strA) return 1;
   return 0;
 }
 

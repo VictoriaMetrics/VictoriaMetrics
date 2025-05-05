@@ -7,6 +7,9 @@
 package pcommon
 
 import (
+	"iter"
+	"slices"
+
 	"go.opentelemetry.io/collector/pdata/internal"
 )
 
@@ -55,6 +58,17 @@ func (ms UInt64Slice) At(i int) uint64 {
 	return (*ms.getOrig())[i]
 }
 
+// All returns an iterator over index-value pairs in the slice.
+func (ms UInt64Slice) All() iter.Seq2[int, uint64] {
+	return func(yield func(int, uint64) bool) {
+		for i := 0; i < ms.Len(); i++ {
+			if !yield(i, ms.At(i)) {
+				return
+			}
+		}
+	}
+}
+
 // SetAt sets uint64 item at particular index.
 // Equivalent of uInt64Slice[i] = val
 func (ms UInt64Slice) SetAt(i int, val uint64) {
@@ -92,6 +106,10 @@ func (ms UInt64Slice) Append(elms ...uint64) {
 func (ms UInt64Slice) MoveTo(dest UInt64Slice) {
 	ms.getState().AssertMutable()
 	dest.getState().AssertMutable()
+	// If they point to the same data, they are the same, nothing to do.
+	if ms.getOrig() == dest.getOrig() {
+		return
+	}
 	*dest.getOrig() = *ms.getOrig()
 	*ms.getOrig() = nil
 }
@@ -100,6 +118,11 @@ func (ms UInt64Slice) MoveTo(dest UInt64Slice) {
 func (ms UInt64Slice) CopyTo(dest UInt64Slice) {
 	dest.getState().AssertMutable()
 	*dest.getOrig() = copyUInt64Slice(*dest.getOrig(), *ms.getOrig())
+}
+
+// Equal checks equality with another UInt64Slice
+func (ms UInt64Slice) Equal(val UInt64Slice) bool {
+	return slices.Equal(*ms.getOrig(), *val.getOrig())
 }
 
 func copyUInt64Slice(dst, src []uint64) []uint64 {

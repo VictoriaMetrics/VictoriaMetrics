@@ -21,7 +21,7 @@ type streamID struct {
 	id u128
 }
 
-// reset resets sid for subsequent re-use
+// reset resets sid for subsequent reuse
 func (sid *streamID) reset() {
 	*sid = streamID{}
 }

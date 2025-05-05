@@ -1,11 +1,17 @@
 package loki
 
 import (
+	"flag"
+	"fmt"
 	"net/http"
+	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
+
+var disableMessageParsing = flag.Bool("loki.disableMessageParsing", false, "Whether to disable automatic parsing of JSON-encoded log fields inside Loki log message into distinct log fields")
 
 // RequestHandler processes Loki insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
@@ -35,8 +41,17 @@ func handleInsert(r *http.Request, w http.ResponseWriter) {
 	}
 }
 
-func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
-	cp, err := insertutils.GetCommonParams(r)
+type commonParams struct {
+	cp *insertutil.CommonParams
+
+	// Whether to parse JSON inside plaintext log message.
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8486
+	parseMessage bool
+}
+
+func getCommonParams(r *http.Request) (*commonParams, error) {
+	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
 		return nil, err
 	}
@@ -55,5 +70,17 @@ func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
 
 	}
 
-	return cp, nil
+	parseMessage := !*disableMessageParsing
+	if rv := httputil.GetRequestValue(r, "disable_message_parsing", "VL-Loki-Disable-Message-Parsing"); rv != "" {
+		bv, err := strconv.ParseBool(rv)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse dusable_message_parsing=%q: %s", rv, err)
+		}
+		parseMessage = !bv
+	}
+
+	return &commonParams{
+		cp:           cp,
+		parseMessage: parseMessage,
+	}, nil
 }

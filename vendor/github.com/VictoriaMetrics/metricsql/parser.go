@@ -1030,10 +1030,7 @@ func expandDuration(was []*withArgExpr, d *DurationExpr) (*DurationExpr, error) 
 		return t, nil
 	case *NumberExpr:
 		// Convert number of seconds to DurationExpr
-		de := &DurationExpr{
-			s: t.s,
-		}
-		return de, nil
+		return newDurationExpr(t.s)
 	default:
 		return nil, fmt.Errorf("unexpected value for WITH template %q; got %s; want duration", d.s, e.AppendString(nil))
 	}
@@ -1462,7 +1459,7 @@ type labelFilterExpr struct {
 }
 
 func (lfe *labelFilterExpr) AppendString(dst []byte) []byte {
-	dst = appendEscapedIdent(dst, lfe.Label)
+	dst = ifEscapedCharsAppendQuotedIdent(dst, lfe.Label)
 	if lfe.Value == nil {
 		return dst
 	}
@@ -1512,7 +1509,15 @@ func (p *parser) parseWindowAndStep() (*DurationExpr, *DurationExpr, bool, error
 	}
 	var window *DurationExpr
 	if !strings.HasPrefix(p.lex.Token, ":") {
-		window, err = p.parsePositiveDuration()
+		if p.lex.Token == "$__interval" {
+			// Skip $__interval, since it must be treated as missing lookbehind window,
+			// e.g. rate(m[$__interval]) must be equivalent to rate(m).
+			// In this case VictoriaMetrics automatically adjusts the lookbehind window
+			// to the interval between samples.
+			err = p.lex.Next()
+		} else {
+			window, err = p.parsePositiveDuration()
+		}
 		if err != nil {
 			return nil, nil, false, err
 		}
@@ -1623,21 +1628,31 @@ func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 		}
 	}
 	// Verify duration value.
+	if s == "$__interval" {
+		s = "1i"
+	}
+	return newDurationExpr(s)
+}
+
+// DurationExpr contains the duration
+type DurationExpr struct {
+	// s is a string representation of the duration.
+	//
+	// it must contain valid duration if needsParsing is set to false.
+	s string
+
+	// needsParsing is set to true if s isn't parsed yet with expandWithExpr()
+	needsParsing bool
+}
+
+func newDurationExpr(s string) (*DurationExpr, error) {
 	if _, err := DurationValue(s, 0); err != nil {
-		return nil, fmt.Errorf(`duration: parse value error: %q: %w`, s, err)
+		return nil, fmt.Errorf(`cannot parse duration %q: %w`, s, err)
 	}
 	de := &DurationExpr{
 		s: s,
 	}
 	return de, nil
-}
-
-// DurationExpr contains the duration
-type DurationExpr struct {
-	s string
-
-	// needsParsing is set to true if s isn't parsed yet with expandWithExpr()
-	needsParsing bool
 }
 
 // AppendString appends string representation of de to dst and returns the result.
@@ -2267,15 +2282,28 @@ type MetricExpr struct {
 func appendLabelFilterss(dst []byte, lfss [][]*labelFilterExpr) []byte {
 	offset := 0
 	metricName := getMetricNameFromLabelFilterss(lfss)
+	metricNameHasEscapedChars := hasEscapedChars(metricName)
+
 	if metricName != "" {
 		offset = 1
-		dst = appendEscapedIdent(dst, metricName)
+		if !metricNameHasEscapedChars {
+			dst = appendEscapedIdent(dst, metricName)
+		} else {
+			dst = append(dst, '{')
+			dst = appendQuotedIdent(dst, metricName)
+		}
 	}
 	if isOnlyMetricNameInLabelFilterss(lfss) {
+		if metricNameHasEscapedChars {
+			dst = append(dst, '}')
+		}
 		return dst
 	}
-
-	dst = append(dst, '{')
+	if !metricNameHasEscapedChars {
+		dst = append(dst, '{')
+	} else {
+		dst = append(dst, ',', ' ')
+	}
 	for i, lfs := range lfss {
 		lfs = lfs[offset:]
 		if len(lfs) == 0 {
@@ -2335,6 +2363,9 @@ func mustGetMetricName(lfss []*labelFilterExpr) string {
 	}
 	lfs := lfss[0]
 	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 {
+		if lfs.IsPossibleMetricName {
+			return lfs.Label
+		}
 		return ""
 	}
 	metricName, err := extractStringValue(lfs.Value.tokens[0])

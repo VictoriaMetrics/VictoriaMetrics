@@ -71,8 +71,17 @@ func (t *Type) ValidateExpr(expr string) error {
 			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
 		}
 	case "vlogs":
-		if _, err := logstorage.ParseStatsQuery(expr, 0); err != nil {
+		q, err := logstorage.ParseStatsQuery(expr, 0)
+		if err != nil {
 			return fmt.Errorf("bad LogsQL expr: %q, err: %w", expr, err)
+		}
+		fields, _ := q.GetStatsByFields()
+		for i := range fields {
+			// VictoriaLogs inserts `_time` field as a label in result when query with `stats by (_time:step)`,
+			// making the result meaningless and may lead to cardinality issues.
+			if fields[i] == "_time" {
+				return fmt.Errorf("bad LogsQL expr: %q, err: cannot contain time buckets stats pipe `stats by (_time:step)`", expr)
+			}
 		}
 	default:
 		return fmt.Errorf("unknown datasource type=%q", t.Name)

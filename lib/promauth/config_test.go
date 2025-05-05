@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
 func TestOptionsNewConfigFailure(t *testing.T) {
@@ -240,7 +242,7 @@ func TestOauth2ConfigValidateFailure(t *testing.T) {
 		}
 	}
 
-	// emtpy client_id
+	// empty client_id
 	f(`
 client_secret: some-secret
 token_url: http://some-url
@@ -643,8 +645,9 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 		t.Fatalf("unexpected error when parsing config: %s", err)
 	}
 
+	tr := httputil.NewTransport(false, "test_client")
 	client := http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{}),
+		Transport: ac.NewRoundTripper(tr),
 	}
 
 	resp, err := client.Do(&http.Request{
@@ -676,7 +679,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 
 func mustGenerateCertificates() ([]byte, []byte, []byte) {
 	// Small key size for faster tests
-	const testCertificateBits = 1024
+	const testCertificateBits = 4096
 
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2024),
@@ -689,6 +692,7 @@ func mustGenerateCertificates() ([]byte, []byte, []byte) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
+		SubjectKeyId:          []byte{1, 2, 3, 4},
 	}
 	caPrivKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
 	if err != nil {

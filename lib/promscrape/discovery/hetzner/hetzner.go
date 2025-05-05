@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.hetznerSDCheckInterval", time.Minute, "Interval for checking for changes in Hetzner API. "+
 	"This works only if hetzner_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#hetzner_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#hetzner_sd_configs for details")
 
 // SDConfig represents service discovery config for Hetzner.
 //
@@ -28,7 +28,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns Hetzner target labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

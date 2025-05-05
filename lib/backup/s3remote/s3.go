@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -97,16 +98,23 @@ func (fs *FS) Init() error {
 		fs.Dir += "/"
 	}
 	configOpts := []func(*config.LoadOptions) error{
-		config.WithSharedConfigProfile(fs.ProfileName),
 		config.WithDefaultRegion("us-east-1"),
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
 				o.MaxAttempts = 10
+				o.Retryables = append(retry.DefaultRetryables, retry.RetryableErrorCode{
+					Codes: map[string]struct{}{
+						"IncompleteBody": {},
+					},
+				})
 			})
 		}),
 	}
 
+	if len(fs.ProfileName) > 0 {
+		configOpts = append(configOpts, config.WithSharedConfigProfile(fs.ProfileName))
+	}
 	if len(fs.ConfigFilePath) > 0 {
 		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
 			fs.ConfigFilePath,
@@ -130,11 +138,14 @@ func (fs *FS) Init() error {
 		return err
 	}
 
+	tr := httputil.NewTransport(true, "vmbackup_s3_client")
 	if fs.TLSInsecureSkipVerify {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		tr.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
 		}
-		cfg.HTTPClient = &http.Client{Transport: tr}
+	}
+	cfg.HTTPClient = &http.Client{
+		Transport: tr,
 	}
 
 	var outerErr error

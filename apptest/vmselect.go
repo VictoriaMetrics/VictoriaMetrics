@@ -1,6 +1,7 @@
 package apptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -58,7 +59,7 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1export
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export
 func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -66,7 +67,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res := app.cli.PostForm(t, exportURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, exportURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -74,7 +75,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query
 func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -82,7 +83,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, queryURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -90,7 +91,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 // PromQL/MetricsQL range query by sending a HTTP POST request to
 // /prometheus/api/v1/query_range vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query_range
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range
 func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -98,14 +99,14 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, queryURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
 func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
@@ -113,13 +114,13 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, seriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
 // DeleteSeries sends a query to a /prometheus/api/v1/admin/tsdb/delete_series
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
 func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
 	t.Helper()
 
@@ -127,10 +128,81 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, seriesURL, values, http.StatusNoContent)
+	// TODO(@rtm0): Add DeleteSeriesResponse.
+	res, _ := app.cli.PostForm(t, seriesURL, values)
 	if res != "" {
 		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
 	}
+}
+
+// MetricNamesStats sends a query to a /select/tenant/prometheus/api/v1/status/metric_names_stats endpoint
+// and returns the statistics response for given params.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("limit", limit)
+	values.Add("le", le)
+	values.Add("match_pattern", matchPattern)
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/status/metric_names_stats", app.httpListenAddr, opts.getTenant())
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+	var resp MetricNamesStatsResponse
+	if err := json.Unmarshal([]byte(res), &resp); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", res, err)
+	}
+	return resp
+}
+
+// MetricNamesStatsReset sends a query to a /admin/api/v1/status/metric_names_stats/reset endpoint
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
+	t.Helper()
+
+	values := opts.asURLValues()
+	queryURL := fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", app.httpListenAddr)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
+	}
+}
+
+// APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
+// //
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
+func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/status/tsdb", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	addNonEmpty := func(name, value string) {
+		if len(value) == 0 {
+			return
+		}
+		values.Add(name, value)
+	}
+	addNonEmpty("match[]", matchQuery)
+	addNonEmpty("topN", topN)
+	addNonEmpty("date", date)
+
+	res, statusCode := app.cli.PostForm(t, seriesURL, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var status TSDBStatusResponse
+	if err := json.Unmarshal([]byte(res), &status); err != nil {
+		t.Fatalf("could not unmarshal tsdb status response data:\n%s\n err: %v", res, err)
+	}
+	status.Sort()
+	return status
 }
 
 // String returns the string representation of the vmselect app state.

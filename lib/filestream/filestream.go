@@ -35,23 +35,42 @@ type WriteCloser interface {
 	MustClose()
 }
 
-func getBufferSize() int {
-	bufferSizeOnce.Do(func() {
+func getReadBufferSize() int {
+	readBufferSizeOnce.Do(func() {
+		n := memory.Allowed() / 1024 / 64
+		if n < 4*1024 {
+			n = 4 * 1024
+		}
+		if n > 64*1024 {
+			n = 64 * 1024
+		}
+		readBufferSize = n
+	})
+	return readBufferSize
+}
+
+var (
+	readBufferSize     int
+	readBufferSizeOnce sync.Once
+)
+
+func getWriteBufferSize() int {
+	writeBufferSizeOnce.Do(func() {
 		n := memory.Allowed() / 1024 / 8
 		if n < 4*1024 {
 			n = 4 * 1024
 		}
-		if n > 512*1024 {
-			n = 512 * 1024
+		if n > 128*1024 {
+			n = 128 * 1024
 		}
-		bufferSize = n
+		writeBufferSize = n
 	})
-	return bufferSize
+	return writeBufferSize
 }
 
 var (
-	bufferSize     int
-	bufferSizeOnce sync.Once
+	writeBufferSize     int
+	writeBufferSizeOnce sync.Once
 )
 
 // Reader implements buffered file reader.
@@ -164,7 +183,7 @@ func getBufioReader(f *os.File) *bufio.Reader {
 	sr := &statReader{f}
 	v := brPool.Get()
 	if v == nil {
-		return bufio.NewReaderSize(sr, getBufferSize())
+		return bufio.NewReaderSize(sr, getReadBufferSize())
 	}
 	br := v.(*bufio.Reader)
 	br.Reset(sr)
@@ -318,7 +337,7 @@ func getBufioWriter(f *os.File) *bufio.Writer {
 	sw := &statWriter{f}
 	v := bwPool.Get()
 	if v == nil {
-		return bufio.NewWriterSize(sw, getBufferSize())
+		return bufio.NewWriterSize(sw, getWriteBufferSize())
 	}
 	bw := v.(*bufio.Writer)
 	bw.Reset(sw)

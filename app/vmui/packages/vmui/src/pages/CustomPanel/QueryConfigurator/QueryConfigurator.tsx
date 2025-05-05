@@ -23,9 +23,10 @@ import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
-import QueryHistory from "../QueryHistory/QueryHistory";
+import QueryHistory from "../../../components/QueryHistory/QueryHistory";
 import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
 import QueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/QueryEditorAutocomplete";
+import { getUpdatedHistory } from "../../../components/QueryHistory/utils";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
@@ -79,19 +80,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   const updateHistory = () => {
     queryDispatch({
       type: "SET_QUERY_HISTORY",
-      payload: stateQuery.map((q, i) => {
-        const h = queryHistory[i] || { values: [] };
-        const queryEqual = q === h.values[h.values.length - 1];
-        const newValues = !queryEqual && q ? [...h.values, q] : h.values;
-
-        // limit the history
-        if (newValues.length > MAX_QUERIES_HISTORY)  newValues.shift();
-
-        return {
-          index: h.values.length - Number(queryEqual),
-          values: newValues
-        };
-      })
+      payload: {
+        key: "METRICS_QUERY_HISTORY",
+        history: stateQuery.map((q, i) => getUpdatedHistory(q, queryHistory[i]))
+      }
     });
   };
 
@@ -114,7 +106,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
-  const handleToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, index: number) => {
+  const handleToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement>, index: number) => {
     const { ctrlKey, metaKey } = e;
     const ctrlMetaKey = ctrlKey || metaKey;
 
@@ -160,7 +152,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1 : n));
   };
 
-  const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+  const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement>) => {
     handleToggleHideQuery(e, i);
   };
 
@@ -275,7 +267,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     <div className="vm-query-configurator-settings">
       <AdditionalSettings hideButtons={hideButtons}/>
       <div className="vm-query-configurator-settings__buttons">
-        <QueryHistory handleSelectQuery={handleSelectHistory}/>
+        <QueryHistory
+          handleSelectQuery={handleSelectHistory}
+          historyKey={"METRICS_QUERY_HISTORY"}
+        />
         {hideButtons?.anomalyConfig && <AnomalyConfig/>}
         {!hideButtons?.addQuery && stateQuery.length < MAX_QUERY_FIELDS && (
           <Button

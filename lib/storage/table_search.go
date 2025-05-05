@@ -16,7 +16,7 @@ type tableSearch struct {
 
 	tb *table
 
-	// ptws hold paritions snapshot for the given table during Init call.
+	// ptws hold partitions snapshot for the given table during Init call.
 	// This snapshot is used for calling table.PutPartitions on tableSearch.MustClose.
 	ptws []*partitionWrapper
 

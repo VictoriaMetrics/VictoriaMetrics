@@ -13,32 +13,36 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
-	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier")
+	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier.")
 	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent group")
-	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the `time` parameter for rule evaluation requests to compensate intentional data delay from the datasource."+
-		"Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect).")
+	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. "+
+		"Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). "+
+		"This doesn't apply to groups with eval_offset specified.")
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
-	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
-		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries. "+
+		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 )
 
 // Group is an entity for grouping rules
 type Group struct {
-	mu         sync.RWMutex
+	mu sync.RWMutex
+	// id stores the unique id for the group, and shouldn't change after the group create.
+	id         uint64
 	Name       string
 	File       string
 	Rules      []Rule
@@ -47,11 +51,13 @@ type Group struct {
 	EvalOffset *time.Duration
 	// EvalDelay will adjust timestamp for rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
-	EvalDelay      *time.Duration
-	Limit          int
-	Concurrency    int
-	Checksum       string
+	EvalDelay   *time.Duration
+	Limit       int
+	Concurrency int
+	// checksum stores the hash of yaml definition for this group.
+	checksum       string
 	LastEvaluation time.Time
+	Debug          bool
 
 	Labels          map[string]string
 	Params          url.Values
@@ -66,7 +72,7 @@ type Group struct {
 	// evalCancel stores the cancel fn for interrupting
 	// rules evaluation. Used on groups update() and close().
 	evalCancel context.CancelFunc
-
+	// metrics contains metrics for group and its rules, will be created during Init()
 	metrics *groupMetrics
 	// evalAlignment will make the timestamp of group query
 	// requests be aligned with interval
@@ -74,25 +80,12 @@ type Group struct {
 }
 
 type groupMetrics struct {
-	iterationTotal    *utils.Counter
-	iterationDuration *utils.Summary
-	iterationMissed   *utils.Counter
-	iterationInterval *utils.Gauge
-}
+	set *metrics.Set
 
-func newGroupMetrics(g *Group) *groupMetrics {
-	m := &groupMetrics{}
-	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
-	m.iterationTotal = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
-	m.iterationDuration = utils.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
-	m.iterationMissed = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
-	m.iterationInterval = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
-		g.mu.RLock()
-		i := g.Interval.Seconds()
-		g.mu.RUnlock()
-		return i
-	})
-	return m
+	iterationTotal    *metrics.Counter
+	iterationDuration *metrics.Summary
+	iterationMissed   *metrics.Counter
+	iterationInterval *metrics.Gauge
 }
 
 // merges group rule labels into result map
@@ -121,11 +114,12 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Interval:        cfg.Interval.Duration(),
 		Limit:           cfg.Limit,
 		Concurrency:     cfg.Concurrency,
-		Checksum:        cfg.Checksum,
+		checksum:        cfg.Checksum,
 		Params:          cfg.Params,
 		Headers:         make(map[string]string),
 		NotifierHeaders: make(map[string]string),
 		Labels:          cfg.Labels,
+		Debug:           cfg.Debug,
 		evalAlignment:   cfg.EvalAlignment,
 
 		doneCh:     make(chan struct{}),
@@ -144,13 +138,13 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	if cfg.EvalDelay != nil {
 		g.EvalDelay = &cfg.EvalDelay.D
 	}
+	g.id = g.CreateID()
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
 	}
 	for _, h := range cfg.NotifierHeaders {
 		g.NotifierHeaders[h.Key] = h.Value
 	}
-	g.metrics = newGroupMetrics(g)
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
 		var extraLabels map[string]string
@@ -180,12 +174,22 @@ func (g *Group) newRule(qb datasource.QuerierBuilder, r config.Rule) Rule {
 	return NewRecordingRule(qb, g, r)
 }
 
-// ID return unique group ID that consists of
-// rules file and group Name
-func (g *Group) ID() uint64 {
+// GetCheckSum returns group checksum
+func (g *Group) GetCheckSum() string {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
+	return g.checksum
+}
 
+// GetID returns the unique group ID
+func (g *Group) GetID() uint64 {
+	return g.id
+}
+
+// CreateID returns the unique ID based on group basic fields.
+// Should only be called when creating new group,
+// and use GetID() afterward.
+func (g *Group) CreateID() uint64 {
 	hash := fnv.New64a()
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
@@ -237,7 +241,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		if !ok {
 			// old rule is not present in the new list
 			// so we mark it for removing
-			g.Rules[i].close()
+			g.Rules[i].unregisterMetrics()
 			g.Rules[i] = nil
 			continue
 		}
@@ -257,20 +261,19 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	// add the rest of rules from registry
 	for _, nr := range rulesRegistry {
+		nr.registerMetrics(g.metrics.set)
 		newRules = append(newRules, nr)
 	}
-	// note that g.Interval is not updated here
-	// so the value can be compared later in
-	// group.Start function
-	g.Type = newGroup.Type
+
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
 	g.Headers = newGroup.Headers
 	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
 	g.Limit = newGroup.Limit
-	g.Checksum = newGroup.Checksum
+	g.checksum = newGroup.checksum
 	g.Rules = newRules
+	g.Debug = newGroup.Debug
 	return nil
 }
 
@@ -295,27 +298,42 @@ func (g *Group) Close() {
 	g.InterruptEval()
 	<-g.finishedCh
 
-	g.metrics.iterationDuration.Unregister()
-	g.metrics.iterationTotal.Unregister()
-	g.metrics.iterationMissed.Unregister()
-	g.metrics.iterationInterval.Unregister()
-	for _, rule := range g.Rules {
-		rule.close()
-	}
+	g.closeGroupMetrics()
+}
+
+func (g *Group) closeGroupMetrics() {
+	metrics.UnregisterSet(g.metrics.set, true)
 }
 
 // SkipRandSleepOnGroupStart will skip random sleep delay in group first evaluation
 var SkipRandSleepOnGroupStart bool
 
+// Init must be called before group Start()
+func (g *Group) Init() {
+	ns := metrics.NewSet()
+	g.metrics = &groupMetrics{set: ns}
+	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
+	g.metrics.iterationTotal = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	g.metrics.iterationDuration = g.metrics.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	g.metrics.iterationMissed = g.metrics.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	g.metrics.iterationInterval = g.metrics.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
+		i := g.Interval.Seconds()
+		return i
+	})
+	for i := range g.Rules {
+		g.Rules[i].registerMetrics(g.metrics.set)
+	}
+	metrics.RegisterSet(g.metrics.set)
+}
+
 // Start starts group's evaluation
 func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
-
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
 	// over time in order to reduce load on datasource.
 	if !SkipRandSleepOnGroupStart {
-		sleepBeforeStart := delayBeforeStart(evalTS, g.ID(), g.Interval, g.EvalOffset)
+		sleepBeforeStart := delayBeforeStart(evalTS, g.GetID(), g.Interval, g.EvalOffset)
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)
@@ -365,6 +383,7 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
+		// adjust request timestamp using evalDelay and evalAlignment if necessary
 		ts = g.adjustReqTimestamp(ts)
 		errs := e.execConcurrently(ctx, g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 		for err := range errs {
@@ -455,13 +474,22 @@ func (g *Group) DeepCopy() *Group {
 	newG := Group{}
 	_ = json.Unmarshal(data, &newG)
 	newG.Rules = g.Rules
+	newG.id = g.id
 	return &newG
 }
 
-// delayBeforeStart returns a duration on the interval between [ts..ts+interval].
-// delayBeforeStart accounts for `offset`, so returned duration should be always
-// bigger than the `offset`.
+// if offset is specified, delayBeforeStart returns a duration to help aligning timestamp with offset;
+// otherwise, it returns a random duration between [0..interval] based on group key.
 func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *time.Duration) time.Duration {
+	if offset != nil {
+		currentOffsetPoint := ts.Truncate(interval).Add(*offset)
+		if currentOffsetPoint.Before(ts) {
+			// wait until the next offset point
+			return currentOffsetPoint.Add(interval).Sub(ts)
+		}
+		return currentOffsetPoint.Sub(ts)
+	}
+
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(key) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
@@ -469,15 +497,6 @@ func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *
 		randSleep += interval
 	}
 	randSleep -= sleepOffset
-	// check if `ts` after randSleep is before `offset`,
-	// if it is, add extra eval_offset to randSleep.
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409.
-	if offset != nil {
-		tmpEvalTS := ts.Add(randSleep)
-		if tmpEvalTS.Before(tmpEvalTS.Truncate(interval).Add(*offset)) {
-			randSleep += *offset
-		}
-	}
 	return randSleep
 }
 
@@ -583,26 +602,14 @@ func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Du
 }
 
 func (g *Group) adjustReqTimestamp(timestamp time.Time) time.Time {
+	// if `eval_offset` is specified, timestamp is already aligned with offset, do nothing
 	if g.EvalOffset != nil {
-		// calculate the min timestamp on the evaluationInterval
-		intervalStart := timestamp.Truncate(g.Interval)
-		ts := intervalStart.Add(*g.EvalOffset)
-		if timestamp.Before(ts) {
-			// if passed timestamp is before the expected evaluation offset,
-			// then we should adjust it to the previous evaluation round.
-			// E.g. request with evaluationInterval=1h and evaluationOffset=30m
-			// was evaluated at 11:20. Then the timestamp should be adjusted
-			// to 10:30, to the previous evaluationInterval.
-			return ts.Add(-g.Interval)
-		}
-		// when `eval_offset` is using, ts shouldn't be effect by `eval_alignment` and `eval_delay`
-		// since it should be always aligned.
-		return ts
+		return timestamp
 	}
 
 	timestamp = timestamp.Add(-g.getEvalDelay())
 
-	// always apply the alignment as a last step
+	// apply the alignment as the last step
 	if g.evalAlignment == nil || *g.evalAlignment {
 		// align query time with interval to get similar result with grafana when plotting time series.
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5049
@@ -704,7 +711,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	}
 
 	wg := sync.WaitGroup{}
-	errGr := new(utils.ErrGroup)
+	errGr := new(vmalertutil.ErrGroup)
 	for _, nt := range e.Notifiers() {
 		wg.Add(1)
 		go func(nt notifier.Notifier) {

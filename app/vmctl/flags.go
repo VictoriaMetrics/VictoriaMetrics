@@ -344,7 +344,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  influxSkipDatabaseLabel,
-			Usage: "Wether to skip adding the label 'db' to timeseries.",
+			Usage: "Whether to skip adding the label 'db' to timeseries.",
 			Value: false,
 		},
 		&cli.BoolFlag{
@@ -466,12 +466,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     vmNativeFilterTimeStart,
-			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats",
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
@@ -493,7 +493,7 @@ var (
 			Name: vmNativeSrcAddr,
 			Usage: "VictoriaMetrics address to perform export from. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vmselect component." +
-				" If exporting from cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format",
+				" If exporting from cluster version see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -542,7 +542,7 @@ var (
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
-				" If importing into cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format",
+				" If importing into cluster version see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -617,8 +617,8 @@ var (
 		},
 		&cli.BoolFlag{
 			Name: vmNativeDisableBinaryProtocol,
-			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format " +
-				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
+			Usage: "Whether to use https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format " +
+				"instead of https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,

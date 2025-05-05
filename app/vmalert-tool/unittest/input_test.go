@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseInputValue_Failure(t *testing.T) {
@@ -82,7 +82,7 @@ func TestParseInputValue_Success(t *testing.T) {
 func TestParseInputSeries_Success(t *testing.T) {
 	f := func(input []series) {
 		t.Helper()
-		var interval promutils.Duration
+		var interval promutil.Duration
 		_, err := parseInputSeries(input, &interval, time.Now())
 		if err != nil {
 			t.Fatalf("expect to see no error: %v", err)
@@ -98,7 +98,7 @@ func TestParseInputSeries_Success(t *testing.T) {
 func TestParseInputSeries_Fail(t *testing.T) {
 	f := func(input []series) {
 		t.Helper()
-		var interval promutils.Duration
+		var interval promutil.Duration
 		_, err := parseInputSeries(input, &interval, time.Now())
 		if err == nil {
 			t.Fatalf("expect to see error: %v", err)

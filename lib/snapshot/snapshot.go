@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -32,17 +32,19 @@ func Create(createSnapshotURL string) (string, error) {
 	logger.Infof("Creating snapshot")
 	u, err := url.Parse(createSnapshotURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot parse -snapshot.createURL: %w", err)
 	}
 
 	// create Transport
-	tr, err := httputils.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
 	if err != nil {
-		return "", fmt.Errorf("failed to create transport for createSnapshotURL=%q: %s", createSnapshotURL, err)
+		return "", fmt.Errorf("failed to create transport for -snapshot.createURL=%q: %s", createSnapshotURL, err)
 	}
-	hc := &http.Client{Transport: tr}
+	hc := &http.Client{
+		Transport: tr,
+	}
 
-	resp, err := hc.Get(u.String())
+	resp, err := hc.Get(createSnapshotURL)
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +69,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if snap.Status == "error" {
 		return "", errors.New(snap.Msg)
 	}
-	return "", fmt.Errorf("Unkown status: %v", snap.Status)
+	return "", fmt.Errorf("Unknown status: %v", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -78,12 +80,12 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	}
 	u, err := url.Parse(deleteSnapshotURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot parse -snapshot.deleteURL: %w", err)
 	}
 	// create Transport
-	tr, err := httputils.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
 	if err != nil {
-		return fmt.Errorf("failed to create transport for deleteSnapshotURL=%q: %s", deleteSnapshotURL, err)
+		return fmt.Errorf("failed to create transport for -snapshot.deleteURL=%q: %s", deleteSnapshotURL, err)
 
 	}
 	hc := &http.Client{Transport: tr}
@@ -112,5 +114,5 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("Unkown status: %v", snap.Status)
+	return fmt.Errorf("Unknown status: %v", snap.Status)
 }

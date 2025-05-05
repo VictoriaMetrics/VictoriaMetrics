@@ -25,6 +25,10 @@ func (pf *pipeFields) String() string {
 	return "fields " + fieldNamesString(pf.fields)
 }
 
+func (pf *pipeFields) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pf, nil
+}
+
 func (pf *pipeFields) canLiveTail() bool {
 	return true
 }
@@ -58,7 +62,7 @@ func (pf *pipeFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pf, nil
 }
 
@@ -97,28 +101,33 @@ func parsePipeFields(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("fields", "keep") {
 		return nil, fmt.Errorf("expecting 'fields'; got %q", lex.token)
 	}
+	lex.nextToken()
 
+	fields, err := parseCommaSeparatedFields(lex)
+	if err != nil {
+		return nil, err
+	}
+	if slices.Contains(fields, "*") {
+		fields = []string{"*"}
+	}
+	pf := &pipeFields{
+		fields:       fields,
+		containsStar: slices.Contains(fields, "*"),
+	}
+	return pf, nil
+}
+
+func parseCommaSeparatedFields(lex *lexer) ([]string, error) {
 	var fields []string
 	for {
-		lex.nextToken()
 		field, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
 		}
 		fields = append(fields, field)
-		switch {
-		case lex.isKeyword("|", ")", ""):
-			if slices.Contains(fields, "*") {
-				fields = []string{"*"}
-			}
-			pf := &pipeFields{
-				fields:       fields,
-				containsStar: slices.Contains(fields, "*"),
-			}
-			return pf, nil
-		case lex.isKeyword(","):
-		default:
-			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|' or ')'", lex.token)
+		if !lex.isKeyword(",") {
+			return fields, nil
 		}
+		lex.nextToken()
 	}
 }
