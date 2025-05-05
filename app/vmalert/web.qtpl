@@ -10,11 +10,27 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 ) %}
 
-{% func Controls(icons, filters map[string]string, currentText string, search bool) %}
+{% func Controls(prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) %}
     <div class="btn-toolbar mb-3" role="toolbar">
         <div class="d-flex gap-2 justify-content-between w-100">
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 align-items-center">
+                <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(true)">
+                    <span class="d-none d-md-block">Collapse All</span>
+                    <svg class="d-md-none" height="20" width="20">
+                        <use href="{%s prefix %}static/icons/icons.svg#collapse"/>
+                    </svg>
+                </a>
+                <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(false)">
+                    <span class="d-none d-md-block">Expand All</span>
+                    <svg class="d-md-none" width="20" height="20">
+                        <use href="{%s prefix %}static/icons/icons.svg#expand"/>
+                    </svg>
+                </a>
                 {% if len(filters) > 0 %}
+                    <span class="d-none d-md-inline-block">Filter by status:</span>
+                    <svg class="d-md-none" width="20" height="20">
+                        <use href="{%s prefix %}static/icons/icons.svg#filter">
+                    </svg>
                     <div class="dropdown">
                         <button
                             class="btn btn-outline-dark dropdown-toggle d-flex justify-content-between align-items-center"
@@ -22,45 +38,33 @@
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
                         >
-                            <span class="d-none d-md-inline-block">Filter by status</span>
-                            <svg class="d-md-none" height="22" width="22" viewBox="-10 -10 320 310"><path d="M288.953 0h-277c-5.522 0-10 4.478-10 10v49.531c0 5.522 4.478 10 10 10h12.372l91.378 107.397v113.978a10 10 0 0 0 15.547 8.32l49.5-33a10 10 0 0 0 4.453-8.32v-80.978l91.378-107.397h12.372c5.522 0 10-4.478 10-10V10c0-5.522-4.477-10-10-10M167.587 166.77a10 10 0 0 0-2.384 6.48v79.305l-29.5 19.666V173.25a10 10 0 0 0-2.384-6.48L50.585 69.531h199.736zM278.953 49.531h-257V20h257z"/></svg>
+                            <span class="d-none d-md-inline-block">{%s currentText %}</span>
+                            <svg class="d-md-none" width="22" height="22">
+                                <use href="{%s prefix %}static/icons/icons.svg#{%s currentIcon %}"/>
+                            </svg>
                         </button>
                         <ul class="dropdown-menu">
                             {% for key, title := range filters %}
-                                <li>
-                                    <a class="dropdown-item{% if title == currentText %} active{% endif %}" onclick="groupFilter('{%s key %}')">
-                                        <span class="d-none d-md-inline-block">{%s title %}</span>
-                                        {%s= icons[key] %}
-                                    </a>
-                                </li>
+                                {% if title != currentText %}
+                                    <li>
+                                        <a class="dropdown-item" onclick="groupFilter('{%s key %}')">
+                                            <span class="d-none d-md-inline-block">{%s title %}</span>
+                                            <svg class="d-md-none" width="22" height="22">
+                                                <use href="{%s prefix %}static/icons/icons.svg#{%s icons[key] %}"/>
+                                            </svg>
+                                        </a>
+                                    </li>
+                                {% endif %}
                             {% endfor %}
                         </ul>
                     </div>
                 {% endif %}
-                <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(true)">
-                    <span class="d-none d-md-block">Collapse All</span>
-                    <svg class="d-md-none" height="20" width="20" viewBox="3 2 42 44">
-                        <path d="M22.6,15.4a1.9,1.9,0,0,0,2.8,0l6-5.9a2.1,2.1,0,0,0,.2-2.7,1.9,1.9,0,0,0-3-.2L26,9.2V4a2,2,0,0,0-4,0V9.2L19.4,6.6a1.9,1.9,0,0,0-3,.2,2.1,2.1,0,0,0,.2,2.7Z"/>
-                        <path d="M25.4,32.6a1.9,1.9,0,0,0-2.8,0l-6,5.9a2.1,2.1,0,0,0-.2,2.7,1.9,1.9,0,0,0,3,.2L22,38.8V44a2,2,0,0,0,4,0V38.8l2.6,2.6a1.9,1.9,0,0,0,3-.2,2.1,2.1,0,0,0-.2-2.7Z"/>
-                        <path d="M6,22H42a2,2,0,0,0,0-4H6a2,2,0,0,0,0,4Z"/>
-                        <path d="M42,26H6a2,2,0,0,0,0,4H42a2,2,0,0,0,0-4Z"/>
-                    </svg>
-                </a>
-                <a class="btn btn-outline-dark d-flex align-items-center" role="button" onclick="actionAll(false)">
-                    <span class="d-none d-md-block">Expand All</span>
-                    <svg class="d-md-none" viewBox="205.7009 131.8402 40.0061 44.0455" width="20" height="20">
-                        <path d="M 224.163 175.27 C 224.916 176.091 226.21 176.091 226.963 175.27 L 232.963 169.37 C 233.678 168.639 233.763 167.499 233.163 166.67 C 232.47 165.637 230.987 165.539 230.163 166.47 L 227.563 169.07 L 227.563 163.87 C 227.563 162.33 225.896 161.368 224.563 162.138 C 223.944 162.495 223.563 163.155 223.563 163.87 L 223.563 169.07 L 220.963 166.47 C 220.139 165.539 218.656 165.637 217.963 166.67 C 217.363 167.499 217.448 168.639 218.163 169.37 L 224.163 175.27 Z"/>
-                        <path d="M 207.704 151.973 L 243.704 151.973 C 245.244 151.973 246.206 150.306 245.436 148.973 C 245.079 148.354 244.419 147.973 243.704 147.973 L 207.704 147.973 C 206.164 147.973 205.202 149.64 205.972 150.973 C 206.329 151.592 206.989 151.973 207.704 151.973 Z"/>
-                        <path d="M 243.704 155.973 L 207.704 155.973 C 206.164 155.973 205.202 157.64 205.972 158.973 C 206.329 159.592 206.989 159.973 207.704 159.973 L 243.704 159.973 C 245.244 159.973 246.206 158.306 245.436 156.973 C 245.079 156.354 244.419 155.973 243.704 155.973 Z"/>
-                        <path d="M 227.114 132.456 C 226.361 131.635 225.067 131.635 224.314 132.456 L 218.314 138.356 C 217.599 139.087 217.514 140.227 218.114 141.056 C 218.807 142.089 220.29 142.187 221.114 141.256 L 223.714 138.656 L 223.714 143.856 C 223.714 145.396 225.381 146.358 226.714 145.588 C 227.333 145.231 227.714 144.571 227.714 143.856 L 227.714 138.656 L 230.314 141.256 C 231.138 142.187 232.621 142.089 233.314 141.056 C 233.914 140.227 233.829 139.087 233.114 138.356 L 227.114 132.456 Z"/>
-                    </svg>
-                </a>
             </div>
             {% if search %}
                 <div class="input-group flex-grow-1 justify-content-end">
                     <span class="input-group-text">
-                        <svg height="25" width="20" viewBox="0 0 490.4 490.4">
-                            <path d="m484.1 454.796-110.5-110.6c29.8-36.3 47.6-82.8 47.6-133.4 0-116.3-94.3-210.6-210.6-210.6S0 94.496 0 210.796s94.3 210.6 210.6 210.6c50.8 0 97.4-18 133.8-48l110.5 110.5c12.9 11.8 25 4.2 29.2 0 8.4-8.3 8.4-20.8 0-29.1m-443-244c0-93.6 75.9-169.5 169.5-169.5s169.6 75.9 169.6 169.5-75.9 169.5-169.5 169.5-169.6-75.9-169.6-169.5"/>
+                        <svg height="25" width="20">
+                            <use href="{%s prefix %}static/icons/icons.svg#search">
                         </svg>
                     </span>
                     <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
@@ -93,19 +97,20 @@
     {%code
         prefix := vmalertutil.Prefix(r.URL.Path)
         filters := map[string]string{
-            "": "All",
+            "":          "All",
             "unhealthy": "Unhealthy",
-            "noMatch": "No Match",
+            "noMatch":   "No Match",
         }
         icons := map[string]string{
-            "": `<svg class="d-md-none" height="22" width="22" viewBox="-10 -10 320 310"><path d="M288.953 0h-277c-5.522 0-10 4.478-10 10v49.531c0 5.522 4.478 10 10 10h12.372l91.378 107.397v113.978a10 10 0 0 0 15.547 8.32l49.5-33a10 10 0 0 0 4.453-8.32v-80.978l91.378-107.397h12.372c5.522 0 10-4.478 10-10V10c0-5.522-4.477-10-10-10M167.587 166.77a10 10 0 0 0-2.384 6.48v79.305l-29.5 19.666V173.25a10 10 0 0 0-2.384-6.48L50.585 69.531h199.736zM278.953 49.531h-257V20h257z"/><path stroke-width="20" stroke="#000" d="m-10-10 310 310"/></svg>`,
-            "unhealthy": `<svg class="d-md-none" width="22" height="22" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6.5" fill="none"/><path stroke-linecap="round" stroke-width="1.5" d="m5 5 4 4M5 9l4-4"/></svg>`,
-            "noMatch": `<svg class="d-md-none" width="22" height="22" viewBox="0 0 116.623 116.623"><path d="M99.114 89.251H57.783l19.181-41.797h22.149a5.971 5.971 0 1 0 0-11.942H82.444L94.591 9.049a5.97 5.97 0 0 0-2.938-7.917 5.97 5.97 0 0 0-7.918 2.936L69.304 35.513H41.662c-2.289-.458-17.685-4.48-17.685-29.542a5.97 5.97 0 1 0-11.942 0c0 18.536 7.157 29.533 14.93 35.514-7.774 5.981-14.93 16.978-14.93 35.514a5.971 5.971 0 1 0 11.942 0c0-25.007 14.886-29.013 17.677-29.542h22.17L44.643 89.253H17.509a5.972 5.972 0 0 0 0 11.943h21.653l-3.196 6.965a5.972 5.972 0 1 0 10.856 4.981l5.479-11.943h46.812a5.975 5.975 0 0 0 .001-11.948"/></svg>`,
+            "":          "all",
+            "unhealthy": "unhealthy",
+            "noMatch":   "nomatch",
         }
         currentText := filters[filter]
+        currentIcon := icons[filter]
     %}
     {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
-        {%= Controls(icons, filters, currentText, true) %}
+        {%= Controls(prefix, currentIcon, currentText, icons, filters, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
                 <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column group-items{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
@@ -177,7 +182,7 @@
                                                         <b>record:</b> {%s r.Name %}
                                                     {% endif %}
                                                     |
-                                                    {%= seriesFetchedWarn(r) %}
+                                                    {%= seriesFetchedWarn(prefix, r) %}
                                                     <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
                                                 </div>
                                                 <div class="col-12">
@@ -220,7 +225,7 @@
 {% func ListAlerts(r *http.Request, groupAlerts []groupAlerts) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
-    {%= Controls(nil, nil, "", true) %}
+    {%= Controls(prefix, "", "", nil, nil, true) %}
     {% if len(groupAlerts) > 0 %}
          {% for _, ga := range groupAlerts %}
              {%code
@@ -315,8 +320,9 @@
 {% endfunc %}
 
 {% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
+    {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Notifiers", getLastConfigError()) %}
-    {%= Controls(nil, nil, "", false) %}
+    {%= Controls(prefix, "", "", nil, nil, false) %}
     {% if len(targets) > 0 %}
         {%code
             var keys []string
@@ -643,15 +649,15 @@
 <span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
-{% func seriesFetchedWarn(r apiRule) %}
+{% func seriesFetchedWarn(prefix string, r apiRule) %}
 {% if isNoMatch(r) %}
-<svg xmlns="http://www.w3.org/2000/svg"
+<svg
     data-bs-toggle="tooltip"
     title="No match! This rule's last evaluation hasn't selected any time series from the datasource.
     It might be that either this data is missing in the datasource or there is a typo in rule's expression.
     See more in Details."
-    width="18" height="18" fill="currentColor" class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2" viewBox="0 0 16 16" role="img" aria-label="Warning:">
-       <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+    width="18" height="18" fill="currentColor" class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2" role="img" aria-label="Warning:">
+       <use href="{%s prefix %}static/icons/icons.svg#exclamation"/>
 </svg>
 {% endif %}
 {% endfunc %}
