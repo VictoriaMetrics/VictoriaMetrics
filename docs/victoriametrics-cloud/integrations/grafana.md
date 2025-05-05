@@ -20,7 +20,7 @@ The configuration examples below contain two placeholders: `<DEPLOYMENT_ENDPOINT
 To generate your access token (with **read access**, for querying metrics), follow the steps in the
 [Access Tokens documentation](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens).
 
-To connect Grafana with VictoriaMetrics Cloud, visit the [cloud console](https://console.victoriametrics.cloud/public/integrations/grafana),
+To connect Grafana with VictoriaMetrics Cloud, visit the [cloud console](https://console.victoriametrics.cloud/integrations/grafana),
 or follow this interactive guide:
 
 <iframe 
