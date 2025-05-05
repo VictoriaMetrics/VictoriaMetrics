@@ -186,7 +186,7 @@ name: <string>
 #    nocache: ["1"]                # disable caching for vmselect
 #    denyPartialResponse: ["true"] # fail if one or more vmstorage nodes returned an error
 #    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests
-# see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
+# see more details at https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements
 params:
   [ <string>: [<string>, ...]]
 
