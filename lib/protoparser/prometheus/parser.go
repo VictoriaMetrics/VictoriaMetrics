@@ -231,42 +231,36 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
+// unmarshalQuotedString parses quoted string tags
+// prometheus added support of utf-8 encoding for the text exposition format
+// https://github.com/prometheus/proposals/blob/main/proposals/2023-08-21-utf8.md#syntax-examples
 func unmarshalQuotedString(s string, noEscapes bool) (string, string, error) {
-	q := strings.IndexByte(s, '"')
-
-	// Check to see if s can contain 2 characters
-	if q == -1 || len(s[q:]) < 2 {
+	if len(s) == 0 || s[0] != '"' {
 		return "", s, fmt.Errorf("missing starting double quote in string: %q", s)
 	}
 	var n int
 	if noEscapes {
-		n = strings.IndexByte(s[q+1:], '"')
+		n = strings.IndexByte(s[1:], '"')
 		if n == -1 {
 			return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
 		}
 		// Add 2 to account for both quotes
-		return s[q+1 : q+1+n], s[q+2+n:], nil
+		return s[1 : n+1], s[n+2:], nil
 	}
-	n = findClosingQuote(s[q:])
+	n = findClosingQuote(s)
 	if n == -1 {
 		return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
 	}
-	return unescapeValue(s[q+1 : n]), s[n+1:], nil
+	return unescapeValue(s[1:n]), s[n+1:], nil
 }
 
 func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
-	// Edge case for no tags
-	s = skipLeadingWhitespace(s)
-	if s == "" {
-		return s, dst, nil
-	}
 	var err error
-
 	for {
 		s = skipLeadingWhitespace(s)
 		n := strings.IndexByte(s, '"')
 		if n < 0 {
-			// Check that are we done with tags
+			// end of tags
 			if len(s) > 0 && s[0] == '}' {
 				return s[1:], dst, nil
 			}
@@ -276,19 +270,20 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 		possibleKey := skipTrailingWhitespace(s[:n])
 		possibleKeyLen := len(possibleKey)
 		key := ""
-		if possibleKeyLen == 0 || possibleKey[possibleKeyLen-1] == ',' {
-			// Parse quoted label
+		if possibleKeyLen == 0 {
+			// Parse quoted label - {"label"="value"} or {"metric"}
 			key, s, err = unmarshalQuotedString(s, noEscapes)
 			if err != nil {
 				return s, dst, err
 			}
 			s = skipLeadingWhitespace(s)
-			// Check to see if next char is = if not this is a metric name
 			if len(s) > 0 {
 				if s[0] == ',' || s[0] == '}' {
-					if r.Metric == "" {
-						r.Metric = key
+					// quoted metric name {"metric_name"}
+					if r.Metric != "" {
+						return s, dst, fmt.Errorf("metric name %q already set, duplicate metric name  %q", r.Metric, key)
 					}
+					r.Metric = key
 					if len(s) > 1 && s[0] == ',' {
 						s = s[1:]
 					}
@@ -296,32 +291,27 @@ func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag,
 				} else if s[0] != '=' {
 					// We are a quoted label that isn't preceded by a comma or at the end
 					// of the tags so we must have a value
-					return s, dst, fmt.Errorf("missing value for tag %q", key)
+					return s, dst, fmt.Errorf("missing value for quoted tag %q", key)
 				}
 				s = skipLeadingWhitespace(s[1:])
 			}
 			// Fall through to parsing value
 		} else {
 			c := possibleKey[len(possibleKey)-1]
-			// This is an unquoted label
+			// unquoted label {label="value"}
 			if c == '=' {
 				// Parse unquoted label
 				key = skipLeadingWhitespace(s[:possibleKeyLen-1])
 				key = skipTrailingWhitespace(key)
 				s = skipLeadingWhitespace(s[possibleKeyLen:])
-				// This will bottom out to parsing value
 			} else {
-				// We have an unquoted tag without a value
-				return s, dst, fmt.Errorf("missing value for tag %q", s)
+				// unquoted tag without a value
+				return s, dst, fmt.Errorf("missing value for unquoted tag %q", s)
 			}
 		}
 		// Parse value
-		if len(s) == 0 || s[0] != '"' {
-			return s, dst, fmt.Errorf("expecting quoted value for tag %q; got %q", key, s)
-		}
 		var value string
 		value, s, err = unmarshalQuotedString(s, noEscapes)
-
 		if err != nil {
 			return s, dst, err
 		}

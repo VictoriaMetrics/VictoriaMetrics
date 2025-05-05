@@ -248,6 +248,13 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Invalid timestamp
 	f("foo 123 bar")
+	// metric name defined multiple time
+	f(`{"foo", "foo2", bar="baz"} 1 2`)
+	f(`foobar{"foo", bar="baz"} 1 2`)
+	// missing closing quotes on key
+	f(`{"a", "b = "c"}`)
+	// empty metric name
+	f(`{"a"="ok"} 1`)
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
@@ -495,12 +502,12 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Timestamp: 2000,
 		}},
 	})
-	f(`foo{"foo", bar="baz"} 1 2`, &Rows{
+	f(`{"foo", "bar"="baf\"y"} 1 2`, &Rows{
 		Rows: []Row{{
 			Metric: "foo",
 			Tags: []Tag{{
 				Key:   "bar",
-				Value: "baz",
+				Value: `baf"y`,
 			}},
 			Value:     1,
 			Timestamp: 2000,
@@ -537,17 +544,6 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Metric: "foo",
 			Tags: []Tag{{
 				Key:   `温度{房间="水电费`,
-				Value: "baz",
-			}},
-			Value:     1,
-			Timestamp: 2000,
-		}},
-	})
-	f(`{"foo", "foo2", bar="baz"} 1 2`, &Rows{
-		Rows: []Row{{
-			Metric: "foo",
-			Tags: []Tag{{
-				Key:   "bar",
 				Value: "baz",
 			}},
 			Value:     1,
