@@ -95,6 +95,9 @@ func parseInputSeries(input []series, interval *promutil.Duration, startStamp ti
 func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 	var res []sequenceValue
 	items := strings.Fields(input)
+	if len(items) == 0 {
+		return nil, fmt.Errorf("values cannot be an empty string")
+	}
 	for _, item := range items {
 		if item == "stale" {
 			res = append(res, sequenceValue{Value: decimal.StaleNaN})
