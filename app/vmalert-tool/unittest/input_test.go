@@ -20,6 +20,7 @@ func TestParseInputValue_Failure(t *testing.T) {
 	}
 
 	f("")
+	f("x4")
 	f("testfailed")
 
 	// stale doesn't support operations
