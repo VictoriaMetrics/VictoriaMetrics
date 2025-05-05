@@ -47,7 +47,7 @@ Yes in most cases. VictoriaMetrics can substitute Prometheus in the following as
 
 * Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and with single-node VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
-* Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
+* Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
 
 ## What is the difference between vmagent and Prometheus?
 
@@ -121,7 +121,7 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 * QuestDB is much harder to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
-* Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup), while QuestDB needs a full rewrite of existing dashboards in Grafana.
+* Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana), while QuestDB needs a full rewrite of existing dashboards in Grafana.
 * Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), while QuestDB has no integration with Prometheus.
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)).
 * [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
@@ -236,7 +236,7 @@ This is slow and expensive.
 Prometheus' remote read API isn't intended for querying foreign data – aka `global query view`. See [this issue](https://github.com/prometheus/prometheus/issues/4456) for details.
 
 So just query VictoriaMetrics directly via [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui), the [Prometheus Querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
-or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#grafana-setup).
+or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
 
 ## Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
 
