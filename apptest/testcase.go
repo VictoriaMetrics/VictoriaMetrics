@@ -433,3 +433,24 @@ func (tc *TestCase) MustStartVlsingle(instance string, flags []string) *Vlsingle
 	tc.addApp(instance, app)
 	return app
 }
+
+// MustStartDefaultVlagent is a test helper function that starts an instance of
+// vlagent with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVlagent(remoteWriteURLs []string) *Vlagent {
+	tc.t.Helper()
+
+	return tc.MustStartVlagent("vlagent", remoteWriteURLs, nil)
+}
+
+// MustStartVlagent is a test helper function that starts an instance of
+// vlagent and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVlagent(instance string, remoteWriteURLs []string, flags []string) *Vlagent {
+	tc.t.Helper()
+
+	app, err := StartVlagent(instance, remoteWriteURLs, flags, tc.cli)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
