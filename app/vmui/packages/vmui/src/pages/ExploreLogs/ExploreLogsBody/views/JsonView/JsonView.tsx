@@ -4,15 +4,18 @@ import { createPortal } from "preact/compat";
 import JsonViewComponent from "../../../../../components/Views/JsonView/JsonView";
 import { ViewProps } from "../../types";
 import EmptyLogs from "../components/EmptyLogs/EmptyLogs";
+import { useCallback } from "react";
 
 const MemoizedJsonView = React.memo(JsonViewComponent);
 
 const JsonView: FC<ViewProps> = ({ data, settingsRef }) => {
+  const getLogs = useCallback(() => data, [data]);
+
   const renderSettings = () => {
     if (!settingsRef.current) return null;
 
     return createPortal(
-      data.length > 0 && <DownloadLogsButton logs={data} />,
+      data.length > 0 && <DownloadLogsButton getLogs={getLogs} />,
       settingsRef.current
     );
   };

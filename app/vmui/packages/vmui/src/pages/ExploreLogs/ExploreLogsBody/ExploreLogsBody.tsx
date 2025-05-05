@@ -1,5 +1,5 @@
 import { FC, useRef } from "preact/compat";
-import { CodeIcon, ListIcon, TableIcon } from "../../../components/Main/Icons";
+import { CodeIcon, ListIcon, TableIcon, PlayIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
@@ -11,6 +11,7 @@ import LineLoader from "../../../components/Main/LineLoader/LineLoader";
 import GroupView from "./views/GroupView/GroupView";
 import TableView from "./views/TableView/TableView";
 import JsonView from "./views/JsonView/JsonView";
+import LiveTailingView from "./views/LiveTailingView/LiveTailingView";
 
 export interface ExploreLogBodyProps {
   data: Logs[];
@@ -21,12 +22,14 @@ enum DisplayType {
   group = "group",
   table = "table",
   json = "json",
+  liveTailing = "liveTailing",
 }
 
 const tabs = [
-  { label: "Group", value: DisplayType.group, icon: <ListIcon />, Component: GroupView },
-  { label: "Table", value: DisplayType.table, icon: <TableIcon />, Component: TableView },
-  { label: "JSON", value: DisplayType.json, icon: <CodeIcon />, Component: JsonView },
+  { label: "Group", value: DisplayType.group, icon: <ListIcon/>, Component: GroupView },
+  { label: "Table", value: DisplayType.table, icon: <TableIcon/>, Component: TableView },
+  { label: "JSON", value: DisplayType.json, icon: <CodeIcon/>, Component: JsonView },
+  { label: "Live", value: DisplayType.liveTailing, icon: <PlayIcon/>, Component: LiveTailingView },
 ];
 
 const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
@@ -50,7 +53,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
         "vm-block_mobile": isMobile,
       })}
     >
-      {isLoading && <LineLoader />}
+      {isLoading && <LineLoader/>}
       <div
         className={classNames({
           "vm-explore-logs-body-header": true,
@@ -69,9 +72,11 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
             items={tabs}
             onChange={handleChangeTab}
           />
-          <div className="vm-explore-logs-body-header__log-info">
-            Total logs returned: <b>{data.length}</b>
-          </div>
+          {activeTab !== DisplayType.liveTailing && (
+            <div className="vm-explore-logs-body-header__log-info">
+              Total logs returned: <b>{data.length}</b>
+            </div>
+          )}
         </div>
         <div
           className="vm-explore-logs-body-header__settings"
@@ -89,7 +94,8 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
             <ActiveTabComponent
               data={data}
               settingsRef={settingsRef}
-            />}
+            />
+        }
       </div>
     </div>
   );

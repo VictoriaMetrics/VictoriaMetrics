@@ -24,6 +24,7 @@
   &_sidebar {
     display: grid;
     grid-template-columns: 40px auto 1fr;
+    box-shadow: $color-background-body 0 1px 1px 0px;
   }
 
   &_mobile {

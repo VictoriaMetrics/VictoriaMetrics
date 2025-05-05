@@ -10,6 +10,7 @@ import SelectLimit from "../../../../../components/Main/Pagination/SelectLimit/S
 import TableSettings from "../../../../../components/Table/TableSettings/TableSettings";
 import useSearchParamsFromObject from "../../../../../hooks/useSearchParamsFromObject";
 import EmptyLogs from "../components/EmptyLogs/EmptyLogs";
+import { useCallback } from "react";
 
 const MemoizedTableView = React.memo(TableLogs);
 
@@ -34,6 +35,8 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
     setSearchParamsFromKeys({ rows_per_page: limit });
   };
 
+  const getLogs = useCallback(() => data, [data]);
+
   const renderSettings = () => {
     if (!settingsRef.current) return null;
 
@@ -44,7 +47,7 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
           onChange={handleSetRowsPerPage}
         />
         <div className="vm-table-view__settings-buttons">
-          {data.length > 0 && <DownloadLogsButton logs={data} />}
+          {data.length > 0 && <DownloadLogsButton getLogs={getLogs} />}
           <TableSettings
             columns={columns}
             selectedColumns={displayColumns}

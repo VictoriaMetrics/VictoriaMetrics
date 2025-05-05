@@ -1,4 +1,4 @@
-import React, { FC, memo, useCallback, useEffect, useState } from "preact/compat";
+import { FC, memo, useCallback, useEffect, useState } from "preact/compat";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import Button from "../../../components/Main/Button/Button";
 import { CopyIcon, StorageIcon, VisibilityIcon } from "../../../components/Main/Icons";
@@ -9,9 +9,10 @@ import { LOGS_GROUP_BY, LOGS_URL_PARAMS } from "../../../constants/logs";
 interface Props {
   field: string;
   value: string;
+  hideGroupButton?: boolean;
 }
 
-const GroupLogsFieldRow: FC<Props> = ({ field, value }) => {
+const GroupLogsFieldRow: FC<Props> = ({ field, value, hideGroupButton }) => {
   const copyToClipboard = useCopyToClipboard();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -75,20 +76,22 @@ const GroupLogsFieldRow: FC<Props> = ({ field, value }) => {
               size="small"
               startIcon={isSelectedField ? <VisibilityIcon/> : <VisibilityIcon/>}
               onClick={handleSelectDisplayField}
-              ariaLabel="copy to clipboard"
+              ariaLabel={isSelectedField ? "Hide this field" : "Show this field instead of the message"}
             />
           </Tooltip>
-          <Tooltip title={isGroupByField ? "Ungroup this field" : "Group by this field"}>
-            <Button
-              className="vm-group-logs-row-fields-item-controls__button"
-              variant="text"
-              color={isGroupByField ? "secondary" : "gray"}
-              size="small"
-              startIcon={<StorageIcon/>}
-              onClick={handleSelectGroupBy}
-              ariaLabel="copy to clipboard"
-            />
-          </Tooltip>
+          {!hideGroupButton && (
+            <Tooltip title={isGroupByField ? "Ungroup this field" : "Group by this field"}>
+              <Button
+                className="vm-group-logs-row-fields-item-controls__button"
+                variant="text"
+                color={isGroupByField ? "secondary" : "gray"}
+                size="small"
+                startIcon={<StorageIcon/>}
+                onClick={handleSelectGroupBy}
+                ariaLabel={isGroupByField ? "Ungroup this field" : "Group by this field"}
+              />
+            </Tooltip>
+          )}
         </div>
       </td>
       <td className="vm-group-logs-row-fields-item__key">{field}</td>
