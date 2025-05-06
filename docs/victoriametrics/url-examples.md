@@ -612,7 +612,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST htt
 
 Additional information:
 
-* [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+* [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb)
 * [URL Format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ### /internal/resetRollupResultCache

@@ -371,7 +371,7 @@ We recommend using the [github.com/VictoriaMetrics/metrics](https://github.com/V
 for pushing application metrics to VictoriaMetrics.
 It is also possible to use already existing clients compatible with the protocols listed above
 like [Telegraf](https://github.com/influxdata/telegraf)
-for [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+for [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb).
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 

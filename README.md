@@ -41,7 +41,7 @@ VictoriaMetrics is optimized for timeseries data, even when old time series are 
 * **Global query view**: Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics and queried via a single query.
 * **Various Protocols**: Support metric scraping, ingestion and backfilling in various protocol.
     * [Prometheus exporters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter), [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus), [Prometheus exposition format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format).
-    * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
+    * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) over HTTP, TCP and UDP.
     * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
     * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-telnet-put-protocol).
     * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests).

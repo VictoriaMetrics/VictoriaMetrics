@@ -7,8 +7,8 @@ menu:
     weight: 3
 ---
 
-VictoriaMetrics can receive inserts from Graphite-compatible agents ( such as [StatsD](https://github.com/etsy/statsd))
-and implements Graphite query language. It can be integrated with Grafana via [Graphite datasource](https://grafana.com/docs/grafana/latest/datasources/graphite/).
+VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive inserts from Graphite-compatible agents (such as [StatsD](https://github.com/etsy/statsd)).
+VictoriaMetrics **single-node** and **vmselect** support Graphite query language. It can be integrated with Grafana via [Graphite datasource](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 See [How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
 by switching from Graphite and keeping all the same Grafana dashboards and agents.
 
@@ -19,8 +19,7 @@ See full list of Graphite-related configuration flags by running:
 
 ## Ingesting
 
-VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive inserts from Graphite-compatible agents 
-(such as [StatsD](https://github.com/statsd/statsd)). Enable Graphite receiver by setting `-graphiteListenAddr` command line flag:
+Enable Graphite receiver by setting `-graphiteListenAddr` command line flag:
 ```bash
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
