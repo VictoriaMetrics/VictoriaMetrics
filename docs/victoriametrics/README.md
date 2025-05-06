@@ -70,7 +70,7 @@ VictoriaMetrics has the following prominent features:
   * [Metrics scraping from Prometheus exporters](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
   * [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
-  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
+  * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
@@ -428,111 +428,7 @@ Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics
 
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
-Use `http://<victoriametrics-addr>:8428` URL instead of InfluxDB url in agents' configs.
-For instance, put the following lines into `Telegraf` config, so it sends data to VictoriaMetrics instead of InfluxDB:
-
-```toml
-[[outputs.influxdb]]
-  urls = ["http://<victoriametrics-addr>:8428"]
-```
-
-Or in case of [`http`](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/http) output
-
-```toml
-[[outputs.http]]
-  url = "http://<victoriametrics-addr>:8428/influx/write"
-  data_format = "influx"
-  non_retryable_statuscodes = [400]
-```
-
-The size of the request sent to VictoriaMetrics's Influx HTTP endpoints is limited by `-influx.maxRequestSize` (default: 64Mb).
-For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: 1`
-HTTP header with each request or by setting `-influx.forceStreamMode` command-line flag to enable stream processing for all requests.
-Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
-it ignores invalid rows (only logs them) and ingests successfully parsed rows. If client cancels the ingestion request
-due to timeout or other reasons, it could happen that some lines from the workload were already parsed and ingested.
-
-Another option is to enable TCP and UDP receiver for InfluxDB line protocol via `-influxListenAddr` command-line flag
-and stream plain InfluxDB line protocol data to the configured TCP and/or UDP addresses. TCP and UDP receivers are 
-only working in streaming mode.
-
-VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
-* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
-  [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line. 
-  The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
-  read more about multi-tenancy [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#multi-tenancy).
-* Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
-* Field values are mapped to time series values.
-* Non-numeric field values are converted to 0.
-* Tags are mapped to Prometheus labels as-is.
-* If `-usePromCompatibleNaming` command-line flag is set, then all the metric names and label names
-  are normalized to [Prometheus-compatible naming](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels) by replacing unsupported chars with `_`.
-  For example, `foo.bar-baz/1` metric name or label name is substituted with `foo_bar_baz_1`.
-
-For example, the following InfluxDB line:
-
-```influxtextmetric
-foo,tag1=value1,tag2=value2 field1=12,field2=40
-```
-
-is converted into the following Prometheus data points:
-
-```promtextmetric
-foo_field1{tag1="value1", tag2="value2"} 12
-foo_field2{tag1="value1", tag2="value2"} 40
-```
-
-Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
-to local VictoriaMetrics using `curl`:
-
-```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
-```
-
-An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
-```
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
-{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
-```
-
-Note that InfluxDB line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
-while VictoriaMetrics stores them with *milliseconds* precision. It is allowed to ingest timestamps with seconds,
-microseconds or nanoseconds precision - VictoriaMetrics will automatically convert them to milliseconds.
-
-Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
-For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
-
-Some plugins for Telegraf such as [fluentd](https://github.com/fangli/fluent-plugin-influxdb), [Juniper/open-nti](https://github.com/Juniper/open-nti)
-or [Juniper/jitmon](https://github.com/Juniper/jtimon) send `SHOW DATABASES` query to `/query` and expect a particular database name in the response.
-Comma-separated list of expected databases can be passed to VictoriaMetrics via `-influx.databaseNames` command-line flag.
-
-### How to send data in InfluxDB v2 format
-
-VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
-
-
-In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
-
-
-```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
-```
-
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
-```
+Moved to [integrations/influxdb](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf).
 
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
@@ -564,24 +460,17 @@ the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UD
 Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
-
-
 ```sh
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
-
 The `/api/v1/export` endpoint should return the following response:
-
 ```json
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
 ```
@@ -590,7 +479,6 @@ The `/api/v1/export` endpoint should return the following response:
 
 Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
 the following command enables OpenTSDB HTTP server on port `4242`:
-
 ```sh
 /path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
 ```
@@ -598,27 +486,19 @@ the following command enables OpenTSDB HTTP server on port `4242`:
 Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing a single data point:
-
-
 ```sh
 curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
 ```
 
-
 Example for writing multiple data points in a single request:
-
 ```sh
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
-
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```
-
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -1112,7 +992,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
 * DataDog `submit metrics` API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog) for details.
-* InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
+* InfluxDB line protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
@@ -1125,7 +1005,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * `/api/v1/import/prometheus` for importing data in Prometheus exposition format and in [Pushgateway format](https://github.com/prometheus/pushgateway#url).
   See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
-Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), [OpenTelemetry](#sending-data-via-opentelemetry) and [Influx Line Protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf))
+Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), [OpenTelemetry](#sending-data-via-opentelemetry) and [Influx Line Protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf))
 are optimized for performance and processes data in a streaming fashion.
 It means that client can transfer unlimited amount of data through the open connection. Because of this, import APIs
 may not return parsing errors to the client, as it is expected for data stream to be not interrupted. 
@@ -2792,12 +2672,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.forceStreamMode
-     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -influx.maxRequestSize size
-     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
