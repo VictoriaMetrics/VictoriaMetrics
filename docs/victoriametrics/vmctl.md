@@ -833,7 +833,7 @@ _To disable explore phase and switch to the old way of data migration via single
 `--vm-native-disable-per-metric-migration` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
 _Migration speed via vmctl is limited by available resources on `--vm-native-src-addr` and `--vm-native-dst-addr`,
-and network between `src`=>vmctl=>`dst`. See the expeted migration speed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5366#issuecomment-1854251938)._
+and network between `src`=>vmctl=>`dst`. See the expected migration speed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5366#issuecomment-1854251938)._
 
 Importing tips:
 

@@ -2,6 +2,7 @@
 title : "Vector"
 menu:
   docs:
+    identifier: victoriametrics-cloud-integrations-vector
     parent: "integrations"
 ---
 
