@@ -4263,7 +4263,7 @@ func TestStorageSearchTagValueSuffixes_maxTagValueSuffixes(t *testing.T) {
 		}
 	}
 
-	// First, check that all the suffixes are returned if tht limit is higher
+	// First, check that all the suffixes are returned if the limit is higher
 	// than numMetrics.
 	maxTagValueSuffixes := numMetrics + 1
 	wantCount := numMetrics

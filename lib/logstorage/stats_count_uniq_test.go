@@ -513,7 +513,7 @@ func TestStatsCountUniq_ExportImportState(t *testing.T) {
 	}
 	f(sup, 82, 11)
 
-	// boths shards and shardss initialized
+	// both shards and shardss initialized
 	sup = newStatsCountUniqProcessor()
 	sup.shardss = [][]statsCountUniqSet{
 		{

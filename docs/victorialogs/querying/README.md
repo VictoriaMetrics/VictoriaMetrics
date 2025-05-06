@@ -925,7 +925,7 @@ All the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the fol
   All the filters across all the `extra_filters` args are applied to the `query` then.
 - `extra_stream_filters` - this arg may contain extra [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter),
   which must be applied to the `query` before returning results. Multiple `extra_stream_filters` args may be passed in a single request.
-  All the stream filters accross all the `extra_stream_filters` args are applied to the `query` then.
+  All the stream filters across all the `extra_stream_filters` args are applied to the `query` then.
 
 The `extra_filters` and `extra_stream_filters` values can have the following format:
 

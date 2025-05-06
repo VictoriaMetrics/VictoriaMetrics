@@ -597,7 +597,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		return w.String()
 	}
 
-	// process one serie: one batch of data, plus auto metrics pushed
+	// process one series: one batch of data, plus auto metrics pushed
 	f(generateScrape(1), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
