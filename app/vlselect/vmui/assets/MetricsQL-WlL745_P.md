@@ -66,8 +66,8 @@ or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/victo
 The list of MetricsQL features on top of PromQL:
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax.
-  See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#selecting-graphite-metrics).
-  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics).
+  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage) for details.
   See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
 * Lookbehind window in square brackets for [rollup functions](#rollup-functions) may be omitted. VictoriaMetrics automatically selects the lookbehind window
   depending on the `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
