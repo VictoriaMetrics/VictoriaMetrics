@@ -149,8 +149,7 @@ type indexDB struct {
 	// The cache is used solely for creating new index entries during the data
 	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
 	//
-	// TODO(@baidarov): Use a specialized cache for this, we don't need id/date here
-	metricIDCache *dateMetricIDCache
+	metricIDCache *metricIDCache
 
 	// An inmemory set of deleted metricIDs.
 	//
@@ -201,7 +200,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
-		metricIDCache:              newDateMetricIDCache(),
+		metricIDCache:              newMetricIDCache(),
 		prefetchedMetricIDs:        &uint64set.Set{},
 	}
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
@@ -535,7 +534,7 @@ func generateTSID(dst *TSID, mn *MetricName) {
 
 func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	// Add new metricID to cache.
-	db.metricIDCache.Set(db.id, globalIndexDate, tsid.MetricID)
+	db.metricIDCache.Set(tsid.MetricID)
 
 	ii := getIndexItems()
 	defer putIndexItems(ii)
@@ -2824,7 +2823,7 @@ func (db *indexDB) hasDateMetricID(date, metricID uint64) bool {
 }
 
 func (db *indexDB) hasMetricID(metricID uint64) bool {
-	ok := db.metricIDCache.Has(db.id, globalIndexDate, metricID)
+	ok := db.metricIDCache.Has(metricID)
 	if ok {
 		return true
 	}
@@ -2843,7 +2842,7 @@ func (db *indexDB) hasMetricID(metricID uint64) bool {
 		logger.Panicf("FATAL: error when searching for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
 	}
 
-	db.metricIDCache.Set(db.id, globalIndexDate, metricID)
+	db.metricIDCache.Set(metricID)
 
 	return true
 }
