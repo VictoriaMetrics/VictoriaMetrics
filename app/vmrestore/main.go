@@ -40,7 +40,7 @@ func main() {
 	logger.Init()
 
 	listenAddrs := []string{*httpListenAddr}
-	go httpserver.Serve(listenAddrs, nil, nil)
+	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	go func() {
