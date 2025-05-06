@@ -71,6 +71,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters).
+- [FIPS compliant mode for all the components](https://docs.victoriametrics.com/victoriametrics/enterpries/#fips-compliance).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
 
@@ -278,6 +279,15 @@ kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_
 
 Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
 See full list of CRD specifications [here](https://docs.victoriametrics.com/operator/api.html).
+
+### FIPS compliance
+
+VictoriaMetrics Enterprise components can be run in FIPS compliant mode {{% available_from "#" %}}. Binary releases and Docker images
+of VictoriaMetrics Enterprise components have `fips` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.115.0-enterprise.tar.gz`
+archive includes `victoria-metrics-prod` and `victoria-metrics-fips` binaries. The latter binary is FIPS compliant.
+
+Docker images of VictoriaMetrics Enterprise components have `fips` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.117.0-enterprise-fips`
+image uses FIPS compliant binary version.
 
 ## Monitoring license expiration
 

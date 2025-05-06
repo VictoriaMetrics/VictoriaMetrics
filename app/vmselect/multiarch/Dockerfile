@@ -9,4 +9,5 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8481
 ENTRYPOINT ["/vmselect-prod"]
 ARG TARGETARCH
-COPY vmselect-linux-${TARGETARCH}-prod ./vmselect-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vmselect-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vmselect-prod

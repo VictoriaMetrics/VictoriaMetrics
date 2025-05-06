@@ -9,4 +9,5 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8480
 ENTRYPOINT ["/vminsert-prod"]
 ARG TARGETARCH
-COPY vminsert-linux-${TARGETARCH}-prod ./vminsert-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vminsert-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vminsert-prod

@@ -11,4 +11,5 @@ EXPOSE 8400
 EXPOSE 8401
 ENTRYPOINT ["/vmstorage-prod"]
 ARG TARGETARCH
-COPY vmstorage-linux-${TARGETARCH}-prod ./vmstorage-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vmstorage-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vmstorage-prod
