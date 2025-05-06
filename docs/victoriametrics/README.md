@@ -1708,7 +1708,7 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ### Retention filters
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports e.g. `retention filters`,
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports `retention filters`,
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering), while the `duration`
@@ -1723,6 +1723,13 @@ For example, the following config sets 3 days retention for time series with `te
 ```sh
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
+
+There are two gauge metrics to monitor the retention filters process:
+
+- `vm_retention_filters_partitions_scheduled` shows the total number of partitions scheduled for retention filters 
+- `vm_retention_filters_partitions_scheduled_size_bytes` shows the total size of scheduled partitions.
+
+Additionally, a log message with the filter expression and the paritition name is written to the log on the start and completion of the operation.
 
 Important notes:
 
