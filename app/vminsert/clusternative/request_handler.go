@@ -31,7 +31,8 @@ func InsertHandler(c net.Conn) error {
 			return nil
 		}
 		if handshake.IsClientNetworkError(err) {
-			logger.Warnf("cannot complete vminsert handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+			logger.Warnf("cannot complete vminsert handshake due to network error with client %q: %s. "+
+				"Check vminsert logs for errors", c.RemoteAddr(), err)
 			return nil
 		}
 

@@ -196,7 +196,8 @@ func (s *Server) run() {
 					return
 				}
 				if handshake.IsClientNetworkError(err) {
-					logger.Warnf("cannot complete vmselect handshake due to network error with client %q: %s", c.RemoteAddr(), err)
+					logger.Warnf("cannot complete vmselect handshake due to network error with client %q: %s. "+
+						"Check vmselect logs for errors", c.RemoteAddr(), err)
 				} else if !handshake.IsTCPHealthcheck(err) {
 					logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
 				}
