@@ -33,7 +33,7 @@ VictoriaMetrics has the following prominent features:
 
 * It can be used as long-term storage for Prometheus. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports the [Prometheus querying API](#prometheus-querying-api-usage).
-* It can be used as a drop-in replacement for Graphite in Grafana, because it supports the [Graphite API](#graphite-api-usage).
+* It can be used as a drop-in replacement for Graphite in Grafana, because it supports the [Graphite API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
   VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite - see [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#grammarly).
 * It is easy to setup and operate:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d)
@@ -71,7 +71,7 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
-  * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+  * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
   * [JSON line format](#how-to-import-data-in-json-line-format).
@@ -139,7 +139,7 @@ The following docs may be useful during initial VictoriaMetrics setup:
 * [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
 * [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
 * [How to query VictoriaMetrics via Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
-* [How to query VictoriaMetrics via Graphite API](#graphite-api-usage)
+* [How to query VictoriaMetrics via Graphite API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage)
 * [How to handle alerts](#alerting)
 
 VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
@@ -629,60 +629,15 @@ The `/api/v1/export` endpoint should return the following response:
 
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
-Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
-the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
-
-```sh
-/path/to/victoria-metrics-prod -graphiteListenAddr=:2003
-```
-
-Use the configured address in Graphite-compatible agents. For instance, set `graphiteHost`
-to the VictoriaMetrics host in `StatsD` configs.
-
-Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
-
-```sh
-echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
-```
-
-The ingested metrics can be sanitized according to Prometheus naming convention by passing `-graphite.sanitizeMetricName` command-line flag
-to VictoriaMetrics. The following modifications are applied to the ingested samples when this flag is passed to VictoriaMetrics:
-
-- remove redundant dots, e.g: `metric..name` => `metric.name`
-- replace characters not matching `a-zA-Z0-9:_.` chars with `_`
-
-VictoriaMetrics sets the current time to the ingested samples if the timestamp is omitted.
-
-An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
-```
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
-```
-
-[Graphite relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling) can be used if the imported Graphite data is going to be queried via [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
+Moved to [integrations/graphite#ingesting](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#ingesting).
 
 ## Querying Graphite data
 
-Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
-
-* [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). See also [selecting Graphite metrics](#selecting-graphite-metrics).
-* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
+Moved to [integrations/graphite#querying](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#querying).
 
 ## Selecting Graphite metrics
 
-VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/victoriametrics/metricsql/#label_graphite_group) function for extracting the given groups from Graphite metric name.
-
-The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`. They are transparently converted to `{value1,...,valueN}` syntax [used in Graphite](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). This allows using [multi-value template variables in Grafana](https://grafana.com/docs/grafana/latest/variables/formatting-multi-value-variables/) inside `__graphite__` pseudo-label. For example, Grafana expands `{__graphite__=~"foo.($bar).baz"}` into `{__graphite__=~"foo.(x|y).baz"}` if `$bar` template variable contains `x` and `y` values. In this case the query is automatically converted into `{__graphite__=~"foo.{x,y}.baz"}` before execution.
-
-VictoriaMetrics also supports Graphite query language - see [these docs](#graphite-render-api-usage).
+Moved to [integrations/graphite#selecting-graphite-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics).
 
 ## How to send data from OpenTSDB-compatible agents
 
@@ -945,66 +900,19 @@ in [export APIs](https://docs.victoriametrics.com/victoriametrics/single-server-
 
 ## Graphite API usage
 
-VictoriaMetrics supports data ingestion in Graphite protocol - see [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
-VictoriaMetrics supports the following Graphite querying APIs, which are needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/):
-
-* Render API - see [these docs](#graphite-render-api-usage).
-* Metrics API - see [these docs](#graphite-metrics-api-usage).
-* Tags API - see [these docs](#graphite-tags-api-usage).
-
-All the Graphite handlers can be prepended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
-
-VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector` query args for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.
-
-[Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
-
-VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [these docs](#selecting-graphite-metrics).
+Moved to [integrations/graphite#graphite-api-usage](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ### Graphite Render API usage
 
-VictoriaMetrics supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
-at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
-When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points
-stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
-
-#### Known Incompatibilities with `graphite-web`
-
-- **Timestamp Shifting**: VictoriaMetrics does not support shifting response timestamps outside the request time range as `graphite-web` does. This limitation impacts chained functions with time modifiers, such as `timeShift(summarize)`. For more details, refer to this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2969).
-
-- **Non-deterministic series order**: due to the distributed nature of metrics processing, functions within the `seriesLists` family can produce non-deterministic results. To ensure consistent results, arguments for these functions must be wrapped with a sorting function. For instance, the function `divideSeriesLists(series_list_1, series_list_2)` should be modified to `divideSeriesLists(sortByName(series_list_1), sortByName(series_list_2))`.  See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5810) for details.
-
-  The affected functions include:
-  - `aggregateSeriesLists`
-  - `diffSeriesLists`
-  - `multiplySeriesLists`
-  - `divideSeriesLists`
+Moved to [integrations/graphite#render-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api).
 
 ### Graphite Metrics API usage
 
-VictoriaMetrics supports the following handlers from [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api):
-
-* [/metrics/find](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
-* [/metrics/expand](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand)
-* [/metrics/index.json](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json)
-
-VictoriaMetrics accepts the following additional query args at `/metrics/find` and `/metrics/expand`:
-
-* `label` - for selecting arbitrary label values. By default, `label=__name__`, i.e. metric names are selected.
-* `delimiter` - for using different delimiters in metric name hierarchy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
-    that start with `node_`. By default `delimiter=.`.
+Moved to [integrations/graphite#metrics-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api).
 
 ### Graphite Tags API usage
 
-VictoriaMetrics supports the following handlers from [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html):
-
-* [/tags/tagSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
-* [/tags/tagMultiSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
-* [/tags](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
-* [/tags/{tag_name}](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
-* [/tags/findSeries](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
-* [/tags/autoComplete/tags](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
-* [/tags/autoComplete/values](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
-* [/tags/delSeries](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb)
+Moved to [integrations/graphite#tags-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api).
 
 ## How to build from sources
 
@@ -1298,7 +1206,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
-* Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
+* Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -1724,7 +1632,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
+- `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api).
 - `-search.maxFederateSeries` limits maximum number of time series, which can be returned via [/federate API](#federation). 
   The duration of the `/federate` queries is limited via `-search.maxQueryDuration` flag. This option allows limiting memory usage.
 - `-search.maxExportSeries` limits maximum number of time series, which can be returned from [/api/v1/export* APIs](#how-to-export-data-in-json-line-format).
@@ -2539,7 +2447,7 @@ and [cardinality explorer docs](#cardinality-explorer).
   Alternatively, you can use [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
-  See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api).
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
@@ -2929,7 +2837,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphite.sanitizeMetricName
-     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -3280,11 +3188,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-render-api-usage (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api (default 300000)
   -search.maxGraphiteTagKeys int
-     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api (default 100000)
   -search.maxLabelsAPIDuration duration
      The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int

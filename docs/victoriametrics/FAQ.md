@@ -120,7 +120,7 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 * QuestDB needs more than 20x storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
 * QuestDB is much harder to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
-* VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+* VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 * Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana), while QuestDB needs a full rewrite of existing dashboards in Grafana.
 * Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), while QuestDB has no integration with Prometheus.
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)).
@@ -162,7 +162,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ## What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)?
 
@@ -184,7 +184,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics accepts data via multiple popular data ingestion protocols in addition to the Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Thanos provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ## How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
 
@@ -193,7 +193,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to InfluxDB – Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
 
@@ -202,7 +202,7 @@ The main differences between Cortex and VictoriaMetrics:
 * VictoriaMetrics requires up to 10x less CPU and RAM resources than TimescaleDB for processing production data. See [this article](https://abiosgaming.com/press/high-cardinality-aggregations/) for details.
 * TimescaleDB is [harder to set up, configure and operate](https://docs.timescale.com/timescaledb/latest/how-to-guides/install-timescaledb/self-hosted/ubuntu/installation-apt-ubuntu/) than VictoriaMetrics (see [how to run VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics)).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols – InfluxDB, OpenTSDB, Graphite, CSV – while TimescaleDB supports only SQL inserts.
-* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+* VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ## Does VictoriaMetrics use Prometheus technologies like other clustered TSDBs built on top of Prometheus such as [Thanos](https://github.com/thanos-io/thanos) or [Cortex](https://github.com/cortexproject/cortex)?
 
@@ -316,7 +316,7 @@ or use pre-built binaries from [releases page](https://github.com/VictoriaMetric
 
 ## Does VictoriaMetrics support the Graphite query language?
 
-Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage).
+Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ## What is an active time series?
 
@@ -437,7 +437,7 @@ Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/#
 
 ## How to migrate data from Graphite to VictoriaMetrics?
 
-Please use the [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading data from Graphite and pushing them to VictoriaMetrics via [Graphite's import API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+Please use the [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading data from Graphite and pushing them to VictoriaMetrics via [Graphite's import API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
 
 ## Why do the same metrics have differences in VictoriaMetrics' and Prometheus' dashboards?
 

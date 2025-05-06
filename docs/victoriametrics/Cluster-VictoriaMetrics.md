@@ -118,7 +118,7 @@ The `vm_account_id` and `vm_project_id` labels are extracted after applying the 
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
 The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
-such as [Graphite](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
+such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting),
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-telnet-put-protocol).
 
@@ -1156,7 +1156,7 @@ Below is the output for `/path/to/vminsert -help`:
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphite.sanitizeMetricName
-     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -1468,7 +1468,7 @@ Below is the output for `/path/to/vmselect -help`:
   -globalReplicationFactor int
      How many copies of every ingested sample is available across vmstorage groups. vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor (default 1)
   -graphite.sanitizeMetricName
-     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -1622,11 +1622,11 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-render-api-usage (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api (default 300000)
   -search.maxGraphiteTagKeys int
-     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api (default 100000)
   -search.maxLabelsAPIDuration duration
      The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int

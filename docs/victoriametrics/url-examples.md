@@ -588,8 +588,8 @@ curl http://<vmselect>:8481/select/0/graphite/metrics/find -d 'query=vm_http_req
 Additional information:
 
 * [Metrics find API in Graphite](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
-* [Graphite API in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage)
-* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [Graphite API in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage)
+* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting)
 * [URL Format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ### /influx/write
@@ -698,5 +698,5 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminse
 
 Additional information:
 
-* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting)
 * [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
