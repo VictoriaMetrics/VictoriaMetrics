@@ -77,7 +77,7 @@ VictoriaMetrics has the following prominent features:
   * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
   * [Native binary format](#how-to-import-data-in-native-format).
-  * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
+  * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
   * [NewRelic infrastructure agent](#how-to-send-data-from-newrelic-agent).
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
@@ -424,100 +424,7 @@ See also [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), w
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/), [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) and
-[DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
-via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` or via "sketches" API at `/datadog/api/beta/sketches`.
-
-### Sending metrics to VictoriaMetrics
-
-DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
-or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
-
-![DD to VM](README_sending_DD_metrics_to_VM.webp)
-
-To configure DataDog agent via ENV variable add the following prefix:
-
-
-```sh
-DD_DD_URL=http://victoriametrics:8428/datadog
-```
-
-
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog)._
-
-To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
-add the following line:
-
-```yaml
-dd_url: http://victoriametrics:8428/datadog
-```
-
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) also can accept DataDog metrics format. Depending on where vmagent will forward data,
-pick [single-node or cluster URL](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog) formats.
-
-### Sending metrics to DataDog and VictoriaMetrics
-
-DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
-sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
- 
-![DD to VM](README_sending_DD_metrics_to_VM_and_DD.webp)
- 
-Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
-
-```sh
-DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
-```
-
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog)._
-
-
-To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
-add the following line:
-
-```yaml
-additional_endpoints:
-  "http://victoriametrics:8428/datadog":
-  - apikey
-```
-
-### Send metrics via Serverless DataDog plugin
-
-Disable logs (logs ingestion is not supported by VictoriaMetrics) and set a custom endpoint in `serverless.yaml`:
-
-```yaml
-custom:
-  datadog:
-    enableDDLogs: false             # Disabled not supported DD logs
-    apiKey: fakekey                 # Set any key, otherwise plugin fails
-provider:
-  environment:
-    DD_DD_URL: <<vm-url>>/datadog   # VictoriaMetrics endpoint for DataDog
-```
-
-### Send via cURL
-
-See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadogapiv2series).
-
-The imported data can be read via [export API](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export).
-
-### Additional details
-
-VictoriaMetrics automatically sanitizes metric names for the data ingested via DataDog protocol
-according to [DataDog metric naming recommendations](https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics).
-If you need accepting metric names as is without sanitizing, then pass `-datadog.sanitizeMetricName=false` command-line flag to VictoriaMetrics.
-
-Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
-For example, `/datadog/api/v2/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
-
-DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
-undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet.
-This prevents from adding the configured tags to DataDog agent data sent into VictoriaMetrics.
-The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) alongside every DataDog agent,
-which must run with `DD_DD_URL=http://localhost:8429/datadog` environment variable.
-The sidecar `vmagent` must be configured with the needed tags via `-remoteWrite.label` command-line flag and must forward
-incoming data with the added tags to a centralized VictoriaMetrics specified via `-remoteWrite.url` command-line flag.
-
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) for details on how to add labels to metrics at `vmagent`.
+Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
 
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
@@ -1204,7 +1111,7 @@ see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 Additionally, VictoriaMetrics can accept metrics via the following popular data ingestion protocols (aka "push" protocols):
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
-* DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
+* DataDog `submit metrics` API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.

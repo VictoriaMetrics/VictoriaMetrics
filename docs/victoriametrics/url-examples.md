@@ -472,7 +472,7 @@ echo '
 
 Additional information:
 
-* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent)
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/integrations/datadog)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 
@@ -540,7 +540,7 @@ echo '
 
 Additional information:
 
-* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent)
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/integrations/datadog)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ### /federate
