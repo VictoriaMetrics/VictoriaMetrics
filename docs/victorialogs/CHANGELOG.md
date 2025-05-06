@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add sorting of fields by key in the Group tab. See [#8438](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8438).
+* FEATURE: [JSON lines data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api): return `400 Bad Request` if no logs were successfully processed. This improves error visibility for malformed requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8818).
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix log entry sorting in group mode (newest logs appear first). See [#8726](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8726).
 

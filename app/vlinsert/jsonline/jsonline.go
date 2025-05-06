@@ -48,31 +48,46 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	lmp := cp.NewLogMessageProcessor("jsonline", true)
 	streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
-	processStreamInternal(streamName, reader, cp.TimeField, cp.MsgFields, lmp)
+	err = processStreamInternal(streamName, reader, cp.TimeField, cp.MsgFields, lmp)
 	lmp.MustClose()
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot process jsonline request; error: %s", err)
+		return
+	}
 
 	requestDuration.UpdateDuration(startTime)
 }
 
-func processStreamInternal(streamName string, r io.Reader, timeField string, msgFields []string, lmp insertutil.LogMessageProcessor) {
+func processStreamInternal(streamName string, r io.Reader, timeField string, msgFields []string, lmp insertutil.LogMessageProcessor) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
 	lr := insertutil.NewLineReader(streamName, wcr)
 
 	n := 0
+	errors := 0
+	var lastError error
 	for {
 		ok, err := readLine(lr, timeField, msgFields, lmp)
 		wcr.DecConcurrency()
 		if err != nil {
-			errorsTotal.Inc()
+			lastError = err
+			errors++
 			logger.Warnf("jsonline: cannot read line #%d in /jsonline request: %s", n, err)
 		}
 		if !ok {
-			return
+			break
 		}
 		n++
 	}
+	errorsTotal.Add(errors)
+
+	if errors > 0 && n == errors {
+		// Return an error if no logs were processed and there were errors
+		return lastError
+	}
+
+	return nil
 }
 
 func readLine(lr *insertutil.LineReader, timeField string, msgFields []string, lmp insertutil.LogMessageProcessor) (bool, error) {
@@ -89,11 +104,11 @@ func readLine(lr *insertutil.LineReader, timeField string, msgFields []string, l
 	defer logstorage.PutJSONParser(p)
 
 	if err := p.ParseLogMessage(line); err != nil {
-		return true, fmt.Errorf("cannot parse json-encoded line: %w; line contents: %q", err, line)
+		return true, fmt.Errorf("%s; line contents: %q", err, line)
 	}
 	ts, err := insertutil.ExtractTimestampFromFields(timeField, p.Fields)
 	if err != nil {
-		return true, fmt.Errorf("cannot get timestamp from json-encoded line: %w; line contents: %q", err, line)
+		return true, fmt.Errorf("%s; line contents: %q", err, line)
 	}
 	logstorage.RenameField(p.Fields, msgFields, "_msg")
 	lmp.AddRow(ts, p.Fields, nil)
