@@ -54,13 +54,14 @@ and performing [regular upgrades](https://docs.victoriametrics.com/victoriametri
 
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
-Download the latest available [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics)
-and start it at port `:8428`:
+Download the newest available [VictoriaMetrics release](https://docs.victoriametrics.com/victoriametrics/changelog/)
+from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 ```sh
 docker pull victoriametrics/victoria-metrics:v1.116.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
  victoriametrics/victoria-metrics:v1.116.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
+_Make sure to choose non-enterprise release flavour, as it requires additional access to run._
 
 You should see:
 ```sh
