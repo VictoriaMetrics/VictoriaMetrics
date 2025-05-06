@@ -5,13 +5,15 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 5
+tags:
+  - logs
 aliases:
 - /victorialogs/LogsQL.html
 ---
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial)
-and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/)
-in order to feel the language.
+See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial),
+[how to convert Loki queries to VictoriaLogs queries](https://docs.victoriametrics.com/victorialogs/logql-to-logsql/)
+and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/).
 
 LogsQL provides the following features:
 
@@ -289,8 +291,8 @@ It uses various optimizations in order to accelerate full scan queries without t
 but such queries can be slow if the storage contains large number of logs over long time range. The easiest way to optimize queries
 is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
-For example, the following query returns [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
+For example, the following query returns logs ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word)
+at the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 _time:1h AND error
@@ -314,10 +316,10 @@ The following formats are supported for `_time` filter:
 - `_time:<max_time` - matches logs with timestamps smaller than the `max_time`.
 - `_time:<=max_time` - matches logs with timestamps smaller or equal to the `max_time`.
 - `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
     For example, `_time:[2023-04-01Z, 2023-04-30Z]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04Z`.
 - `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
     For example, `_time:[2023-02-01Z, 2023-03-01Z)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02Z`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.
@@ -443,7 +445,7 @@ See also:
 
 VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `{...}` filter, which may contain arbitrary
-[Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
+[Prometheus-compatible label selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 For example, the following query selects [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with `app` field equal to `nginx`:
@@ -1204,8 +1206,7 @@ The range boundaries can contain any [supported numeric values](#numeric-values)
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), since the `4.2` number is surrounded by other text.
-Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
-and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
+Extract the numeric value from the message with [`extract` pipe](#extract-pipe) and then apply the `range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Performance tips:
 
@@ -1247,8 +1248,8 @@ user.ip:ipv4_range("1.2.3.4")
 
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
 doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
-and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
+since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with [`extract` pipe](#extract-pipe)
+and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Hints:
 
@@ -1517,6 +1518,7 @@ LogsQL supports the following pipes:
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
+- [`sample`](#sample-pipe) returns a sample of the matching logs according to the provided `sample` value.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
@@ -2075,6 +2077,9 @@ _time:5m | format "request from <ip>:<port>"
 
 String fields can be formatted with the following additional formatting rules:
 
+- The number of seconds in the [duration value](#duration-values) - add `duration_seconds:` in front of the corresponding field name.
+  The formatted number is fractional if the duration value contains non-zero milliseconds, microseconds or nanoseconds.
+
 - JSON-compatible quoted string - add `q:` in front of the corresponding field name.
   For example, the following query generates properly encoded JSON object from `_msg` and `stacktrace`
   [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and stores it into `my_json` output field:
@@ -2318,6 +2323,7 @@ By default rows are selected in arbitrary order because of performance reasons, 
 
 See also:
 
+- [`sample` pipe](#sample-pipe)
 - [`sort` pipe](#sort-pipe)
 - [`offset` pipe](#offset-pipe)
 
@@ -2633,6 +2639,20 @@ with `***` in the `foo` field only if `user_type` field equals to `admin`:
 ```logsql
 _time:5m | replace_regexp if (user_type:=admin) ("password: [^ ]+", "") at foo
 ```
+
+### sample pipe
+
+The `<q> | sample N` [pipe](#pipes) returns `1/N`th random sample of logs for the `<q>` [query](#query-syntax).
+For example, the following query returns ~1% (1/100th random sample) of logs over the last 5 minutes with the `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:1h error | sample 100
+```
+
+See also:
+
+- [`limit` pipe](#limit-pipe)
 
 ### sort pipe
 
@@ -3423,6 +3443,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq_hash`](#count_uniq_hash-stats) returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`histogram`](#histogram-stats) returns [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`json_values`](#json_values-stats) returns JSON-encoded logs as JSON array.
 - [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -3610,6 +3631,36 @@ See also:
 - [`quantile`](#quantile-stats)
 - [`unroll` pipe](#unroll-pipe)
 - [`unpack_json` pipe](#unpack_json-pipe)
+
+### json_values stats
+
+`json_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns packs the given fields into JSON per every log entry and returns JSON array,
+which can be unrolled with [`unroll` pipe](#unroll-pipe).
+
+For example, the following query returns per-`app` JSON arrays containing [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields for the last 5 minutes:
+
+```logsql
+_time:5m | stats by (app) json_values(_time, _msg) as json_logs
+```
+
+If the list of fields is empty, then all the log fields are encoded into JSON array:
+
+```logsql
+_time:5m | stats json_values() as json_logs
+```
+
+It is possible to set the upper limit on the number of JSON-encoded logs with the `limit N` suffix. For example, the following query
+returns up to 3 JSON-encoded logs per every `host`:
+
+```logsql
+_time:5m | stats by (host) json_values() limit 3 as json_logs
+```
+
+See also:
+
+- [`values`](#values-stats)
+- [`unroll` pipe](#unroll-pipe)
 
 ### max stats
 
@@ -3894,6 +3945,7 @@ The returned ip addresses can be unrolled into distinct log entries with [`unrol
 
 See also:
 
+- [`json_values`](#json_values-stats)
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 - [`count_empty`](#count_empty-stats)
@@ -3915,6 +3967,8 @@ LogsQL supports the following transformations on the log entries selected with [
 - Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [`math` pipe](#math-pipe).
+
+See also [other pipes](#pipes), which can be applied to the selected logs.
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
 with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).

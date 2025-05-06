@@ -6,6 +6,10 @@ menu:
     parent: "cloud"
     weight: 10
     name: Billing
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 
 VictoriaMetrics Cloud charges for three key components:
@@ -108,7 +112,7 @@ Although usage is metered hourly, billing is conducted monthly. The billing date
 
 ### Can you help reduce my costs?
 
-We recommend using Enterprise features such as [downsampling](https://docs.victoriametrics.com/#downsampling) and [retention filters](https://docs.victoriametrics.com/#retention-filters) for cost optimization. Contact [VictoriaMetrics Cloud Support](https://docs.victoriametrics.com/victoriametrics-cloud/support/) for assistance.
+We recommend using Enterprise features such as [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) and [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) for cost optimization. Contact [VictoriaMetrics Cloud Support](https://docs.victoriametrics.com/victoriametrics-cloud/support/) for assistance.
 
 ### I want to extend my trial or get more credits. What should I do?
 

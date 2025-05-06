@@ -17,13 +17,13 @@ func main() {
 	app := &cli.App{
 		Name:      "vmalert-tool",
 		Usage:     "VMAlert command-line tool",
-		UsageText: "More info in https://docs.victoriametrics.com/vmalert-tool.html",
+		UsageText: "More info in https://docs.victoriametrics.com/victoriametrics/vmalert-tool/",
 		Version:   buildinfo.Version,
 		Commands: []*cli.Command{
 			{
 				Name:      "unittest",
 				Usage:     "Run unittest for alerting and recording rules.",
-				UsageText: "More info in https://docs.victoriametrics.com/vmalert-tool.html#Unit-testing-for-rules",
+				UsageText: "More info in https://docs.victoriametrics.com/victoriametrics/vmalert-tool/#unit-testing-for-rules",
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{
 						Name: "files",

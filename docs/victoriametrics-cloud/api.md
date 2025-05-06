@@ -6,6 +6,10 @@ menu:
     parent: "cloud"
     weight: 8
     name: API
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 VictoriaMetrics Cloud provides programmatic access for managing cloud resources and is useful for automation with tools like Terraform, OpenTofu, Infrastructure as a Code, GitOps framework, etc.
 
@@ -13,7 +17,7 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
 
 * **API Keys**: Used to manage VictoriaMetrics Cloud resources via API.
 
-**Note: Access Tokens** are used for reading and writing data to deployments. They are separate from API Keys and should not be confused. API Keys are specifically for managing resources via the API, while Access Tokens handle data access for deployments.
+**Note: [Access Tokens](deployments/access-tokens.md)** are used for reading and writing data to deployments. They are separate from API Keys and should not be confused. API Keys are specifically for managing resources via the API, while [Access Tokens](deployments/access-tokens.md) handle data access for deployments.
 
 ## API Swagger/OpenAPI Reference: [https://console.victoriametrics.cloud/api-docs](https://console.victoriametrics.cloud/api-docs)
 

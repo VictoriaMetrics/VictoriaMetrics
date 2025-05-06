@@ -1,17 +1,23 @@
 ---
-weight: 31
+weight: 81
 title: Cluster Per Tenant Statistic
 menu:
   docs:
     identifier: vm-cluster-per-tenant-statistic
     parent: victoriametrics
-    weight: 31
+    weight: 81
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /PerTenantStatistic.html
+  - /pertenantstatistic
+  - /pertenantstatistic/index.html
+  - /pertenantstatistic/
 ---
 ![cluster-per-tenant-stat](PerTenantStatistic-stats.webp)
 
-***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 To get the license key you can request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).***
 
 VictoriaMetrics cluster for enterprise provides various metrics and statistics usage per tenant:
@@ -77,7 +83,7 @@ Check the Billing section of [Grafana Dashboard](#visualization), it contains bi
 ## Integration with vmgateway
 
 `vmgateway` supports integration with Per Tenant Statistics data for rate limiting purposes.
-More information can be found [here](https://docs.victoriametrics.com/vmgateway/)
+More information can be found [here](https://docs.victoriametrics.com/victoriametrics/vmgateway/)
 
 ## Integration with vmalert
 

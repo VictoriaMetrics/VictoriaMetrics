@@ -486,7 +486,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown.",
+      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1003,7 +1003,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
+      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1073,7 +1073,7 @@
         {
           "targetBlank": true,
           "title": "troubleshooting",
-          "url": "https://docs.victoriametrics.com/troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/troubleshooting/"
         }
       ],
       "options": {
@@ -3066,7 +3066,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/troubleshooting/ ",
+          "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/victoriametrics/troubleshooting/ ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3403,7 +3403,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
+          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3522,7 +3522,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The percentage of [slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert) compared to the total ingestion rate. \\n\\nThe lower the better. \\n\\nIn short, slow insert is a cache miss. There are following reasons for slow inserts to go up: \\n* Ingestion of completely new, not seen before time series;\\n* Not enough memory to maintain big enough caches for the current workload.\\n\\nIf percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \\n\\nSee [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
+          "description": "The percentage of [slow inserts](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-a-slow-insert) compared to the total ingestion rate. \\n\\nThe lower the better. \\n\\nIn short, slow insert is a cache miss. There are following reasons for slow inserts to go up: \\n* Ingestion of completely new, not seen before time series;\\n* Not enough memory to maintain big enough caches for the current workload.\\n\\nIf percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series). \\n\\nSee [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4068,7 +4068,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows how many samples were ignored or dropped on insertion due to various reasons:\n* timestamp out of retention period or timestamp in future;\n* invalid metric name;\n* exceeding limit for labels length or number;\n* dropped by [relabeling configuration](https://docs.victoriametrics.com/#relabeling).",
+          "description": "Shows how many samples were ignored or dropped on insertion due to various reasons:\n* timestamp out of retention period or timestamp in future;\n* invalid metric name;\n* exceeding limit for labels length or number;\n* dropped by [relabeling configuration](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4188,7 +4188,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows rate of deduplicated samples during [deduplication](https://docs.victoriametrics.com/#deduplication) or [downsampling](https://docs.victoriametrics.com/#downsampling), according to the configured `-dedup.minScrapeInterval` or `-downsampling.period`.\n\nShould be empty if `-dedup.minScrapeInterval` and `-downsampling.period` isn't set.\n\nDeduplication happens in two places:\n* `type=\"merge\"` - during [background merges](https://docs.victoriametrics.com/#storage). Deduplication during merges is permanent.\n* `type=\"select\"` - during [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data). Deduplication happens in-flight and has no permanent effect.\n\nThe more samples need to be deduplicated, the higher will be resource usage.",
+          "description": "Shows rate of deduplicated samples during [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) or [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling), according to the configured `-dedup.minScrapeInterval` or `-downsampling.period`.\n\nShould be empty if `-dedup.minScrapeInterval` and `-downsampling.period` isn't set.\n\nDeduplication happens in two places:\n* `type=\"merge\"` - during [background merges](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage). Deduplication during merges is permanent.\n* `type=\"select\"` - during [read queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data). Deduplication happens in-flight and has no permanent effect.\n\nThe more samples need to be deduplicated, the higher will be resource usage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4257,7 +4257,7 @@
             {
               "targetBlank": true,
               "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode"
+              "url": "https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode"
             }
           ],
           "options": {
@@ -4919,7 +4919,7 @@
           "datasource": {
             "uid": "$ds"
           },
-          "description": "The max number of data parts of LSM tree across all storage nodes in the last [partition](https://docs.victoriametrics.com/#storage).\nIncrease in number of parts (the hard limit is 512) is an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage (hot data)\n* `storage/big` -  small parts gradually merged into bigger parts (cold data)",
+          "description": "The max number of data parts of LSM tree across all storage nodes in the last [partition](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage).\nIncrease in number of parts (the hard limit is 512) is an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage (hot data)\n* `storage/big` -  small parts gradually merged into bigger parts (cold data)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5644,7 +5644,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per queried series.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per queried series.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5866,7 +5866,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5977,7 +5977,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per query.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per query.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6088,7 +6088,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows number of existing [snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots).\n\nRecently made snapshots do not occupy disk space. But with time, as snapshots become older, they start to occupy more and more disk space.\n\nIt is recommended deleting old snapshots when they are no longer needed to free up disk space.",
+          "description": "Shows number of existing [snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).\n\nRecently made snapshots do not occupy disk space. But with time, as snapshots become older, they start to occupy more and more disk space.\n\nIt is recommended deleting old snapshots when they are no longer needed to free up disk space.",
           "fieldConfig": {
             "defaults": {
               "color": {

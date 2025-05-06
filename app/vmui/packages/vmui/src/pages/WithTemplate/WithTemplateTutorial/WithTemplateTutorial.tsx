@@ -5,7 +5,7 @@ import CodeExample from "../../../components/Main/CodeExample/CodeExample";
 const MetricsQL = () => (
   <a
     className="vm-link vm-link_colored"
-    href="https://docs.victoriametrics.com/MetricsQL.html"
+    href="https://docs.victoriametrics.com/victoriametrics/metricsql/"
     target="_blank"
     rel="help noreferrer"
   >
@@ -16,7 +16,7 @@ const MetricsQL = () => (
 const NodeExporterFull = () => (
   <a
     className="vm-link vm-link_colored"
-    href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/"
+    href="https://grafana.com/grafana/dashboards/1860"
     target="_blank"
     rel="help noreferrer"
   >

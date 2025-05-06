@@ -3,6 +3,7 @@ package apptest
 import (
 	"bytes"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,9 +14,6 @@ import (
 )
 
 // Client is used for interacting with the apps over the network.
-//
-// At the moment it only supports HTTP protocol but may be exptended to support
-// RPCs, etc.
 type Client struct {
 	httpCli *http.Client
 }
@@ -55,6 +53,13 @@ func (c *Client) PostForm(t *testing.T, url string, data url.Values) (string, in
 	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()))
 }
 
+// Delete sends a HTTP DELETE request and returns the response body and status code
+// to the caller.
+func (c *Client) Delete(t *testing.T, url string) (string, int) {
+	t.Helper()
+	return c.do(t, http.MethodDelete, url, "", nil)
+}
+
 // do prepares a HTTP request, sends it to the server, receives the response
 // from the server, returns the response body and status code to the caller.
 func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) (string, int) {
@@ -76,6 +81,25 @@ func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) 
 	body := readAllAndClose(t, res.Body)
 
 	return body, res.StatusCode
+}
+
+func (c *Client) Write(t *testing.T, address string, data []string) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		t.Fatalf("cannot dial %s: %s", address, err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	d := []byte(strings.Join(data, "\n"))
+	n, err := conn.Write(d)
+	if err != nil {
+		t.Fatalf("cannot write %d bytes to %s: %s", len(d), address, err)
+	}
+	if n != len(d) {
+		t.Fatalf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(d))
+	}
 }
 
 // readAllAndClose reads everything from the response body and then closes it.

@@ -61,7 +61,7 @@ Then run the built binary with the following command:
 bin/victoria-metrics -selfScrapeInterval=5s
 ```
 
-Then navigate to `http://localhost:8428/vmui/`. See [these docs](https://docs.victoriametrics.com/#vmui) for more details.
+Then navigate to `http://localhost:8428/vmui/`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for more details.
 
 ----
 

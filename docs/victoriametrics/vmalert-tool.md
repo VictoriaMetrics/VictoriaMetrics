@@ -5,8 +5,12 @@ menu:
     parent: victoriametrics
     weight: 12
 title: vmalert-tool
+tags:
+  - metrics
 aliases:
   - /vmalert-tool.html
+  - /vmalert-tool/index.html
+  - /vmalert-tool/
 ---
 VMAlert command-line tool
 
@@ -16,7 +20,7 @@ You can use `vmalert-tool` to run unit tests for alerting and recording rules.
 It will perform the following actions:
 * sets up an isolated VictoriaMetrics instance;
 * simulates the periodic ingestion of time series;
-* queries the ingested data for recording and alerting rules evaluation like [vmalert](https://docs.victoriametrics.com/vmalert/);
+* queries the ingested data for recording and alerting rules evaluation like [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/);
 * checks whether the firing alerts or resulting recording rules match the expected results.
 
 See how to run vmalert-tool for unit test below:
@@ -29,13 +33,13 @@ See how to run vmalert-tool for unit test below:
 
 vmalert-tool unittest is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)
 except `promql_expr_test` field. Use `metricsql_expr_test` field name instead. The name is different because vmalert-tool
-validates and executes [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions,
+validates and executes [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions,
 which aren't always backward compatible with [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
 ### Limitations
 
 * vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`(default `1m`) instead of `interval` under each rule group.
-* vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/vmalert/#limitations) on chaining rules under one group:
+* vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#limitations) on chaining rules under one group:
 
 >by default, rules execution is sequential within one group, but persistence of execution results to remote storage is asynchronous. Hence, user shouldn’t rely on chaining of recording rules when result of previous recording rule is reused in the next one;
 
@@ -62,7 +66,7 @@ groups:
 The configuration format for files specified in `--files` cmd-line flag is the following:
 
 ```yaml
-# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert/#groups) configuration.
+# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) configuration.
 # Enterprise version of vmalert-tool supports S3 and GCS paths to rules.
 rule_files:
   [ - <string> ]
@@ -100,7 +104,7 @@ alert_rule_test:
 metricsql_expr_test:
   [ - <metricsql_expr_test> ]
 
-# external_labels is not accessible for [templating](https://docs.victoriametrics.com/vmalert/#templating), use "-external.label" cmd-line flag instead.
+# external_labels is not accessible for [templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating), use "-external.label" cmd-line flag instead.
 # Will be deprecated soon, check https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735 for details.
 external_labels:
   [ <labelname>: <string> ... ]
@@ -278,7 +282,7 @@ groups:
 
 ### Debug mode
 
-vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/vmalert/#debug-mode), by following these steps:
+vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode), by following these steps:
 1. Set `debug: true` in rule’s configuration;
 2. Run vmalert-tool with the flag `-loggerLevel=INFO`.
 

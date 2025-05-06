@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-self-monitoring"
     parent: "anomaly-detection"
     weight: 4
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection/self-monitoring.html
 ---
@@ -16,20 +19,20 @@ Self-monitoring refers to the ability of the service to track and report its own
 
 VictoriaMetrics Anomaly Detection (`vmanomaly`) supports self-monitoring by generating metrics related to different operational aspects of the service, including model execution, reader behavior, writer behavior, and overall service health. These metrics provide insights into system bottlenecks, errors, or unusual behavior, and allow for data-driven decisions on tuning performance and reliability.
 
-Self-monitoring metrics are available in both the [push](https://docs.victoriametrics.com/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model) models, providing flexibility to fit into different monitoring environments. By specifying relevant parameters in the `monitoring` section of the configuration, `vmanomaly` components can seamlessly integrate with VictoriaMetrics, Prometheus or other monitoring solutions, enabling centralized visibility into both service and anomaly detection outcomes.
+Self-monitoring metrics are available in both the [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model) models, providing flexibility to fit into different monitoring environments. By specifying relevant parameters in the `monitoring` section of the configuration, `vmanomaly` components can seamlessly integrate with VictoriaMetrics, Prometheus or other monitoring solutions, enabling centralized visibility into both service and anomaly detection outcomes.
 
-> **Note**: For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring) section docs.
+> For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring) section docs.
 
 The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompanying alerting rules.
 
 ## Grafana Dashboard
 
-> **Note**: Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.
+> Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.
 
 
 ### Overview
 
-To visualize and interact with the self-monitoring metrics, `vmanomaly` provides a [Grafana Dashboard](https://grafana.com/grafana/dashboards/22337/). It offers an overview of service health (per job, instance) and performance metrics from different operational stages, including model behavior, reader, and writer components.
+To visualize and interact with the self-monitoring metrics, `vmanomaly` provides a [Grafana Dashboard](https://grafana.com/grafana/dashboards/22337). It offers an overview of service health (per job, instance) and performance metrics from different operational stages, including model behavior, reader, and writer components.
 
 The Grafana Dashboard is helpful for:
 
@@ -39,7 +42,7 @@ The Grafana Dashboard is helpful for:
 
 ### Navigating the Dashboard
 
-> **Note**: Use the top-level filters to refine metrics by job, instance, or specific components for more focused monitoring. The time range filter, along with `job` and `instance` filters, is applied across all components. All other filters apply to all dashboard sections except "Instance Overview." Hover over the (i) icon for detailed filter descriptions.
+> Use the **top-level dashboard filters** to refine metrics by job, instance, or specific components for more focused monitoring. The time range filter, along with `job` and `instance` filters, is applied across all components. All other filters apply to all dashboard sections except "Instance Overview." Hover over the (i) icon for detailed filter descriptions.
 
 <img src="../vmanomaly-dashboard-1-filters.webp" alt="vmanomaly-dashboard-1-filters" width="800px"/>
 
@@ -100,7 +103,7 @@ This global panel holds resource utilization (CPU, RAM, File Descriptors) on bot
 <img src="../vmanomaly-dashboard-3-global-panel-resources.webp" alt="vmanomaly-dashboard-3-global-resources" width="800px"/>
 
 **Healthy scenario**:
-- **Timeseries graphs**: Should appear stable over time, without significant spikes or drops. An absence of upward trends (e.g., trends in RAM usage may indicate a [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) in your input data).
+- **Timeseries graphs**: Should appear stable over time, without significant spikes or drops. An absence of upward trends (e.g., trends in RAM usage may indicate a [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) in your input data).
 
 ### Model Statistics
 
@@ -111,7 +114,7 @@ These panels contain repeated blocks for each unique `model_alias` (a distinct e
 **Healthy scenario**:
 - **Erroneous Runs**: There should be zero erroneous runs. Any errors suggest potential issues with the service or uncaught corner cases that need immediate attention.
 - **Skipped Runs**: Should be minimal, ideally none. A significant number of skipped runs may indicate missing data, configuration problems, high churn rate (resulting in no models trained yet for new time series), or other underlying issues.
-- **Timeseries graphs**: Should remain stable over time, without significant spikes or drops. An absence of upward trends (e.g., in RAM usage) could indicate normal operation without excessive [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+- **Timeseries graphs**: Should remain stable over time, without significant spikes or drops. An absence of upward trends (e.g., in RAM usage) could indicate normal operation without excessive [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
 ---
 

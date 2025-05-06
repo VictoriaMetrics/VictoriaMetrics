@@ -9,6 +9,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -25,7 +26,17 @@ type pipeStats struct {
 
 	// funcs contains stats functions to execute.
 	funcs []pipeStatsFunc
+
+	mode pipeStatsMode
 }
+
+type pipeStatsMode int
+
+const (
+	pipeStatsModeDefault = pipeStatsMode(0)
+	pipeStatsModeRemote  = pipeStatsMode(1)
+	pipeStatsModeLocal   = pipeStatsMode(2)
+)
 
 type pipeStatsFunc struct {
 	// f is stats function to execute
@@ -76,6 +87,16 @@ type statsProcessor interface {
 	// a must be used for allocating memory inside mergeState.
 	mergeState(a *chunkedAllocator, sf statsFunc, sfp statsProcessor)
 
+	// exportState must append the statsProcessor state to dst and return the result.
+	exportState(dst []byte, stopCh <-chan struct{}) []byte
+
+	// importState must import the state from src into statsProcessor.
+	//
+	// src state is obtained via exportState.
+	//
+	// It must return the internal state size increase after the import.
+	importState(src []byte, stopCh <-chan struct{}) (int, error)
+
 	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
 	//
 	// finalizeStats must immediately return if stopCh is closed.
@@ -83,29 +104,58 @@ type statsProcessor interface {
 }
 
 func (ps *pipeStats) String() string {
-	s := "stats "
-	if len(ps.byFields) > 0 {
-		a := make([]string, len(ps.byFields))
-		for i := range ps.byFields {
-			a[i] = ps.byFields[i].String()
-		}
-		s += "by (" + strings.Join(a, ", ") + ") "
+	s := ""
+	switch ps.mode {
+	case pipeStatsModeDefault:
+		s = "stats"
+	case pipeStatsModeRemote:
+		s = "stats_remote"
+	case pipeStatsModeLocal:
+		s = "stats_local"
+	default:
+		logger.Panicf("BUG: unknown mode: %d", ps.mode)
 	}
 
-	if len(ps.funcs) == 0 {
+	byFields := ps.byFields
+	if len(byFields) > 0 {
+		a := make([]string, len(byFields))
+		for i := range byFields {
+			a[i] = byFields[i].String()
+		}
+		s += " by (" + strings.Join(a, ", ") + ")"
+	}
+
+	funcs := ps.funcs
+	if len(funcs) == 0 {
 		logger.Panicf("BUG: pipeStats must contain at least a single statsFunc")
 	}
-	a := make([]string, len(ps.funcs))
-	for i, f := range ps.funcs {
-		line := f.f.String()
-		if f.iff != nil {
-			line += " " + f.iff.String()
+	a := make([]string, len(funcs))
+	isLocal := ps.mode == pipeStatsModeLocal
+	for i, f := range funcs {
+		resultNameQuoted := quoteTokenIfNeeded(f.resultName)
+		if isLocal {
+			a[i] = fmt.Sprintf("import_state(%s) as %s", resultNameQuoted, resultNameQuoted)
+		} else {
+			line := f.f.String()
+			if f.iff != nil {
+				line += " " + f.iff.String()
+			}
+			line += " as " + resultNameQuoted
+			a[i] = line
 		}
-		line += " as " + quoteTokenIfNeeded(f.resultName)
-		a[i] = line
 	}
-	s += strings.Join(a, ", ")
+	s += " " + strings.Join(a, ", ")
 	return s
+}
+
+func (ps *pipeStats) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	psRemote := *ps
+	psRemote.mode = pipeStatsModeRemote
+
+	psLocal := *ps
+	psLocal.mode = pipeStatsModeLocal
+
+	return &psRemote, []pipe{&psLocal}
 }
 
 func (ps *pipeStats) canLiveTail() bool {
@@ -113,6 +163,11 @@ func (ps *pipeStats) canLiveTail() bool {
 }
 
 func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if ps.mode == pipeStatsModeLocal {
+		ps.updateNeededFieldsLocal(neededFields, unneededFields)
+		return
+	}
+
 	neededFieldsOrig := neededFields.clone()
 	neededFields.reset()
 
@@ -133,6 +188,18 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 	unneededFields.reset()
 }
 
+func (ps *pipeStats) updateNeededFieldsLocal(neededFields, unneededFields fieldsSet) {
+	neededFields.reset()
+	unneededFields.reset()
+
+	for _, bf := range ps.byFields {
+		neededFields.add(bf.name)
+	}
+	for _, f := range ps.funcs {
+		neededFields.add(f.resultName)
+	}
+}
+
 func (ps *pipeStats) hasFilterInWithQuery() bool {
 	for _, f := range ps.funcs {
 		if f.iff.hasFilterInWithQuery() {
@@ -142,11 +209,11 @@ func (ps *pipeStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeStats) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (ps *pipeStats) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
 	funcsNew := make([]pipeStatsFunc, len(ps.funcs))
 	for i := range ps.funcs {
 		f := &ps.funcs[i]
-		iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
+		iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 		if err != nil {
 			return nil, err
 		}
@@ -213,28 +280,22 @@ func (ps *pipeStats) initRateFuncs(step int64) {
 
 const stateSizeBudgetChunk = 1 << 20
 
-func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func (ps *pipeStats) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	psp := &pipeStatsProcessor{
-		ps:     ps,
-		stopCh: stopCh,
-		cancel: cancel,
-		ppNext: ppNext,
+		ps:          ps,
+		concurrency: concurrency,
+		stopCh:      stopCh,
+		cancel:      cancel,
+		ppNext:      ppNext,
 
 		maxStateSize: maxStateSize,
 	}
-
-	shards := make([]pipeStatsProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeStatsProcessorShard{
-			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
-				psp: psp,
-			},
-		}
-		shards[i].init()
+	psp.shards.Init = func(shard *pipeStatsProcessorShard) {
+		shard.psp = psp
+		shard.init()
 	}
-	psp.shards = shards
 
 	psp.stateSizeBudget.Store(maxStateSize)
 
@@ -242,25 +303,22 @@ func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 }
 
 type pipeStatsProcessor struct {
-	ps     *pipeStats
-	stopCh <-chan struct{}
-	cancel func()
-	ppNext pipeProcessor
+	ps          *pipeStats
+	concurrency int
+	stopCh      <-chan struct{}
+	cancel      func()
+	ppNext      pipeProcessor
 
-	shards []pipeStatsProcessorShard
+	shards atomicutil.Slice[pipeStatsProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
+
+	errLock sync.Mutex
+	err     error
 }
 
 type pipeStatsProcessorShard struct {
-	pipeStatsProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeStatsProcessorShardNopad{})%128]byte
-}
-
-type pipeStatsProcessorShardNopad struct {
 	psp *pipeStatsProcessor
 
 	// groupMap is used for tracking small number of groups until it reaches pipeStatsGroupMapMaxLen.
@@ -270,7 +328,7 @@ type pipeStatsProcessorShardNopad struct {
 	// groupMapShards are used for tracking big number of groups.
 	//
 	// Every shard contains a share of unique groups, which are merged in parallel at flush().
-	groupMapShards []pipeStatsGroupMap
+	groupMapShards []pipeStatsGroupMapShard
 
 	// a is used for reducing memory allocations when calculating stats among big number of different groups.
 	a chunkedAllocator
@@ -283,6 +341,13 @@ type pipeStatsProcessorShardNopad struct {
 	keyBuf       []byte
 
 	stateSizeBudget int
+}
+
+type pipeStatsGroupMapShard struct {
+	pipeStatsGroupMap
+
+	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(pipeStatsGroupMap{})%128]byte
 }
 
 // the maximum number of groups to track in pipeStatsProcessorShard.groupMap before switching to pipeStatsProcessorShard.groupMapShards
@@ -438,7 +503,7 @@ func (shard *pipeStatsProcessorShard) newPipeStatsGroup() *pipeStatsGroup {
 
 	for i, f := range shard.psp.ps.funcs {
 		sfp := f.f.newStatsProcessor(&shard.a)
-		initStatsConcurrency(sfp, uint(len(shard.psp.shards)))
+		initStatsConcurrency(sfp, uint(shard.psp.concurrency))
 		sfps[i] = sfp
 	}
 
@@ -451,7 +516,7 @@ func (shard *pipeStatsProcessorShard) newPipeStatsGroup() *pipeStatsGroup {
 	return psg
 }
 
-func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
+func (shard *pipeStatsProcessorShard) writeBlockDefault(br *blockResult) {
 	byFields := shard.psp.ps.byFields
 
 	// Update shard.bms by applying per-function filters
@@ -523,6 +588,78 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 			psg = shard.getPipeStatsGroupString(keyBuf)
 		}
 		shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+	}
+	shard.keyBuf = keyBuf
+}
+
+func (shard *pipeStatsProcessorShard) writeBlockLocal(br *blockResult) {
+	byFields := shard.psp.ps.byFields
+	stopCh := shard.psp.stopCh
+
+	cs := br.getColumns()
+	shard.columnValues = slicesutil.SetLength(shard.columnValues, len(cs))
+	columnValues := shard.columnValues
+	for i, c := range cs {
+		columnValues[i] = c.getValues(br)
+	}
+	if len(columnValues) < len(byFields)+1 {
+		err := fmt.Errorf("at least %d columns must exist; got %d columns only", len(byFields)+1, len(columnValues))
+		shard.psp.setError(err)
+		return
+	}
+	byFieldValues := columnValues[:len(byFields)]
+	columnValues = columnValues[len(byFields):]
+
+	if len(byFields) == 0 {
+		if br.rowsLen != 1 {
+			err := fmt.Errorf("global stats must have only a single row; got %d rows", br.rowsLen)
+			shard.psp.setError(err)
+			return
+		}
+		psg := shard.getPipeStatsGroupString(nil)
+		stateSize, err := psg.importStateFromRow(columnValues, 0, stopCh)
+		if err != nil {
+			shard.psp.setError(err)
+			return
+		}
+		shard.stateSizeBudget -= stateSize
+		return
+	}
+	if len(byFields) == 1 {
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+			v := byFieldValues[0][rowIdx]
+			psg := shard.getPipeStatsGroupGeneric(v)
+			stateSize, err := psg.importStateFromRow(columnValues, rowIdx, stopCh)
+			if err != nil {
+				shard.psp.setError(err)
+				return
+			}
+			shard.stateSizeBudget -= stateSize
+
+			if needStop(stopCh) {
+				break
+			}
+		}
+		return
+	}
+
+	keyBuf := shard.keyBuf
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		keyBuf = keyBuf[:0]
+		for _, values := range byFieldValues {
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx]))
+		}
+		psg := shard.getPipeStatsGroupString(keyBuf)
+		stateSize, err := psg.importStateFromRow(columnValues, rowIdx, stopCh)
+		if err != nil {
+			shard.psp.setError(err)
+			return
+		}
+		shard.stateSizeBudget -= stateSize
+
+		if needStop(stopCh) {
+			break
+		}
 	}
 	shard.keyBuf = keyBuf
 }
@@ -711,11 +848,8 @@ func (shard *pipeStatsProcessorShard) probablyMoveGroupMapToShards(a *chunkedAll
 }
 
 func (shard *pipeStatsProcessorShard) moveGroupMapToShards(a *chunkedAllocator) {
-	// set cpusCount to the number of shards, since this is the concurrency limit set by the caller.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201
-	cpusCount := uint(len(shard.psp.shards))
 	bytesAllocatedPrev := a.bytesAllocated
-	shard.groupMapShards = a.newPipeStatsGroupMaps(cpusCount)
+	shard.groupMapShards = a.newPipeStatsGroupMapShards(uint(shard.psp.concurrency))
 	shard.stateSizeBudget -= a.bytesAllocated - bytesAllocatedPrev
 
 	for i := range shard.groupMapShards {
@@ -741,18 +875,36 @@ func (shard *pipeStatsProcessorShard) moveGroupMapToShards(a *chunkedAllocator) 
 func (shard *pipeStatsProcessorShard) getGroupMapShardByString(v []byte) *pipeStatsGroupMap {
 	h := xxhash.Sum64(v)
 	shardIdx := h % uint64(len(shard.groupMapShards))
-	return &shard.groupMapShards[shardIdx]
+	return &shard.groupMapShards[shardIdx].pipeStatsGroupMap
 }
 
 func (shard *pipeStatsProcessorShard) getGroupMapShardByUint64(n uint64) *pipeStatsGroupMap {
 	h := fastHashUint64(n)
 	shardIdx := h % uint64(len(shard.groupMapShards))
-	return &shard.groupMapShards[shardIdx]
+	return &shard.groupMapShards[shardIdx].pipeStatsGroupMap
 }
 
 type pipeStatsGroup struct {
 	funcs []pipeStatsFunc
 	sfps  []statsProcessor
+}
+
+func (psg *pipeStatsGroup) importStateFromRow(columnValues [][]string, rowIdx int, stopCh <-chan struct{}) (int, error) {
+	sfps := psg.sfps
+	if len(columnValues) != len(sfps) {
+		return 0, fmt.Errorf("unexpected number of columns; got %d; want %d", len(columnValues), len(sfps))
+	}
+
+	n := 0
+	for i, sfp := range psg.sfps {
+		v := columnValues[i][rowIdx]
+		stateSize, err := sfp.importState(bytesutil.ToUnsafeBytes(v), stopCh)
+		if err != nil {
+			return 0, err
+		}
+		n += stateSize
+	}
+	return n, nil
 }
 
 func (psg *pipeStatsGroup) mergeState(a *chunkedAllocator, src *pipeStatsGroup) {
@@ -790,12 +942,19 @@ func (psg *pipeStatsGroup) updateStatsForRow(bms []bitmap, br *blockResult, rowI
 	return n
 }
 
+func (psp *pipeStatsProcessor) setError(err error) {
+	psp.errLock.Lock()
+	psp.err = err
+	psp.errLock.Unlock()
+	psp.cancel()
+}
+
 func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &psp.shards[workerID]
+	shard := psp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -811,10 +970,18 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 		shard.stateSizeBudget += stateSizeBudgetChunk
 	}
 
-	shard.writeBlock(br)
+	if psp.ps.mode == pipeStatsModeLocal {
+		shard.writeBlockLocal(br)
+	} else {
+		shard.writeBlockDefault(br)
+	}
 }
 
 func (psp *pipeStatsProcessor) flush() error {
+	if psp.err != nil {
+		return psp.err
+	}
+
 	if n := psp.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
 	}
@@ -827,7 +994,7 @@ func (psp *pipeStatsProcessor) flush() error {
 
 	if len(psp.ps.byFields) == 0 && len(psms) == 0 {
 		// Special case - zero matching rows.
-		shard := &psp.shards[0]
+		shard := psp.shards.Get(0)
 		shard.init()
 		shard.groupMap.getPipeStatsGroupString(nil)
 		psms = append(psms, &shard.groupMap)
@@ -883,9 +1050,15 @@ func newPipeStatsWriter(psp *pipeStatsProcessor, workerID uint) *pipeStatsWriter
 }
 
 func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup) {
+	isRemote := psw.psp.ps.mode == pipeStatsModeRemote
+	stopCh := psw.psp.stopCh
 	for i, sfp := range psg.sfps {
 		bufLen := len(psw.valuesBuf)
-		psw.valuesBuf = sfp.finalizeStats(psg.funcs[i].f, psw.valuesBuf, psw.psp.stopCh)
+		if isRemote {
+			psw.valuesBuf = sfp.exportState(psw.valuesBuf, stopCh)
+		} else {
+			psw.valuesBuf = sfp.finalizeStats(psg.funcs[i].f, psw.valuesBuf, stopCh)
+		}
 		value := bytesutil.ToUnsafeString(psw.valuesBuf[bufLen:])
 		psw.values = append(psw.values, value)
 	}
@@ -986,10 +1159,13 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 }
 
 func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
-	shards := psp.shards
+	shards := psp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	var wg sync.WaitGroup
-	for i := range shards {
-		shard := &shards[i]
+	for _, shard := range shards {
 		if shard.groupMapShards != nil {
 			continue
 		}
@@ -1008,15 +1184,16 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 	}
 
 	psms := shards[0].groupMapShards
+	shards = shards[1:]
 	for i := range psms {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
 			var a chunkedAllocator
-			psm := &psms[cpuIdx]
-			for j := range shards[1:] {
-				src := &shards[1+j].groupMapShards[cpuIdx]
+			psm := &psms[cpuIdx].pipeStatsGroupMap
+			for _, shard := range shards {
+				src := &shard.groupMapShards[cpuIdx].pipeStatsGroupMap
 				psm.mergeState(&a, src, psp.stopCh)
 				src.reset()
 			}
@@ -1031,7 +1208,7 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 	result := make([]*pipeStatsGroupMap, 0, len(psms))
 	for i := range psms {
 		if psms[i].entriesCount() > 0 {
-			result = append(result, &psms[i])
+			result = append(result, &psms[i].pipeStatsGroupMap)
 		}
 	}
 
@@ -1039,14 +1216,19 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 }
 
 func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
+	var ps pipeStats
 	if needStatsKeyword {
-		if !lex.isKeyword("stats") {
-			return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
+		switch {
+		case lex.isKeyword("stats"):
+			lex.nextToken()
+		case lex.isKeyword("stats_remote"):
+			lex.nextToken()
+			ps.mode = pipeStatsModeRemote
+		default:
+			return nil, fmt.Errorf("expecting 'stats' or 'stats_remote'; got %q", lex.token)
 		}
-		lex.nextToken()
 	}
 
-	var ps pipeStats
 	if lex.isKeyword("by", "(") {
 		if lex.isKeyword("by") {
 			lex.nextToken()
@@ -1159,6 +1341,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'histogram' func: %w", err)
 		}
 		return shs, nil
+	case lex.isKeyword("json_values"):
+		sjs, err := parseStatsJSONValues(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'json_values' func: %w", err)
+		}
+		return sjs, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -1249,6 +1437,7 @@ var statsNames = []string{
 	"count_uniq",
 	"count_uniq_hash",
 	"histogram",
+	"json_values",
 	"max",
 	"median",
 	"min",

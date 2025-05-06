@@ -24,7 +24,7 @@ var (
 			"and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule."+
 			"Keep it equal or bigger than -remoteWrite.flushInterval.")
 	replayMaxDatapoints = flag.Int("replay.maxDatapointsPerQuery", 1e3,
-		"Max number of data points expected in one request. It affects the max time range for every `/query_range` request during the replay. The higher the value, the less requests will be made during replay.")
+		"Max number of data points expected in one request. It affects the max time range for every '/query_range' request during the replay. The higher the value, the less requests will be made during replay.")
 	replayRuleRetryAttempts = flag.Int("replay.ruleRetryAttempts", 5,
 		"Defines how many retries to make before giving up on rule if request for it returns an error.")
 	disableProgressBar = flag.Bool("replay.disableProgressBar", false, "Whether to disable rendering progress bars during the replay. "+

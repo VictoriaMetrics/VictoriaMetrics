@@ -3,6 +3,7 @@ import { HeadCell } from "./Table/types";
 const actionHeader = {
   id: "action",
   label: "",
+  modifiers: ["action"],
 };
 
 const diffHeader = {
@@ -10,6 +11,7 @@ const diffHeader = {
   label: "1d",
   info: "Shows the absolute difference compared to the previous day.",
   sortable: true,
+  modifiers: ["compact"],
 };
 
 const diffPercentHeader = {
@@ -17,6 +19,14 @@ const diffPercentHeader = {
   label: "1d %",
   info: "Shows the percentage difference compared to the previous day.",
   sortable: true,
+  modifiers: ["compact"],
+};
+
+const valueHeader = {
+  id: "value",
+  label: "Number of series",
+  sortable: true,
+  modifiers: ["compact"],
 };
 
 export const METRIC_NAMES_HEADERS: HeadCell[] = [
@@ -25,10 +35,20 @@ export const METRIC_NAMES_HEADERS: HeadCell[] = [
     label: "Metric name",
     sortable: true,
   },
+  valueHeader,
   {
-    id: "value",
-    label: "Number of series",
+    id: "requestsCount",
+    label: "Requests count",
     sortable: true,
+    modifiers: ["compact"],
+    info: "The number of times this metric was queried since stats collection began.",
+  },
+  {
+    id: "lastRequestTimestamp",
+    label: "Last request",
+    sortable: true,
+    modifiers: ["compact"],
+    info: "The last time this metric was used in a query since stats collection began.",
   },
   diffHeader,
   diffPercentHeader,
@@ -46,11 +66,7 @@ export const LABEL_NAMES_HEADERS: HeadCell[] = [
     label: "Label name",
     sortable: true,
   },
-  {
-    id: "value",
-    label: "Number of series",
-    sortable: true,
-  },
+  valueHeader,
   diffHeader,
   diffPercentHeader,
   {
@@ -67,11 +83,7 @@ export const FOCUS_LABEL_VALUES_HEADERS: HeadCell[] = [
     label: "Label value",
     sortable: true,
   },
-  {
-    id: "value",
-    label: "Number of series",
-    sortable: true,
-  },
+  valueHeader,
   diffHeader,
   diffPercentHeader,
   {
@@ -81,17 +93,13 @@ export const FOCUS_LABEL_VALUES_HEADERS: HeadCell[] = [
   actionHeader,
 ];
 
-export const LABEL_VALUE_PAIRS_HEADERS = [
+export const LABEL_VALUE_PAIRS_HEADERS: HeadCell[] = [
   {
     id: "name",
     label: "Label=value pair",
     sortable: true,
   },
-  {
-    id: "value",
-    label: "Number of series",
-    sortable: true,
-  },
+  valueHeader,
   diffHeader,
   diffPercentHeader,
   {
@@ -112,6 +120,7 @@ export const LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS: HeadCell[] = [
     id: "value",
     label: "Number of unique values",
     sortable: true,
+    modifiers: ["compact"],
   },
   diffHeader,
   diffPercentHeader,

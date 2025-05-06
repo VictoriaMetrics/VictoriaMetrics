@@ -15,6 +15,10 @@ func (pf *pipeFirst) String() string {
 	return pipeLastFirstString(pf.ps)
 }
 
+func (pf *pipeFirst) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
+	return pf.ps.splitToRemoteAndLocal(timestamp)
+}
+
 func (pf *pipeFirst) canLiveTail() bool {
 	return false
 }
@@ -27,7 +31,7 @@ func (pf *pipeFirst) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFirst) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFirst) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pf, nil
 }
 
@@ -35,8 +39,8 @@ func (pf *pipeFirst) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pf *pipeFirst) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	return newPipeTopkProcessor(pf.ps, workersCount, stopCh, cancel, ppNext)
+func (pf *pipeFirst) newPipeProcessor(_ int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+	return newPipeTopkProcessor(pf.ps, stopCh, cancel, ppNext)
 }
 
 func (pf *pipeFirst) addPartitionByTime(step int64) {

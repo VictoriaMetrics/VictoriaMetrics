@@ -7,6 +7,10 @@ menu:
     identifier: "vmanomaly-quick-start"
     weight: 1
     title: Quick Start
+tags:
+  - metrics
+  - enterprise
+  - guide
 aliases:
 - /anomaly-detection/QuickStart.html
 ---
@@ -21,13 +25,13 @@ The following options are available:
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
-> **Note**: There is a mode {{% available_from "v1.13.0" anomaly %}} to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be set for data read from VictoriaMetrics TSDB. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
+> There is a mode {{% available_from "v1.13.0" anomaly %}} to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be set for data read from VictoriaMetrics TSDB. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 ### Command-line arguments
 
 The `vmanomaly` service supports several command-line arguments to configure its behavior, including options for licensing, logging levels, and more. These arguments can be passed when starting the service via Docker or any other setup. Below is the list of available options:
 
-> **Note**: `vmanomaly` support {{% available_from "v1.18.5" anomaly %}} running on config *directories*, see the `config` positional arg description in help message below.
+> `vmanomaly` support {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
 ```shellhelp
 usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {INFO,DEBUG,ERROR,WARNING,FATAL}] [--watch] config [config ...]
@@ -68,7 +72,7 @@ vm_license_expires_at 1.6963776e+09
 vm_license_expires_in_seconds 4.886608e+06
 ```
 
-Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert/):
+Example alerts for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/):
 
 ```yaml
 groups:
@@ -220,7 +224,7 @@ reader:
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
   sampling_period: "1m"
   queries: 
-    # define your queries with MetricsQL - https://docs.victoriametrics.com/metricsql/
+    # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
     cache: "sum(rate(vm_cache_entries))"
 
 writer:
@@ -236,18 +240,19 @@ writer:
   - For example, if receiving **alerts every 15 minutes** is sufficient (when `anomaly_score > 1`), set `infer_every` to match `reader.sampling_period` or override it per query via `reader.queries.query_xxx.step` for an optimal setup.  
 
 **Reader**:
-- Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) (`multitenant` value {{% available_from "v1.16.2" anomaly %}} can be also used here).
-- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query timezone, data frequency, data range, etc.
+- Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (`multitenant` value {{% available_from "v1.16.2" anomaly %}} can be also used here).
+- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query timezone, data frequency, data range, etc.
 
 **Writer**:
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
-- Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) for writing the results.
+- Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for writing the results.
 - Adding `for` label to `metric_format` argument is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Please refer to `metric_format` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters).
 
 **Models**:
 - Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. Where possible, incorporate [domain knowledge](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge) for optimal results.
 - (Optional) Develop or integrate your [custom models](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
-- Adding `y` to `provide_series` arg values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) can be used in `provide_series`. <br>**Note:** Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output.
+- Adding `y` to `provide_series` arg values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) can be used in `provide_series`. 
+  > **Note:** Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output.
 
 ## Check also
 

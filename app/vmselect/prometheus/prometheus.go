@@ -58,7 +58,7 @@ var (
 	maxTSDBStatusSeries     = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
 	maxSeriesLimit          = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 	maxDeleteSeries         = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
-	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of `topN` argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/readme/#tsdb-stats")
+	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of `topN` argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats")
 	maxLabelsAPISeries      = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
@@ -166,7 +166,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 
 	format := r.FormValue("format")
 	if len(format) == 0 {
-		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/#how-to-export-csv-data")
+		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-csv-data")
 	}
 	fieldNames := strings.Split(format, ",")
 	reduceMemUsage := httputil.GetBool(r, "reduce_mem_usage")
@@ -806,7 +806,6 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	} else {
 		queryOffset = 0
 	}
-	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
 		Start:               start,
 		End:                 start,
@@ -822,9 +821,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
-
-		QueryStats: qs,
 	}
+	qs := promql.NewQueryStats(query, nil, ec)
+	ec.QueryStats = qs
+
 	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
@@ -853,6 +853,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
+
 	return nil
 }
 
@@ -914,7 +915,6 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
 		Start:               start,
 		End:                 end,
@@ -930,9 +930,10 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
-
-		QueryStats: qs,
 	}
+	qs := promql.NewQueryStats(query, nil, ec)
+	ec.QueryStats = qs
+
 	result, err := promql.Exec(qt, ec, query, false)
 	if err != nil {
 		return err
@@ -961,6 +962,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
+
 	return nil
 }
 

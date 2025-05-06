@@ -124,6 +124,10 @@ func (arm *alertingRuleMetrics) close() {
 
 // NewAlertingRule creates a new AlertingRule
 func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
+	debug := group.Debug
+	if cfg.Debug != nil {
+		debug = *cfg.Debug
+	}
 	ar := &AlertingRule{
 		Type:          group.Type,
 		RuleID:        cfg.ID,
@@ -137,14 +141,14 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:     group.Name,
 		File:          group.File,
 		EvalInterval:  group.Interval,
-		Debug:         cfg.Debug,
+		Debug:         debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
-			Debug:                     cfg.Debug,
+			Debug:                     debug,
 		}),
 		alerts: make(map[uint64]*notifier.Alert),
 	}
@@ -207,8 +211,8 @@ func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string
 	if !ar.Debug {
 		return
 	}
-	prefix := fmt.Sprintf("DEBUG rule %q:%q (%d) at %v: ",
-		ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
+	prefix := fmt.Sprintf("DEBUG alerting rule %q, %q:%q (%d) at %v: ",
+		ar.File, ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
 
 	if a != nil {
 		labelKeys := make([]string, len(a.Labels))
@@ -408,8 +412,8 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
-	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.Samples, curState.Duration)
 
+	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err

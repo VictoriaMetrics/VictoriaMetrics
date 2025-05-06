@@ -56,7 +56,7 @@ Get started with VictoriaMetrics Anomaly Detection by following our guides and i
 
 - **Self-Monitoring**: Ensure `vmanomaly` is functioning optimally, using provided Grafana dashboards and alerting rules to track service health and operational metrics. Find the guide [here](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
 
-> **Note**: starting from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v150) `vmanomaly` requires a [license key](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
+> Starting from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v150) `vmanomaly` requires a [license key](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Key Components
 Explore the [integral components](https://docs.victoriametrics.com/anomaly-detection/components/) that define VictoriaMetrics Anomaly Detection:

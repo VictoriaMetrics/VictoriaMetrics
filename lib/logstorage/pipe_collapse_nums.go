@@ -35,6 +35,10 @@ func (pc *pipeCollapseNums) String() string {
 	return s
 }
 
+func (pc *pipeCollapseNums) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pc, nil
+}
+
 func (pc *pipeCollapseNums) canLiveTail() bool {
 	return true
 }
@@ -51,8 +55,8 @@ func (pc *pipeCollapseNums) visitSubqueries(visitFunc func(q *Query)) {
 	pc.iff.visitSubqueries(visitFunc)
 }
 
-func (pc *pipeCollapseNums) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pc.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pc *pipeCollapseNums) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pc.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +65,7 @@ func (pc *pipeCollapseNums) initFilterInValues(cache *inValuesCache, getFieldVal
 	return &pcNew, nil
 }
 
-func (pc *pipeCollapseNums) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pc *pipeCollapseNums) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
 		bLen := len(a.b)
 		a.b = appendCollapseNums(a.b, v)
@@ -71,7 +75,7 @@ func (pc *pipeCollapseNums) newPipeProcessor(workersCount int, _ <-chan struct{}
 		return bytesutil.ToUnsafeString(a.b[bLen:])
 	}
 
-	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pc.field, pc.iff)
+	return newPipeUpdateProcessor(updateFunc, ppNext, pc.field, pc.iff)
 }
 
 func parsePipeCollapseNums(lex *lexer) (pipe, error) {

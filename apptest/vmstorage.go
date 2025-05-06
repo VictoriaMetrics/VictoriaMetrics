@@ -1,6 +1,7 @@
 package apptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,9 +20,6 @@ type Vmstorage struct {
 	httpListenAddr  string
 	vminsertAddr    string
 	vmselectAddr    string
-
-	forceFlushURL string
-	forceMergeURL string
 }
 
 // StartVmstorage starts an instance of vmstorage with the given flags. It also
@@ -56,9 +54,6 @@ func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, e
 		httpListenAddr:  stderrExtracts[1],
 		vminsertAddr:    stderrExtracts[2],
 		vmselectAddr:    stderrExtracts[3],
-
-		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
-		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 	}, nil
 }
 
@@ -79,7 +74,8 @@ func (app *Vmstorage) VmselectAddr() string {
 func (app *Vmstorage) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	forceFlushURL := fmt.Sprintf("http://%s/internal/force_flush", app.httpListenAddr)
+	_, statusCode := app.cli.Get(t, forceFlushURL)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -88,10 +84,100 @@ func (app *Vmstorage) ForceFlush(t *testing.T) {
 // ForceMerge is a test helper function that forces the merging of parts.
 func (app *Vmstorage) ForceMerge(t *testing.T) {
 	t.Helper()
-	_, statusCode := app.cli.Get(t, app.forceMergeURL)
+
+	forceMergeURL := fmt.Sprintf("http://%s/internal/force_merge", app.httpListenAddr)
+	_, statusCode := app.cli.Get(t, forceMergeURL)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
+}
+
+// SnapshotCreate creates a database snapshot by sending a query to the
+// /snapshot/create endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
+	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res SnapshotCreateResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot create response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotList lists existing database snapshots by sending a query to the
+// /snapshot/list endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (app *Vmstorage) SnapshotList(t *testing.T) *SnapshotListResponse {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/snapshot/list", app.httpListenAddr)
+	data, statusCode := app.cli.Get(t, queryURL)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res SnapshotListResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot list response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotDelete deletes a snapshot by sending a query to the
+// /snapshot/delete endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (app *Vmstorage) SnapshotDelete(t *testing.T, snapshotName string) *SnapshotDeleteResponse {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/snapshot/delete?snapshot=%s", app.httpListenAddr, snapshotName)
+	data, statusCode := app.cli.Delete(t, queryURL)
+	wantStatusCodes := map[int]bool{
+		http.StatusOK:                  true,
+		http.StatusInternalServerError: true,
+	}
+	if !wantStatusCodes[statusCode] {
+		t.Fatalf("unexpected status code: got %d, want %v, resp text=%q", statusCode, wantStatusCodes, data)
+	}
+
+	var res SnapshotDeleteResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot delete response: data=%q, err: %v", data, err)
+	}
+
+	return &res
+}
+
+// SnapshotDeleteAll deletes all snapshots by sending a query to the
+// /snapshot/delete_all endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
+func (app *Vmstorage) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/snapshot/delete_all", app.httpListenAddr)
+	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	if got, want := statusCode, http.StatusOK; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
+	}
+
+	var res SnapshotDeleteAllResponse
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		t.Fatalf("could not unmarshal snapshot delete all response: data=%q, err: %v", data, err)
+	}
+
+	return &res
 }
 
 // String returns the string representation of the vmstorage app state.

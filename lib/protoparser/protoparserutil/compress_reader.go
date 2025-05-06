@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
 // ReadUncompressedData reads uncompressed data from r using the given encoding and then passes it to the callback.
@@ -21,9 +22,12 @@ import (
 //
 // The callback must not hold references to the data after returning.
 func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+
 	if encoding == "zstd" {
 		// Fast path for zstd encoding - read the data in full and then decompress it by a single call.
-		return readUncompressedData(r, maxDataSize, zstd.Decompress, callback)
+		return readUncompressedData(wcr, maxDataSize, zstd.Decompress, callback)
 	}
 	if encoding == "snappy" {
 		// Special case for snappy. The snappy data must be read in full and then decompressed,
@@ -31,11 +35,11 @@ func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.By
 		decompress := func(dst, src []byte) ([]byte, error) {
 			return snappy.Decode(dst[:cap(dst)], src)
 		}
-		return readUncompressedData(r, maxDataSize, decompress, callback)
+		return readUncompressedData(wcr, maxDataSize, decompress, callback)
 	}
 
 	// Slow path for other supported protocol encoders.
-	reader, err := GetUncompressedReader(r, encoding)
+	reader, err := GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return err
 	}
@@ -103,7 +107,9 @@ func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
 		return getGzipReader(r)
 	case "deflate":
 		return getZlibReader(r)
-	case "", "none":
+	case "", "none", "identity":
+		// Datadog extensions sends Content-Encoding: identity, which is not supported by RFC 2616
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8649
 		return &plainReader{
 			r: r,
 		}, nil

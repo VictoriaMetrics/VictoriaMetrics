@@ -60,7 +60,7 @@
       "title": "vmagent wiki",
       "tooltip": "",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent/"
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/"
     },
     {
       "icon": "external link",
@@ -88,7 +88,7 @@
       "title": "Troubleshooting",
       "tooltip": "",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
     }
   ],
   "panels": [
@@ -110,7 +110,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the rate of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scraped from configured targets.",
+      "description": "Shows the rate of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scraped from configured targets.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -274,7 +274,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -388,7 +388,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the rate of ingested [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)",
+      "description": "Shows the rate of ingested [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -914,7 +914,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows in/out [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) rate including push and pull models. \n\nThe out-rate could be different to in-rate because of replication or additional timeseries added by vmagent for every scraped target.\n\nClick on the line and choose Drilldown to show CPU usage per instance\n",
+      "description": "Shows in/out [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) rate including push and pull models. \n\nThe out-rate could be different to in-rate because of replication or additional timeseries added by vmagent for every scraped target.\n\nClick on the line and choose Drilldown to show CPU usage per instance\n",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1127,7 +1127,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1285,7 +1285,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows rate of dropped [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) from persistent queue. vmagent drops samples from queue if in-memory and on-disk queues are full and it is unable to flush them to remote storage.\nThe max size of on-disk queue is configured by `-remoteWrite.maxDiskUsagePerURL` flag.",
+      "description": "Shows rate of dropped [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) from persistent queue. vmagent drops samples from queue if in-memory and on-disk queues are full and it is unable to flush them to remote storage.\nThe max size of on-disk queue is configured by `-remoteWrite.maxDiskUsagePerURL` flag.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1355,7 +1355,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1574,7 +1574,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+          "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -2400,7 +2400,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/troubleshooting/ ",
+          "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/victoriametrics/troubleshooting/ ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3382,7 +3382,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate of dropped [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) due to relabeling. \nMetric tracks drops for `-remoteWrite.relabelConfig` configuration only.",
+          "description": "Shows the rate of dropped [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) due to relabeling. \nMetric tracks drops for `-remoteWrite.relabelConfig` configuration only.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3451,7 +3451,7 @@
             {
               "targetBlank": true,
               "title": "Relabeling",
-              "url": "https://docs.victoriametrics.com/vmagent/#relabeling"
+              "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling"
             }
           ],
           "options": {
@@ -5543,7 +5543,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the number of matched samples by the aggregation rule. \n\nThe more samples is matched, the more work this aggregation rule does. The matching rule is specified via `match` param.\n\nSee more details in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config). ",
+          "description": "Shows the number of matched samples by the aggregation rule. \n\nThe more samples is matched, the more work this aggregation rule does. The matching rule is specified via `match` param.\n\nSee more details in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config). ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5645,7 +5645,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "The rate of ignored samples during aggregation. \nStream aggregation will drop samples with NaN values, or samples with too old timestamps. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples ",
+          "description": "The rate of ignored samples during aggregation. \nStream aggregation will drop samples with NaN values, or samples with too old timestamps. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5741,7 +5741,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the number of produced samples by the aggregation rule. \n\nNumber of produced samples depend on params like `by`, `without`, `interval`, etc.\n\nSee more details in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config). ",
+          "description": "Shows the number of produced samples by the aggregation rule. \n\nNumber of produced samples depend on params like `by`, `without`, `interval`, etc.\n\nSee more details in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config). ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5953,7 +5953,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the max lag between samples timestamps within one batch passed to the aggregation input.\n\nLower is better.\n\nToo high lag or lag exceeding the interval might be a sign that data was delayed before aggregation or resource insufficiency on aggregator. Samples with high lag may affect accuracy of aggregation.\n\nSee https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples",
+          "description": "Shows the max lag between samples timestamps within one batch passed to the aggregation input.\n\nLower is better.\n\nToo high lag or lag exceeding the interval might be a sign that data was delayed before aggregation or resource insufficiency on aggregator. Samples with high lag may affect accuracy of aggregation.\n\nSee https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7335,7 +7335,7 @@
           "links": [
             {
               "title": "Troubleshooting",
-              "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
+              "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
             }
           ],
           "options": {

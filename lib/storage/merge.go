@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // mergeBlockStreams merges bsrs into bsw and updates ph.
@@ -14,13 +15,13 @@ import (
 // mergeBlockStreams returns immediately if stopCh is closed.
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, s *Storage, retentionDeadline int64,
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, dmis *uint64set.Set, retentionDeadline int64,
 	rowsMerged, rowsDeleted *atomic.Uint64, useSparseCache bool) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
 	bsm.Init(bsrs, retentionDeadline, useSparseCache)
-	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, s, rowsMerged, rowsDeleted)
+	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, dmis, rowsMerged, rowsDeleted)
 	bsm.reset()
 	bsmPool.Put(bsm)
 	bsw.MustClose()
@@ -38,8 +39,7 @@ var bsmPool = &sync.Pool{
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, s *Storage, rowsMerged, rowsDeleted *atomic.Uint64) error {
-	dmis := s.getDeletedMetricIDs()
+func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, dmis *uint64set.Set, rowsMerged, rowsDeleted *atomic.Uint64) error {
 	pendingBlockIsEmpty := true
 	pendingBlock := getBlock()
 	defer putBlock(pendingBlock)
@@ -97,7 +97,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		tmpBlock.Reset()
 		tmpBlock.bh.TSID = b.bh.TSID
 		tmpBlock.bh.Scale = b.bh.Scale
-		tmpBlock.bh.PrecisionBits = minUint8(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
+		tmpBlock.bh.PrecisionBits = min(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
 		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, rowsDeleted)
 		if len(tmpBlock.timestamps) <= maxRowsPerBlock {
 			// More entries may be added to tmpBlock. Swap it with pendingBlock,
@@ -211,11 +211,4 @@ func unmarshalAndCalibrateScale(b1, b2 *Block) error {
 	b1.bh.Scale = scale
 	b2.bh.Scale = scale
 	return nil
-}
-
-func minUint8(a, b uint8) uint8 {
-	if a < b {
-		return a
-	}
-	return b
 }

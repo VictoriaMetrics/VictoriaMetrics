@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -297,6 +298,21 @@ func (q *Query) String() string {
 	return s
 }
 
+// GetConcurrency returns concurrency for the q.
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#query-options
+func (q *Query) GetConcurrency() int {
+	concurrency := cgroup.AvailableCPUs()
+	if q.opts != nil && q.opts.concurrency > 0 && int(q.opts.concurrency) < concurrency {
+		// Limit the number of workers by the number of available CPU cores,
+		// since bigger number of workers won't improve CPU-bound query performance -
+		// they just increase RAM usage and slow down query execution because
+		// of more context switches between workers.
+		concurrency = int(q.opts.concurrency)
+	}
+	return concurrency
+}
+
 // CanLiveTail returns true if q can be used in live tailing
 func (q *Query) CanLiveTail() bool {
 	for _, p := range q.pipes {
@@ -347,6 +363,15 @@ func getStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
 // DropAllPipes drops all the pipes from q.
 func (q *Query) DropAllPipes() {
 	q.pipes = nil
+}
+
+func (q *Query) addFieldsFilters(neededColumnNames, unneededColumnNames []string) {
+	qStr := "*" + toFieldsFilters(neededColumnNames, unneededColumnNames)
+	qTmp, err := ParseQueryAtTimestamp(qStr, q.GetTimestamp())
+	if err != nil {
+		logger.Panicf("BUG: cannot parse query with fields filters: %s", err)
+	}
+	q.pipes = append(q.pipes, qTmp.pipes...)
 }
 
 // AddFacetsPipe adds ' facets <limit> max_values_per_field <maxValuesPerField> max_value_len <maxValueLen> <keepConstFields>` to the end of q.
@@ -441,7 +466,7 @@ func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
 // CanReturnLastNResults returns true if time range filter at q can be adjusted for returning the last N results.
 func (q *Query) CanReturnLastNResults() bool {
 	for _, p := range q.pipes {
-		switch p.(type) {
+		switch t := p.(type) {
 		case *pipeBlockStats,
 			*pipeBlocksCount,
 			*pipeFacets,
@@ -453,11 +478,20 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeLimit,
 			*pipeOffset,
 			*pipeTop,
+			*pipeSample,
 			*pipeSort,
 			*pipeStats,
 			*pipeUnion,
 			*pipeUniq:
 			return false
+		case *pipeFields:
+			if !t.containsStar && !slices.Contains(t.fields, "_time") {
+				return false
+			}
+		case *pipeDelete:
+			if slices.Contains(t.fields, "_time") {
+				return false
+			}
 		}
 	}
 	return true
@@ -1080,12 +1114,11 @@ func mergeFiltersAnd(f1, f2 filter) filter {
 	}
 }
 
-func (q *Query) getNeededColumns() ([]string, []string) {
+func getNeededColumns(pipes []pipe) ([]string, []string) {
 	neededFields := newFieldsSet()
 	neededFields.add("*")
 	unneededFields := newFieldsSet()
 
-	pipes := q.pipes
 	for i := len(pipes) - 1; i >= 0; i-- {
 		pipes[i].updateNeededFields(neededFields, unneededFields)
 	}
@@ -3099,3 +3132,22 @@ func nextafter(f, xInf float64) float64 {
 	}
 	return math.Nextafter(f, xInf)
 }
+
+func toFieldsFilters(neededColumnNames, unneededColumnNames []string) string {
+	qStr := ""
+	if slices.Contains(neededColumnNames, "*") {
+		if len(unneededColumnNames) > 0 {
+			qStr += " | delete " + fieldNamesString(unneededColumnNames)
+		}
+	} else {
+		if len(neededColumnNames) > 0 {
+			qStr += " | fields " + fieldNamesString(neededColumnNames)
+		} else {
+			// Select at least non-existing field in order to do not select other fields.
+			qStr += " | fields " + nonExistingFieldName
+		}
+	}
+	return qStr
+}
+
+const nonExistingFieldName = "__non_existing_field__"

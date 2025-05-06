@@ -18,6 +18,8 @@ import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectL
 import { usePaginateGroups } from "../hooks/usePaginateGroups";
 import { GroupLogsType } from "../../../types";
 import { getNanoTimestamp } from "../../../utils/time";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
 
 interface Props {
   logs: Logs[];
@@ -25,6 +27,7 @@ interface Props {
 }
 
 const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
+  const { isMobile } = useDeviceDetect();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [page, setPage] = useState(1);
@@ -49,8 +52,8 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
         const aTimestamp = getNanoTimestamp(a._time);
         const bTimestamp = getNanoTimestamp(b._time);
 
-        if (aTimestamp > bTimestamp) return 1;
-        if (aTimestamp < bTimestamp) return -1;
+        if (aTimestamp < bTimestamp) return 1;
+        if (aTimestamp > bTimestamp) return -1;
         return 0;
       });
 
@@ -94,7 +97,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
   };
 
   useEffect(() => {
-    setExpandGroups(new Array(groupData.length).fill(true));
+    setExpandGroups(new Array(groupData.length).fill(!isMobile));
   }, [groupData]);
 
   useEffect(() => {
@@ -159,6 +162,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
+          <DownloadLogsButton logs={logs} />
           <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}

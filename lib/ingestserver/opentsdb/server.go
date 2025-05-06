@@ -50,6 +50,7 @@ func MustStart(addr string, useProxyProtocol bool, telnetInsertHandler func(r io
 	if err != nil {
 		logger.Fatalf("cannot start TCP OpenTSDB collector at %q: %s", addr, err)
 	}
+	logger.Infof("started TCP OpenTSDB collector at %q", lnTCP.Addr().String())
 	ls := newListenerSwitch(lnTCP)
 	lnHTTP := ls.newHTTPListener()
 	lnTelnet := ls.newTelnetListener()
@@ -60,6 +61,7 @@ func MustStart(addr string, useProxyProtocol bool, telnetInsertHandler func(r io
 	if err != nil {
 		logger.Fatalf("cannot start UDP OpenTSDB collector at %q: %s", addr, err)
 	}
+	logger.Infof("started UDP OpenTSDB collector at %q", lnUDP.LocalAddr().String())
 
 	s := &Server{
 		addr:       addr,

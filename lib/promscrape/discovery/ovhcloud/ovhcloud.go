@@ -13,7 +13,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.ovhcloudSDCheckInterval", 30*time.Second, "Interval for checking for changes in OVH Cloud API. "+
 	"This works only if ovhcloud_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#ovhcloud_sd_configs for details")
 
 // SDConfig is the configuration for OVH Cloud service discovery.
 type SDConfig struct {

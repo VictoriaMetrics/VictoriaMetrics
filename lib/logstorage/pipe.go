@@ -2,11 +2,22 @@ package logstorage
 
 import (
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type pipe interface {
 	// String returns string representation of the pipe.
 	String() string
+
+	// splitToRemoteAndLocal must return pipes for remote and local execution.
+	//
+	// The timestamp is the query execution timestamp.
+	//
+	// If the pipe can be executed remotely in full, then the returned local pipes must be empty.
+	// If the pipe cannot be executed remotely, then the returned remote pipe must be nil.
+	// If the pipe must be executed remotely and locally, then both returned remote and local pipes must be non-empty.
+	splitToRemoteAndLocal(timestamp int64) (pipe, []pipe)
 
 	// canLiveTail must return true if the given pipe can be used in live tailing
 	//
@@ -18,21 +29,24 @@ type pipe interface {
 
 	// newPipeProcessor must return new pipeProcessor, which writes data to the given ppNext.
 	//
-	// workersCount is the number of goroutine workers, which will call writeBlock() method.
+	// concurrency is the number of goroutines, which are allowed to run in parallel during pipe calculations.
 	//
 	// If stopCh is closed, the returned pipeProcessor must stop performing CPU-intensive tasks which take more than a few milliseconds.
 	// It is OK to continue processing pipeProcessor calls if they take less than a few milliseconds.
 	//
 	// The returned pipeProcessor may call cancel() at any time in order to notify the caller to stop sending new data to it.
-	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor
+	newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor
 
 	// hasFilterInWithQuery must return true of pipe contains 'in(subquery)' filter (recursively).
 	hasFilterInWithQuery() bool
 
 	// initFilterInValues must return new pipe with the initialized values for 'in(subquery)' filters (recursively).
 	//
+	// If keepSubquery is false, then the returned pipe must completely replace subquery with the subquery results,
+	// the the returned pipe is marshaled into `in(r1, ..., rN)` where r1, ..., rN are subquery results.
+	//
 	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
-	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
+	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error)
 
 	// visitSubqueries must call visitFunc for all the subqueries, which exist at the pipe (recursively).
 	visitSubqueries(visitFunc func(q *Query))
@@ -44,7 +58,9 @@ type pipeProcessor interface {
 	//
 	// writeBlock is called concurrently from worker goroutines.
 	// The workerID is the id of the worker goroutine, which calls the writeBlock.
-	// It is in the range 0 ... workersCount-1 .
+	// It is in the range 0 ... workersCount-1 , where workersCount is the number of worker goroutines.
+	// The number of worker goroutines is unknown beforehand (but is usually limited by the number of CPU cores),
+	// so the pipe must dynamically adapt to it. It is recommended using lib/atomicutil.Slice for maintaining per-worker state.
 	//
 	// It is OK to modify br contents inside writeBlock. The caller mustn't rely on br contents after writeBlock call.
 	// It is forbidden to hold references to br after returning from writeBlock, since the caller may reuse it.
@@ -63,17 +79,18 @@ type pipeProcessor interface {
 	flush() error
 }
 
-type defaultPipeProcessor func(workerID uint, br *blockResult)
+type noopPipeProcessor func(workerID uint, br *blockResult)
 
-func newDefaultPipeProcessor(writeBlock func(workerID uint, br *blockResult)) pipeProcessor {
-	return defaultPipeProcessor(writeBlock)
+func newNoopPipeProcessor(writeBlock func(workerID uint, br *blockResult)) pipeProcessor {
+	return noopPipeProcessor(writeBlock)
 }
 
-func (dpp defaultPipeProcessor) writeBlock(workerID uint, br *blockResult) {
-	dpp(workerID, br)
+func (npp noopPipeProcessor) writeBlock(workerID uint, br *blockResult) {
+	npp(workerID, br)
 }
 
-func (dpp defaultPipeProcessor) flush() error {
+func (npp noopPipeProcessor) flush() error {
+	logger.Panicf("BUG: mustn't be called!")
 	return nil
 }
 
@@ -267,13 +284,19 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'replace_regexp' pipe: %w", err)
 		}
 		return pr, nil
-	case lex.isKeyword("sort"), lex.isKeyword("order"):
+	case lex.isKeyword("sample"):
+		ps, err := parsePipeSample(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sample' pipe: %w", err)
+		}
+		return ps, nil
+	case lex.isKeyword("sort", "order"):
 		ps, err := parsePipeSort(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'sort' pipe: %w", err)
 		}
 		return ps, nil
-	case lex.isKeyword("stats"):
+	case lex.isKeyword("stats", "stats_remote"):
 		ps, err := parsePipeStats(lex, true)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
@@ -354,6 +377,24 @@ func parsePipe(lex *lexer) (pipe, error) {
 	}
 }
 
+func mustParsePipes(s string, timestamp int64) []pipe {
+	lex := newLexer(s, timestamp)
+	pipes, err := parsePipes(lex)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse [%s]: %s", s, err)
+	}
+	return pipes
+}
+
+func mustParsePipe(s string, timestamp int64) pipe {
+	lex := newLexer(s, timestamp)
+	p, err := parsePipe(lex)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse [%s]: %s", s, err)
+	}
+	return p
+}
+
 var pipeNames = func() map[string]struct{} {
 	a := []string{
 		"block_stats",
@@ -384,8 +425,9 @@ var pipeNames = func() map[string]struct{} {
 		"rename", "mv",
 		"replace",
 		"replace_regexp",
+		"sample",
 		"sort", "order",
-		"stats", "by",
+		"stats", "stats_remote", "by",
 		"stream_context",
 		"top",
 		"union",

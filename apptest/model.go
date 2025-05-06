@@ -23,10 +23,18 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
-// PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
-type PrometheusWriter interface {
+// Writer contains methods for writing new data
+type Writer interface {
+	// Prometheus APIs
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+
+	// Graphit APIs
+	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
+
+	// OpenTSDB APIs
+	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
 
 // StorageFlusher defines a method that forces the flushing of data inserted
@@ -44,7 +52,7 @@ type StorageMerger interface {
 // PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
 type PrometheusWriteQuerier interface {
-	PrometheusWriter
+	Writer
 	PrometheusQuerier
 	StorageFlusher
 	StorageMerger
@@ -62,6 +70,9 @@ type QueryOpts struct {
 	ExtraLabels    []string
 	Trace          string
 	ReduceMemUsage string
+	MaxLookback    string
+	LatencyOffset  string
+	Format         string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -83,6 +94,9 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
 	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
+	addNonEmpty("max_lookback", qos.MaxLookback)
+	addNonEmpty("latency_offset", qos.LatencyOffset)
+	addNonEmpty("format", qos.Format)
 
 	return uv
 }
@@ -303,4 +317,94 @@ type MetricNamesStatsResponse struct {
 type MetricNamesStatsRecord struct {
 	MetricName         string
 	QueryRequestsCount uint64
+}
+
+// SnapshotCreateResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/create endpoint.
+type SnapshotCreateResponse struct {
+	Status   string
+	Snapshot string
+}
+
+// APIV1AdminTSDBSnapshotResponse is an in-memory reprensentation of the json
+// response returned by the /api/v1/admin/tsdb/snapshot endpoint.
+type APIV1AdminTSDBSnapshotResponse struct {
+	Status string
+	Data   *SnapshotData
+}
+
+// SnapshotData holds the info about the snapshot created via
+// /api/v1/admin/tsdb/snapshot endpoint.
+type SnapshotData struct {
+	Name string
+}
+
+// SnapshotListResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/list endpoint.
+type SnapshotListResponse struct {
+	Status    string
+	Snapshots []string
+}
+
+// SnapshotDeleteResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/delete endpoint.
+type SnapshotDeleteResponse struct {
+	Status string
+	Msg    string
+}
+
+// SnapshotDeleteAllResponse is an in-memory reprensentation of the json response
+// returned by the /snapshot/delete_all endpoint.
+type SnapshotDeleteAllResponse struct {
+	Status string
+}
+
+// TSDBStatusResponse is an in-memory reprensentation of the json response
+// returned by the /prometheus/api/v1/status/tsdb endpoint.
+type TSDBStatusResponse struct {
+	IsPartial bool
+	Data      TSDBStatusResponseData
+}
+
+// Sort performs sorting of stats entries
+func (tsr *TSDBStatusResponse) Sort() {
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelName)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByFocusLabelValue)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelValuePair)
+	sortTSDBStatusResponseEntries(tsr.Data.LabelValueCountByLabelName)
+}
+
+// TSDBStatusResponseData is a part of TSDBStatusResponse
+type TSDBStatusResponseData struct {
+	TotalSeries                  int
+	TotalLabelValuePairs         int
+	SeriesCountByMetricName      []TSDBStatusResponseMetricNameEntry
+	SeriesCountByLabelName       []TSDBStatusResponseEntry
+	SeriesCountByFocusLabelValue []TSDBStatusResponseEntry
+	SeriesCountByLabelValuePair  []TSDBStatusResponseEntry
+	LabelValueCountByLabelName   []TSDBStatusResponseEntry
+}
+
+// TSDBStatusResponseEntry defines stats entry for TSDBStatusResponseData
+type TSDBStatusResponseEntry struct {
+	Name  string
+	Count int
+}
+
+// TSDBStatusResponseMetricNameEntry defines metric names stats entry for TSDBStatusResponseData
+type TSDBStatusResponseMetricNameEntry struct {
+	Name                 string
+	Count                int
+	RequestsCount        int
+	LastRequestTimestamp int
+}
+
+func sortTSDBStatusResponseEntries(entries []TSDBStatusResponseEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		left, right := entries[i], entries[j]
+		if left.Count == right.Count {
+			return left.Name < right.Name
+		}
+		return left.Count < right.Count
+	})
 }

@@ -8,6 +8,10 @@ menu:
     parent: cloud
     identifier: account-management
     pageRef: /victoriametrics-cloud/account-management/
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 This section contains all the information related to users and accounts management. Remember that you
 can always get started rapidly following the short guide under the [Quick Start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/) section.

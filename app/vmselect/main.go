@@ -32,7 +32,7 @@ import (
 var (
 	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
-		"See https://docs.victoriametrics.com/#track-ingested-metrics-usage")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
@@ -103,7 +103,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
 	//
-	// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+	// See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
 	switch {
 	case strings.HasPrefix(path, "/prometheus/"):
 		path = path[len("/prometheus"):]
@@ -404,6 +404,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/status/metric_names_stats":
 		metricNamesStatsRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		if err := stats.MetricNamesStatsHandler(qt, w, r); err != nil {
 			metricNamesStatsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)

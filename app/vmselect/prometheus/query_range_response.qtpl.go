@@ -72,7 +72,7 @@ func StreamQueryRangeResponse(qw422016 *qt422016.Writer, rs []netstorage.Result,
 //line app/vmselect/prometheus/query_range_response.qtpl:36
 	qw422016.N().S(`","executionTimeMsec":`)
 //line app/vmselect/prometheus/query_range_response.qtpl:37
-	qw422016.N().DL(qs.ExecutionTimeMsec.Load())
+	qw422016.N().DL(qs.ExecutionDuration.Load().Milliseconds())
 //line app/vmselect/prometheus/query_range_response.qtpl:37
 	qw422016.N().S(`}`)
 //line app/vmselect/prometheus/query_range_response.qtpl:40

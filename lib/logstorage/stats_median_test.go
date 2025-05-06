@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -361,4 +362,38 @@ func TestStatsMedian(t *testing.T) {
 			{"x", ""},
 		},
 	})
+}
+
+func TestStatsMedian_ExportImportState(t *testing.T) {
+	f := func(smp *statsMedianProcessor, dataLenExpected int) {
+		t.Helper()
+
+		data := smp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var smp2 statsMedianProcessor
+		_, err := smp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if !reflect.DeepEqual(smp, &smp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &smp2, smp)
+		}
+	}
+
+	var smp statsMedianProcessor
+
+	// zero state
+	f(&smp, 4)
+
+	// non-zero state
+	smp = statsMedianProcessor{}
+	smp.sqp.h.update("foo")
+	smp.sqp.h.update("bar")
+	smp.sqp.h.update("baz")
+	f(&smp, 22)
 }

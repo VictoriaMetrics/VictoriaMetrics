@@ -6,6 +6,9 @@ menu:
     identifier: "vmanomaly-scaling"
     parent: "anomaly-detection"
     weight: 3
+tags:
+  - metrics
+  - enterprise
 aliases:
 - /anomaly-detection/high-availability.html
 - /anomaly-detection/scaling-vmanomaly.html
@@ -79,7 +82,7 @@ Additionally, a replication factor `R ≥ 1` ensures [high availability](#high-a
 
 <img src="../vmanomaly-sharding-ha-diagram.webp" alt="vmanomaly-sharding-ha-diagram" width="800px"/>
 
-> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer).
+> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer).
 
 Sharding configuration can be controlled by using the following environment variables:
 
@@ -131,7 +134,7 @@ When `VMANOMALY_REPLICATION_FACTOR` > 1, each [sub-config](#sub-configuration) `
 
 <img src="../vmanomaly-sharding-ha-diagram.webp" alt="vmanomaly-sharding-ha-diagram" width="800px"/>
 
-> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer).
+> Please [refer to deployment options section](#deployment-options) for the examples (Docker, Docker Compose, Helm). To avoid duplicate metrics being reported from each vmanomaly service used in sharded mode, make sure that [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is configured on vmsingle or vmselect and vmstorage for the VictoriaMetrics instance used in the [writer section of the configuration](https://docs.victoriametrics.com/anomaly-detection/components/writer).
 
 ### Example
 

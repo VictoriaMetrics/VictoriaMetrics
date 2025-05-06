@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -63,6 +64,8 @@ var (
 	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
 	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
 	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+
+	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
 )
 
 var (
@@ -526,6 +529,10 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 // EnableCORS enables https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 // on the response.
 func EnableCORS(w http.ResponseWriter, _ *http.Request) {
+	if *disableCORS {
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680
+		return
+	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 }
 
@@ -645,7 +652,7 @@ func (rwa *responseWriterWithAbort) abort() {
 		logger.Panicf("BUG: abort can be called only after http response headers are sent")
 	}
 	if rwa.aborted {
-		logger.WarnfSkipframes(2, "cannot abort the connection, since it has been already aborted")
+		// Nothing to do. The connection has been already aborted.
 		return
 	}
 	hj, ok := rwa.ResponseWriter.(http.Hijacker)
@@ -752,15 +759,32 @@ func GetRequestURI(r *http.Request) string {
 		return requestURI
 	}
 	_ = r.ParseForm()
-	queryArgs := r.PostForm.Encode()
-	if len(queryArgs) == 0 {
+	if len(r.PostForm) == 0 {
 		return requestURI
+	}
+	// code copied from url.Query.Encode
+	var queryArgs strings.Builder
+	for k := range r.PostForm {
+		vs := r.PostForm[k]
+		// mask authKey as well-known secret
+		if k == "authKey" {
+			vs = []string{"secret"}
+		}
+		keyEscaped := url.QueryEscape(k)
+		for _, v := range vs {
+			if queryArgs.Len() > 0 {
+				queryArgs.WriteByte('&')
+			}
+			queryArgs.WriteString(keyEscaped)
+			queryArgs.WriteByte('=')
+			queryArgs.WriteString(url.QueryEscape(v))
+		}
 	}
 	delimiter := "?"
 	if strings.Contains(requestURI, delimiter) {
 		delimiter = "&"
 	}
-	return requestURI + delimiter + queryArgs
+	return requestURI + delimiter + queryArgs.String()
 }
 
 // Redirect redirects to the given url.

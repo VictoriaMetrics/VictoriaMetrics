@@ -32,7 +32,7 @@ const CardinalityPanel: FC = () => {
   const focusLabel = searchParams.get("focusLabel") || "";
 
   const { isLoading, appConfigurator, error, isCluster } = useFetchQuery();
-  const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
+  const { tsdbStatusData, metricNameStatsData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
   const defaultState = getDefaultState(match, focusLabel);
 
   const handleFilterClick = (key: string) => (query: string) => {
@@ -62,6 +62,7 @@ const CardinalityPanel: FC = () => {
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
+        metricNameStats={metricNameStatsData}
         isCluster={isCluster}
       />
 

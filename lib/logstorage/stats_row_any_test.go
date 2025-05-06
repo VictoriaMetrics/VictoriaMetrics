@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -179,4 +180,48 @@ func TestStatsRowAny(t *testing.T) {
 			{"x", `{"c":"4"}`},
 		},
 	})
+}
+
+func TestStatsRowAny_ExportImportState(t *testing.T) {
+	f := func(sap *statsRowAnyProcessor, dataLenExpected int) {
+		t.Helper()
+
+		data := sap.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var sap2 statsRowAnyProcessor
+		_, err := sap2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if !reflect.DeepEqual(sap, &sap2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &sap2, sap)
+		}
+	}
+
+	var sap statsRowAnyProcessor
+
+	// zero state
+	f(&sap, 1)
+
+	// non-zero state
+	sap = statsRowAnyProcessor{
+		captured: true,
+
+		fields: []Field{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "abc",
+				Value: "de",
+			},
+		},
+	}
+	f(&sap, 17)
 }

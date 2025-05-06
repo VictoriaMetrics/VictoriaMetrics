@@ -6,11 +6,15 @@ menu:
     identifier: "telegraf"
     parent: "data-ingestion"
     weight: 5
+tags:
+  - metrics
 aliases:
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
+  - /data-ingestion/telegraf/index.html
+  - /data-ingestion/telegraf/
 ---
-This document covers various output configurations for Telegraf for shipping data [via HTTP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+This document covers various output configurations for Telegraf for shipping data [via HTTP](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 to VictoriaMetrics. All the options examples below can be combined to fit your use case.
 
 To avoid storing Passwords in configuration files you can store as a key value pair in `/etc/default/telegraf` on Linux as follows

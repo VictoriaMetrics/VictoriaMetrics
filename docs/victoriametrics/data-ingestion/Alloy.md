@@ -6,12 +6,17 @@ menu:
     identifier: "alloy"
     parent: "data-ingestion"
     weight: 3
+tags:
+  - metrics
 aliases:
   - /data-ingestion/Grafana-Alloy.html
   - /data-ingestion/grafana-alloy.html
   - /data-ingestion/Grafana-Agent.html
   - /data-ingestion/grafana-agent.html
-
+  - /data-ingestion/grafana-agent/index.html
+  - /data-ingestion/grafana-agent/
+  - /data-ingestion/alloy/index.html
+  - /data-ingestion/alloy/
 ---
 
 [Grafana Alloy](https://grafana.com/docs/alloy/latest/) supports sending data via the Prometheus remote write protocol and OpenTelemetry Protocol (OTLP).
@@ -33,13 +38,13 @@ prometheus.remote_write "victoriametrics" {
 ```
 
 For pushing data to VictoriaMetrics cluster the `url` should point to vminsert and include 
-the [tenantID](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format):
+the [tenantID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format):
 ```sh
 https://<vminsert-addr>/insert/<tenant_id>/prometheus/api/v1/write
 ```
 
-> Note: read more about [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
-> or [multitenancy via labels](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
+> Note: read more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+> or [multitenancy via labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
 
 After the configuration has been updated, Alloy must be reloaded or restarted for the change to be applied:
 - Linux: `sudo systemctl reload alloy.service`
