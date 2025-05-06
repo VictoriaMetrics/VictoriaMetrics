@@ -151,7 +151,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8480"}
 	}
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
