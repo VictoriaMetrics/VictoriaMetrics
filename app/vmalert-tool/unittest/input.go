@@ -104,7 +104,7 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 			continue
 		}
 		if strings.Contains(item, "stale") {
-			return nil, fmt.Errorf("stale metric doesnt support operations")
+			return nil, fmt.Errorf("stale metric doesn't support operations")
 		}
 		vals := numReg.FindAllString(item, -1)
 		switch len(vals) {

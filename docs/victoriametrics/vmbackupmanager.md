@@ -237,7 +237,7 @@ For example:
   ```
   Example response:
   ```json
-  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00", "locked": true}
+  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00", "locked": true, "state": "incomplete"}
   ```
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
@@ -296,7 +296,7 @@ It can be changed by using flag:
 `vmbackupmanager backup list` lists backups in remote storage:
 ```sh
 $ ./vmbackupmanager backup list
-[{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+[{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
 ```
 
 #### Restore commands
@@ -334,16 +334,16 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 1. Run `vmbackupmanager backup list` to get list of available backups:
   ```sh
   $ /vmbackupmanager-prod backup list
-  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+  [{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
   ```
 1. Run `vmbackupmanager restore create` to create restore mark:
     - Use relative path to backup to restore from currently used remote storage:
       ```sh
-      $ /vmbackupmanager-prod restore create daily/2023-04-07
+      $ /vmbackupmanager-prod restore create weekly/2025-17
       ```
     - Use full path to backup to restore from any remote storage:
       ```sh
-      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/weekly/2025-17
       ```
 1. Stop `vmstorage` or `vmsingle` node
 1. Run `vmbackupmanager restore` to restore backup:
@@ -368,16 +368,16 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
   $ /vmbackupmanager-prod backup list
-  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+  [{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark:
 - Use relative path to backup to restore from currently used remote storage:
   ```sh
-  $ /vmbackupmanager-prod restore create daily/2023-04-07
+  $ /vmbackupmanager-prod restore create weekly/2025-17
   ```
 - Use full path to backup to restore from any remote storage:
   ```sh
-  $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+  $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/weekly/2025-17
   ```
 1. Restart pod
 
@@ -400,13 +400,13 @@ Clusters here are referred to as `source` and `destination`.
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
   $ /vmbackupmanager-prod backup list
-  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+  [{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
   ```sh
-  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
+  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/weekly/2025-17
   ```
 1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.
 

@@ -114,7 +114,7 @@ func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 // GraphiteWrite is a test helper function that sends a
 // collection of records to graphiteListenAddr port.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
 func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 	app.cli.Write(t, app.graphiteListenAddr, records)
