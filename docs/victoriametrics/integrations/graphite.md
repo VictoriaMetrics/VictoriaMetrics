@@ -20,7 +20,7 @@ See full list of Graphite-related configuration flags by running:
 ## Ingesting
 
 VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive inserts from Graphite-compatible agents 
-(such as [StatsD](https://github.com/statsd/statsd)).Enable Graphite receiver by setting `-graphiteListenAddr` command line flag:
+(such as [StatsD](https://github.com/statsd/statsd)). Enable Graphite receiver by setting `-graphiteListenAddr` command line flag:
 ```bash
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
