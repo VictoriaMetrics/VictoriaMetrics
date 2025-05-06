@@ -319,14 +319,14 @@ type MetricNamesStatsRecord struct {
 	QueryRequestsCount uint64
 }
 
-// SnapshotCreateResponse is an in-memory reprensentation of the json response
+// SnapshotCreateResponse is an in-memory representation of the json response
 // returned by the /snapshot/create endpoint.
 type SnapshotCreateResponse struct {
 	Status   string
 	Snapshot string
 }
 
-// APIV1AdminTSDBSnapshotResponse is an in-memory reprensentation of the json
+// APIV1AdminTSDBSnapshotResponse is an in-memory representation of the json
 // response returned by the /api/v1/admin/tsdb/snapshot endpoint.
 type APIV1AdminTSDBSnapshotResponse struct {
 	Status string
@@ -339,27 +339,27 @@ type SnapshotData struct {
 	Name string
 }
 
-// SnapshotListResponse is an in-memory reprensentation of the json response
+// SnapshotListResponse is an in-memory representation of the json response
 // returned by the /snapshot/list endpoint.
 type SnapshotListResponse struct {
 	Status    string
 	Snapshots []string
 }
 
-// SnapshotDeleteResponse is an in-memory reprensentation of the json response
+// SnapshotDeleteResponse is an in-memory representation of the json response
 // returned by the /snapshot/delete endpoint.
 type SnapshotDeleteResponse struct {
 	Status string
 	Msg    string
 }
 
-// SnapshotDeleteAllResponse is an in-memory reprensentation of the json response
+// SnapshotDeleteAllResponse is an in-memory representation of the json response
 // returned by the /snapshot/delete_all endpoint.
 type SnapshotDeleteAllResponse struct {
 	Status string
 }
 
-// TSDBStatusResponse is an in-memory reprensentation of the json response
+// TSDBStatusResponse is an in-memory representation of the json response
 // returned by the /prometheus/api/v1/status/tsdb endpoint.
 type TSDBStatusResponse struct {
 	IsPartial bool

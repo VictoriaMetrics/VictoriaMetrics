@@ -484,7 +484,7 @@ additional_endpoints:
 
 Disable logs (logs ingestion is not supported by VictoriaMetrics) and set a custom endpoint in `serverless.yaml`:
 
-```
+```yaml
 custom:
   datadog:
     enableDDLogs: false             # Disabled not supported DD logs

@@ -30,7 +30,7 @@ func GetReader(r io.Reader) *Reader {
 	return zr
 }
 
-// PutReader returns zr to the pool, so it could be re-used via GetReader.
+// PutReader returns zr to the pool, so it could be reused via GetReader.
 func PutReader(zr *Reader) {
 	// Do not call zr.Reset() in order to avoid CGO call.
 	// The zr.Reset() is automatically called when zr is destroyed by Go GC.
@@ -61,10 +61,10 @@ func GetWriter(w io.Writer, compressLevel int) *Writer {
 	return zw
 }
 
-// PutWriter returns zw to the pool, so it could be re-used via GetWriter.
+// PutWriter returns zw to the pool, so it could be reused via GetWriter.
 func PutWriter(zw *Writer) {
 	// Do not call zw.Reset() in order to avoid CGO call.
-	// The zw.Reset() is automaticall called when zw is destroyed by Go GC.
+	// The zw.Reset() is automatically called when zw is destroyed by Go GC.
 
 	writerPool.Put(zw)
 }

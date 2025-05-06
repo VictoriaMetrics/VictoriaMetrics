@@ -87,7 +87,7 @@ func (pfp *pipeFieldValuesLocalProcessor) writeBlock(workerID uint, br *blockRes
 	for i, value := range values {
 		hits64, ok := tryParseUint64(hits[i])
 		if !ok {
-			logger.Panicf("BUG: unexpected hits recevied from the remote storage for %q: %q; it must be uint64", value, hits[i])
+			logger.Panicf("BUG: unexpected hits received from the remote storage for %q: %q; it must be uint64", value, hits[i])
 		}
 		shard.vhs = append(shard.vhs, ValueWithHits{
 			Value: strings.Clone(value),

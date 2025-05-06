@@ -479,7 +479,7 @@ type roundTripper struct {
 	trBase             *http.Transport
 	getTLSConfigCached getTLSConfigFunc
 
-	// mu protects acces to rootCAPrev and trPrev
+	// mu protects access to rootCAPrev and trPrev
 	mu         sync.Mutex
 	rootCAPrev *x509.CertPool
 	trPrev     *http.Transport
