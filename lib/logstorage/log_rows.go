@@ -108,7 +108,7 @@ func (lr *logRows) mustAddRows(src *LogRows) {
 		return
 	}
 
-	// a hint for the compiler for preventing from unnesesary bounds checks
+	// a hint for the compiler for preventing from unnecessary bounds checks
 	_ = streamIDs[len(rows)-1]
 	_ = timestamps[len(rows)-1]
 
@@ -580,7 +580,7 @@ func EstimatedJSONRowLen(fields []Field) int {
 
 // GetInsertRow returns InsertRow from a pool.
 //
-// Pass the returned row to PutInsertRow when it is no longer needed, so it could be re-used.
+// Pass the returned row to PutInsertRow when it is no longer needed, so it could be reused.
 func GetInsertRow() *InsertRow {
 	v := insertRowsPool.Get()
 	if v == nil {
@@ -589,7 +589,7 @@ func GetInsertRow() *InsertRow {
 	return v.(*InsertRow)
 }
 
-// PutInsertRow returns r to the pool, so it could be re-used via GetInsertRow.
+// PutInsertRow returns r to the pool, so it could be reused via GetInsertRow.
 func PutInsertRow(r *InsertRow) {
 	r.Reset()
 	insertRowsPool.Put(r)

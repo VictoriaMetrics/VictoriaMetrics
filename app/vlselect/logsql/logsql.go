@@ -887,7 +887,7 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		shard.sw = sw
 	}
 	defer func() {
-		shards := bwShards.GetSlice()
+		shards := bwShards.All()
 		for _, shard := range shards {
 			shard.FlushIgnoreErrors()
 		}

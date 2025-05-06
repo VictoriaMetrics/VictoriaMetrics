@@ -92,7 +92,7 @@ const Relabel: FC = () => {
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/relabeling.html"
+            href="https://docs.victoriametrics.com/victoriametrics/relabeling/"
             rel="help noreferrer"
           >
             <InfoIcon/>
@@ -101,7 +101,7 @@ const Relabel: FC = () => {
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/vmagent.html#relabeling"
+            href="https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling"
             rel="help noreferrer"
           >
             <WikiIcon/>

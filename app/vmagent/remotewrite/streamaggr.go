@@ -16,55 +16,55 @@ import (
 var (
 	// Global config
 	streamAggrGlobalConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/ . "+
 		"See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval")
 	streamAggrGlobalKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep all the input samples after the aggregation "+
 		"with -streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
-		"are written to remote storages write. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
+		"are written to remote storages write. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/")
 	streamAggrGlobalDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
-		"are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
+		"are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/")
 	streamAggrGlobalDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval on "+
 		"aggregator before optional aggregation with -streamAggr.config . "+
-		"See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
+		"See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication")
 	streamAggrGlobalIgnoreOldSamples = flag.Bool("streamAggr.ignoreOldSamples", false, "Whether to ignore input samples with old timestamps outside the "+
 		"current aggregation interval for aggregator. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples")
 	streamAggrGlobalIgnoreFirstIntervals = flag.Int("streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start for "+
 		"aggregator. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from "+
-		"clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
+		"clients pushing data into the vmagent. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrGlobalDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples for aggregator "+
-		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
+		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels")
 	streamAggrGlobalEnableWindows = flag.Bool("streamAggr.enableWindows", false, "Enables aggregation within fixed windows for all global aggregators. "+
 		"This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.")
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows.")
 
 	// Per URL config
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config for the corresponding -remoteWrite.url. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/ . "+
 		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. By default, only aggregates samples are dropped, while the remaining samples "+
-		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/")
 	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. By default, only aggregates samples are dropped, while the remaining samples "+
-		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
-		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
+		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication")
 	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current "+
 		"aggregation interval for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples")
 	streamAggrIgnoreFirstIntervals = flagutil.NewArrayInt("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start "+
 		"for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if "+
 		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving buffered delayed data from clients pushing data into the vmagent. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrDropInputLabels = flagutil.NewArrayString("remoteWrite.streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. "+
 		"Multiple labels per remoteWrite.url must be delimited by '^^': -remoteWrite.streamAggr.dropInputLabels='replica^^az,replica'. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels")
 	streamAggrEnableWindows = flagutil.NewArrayBool("remoteWrite.streamAggr.enableWindows", "Enables aggregation within fixed windows for all remote write's aggregators. "+
 		"This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. "+
-		"See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.")
+		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows.")
 )
 
 // CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.

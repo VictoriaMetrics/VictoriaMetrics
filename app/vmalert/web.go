@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -35,11 +35,11 @@ var (
 		{"-/reload", "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
-		{Name: "vmalert", Url: "../vmalert"},
-		{Name: "Groups", Url: "groups"},
-		{Name: "Alerts", Url: "alerts"},
-		{Name: "Notifiers", Url: "notifiers"},
-		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert/"},
+		{Name: "vmalert", URL: "../vmalert", Icon: "vm"},
+		{Name: "Groups", URL: "groups"},
+		{Name: "Alerts", URL: "alerts"},
+		{Name: "Notifiers", URL: "notifiers"},
+		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
 	}
 )
 
@@ -88,10 +88,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		var data []apiGroup
-		rf := extractRulesFilter(r)
-		data = rh.groups(rf)
-		WriteListGroups(w, r, data)
+		filter := r.URL.Query().Get("filter")
+		rf := extractRulesFilter(r, filter)
+		data := rh.groups(rf)
+		WriteListGroups(w, r, data, filter)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -103,9 +103,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
 		var data []apiGroup
-		rf := extractRulesFilter(r)
+		filter := r.URL.Query().Get("filter")
+		rf := extractRulesFilter(r, filter)
 		data = rh.groups(rf)
-		WriteListGroups(w, r, data)
+		WriteListGroups(w, r, data, filter)
 		return true
 
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
@@ -113,7 +114,8 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		var data []byte
 		var err error
 
-		rf := extractRulesFilter(r)
+		filter := r.URL.Query().Get("filter")
+		rf := extractRulesFilter(r, filter)
 		data, err = rh.listGroups(rf)
 
 		if err != nil {
@@ -226,9 +228,11 @@ type rulesFilter struct {
 	ruleNames     []string
 	ruleType      string
 	excludeAlerts bool
+	onlyUnhealthy bool
+	onlyNoMatch   bool
 }
 
-func extractRulesFilter(r *http.Request) rulesFilter {
+func extractRulesFilter(r *http.Request, filter string) rulesFilter {
 	rf := rulesFilter{}
 
 	var ruleType string
@@ -246,6 +250,12 @@ func extractRulesFilter(r *http.Request) rulesFilter {
 	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
 	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
 	rf.files = append([]string{}, r.Form["file[]"]...)
+	switch filter {
+	case "unhealthy":
+		rf.onlyUnhealthy = true
+	case "noMatch":
+		rf.onlyNoMatch = true
+	}
 	return rf
 }
 
@@ -253,24 +263,12 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	isInList := func(list []string, needle string) bool {
-		if len(list) < 1 {
-			return true
-		}
-		for _, i := range list {
-			if i == needle {
-				return true
-			}
-		}
-		return false
-	}
-
 	groups := make([]apiGroup, 0)
 	for _, group := range rh.m.groups {
-		if !isInList(rf.groupNames, group.Name) {
+		if len(rf.groupNames) > 0 && !slices.Contains(rf.groupNames, group.Name) {
 			continue
 		}
-		if !isInList(rf.files, group.File) {
+		if len(rf.files) > 0 && !slices.Contains(rf.files, group.File) {
 			continue
 		}
 
@@ -282,11 +280,22 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 			if rf.ruleType != "" && rf.ruleType != r.Type {
 				continue
 			}
-			if !isInList(rf.ruleNames, r.Name) {
+			if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, r.Name) {
 				continue
 			}
 			if rf.excludeAlerts {
 				r.Alerts = nil
+			}
+			if (r.LastError == "" && rf.onlyUnhealthy) || (!isNoMatch(r) && rf.onlyNoMatch) {
+				continue
+			}
+			if r.LastError != "" {
+				g.Unhealthy++
+			} else {
+				g.Healthy++
+			}
+			if isNoMatch(r) {
+				g.NoMatch++
 			}
 			filteredRules = append(filteredRules, r)
 		}
@@ -294,12 +303,11 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 		groups = append(groups, g)
 	}
 	// sort list of groups for deterministic output
-	sort.Slice(groups, func(i, j int) bool {
-		a, b := groups[i], groups[j]
+	slices.SortFunc(groups, func(a, b apiGroup) int {
 		if a.Name != b.Name {
-			return a.Name < b.Name
+			return strings.Compare(a.Name, b.Name)
 		}
-		return a.File < b.File
+		return strings.Compare(a.File, b.File)
 	})
 	return groups
 }
@@ -345,8 +353,8 @@ func (rh *requestHandler) groupAlerts() []groupAlerts {
 			})
 		}
 	}
-	sort.Slice(gAlerts, func(i, j int) bool {
-		return gAlerts[i].Group.Name < gAlerts[j].Group.Name
+	slices.SortFunc(gAlerts, func(a, b groupAlerts) int {
+		return strings.Compare(a.Group.Name, b.Group.Name)
 	})
 	return gAlerts
 }
@@ -368,8 +376,8 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	}
 
 	// sort list of alerts for deterministic output
-	sort.Slice(lr.Data.Alerts, func(i, j int) bool {
-		return lr.Data.Alerts[i].ID < lr.Data.Alerts[j].ID
+	slices.SortFunc(lr.Data.Alerts, func(a, b *apiAlert) int {
+		return strings.Compare(a.ID, b.ID)
 	})
 
 	b, err := json.Marshal(lr)

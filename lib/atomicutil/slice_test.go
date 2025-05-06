@@ -12,7 +12,7 @@ func TestSlice_NoInit(t *testing.T) {
 	const loopsPerWorker = 100
 
 	var s Slice[bytes.Buffer]
-	bbs := s.GetSlice()
+	bbs := s.All()
 	if len(bbs) != 0 {
 		t.Fatalf("unexpected length of slice: %d; want 0", len(bbs))
 	}
@@ -30,7 +30,7 @@ func TestSlice_NoInit(t *testing.T) {
 	}
 	wg.Wait()
 
-	bbs = s.GetSlice()
+	bbs = s.All()
 	for workerID := uint(0); workerID < workersCount; workerID++ {
 		var bbExpected bytes.Buffer
 		for i := 0; i < loopsPerWorker; i++ {
@@ -55,7 +55,7 @@ func TestSlice_Init(t *testing.T) {
 	s.Init = func(bb *bytes.Buffer) {
 		bb.Write([]byte(prefix))
 	}
-	bbs := s.GetSlice()
+	bbs := s.All()
 	if len(bbs) != 0 {
 		t.Fatalf("unexpected length of slice: %d; want 0", len(bbs))
 	}
@@ -73,7 +73,7 @@ func TestSlice_Init(t *testing.T) {
 	}
 	wg.Wait()
 
-	bbs = s.GetSlice()
+	bbs = s.All()
 	for workerID := uint(0); workerID < workersCount; workerID++ {
 		bbExpected := bytes.NewBufferString(prefix)
 		for i := 0; i < loopsPerWorker; i++ {

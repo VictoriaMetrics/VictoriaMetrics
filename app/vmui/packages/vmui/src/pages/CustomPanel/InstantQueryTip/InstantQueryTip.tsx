@@ -4,13 +4,13 @@ import { useGraphState } from "../../../state/graph/GraphStateContext";
 
 const last_over_time = <Hyperlink
   text="last_over_time"
-  href="https://docs.victoriametrics.com/metricsql/#last_over_time"
+  href="https://docs.victoriametrics.com/victoriametrics/metricsql/#last_over_time"
   underlined
 />;
 
 const instant_query = <Hyperlink
   text="instant query"
-  href="https://docs.victoriametrics.com/keyconcepts/#instant-query"
+  href="https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query"
   underlined
 />;
 

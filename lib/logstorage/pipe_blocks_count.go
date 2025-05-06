@@ -85,7 +85,7 @@ func (pcp *pipeBlocksCountProcessor) flush() error {
 	}
 
 	// merge state across shards
-	shards := pcp.shards.GetSlice()
+	shards := pcp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

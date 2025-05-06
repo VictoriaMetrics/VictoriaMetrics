@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// snapshotNameRE convers years 1970-2099.
+// snapshotNameRE covers years 1970-2099.
 // Corner case examples:
 // - 19700101000000-0000000000000000
 // - 20991231235959-38EECC8925ED5FFF

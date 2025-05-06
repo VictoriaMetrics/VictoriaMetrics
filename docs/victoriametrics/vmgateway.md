@@ -13,7 +13,7 @@ aliases:
   - /vmgateway/index.html
   - /vmgateway/
 ---
-***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). 
+***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/). 
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
@@ -28,7 +28,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
   * Provides access by tenantID in the Cluster version
   * Allows for separate write/read/admin access to data
 
-`vmgateway` is included in our [enterprise packages](https://docs.victoriametrics.com/enterprise/).
+`vmgateway` is included in our [enterprise packages](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
 ## Access Control
 
@@ -107,7 +107,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
-Rate limiting only works for the [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/). It supports read and write limiting by tenant.
+Rate limiting only works for the [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). It supports read and write limiting by tenant.
 
 ![vmgateway-rl](vmgateway-rate-limiting.webp)
 
@@ -361,11 +361,11 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
@@ -375,6 +375,8 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+     Disable CORS for all origins (*)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -447,11 +449,11 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
@@ -470,7 +472,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -ratelimit.config string
@@ -492,11 +494,11 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array

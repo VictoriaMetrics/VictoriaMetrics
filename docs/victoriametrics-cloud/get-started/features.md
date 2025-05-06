@@ -14,7 +14,7 @@ aliases:
   - /managed-victoriametrics/quickstart/features.html
 ---
 
-VictoriaMetrics Cloud helps optimizing your data and maximizing its value in the most reliable way. It can be used as an **Enterprise-level Managed Prometheus**: just configure Prometheus, [vmagent](https://docs.victoriametrics.com/vmagent/), an OpenTelemetry Collector or any agent to write data to VictoriaMetrics Cloud, and point Grafana to VictoriaMetrics Cloud by configuring it as a Prometheus datasource.
+VictoriaMetrics Cloud helps optimizing your data and maximizing its value in the most reliable way. It can be used as an **Enterprise-level Managed Prometheus**: just configure Prometheus, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), an OpenTelemetry Collector or any agent to write data to VictoriaMetrics Cloud, and point Grafana to VictoriaMetrics Cloud by configuring it as a Prometheus datasource.
 
 ## Features
 VictoriaMetrics Cloud offers a robust suite of features designed to optimize your cloud experience. Seamless integrations, scalability and cost-saving measures, and comprehensive operational tools ensure that VictoriaMetrics Cloud can support your business needs.

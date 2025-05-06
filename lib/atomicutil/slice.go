@@ -68,15 +68,15 @@ func (s *Slice[T]) getSlow(workerID uint) *T {
 	}
 }
 
-// GetSlice returns the underlying []*T.
+// All returns the underlying []*T.
 //
 // The length of the returned slice equals to the max(workerID)+1 passed to s.Get().
 // It is guaranteed that all the items in the returned slice are non-nil.
 //
 // It is unsafe calling this function when concurrent goroutines access s.
 //
-// GetSlice() is relatively slow, so it shouldn't be called in hot paths.
-func (s *Slice[T]) GetSlice() []*T {
+// All() is relatively slow, so it shouldn't be called in hot paths.
+func (s *Slice[T]) All() []*T {
 	ap := s.p.Load()
 	if ap == nil {
 		return nil

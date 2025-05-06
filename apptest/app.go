@@ -17,6 +17,8 @@ import (
 var (
 	storageDataPathRE           = regexp.MustCompile(`successfully opened storage "(.*)"`)
 	httpListenAddrRE            = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
+	graphiteListenAddrRE        = regexp.MustCompile(`started TCP Graphite server at "(.*:\d{1,5})"`)
+	openTSDBListenAddrRE        = regexp.MustCompile(`started TCP OpenTSDB collector at "(.*:\d{1,5})"`)
 	vminsertAddrRE              = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
 	vminsertClusterNativeAddrRE = regexp.MustCompile(`started TCP clusternative server at "(.*:\d{1,5})"`)
 	vmselectAddrRE              = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)

@@ -25,7 +25,7 @@ func Get() *Buffer {
 	return v.(*Buffer)
 }
 
-// Put returns cb to the pool, so it could be re-used via Get() call.
+// Put returns cb to the pool, so it could be reused via Get() call.
 //
 // The cb cannot be used after Put() call.
 func Put(cb *Buffer) {
