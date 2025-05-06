@@ -39,9 +39,6 @@ func Init() {
 	if err != nil {
 		logger.Fatalf("cannot load relabelConfig: %s", err)
 	}
-	pcsGlobal.Store(pcs)
-	configSuccess.Set(1)
-	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	if len(*relabelConfig) == 0 {
 		return
@@ -49,6 +46,15 @@ func Init() {
 
 	globalStopChan = make(chan struct{})
 	relabelWG.Add(1)
+	configReloads = metrics.NewCounter(`vm_relabel_config_reloads_total`)
+	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
+	configSuccess = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
+	configTimestamp = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
+
+	pcsGlobal.Store(pcs)
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
+
 	go func() {
 		defer relabelWG.Done()
 		var tickerCh <-chan time.Time
@@ -113,10 +119,10 @@ var (
 )
 
 var (
-	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
-	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
-	configSuccess      = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
-	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
+	configReloads      *metrics.Counter
+	configReloadErrors *metrics.Counter
+	configSuccess      *metrics.Gauge
+	configTimestamp    *metrics.Counter
 )
 
 var pcsGlobal atomic.Pointer[promrelabel.ParsedConfigs]
