@@ -221,6 +221,12 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`a{"__name__":"upsd_time_left_ns","host":"myhost", status_OB="true"} 12`)
 	f(`a{host:"myhost"} 12`)
 	f(`a{host:"myhost",foo="bar"} 12`)
+	// invalid quoted UTF8 tags
+	f(`metric_"name"{"foo"="bar"}`)
+	f(`"metric_name"{"name":"name}`)
+	f(`metric_"name{"name":"name"}`)
+	f(`metric{"foo":"bar"}`)
+	f(`{"foo":"bar", "metric"}`)
 
 	// empty metric name
 	f(`{foo="bar"}`)
@@ -242,6 +248,13 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Invalid timestamp
 	f("foo 123 bar")
+	// metric name defined multiple time
+	f(`{"foo", "foo2", bar="baz"} 1 2`)
+	f(`foobar{"foo", bar="baz"} 1 2`)
+	// missing closing quotes on key
+	f(`{"a", "b = "c"}`)
+	// empty metric name
+	f(`{"a"="ok"} 1`)
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
@@ -460,6 +473,77 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Metric: "foo",
 			Tags: []Tag{{
 				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	// UTF8 Quoted tags
+	f(`foo{"bar"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo", "bar"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo", "bar"="baf\"y"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: `baf"y`,
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{bar="baz", "foo"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric:    "foo",
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	// Special character quoted UTF8 tests
+	f(`{"温度{房间"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric:    "温度{房间",
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	})
+	f(`{"foo", "温度{房间=\"水电费"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   `温度{房间="水电费`,
 				Value: "baz",
 			}},
 			Value:     1,
