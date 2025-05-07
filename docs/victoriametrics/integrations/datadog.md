@@ -12,7 +12,7 @@ VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/age
 via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` 
 or via "sketches" API at `/datadog/api/beta/sketches`.
 
-See full list of Graphite-related configuration flags by running:
+See full list of DataDog-related configuration flags by running:
 ```bash
 /path/to/victoria-metrics-prod --help | grep datadog
 ```

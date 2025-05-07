@@ -676,7 +676,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Additional information:
 
 * [OpenTSDB http put API](http://opentsdb.net/docs/build/html/api_http/put.html)
-* [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents)
+* [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb)
 
 #### How to send Graphite data to VictoriaMetrics
 
