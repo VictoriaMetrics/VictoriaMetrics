@@ -12,8 +12,9 @@ aliases:
   - /vmagent/index.html
   - /vmagent/
 ---
+
 `vmagent` is a tiny agent which helps you collect metrics from various sources,
-[relabel and filter the collected metrics](#relabeling)
+[relabel and filter the collected metrics](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
 or any other storage systems via Prometheus `remote_write` protocol
 or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-protocol).
@@ -35,7 +36,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 * Can be used as a drop-in replacement for Prometheus for discovering and scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
   Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way as `vmagent` does -
   see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-* Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
+* Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
 * Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 * Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems - see [these docs](#replication-and-high-availability).
@@ -128,7 +129,7 @@ See [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggrega
 
 ### Flexible metrics relay
 
-`vmagent` can accept metrics in [various popular data ingestion protocols](#how-to-push-data-to-vmagent), apply [relabeling](#relabeling)
+`vmagent` can accept metrics in [various popular data ingestion protocols](#how-to-push-data-to-vmagent), apply [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 to the accepted metrics (for example, change metric names/labels or drop unneeded metrics) and then forward the relabeled metrics
 to other remote storage systems, which support Prometheus `remote_write` protocol (including other `vmagent` instances).
 
@@ -181,7 +182,7 @@ See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
 `vmagent` can add, remove or update labels on the collected data before sending it to the remote storage. Additionally,
 it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
-Please see [these docs](#relabeling) for details.
+Please see [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 ### Splitting data streams among multiple systems
 
@@ -429,7 +430,7 @@ at `vminsert` according to [these docs](https://docs.victoriametrics.com/victori
 
 The easiest way to write data to multiple distinct tenants is to specify the needed tenants via `vm_account_id` and `vm_project_id` labels
 and then to push metrics with these labels to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
-The `vm_account_id` and `vm_project_id` labels can be specified via [relabeling](#relabeling) before sending the metrics to `-remoteWrite.url`.
+The `vm_account_id` and `vm_project_id` labels can be specified via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) before sending the metrics to `-remoteWrite.url`.
 
 For example, the following relabeling rule instructs sending metrics to `<account_id>:0` [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
 defined in the `prometheus.io/account_id` annotation of Kubernetes pod deployment:
@@ -446,7 +447,7 @@ scrape_configs:
 `vmagent` can accept data via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
 does according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) if `-enableMultitenantHandlers` command-line flag is set.
 In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels.
-These tenant labels are added before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
+These tenant labels are added before applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
 when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
 
@@ -464,8 +465,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
   ```
 
-* Via relabeling. See [these docs](#relabeling).
-
+* Via relabeling. See [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 ## Automatically generated metrics
 
@@ -524,7 +524,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   ```
 
 * `scrape_samples_post_metric_relabeling` - the number of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) left after applying metric-level relabeling
-  from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details).
+  from `metric_relabel_configs` section (see [relabeling docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for more details).
   This allows detecting targets with too many [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) after the relabeling.
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets
   with more than 10000 metrics after the relabeling:
@@ -575,294 +575,26 @@ generated metrics. But they still can be relabeled via `-remoteWrite.relabelConf
 
 ## Relabeling
 
-VictoriaMetrics components support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
-with [additional enhancements](#relabeling-enhancements). The relabeling can be defined in the following places processed by `vmagent`:
-
-* At the `global -> relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
-  This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
-  Configuration from global section will be prepended to the `relabel_config` of targets from `scrape_config` section.
-  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
-
-* At the `global -> metric_relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
-  This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
-  Configuration from global section will be prepended to the `metric_relabel_config` of targets from `scrape_config` section.
-  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
-
-* At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
-  This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
-  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
-
-  This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
-  or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
-  The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
-
-* At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
-  This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
-  See [relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
-
-  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
-
-* At the `-remoteWrite.relabelConfig` file. This relabeling is used for modifying labels for all the collected metrics
-  (including [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics
-  before sending them to all the configured `-remoteWrite.url` addresses.
-
-  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
-
-* At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics
-  and for dropping unneeded metrics before sending them to the particular `-remoteWrite.url`.
-
-  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
-
-All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
-which are replaced by the corresponding environment variable values.
+This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 [Streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), if configured,
 is performed after applying all the relabeling stages mentioned above.
 
-The following articles contain useful information about Prometheus relabeling:
-
-* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/victoriametrics/relabeling/)
-* [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
-* [Life of a label](https://www.robustperception.io/life-of-a-label)
-* [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
-* [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
-* [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
-* [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
-
 ### Relabeling enhancements
 
-`vmagent` provides the following enhancements on top of Prometheus-compatible relabeling:
-
-* The `replacement` option can refer arbitrary labels via `{{label_name}}` placeholders.
-  Such placeholders are substituted with the corresponding label value. For example, the following relabeling rule
-  sets `instance-job` label value to `host123-foo` when applied to the metric with `{instance="host123",job="foo"}` labels:
-
-  ```yaml
-  - target_label: "instance-job"
-    replacement: "{{instance}}-{{job}}"
-  ```
-
-* An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
-  arbitrary [time series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
-  The `action` is performed only for [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples), which match the provided `if` filter.
-  For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
-
-  ```yaml
-  - if: 'foo{bar="baz"}'
-    action: keep
-  ```
-
-  This is equivalent to less clear Prometheus-compatible relabeling rule:
-
-  ```yaml
-  - action: keep
-    source_labels: [__name__, bar]
-    regex: 'foo;baz'
-  ```
-
-  The `if` option may contain more than one filter. In this case the `action` is performed if at least a single filter
-  matches the given [sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
-  For example, the following relabeling rule adds `foo="bar"` label to samples with `job="foo"` or `instance="bar"` labels:
-
-  ```yaml
-  - target_label: foo
-    replacement: bar
-    if:
-    - '{job="foo"}'
-    - '{instance="bar"}'
-  ```
-
-* The `regex` value can be split into multiple lines for improved readability and maintainability.
-  These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
-
-  ```yaml
-  - action: keep_metrics
-    regex: "metric_a|metric_b|foo_.+"
-  ```
-
-  ```yaml
-  - action: keep_metrics
-    regex:
-    - "metric_a"
-    - "metric_b"
-    - "foo_.+"
-  ```
-
-* VictoriaMetrics provides the following additional relabeling actions on top of standard actions
-  from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
-
-  * `replace_all` replaces all the occurrences of `regex` in the values of `source_labels` with the `replacement`
-    and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences
-    of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
-
-    ```yaml
-    - action: replace_all
-      source_labels: ["__name__"]
-      target_label: "__name__"
-      regex: "-"
-      replacement: "_"
-    ```
-
-  * `labelmap_all` replaces all the occurrences of `regex` in all the label names with the `replacement`.
-    For example, the following relabeling config replaces all the occurrences of `-` char in all the label names
-    with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
-
-    ```yaml
-    - action: labelmap_all
-      regex: "-"
-      replacement: "_"
-    ```
-
-  * `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal,
-    while dropping all the other entries. For example, the following relabeling config keeps targets
-    if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
-
-    ```yaml
-    - action: keep_if_equal
-      source_labels: ["instance", "host"]
-    ```
-
-  * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal,
-    while keeping all the other entries. For example, the following relabeling config drops targets
-    if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
-
-    ```yaml
-    - action: drop_if_equal
-      source_labels: ["instance", "host"]
-    ```
-
-  * `keep_if_contains`: keeps the entry if `target_label` contains all the label values listed in `source_labels`,
-    while dropping all the other entries. For example, the following relabeling config keeps targets
-    if `__meta_consul_tags` contains value from the `required_consul_tag` label:
-
-    ```yaml
-    - action: keep_if_contains
-      target_label: __meta_consul_tags
-      source_labels: [required_consul_tag]
-    ```
-
-  * `drop_if_contains`: drops the entry if `target_label` contains all the label values listed in `source_labels`,
-    while keeping all the other entries. For example, the following relabeling config drops targets
-    if `__meta_consul_tag` contains value from the `denied_consul_tag` label:
-
-    ```yaml
-    - action: drop_if_contains
-      target_label: __meta_consul_tags
-      source_labels: [denied_consul_tag]
-    ```
-
-  * `keep_metrics`: keeps all the metrics with names matching the given `regex`,
-    while dropping all the other metrics. For example, the following relabeling config keeps metrics
-    with `foo` and `bar` names, while dropping all the other metrics:
-
-    ```yaml
-    - action: keep_metrics
-      regex: "foo|bar"
-    ```
-
-  * `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics.
-    For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
-
-    ```yaml
-    - action: drop_metrics
-      regex: "foo|bar"
-    ```
-
-  * `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
+This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-enhancements).
 
 ### Graphite relabeling
 
-VictoriaMetrics components support `action: graphite` relabeling rules, which allow extracting various parts from Graphite-style metrics
-into the configured labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
-Note that the `name` field must be substituted with explicit `__name__` option under `labels` section.
-If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
-
-For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
-from `app42.host123.requests.total` Graphite-style metric:
-
-```yaml
-- action: graphite
-  match: "*.*.*.total"
-  labels:
-    __name__: "${3}_total"
-    job: "$1"
-    instance: "${2}:8080"
-```
-
-Important notes about `action: graphite` relabeling rules:
-
-- The relabeling rule is applied only to metrics, which match the given `match` expression. Other metrics remain unchanged.
-- The `*` matches the maximum possible number of chars until the next dot or until the next part of the `match` expression whichever comes first.
-  It may match zero chars if the next char is `.`.
-  For example, `match: "app*foo.bar"` matches `app42foo.bar` and `42` becomes available to use at `labels` section via `$1` capture group.
-- The `$0` capture group matches the original metric name.
-- The relabeling rules are executed in order defined in the original config.
-
-The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
-Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
+This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#graphite-relabeling).
 
 ### Relabel debug
 
-`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-provide the following tools for debugging target-level and metric-level relabeling:
-
-- Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs))
-  can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
-  and clicking the `debug target relabeling` link at the target, which must be debugged.
-  The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
-  The opened page shows step-by-step results for the actual target relabeling rules applied to the discovered target labels.
-  The page shows also the target URL generated after applying all the relabeling rules.
-
-  The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
-  is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
-  (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
-  and click the `debug` link there. The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
-  The opened page shows step-by-step results for the actual relabeling rules, which result to target drop.
-
-- Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
-  can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
-  and clicking the `debug metrics relabeling` link at the target, which must be debugged.
-  The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
-  The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
-
-See also [debugging scrape targets](#debugging-scrape-targets).
+This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 
 ## Debugging scrape targets
 
-`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-provide the following tools for debugging scrape targets:
-
-- `http://vmagent:8429/targets` page, which contains information about all the targets, which are scraped at the moment.
-  This page helps answering the following questions:
-  - **Why some targets cannot be scraped?** The `last error` column contains the reason why the given target cannot be scraped.
-    You can also click the `endpoint` link in order open the target url in your browser.
-    You can also click the `response` link in order to open the target url on behalf of `vmagent`. This may be helpful when `vmagent`
-    is located in some isolated network.
-  - **Which labels the particular target has?** The `labels` column shows per-target labels. These labels are attached to all the metrics
-    scraped from the given target. You can also click on the target labels in order to see the original labels of the target
-    before applying the [relabeling](#relabeling). The original labels are unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
-  - **Why the given target has the given set of labels?** Click the `target` link at `debug relabeling` column for the particular target in order to see step-by-step
-    execution of [target relabeling rules](#relabeling) applied to the original labels. This link is unavailable if `vmagent` runs
-    with `-promscrape.dropOriginalLabels` command-line flag.
-  - **How the given metrics relabeling rules are applied to scraped metrics?** Click the `metrics` link at `debug relabeling` column
-    for the particular target in order to see step-by-step execution of [metric relabeling rules](#relabeling) applied to the scraped metrics.
-  - **How many failed scrapes were for the particular target?** The `errors` column shows this value.
-  - **How many metrics the given target exposes?** The `samples` column shows the number of metrics scraped per each target during the last scrape.
-  - **How long does it take to scrape the given target?** The `duration` column shows last scrape duration per each target.
-  - **When was the last scrape for the given target?** The `last scrape` column shows the last time the given target was scraped.
-  - **How many times the given target was scraped?** The `scrapes` column shows this information.
-  - **What is the current state of the particular target?** The `state` column shows the current state of the particular target.
-
-- `http://vmagent:8429/service-discovery` page, which contains information about all the [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
-  This page doesn't work if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
-  This pages helps answering the following questions:
-  - **Why some targets are dropped during service discovery?** Click `debug` link at `debug relabeling` on the dropped target in order to see step-by-step
-    execution of [target relabeling rules](#relabeling) applied to the original labels of discovered target.
-  - **Why some targets contain unexpected labels?** Click `debug` link at `debug relabeling` on the dropped target in order to see step-by-step
-    execution of [target relabeling rules](#relabeling) applied to the original labels of discovered target.
-  - **What were the original labels before relabeling for a particular target?** The `discovered labels` column contains the original labels per each discovered target.
-
-See also [relabel debug](#relabel-debug).
+This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 
 ## Prometheus staleness markers
 
@@ -884,7 +616,7 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Stream parsing mode
 
-By default, `vmagent` parses the full response from the scrape target, applies [relabeling](#relabeling)
+By default, `vmagent` parses the full response from the scrape target, applies [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
 and then pushes the resulting metrics to the configured `-remoteWrite.url` in one go. This mode works good for the majority of cases
 when the scrape target exposes small number of metrics (e.g. less than 10K). But this mode may take big amounts of memory
 when the scrape target exposes big number of metrics (for example, when `vmagent` scrapes [`kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)
@@ -900,7 +632,7 @@ stream parsing mode can be explicitly enabled in the following places:
   in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
 * Via `stream_parse: true` option at `scrape_configs` section. In this case all the scrape targets defined
   in this section are scraped in stream parsing mode.
-* Via `__stream_parse__=true` label, which can be set via [relabeling](#relabeling) at `relabel_configs` section.
+* Via `__stream_parse__=true` label, which can be set via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) at `relabel_configs` section.
   In this case stream parsing mode is enabled for the corresponding scrape targets.
   Typical use case: to set the label via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
   for targets exposing big number of metrics.
@@ -1119,7 +851,7 @@ The limit can be enforced in the following places:
   The `series_limit` allows overriding the `-promscrape.seriesLimitPerTarget` on a per-`scrape_config` basis.
   If `series_limit` is set to `0` or to negative value, then it isn't applied to the given `scrape_config`,
   even if `-promscrape.seriesLimitPerTarget` command-line flag is set.
-* Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section.
+* Via `__series_limit__` label, which can be set with [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) at `relabel_configs` section.
   The `__series_limit__` allows overriding the `series_limit` on a per-target basis.
   If `__series_limit__` is set to `0` or to negative value, then it isn't applied to the given target.
   Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
@@ -1184,7 +916,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 * `http://vmagent-host:8429/targets`. This pages shows the current status for every active target.
 * `http://vmagent-host:8429/service-discovery`. This pages shows the list of discovered targets with the discovered `__meta_*` labels
   according to [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
-  This page may help debugging target [relabeling](#relabeling).
+  This page may help debugging target [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 * `http://vmagent-host:8429/api/v1/targets`. This handler returns JSON response
   compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
 * `http://vmagent-host:8429/ready`. This handler returns http 200 status code when `vmagent` finishes
@@ -1756,7 +1488,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
 
-```shellhelp
+```bash
 ./vmagent -help
 
 vmagent collects metrics data via popular data ingestion protocols and routes them to VictoriaMetrics.
