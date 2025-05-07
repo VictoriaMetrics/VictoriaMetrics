@@ -311,7 +311,7 @@ It helps answer the following questions:
 
 **1. Why are some targets dropped during service discovery or showing unexpected labels?**
 
-Click the `debug` link in the `debug relabeling` column for a dropped target. This opens a step-by-step view of how [target relabeling rules](#relabeling) were applied to that target's original labels.
+Click the `debug` link in the `debug relabeling` column for a dropped target. This opens a step-by-step view of how [target relabeling rules](#relabeling-stages) were applied to that target's original labels.
 
 **2. What were the original labels before relabeling?**
 
@@ -867,7 +867,7 @@ Note that the relabeling config is specified under the `metric_relabel_configs` 
 
 ## Useful tips for target relabeling
 
-- Target relabeling can be debugged by clicking the `debug` link for a target on the `http://vmagent:8429/target` or `http://vmagent:8429/service-discovery` pages. See [Relabel Debug - vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
+- Target relabeling can be debugged by clicking the `debug` link for a target on the `http://vmagent:8429/target` or `http://vmagent:8429/service-discovery` pages. See [Relabel Debug - vmagent](https://docs.victoriametrics.com/victoriametrics/relabeling#relabel-debugging).
 - Special labels with the `__` prefix are automatically added when discovering targets and removed after relabeling:
   - Meta-labels starting with the `__meta_` prefix. The specific sets of labels for each supported service discovery option are listed in [Prometheus Service Discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#prometheus-service-discovery).
   - Additional labels with the `__` prefix other than `__meta_` labels, such as [`__scheme__` or `__address__`](#how-to-modify-scrape-urls-in-targets).
@@ -878,7 +878,7 @@ Note that the relabeling config is specified under the `metric_relabel_configs` 
 
 ## Useful tips for metric relabeling
 
-- Metric relabeling can be debugged on the `http://vmagent:8429/metric-relabel-debug` page. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug).
+- Metric relabeling can be debugged on the `http://vmagent:8429/metric-relabel-debug` page. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling#relabel-debugging).
 - All labels that start with the `__` prefix are automatically removed from metrics after relabeling. It is common practice to store temporary labels with names starting with `__` during metrics relabeling.
 - All target-level labels are automatically added to all metrics scraped from targets, making them available during metrics relabeling.
 - If too many labels are removed, different metrics might look the same — this can lead to duplicate time series with conflicting values, which is usually a problem.
