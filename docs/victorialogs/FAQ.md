@@ -149,8 +149,6 @@ for limiting the amounts of exported logs.
 VictoriaLogs [accepts](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs without [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 In this case the `_msg` field is set to the default value, which can be configured via `-defaultMsgValue` command-line flag.
 
-Please note that the `_msg` field is **crucial** for VictoriaLogs, so it is highly recommended to fill it with meaningful content.
-
 ## What if my logs have multiple message fields candidates?
 
 If you [ingest](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs into VictoriaLogs
