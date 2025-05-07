@@ -222,6 +222,9 @@ All the [HTTP-based data ingestion protocols](#http-apis) support the following 
   containing [log timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
   This is usually the `@timestamp` field for Filebeat and Logstash.
 
+  The `_time_field` arg may contain comma-separated list of field names. In this case the first non-empty field from the list
+  is used as log timestamp.
+
   If the `_time_field` arg isn't set, then VictoriaLogs reads the timestamp from the `_time` field. If this field doesn't exist, then the current timestamp is used.
 
 - `_stream_fields` - comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
@@ -264,6 +267,9 @@ additionally to [HTTP query args](#http-query-string-parameters):
 - `VL-Time-Field` - the name of the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   containing [log timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
   This is usually the `@timestamp` field for Filebeat and Logstash.
+
+  The `VL-Time-Field` header may contain comma-separated list of field names. In this case the first non-empty field from the list
+  is treated as log timestamp.
 
   If the `VL-Time-Field` header isn't set, then VictoriaLogs reads the timestamp from the `_time` field. If this field doesn't exist, then the current timestamp is used.
 

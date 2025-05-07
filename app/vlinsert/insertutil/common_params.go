@@ -29,7 +29,7 @@ var (
 // See https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters
 type CommonParams struct {
 	TenantID     logstorage.TenantID
-	TimeField    string
+	TimeFields   []string
 	MsgFields    []string
 	StreamFields []string
 	IgnoreFields []string
@@ -48,9 +48,9 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
-	timeField := "_time"
-	if tf := httputil.GetRequestValue(r, "_time_field", "VL-Time-Field"); tf != "" {
-		timeField = tf
+	timeFields := []string{"_time"}
+	if tfs := httputil.GetArray(r, "_time_field", "VL-Time-Field"); len(tfs) > 0 {
+		timeFields = tfs
 	}
 
 	msgFields := httputil.GetArray(r, "_msg_field", "VL-Msg-Field")
@@ -78,7 +78,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 
 	cp := &CommonParams{
 		TenantID:        tenantID,
-		TimeField:       timeField,
+		TimeFields:      timeFields,
 		MsgFields:       msgFields,
 		StreamFields:    streamFields,
 		IgnoreFields:    ignoreFields,
@@ -122,8 +122,10 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 		}
 	}
 	cp := &CommonParams{
-		TenantID:  tenantID,
-		TimeField: "timestamp",
+		TenantID: tenantID,
+		TimeFields: []string{
+			"timestamp",
+		},
 		MsgFields: []string{
 			"message",
 		},

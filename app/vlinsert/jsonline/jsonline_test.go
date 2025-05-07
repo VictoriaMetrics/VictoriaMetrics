@@ -12,10 +12,11 @@ func TestProcessStreamInternalSuccess(t *testing.T) {
 	f := func(data, timeField, msgField string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
+		timeFields := []string{timeField}
 		msgFields := []string{msgField}
 		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		if err := processStreamInternal("test", r, timeField, msgFields, tlp); err != nil {
+		if err := processStreamInternal("test", r, timeFields, msgFields, tlp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
@@ -71,7 +72,7 @@ func TestProcessStreamInternalFailure(t *testing.T) {
 
 		tlp := &insertutil.TestLogMessageProcessor{}
 		r := strings.NewReader(data)
-		if err := processStreamInternal("test", r, "time", nil, tlp); err == nil {
+		if err := processStreamInternal("test", r, []string{"time"}, nil, tlp); err == nil {
 			t.Fatalf("expected error, got nil")
 		}
 
