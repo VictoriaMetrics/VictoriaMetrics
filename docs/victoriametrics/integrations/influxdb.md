@@ -14,7 +14,7 @@ Additional resources:
 * [Data model differences](https://docs.victoriametrics.com/guides/migrate-from-influx/#data-model-differences)
 
 See full list of InfluxDB-related configuration flags by running:
-```bash
+```sh
 /path/to/victoria-metrics-prod --help | grep influx
 ```
 
@@ -51,7 +51,7 @@ Comma-separated list of expected databases can be passed to VictoriaMetrics via 
 ## InfluxDB v2 format
 
 VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
-```bash
+```sh
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
 ```
 

@@ -13,14 +13,14 @@ See [How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https:/
 by switching from Graphite and keeping all the same Grafana dashboards and agents.
 
 See full list of Graphite-related configuration flags by running:
-```bash
+```sh
 /path/to/victoria-metrics-prod --help | grep graphite
 ```
 
 ## Ingesting
 
 Enable Graphite receiver by setting `-graphiteListenAddr` command line flag:
-```bash
+```sh
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
 
@@ -28,7 +28,7 @@ Now, VictoriaMetrics host name and specified port can be used as destination add
 (e.g.  `graphiteHost`  in `StatsD`).
 
 Try writing a data sample via Graphite plaintext protocol to local VictoriaMetrics using `nc`:
-```bash
+```sh
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
@@ -42,7 +42,7 @@ An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in
 
 VictoriaMetrics single-node or vmselect can read the ingested data back.
 Try reading the data via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) endpoint:
-```bash
+```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 _Note, we're using :8428 port here, as it is default port where VictoriaMetrics single-node listens for user requests._

@@ -13,7 +13,7 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 or via "sketches" API at `/datadog/api/beta/sketches`.
 
 See full list of DataDog-related configuration flags by running:
-```bash
+```sh
 /path/to/victoria-metrics-prod --help | grep datadog
 ```
 
