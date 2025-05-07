@@ -230,9 +230,10 @@ helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vic
 
 ## Playgrounds
 
-VictoriaMetrics has the following publicly available resources:
+VictoriaMetrics has the following publicly available demo resources:
+
 1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling playground, other tools and pages provided by VMUI.
+  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
 1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
   typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
   3 cluster installations for the recent OS and LTS versions running under the constant becnhmark.
@@ -282,12 +283,12 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Top queries](#top-queries) - shows most frequently executed queries;
   - [Active queries](#active-queries) - shows currently executed queries;
 - Tools:
-  - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
-  - [Query analyzer](#query-tracing) - playground for loading query results and traces in JSON format. See `Export query` button below;  
-  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
-  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
-  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - playground for [relabeling](#downsampling) configs {{% available_from "v1.105.0" %}}.
-  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - playground for [relabeling](#retention-filters) configs {{% available_from "v1.105.0" %}}.
+  - [Trace analyzer](#query-tracing) - exlpore query traces loaded from JSON;
+  - [Query analyzer](#query-tracing) - explore query results and traces loaded from JSON. See `Export query` button below;
+  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work;
+  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
+  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - debug [downsampling](#downsampling) configs {{% available_from "v1.105.0" %}}.
+  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - debug [retention filter](#retention-filters) configs {{% available_from "v1.105.0" %}}.
 
 VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, metric names, label names and label values. The auto-completion can be enabled
 by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can still be triggered for the current cursor position by pressing `ctrl+space`.
@@ -383,6 +384,7 @@ By default, all the time series for the selected date are analyzed. To narrow do
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 Resources:
+
  * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
  * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 
@@ -1168,7 +1170,7 @@ VictoriaMetrics provides additional relabeling features such as Graphite-style r
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for more details.
 
 The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
-or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
+or at our [public demo playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug) for more details.
 
 
