@@ -111,15 +111,20 @@ services:
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
       # vlogs rule
-      - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
+      - ./vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
     command:
+      # it evaluates data against VictoriaMetrics and VictoriaLogs
+      # vmauth routes queries to corresponding datasource based on API path
       - "--datasource.url=http://vmauth:8427/"
-      - "--remoteRead.url=http://victoriametrics:8428/"
+      # results of alerting and recording rules are persisted to VictoriaMetrics only
       - "--remoteWrite.url=http://victoriametrics:8428/"
+      # alerts state is restored from VictoriaMetrics on restarts
+      - "--remoteRead.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     restart: always
 
   # alertmanager receives alerting notifications from vmalert
