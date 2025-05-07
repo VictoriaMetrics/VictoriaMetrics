@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
+
 * FEATURE: all the [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) components: provide FIPS compliant binaries and docker images. See [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/#fips-compliance) for the details.
 * FEATURE: all the VictoriaMetrics components: add `-http.disableCORS` cmd-line flag for disabling CORS headers. See [#8680](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680) for details. Thanks to @jmehrs for [#8684](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8684).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `debug` option for [group](https://docs.victoriametrics.com/vmalert/#groups) for enabling [debug mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode) for all rules within the group. Thanks to @eyazici90 for [#8658](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8658).
