@@ -947,7 +947,7 @@ The arg passed to `extra_filters` and `extra_stream_filters` must be properly en
 ## Web UI
 
 VictoriaLogs provides Web UI for logs [querying](https://docs.victoriametrics.com/victorialogs/logsql/) and exploration
-at `http://localhost:9428/select/vmui`. Try [VictoriaLogs web UI playground](https://play-vmlogs.victoriametrics.com/).
+at `http://localhost:9428/select/vmui`. Try [VictoriaLogs web UI demo playground](https://play-vmlogs.victoriametrics.com/).
 
 There are three modes of displaying query results:
 

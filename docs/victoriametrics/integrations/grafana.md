@@ -12,7 +12,7 @@ VictoriaMetrics integrates with Grafana using either [Prometheus datasource](htt
 or [VictoriaMetrics datasource](https://grafana.com/grafana/plugins/victoriametrics-metrics-datasource/) plugins.
 
 Resources:
-* [VictoriaMetrics Grafana playground](https://play-grafana.victoriametrics.com)
+* [VictoriaMetrics Grafana demo playground](https://play-grafana.victoriametrics.com)
 * [VictoriaMetrics and Grafana in docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics)
 
 ## VictoriaMetrics datasource
