@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support for comma-separated list of fields at the `_time_field` HTTP query arg and at `VL-Time-Field` HTTP header. Then the first non-empty log field from the list is used as a timestamp field. This is useful when the ingested logs may contain log timestamp across different fields. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add sorting of fields by key in the Group tab. See [#8438](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8438).
 * FEATURE: [JSON lines data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api): return `400 Bad Request` if no logs were successfully processed. This improves error visibility for malformed requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8818).
 
