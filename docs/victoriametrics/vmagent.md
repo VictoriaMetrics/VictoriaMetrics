@@ -1011,9 +1011,8 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 See also:
 
-- [debugging scrape targets](#debugging-scrape-targets)
-- [relabel debug](#relabel-debug)
-- [general troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/)
+- [Relabel Debugging](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging)
+- [General Troubleshooting](https://docs.victoriametrics.com/victoriametrics/troubleshooting/)
 
 ## Calculating disk space for persistence queue
 
@@ -1044,7 +1043,7 @@ Additional notes:
 1. Ensure that `vmagent` [monitoring](#monitoring) is configured properly.
 1. Re-evaluate the estimation each time when:
     * there is an increase in the vmagent's workload
-    * there is a change in [relabeling rules](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) which could increase the amount metrics to send
+    * there is a change in [relabeling rules](https://docs.victoriametrics.com/victoriametrics/relabeling/) which could increase the amount metrics to send
     * there is a change in number of configured `-remoteWrite.url` addresses
 1. The minimum disk size to allocate for the persistent queue is 500Mi per each `-remoteWrite.url`.
 1. On-disk persistent queue can be disabled if needed. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
@@ -2018,7 +2017,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.relabelConfig string
-     Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
+     Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics/relabeling/
   -remoteWrite.retryMaxTime array
      The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval (default 1m0s)
      Supports array of values separated by comma or specified via multiple flags.
@@ -2116,7 +2115,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.urlRelabelConfig array
-     Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
+     Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics/relabeling/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.vmProtoCompressLevel int

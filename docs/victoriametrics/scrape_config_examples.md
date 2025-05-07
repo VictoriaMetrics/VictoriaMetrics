@@ -265,14 +265,14 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details on `relabel_configs`.
 
 ### Discovering and scraping `kube-state-metrics` in Kubernetes
 
 [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) is a special metrics exporter,
 which exposes `state` metrics for all the Kubernetes objects such as `container`, `pod`, `node`, etc.
 It already sets `namespace`, `container`, `pod` and `node` labels for every exposed metric,
-so these metrics shouldn't be set in [target relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
+so these metrics shouldn't be set in [target relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 The following [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 instructs discovering and scraping [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) target inside Kubernetes cluster:
@@ -303,7 +303,7 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details on `relabel_configs`.
 
 ### Discovering and scraping metrics from `cadvisor`
 
@@ -341,7 +341,7 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details on `relabel_configs`.
 
 See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options) for details on `bearer_token_file` and `tls_config` options.
 
@@ -382,4 +382,4 @@ scrape_configs:
 
 See [`kubernetes_sd_configs` docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) for more details.
 
-See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details on `relabel_configs`.
+See [relabeling docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details on `relabel_configs`.
