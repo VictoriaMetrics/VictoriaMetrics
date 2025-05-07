@@ -9798,6 +9798,32 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+	// utf-8 quoted
+	t.Run(`sum(multi-vector) by (__name__)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(sum(label_set(10, "__name__", "bar", "baz", "sss", "x", "y") or label_set(time()/100, "baz", "sss", "__name__", "aaa")) by (__name__,"baz"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte(`bar`)
+		r1.MetricName.Tags = []storage.Tag{
+			{Key: []byte("baz"), Value: []byte("sss")},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 12, 14, 16, 18, 20},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("aaa")
+		r2.MetricName.Tags = []storage.Tag{
+			{Key: []byte("baz"), Value: []byte("sss")},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+
 }
 
 func TestExecError(t *testing.T) {
@@ -10074,7 +10100,6 @@ func TestExecError(t *testing.T) {
 	f(`sum(1) foo (bar)`)
 	f(`sum foo () (bar)`)
 	f(`sum(foo) by (1)`)
-	f(`count(foo) without ("bar")`)
 
 	// With expressions
 	f(`ttf()`)

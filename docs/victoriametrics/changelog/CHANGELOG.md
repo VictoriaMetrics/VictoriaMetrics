@@ -33,6 +33,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `retentionFilter` flag name in debugging interface to make it consistent with flag definition. Previously, flag name in debugging interface was different from command-line configuration so copying command-line flags for debugging produced an error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8697).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix various UI glitches and tidy up the visual styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): create relabel config reload and stream aggregation config reload related metrics only if config is present. See [helm-charts#2119](https://github.com/VictoriaMetrics/helm-charts/issues/2119) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly parse quoted utf-8 label names in parentheses. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8826) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly parse metric name series selectors with `or` expressions. See [this issue](https://github.com/VictoriaMetrics/metricsql/issues/50) for details.
 
 ## [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0)
 
