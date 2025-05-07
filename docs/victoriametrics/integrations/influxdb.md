@@ -13,7 +13,7 @@ Additional resources:
 * [How to Migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx/)
 * [Data model differences](https://docs.victoriametrics.com/guides/migrate-from-influx/#data-model-differences)
 
-See full list of Graphite-related configuration flags by running:
+See full list of InfluxDB-related configuration flags by running:
 ```bash
 /path/to/victoria-metrics-prod --help | grep influx
 ```
