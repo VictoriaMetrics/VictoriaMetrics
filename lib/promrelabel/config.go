@@ -293,7 +293,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 	case "keep_if_contains":
 		if targetLabel == "" {
-			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_containes`")
+			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_contains`")
 		}
 		if len(sourceLabels) == 0 {
 			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=keep_if_contains`")
@@ -303,7 +303,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 	case "drop_if_contains":
 		if targetLabel == "" {
-			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_containes`")
+			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_contains`")
 		}
 		if len(sourceLabels) == 0 {
 			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=drop_if_contains`")
