@@ -299,6 +299,14 @@ additionally to [HTTP query args](#http-query-string-parameters):
 
 See also [HTTP Query string parameters](#http-query-string-parameters).
 
+## Decolorizing
+
+If the ingested logs contain [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code), then it is recommended dropping these color codes before
+storing the logs in VictoriaLogs. This simplifies further querying and analysis of such logs.
+
+Decolorizing can be done either at the log collector / shipper side or at the VictoriaLogs side with `decolorize_fields` HTTP query arg
+and `VL-Decolorize-Fields` HTTP request header according to [these docs](#http-parameters).
+
 ## Troubleshooting
 
 The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:

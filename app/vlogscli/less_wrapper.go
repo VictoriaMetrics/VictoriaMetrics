@@ -17,7 +17,7 @@ func isTerminal() bool {
 	return isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stderr.Fd())
 }
 
-func readWithLess(r io.Reader, wrapLongLines bool) error {
+func readWithLess(r io.Reader, disableColors, wrapLongLines bool) error {
 	if !isTerminal() {
 		// Just write everything to stdout if no terminal is available.
 		_, err := io.Copy(os.Stdout, r)
@@ -49,6 +49,9 @@ func readWithLess(r io.Reader, wrapLongLines bool) error {
 		return fmt.Errorf("cannot find 'less' command: %w", err)
 	}
 	opts := []string{"less", "-F", "-X"}
+	if !disableColors {
+		opts = append(opts, "-R")
+	}
 	if !wrapLongLines {
 		opts = append(opts, "-S")
 	}
