@@ -1,0 +1,29 @@
+discovery.docker "default" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+}
+
+prometheus.exporter.self "default" {}
+
+prometheus.scrape "default" {
+  targets    = prometheus.exporter.self.default.targets
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://victoriametrics:8428/api/v1/write"
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://victorialogs:9428/insert/loki/api/v1/push"
+  }
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.default.targets
+  forward_to = [loki.write.default.receiver]
+}
