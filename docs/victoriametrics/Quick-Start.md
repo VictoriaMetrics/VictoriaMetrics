@@ -46,13 +46,13 @@ and [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/graf
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) 
 and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
-### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
+### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {id="starting-vm-on-cloud"}
 
 1. Go to [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
 1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
 1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
 
-### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
+### Starting VictoriaMetrics Single Node via Docker {id="starting-vm-single-via-docker"}
 
 Download the newest available [VictoriaMetrics release](https://docs.victoriametrics.com/victoriametrics/changelog/)
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
@@ -78,7 +78,7 @@ Other available HTTP endpoints are listed on `http://localhost:8428` page.
 See how to [write](https://docs.victoriametrics.com/victoriametrics/quick-start/#write-data) or [read](https://docs.victoriametrics.com/victoriametrics/quick-start/#query-data)
 from VictoriaMetrics.
 
-### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
+### Starting VictoriaMetrics Cluster via Docker {id="starting-vm-cluster-via-docker"}
 
 Clone [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docker environment 
 via `make docker-vm-cluster-up` command:
@@ -105,7 +105,7 @@ file._
 
 See more details about [cluster architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup).
 
-### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
+### Starting VictoriaMetrics Single Node from a Binary {id="starting-vm-single-from-a-binary"}
 
 1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). 
 For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
@@ -177,7 +177,7 @@ sudo systemctl status victoriametrics.service
 by going to `http://<ip_or_hostname>:8428/vmui`.
 
 
-### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
+### Starting VictoriaMetrics Cluster from Binaries {id="starting-vm-cluster-from-binaries"}
 
 VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)),
