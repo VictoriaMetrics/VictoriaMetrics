@@ -1,0 +1,38 @@
+discovery.docker "default" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+}
+
+prometheus.exporter.self "default" {}
+
+prometheus.scrape "default" {
+  targets    = prometheus.exporter.self.default.targets
+  forward_to = [otelcol.receiver.prometheus.default.receiver]
+}
+
+otelcol.receiver.prometheus "default" {
+  output {
+    metrics = [otelcol.exporter.otlphttp.default.input]
+  }
+}
+
+otelcol.exporter.otlphttp "default" {
+  client {
+    endpoint = "http://victorialogs:9428/insert/opentelemetry"
+  }
+  metrics_endpoint = "http://victoriametrics:8428/opentelemetry/v1/metrics"
+}
+
+otelcol.receiver.loki "default" {
+  output {
+    metrics = [otelcol.exporter.otlphttp.default.input]
+    logs    = [otelcol.exporter.otlphttp.default.input]
+    traces  = [otelcol.exporter.otlphttp.default.input]
+  }
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.default.targets
+  forward_to = [otelcol.receiver.loki.default.receiver]
+}
