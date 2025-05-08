@@ -198,6 +198,11 @@ See also:
 - [HTTP parameters, which can be passed to the API](#http-parameters).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
+### Opentelemetry API
+
+VictoriaLogs accepts logs in [OpenTelemetry format](https://opentelemetry.io/docs/specs/otel/logs/data-model/) at the `/insert/opentelemetry/v1/logs` HTTP endpoint.
+See more details [in these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/).
+
 ### HTTP parameters
 
 VictoriaLogs accepts the following configuration parameters via [HTTP headers](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields)
