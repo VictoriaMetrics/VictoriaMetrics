@@ -120,6 +120,9 @@ const ExploreLogs: FC = () => {
 
   useEffect(() => {
     if (!hideChart) debouncedFetchLogs(period, true);
+    return () => {
+      debouncedFetchLogs.cancel && debouncedFetchLogs.cancel();
+    };
   }, [hideChart]);
 
   return (
