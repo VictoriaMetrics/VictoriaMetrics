@@ -1498,6 +1498,7 @@ LogsQL supports the following pipes:
 - [`blocks_count`](#blocks_count-pipe) counts the number of blocks with logs processed by the query.
 - [`collapse_nums`](#collapse_nums-pipe) replaces all the decimal and hexadecimal numbers with `<N>` in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`decolorize`](#decolorize-pipe) drops [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values.
 - [`extract`](#extract-pipe) extracts the specified text into the given log fields.
@@ -1653,6 +1654,32 @@ See also:
 - [`rename` pipe](#rename-pipe)
 - [`fields` pipe](#fields-pipe)
 - [`delete` pipe](#delete-pipe)
+
+### decolorize pipe
+
+`<q> | decolorize <field>` [pipe](#pipes) drops [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
+from the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across all the logs returned by [`<q>` query](#query-syntax).
+
+The `<field>` may be omitted if ANSI color codes must be dropped from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+For example, the following query drops ANSI color codes from all the `_msg` fields over the logs for the last 5 minutes:
+
+```logsql
+_time:5m | decolorize
+```
+
+This query is equivalent to the following query:
+
+```logsql
+_time:5m | decolorize _msg
+```
+
+It is recommended dropping ANSI color codes at data ingestion stage according to [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#decolorizing).
+This simplifies further querying of the logs without the need to apply `| decolorize` pipe to them.
+
+See also:
+
+- [`replace` pipe](#replace-pipe)
+- [`replace_regexp` pipe](#replace_regexp-pipe)
 
 ### delete pipe
 
@@ -2632,6 +2659,7 @@ See also:
 - [`collapse_nums` pipe](#collapse_nums-pipe)
 - [`format` pipe](#format-pipe)
 - [`extract` pipe](#extract-pipe)
+- [`decolorize` pipe](#decolorize-pipe)
 
 #### Conditional replace_regexp
 
