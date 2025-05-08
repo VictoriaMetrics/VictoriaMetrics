@@ -18,6 +18,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.22.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.0-victorialogs)
+
+Released at 2025-05-08
+
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`decolorize` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#decolorize-pipe) for dropping [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code) from the given log fields.
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add the ability to remove [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code) from the ingested log fields before storing them in the database. This can be done by passing comma-separated list of field names to remove ANSI color codes from, to `decolorize_fields` HTTP query arg or to `VL-Decolorize-Fields` HTTP header. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support for comma-separated list of fields at the `_time_field` HTTP query arg and at `VL-Time-Field` HTTP header. Then the first non-empty log field from the list is used as a timestamp field. This is useful when the ingested logs may contain log timestamp across different fields. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
