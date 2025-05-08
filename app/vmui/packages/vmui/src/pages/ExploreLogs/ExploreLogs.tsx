@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
-import debounce from "lodash/debounce";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
@@ -18,6 +17,7 @@ import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time"
 import { useSearchParams } from "react-router-dom";
 import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
 import { getUpdatedHistory } from "../../components/QueryHistory/utils";
+import { useDebounceCallback } from "../../hooks/useDebounceCallback";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
@@ -54,18 +54,18 @@ const ExploreLogs: FC = () => {
 
   const fetchData = (p: TimeParams, hits: boolean) => {
     fetchLogs(p).then((isSuccess) => {
-      isSuccess && hits && fetchLogHits(p);
-    }).catch(() => {/* ignore, handled elsewhere */});
+      if (isSuccess && hits) fetchLogHits(p);
+    }).catch(() => {/* error handled elsewhere */});
   };
 
-  const debouncedFetchLogs = useCallback(debounce(fetchData, 300), []);
+  const debouncedFetchLogs = useDebounceCallback(fetchData, 300);
 
-  const getPeriod = useCallback(() => {
+  const getPeriod = () => {
     const relativeTimeOpts = relativeTimeOptions.find(d => d.id === relativeTime);
     if (!relativeTimeOpts) return periodState;
     const { duration, until } = relativeTimeOpts;
     return getTimeperiodForDuration(duration, until());
-  }, [periodState, relativeTime]);
+  };
 
   const handleRunQuery = () => {
     if (!query) {
@@ -99,8 +99,8 @@ const ExploreLogs: FC = () => {
 
   const handleUpdateQuery = () => {
     if (isLoading || dataLogHits.isLoading) {
-      abortController.abort && abortController.abort();
-      dataLogHits.abortController.abort && dataLogHits.abortController.abort();
+      abortController.abort?.();
+      dataLogHits.abortController.abort?.();
     } else {
       handleRunQuery();
     }
@@ -120,9 +120,9 @@ const ExploreLogs: FC = () => {
   useEffect(() => {
     if (!hideChart) debouncedFetchLogs(period, true);
     return () => {
-      debouncedFetchLogs.cancel && debouncedFetchLogs.cancel();
+      debouncedFetchLogs.cancel?.();
     };
-  }, [hideChart]);
+  }, [hideChart, period]);
 
   return (
     <div className="vm-explore-logs">
