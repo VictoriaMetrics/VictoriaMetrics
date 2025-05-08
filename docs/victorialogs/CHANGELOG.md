@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix issue where log entries did not update after modifying the query. See [#8912](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8912).
+
 ## [v1.22.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.0-victorialogs)
 
 Released at 2025-05-08
