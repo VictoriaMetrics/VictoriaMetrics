@@ -11,9 +11,9 @@
 ![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
 <picture>
-  <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="docs/logo.webp" media="(prefers-color-scheme: light)">
-  <img src="docs/logo.webp" width="300" alt="VictoriaMetrics logo">
+  <source srcset="docs/victoriametrics/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="docs/victoriametrics/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="docs/victoriametrics/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-saving, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
