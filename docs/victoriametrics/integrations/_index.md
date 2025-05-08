@@ -17,6 +17,7 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 * [InfluxDB](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) (write)
 * [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb) (write)
 * [NewRelic](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic) (write)
+* [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry) (write)
 
 If you think that community will benefit from new integrations, open a [feature request on GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 

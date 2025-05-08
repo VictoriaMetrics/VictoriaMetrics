@@ -1059,42 +1059,7 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 ### Sending data via OpenTelemetry
 
-VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentelemetry/v1/metrics` path.
-
-VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
-Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
-
-VictoriaMetrics supports only [cumulative temporality](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#temporality)
-for received measurements. The number of dropped unsupported samples is exposed via `vm_protoparser_rows_dropped_total{type="opentelemetry"` metric.
-
-VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) as is without any transformations.
-Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
-OpenTelemetry [exponential histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) is automatically converted 
-to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
-
-Using the following exporter configuration in the OpenTelemetry collector will allow you to send metrics into VictoriaMetrics:
-
-```yaml
-exporters:
-  otlphttp/victoriametrics:
-    compression: gzip
-    encoding: proto
-    endpoint: http://<collector/vmagent>.<namespace>.svc.cluster.local:<port>/opentelemetry
-```
-> Note, [cluster version of VM](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) expects specifying tenant ID, i.e. `http://<vminsert>:<port>/insert/<accountID>/opentelemetry`.
-> See more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
-
-Remember to add the exporter to the desired service pipeline in order to activate the exporter.
-```yaml
-service:
-  pipelines:
-    metrics:
-      exporters:
-        - otlphttp/victoriametrics
-      receivers:
-        - otlp
-```
-See [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
+Moved to [integrations/opentelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry).
 
 ## JSON line format
 
@@ -2655,7 +2620,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.usePrometheusNaming
-     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry
+     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpenTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
   -opentsdbHTTPListenAddr.useProxyProtocol

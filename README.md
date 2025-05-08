@@ -50,7 +50,7 @@ VictoriaMetrics is optimized for timeseries data, even when old time series are 
     * [Native binary format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
     * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
     * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent).
-    * [OpenTelemetry metrics format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+    * [OpenTelemetry metrics format](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry).
 * **NFS-based storages**: Supports storing data on NFS-based storages such as Amazon EFS, Google Filestore.
 * And many other features such as metrics relabeling, cardinality limiter, etc.
 
