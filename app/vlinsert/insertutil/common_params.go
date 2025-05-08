@@ -28,12 +28,13 @@ var (
 //
 // See https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters
 type CommonParams struct {
-	TenantID     logstorage.TenantID
-	TimeFields   []string
-	MsgFields    []string
-	StreamFields []string
-	IgnoreFields []string
-	ExtraFields  []logstorage.Field
+	TenantID         logstorage.TenantID
+	TimeFields       []string
+	MsgFields        []string
+	StreamFields     []string
+	IgnoreFields     []string
+	DecolorizeFields []string
+	ExtraFields      []logstorage.Field
 
 	Debug           bool
 	DebugRequestURI string
@@ -56,6 +57,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	msgFields := httputil.GetArray(r, "_msg_field", "VL-Msg-Field")
 	streamFields := httputil.GetArray(r, "_stream_fields", "VL-Stream-Fields")
 	ignoreFields := httputil.GetArray(r, "ignore_fields", "VL-Ignore-Fields")
+	decolorizeFields := httputil.GetArray(r, "decolorize_fields", "VL-Decolorize-Fields")
 
 	extraFields, err := getExtraFields(r)
 	if err != nil {
@@ -77,15 +79,16 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	}
 
 	cp := &CommonParams{
-		TenantID:        tenantID,
-		TimeFields:      timeFields,
-		MsgFields:       msgFields,
-		StreamFields:    streamFields,
-		IgnoreFields:    ignoreFields,
-		ExtraFields:     extraFields,
-		Debug:           debug,
-		DebugRequestURI: debugRequestURI,
-		DebugRemoteAddr: debugRemoteAddr,
+		TenantID:         tenantID,
+		TimeFields:       timeFields,
+		MsgFields:        msgFields,
+		StreamFields:     streamFields,
+		IgnoreFields:     ignoreFields,
+		DecolorizeFields: decolorizeFields,
+		ExtraFields:      extraFields,
+		Debug:            debug,
+		DebugRequestURI:  debugRequestURI,
+		DebugRemoteAddr:  debugRemoteAddr,
 	}
 
 	return cp, nil
@@ -112,7 +115,7 @@ func getExtraFields(r *http.Request) ([]logstorage.Field, error) {
 }
 
 // GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
-func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignoreFields []string, extraFields []logstorage.Field) *CommonParams {
+func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignoreFields, decolorizeFields []string, extraFields []logstorage.Field) *CommonParams {
 	// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
 	if streamFields == nil {
 		streamFields = []string{
@@ -129,9 +132,10 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 		MsgFields: []string{
 			"message",
 		},
-		StreamFields: streamFields,
-		IgnoreFields: ignoreFields,
-		ExtraFields:  extraFields,
+		StreamFields:     streamFields,
+		IgnoreFields:     ignoreFields,
+		DecolorizeFields: decolorizeFields,
+		ExtraFields:      extraFields,
 	}
 
 	return cp
@@ -278,7 +282,7 @@ func (lmp *logMessageProcessor) MustClose() {
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode bool) LogMessageProcessor {
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.ExtraFields, *defaultMsgValue)
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *defaultMsgValue)
 	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_rows_ingested_total{type=%q}", protocolName))
 	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
 	lmp := &logMessageProcessor{

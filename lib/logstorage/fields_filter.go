@@ -21,6 +21,9 @@ func (ff *fieldsFilter) reset() {
 func (ff *fieldsFilter) addMulti(filters []string) {
 	for _, filter := range filters {
 		ff.add(filter)
+		if filter == "_msg" {
+			ff.add("")
+		}
 	}
 }
 

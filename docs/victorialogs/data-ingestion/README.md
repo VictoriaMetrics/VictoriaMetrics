@@ -234,7 +234,11 @@ All the [HTTP-based data ingestion protocols](#http-apis) support the following 
 
 - `ignore_fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion. The list may contain field name prefixes ending with `*` such a `some-prefix*`.
-  In this case all the log fields starting with `some-prefix` are ignored during data ingestion.
+  In this case all the log fields starting with `some-prefix` are ignored.
+
+- `decolorize_fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  where ANSI color codes must be removed during data ingestion. The list may contain field name prefixes ending with `*` such as `some-prefix*`.
+  In this case all ANSI color codes are removed from all the fields starting with `some-prefix`.
 
 - `extra_fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
@@ -280,7 +284,11 @@ additionally to [HTTP query args](#http-query-string-parameters):
 
 - `VL-Ignore-Fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion. The list may contain field name prefixes ending with `*` such a `some-prefix*`.
-  In this case all the log fields starting with `some-prefix` are ignored during data ingestion.
+  In this case all the log fields starting with `some-prefix` are ignored.
+
+- `VL-Decolorize-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  where ANSI color codes must be removed during data ingestion. The list may contain field name prefixes ending with `*` such as `some-prefix*`.
+  In this case ANS color codes are removed from all the log fields starting with `some-prefix`.
 
 - `VL-Extra-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
