@@ -41,6 +41,9 @@ type LogRows struct {
 	// ignoreFields is a filter for fields, which must be ignored during data ingestion
 	ignoreFields fieldsFilter
 
+	// decolorizeFields is a filter for fields, which must be cleared from ANSI color escape sequences
+	decolorizeFields fieldsFilter
+
 	// extraFields contains extra fields to add to all the logs at MustAdd().
 	extraFields []Field
 
@@ -247,6 +250,7 @@ func (lr *LogRows) Reset() {
 	}
 
 	lr.ignoreFields.reset()
+	lr.decolorizeFields.reset()
 
 	lr.extraFields = nil
 
@@ -401,8 +405,8 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 	lr.timestamps = append(lr.timestamps, timestamp)
 
 	fieldsLen := len(lr.fieldsBuf)
-	hasMsgField := lr.addFieldsInternal(fields, &lr.ignoreFields, true)
-	if lr.addFieldsInternal(lr.extraFields, nil, false) {
+	hasMsgField := lr.addFieldsInternal(fields, &lr.ignoreFields, &lr.decolorizeFields, true)
+	if lr.addFieldsInternal(lr.extraFields, nil, nil, false) {
 		hasMsgField = true
 	}
 
@@ -418,7 +422,7 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 	lr.rows = append(lr.rows, row)
 }
 
-func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter, mustCopyFields bool) bool {
+func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields, decolorizeFields *fieldsFilter, mustCopyFields bool) bool {
 	if len(fields) == 0 {
 		return false
 	}
@@ -475,6 +479,12 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 			} else {
 				dstField.Value = f.Value
 			}
+
+			if decolorizeFields.match(fieldName) && hasColorSequences(dstField.Value) {
+				bLen := len(lr.a.b)
+				lr.a.b = dropColorSequences(lr.a.b, dstField.Value)
+				dstField.Value = bytesutil.ToUnsafeString(lr.a.b[bLen:])
+			}
 		}
 	}
 	lr.fieldsBuf = fb
@@ -505,17 +515,20 @@ func (lr *LogRows) GetRowString(idx int) string {
 
 // GetLogRows returns LogRows from the pool for the given streamFields.
 //
-// streamFields is a set of field names, which must be associated with the stream.
+// streamFields is a set of fields, which must be associated with the stream.
 //
-// ignoreFields is a set of field names, which must be ignored during data ingestion.
-// ignoreFields entries may end with `*`. In this case they match any fields with the prefix until '*'.
+// ignoreFields is a set of fields, which must be ignored during data ingestion.
+// ignoreFields entries may end with '*'. In this case they match any fields with the prefix until '*'.
+//
+// decolorizeFields is a set of fields, which must be cleared from ANSI color escape sequences.
+// decolorizeFields enries may end with '*'. In this case they match any fields with the prefix until '*'.
 //
 // extraFields is a set of fields, which must be added to all the logs passed to MustAdd().
 //
 // defaultMsgValue is the default value to store in non-existing or empty _msg.
 //
 // Return back it to the pool with PutLogRows() when it is no longer needed.
-func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaultMsgValue string) *LogRows {
+func GetLogRows(streamFields, ignoreFields, decolorizeFields []string, extraFields []Field, defaultMsgValue string) *LogRows {
 	v := logRowsPool.Get()
 	if v == nil {
 		v = &LogRows{}
@@ -529,6 +542,9 @@ func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaul
 		// so the client won't be able to override them.
 		lr.ignoreFields.add(f.Name)
 	}
+
+	// initialize decolorizeFields
+	lr.decolorizeFields.addMulti(decolorizeFields)
 
 	// Initialize streamFields
 	sfs := lr.streamFields
