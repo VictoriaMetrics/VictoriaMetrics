@@ -1,15 +1,17 @@
 ---
 weight: 5
-title: "VictoriaMetrics Cloud: Tier Parameters and Flag Parameters Configuration"
+title: "Tiers and Deployment Types"
 menu:
   docs:
-    parent: "cloud"
+    parent: "deployments"
     weight: 8
-    name: "Tier Parameters and Flag Parameters Configuration"
+    name: "Tiers and Deployment Types"
 tags:
   - metrics
   - cloud
   - enterprise
+aliases:
+  - /victoriametrics-cloud/tiers-parameters/index.html
 ---
 
 The tier parameters are derived from testing in typical monitoring environments, ensuring they are optimized for common use cases.
