@@ -8,12 +8,6 @@ go 1.24.3
 // TODO: remove this entry after https://github.com/googleapis/google-cloud-go/issues/11448 is fixed
 replace cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
 
-// This is needed in order to avoid breaking builds as Prometheus with v0.63.0
-// version is not released yet.
-//
-// TODO: remove this after the build error `undefined: promslog.AllowedFormat` is fixed.
-replace github.com/prometheus/common => github.com/prometheus/common v0.62.0
-
 // Pin AWS libraries to version before 2025-01-15
 // Release notes: https://github.com/aws/aws-sdk-go-v2/releases/tag/release-2025-01-15
 // This version enabled request and response checksum verification by default which
@@ -57,7 +51,7 @@ require (
 	github.com/influxdata/influxdb v1.12.0
 	github.com/klauspost/compress v1.18.0
 	github.com/mattn/go-isatty v0.0.20
-	github.com/prometheus/prometheus v0.303.0
+	github.com/prometheus/prometheus v0.303.1
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
