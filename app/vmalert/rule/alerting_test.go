@@ -653,6 +653,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "for-pending"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-pending",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-pending"},
 			Annotations: map[string]string{"activeAt": "5000"},
 			State:       notifier.StatePending,
@@ -672,6 +673,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "for-firing"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-firing",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-firing"},
 			Annotations: map[string]string{"activeAt": "1000"},
 			State:       notifier.StateFiring,
@@ -692,6 +694,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "for-hold-pending"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-hold-pending",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
 			Annotations: map[string]string{"activeAt": "5000"},
 			State:       notifier.StatePending,
@@ -747,6 +750,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "multi-series"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "multi-series"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -758,6 +762,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "multi-series", "foo": "bar"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,

@@ -541,6 +541,7 @@ func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.Query
 
 	tplData := notifier.AlertTplData{
 		Value:    m.Values[0],
+		Type:     ar.Type.String(),
 		Labels:   ls.origin,
 		Expr:     ar.Expr,
 		AlertID:  hash(ls.processed),
@@ -601,6 +602,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, labels, a
 	return &notifier.Alert{
 		GroupID:     ar.GroupID,
 		Name:        ar.Name,
+		Type:        ar.Type.String(),
 		Expr:        ar.Expr,
 		For:         ar.For,
 		ActiveAt:    start,
