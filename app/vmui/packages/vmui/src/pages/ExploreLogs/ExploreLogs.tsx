@@ -53,7 +53,6 @@ const ExploreLogs: FC = () => {
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
 
   const fetchData = (p: TimeParams, hits: boolean) => {
-    console.log("hits", hits);
     fetchLogs(p).then((isSuccess) => {
       isSuccess && hits && fetchLogHits(p);
     }).catch(() => {/* ignore, handled elsewhere */});
