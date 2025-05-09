@@ -580,14 +580,11 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]byte, e
 		}
 	}
 
-	tenants := make([]TenantID, 0, len(m))
-	for tid := range m {
-		t, err := ParseTenantID(tid)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse tenantID %q: %w", tid, err)
-		}
-		tenants = append(tenants, t)
+	tenants := make([]string, 0, len(m))
+	for k := range m {
+		tenants = append(tenants, k)
 	}
+
 	return json.Marshal(tenants)
 }
 

@@ -957,6 +957,11 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 		end = math.MaxInt64
 	}
 
+	if start > end {
+		httpserver.Errorf(w, r, "'start' time must be less than 'end' time")
+		return
+	}
+
 	sw := &syncWriter{
 		w: w,
 	}
@@ -980,7 +985,7 @@ func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *h
 		return
 	}
 
-	_, err = fmt.Fprintf(w, "{\"status\":\"success\",\"data\":%q}\n", tenants)
+	_, err = fmt.Fprintf(w, "{\"status\":\"success\",\"data\":%s}\n", tenants)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain tenantIDs: %s", err)
 		return
