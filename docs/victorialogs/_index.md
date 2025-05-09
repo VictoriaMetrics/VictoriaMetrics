@@ -9,6 +9,7 @@ menu:
 tags:
   - logs
 aliases:
+- /VictoriaLogs.html
 - /VictoriaLogs/
 - /victorialogs/
 - /victorialogs/index.html
