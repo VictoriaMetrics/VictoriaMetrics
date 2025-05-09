@@ -9,6 +9,7 @@ menu:
 tags:
   - logs
 aliases:
+  - /VictoriaLogs/querying/
   - /victorialogs/querying/
   - /victorialogs/querying/index.html
 ---
