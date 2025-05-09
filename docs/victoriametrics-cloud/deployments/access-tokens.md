@@ -45,6 +45,7 @@ It allows to:
 - Secure access partially in case of a leak
 
 Each Access token has a limit for concurrent requests. You may find more details about it on the [Tier Parameters and Flag Parameters Configuration](https://docs.victoriametrics.com/victoriametrics-cloud/tiers-parameters/) page.
+You can also check current concurrent requests value for each token on the "Monitoring" tab of the deployment page in the graph "Access token concurrent requests".
 
 ## How to create access tokens
 
@@ -87,7 +88,7 @@ Authorization: Bearer <SECRET_VAUE>
 Each deployment has one access endpoint, i.e., the URL used to communicate with your deployment's API 
 for [writing and reading](#how-to-write-and-read-data-with-access-tokens) data.
 
-You can find it in the "Overview" tab on the deployment page:
+You can find it on "Access tokens" tab or "Overview" tab of the deployment page:
 
 ![Access endpoint](access-endpoint.webp)
 
@@ -131,7 +132,7 @@ You can also open the Examples section of Access tokens:
 
 ## How to revoke access tokens
 
-1. Make sure the token is no longer in use
+1. Make sure the token is no longer in use. You can check "Last used at" column on "Access tokens" tab of the deployment page for that.
 2. Go to the "Access tokens" tab on the [deployment page](https://console.victoriametrics.cloud/deployments)
 3. Find the required token in the list
 4. Click "..." button in the Actions column next to the required token in the list
