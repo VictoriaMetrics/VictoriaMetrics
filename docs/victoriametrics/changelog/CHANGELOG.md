@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0)
+
+Released at 2025-05-09
+
 * SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
 
 * FEATURE: all the [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) components: provide FIPS compliant binaries and docker images. See [FIPS compliance docs](https://docs.victoriametrics.com/victoriametrics/enterprise/#fips-compliance) for the details.
