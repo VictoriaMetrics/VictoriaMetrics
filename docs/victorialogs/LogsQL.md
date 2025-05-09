@@ -8,6 +8,7 @@ menu:
 tags:
   - logs
 aliases:
+- /VictoriaLogs/LogsQL.html
 - /victorialogs/LogsQL.html
 ---
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
