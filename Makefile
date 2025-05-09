@@ -5,7 +5,6 @@ MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
-LATEST_TAG ?= latest
 
 PKG_TAG ?= $(shell git tag -l --points-at HEAD)
 ifeq ($(PKG_TAG),)
@@ -198,10 +197,10 @@ vmutils-crossbuild: \
 
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
+	git checkout $(TAG) && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && $(MAKE) publish
 
 release:
 	$(MAKE_PARALLEL) \
