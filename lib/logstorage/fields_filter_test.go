@@ -31,7 +31,8 @@ func TestFieldsFilter_AddMulti(t *testing.T) {
 	}
 
 	f(nil, nil, nil)
-	f([]string{"foo", ""}, []string{"foo", ""}, nil)
+	f([]string{"foo", ""}, []string{"foo", "", "_msg"}, nil)
+	f([]string{"foo", "bar"}, []string{"foo", "bar"}, nil)
 	f([]string{"foo*", "bar"}, []string{"bar"}, []string{"foo"})
 	f([]string{"foo*", "foo", "bar", "foobar"}, []string{"bar"}, []string{"foo"})
 	f([]string{"foo", "foobar", "foo*"}, []string{}, []string{"foo"})
@@ -64,6 +65,14 @@ func TestFieldsFilter(t *testing.T) {
 	f([]string{"foo", ""}, "foo", true)
 	f([]string{"foo", ""}, "foobar", false)
 	f([]string{"foo", ""}, "barfoo", false)
+
+	// match against _msg and a field with empty name (they must be treated the same)
+	f([]string{"_msg"}, "", true)
+	f([]string{"_msg"}, "_msg", true)
+	f([]string{"_msg"}, "bar", false)
+	f([]string{""}, "", true)
+	f([]string{""}, "_msg", true)
+	f([]string{""}, "bar", false)
 
 	// match against wildcards
 	f([]string{"a", "foo.qwe", "foo.*", "foo.bar*", "foo.barz", "baz"}, "", false)

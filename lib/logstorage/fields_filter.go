@@ -23,6 +23,8 @@ func (ff *fieldsFilter) addMulti(filters []string) {
 		ff.add(filter)
 		if filter == "_msg" {
 			ff.add("")
+		} else if filter == "" {
+			ff.add("_msg")
 		}
 	}
 }
