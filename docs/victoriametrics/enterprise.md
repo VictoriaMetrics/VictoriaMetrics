@@ -282,7 +282,7 @@ See full list of CRD specifications [here](https://docs.victoriametrics.com/oper
 
 ### FIPS compliance
 
-VictoriaMetrics Enterprise components can be run in FIPS compliant mode {{% available_from "#" %}}. Binary releases and Docker images
+VictoriaMetrics Enterprise components can be run in FIPS compliant mode {{% available_from "v1.117.0" %}}. Binary releases and Docker images
 of VictoriaMetrics Enterprise components have `fips` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.115.0-enterprise.tar.gz`
 archive includes `victoria-metrics-prod` and `victoria-metrics-fips` binaries. The latter binary is FIPS compliant.
 
