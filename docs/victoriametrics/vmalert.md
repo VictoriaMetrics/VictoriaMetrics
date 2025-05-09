@@ -468,7 +468,7 @@ and allows using labels and extra data related to the alert. For example, see th
 
 In this example, `-external.alert.source` will lead to Grafana's Explore page with `expr` field equal to alert expression,
 and time range will be selected starting from `"from":"{{ .ActiveAt.UnixMilli }}"` when alert became active.
-The `datasource` name is set to `VictoriaLogs` if rule's type {{% available_from "#" %}} (`prometheus`, `vlogs` or `graphite`) is `vlogs`. Otherwise, it is set to `VictoriaMetrics`.
+The `datasource` name is set to `VictoriaLogs` if rule's type {{% available_from "v1.117.0" %}} (`prometheus`, `vlogs` or `graphite`) is `vlogs`. Otherwise, it is set to `VictoriaMetrics`.
 
 In addition to `source` link, some extra links could be added to alert's [annotations](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)
 field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/rules/alerts-cluster.yml#L44)
@@ -980,7 +980,7 @@ or you changed default value of `-search.latencyOffset` - consider increasing th
 ### Debug mode
 
 vmalert allows configuring more detailed logging for specific alerting or recording rule starting from {{% available_from "v1.116.0" %}}.
-Or for all rules within the [group](#groups) {{% available_from "#" %}}.
+Or for all rules within the [group](#groups) {{% available_from "v1.117.0" %}}.
 Just set `debug: true` in configuration and vmalert will start printing additional log messages:
 ```sh
 2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms, isPartial: false)
