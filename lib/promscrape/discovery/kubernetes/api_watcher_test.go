@@ -5,12 +5,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	"github.com/VictoriaMetrics/easyproto"
 )
+
+var mp easyproto.MarshalerPool
 
 func TestGetAPIPathsWithNamespaces(t *testing.T) {
 	f := func(role string, namespaces []string, selectors []Selector, expectedPaths []string) {
@@ -170,7 +175,7 @@ func TestGetAPIPathsWithNamespaces(t *testing.T) {
 
 func TestParseBookmark(t *testing.T) {
 	data := `{"kind": "Pod", "apiVersion": "v1", "metadata": {"resourceVersion": "12746"} }`
-	bm, err := parseBookmark([]byte(data))
+	bm, err := parseBookmark([]byte(data), contentTypeJSON)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -180,14 +185,18 @@ func TestParseBookmark(t *testing.T) {
 	}
 }
 
+type marshallable interface {
+	marshalProtobuf(*easyproto.MessageMarshaler)
+}
+
 func TestGetScrapeWorkObjects(t *testing.T) {
 	type testCase struct {
 		name                 string
 		sdc                  *SDConfig
 		expectedTargetsLen   int
-		initAPIObjectsByRole map[string][]byte
+		initAPIObjectsByRole map[string]marshallable
 		// will be added for watching api.
-		watchAPIMustAddObjectsByRole map[string][][]byte
+		watchAPIMustAddObjectsByRole map[string][]marshallable
 	}
 	cases := []testCase{
 		{
@@ -196,63 +205,57 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 				Role: "pod",
 			},
 			expectedTargetsLen: 2,
-			initAPIObjectsByRole: map[string][]byte{
-				"pod": []byte(`{
-  "kind": "PodList",
-  "apiVersion": "v1",
-  "metadata": {
-    "resourceVersion": "72425"
-  },
-  "items": [
-{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "labels": {
-            "app.kubernetes.io/instance": "stack",
-            "pod-template-hash": "5b9c6cf775"
-        },
-        "name": "stack-name-1",
-        "namespace": "default"
-    },
-    "spec": {
-        "containers": [
-            {
-               "name": "generic-pod"
-            }
-        ]
-    },
-    "status": {
-        "podIP": "10.10.2.2",
-        "phase": "Running"
-    }
-}]}`),
+			initAPIObjectsByRole: map[string]marshallable{
+				"pod": &PodList{
+					Metadata: ListMeta{ResourceVersion: "72425"},
+					Items: []Pod{
+						{
+							Metadata: ObjectMeta{
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/instance", Value: "stack"},
+										{Name: "pod-template-hash", Value: "5b9c6cf775"},
+									},
+								},
+								Name:      "stack-name-1",
+								Namespace: "default",
+							},
+							Spec: PodSpec{
+								Containers: []Container{
+									{Name: "generic-pod"},
+								},
+							},
+							Status: PodStatus{
+								PodIP: "10.10.2.2",
+								Phase: "Running",
+							},
+						},
+					},
+				},
 			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][]marshallable{
 				"pod": {
-					[]byte(`{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "labels": {
-            "app.kubernetes.io/instance": "stack",
-            "pod-template-hash": "5b9c6cf775"
-        },
-        "name": "stack-next-2",
-        "namespace": "default"
-    },
-    "spec": {
-        "containers": [
-            {
-               "name": "generic-pod-2"
-            }
-        ]
-    },
-    "status": {
-        "podIP": "10.10.2.5",
-        "phase": "Running"
-    }
-}`),
+					&Pod{
+						Metadata: ObjectMeta{
+							Labels: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "app.kubernetes.io/instance", Value: "stack"},
+									{Name: "pod-template-hash", Value: "5b9c6cf775"},
+								},
+							},
+							Name:      "stack-next-2",
+							Namespace: "default",
+						},
+						Spec: PodSpec{
+							Containers: []Container{
+								{Name: "generic-pod"},
+							},
+						},
+						Status: PodStatus{
+							PodIP: "10.10.2.5",
+							Phase: "Running",
+						},
+					},
 				},
 			},
 		},
@@ -262,139 +265,128 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 				Role: "endpoints",
 			},
 			expectedTargetsLen: 2,
-			initAPIObjectsByRole: map[string][]byte{
-				"service": []byte(`{
-  "kind": "ServiceList",
-  "apiVersion": "v1",
-  "metadata": {
-    "resourceVersion": "72425"
-  },
-  "items": []}`),
-				"endpoints": []byte(`{
-  "kind": "EndpointsList",
-  "apiVersion": "v1",
-  "metadata": {
-    "resourceVersion": "72425"
-  },
-  "items": [
-{
-    "apiVersion": "v1",
-    "kind": "Endpoints",
-    "metadata": {
-        "annotations": {
-            "endpoints.kubernetes.io/last-change-trigger-time": "2021-04-27T02:06:55Z"
-        },
-        "labels": {
-            "app.kubernetes.io/managed-by": "Helm"
-        },
-        "name": "stack-kube-state-metrics",
-        "namespace": "default"
-    },
-    "subsets": [
-        {
-            "addresses": [
-                {
-                    "ip": "10.244.0.5",
-                    "nodeName": "kind-control-plane",
-                    "targetRef": {
-                        "kind": "Pod",
-                        "name": "stack-kube-state-metrics-db5879bf8-bg78p",
-                        "namespace": "default"
-                    }
-                }
-            ],
-            "ports": [
-                {
-                    "name": "http",
-                    "port": 8080,
-                    "protocol": "TCP"
-                }
-            ]
-        }
-    ]
-}
-]}`),
-				"pod": []byte(`{
-  "kind": "PodList",
-  "apiVersion": "v1",
-  "metadata": {
-    "resourceVersion": "72425"
-  },
-  "items": [
-{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "labels": {
-            "app.kubernetes.io/instance": "stack"
-        },
-        "name": "stack-kube-state-metrics-db5879bf8-bg78p",
-        "namespace": "default"
-    },
-    "spec": {
-        "containers": [
-            {
-                "image": "k8s.gcr.io/kube-state-metrics/kube-state-metrics:v1.9.8",
-                "name": "kube-state-metrics",
-                "ports": [
-                    {
-                        "containerPort": 8080,
-                        "protocol": "TCP"
-                    }
-                ]
-            },
-            {
-                "image": "k8s.gcr.io/kube-state-metrics/kube-state-metrics:v1.9.8",
-                "name": "kube-state-metrics-2",
-                "ports": [
-                    {
-                        "containerPort": 8085,
-                        "protocol": "TCP"
-                    }
-                ]
-            }
-        ]
-    },
-    "status": {
-        "phase": "Running",
-        "podIP": "10.244.0.5"
-    }
-}
-]}`),
+			initAPIObjectsByRole: map[string]marshallable{
+				"service": &ServiceList{
+					Metadata: ListMeta{ResourceVersion: "72425"},
+				},
+				"endpoints": &EndpointsList{
+					Metadata: ListMeta{ResourceVersion: "72425"},
+					Items: []Endpoints{
+						{
+							Metadata: ObjectMeta{
+								Annotations: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "endpoints.kubernetes.io/last-change-trigger-time", Value: "2021-04-27T02:06:55Z"},
+									},
+								},
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/managed-by", Value: "Helm"},
+									},
+								},
+								Name:      "stack-kube-state-metrics",
+								Namespace: "default",
+							},
+							Subsets: []EndpointSubset{
+								{
+									Addresses: []EndpointAddress{
+										{
+											IP:       "10.244.0.5",
+											NodeName: "kind-control-plane",
+											TargetRef: ObjectReference{
+												Kind:      "Pod",
+												Name:      "stack-kube-state-metrics-db5879bf8-bg78p",
+												Namespace: "default",
+											},
+										},
+									},
+									Ports: []EndpointPort{
+										{
+											Name:     "http",
+											Port:     8080,
+											Protocol: "TCP",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"pod": &PodList{
+					Metadata: ListMeta{ResourceVersion: "72425"},
+					Items: []Pod{
+						{
+							Metadata: ObjectMeta{
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/instance", Value: "stack"},
+									},
+								},
+								Name:      "stack-kube-state-metrics-db5879bf8-bg78p",
+								Namespace: "default",
+							},
+							Spec: PodSpec{
+								Containers: []Container{
+									{
+										Image: "k8s.gcr.io/kube-state-metrics/kube-state-metrics:v1.9.8",
+										Name:  "kube-state-metrics",
+										Ports: []ContainerPort{
+											{
+												ContainerPort: 8080,
+												Protocol:      "TCP",
+											},
+										},
+									},
+									{
+										Image: "k8s.gcr.io/kube-state-metrics/kube-state-metrics:v1.9.8",
+										Name:  "kube-state-metrics-2",
+										Ports: []ContainerPort{
+											{
+												ContainerPort: 8085,
+												Protocol:      "TCP",
+											},
+										},
+									},
+								},
+							},
+							Status: PodStatus{
+								Phase: "Running",
+								PodIP: "10.244.0.5",
+							},
+						},
+					},
+				},
 			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][]marshallable{
 				"service": {
-					[]byte(`{
-    "apiVersion": "v1",
-    "kind": "Service",
-    "metadata": {
-        "annotations": {
-            "meta.helm.sh/release-name": "stack"
-        },
-        "labels": {
-            "app.kubernetes.io/managed-by": "Helm",
-            "app.kubernetes.io/name": "kube-state-metrics"
-        },
-        "name": "stack-kube-state-metrics",
-        "namespace": "default"
-    },
-    "spec": {
-        "clusterIP": "10.97.109.249",
-        "ports": [
-            {
-                "name": "http",
-                "port": 8080,
-                "protocol": "TCP",
-                "targetPort": 8080
-            }
-        ],
-        "selector": {
-            "app.kubernetes.io/instance": "stack",
-            "app.kubernetes.io/name": "kube-state-metrics"
-        },
-        "type": "ClusterIP"
-    }
-}`),
+					&Service{
+						Metadata: ObjectMeta{
+							Annotations: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "meta.helm.sh/release-name", Value: "stack"},
+								},
+							},
+							Labels: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "app.kubernetes.io/managed-by", Value: "Helm"},
+									{Name: "app.kubernetes.io/name", Value: "kube-state-metrics"},
+								},
+							},
+							Name:      "stack-kube-state-metrics",
+							Namespace: "default",
+						},
+						Spec: ServiceSpec{
+							ClusterIP: "10.97.109.249",
+							Ports: []ServicePort{
+								{
+									Name:     "http",
+									Port:     8080,
+									Protocol: "TCP",
+								},
+							},
+							Type: "ClusterIP",
+						},
+					},
 				},
 			},
 		},
@@ -402,71 +394,72 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			name:               "get nodes",
 			sdc:                &SDConfig{Role: "node"},
 			expectedTargetsLen: 2,
-			initAPIObjectsByRole: map[string][]byte{
-				"node": []byte(`{
-  "kind": "NodeList",
-  "apiVersion": "v1",
-  "metadata": {
-    "selfLink": "/api/v1/nodes",
-    "resourceVersion": "22627"
-  },
-  "items": [
-{
-  "apiVersion": "v1",
-  "kind": "Node",
-  "metadata": {
-    "annotations": {
-      "kubeadm.alpha.kubernetes.io/cri-socket": "/run/containerd/containerd.sock"
-    },
-    "labels": {
-      "beta.kubernetes.io/arch": "amd64",
-      "beta.kubernetes.io/os": "linux"
-    },
-    "name": "kind-control-plane-new"
-  },
-  "status": {
-    "addresses": [
-      {
-        "address": "10.10.2.5",
-        "type": "InternalIP"
-      },
-      {
-        "address": "kind-control-plane",
-        "type": "Hostname"
-      }
-    ]
-  }
-}
-]}`),
+			initAPIObjectsByRole: map[string]marshallable{
+				"node": &NodeList{
+					Metadata: ListMeta{ResourceVersion: "22627"},
+					Items: []Node{
+						{
+							Metadata: ObjectMeta{
+								Annotations: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/managed-by", Value: "Helm"},
+										{Name: "app.kubernetes.io/name", Value: "kube-state-metrics"},
+									},
+								},
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/arch", Value: "amd64"},
+										{Name: "app.kubernetes.io/os", Value: "linux"},
+									},
+								},
+								Name: "kind-control-plane-new",
+							},
+							Status: NodeStatus{
+								Addresses: []NodeAddress{
+									{
+										Address: "10.10.2.5",
+										Type:    "InternalIP",
+									},
+									{
+										Address: "kind-control-plane",
+										Type:    "Hostname",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][]marshallable{
 				"node": {
-					[]byte(`{
-  "apiVersion": "v1",
-  "kind": "Node",
-  "metadata": {
-    "annotations": {
-      "kubeadm.alpha.kubernetes.io/cri-socket": "/run/containerd/containerd.sock"
-    },
-    "labels": {
-      "beta.kubernetes.io/arch": "amd64",
-      "beta.kubernetes.io/os": "linux"
-    },
-    "name": "kind-control-plane"
-  },
-  "status": {
-    "addresses": [
-      {
-        "address": "10.10.2.2",
-        "type": "InternalIP"
-      },
-      {
-        "address": "kind-control-plane",
-        "type": "Hostname"
-      }
-    ]
-  }
-}`),
+					&Node{
+						Metadata: ObjectMeta{
+							Annotations: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "kubeadm.alpha.kubernetes.io/cri-socket", Value: "/run/containerd/containerd.sock"},
+								},
+							},
+							Labels: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "beta.kubernetes.io/arch", Value: "amd64"},
+									{Name: "beta.kubernetes.io/os", Value: "linux"},
+								},
+							},
+							Name: "kind-control-plane",
+						},
+						Status: NodeStatus{
+							Addresses: []NodeAddress{
+								{
+									Address: "10.10.2.2",
+									Type:    "InternalIP",
+								},
+								{
+									Address: "kind-control-plane",
+									Type:    "Hostname",
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -474,99 +467,86 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			name:               "2 service with 2 added",
 			sdc:                &SDConfig{Role: "service"},
 			expectedTargetsLen: 4,
-			initAPIObjectsByRole: map[string][]byte{
-				"service": []byte(`{
-  "kind": "ServiceList",
-  "apiVersion": "v1",
-  "metadata": {
-    "selfLink": "/api/v1/services",
-    "resourceVersion": "60485"
-  },
-  "items": [
-    {
-      "metadata": {
-        "name": "kube-dns",
-        "namespace": "kube-system",
-        "labels": {
-          "k8s-app": "kube-dns"
-        }
-      },
-      "spec": {
-        "ports": [
-          {
-            "name": "dns",
-            "protocol": "UDP",
-            "port": 53,
-            "targetPort": 53
-          },
-          {
-            "name": "dns-tcp",
-            "protocol": "TCP",
-            "port": 53,
-            "targetPort": 53
-          }
-        ],
-        "selector": {
-          "k8s-app": "kube-dns"
-        },
-        "clusterIP": "10.96.0.10",
-        "type": "ClusterIP",
-        "sessionAffinity": "None"
-      }
-    }
-  ]
-}`),
+			initAPIObjectsByRole: map[string]marshallable{
+				"service": &ServiceList{
+					Metadata: ListMeta{ResourceVersion: "60485"},
+					Items: []Service{
+						{
+							Metadata: ObjectMeta{
+								Name:      "kube-dns",
+								Namespace: "kube-system",
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "k8s-app", Value: "kube-dns"},
+									},
+								},
+							},
+							Spec: ServiceSpec{
+								Ports: []ServicePort{
+									{
+										Name:     "dns",
+										Protocol: "UDP",
+										Port:     53,
+									},
+									{
+										Name:     "dns-tcp",
+										Protocol: "TCP",
+										Port:     53,
+									},
+								},
+								ClusterIP: "10.96.0.10",
+								Type:      "ClusterIP",
+							},
+						},
+					},
+				},
 			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][]marshallable{
 				"service": {
-					[]byte(`{
-  "metadata": {
-    "name": "another-service-1",
-    "namespace": "default",
-    "labels": {
-      "k8s-app": "kube-dns"
-    }
-  },
-  "spec": {
-    "ports": [
-      {
-        "name": "some-app-1-tcp",
-        "protocol": "TCP",
-        "port": 1053,
-        "targetPort": 1053
-      }
-    ],
-    "selector": {
-      "k8s-app": "some-app-1"
-    },
-    "clusterIP": "10.96.0.10",
-    "type": "ClusterIP"
-  }
-}`),
-					[]byte(`{
-  "metadata": {
-    "name": "another-service-2",
-    "namespace": "default",
-    "labels": {
-      "k8s-app": "kube-dns"
-    }
-  },
-  "spec": {
-    "ports": [
-      {
-        "name": "some-app-2-tcp",
-        "protocol": "TCP",
-        "port": 1053,
-        "targetPort": 1053
-      }
-    ],
-    "selector": {
-      "k8s-app": "some-app-2"
-    },
-    "clusterIP": "10.96.0.15",
-    "type": "ClusterIP"
-  }
-}`),
+					&Service{
+						Metadata: ObjectMeta{
+							Name:      "another-service-1",
+							Namespace: "default",
+							Labels: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "k8s-app", Value: "kube-dns"},
+								},
+							},
+						},
+						Spec: ServiceSpec{
+							Ports: []ServicePort{
+								{
+									Name:     "some-app-1-tcp",
+									Protocol: "TCP",
+									Port:     1053,
+								},
+							},
+							ClusterIP: "10.96.0.10",
+							Type:      "ClusterIP",
+						},
+					},
+					&Service{
+						Metadata: ObjectMeta{
+							Name:      "another-service-2",
+							Namespace: "default",
+							Labels: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "k8s-app", Value: "kube-dns"},
+								},
+							},
+						},
+						Spec: ServiceSpec{
+							Ports: []ServicePort{
+								{
+									Name:     "some-app-2-tcp",
+									Protocol: "TCP",
+									Port:     1053,
+								},
+							},
+							ClusterIP: "10.96.0.15",
+							Type:      "ClusterIP",
+						},
+					},
 				},
 			},
 		},
@@ -576,98 +556,54 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			sdc: &SDConfig{
 				Role: "ingress",
 			},
-			initAPIObjectsByRole: map[string][]byte{
-				"ingress": []byte(`{
-  "kind": "IngressList",
-  "apiVersion": "extensions/v1",
-  "metadata": {
-    "selfLink": "/apis/extensions/v1/ingresses",
-    "resourceVersion": "351452"
-  },
-  "items": [
-    {
-      "metadata": {
-        "name": "test-ingress",
-        "namespace": "default"
-      },
-      "spec": {
-        "backend": {
-          "serviceName": "testsvc",
-          "servicePort": 80
-        },
-        "rules": [
-          {
-            "host": "foobar"
-          }
-        ]
-      },
-      "status": {
-        "loadBalancer": {
-          "ingress": [
-            {
-              "ip": "172.17.0.2"
-            }
-          ]
-        }
-      }
-    }
-  ]
-}`),
+			initAPIObjectsByRole: map[string]marshallable{
+				"ingress": &IngressList{
+					Metadata: ListMeta{ResourceVersion: "351452"},
+					Items: []Ingress{
+						{
+							Metadata: ObjectMeta{
+								Name:      "test-ingress",
+								Namespace: "default",
+							},
+							Spec: IngressSpec{
+								Rules: []IngressRule{
+									{
+										Host: "foobar",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][]marshallable{
 				"ingress": {
-					[]byte(`{
-  "metadata": {
-    "name": "test-ingress-1",
-    "namespace": "default"
-  },
-  "spec": {
-    "backend": {
-      "serviceName": "testsvc",
-      "servicePort": 801
-    },
-    "rules": [
-      {
-        "host": "foobar"
-      }
-    ]
-  },
-  "status": {
-    "loadBalancer": {
-      "ingress": [
-        {
-          "ip": "172.17.0.3"
-        }
-      ]
-    }
-  }
-}`),
-					[]byte(`{
-  "metadata": {
-    "name": "test-ingress-2",
-    "namespace": "default"
-  },
-  "spec": {
-    "backend": {
-      "serviceName": "testsvc",
-      "servicePort": 802
-    },
-    "rules": [
-      {
-        "host": "foobar"
-      }
-    ]
-  },
-  "status": {
-    "loadBalancer": {
-      "ingress": [
-        {
-          "ip": "172.17.0.3"
-        }
-      ]
-    }
-  }
-}`),
+					&Ingress{
+						Metadata: ObjectMeta{
+							Name:      "test-ingress-1",
+							Namespace: "default",
+						},
+						Spec: IngressSpec{
+							Rules: []IngressRule{
+								{
+									Host: "foobar",
+								},
+							},
+						},
+					},
+					&Ingress{
+						Metadata: ObjectMeta{
+							Name:      "test-ingress-2",
+							Namespace: "default",
+						},
+						Spec: IngressSpec{
+							Rules: []IngressRule{
+								{
+									Host: "foobar",
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -677,234 +613,225 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 				Role: "endpointslice",
 			},
 			expectedTargetsLen: 7,
-			initAPIObjectsByRole: map[string][]byte{
-				"endpointslice": []byte(`{
-  "kind": "EndpointSliceList",
-  "apiVersion": "discovery.k8s.io/v1",
-  "metadata": {
-    "selfLink": "/apis/discovery.k8s.io/v1/endpointslices",
-    "resourceVersion": "1177"
-  },
-  "items": [
-    {
-      "metadata": {
-        "name": "kubernetes",
-        "namespace": "default",
-        "labels": {
-          "kubernetes.io/service-name": "kubernetes"
-        }
-      },
-      "addressType": "IPv4",
-      "endpoints": [
-        {
-          "addresses": [
-            "172.18.0.2"
-          ],
-          "conditions": {
-            "ready": true
-          }
-        }
-      ],
-      "ports": [
-        {
-          "name": "https",
-          "protocol": "TCP",
-          "port": 6443
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "name": "kube-dns",
-        "namespace": "kube-system",
-        "labels": {
-          "kubernetes.io/service-name": "kube-dns"
-        }
-      },
-      "addressType": "IPv4",
-      "endpoints": [
-        {
-          "addresses": [
-            "10.244.0.3"
-          ],
-          "conditions": {
-            "ready": true
-          },
-          "targetRef": {
-            "kind": "Pod",
-            "namespace": "kube-system",
-            "name": "coredns-66bff467f8-z8czk",
-            "uid": "36a545ff-dbba-4192-a5f6-1dbb0c21c73d",
-            "resourceVersion": "603"
-          },
-          "topology": {
-            "kubernetes.io/hostname": "kind-control-plane"
-          }
-        },
-        {
-          "addresses": [
-            "10.244.0.4"
-          ],
-          "conditions": {
-            "ready": true
-          },
-          "targetRef": {
-            "kind": "Pod",
-            "namespace": "kube-system",
-            "name": "coredns-66bff467f8-kpbhk",
-            "uid": "db38d8b4-847a-4e82-874c-fe444fba2718",
-            "resourceVersion": "576"
-          },
-          "topology": {
-            "kubernetes.io/hostname": "kind-control-plane"
-          }
-        }
-      ],
-      "ports": [
-        {
-          "name": "dns-tcp",
-          "protocol": "TCP",
-          "port": 53
-        },
-        {
-          "name": "metrics",
-          "protocol": "TCP",
-          "port": 9153
-        },
-        {
-          "name": "dns",
-          "protocol": "UDP",
-          "port": 53
-        }
-      ]
-    }
-  ]
-}`),
-				"pod": []byte(`{
-  "kind": "PodList",
-  "apiVersion": "v1",
-  "metadata": {
-    "resourceVersion": "72425"
-  },
-  "items": [
-{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "labels": {
-            "app.kubernetes.io/instance": "stack",
-            "pod-template-hash": "5b9c6cf775"
-        },
-        "name": "coredns-66bff467f8-kpbhk",
-        "namespace": "kube-system"
-    },
-    "spec": {
-        "containers": [
-            {
-               "name": "generic-pod"
-            }
-        ]
-    },
-    "status": {
-        "podIP": "10.10.2.2",
-        "phase": "Running"
-    }
-},
-{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "labels": {
-            "app.kubernetes.io/instance": "stack",
-            "pod-template-hash": "5b9c6cf775"
-        },
-        "name": "coredns-66bff467f8-z8czk",
-        "namespace": "kube-system"
-    },
-    "spec": {
-        "containers": [
-            {
-               "name": "generic-pod"
-            }
-        ]
-    },
-    "status": {
-        "podIP": "10.10.2.3",
-        "phase": "Running"
-    }
-}
-]}`),
-				"service": []byte(`{
-  "kind": "ServiceList",
-  "apiVersion": "v1",
-  "metadata": {
-    "selfLink": "/api/v1/services",
-    "resourceVersion": "60485"
-  },
-  "items": [
-    {
-      "metadata": {
-        "name": "kube-dns",
-        "namespace": "kube-system",
-        "labels": {
-          "k8s-app": "kube-dns"
-        }
-      },
-      "spec": {
-        "ports": [
-          {
-            "name": "dns",
-            "protocol": "UDP",
-            "port": 53,
-            "targetPort": 53
-          },
-          {
-            "name": "dns-tcp",
-            "protocol": "TCP",
-            "port": 53,
-            "targetPort": 53
-          }
-        ],
-        "selector": {
-          "k8s-app": "kube-dns"
-        },
-        "clusterIP": "10.96.0.10",
-        "type": "ClusterIP",
-        "sessionAffinity": "None"
-      }
-    }
-  ]
-}`),
+			initAPIObjectsByRole: map[string]marshallable{
+				"endpointslice": &EndpointSliceList{
+					Metadata: ListMeta{ResourceVersion: "1177"},
+					Items: []EndpointSlice{
+						{
+							Metadata: ObjectMeta{
+								Name:      "kubernetes",
+								Namespace: "default",
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "kubernetes.io/service-name", Value: "kubernetes"},
+									},
+								},
+							},
+							AddressType: "IPv4",
+							Endpoints: []Endpoint{
+								{
+									Addresses: []string{
+										"172.18.0.2",
+									},
+									Conditions: EndpointConditions{
+										Ready: true,
+									},
+								},
+							},
+							Ports: []EndpointPort{
+								{
+									Name:     "https",
+									Protocol: "TCP",
+									Port:     6443,
+								},
+							},
+						},
+						{
+							Metadata: ObjectMeta{
+								Name:      "kube-dns",
+								Namespace: "kube-system",
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "kubernetes.io/service-name", Value: "kube-dns"},
+									},
+								},
+							},
+							AddressType: "IPv4",
+							Endpoints: []Endpoint{
+								{
+									Addresses: []string{
+										"10.244.0.3",
+									},
+									Conditions: EndpointConditions{
+										Ready: true,
+									},
+									TargetRef: ObjectReference{
+										Kind:      "Pod",
+										Namespace: "kube-system",
+										Name:      "coredns-66bff467f8-z8czk",
+									},
+									NodeName: "kind-control-plane",
+								},
+								{
+									Addresses: []string{
+										"10.244.0.4",
+									},
+									Conditions: EndpointConditions{
+										Ready: true,
+									},
+									TargetRef: ObjectReference{
+										Kind:      "Pod",
+										Namespace: "kube-system",
+										Name:      "coredns-66bff467f8-kpbhk",
+									},
+									NodeName: "kind-control-plane",
+								},
+							},
+							Ports: []EndpointPort{
+								{
+									Name:     "dns-tcp",
+									Protocol: "TCP",
+									Port:     53,
+								},
+								{
+									Name:     "metrics",
+									Protocol: "TCP",
+									Port:     9153,
+								},
+								{
+									Name:     "dns",
+									Protocol: "UDP",
+									Port:     53,
+								},
+							},
+						},
+					},
+				},
+				"pod": &PodList{
+					Metadata: ListMeta{ResourceVersion: "72425"},
+					Items: []Pod{
+						{
+							Metadata: ObjectMeta{
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/instance", Value: "stack"},
+										{Name: "pod-template-hash", Value: "5b9c6cf775"},
+									},
+								},
+								Name:      "coredns-66bff467f8-kpbhk",
+								Namespace: "kube-system",
+							},
+							Spec: PodSpec{
+								Containers: []Container{
+									{
+										Name: "generic-pod",
+									},
+								},
+							},
+							Status: PodStatus{
+								PodIP: "10.10.2.2",
+								Phase: "Running",
+							},
+						},
+						{
+							Metadata: ObjectMeta{
+								Namespace: "kube-system",
+							},
+							Spec: PodSpec{
+								Containers: []Container{
+									{
+										Name: "generic-pod",
+									},
+								},
+							},
+							Status: PodStatus{
+								PodIP: "10.10.2.2",
+								Phase: "Running",
+							},
+						},
+						{
+							Metadata: ObjectMeta{
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "app.kubernetes.io/instance", Value: "stack"},
+										{Name: "pod-template-hash", Value: "5b9c6cf775"},
+									},
+								},
+								Name:      "coredns-66bff467f8-z8czk",
+								Namespace: "kube-system",
+							},
+							Spec: PodSpec{
+								Containers: []Container{
+									{
+										Name: "generic-pod",
+									},
+								},
+							},
+							Status: PodStatus{
+								PodIP: "10.10.2.3",
+								Phase: "Running",
+							},
+						},
+					},
+				},
+				"service": &ServiceList{
+					Metadata: ListMeta{ResourceVersion: "60485"},
+					Items: []Service{
+						{
+							Metadata: ObjectMeta{
+								Name:      "kube-dns",
+								Namespace: "kube-system",
+								Labels: &promutil.Labels{
+									Labels: []prompbmarshal.Label{
+										{Name: "k8s-app", Value: "kube-dns"},
+									},
+								},
+							},
+							Spec: ServiceSpec{
+								Ports: []ServicePort{
+									{
+										Name:     "dns",
+										Protocol: "UDP",
+										Port:     53,
+									},
+									{
+										Name:     "dns-tcp",
+										Protocol: "TCP",
+										Port:     53,
+									},
+								},
+								ClusterIP: "10.96.0.10",
+								Type:      "ClusterIP",
+							},
+						},
+					},
+				},
 			},
-			watchAPIMustAddObjectsByRole: map[string][][]byte{
+			watchAPIMustAddObjectsByRole: map[string][]marshallable{
 				"service": {
-					[]byte(`    {
-      "metadata": {
-        "name": "kube-dns",
-        "namespace": "kube-system",
-        "labels": {
-          "k8s-app": "kube-dns",
-          "some-new": "label-value"
-        }
-      },
-      "spec": {
-        "ports": [
-          {
-            "name": "dns-tcp",
-            "protocol": "TCP",
-            "port": 53,
-            "targetPort": 53
-          }
-        ],
-        "selector": {
-          "k8s-app": "kube-dns"
-        },
-        "clusterIP": "10.96.0.10",
-        "type": "ClusterIP",
-        "sessionAffinity": "None"
-      }
-    }
-`),
+					&Service{
+						Metadata: ObjectMeta{
+							Name:      "kube-dns",
+							Namespace: "kube-system",
+							Labels: &promutil.Labels{
+								Labels: []prompbmarshal.Label{
+									{Name: "k8s-app", Value: "kube-dns"},
+									{Name: "some-new", Value: "label-value"},
+								},
+							},
+						},
+						Spec: ServiceSpec{
+							Ports: []ServicePort{
+								{
+									Name:     "dns-tcp",
+									Protocol: "TCP",
+									Port:     53,
+								},
+							},
+							ClusterIP: "10.96.0.10",
+							Type:      "ClusterIP",
+						},
+					},
 				},
 			},
 		},
@@ -966,10 +893,10 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 
 type watchObjectBroadcast struct {
 	mu          sync.Mutex
-	subscribers []chan []byte
+	subscribers []chan marshallable
 }
 
-func (o *watchObjectBroadcast) pub(msg []byte) {
+func (o *watchObjectBroadcast) pub(msg marshallable) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	for i := range o.subscribers {
@@ -981,8 +908,8 @@ func (o *watchObjectBroadcast) pub(msg []byte) {
 	}
 }
 
-func (o *watchObjectBroadcast) sub() <-chan []byte {
-	c := make(chan []byte, 5)
+func (o *watchObjectBroadcast) sub() <-chan marshallable {
+	c := make(chan marshallable, 5)
 	o.mu.Lock()
 	o.subscribers = append(o.subscribers, c)
 	o.mu.Unlock()
@@ -998,30 +925,76 @@ func (o *watchObjectBroadcast) shutdown() {
 	}
 }
 
-func addAPIURLHandler(t *testing.T, mux *http.ServeMux, apiURL string, initObjects []byte, notifier *watchObjectBroadcast) {
+func addAPIURLHandler(t *testing.T, mux *http.ServeMux, apiURL string, initObjects marshallable, notifier *watchObjectBroadcast) {
 	t.Helper()
+	var buf []byte
+	var objData []byte
 	mux.HandleFunc(apiURL, func(w http.ResponseWriter, r *http.Request) {
+		acceptType := r.Header.Get("Accept")
+		var contentType string
+		switch {
+		case strings.HasPrefix(acceptType, contentTypeJSON):
+			contentType = contentTypeJSON
+		case strings.HasPrefix(acceptType, contentTypeProtobuf):
+			contentType = contentTypeProtobuf
+		}
 		if needWatch := r.URL.Query().Get("watch"); len(needWatch) > 0 {
+			w.Header().Set("Content-Type", contentType)
 			// start watch handler
 			w.WriteHeader(200)
 			flusher := w.(http.Flusher)
 			flusher.Flush()
 			updateC := notifier.sub()
 			for obj := range updateC {
-				we := WatchEvent{
-					Type:   "ADDED",
-					Object: obj,
+				switch contentType {
+				case contentTypeJSON:
+					objData, err := json.Marshal(obj)
+					if err != nil {
+						t.Fatalf("cannot serialize obj: %v", err)
+					}
+					we := WatchEvent{
+						Type:   "ADDED",
+						Object: objData,
+					}
+					szd, err := json.Marshal(we)
+					if err != nil {
+						t.Fatalf("cannot serialize event: %v", err)
+					}
+					_, _ = w.Write(szd)
+				case contentTypeProtobuf:
+					m := mp.Get()
+					obj.marshalProtobuf(m.MessageMarshaler())
+					objData = m.Marshal(objData[:0])
+					mp.Put(m)
+					we := WatchEvent{
+						Type:   "ADDED",
+						Object: objData,
+					}
+					m = mp.Get()
+					we.marshalProtobuf(m.MessageMarshaler())
+					buf = m.MarshalWithLen(buf[:0])
+					mp.Put(m)
+					_, _ = w.Write(buf)
 				}
-				szd, err := json.Marshal(we)
-				if err != nil {
-					t.Fatalf("cannot serialize: %v", err)
-				}
-				_, _ = w.Write(szd)
 				flusher.Flush()
 			}
 			return
 		}
+		w.Header().Set("Content-Type", contentType)
 		w.WriteHeader(200)
-		_, _ = w.Write(initObjects)
+		switch contentType {
+		case contentTypeJSON:
+			szd, err := json.Marshal(initObjects)
+			if err != nil {
+				t.Fatalf("cannot serialize: %v", err)
+			}
+			_, _ = w.Write(szd)
+		case contentTypeProtobuf:
+			m := mp.Get()
+			initObjects.marshalProtobuf(m.MessageMarshaler())
+			buf = m.Marshal(buf[:0])
+			mp.Put(m)
+			_, _ = w.Write(buf)
+		}
 	})
 }
