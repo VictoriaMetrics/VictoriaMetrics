@@ -58,9 +58,6 @@ type blockResult struct {
 
 	// csInitialized is set to true if cs is properly initialized and can be returned from getColumns().
 	csInitialized bool
-
-	fvecs []filteredValuesEncodedCreator
-	svecs []searchValuesEncodedCreator
 }
 
 func (br *blockResult) reset() {
@@ -87,12 +84,6 @@ func (br *blockResult) reset() {
 	br.cs = br.cs[:0]
 
 	br.csInitialized = false
-
-	clear(br.fvecs)
-	br.fvecs = br.fvecs[:0]
-
-	clear(br.svecs)
-	br.svecs = br.svecs[:0]
 }
 
 // clone returns a clone of br, which owns its own data.
@@ -137,8 +128,6 @@ func (br *blockResult) clone() *blockResult {
 	brNew.csBuf = csNew
 
 	// do not clone br.csEmpty - it will be populated by the caller via getColumnByName().
-
-	// do not clone br.fvecs and br.svecs, since they may point to external data.
 
 	return brNew
 }
@@ -185,34 +174,10 @@ func (br *blockResult) appendFilteredColumn(cSrc *blockResultColumn) {
 		cDst.minValue = cSrc.minValue
 		cDst.maxValue = cSrc.maxValue
 		cDst.dictValues = cSrc.dictValues
-		br.fvecs = append(br.fvecs, filteredValuesEncodedCreator{
-			br: br.brSrc,
-			bm: br.bm,
-			c:  cSrc,
-		})
-		cDst.valuesEncodedCreator = &br.fvecs[len(br.fvecs)-1]
+		cDst.cSrc = cSrc
 	}
 
 	br.csAdd(cDst)
-}
-
-type filteredValuesEncodedCreator struct {
-	br *blockResult
-	bm *bitmap
-	c  *blockResultColumn
-}
-
-func (fvec *filteredValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
-	valuesEncodedSrc := fvec.c.getValuesEncoded(fvec.br)
-
-	valuesBuf := br.valuesBuf
-	valuesBufLen := len(valuesBuf)
-	fvec.bm.forEachSetBitReadonly(func(idx int) {
-		valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
-	})
-	br.valuesBuf = valuesBuf
-
-	return valuesBuf[valuesBufLen:]
 }
 
 // cloneValues clones the given values into br and returns the cloned values.
@@ -552,68 +517,81 @@ func (br *blockResult) checkTimestampsLen() {
 	}
 }
 
-func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bitmap, ch *columnHeader) []string {
+func (br *blockResult) readValuesEncodedFromColumnHeader(ch *columnHeader) []string {
 	valuesBufLen := len(br.valuesBuf)
 
 	switch ch.valueType {
 	case valueTypeString:
-		visitValuesReadonly(bs, ch, bm, br.addValues)
+		visitValuesReadonly(br.bs, ch, br.bm, br.addValues)
 	case valueTypeDict:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 1, "dict")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 1, "dict")
 			for _, v := range values {
 				dictIdx := v[0]
 				if int(dictIdx) >= len(ch.valuesDict.values) {
-					logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
+					logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", br.bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
 				}
 			}
 			br.addValues(values)
 		})
 	case valueTypeUint8:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 1, "uint8")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 1, "uint8")
 			br.addValues(values)
 		})
 	case valueTypeUint16:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 2, "uint16")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 2, "uint16")
 			br.addValues(values)
 		})
 	case valueTypeUint32:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 4, "uint32")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 4, "uint32")
 			br.addValues(values)
 		})
 	case valueTypeUint64:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "uint64")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "uint64")
 			br.addValues(values)
 		})
 	case valueTypeInt64:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "int64")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "int64")
 			br.addValues(values)
 		})
 	case valueTypeFloat64:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "float64")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "float64")
 			br.addValues(values)
 		})
 	case valueTypeIPv4:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 4, "ipv4")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 4, "ipv4")
 			br.addValues(values)
 		})
 	case valueTypeTimestampISO8601:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "iso8601")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "iso8601")
 			br.addValues(values)
 		})
 	default:
-		logger.Panicf("FATAL: %s: unknown valueType=%d for column %q", bs.partPath(), ch.valueType, ch.name)
+		logger.Panicf("FATAL: %s: unknown valueType=%d for column %q", br.bs.partPath(), ch.valueType, ch.name)
 	}
 
 	return br.valuesBuf[valuesBufLen:]
+}
+
+func (br *blockResult) readValuesEncodedFromResultColumn(c *blockResultColumn) []string {
+	valuesEncodedSrc := c.getValuesEncoded(br.brSrc)
+
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	br.bm.forEachSetBitReadonly(func(idx int) {
+		valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
+	})
+	br.valuesBuf = valuesBuf
+
+	return valuesBuf[valuesBufLen:]
 }
 
 func checkValuesSize(bs *blockSearch, ch *columnHeader, values []string, sizeExpected int, typeStr string) {
@@ -634,26 +612,10 @@ func (br *blockResult) addColumn(ch *columnHeader) {
 		minValue:   ch.minValue,
 		maxValue:   ch.maxValue,
 		dictValues: ch.valuesDict.values,
+		chSrc:      ch,
 	})
-	c := &br.csBuf[len(br.csBuf)-1]
 
-	br.svecs = append(br.svecs, searchValuesEncodedCreator{
-		bs: br.bs,
-		bm: br.bm,
-		ch: ch,
-	})
-	c.valuesEncodedCreator = &br.svecs[len(br.svecs)-1]
 	br.csInitialized = false
-}
-
-type searchValuesEncodedCreator struct {
-	bs *blockSearch
-	bm *bitmap
-	ch *columnHeader
-}
-
-func (svec *searchValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
-	return br.newValuesEncodedFromColumnHeader(svec.bs, svec.bm, svec.ch)
 }
 
 func (br *blockResult) addTimeColumn() {
@@ -2079,21 +2041,17 @@ type blockResultColumn struct {
 	// valuesBucketed contains values after getValuesBucketed() call
 	valuesBucketed []string
 
-	// valuesEncodedCreator must return valuesEncoded.
-	//
-	// This interface must be set for non-const and non-time columns if valuesEncoded field isn't set.
-	valuesEncodedCreator columnValuesEncodedCreator
+	// chSrc is an optional pointer to the source columnHeader. It is used for reading the values at readValuesEncoded()
+	chSrc *columnHeader
+
+	// cSrc is an optional pointer to the source blockResultColumn. It is used for reading the values at readValuesEncoded()
+	cSrc *blockResultColumn
 
 	// bucketSizeStr contains bucketSizeStr for valuesBucketed
 	bucketSizeStr string
 
 	// bucketOffsetStr contains bucketOffset for valuesBucketed
 	bucketOffsetStr string
-}
-
-// columnValuesEncodedCreator must return encoded values for the current column.
-type columnValuesEncodedCreator interface {
-	newValuesEncoded(br *blockResult) []string
 }
 
 // clone returns a clone of c backed by data from br.
@@ -2124,8 +2082,8 @@ func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 	}
 	cNew.valuesBucketed = br.cloneValues(c.valuesBucketed)
 
-	// Do not copy c.valuesEncodedCreator, since it may refer to data, which may change over time.
-	// We already copied c.valuesEncoded, so cNew.valuesEncodedCreator must be nil.
+	// Do not copy c.chSrc and c.cSrc, since they may refer to data, which may change over time.
+	// We already copied c.valuesEncoded, so c.chSrc and c.cSrc must be nil.
 
 	cNew.bucketSizeStr = c.bucketSizeStr
 	cNew.bucketOffsetStr = c.bucketOffsetStr
@@ -2220,9 +2178,16 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	}
 
 	if c.valuesEncoded == nil {
-		c.valuesEncoded = c.valuesEncodedCreator.newValuesEncoded(br)
+		c.valuesEncoded = c.readValuesEncoded(br)
 	}
 	return c.valuesEncoded
+}
+
+func (c *blockResultColumn) readValuesEncoded(br *blockResult) []string {
+	if br.bs != nil {
+		return br.readValuesEncodedFromColumnHeader(c.chSrc)
+	}
+	return br.readValuesEncodedFromResultColumn(c.cSrc)
 }
 
 // forEachDictValue calls f for every matching value in the column dictionary.
