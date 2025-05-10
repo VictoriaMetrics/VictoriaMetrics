@@ -380,6 +380,57 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	return nsecs, true
 }
 
+// TryParseUnixTimestamp parses s as unix timestamp in seconds, milliseconds, microseconds or nanoseconds and returns the parsed timestamp in nanoseconds.
+func TryParseUnixTimestamp(s string) (int64, bool) {
+	if strings.IndexByte(s, '.') >= 0 {
+		// Parse timestamp as floating-point value
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, false
+		}
+		if f < (1<<31) && f >= (-1<<31) {
+			// The timestamp is in seconds.
+			return int64(f * 1e9), true
+		}
+		if f < 1e3*(1<<31) && f >= 1e3*(-1<<31) {
+			// The timestamp is in milliseconds.
+			return int64(f * 1e6), true
+		}
+		if f < 1e6*(1<<31) && f >= 1e6*(-1<<31) {
+			// The timestamp is in microseconds.
+			return int64(f * 1e3), true
+		}
+		// The timestamp is in nanoseconds
+		if f > math.MaxInt64 {
+			return 0, false
+		}
+		if f < math.MinInt64 {
+			return 0, false
+		}
+		return int64(f), true
+	}
+
+	// Parse timestamp as integer
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	if n < (1<<31) && n >= (-1<<31) {
+		// The timestamp is in seconds.
+		return n * 1e9, true
+	}
+	if n < 1e3*(1<<31) && n >= 1e3*(-1<<31) {
+		// The timestamp is in milliseconds.
+		return n * 1e6, true
+	}
+	if n < 1e6*(1<<31) && n >= 1e6*(-1<<31) {
+		// The timestamp is in microseconds.
+		return n * 1e3, true
+	}
+	// The timestamp is in nanoseconds
+	return n, true
+}
+
 func parseTimezoneOffset(s string) (int64, string, bool) {
 	if strings.HasSuffix(s, "Z") {
 		return 0, s[:len(s)-1], true
