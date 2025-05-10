@@ -3,10 +3,10 @@ import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";
 import dayjs from "dayjs";
-import { useSearchParams } from "react-router-dom";
+import { useTenant } from "../../../hooks/useTenant";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
-  const [searchParams] = useSearchParams();
+  const tenant = useTenant();
 
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState<{ [key: number]: boolean }>({});
@@ -14,11 +14,6 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
   const abortControllerRef = useRef(new AbortController());
 
   const url = useMemo(() => getLogsUrl(server), [server]);
-
-  const tenant = useMemo(() => ({
-    AccountID: searchParams.get("accountID") || "0",
-    ProjectID: searchParams.get("projectID") || "0",
-  }), [searchParams]);
 
   const getOptions = (query: string, period: TimeParams, limit: number, signal: AbortSignal) => ({
     signal,
