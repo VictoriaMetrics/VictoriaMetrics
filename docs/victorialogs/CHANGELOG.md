@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate [`min`](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats) and [`max`](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats) stats for numeric log fields.
+
 ## [v1.22.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.1-victorialogs)
 
 Released at 2025-05-09

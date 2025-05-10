@@ -2223,7 +2223,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 	if c.valueType != valueTypeDict {
 		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
 	}
-	if br.bs != nil && uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+	if br.isFull() {
 		// Fast path - there is no need in reading encoded values
 		for _, v := range c.dictValues {
 			f(v)
@@ -2231,7 +2231,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 		return
 	}
 
-	// Slow path - need to read encoded values in order filter not referenced columns.
+	// Slow path - need to read encoded values in order to filter not referenced columns.
 	a := encoding.GetUint64s(len(c.dictValues))
 	hits := a.A
 	clear(hits)
@@ -2246,6 +2246,13 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 		}
 	}
 	encoding.PutUint64s(a)
+}
+
+func (br *blockResult) isFull() bool {
+	if br.bs == nil {
+		return true
+	}
+	return br.bs.bsw.bh.rowsCount == uint64(br.rowsLen)
 }
 
 // forEachDictValueWithHits calls f for every matching value in the column dictionary.
