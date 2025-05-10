@@ -30,9 +30,10 @@ type blockResult struct {
 	// bs is nil for the blockResult constructed by pipes.
 	bs *blockSearch
 
-	// bm is the associated bitmap for the given blockResult.
-	//
-	// bm is nil for the blockResult constructed by pipes.
+	// brSrc points to the source blockResult if bs is nil and bm is non-nil.
+	brSrc *blockResult
+
+	// bm is an optional bitmap, which must be applied to bs or brSrc in order to obtain blockResult values.
 	bm *bitmap
 
 	// a holds all the bytes behind the requested column values in the block.
@@ -66,6 +67,7 @@ func (br *blockResult) reset() {
 	br.rowsLen = 0
 
 	br.bs = nil
+	br.brSrc = nil
 	br.bm = nil
 
 	br.a.reset()
@@ -100,6 +102,7 @@ func (br *blockResult) clone() *blockResult {
 	brNew.rowsLen = br.rowsLen
 
 	// do not clone br.cs, since it may be updated at any time.
+	// do not clone br.brSrc, since it may be updated at any time.
 	// do not clone br.bm, since it may be updated at any time.
 
 	cs := br.getColumns()
@@ -146,27 +149,24 @@ func (br *blockResult) clone() *blockResult {
 func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) {
 	br.reset()
 
-	srcTimestamps := brSrc.getTimestamps()
-	dstTimestamps := br.timestampsBuf[:0]
-	bm.forEachSetBitReadonly(func(idx int) {
-		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
-	})
-	br.timestampsBuf = dstTimestamps
-	br.rowsLen = len(br.timestampsBuf)
-
-	if br.rowsLen == 0 || bm.isZero() {
+	br.rowsLen = bm.onesCount()
+	if br.rowsLen == 0 {
 		return
 	}
 
-	for _, cSrc := range brSrc.getColumns() {
-		br.appendFilteredColumn(brSrc, cSrc, bm)
+	br.brSrc = brSrc
+	br.bm = bm
+
+	cs := brSrc.getColumns()
+	for _, c := range cs {
+		br.appendFilteredColumn(c)
 	}
 }
 
-// appendFilteredColumn adds cSrc with the given bm filter to br.
+// appendFilteredColumn adds cSrc to br.
 //
-// the br is valid until brSrc, cSrc or bm is updated.
-func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
+// the br is valid until cSrc is updated.
+func (br *blockResult) appendFilteredColumn(cSrc *blockResultColumn) {
 	if br.rowsLen == 0 {
 		logger.Panicf("BUG: br.rowsLen must be greater than 0")
 	}
@@ -186,9 +186,9 @@ func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResul
 		cDst.maxValue = cSrc.maxValue
 		cDst.dictValues = cSrc.dictValues
 		br.fvecs = append(br.fvecs, filteredValuesEncodedCreator{
-			br: brSrc,
+			br: br.brSrc,
+			bm: br.bm,
 			c:  cSrc,
-			bm: bm,
 		})
 		cDst.valuesEncodedCreator = &br.fvecs[len(br.fvecs)-1]
 	}
@@ -198,8 +198,8 @@ func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResul
 
 type filteredValuesEncodedCreator struct {
 	br *blockResult
-	c  *blockResultColumn
 	bm *bitmap
+	c  *blockResultColumn
 }
 
 func (fvec *filteredValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
@@ -445,11 +445,11 @@ func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) boo
 
 func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 	if br.bs != nil {
-		bh := &br.bs.bsw.bh
-		if bh.rowsCount == uint64(br.rowsLen) {
-			return min(minTimestamp, bh.timestampsHeader.minTimestamp)
+		th := &br.bs.bsw.bh.timestampsHeader
+		if br.isFull() {
+			return min(minTimestamp, th.minTimestamp)
 		}
-		if minTimestamp <= bh.timestampsHeader.minTimestamp {
+		if minTimestamp <= th.minTimestamp {
 			return minTimestamp
 		}
 	}
@@ -466,11 +466,11 @@ func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 
 func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
 	if br.bs != nil {
-		bh := &br.bs.bsw.bh
-		if bh.rowsCount == uint64(br.rowsLen) {
-			return max(maxTimestamp, bh.timestampsHeader.maxTimestamp)
+		th := &br.bs.bsw.bh.timestampsHeader
+		if br.isFull() {
+			return max(maxTimestamp, th.maxTimestamp)
 		}
-		if maxTimestamp >= bh.timestampsHeader.maxTimestamp {
+		if maxTimestamp >= th.maxTimestamp {
 			return maxTimestamp
 		}
 	}
@@ -493,19 +493,28 @@ func (br *blockResult) getTimestamps() []int64 {
 }
 
 func (br *blockResult) initTimestamps() {
-	if br.bs == nil {
-		// Try decoding timestamps from _time field
-		c := br.getColumnByName("_time")
-		timestampValues := c.getValues(br)
-		var ok bool
-		br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], timestampValues)
-		if !ok {
-			br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
-		}
+	if br.brSrc != nil {
+		srcTimestamps := br.brSrc.getTimestamps()
+		br.initTimestampsInternal(srcTimestamps)
+		return
+	}
+	if br.bs != nil {
+		srcTimestamps := br.bs.getTimestamps()
+		br.initTimestampsInternal(srcTimestamps)
 		return
 	}
 
-	srcTimestamps := br.bs.getTimestamps()
+	// Try decoding timestamps from _time field
+	c := br.getColumnByName("_time")
+	timestampValues := c.getValues(br)
+	var ok bool
+	br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], timestampValues)
+	if !ok {
+		br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
+	}
+}
+
+func (br *blockResult) initTimestampsInternal(srcTimestamps []int64) {
 	if br.bm.areAllBitsSet() {
 		// Fast path - all the rows in the block are selected, so copy all the timestamps without any filtering.
 		br.timestampsBuf = append(br.timestampsBuf[:0], srcTimestamps...)
@@ -2250,7 +2259,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 
 func (br *blockResult) isFull() bool {
 	if br.bs == nil {
-		return true
+		return false
 	}
 	return br.bs.bsw.bh.rowsCount == uint64(br.rowsLen)
 }
