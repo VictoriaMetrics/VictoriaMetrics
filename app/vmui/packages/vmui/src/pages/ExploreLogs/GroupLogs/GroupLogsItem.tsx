@@ -1,4 +1,4 @@
-import React, { FC, memo, useMemo } from "preact/compat";
+import React, { FC, memo, useMemo, useState } from "preact/compat";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
@@ -7,10 +7,13 @@ import classNames from "classnames";
 import { useLogsState } from "../../../state/logsPanel/LogsStateContext";
 import dayjs from "dayjs";
 import { useTimeState } from "../../../state/time/TimeStateContext";
-import GroupLogsFieldRow from "./GroupLogsFieldRow";
 import { marked } from "marked";
 import { useSearchParams } from "react-router-dom";
 import { LOGS_DATE_FORMAT, LOGS_URL_PARAMS } from "../../../constants/logs";
+import useEventListener from "../../../hooks/useEventListener";
+import { getFromStorage } from "../../../utils/storage";
+import { parseAnsiToHtml } from "../../../utils/ansiParser";
+import GroupLogsFields from "./GroupLogsFields";
 
 interface Props {
   log: Logs;
@@ -24,7 +27,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
   } = useBoolean(false);
 
   const [searchParams] = useSearchParams();
-  const { markdownParsing } = useLogsState();
+  const { markdownParsing, ansiParsing } = useLogsState();
   const { timezone } = useTimeState();
 
   const noWrapLines = searchParams.get(LOGS_URL_PARAMS.NO_WRAP_LINES) === "true";
@@ -40,33 +43,48 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
     return marked(log._msg.replace(/```/g, "\n```\n")) as string;
   }, [log._msg, markdownParsing]);
 
-  const fields = useMemo(() => Object.entries(log), [log]);
-  const hasFields = fields.length > 0;
+  const hasFields = Object.keys(log).length > 0;
 
   const displayMessage = useMemo(() => {
-    if (displayFields.length) {
-      return displayFields.filter(field => log[field]).map((field, i) => (
-        <span
-          className="vm-group-logs-row-content__sub-msg"
-          key={field + i}
-        >{log[field]}</span>
-      ));
+    const values: (string | React.ReactNode)[] = [];
+
+    if (!hasFields) {
+      values.push("-");
     }
-    if (log._msg) return log._msg;
-    if (!hasFields) return;
-    const dataObject = fields.reduce<{ [key: string]: string }>((obj, [key, value]) => {
-      obj[key] = value;
-      return obj;
-    }, {});
-    return JSON.stringify(dataObject);
-  }, [log, fields, hasFields, displayFields]);
+
+    if (displayFields.some(field => log[field])) {
+      displayFields.filter(field => log[field]).forEach((field) => {
+        const value = field === "_msg" && ansiParsing ? parseAnsiToHtml(log[field]) : log[field];
+        values.push(value);
+      });
+    } else {
+      Object.entries(log).forEach(([key, value]) => {
+        values.push(`${key}: ${value}`);
+      });
+    }
+
+    return values;
+  }, [log, hasFields, displayFields, ansiParsing]);
+
+  const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
+
+  const handleUpdateStage = () => {
+    const newValDisabledHovers = !!getFromStorage("LOGS_DISABLED_HOVERS");
+    if (newValDisabledHovers !== disabledHovers) {
+      setDisabledHovers(newValDisabledHovers);
+    }
+  };
+
+  useEventListener("storage", handleUpdateStage);
 
   return (
     <div className="vm-group-logs-row">
       <div
-        className="vm-group-logs-row-content"
+        className={classNames({
+          "vm-group-logs-row-content": true,
+          "vm-group-logs-row-content_interactive": !disabledHovers,
+        })}
         onClick={toggleOpenFields}
-        key={`${log._msg}${log._time}`}
       >
         {hasFields && (
           <div
@@ -93,26 +111,19 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
             "vm-group-logs-row-content__msg_missing": !displayMessage,
             "vm-group-logs-row-content__msg_single-line": noWrapLines,
           })}
-          dangerouslySetInnerHTML={(markdownParsing && formattedMarkdown) ? { __html: formattedMarkdown } : undefined}
+          dangerouslySetInnerHTML={formattedMarkdown ? { __html: formattedMarkdown } : undefined}
         >
-          {displayMessage || "-"}
+          {displayMessage.map((msg, i) => (
+            <span
+              className="vm-group-logs-row-content__sub-msg"
+              key={`${msg}_${i}`}
+            >
+              {msg}
+            </span>
+          ))}
         </div>
       </div>
-      {hasFields && isOpenFields && (
-        <div className="vm-group-logs-row-fields">
-          <table>
-            <tbody>
-              {fields.map(([key, value]) => (
-                <GroupLogsFieldRow
-                  key={key}
-                  field={key}
-                  value={value}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {hasFields && isOpenFields && <GroupLogsFields log={log}/>}
     </div>
   );
 };

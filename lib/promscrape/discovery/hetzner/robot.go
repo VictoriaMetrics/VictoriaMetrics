@@ -6,26 +6,26 @@ import (
 	"net"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-func getRobotServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getRobotServerLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	servers, err := getRobotServers(cfg)
 	if err != nil {
 		return nil, err
 	}
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	for i := range servers {
 		ms = appendRobotTargetLabels(ms, &servers[i], cfg.port)
 	}
 	return ms, nil
 }
 
-func appendRobotTargetLabels(ms []*promutils.Labels, server *RobotServer, port int) []*promutils.Labels {
-	m := promutils.NewLabels(16)
+func appendRobotTargetLabels(ms []*promutil.Labels, server *RobotServer, port int) []*promutil.Labels {
+	m := promutil.NewLabels(16)
 
-	addr := discoveryutils.JoinHostPort(server.ServerIP, port)
+	addr := discoveryutil.JoinHostPort(server.ServerIP, port)
 	m.Add("__address__", addr)
 
 	m.Add("__meta_hetzner_role", "robot")

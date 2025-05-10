@@ -31,9 +31,9 @@ import (
 //   - Directory buckets - For directory buckets, you must make requests for this
 //     API operation to the Zonal endpoint. These endpoints support
 //     virtual-hosted-style requests in the format
-//     https://amzn-s3-demo-bucket.s3express-zone-id.region-code.amazonaws.com/key-name
-//     . Path-style requests are not supported. For more information about endpoints
-//     in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
+//     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
+//     Path-style requests are not supported. For more information about endpoints in
+//     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
 //     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // Amazon S3 is a distributed system. If it receives multiple write requests for
@@ -44,18 +44,6 @@ import (
 //     can use [Amazon S3 Object Lock]in the Amazon S3 User Guide.
 //
 // This functionality is not supported for directory buckets.
-//
-//   - If-None-Match - Uploads the object only if the object key name does not
-//     already exist in the specified bucket. Otherwise, Amazon S3 returns a 412
-//     Precondition Failed error. If a conflicting operation occurs during the
-//     upload, S3 returns a 409 ConditionalRequestConflict response. On a 409
-//     failure, retry the upload.
-//
-// Expects the * character (asterisk).
-//
-// For more information, see [Add preconditions to S3 operations with conditional requests]in the Amazon S3 User Guide or [RFC 7232].
-//
-// This functionality is not supported for S3 on Outposts.
 //
 //   - S3 Versioning - When you enable versioning for a bucket, if Amazon S3
 //     receives multiple write requests for the same object simultaneously, it stores
@@ -124,10 +112,8 @@ import (
 // [Amazon S3 Object Lock]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html
 // [DeleteObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
 // [Adding Objects to Versioning-Enabled Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/AddingObjectstoVersioningEnabledBuckets.html
-// [Add preconditions to S3 operations with conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
 // [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
-// [RFC 7232]: https://datatracker.ietf.org/doc/rfc7232/
 // [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 // [GetBucketVersioning]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html
 func (c *Client) PutObject(ctx context.Context, params *PutObjectInput, optFns ...func(*Options)) (*PutObjectOutput, error) {
@@ -155,7 +141,7 @@ type PutObjectInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
+	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -170,12 +156,13 @@ type PutObjectInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
-	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
-	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
-	// you use this action with S3 on Outposts, the destination bucket must be the
-	// Outposts access point ARN or the access point alias. For more information about
-	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
+	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
+	// takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
@@ -256,22 +243,21 @@ type PutObjectInput struct {
 	// For the x-amz-checksum-algorithm  header, replace  algorithm  with the
 	// supported algorithm from the following list:
 	//
-	//   - CRC-32
+	//   - CRC32
 	//
-	//   - CRC-32C
+	//   - CRC32C
 	//
-	//   - CRC-64NVME
+	//   - SHA1
 	//
-	//   - SHA-1
-	//
-	//   - SHA-256
+	//   - SHA256
 	//
 	// For more information, see [Checking object integrity] in the Amazon S3 User Guide.
 	//
 	// If the individual checksum value you provide through x-amz-checksum-algorithm
 	// doesn't match the checksum algorithm you set through
-	// x-amz-sdk-checksum-algorithm , Amazon S3 fails the request with a BadDigest
-	// error.
+	// x-amz-sdk-checksum-algorithm , Amazon S3 ignores any provided ChecksumAlgorithm
+	// parameter and uses the checksum algorithm that matches the provided value in
+	// x-amz-checksum-algorithm .
 	//
 	// The Content-MD5 or x-amz-sdk-checksum-algorithm header is required for any
 	// request to upload an object with a retention period configured using Amazon S3
@@ -286,7 +272,7 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 32-bit CRC-32 checksum of the object. For more information, see [Checking object integrity]
+	// base64-encoded, 32-bit CRC-32 checksum of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -294,23 +280,15 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 32-bit CRC-32C checksum of the object. For more information,
-	// see [Checking object integrity]in the Amazon S3 User Guide.
+	// base64-encoded, 32-bit CRC-32C checksum of the object. For more information, see
+	// [Checking object integrity]in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32C *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 64-bit CRC-64NVME checksum of the object. The CRC-64NVME
-	// checksum is always a full object checksum. For more information, see [Checking object integrity in the Amazon S3 User Guide].
-	//
-	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
-	ChecksumCRC64NVME *string
-
-	// This header can be used as a data integrity check to verify that the data
-	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 160-bit SHA-1 digest of the object. For more information, see [Checking object integrity]
+	// base64-encoded, 160-bit SHA-1 digest of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -318,7 +296,7 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// Base64 encoded, 256-bit SHA-256 digest of the object. For more information, see [Checking object integrity]
+	// base64-encoded, 256-bit SHA-256 digest of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -345,7 +323,7 @@ type PutObjectInput struct {
 	// [https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length]: https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length
 	ContentLength *int64
 
-	// The Base64 encoded 128-bit MD5 digest of the message (without the headers)
+	// The base64-encoded 128-bit MD5 digest of the message (without the headers)
 	// according to RFC 1864. This header can be used as a message integrity check to
 	// verify that the data is the same data that was originally sent. Although it is
 	// optional, we recommend using the Content-MD5 mechanism as an end-to-end
@@ -496,7 +474,7 @@ type PutObjectInput struct {
 
 	// Specifies the Amazon Web Services KMS Encryption Context as an additional
 	// encryption context to use for object encryption. The value of this header is a
-	// Base64 encoded string of a UTF-8 encoded JSON, which contains the encryption
+	// Base64-encoded string of a UTF-8 encoded JSON, which contains the encryption
 	// context as key-value pairs. This value is stored as object metadata and
 	// automatically gets passed on to Amazon Web Services KMS for future GetObject
 	// operations on this object.
@@ -524,16 +502,17 @@ type PutObjectInput struct {
 	// x-amz-server-side-encryption-aws-kms-key-id , Amazon S3 uses the Amazon Web
 	// Services managed key ( aws/s3 ) to protect the data.
 	//
-	// Directory buckets - To encrypt data using SSE-KMS, it's recommended to specify
-	// the x-amz-server-side-encryption header to aws:kms . Then, the
-	// x-amz-server-side-encryption-aws-kms-key-id header implicitly uses the bucket's
-	// default KMS customer managed key ID. If you want to explicitly set the
-	// x-amz-server-side-encryption-aws-kms-key-id header, it must match the bucket's
-	// default customer managed key (using key ID or ARN, not alias). Your SSE-KMS
-	// configuration can only support 1 [customer managed key]per directory bucket's lifetime. The [Amazon Web Services managed key] ( aws/s3
-	// ) isn't supported.
-	//
-	// Incorrect key specification results in an HTTP 400 Bad Request error.
+	// Directory buckets - If you specify x-amz-server-side-encryption with aws:kms ,
+	// the x-amz-server-side-encryption-aws-kms-key-id header is implicitly assigned
+	// the ID of the KMS symmetric encryption customer managed key that's configured
+	// for your directory bucket's default encryption setting. If you want to specify
+	// the x-amz-server-side-encryption-aws-kms-key-id header explicitly, you can only
+	// specify it with the ID (Key ID or Key ARN) of the KMS customer managed key
+	// that's configured for your directory bucket's default encryption setting.
+	// Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID or key
+	// ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
+	// configuration can only support 1 [customer managed key]per directory bucket for the lifetime of the
+	// bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
@@ -658,68 +637,49 @@ type PutObjectOutput struct {
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled *bool
 
-	// The Base64 encoded, 32-bit CRC-32 checksum of the object. This checksum is only
-	// be present if the checksum was uploaded with the object. When you use an API
-	// operation on an object that was uploaded using multipart uploads, this value may
-	// not be a direct checksum value of the full object. Instead, it's a calculation
-	// based on the checksum values of each individual part. For more information about
-	// how checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
+	// The base64-encoded, 32-bit CRC-32 checksum of the object. This will only be
+	// present if it was uploaded with the object. When you use an API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
 	// Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32 *string
 
-	// The Base64 encoded, 32-bit CRC-32C checksum of the object. This checksum is
-	// only present if the checksum was uploaded with the object. When you use an API
-	// operation on an object that was uploaded using multipart uploads, this value may
-	// not be a direct checksum value of the full object. Instead, it's a calculation
-	// based on the checksum values of each individual part. For more information about
-	// how checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
+	// The base64-encoded, 32-bit CRC-32C checksum of the object. This will only be
+	// present if it was uploaded with the object. When you use an API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
 	// Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32C *string
 
-	// The Base64 encoded, 64-bit CRC-64NVME checksum of the object. This header is
-	// present if the object was uploaded with the CRC-64NVME checksum algorithm, or
-	// if it was uploaded without a checksum (and Amazon S3 added the default checksum,
-	// CRC-64NVME , to the uploaded object). For more information about how checksums
-	// are calculated with multipart uploads, see [Checking object integrity in the Amazon S3 User Guide].
-	//
-	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
-	ChecksumCRC64NVME *string
-
-	// The Base64 encoded, 160-bit SHA-1 digest of the object. This will only be
-	// present if the object was uploaded with the object. When you use the API
-	// operation on an object that was uploaded using multipart uploads, this value may
-	// not be a direct checksum value of the full object. Instead, it's a calculation
-	// based on the checksum values of each individual part. For more information about
-	// how checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
+	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
+	// present if it was uploaded with the object. When you use the API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
 	// Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumSHA1 *string
 
-	// The Base64 encoded, 256-bit SHA-256 digest of the object. This will only be
-	// present if the object was uploaded with the object. When you use an API
-	// operation on an object that was uploaded using multipart uploads, this value may
-	// not be a direct checksum value of the full object. Instead, it's a calculation
-	// based on the checksum values of each individual part. For more information about
-	// how checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
+	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
+	// present if it was uploaded with the object. When you use an API operation on an
+	// object that was uploaded using multipart uploads, this value may not be a direct
+	// checksum value of the full object. Instead, it's a calculation based on the
+	// checksum values of each individual part. For more information about how
+	// checksums are calculated with multipart uploads, see [Checking object integrity]in the Amazon S3 User
 	// Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumSHA256 *string
-
-	// This header specifies the checksum type of the object, which determines how
-	// part-level checksums are combined to create an object-level checksum for
-	// multipart objects. For PutObject uploads, the checksum type is always
-	// FULL_OBJECT . You can use this header as a data integrity check to verify that
-	// the checksum type that is received is the same checksum that was specified. For
-	// more information, see [Checking object integrity]in the Amazon S3 User Guide.
-	//
-	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
-	ChecksumType types.ChecksumType
 
 	// Entity tag for the uploaded object.
 	//
@@ -765,7 +725,7 @@ type PutObjectOutput struct {
 	SSECustomerKeyMD5 *string
 
 	// If present, indicates the Amazon Web Services KMS Encryption Context to use for
-	// object encryption. The value of this header is a Base64 encoded string of a
+	// object encryption. The value of this header is a Base64-encoded string of a
 	// UTF-8 encoded JSON, which contains the encryption context as key-value pairs.
 	// This value is stored as object metadata and automatically gets passed on to
 	// Amazon Web Services KMS for future GetObject operations on this object.
@@ -778,8 +738,8 @@ type PutObjectOutput struct {
 	// S3.
 	ServerSideEncryption types.ServerSideEncryption
 
-	//  The size of the object in bytes. This value is only be present if you append
-	// to an object.
+	//  The size of the object in bytes. This will only be present if you append to an
+	// object.
 	//
 	// This functionality is only supported for objects in the Amazon S3 Express One
 	// Zone storage class in directory buckets.
@@ -876,9 +836,6 @@ func (c *Client) addOperationPutObjectMiddlewares(stack *middleware.Stack, optio
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
-		return err
-	}
 	if err = addOpPutObjectValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -962,10 +919,9 @@ func getPutObjectRequestAlgorithmMember(input interface{}) (string, bool) {
 }
 
 func addPutObjectInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutObjectRequestAlgorithmMember,
 		RequireChecksum:                  false,
-		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           true,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,
@@ -1008,8 +964,6 @@ func (c *PresignClient) PresignPutObject(ctx context.Context, params *PutObjectI
 		fn(&options)
 	}
 	clientOptFns := append(options.ClientOptions, withNopHTTPClientAPIOption)
-
-	clientOptFns = append(options.ClientOptions, withNoDefaultChecksumAPIOption)
 
 	result, _, err := c.client.invokeOperation(ctx, "PutObject", params, clientOptFns,
 		c.client.addOperationPutObjectMiddlewares,

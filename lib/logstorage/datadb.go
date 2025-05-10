@@ -29,10 +29,6 @@ const maxBigPartSize = 1e12
 // cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryPartsPerPartition = 20
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
-var dataFlushInterval = 5 * time.Second
-
 // Default number of parts to merge at once.
 //
 // This number has been obtained empirically - it gives the lowest possible overhead.
@@ -49,6 +45,11 @@ const minMergeMultiplier = 1.7
 
 // datadb represents a database with log data
 type datadb struct {
+	// rb is an in-memory buffer for the added rows. It is periodically converted to parts.
+	//
+	// This buffer amortizes the overhead needed for converting the ingested logs into searchable parts.
+	rb rowsBuffer
+
 	// mergeIdx is used for generating unique directory names for parts
 	mergeIdx atomic.Uint64
 
@@ -170,7 +171,7 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		if !fs.IsPathExist(partPath) {
 			partsFile := filepath.Join(path, partsFilename)
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 
@@ -191,6 +192,7 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		bigParts:      bigParts,
 		stopCh:        make(chan struct{}),
 	}
+	ddb.rb.init(&ddb.wg, ddb.mustFlushLogRows)
 	ddb.mergeIdx.Store(uint64(time.Now().UnixNano()))
 
 	ddb.startBackgroundWorkers()
@@ -272,7 +274,7 @@ func (ddb *datadb) startInmemoryPartsFlusher() {
 
 func (ddb *datadb) inmemoryPartsFlusher() {
 	// Do not add jitter to d in order to guarantee the flush interval
-	ticker := time.NewTicker(dataFlushInterval)
+	ticker := time.NewTicker(ddb.flushInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -530,15 +532,11 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	srcSize := uint64(0)
 	srcRowsCount := uint64(0)
 	srcBlocksCount := uint64(0)
-	bloomValuesShardsCount := uint64(0)
 	for _, pw := range pws {
 		ph := &pw.p.ph
 		srcSize += ph.CompressedSizeBytes
 		srcRowsCount += ph.RowsCount
 		srcBlocksCount += ph.BlocksCount
-		if ph.BloomValuesFieldsCount > bloomValuesShardsCount {
-			bloomValuesShardsCount = ph.BloomValuesFieldsCount
-		}
 	}
 	bsw := getBlockStreamWriter()
 	var mpNew *inmemoryPart
@@ -547,7 +545,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		bsw.MustInitForInmemoryPart(mpNew)
 	} else {
 		nocache := dstPartType == partBig
-		bsw.MustInitForFilePart(dstPartPath, nocache, bloomValuesShardsCount)
+		bsw.MustInitForFilePart(dstPartPath, nocache)
 	}
 
 	// Merge source parts to destination part.
@@ -666,10 +664,92 @@ func (ddb *datadb) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *in
 }
 
 func (ddb *datadb) mustAddRows(lr *LogRows) {
+	ddb.rb.mustAddRows(lr)
+}
+
+type rowsBuffer struct {
+	shards  []rowsBufferShard
+	nextIdx atomic.Uint64
+}
+
+func (rb *rowsBuffer) init(wg *sync.WaitGroup, flushFunc func(lr *logRows)) {
+	shards := make([]rowsBufferShard, cgroup.AvailableCPUs())
+	for i := range shards {
+		shard := &shards[i]
+		shard.wg = wg
+		shard.flushFunc = flushFunc
+	}
+	rb.shards = shards
+}
+
+type rowsBufferShard struct {
+	wg        *sync.WaitGroup
+	flushFunc func(lr *logRows)
+
+	mu         sync.Mutex
+	lr         *logRows
+	flushTimer *time.Timer
+
+	// padding for preventing false sharing
+	_ [128]byte
+}
+
+func (rb *rowsBuffer) flush() {
+	shards := rb.shards
+	for i := range shards {
+		shard := &shards[i]
+		shard.mu.Lock()
+		shard.flushLocked()
+		shard.mu.Unlock()
+	}
+}
+
+func (rb *rowsBuffer) mustAddRows(lr *LogRows) {
 	if len(lr.streamIDs) == 0 {
 		return
 	}
 
+	shards := rb.shards
+	idx := rb.nextIdx.Add(1) % uint64(len(shards))
+	shard := &shards[idx]
+
+	shard.mu.Lock()
+	if shard.flushTimer == nil {
+		shard.wg.Add(1)
+		shard.flushTimer = time.AfterFunc(time.Second, func() {
+			defer shard.wg.Done()
+
+			shard.mu.Lock()
+			shard.flushLocked()
+			shard.mu.Unlock()
+		})
+	}
+	if shard.lr == nil {
+		shard.lr = getLogRows()
+	}
+	shard.lr.mustAddRows(lr)
+	if shard.lr.needFlush() {
+		shard.flushLocked()
+	}
+	shard.mu.Unlock()
+}
+
+func (shard *rowsBufferShard) flushLocked() {
+	if shard.flushTimer != nil {
+		if shard.flushTimer.Stop() {
+			shard.wg.Done()
+		}
+		shard.flushTimer = nil
+	}
+
+	if shard.lr != nil {
+		shard.flushFunc(shard.lr)
+		putLogRows(shard.lr)
+		shard.lr = nil
+	}
+}
+
+func (ddb *datadb) mustFlushLogRows(lr *logRows) {
 	inmemoryPartsConcurrencyCh <- struct{}{}
 	mp := getInmemoryPart()
 	mp.mustInitFromRows(lr)
@@ -794,9 +874,9 @@ func (ddb *datadb) updateStats(s *DatadbStats) {
 	ddb.partsLock.Unlock()
 }
 
-// debugFlush() makes sure that the recently ingested data is availalbe for search.
+// debugFlush() makes sure that the recently ingested data is available for search.
 func (ddb *datadb) debugFlush() {
-	// Nothing to do, since all the ingested data is available for search via ddb.inmemoryParts.
+	ddb.rb.flush()
 }
 
 func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dstPartType partType) {
@@ -1016,6 +1096,9 @@ func needStop(stopCh <-chan struct{}) bool {
 
 // mustCloseDatadb can be called only when nobody accesses ddb.
 func mustCloseDatadb(ddb *datadb) {
+	// Flush ddb.rb for the last time
+	ddb.rb.flush()
+
 	// Notify background workers to stop.
 	// Make it under ddb.partsLock in order to prevent from calling ddb.wg.Add()
 	// after ddb.stopCh is closed and ddb.wg.Wait() is called.

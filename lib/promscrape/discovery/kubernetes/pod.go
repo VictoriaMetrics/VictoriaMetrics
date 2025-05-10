@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func (p *Pod) key() string {
@@ -155,9 +155,9 @@ func (p *Pod) getContainerStatus(containerName string, isInit bool) *ContainerSt
 // getTargetLabels returns labels for each port of the given p.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#pod
-func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
+func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	if len(p.Status.PodIP) == 0 {
-		// Skip pod without IP, since such pods cannnot be scraped.
+		// Skip pod without IP, since such pods cannot be scraped.
 		return nil
 	}
 	if isPodPhaseFinished(p.Status.Phase) {
@@ -165,7 +165,7 @@ func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 		return nil
 	}
 
-	var ms []*promutils.Labels
+	var ms []*promutil.Labels
 	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, false)
 	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, true)
 	return ms
@@ -176,7 +176,7 @@ func isPodPhaseFinished(phase string) bool {
 	return phase == "Succeeded" || phase == "Failed"
 
 }
-func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Container, isInit bool) []*promutils.Labels {
+func appendPodLabels(ms []*promutil.Labels, gw *groupWatcher, p *Pod, cs []Container, isInit bool) []*promutil.Labels {
 	for _, c := range cs {
 		if isContainerTerminated(p, c.Name, isInit) {
 			// Skip terminated containers
@@ -192,12 +192,14 @@ func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Cont
 	return ms
 }
 
-func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c *Container, cp *ContainerPort, isInit bool) []*promutils.Labels {
+func appendPodLabelsInternal(ms []*promutil.Labels, gw *groupWatcher, p *Pod, c *Container, cp *ContainerPort, isInit bool) []*promutil.Labels {
 	addr := p.Status.PodIP
 	if cp != nil {
-		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
+		addr = discoveryutil.JoinHostPort(addr, cp.ContainerPort)
+	} else if discoveryutil.IsIPv6Host(addr) {
+		addr = discoveryutil.EscapeIPv6Host(addr)
 	}
-	m := promutils.GetLabels()
+	m := promutil.GetLabels()
 	m.Add("__address__", addr)
 
 	containerID := getContainerID(p, c.Name, isInit)
@@ -210,7 +212,7 @@ func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c
 	return append(ms, m)
 }
 
-func (p *Pod) appendContainerLabels(m *promutils.Labels, c *Container, cp *ContainerPort, isInit bool) {
+func (p *Pod) appendContainerLabels(m *promutil.Labels, c *Container, cp *ContainerPort, isInit bool) {
 	m.Add("__meta_kubernetes_pod_container_image", c.Image)
 	m.Add("__meta_kubernetes_pod_container_name", c.Name)
 	isInitStr := "false"
@@ -225,14 +227,14 @@ func (p *Pod) appendContainerLabels(m *promutils.Labels, c *Container, cp *Conta
 	}
 }
 
-func (p *Pod) appendEndpointLabels(m *promutils.Labels, eps *Endpoints) {
+func (p *Pod) appendEndpointLabels(m *promutil.Labels, eps *Endpoints) {
 	m.Add("__meta_kubernetes_endpoints_name", eps.Metadata.Name)
 	m.Add("__meta_kubernetes_endpoint_address_target_kind", "Pod")
 	m.Add("__meta_kubernetes_endpoint_address_target_name", p.Metadata.Name)
 	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
 }
 
-func (p *Pod) appendEndpointSliceLabels(m *promutils.Labels, eps *EndpointSlice) {
+func (p *Pod) appendEndpointSliceLabels(m *promutil.Labels, eps *EndpointSlice) {
 	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
 	m.Add("__meta_kubernetes_endpointslice_address_target_kind", "Pod")
 	m.Add("__meta_kubernetes_endpointslice_address_target_name", p.Metadata.Name)
@@ -240,7 +242,7 @@ func (p *Pod) appendEndpointSliceLabels(m *promutils.Labels, eps *EndpointSlice)
 	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
 }
 
-func (p *Pod) appendCommonLabels(m *promutils.Labels, gw *groupWatcher) {
+func (p *Pod) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
 	if gw.attachNodeMetadata {
 		m.Add("__meta_kubernetes_node_name", p.Spec.NodeName)
 		o := gw.getObjectByRoleLocked("node", p.Metadata.Namespace, p.Spec.NodeName)

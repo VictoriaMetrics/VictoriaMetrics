@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -148,12 +149,40 @@ func (smp *statsRowMinProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (smp *statsRowMinProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowMinProcessor)
 	if smp.needUpdateStateString(src.min) {
 		smp.min = src.min
 		smp.fields = src.fields
 	}
+}
+
+func (smp *statsRowMinProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(smp.min))
+	dst = marshalFields(dst, smp.fields)
+	return dst
+}
+
+func (smp *statsRowMinProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	minValue, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal minValue")
+	}
+	src = src[n:]
+	smp.min = string(minValue)
+
+	fields, tail, err := unmarshalFields(nil, src)
+	if err != nil {
+		return 0, fmt.Errorf("cannot unmarshal fields: %w", err)
+	}
+	if len(tail) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail; len(tail)=%d", len(tail))
+	}
+	smp.fields = fields
+
+	stateSize := len(smp.min) + fieldsStateSize(smp.fields)
+
+	return stateSize, nil
 }
 
 func (smp *statsRowMinProcessor) needUpdateStateBytes(b []byte) bool {

@@ -11,18 +11,23 @@ import (
 type pipePackLogfmt struct {
 	resultField string
 
+	// the field names and/or field name prefixes to put inside the packed json
 	fields []string
 }
 
 func (pp *pipePackLogfmt) String() string {
 	s := "pack_logfmt"
 	if len(pp.fields) > 0 {
-		s += " fields (" + fieldsToString(pp.fields) + ")"
+		s += " fields (" + fieldsWithOptionalStarsToString(pp.fields) + ")"
 	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)
 	}
 	return s
+}
+
+func (pp *pipePackLogfmt) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pp, nil
 }
 
 func (pp *pipePackLogfmt) canLiveTail() bool {
@@ -37,7 +42,7 @@ func (pp *pipePackLogfmt) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pp, nil
 }
 
@@ -45,8 +50,8 @@ func (pp *pipePackLogfmt) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pp *pipePackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToLogfmt)
+func (pp *pipePackLogfmt) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	return newPipePackProcessor(ppNext, pp.resultField, pp.fields, MarshalFieldsToLogfmt)
 }
 
 func parsePipePackLogfmt(lex *lexer) (pipe, error) {

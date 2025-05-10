@@ -2,18 +2,18 @@
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.111.0)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.111.0)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.111.0)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) (v1.116.0)
+  -  [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) (v1.116.0)
+  -  [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) (v1.116.0)
 - [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
 
 ![typical setup diagram](guide-vmanomaly-vmalert_overview.webp)
 
-> **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
+> **Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
+> Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
 
 ## 1. What is vmanomaly?
 
@@ -21,9 +21,9 @@
 
 All the service parameters are defined in a config file.
 
-> **Note**: Starting from [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section for more details.
+> Starting from [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section for more details.
 
-> **Note**: Starting from [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config sections for more details.
+> Starting from [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config sections for more details.
 
 
 **vmanomaly** does the following:
@@ -44,9 +44,9 @@ Then, users can enable alerting rules based on the **anomaly score** with [vmale
 
 ## 2. What is vmalert?
 
-[vmalert](https://docs.victoriametrics.com/vmalert/) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
+[vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
 
-[Alerting rules](https://docs.victoriametrics.com/vmalert/#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](https://docs.victoriametrics.com/metricsql/). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of `1.0`.
+[Alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](https://docs.victoriametrics.com/victoriametrics/metricsql/). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of `1.0`.
 
 ## 3. How does vmanomaly works with vmalert?
 
@@ -55,9 +55,9 @@ Compared to classical alerting rules, anomaly detection is more "hands-off" and 
 Practical use case is to put anomaly score generated by vmanomaly into alerting rules with some threshold. 
 
 **In this tutorial we are going to:**
-  - Configure docker-compose file with all needed services ([VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics), [vmalert](https://docs.victoriametrics.com/vmalert/), [vmagent](https://docs.victoriametrics.com/vmagent/), [Grafana](https://grafana.com/), [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) and [vmanomaly](https://docs.victoriametrics.com/anomaly-detection/) ).
-  - Explore configuration files for [vmanomaly](https://docs.victoriametrics.com/anomaly-detection/) and [vmalert](https://docs.victoriametrics.com/vmalert/).
-  - Run our own [VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics) database with data scraped from [Node Exporter](https://prometheus.io/docs/guides/node-exporter/).
+  - Configure docker-compose file with all needed services ([VictoriaMetrics Single-Node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/), [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [Grafana](https://grafana.com/), [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) and [vmanomaly](https://docs.victoriametrics.com/anomaly-detection/) ).
+  - Explore configuration files for [vmanomaly](https://docs.victoriametrics.com/anomaly-detection/) and [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
+  - Run our own [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) database with data scraped from [Node Exporter](https://prometheus.io/docs/guides/node-exporter/).
   - Explore data for analysis in [Grafana](https://grafana.com/).
   - Explore `vmanomaly` results.
   - Explore `vmalert` alerts
@@ -88,7 +88,7 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 
 In this context, the metric `node_cpu_seconds_total` provides a comprehensive breakdown of the time each CPU core has spent in various operational modes. These modes include: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, and _steal_. Each of these eight modes is mutually exclusive, offering distinct insights into CPU activity. For instance, a predominant _iowait_ suggests disk or network bottlenecks, while elevated levels in _user_ or _system_ indicate significant CPU utilization.
 
-The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyconcepts/#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/metricsql/#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
+The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
 
 Below is an illustrative example of how this query might be visualized in Grafana:
 ![node_cpu_rate_graph](guide-vmanomaly-vmalert-query.webp)
@@ -138,7 +138,7 @@ schedulers:
   periodic:
     infer_every: "1m"
     fit_every: "1h"
-    fit_window: "2d" # 2d-14d based on the presense of weekly seasonality in your data
+    fit_window: "2d" # 2d-14d based on the presence of weekly seasonality in your data
 
 models:
   prophet:
@@ -315,7 +315,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.111.0
+    image: victoriametrics/vmagent:v1.116.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -332,7 +332,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.111.0
+    image: victoriametrics/victoria-metrics:v1.116.0
     ports:
       - 8428:8428
     volumes:
@@ -365,7 +365,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.111.0
+    image: victoriametrics/vmalert:v1.116.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -387,7 +387,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.19.2
+    image: victoriametrics/vmanomaly:v1.21.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -514,4 +514,4 @@ Key takeaways include:
 
 As you continue to use VictoriaMetrics Anomaly Detection and `vmalert`, remember that the effectiveness of anomaly detection largely depends on the appropriateness of the model chosen, the accuracy of configurations and the data patterns observed. This guide serves as a starting point, and we encourage you to experiment with different configurations and models to best suit your specific data needs and use cases. In case you need a helping hand - [contact us](https://victoriametrics.com/contact-us/).
 
-> **Note:** `node-exporter` observability preset{{% available_from "v1.13.0" anomaly %}} is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
+> `node-exporter` observability preset{{% available_from "v1.13.0" anomaly %}} is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).

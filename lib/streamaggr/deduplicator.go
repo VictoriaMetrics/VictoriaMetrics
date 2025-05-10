@@ -4,33 +4,39 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/histogram"
 )
 
 // Deduplicator deduplicates samples per each time series.
 type Deduplicator struct {
 	da *dedupAggr
 
-	dropLabels []string
+	cs            atomic.Pointer[currentState]
+	enableWindows bool
+	dropLabels    []string
+	interval      time.Duration
+	minDeadline   atomic.Int64
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 
 	ms *metrics.Set
-
-	dedupFlushDuration *metrics.Histogram
-	dedupFlushTimeouts *metrics.Counter
+	// time to wait after interval end before flush
+	flushAfter   *histogram.Fast
+	muFlushAfter sync.Mutex
 }
 
 // NewDeduplicator returns new deduplicator, which deduplicates samples per each time series.
 //
-// The de-duplicated samples are passed to pushFunc once per dedupInterval.
+// The de-duplicated samples are passed to pushFunc once per interval.
 //
 // An optional dropLabels list may contain label names, which must be dropped before de-duplicating samples.
 // Common case is to drop `replica`-like labels from samples received from HA datasources.
@@ -38,14 +44,25 @@ type Deduplicator struct {
 // alias is url label used in metrics exposed by the returned Deduplicator.
 //
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
-func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
+func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
-		da:         newDedupAggr(),
-		dropLabels: dropLabels,
-
-		stopCh: make(chan struct{}),
-		ms:     metrics.NewSet(),
+		da:            newDedupAggr(),
+		dropLabels:    dropLabels,
+		interval:      interval,
+		enableWindows: enableWindows,
+		stopCh:        make(chan struct{}),
+		ms:            metrics.NewSet(),
 	}
+	startTime := time.Now()
+	cs := &currentState{
+		maxDeadline: startTime.Add(interval).UnixMilli(),
+	}
+	d.cs.Store(cs)
+	if enableWindows {
+		d.flushAfter = histogram.GetFast()
+		d.minDeadline.Store(startTime.UnixMilli())
+	}
+	d.cs.Store(cs)
 
 	ms := d.ms
 
@@ -58,15 +75,15 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 		return float64(d.da.itemsCount())
 	})
 
-	d.dedupFlushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-	d.dedupFlushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.da.flushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
+	d.da.flushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
 
 	metrics.RegisterSet(ms)
 
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		d.runFlusher(pushFunc, dedupInterval)
+		d.runFlusher(pushFunc)
 	}()
 
 	return d
@@ -84,9 +101,12 @@ func (d *Deduplicator) MustStop() {
 // Push pushes tss to d.
 func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	ctx := getDeduplicatorPushCtx()
-	pss := ctx.pss
 	labels := &ctx.labels
 	buf := ctx.buf
+	cs := d.cs.Load()
+	nowMsec := time.Now().UnixMilli()
+	minDeadline := d.minDeadline.Load()
+	var maxLagMsec int64
 
 	dropLabels := d.dropLabels
 	for _, ts := range tss {
@@ -104,17 +124,41 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		buf = lc.Compress(buf, labels.Labels)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
-			pss = append(pss, pushSample{
-				key:       key,
-				value:     s.Value,
-				timestamp: s.Timestamp,
-			})
+			if d.enableWindows && minDeadline > s.Timestamp {
+				continue
+			} else if d.enableWindows && s.Timestamp <= cs.maxDeadline == cs.isGreen {
+				ctx.green = append(ctx.green, pushSample{
+					key:       key,
+					value:     s.Value,
+					timestamp: s.Timestamp,
+				})
+			} else {
+				ctx.blue = append(ctx.blue, pushSample{
+					key:       key,
+					value:     s.Value,
+					timestamp: s.Timestamp,
+				})
+			}
+			lagMsec := nowMsec - s.Timestamp
+			if lagMsec > maxLagMsec {
+				maxLagMsec = lagMsec
+			}
 		}
 	}
 
-	d.da.pushSamples(pss)
+	if d.enableWindows && maxLagMsec > 0 {
+		d.muFlushAfter.Lock()
+		d.flushAfter.Update(float64(maxLagMsec))
+		d.muFlushAfter.Unlock()
+	}
 
-	ctx.pss = pss
+	if len(ctx.blue) > 0 {
+		d.da.pushSamples(ctx.blue, 0, false)
+	}
+	if len(ctx.green) > 0 {
+		d.da.pushSamples(ctx.green, 0, true)
+	}
+
 	ctx.buf = buf
 	putDeduplicatorPushCtx(ctx)
 }
@@ -128,75 +172,92 @@ func dropSeriesLabels(dst, src []prompbmarshal.Label, labelNames []string) []pro
 	return dst
 }
 
-func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration) {
-	t := time.NewTicker(dedupInterval)
+func (d *Deduplicator) runFlusher(pushFunc PushFunc) {
+	t := time.NewTicker(d.interval)
+	var fa *histogram.Fast
 	defer t.Stop()
 	for {
 		select {
 		case <-d.stopCh:
 			return
 		case <-t.C:
-			d.flush(pushFunc, dedupInterval)
+			if d.enableWindows {
+				// Calculate delay and wait
+				d.muFlushAfter.Lock()
+				fa, d.flushAfter = d.flushAfter, histogram.GetFast()
+				d.muFlushAfter.Unlock()
+				delay := time.Duration(fa.Quantile(flushQuantile)) * time.Millisecond
+				histogram.PutFast(fa)
+				time.Sleep(delay)
+			}
+			d.flush(pushFunc)
 		}
 	}
 }
 
-func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
+func (d *Deduplicator) flush(pushFunc PushFunc) {
+	cs := d.cs.Load().newState()
+	d.minDeadline.Store(cs.maxDeadline)
 	startTime := time.Now()
-
-	timestamp := startTime.UnixMilli()
-	d.da.flush(func(pss []pushSample) {
+	deadlineTime := time.UnixMilli(cs.maxDeadline)
+	d.da.flush(func(samples []pushSample, _ int64, _ bool) {
 		ctx := getDeduplicatorFlushCtx()
 
 		tss := ctx.tss
 		labels := ctx.labels
-		samples := ctx.samples
-		for _, ps := range pss {
+		dstSamples := ctx.samples
+		for _, ps := range samples {
 			labelsLen := len(labels)
 			labels = decompressLabels(labels, ps.key)
 
-			samplesLen := len(samples)
-			samples = append(samples, prompbmarshal.Sample{
+			dstSamplesLen := len(dstSamples)
+			dstSamples = append(dstSamples, prompbmarshal.Sample{
 				Value:     ps.value,
-				Timestamp: timestamp,
+				Timestamp: ps.timestamp,
 			})
 
 			tss = append(tss, prompbmarshal.TimeSeries{
 				Labels:  labels[labelsLen:],
-				Samples: samples[samplesLen:],
+				Samples: dstSamples[dstSamplesLen:],
 			})
 		}
 		pushFunc(tss)
 
 		ctx.tss = tss
 		ctx.labels = labels
-		ctx.samples = samples
+		ctx.samples = dstSamples
 		putDeduplicatorFlushCtx(ctx)
-	})
+	}, cs.maxDeadline, cs.isGreen)
 
 	duration := time.Since(startTime)
-	d.dedupFlushDuration.Update(duration.Seconds())
-	if duration > dedupInterval {
-		d.dedupFlushTimeouts.Inc()
+	d.da.flushDuration.Update(duration.Seconds())
+	if duration > d.interval {
+		d.da.flushTimeouts.Inc()
 		logger.Warnf("deduplication couldn't be finished in the configured dedupInterval=%s; it took %.03fs; "+
-			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", dedupInterval, duration.Seconds())
+			"possible solutions: increase dedupInterval; reduce samples' ingestion rate", d.interval, duration.Seconds())
 	}
-
+	for time.Now().After(deadlineTime) {
+		deadlineTime = deadlineTime.Add(d.interval)
+	}
+	cs.maxDeadline = deadlineTime.UnixMilli()
+	if d.enableWindows {
+		cs.isGreen = !cs.isGreen
+	}
+	d.cs.Store(cs)
 }
 
 type deduplicatorPushCtx struct {
-	pss    []pushSample
-	labels promutils.Labels
+	blue   []pushSample
+	green  []pushSample
+	labels promutil.Labels
 	buf    []byte
 }
 
 func (ctx *deduplicatorPushCtx) reset() {
-	clear(ctx.pss)
-	ctx.pss = ctx.pss[:0]
-
-	ctx.labels.Reset()
-
+	ctx.blue = ctx.blue[:0]
+	ctx.green = ctx.green[:0]
 	ctx.buf = ctx.buf[:0]
+	ctx.labels.Reset()
 }
 
 func getDeduplicatorPushCtx() *deduplicatorPushCtx {

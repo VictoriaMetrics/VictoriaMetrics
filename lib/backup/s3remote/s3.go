@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -81,12 +82,15 @@ type FS struct {
 
 	s3       *s3.Client
 	uploader *manager.Uploader
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // Init initializes fs.
 //
 // The returned fs must be stopped when no long needed with MustStop call.
-func (fs *FS) Init() error {
+func (fs *FS) Init(ctx context.Context) error {
 	if fs.s3 != nil {
 		logger.Panicf("BUG: Init is already called")
 	}
@@ -97,16 +101,23 @@ func (fs *FS) Init() error {
 		fs.Dir += "/"
 	}
 	configOpts := []func(*config.LoadOptions) error{
-		config.WithSharedConfigProfile(fs.ProfileName),
 		config.WithDefaultRegion("us-east-1"),
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
 				o.MaxAttempts = 10
+				o.Retryables = append(retry.DefaultRetryables, retry.RetryableErrorCode{
+					Codes: map[string]struct{}{
+						"IncompleteBody": {},
+					},
+				})
 			})
 		}),
 	}
 
+	if len(fs.ProfileName) > 0 {
+		configOpts = append(configOpts, config.WithSharedConfigProfile(fs.ProfileName))
+	}
 	if len(fs.ConfigFilePath) > 0 {
 		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
 			fs.ConfigFilePath,
@@ -119,7 +130,8 @@ func (fs *FS) Init() error {
 		}))
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	fs.ctx, fs.cancel = context.WithCancel(ctx)
+	cfg, err := config.LoadDefaultConfig(fs.ctx,
 		configOpts...,
 	)
 	if err != nil {
@@ -130,11 +142,14 @@ func (fs *FS) Init() error {
 		return err
 	}
 
+	tr := httputil.NewTransport(true, "vmbackup_s3_client")
 	if fs.TLSInsecureSkipVerify {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		tr.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
 		}
-		cfg.HTTPClient = &http.Client{Transport: tr}
+	}
+	cfg.HTTPClient = &http.Client{
+		Transport: tr,
 	}
 
 	var outerErr error
@@ -144,7 +159,7 @@ func (fs *FS) Init() error {
 			o.UsePathStyle = fs.S3ForcePathStyle
 			o.BaseEndpoint = &fs.CustomEndpoint
 		} else {
-			region, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(cfg), fs.Bucket)
+			region, err := manager.GetBucketRegion(fs.ctx, s3.NewFromConfig(cfg), fs.Bucket)
 			if err != nil {
 				outerErr = fmt.Errorf("cannot determine region for bucket %q: %w", fs.Bucket, err)
 				return
@@ -168,6 +183,9 @@ func (fs *FS) Init() error {
 
 // MustStop stops fs.
 func (fs *FS) MustStop() {
+	if fs.cancel != nil {
+		fs.cancel()
+	}
 	fs.s3 = nil
 	fs.uploader = nil
 }
@@ -189,7 +207,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(context.TODO())
+		page, err := paginator.NextPage(fs.ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unexpected pagination error: %w", err)
 		}
@@ -246,7 +264,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		StorageClass: fs.StorageClass,
 	}
 
-	_, err := fs.s3.CopyObject(context.Background(), input)
+	_, err := fs.s3.CopyObject(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot copy %q from %s to %s (copySource %q): %w", p.Path, src, fs, copySource, err)
 	}
@@ -260,7 +278,7 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	o, err := fs.s3.GetObject(context.Background(), input)
+	o, err := fs.s3.GetObject(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot open %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
@@ -291,7 +309,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		StorageClass: fs.StorageClass,
 	}
 
-	_, err := fs.uploader.Upload(context.Background(), input)
+	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
@@ -336,7 +354,7 @@ func (fs *FS) deleteObject(path string) error {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	if _, err := fs.s3.DeleteObject(context.Background(), input); err != nil {
+	if _, err := fs.s3.DeleteObject(fs.ctx, input); err != nil {
 		return fmt.Errorf("cannot delete %q at %s: %w", path, fs, err)
 	}
 	return nil
@@ -344,7 +362,7 @@ func (fs *FS) deleteObject(path string) error {
 
 // deleteObjectWithVersions deletes object at path and all its versions.
 func (fs *FS) deleteObjectWithVersions(path string) error {
-	versions, err := fs.s3.ListObjectVersions(context.Background(), &s3.ListObjectVersionsInput{
+	versions, err := fs.s3.ListObjectVersions(fs.ctx, &s3.ListObjectVersionsInput{
 		Bucket: aws.String(fs.Bucket),
 		Prefix: aws.String(path),
 	})
@@ -358,7 +376,7 @@ func (fs *FS) deleteObjectWithVersions(path string) error {
 			Key:       version.Key,
 			VersionId: version.VersionId,
 		}
-		if _, err := fs.s3.DeleteObject(context.Background(), input); err != nil {
+		if _, err := fs.s3.DeleteObject(fs.ctx, input); err != nil {
 			return fmt.Errorf("cannot delete %q at %s: %w", path, fs, err)
 		}
 	}
@@ -380,7 +398,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		Body:         sr,
 		StorageClass: fs.StorageClass,
 	}
-	_, err := fs.uploader.Upload(context.Background(), input)
+	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
@@ -398,7 +416,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	o, err := fs.s3.GetObject(context.Background(), input)
+	o, err := fs.s3.GetObject(fs.ctx, input)
 	if err != nil {
 		if strings.Contains(err.Error(), "NoSuchKey") {
 			return false, nil
@@ -418,7 +436,7 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(p),
 	}
-	o, err := fs.s3.GetObject(context.Background(), input)
+	o, err := fs.s3.GetObject(fs.ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, p, err)
 	}

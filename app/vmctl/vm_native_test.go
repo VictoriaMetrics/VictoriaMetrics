@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -66,17 +67,24 @@ func TestVMNativeProcessorRun(t *testing.T) {
 			t.Fatalf("cannot add series to storage: %s", err)
 		}
 
+		tr := httputil.NewTransport(false, "test_client")
+		tr.DisableKeepAlives = false
+
 		srcClient := &native.Client{
 			AuthCfg:     nil,
 			Addr:        src.URL(),
 			ExtraLabels: []string{},
-			HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
+			HTTPClient: &http.Client{
+				Transport: tr,
+			},
 		}
 		dstClient := &native.Client{
 			AuthCfg:     nil,
 			Addr:        dst.URL(),
 			ExtraLabels: []string{},
-			HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
+			HTTPClient: &http.Client{
+				Transport: tr,
+			},
 		}
 
 		isSilent = true

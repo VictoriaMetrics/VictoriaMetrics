@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -21,6 +21,8 @@ type Alert struct {
 	GroupID uint64
 	// Name represents Alert name
 	Name string
+	// Type defines the datasource type of the Alert
+	Type string
 	// Labels is the list of label-value pairs attached to the Alert
 	Labels map[string]string
 	// Annotations is the list of annotations generated on Alert evaluation
@@ -78,6 +80,7 @@ func (as AlertState) String() string {
 
 // AlertTplData is used to execute templating
 type AlertTplData struct {
+	Type     string
 	Labels   map[string]string
 	Value    float64
 	Expr     string
@@ -89,6 +92,7 @@ type AlertTplData struct {
 
 var tplHeaders = []string{
 	"{{ $value := .Value }}",
+	"{{ $type := .Type }}",
 	"{{ $labels := .Labels }}",
 	"{{ $expr := .Expr }}",
 	"{{ $externalLabels := .ExternalLabels }}",
@@ -106,6 +110,7 @@ var tplHeaders = []string{
 func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string]string) (map[string]string, error) {
 	tplData := AlertTplData{
 		Value:    a.Value,
+		Type:     a.Type,
 		Labels:   labels,
 		Expr:     a.Expr,
 		AlertID:  a.ID,
@@ -141,7 +146,7 @@ func ValidateTemplates(annotations map[string]string) error {
 func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
-	eg := new(utils.ErrGroup)
+	eg := new(vmalertutil.ErrGroup)
 	r := make(map[string]string, len(annotations))
 	tData := tplData{data, externalLabels, externalURL}
 	header := strings.Join(tplHeaders, "")

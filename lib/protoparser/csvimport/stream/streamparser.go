@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -27,25 +27,25 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
-	wcr := writeconcurrencylimiter.GetReader(req.Body)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r := io.Reader(wcr)
-
 	q := req.URL.Query()
 	format := q.Get("format")
 	cds, err := csvimport.ParseColumnDescriptors(format)
 	if err != nil {
 		return fmt.Errorf("cannot parse the provided csv format: %w", err)
 	}
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped csv data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+
+	encoding := req.Header.Get("Content-Encoding")
+	reader, err := protoparserutil.GetUncompressedReader(req.Body, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode csv data: %w", err)
 	}
-	ctx := getStreamContext(r)
+	defer protoparserutil.PutUncompressedReader(reader)
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
@@ -54,7 +54,7 @@ func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
 		uw.cds = cds
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
-		common.ScheduleUnmarshalWork(uw)
+		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
@@ -69,7 +69,7 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = protoparserutil.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -165,7 +165,7 @@ func (uw *unmarshalWork) runCallback(rows []csvimport.Row) {
 	ctx.wg.Done()
 }
 
-// Unmarshal implements common.UnmarshalWork
+// Unmarshal implements prototparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf), uw.cds)
 	rows := uw.rows.Rows

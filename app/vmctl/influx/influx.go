@@ -144,9 +144,9 @@ func timeFilter(start, end string) string {
 // by checking available (non-empty) tags, fields and measurements
 // which unique combination represents all possible
 // time series existing in database.
-// The explore required to reduce the load on influx
+// Explore is required to reduce the load on influx
 // by querying field of the exact time series at once,
-// instead of fetching all of the values over and over.
+// instead of fetching all the values over and over.
 //
 // May contain non-existing time series.
 func (c *Client) Explore() ([]*Series, error) {
@@ -340,10 +340,7 @@ func (c *Client) fieldsByMeasurement() (map[string][]string, error) {
 }
 
 func (c *Client) getSeries() ([]*Series, error) {
-	com := "show series"
-	if c.filterSeries != "" {
-		com = fmt.Sprintf("%s %s", com, c.filterSeries)
-	}
+	com := c.getSeriesCommand()
 	q := influx.Query{
 		Command:         com,
 		Database:        c.database,
@@ -387,6 +384,21 @@ func (c *Client) getSeries() ([]*Series, error) {
 	}
 	log.Printf("found %d series", len(result))
 	return result, nil
+}
+
+func (c *Client) getSeriesCommand() string {
+	com := "show series"
+	if c.filterSeries != "" {
+		com = fmt.Sprintf("%s %s", com, c.filterSeries)
+	}
+	if c.filterTime != "" {
+		joinStatement := " where "
+		if strings.Contains(strings.ToLower(com), joinStatement) {
+			joinStatement = " AND "
+		}
+		com = fmt.Sprintf("%s%s%s", com, joinStatement, c.filterTime)
+	}
+	return com
 }
 
 // getMeasurementTags get the tags for each measurement.

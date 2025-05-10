@@ -26,9 +26,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 func main() {
@@ -66,8 +67,11 @@ func main() {
 					serverName := c.String(otsdbServerName)
 					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
 					addr := c.String(otsdbAddr)
+					if err := httputil.CheckURL(addr); err != nil {
+						return fmt.Errorf("invalid -%s: %w", otsdbAddr, err)
+					}
 
-					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_opentsdb")
 					if err != nil {
 						return fmt.Errorf("failed to create transport for -%s=%q: %s", otsdbAddr, addr, err)
 					}
@@ -116,7 +120,7 @@ func main() {
 					serverName := c.String(influxServerName)
 					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
 
-					tc, err := httputils.TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					tc, err := promauth.NewTLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -171,6 +175,9 @@ func main() {
 					fmt.Println("Remote-read import mode")
 
 					addr := c.String(remoteReadSrcAddr)
+					if err := httputil.CheckURL(addr); err != nil {
+						return fmt.Errorf("invalid -%s: %w", remoteReadSrcAddr, err)
+					}
 
 					// create TLS config
 					certFile := c.String(remoteReadCertFile)
@@ -179,7 +186,7 @@ func main() {
 					serverName := c.String(remoteReadServerName)
 					insecureSkipVerify := c.Bool(remoteReadInsecureSkipVerify)
 
-					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_remoteread")
 					if err != nil {
 						return fmt.Errorf("failed to create transport for -%s=%q: %s", remoteReadSrcAddr, addr, err)
 					}
@@ -341,7 +348,7 @@ func main() {
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
 						auth.WithHeaders(c.String(vmNativeSrcHeaders)))
 					if err != nil {
-						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
+						return fmt.Errorf("error initialize auth config for source: %s", srcAddr)
 					}
 
 					// create TLS config
@@ -351,15 +358,18 @@ func main() {
 					srcServerName := c.String(vmNativeSrcServerName)
 					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 
-					srcTC, err := httputils.TLSConfig(srcCertFile, srcKeyFile, srcCAFile, srcServerName, srcInsecureSkipVerify)
+					srcTC, err := promauth.NewTLSConfig(srcCertFile, srcKeyFile, srcCAFile, srcServerName, srcInsecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
 
-					srcHTTPClient := &http.Client{Transport: &http.Transport{
-						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig:   srcTC,
-					}}
+					trSrc := httputil.NewTransport(false, "vmctl_src")
+					trSrc.DisableKeepAlives = disableKeepAlive
+					trSrc.TLSClientConfig = srcTC
+
+					srcHTTPClient := &http.Client{
+						Transport: trSrc,
+					}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
@@ -368,7 +378,7 @@ func main() {
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
 						auth.WithHeaders(c.String(vmNativeDstHeaders)))
 					if err != nil {
-						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
+						return fmt.Errorf("error initialize auth config for destination: %s", dstAddr)
 					}
 
 					// create TLS config
@@ -378,15 +388,18 @@ func main() {
 					dstServerName := c.String(vmNativeDstServerName)
 					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 
-					dstTC, err := httputils.TLSConfig(dstCertFile, dstKeyFile, dstCAFile, dstServerName, dstInsecureSkipVerify)
+					dstTC, err := promauth.NewTLSConfig(dstCertFile, dstKeyFile, dstCAFile, dstServerName, dstInsecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
 
-					dstHTTPClient := &http.Client{Transport: &http.Transport{
-						DisableKeepAlives: disableKeepAlive,
-						TLSClientConfig:   dstTC,
-					}}
+					trDst := httputil.NewTransport(false, "vmctl_dst")
+					trDst.DisableKeepAlives = disableKeepAlive
+					trDst.TLSClientConfig = dstTC
+
+					dstHTTPClient := &http.Client{
+						Transport: trDst,
+					}
 
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
@@ -430,9 +443,12 @@ func main() {
 				},
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
-					common.StartUnmarshalWorkers()
+					protoparserutil.StartUnmarshalWorkers()
 					blockPath := c.Args().First()
-					isBlockGzipped := c.Bool("gunzip")
+					encoding := ""
+					if c.Bool("gunzip") {
+						encoding = "gzip"
+					}
 					if len(blockPath) == 0 {
 						return cli.Exit("you must provide path for exported data block", 1)
 					}
@@ -443,7 +459,7 @@ func main() {
 					}
 					defer f.Close()
 					var blocksCount atomic.Uint64
-					if err := stream.Parse(f, isBlockGzipped, func(_ *stream.Block) error {
+					if err := stream.Parse(f, encoding, func(_ *stream.Block) error {
 						blocksCount.Add(1)
 						return nil
 					}); err != nil {
@@ -473,6 +489,9 @@ func main() {
 
 func initConfigVM(c *cli.Context) (vm.Config, error) {
 	addr := c.String(vmAddr)
+	if err := httputil.CheckURL(addr); err != nil {
+		return vm.Config{}, fmt.Errorf("invalid -%s: %w", vmAddr, err)
+	}
 
 	// create Transport with given TLS config
 	certFile := c.String(vmCertFile)
@@ -481,7 +500,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	serverName := c.String(vmServerName)
 	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
 
-	tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(certFile, keyFile, caFile, serverName, insecureSkipVerify, "vmctl_client")
 	if err != nil {
 		return vm.Config{}, fmt.Errorf("failed to create transport for -%s=%q: %s", vmAddr, addr, err)
 	}

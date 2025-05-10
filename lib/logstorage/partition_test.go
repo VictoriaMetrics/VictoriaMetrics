@@ -66,11 +66,13 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 		lr := newTestLogRows(1, 1, 0)
 		totalRowsCount += uint64(len(lr.timestamps))
 		pt.mustAddRows(lr)
-		ddbStats.reset()
-		pt.ddb.updateStats(&ddbStats)
-		if n := ddbStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
-		}
+	}
+	pt.debugFlush()
+
+	ddbStats.reset()
+	pt.ddb.updateStats(&ddbStats)
+	if n := ddbStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
 	}
 
 	// Try adding different entry at a time.
@@ -78,11 +80,13 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 		lr := newTestLogRows(1, 1, int64(i))
 		totalRowsCount += uint64(len(lr.timestamps))
 		pt.mustAddRows(lr)
-		ddbStats.reset()
-		pt.ddb.updateStats(&ddbStats)
-		if n := ddbStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
-		}
+	}
+	pt.debugFlush()
+
+	ddbStats.reset()
+	pt.ddb.updateStats(&ddbStats)
+	if n := ddbStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
 	}
 
 	// Re-open the partition and verify the number of entries remains the same
@@ -105,12 +109,14 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 		lr := newTestLogRows(3, 7, 0)
 		totalRowsCount += uint64(len(lr.timestamps))
 		pt.mustAddRows(lr)
-		ddbStats.reset()
-		pt.ddb.updateStats(&ddbStats)
-		if n := ddbStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
-		}
 		time.Sleep(time.Millisecond)
+	}
+	pt.debugFlush()
+
+	ddbStats.reset()
+	pt.ddb.updateStats(&ddbStats)
+	if n := ddbStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
 	}
 
 	// Re-open the partition and verify the number of entries remains the same
@@ -165,6 +171,7 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 	}
+	pt.debugFlush()
 
 	var ddbStats DatadbStats
 	pt.ddb.updateStats(&ddbStats)

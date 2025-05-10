@@ -915,7 +915,7 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, pf, "_msg", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 
-		// mimatch
+		// mismatch
 		pf = &filterAnyCasePhrase{
 			fieldName: "_msg",
 			phrase:    "bar",

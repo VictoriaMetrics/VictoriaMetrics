@@ -223,9 +223,9 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns()
+		bs.br.initAllColumns(bsw.so.unneededColumnNames)
 	} else {
-		bs.br.initRequestedColumns()
+		bs.br.initRequestedColumns(bsw.so.neededColumnNames)
 	}
 }
 
@@ -272,7 +272,7 @@ func (bs *blockSearch) getConstColumnValue(name string) string {
 		b = b[cr.offset:]
 		bs.ccsCache = slicesutil.SetLength(bs.ccsCache, len(bs.ccsCache)+1)
 		cc := &bs.ccsCache[len(bs.ccsCache)-1]
-		if _, err := cc.unmarshalNoArena(b, false); err != nil {
+		if _, err := cc.unmarshalInplace(b, false); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal header for const column %q: %s", bs.bsw.p.path, name, err)
 		}
 		cc.Name = bs.getColumnNameByID(columnNameID)
@@ -322,7 +322,7 @@ func (bs *blockSearch) getColumnHeader(name string) *columnHeader {
 		b = b[cr.offset:]
 		bs.chsCache = slicesutil.SetLength(bs.chsCache, len(bs.chsCache)+1)
 		ch := &bs.chsCache[len(bs.chsCache)-1]
-		if _, err := ch.unmarshalNoArena(b, partFormatLatestVersion); err != nil {
+		if _, err := ch.unmarshalInplace(b, partFormatLatestVersion); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal header for column %q: %s", bs.bsw.p.path, name, err)
 		}
 		ch.name = bs.getColumnNameByID(columnNameID)
@@ -353,7 +353,7 @@ func (bs *blockSearch) getColumnsHeaderIndex() *columnsHeaderIndex {
 		bs.cshIndexBlockCache = readColumnsHeaderIndexBlock(bs.cshIndexBlockCache[:0], bs.bsw.p, &bs.bsw.bh)
 
 		bs.cshIndexCache = getColumnsHeaderIndex()
-		if err := bs.cshIndexCache.unmarshalNoArena(bs.cshIndexBlockCache); err != nil {
+		if err := bs.cshIndexCache.unmarshalInplace(bs.cshIndexBlockCache); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal columns header index: %s", bs.bsw.p.path, err)
 		}
 	}
@@ -366,7 +366,7 @@ func (bs *blockSearch) getColumnsHeader() *columnsHeader {
 
 		csh := getColumnsHeader()
 		partFormatVersion := bs.partFormatVersion()
-		if err := csh.unmarshalNoArena(b, partFormatVersion); err != nil {
+		if err := csh.unmarshalInplace(b, partFormatVersion); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal columns header: %s", bs.bsw.p.path, err)
 		}
 		if partFormatVersion >= 1 {
@@ -578,7 +578,8 @@ func (bs *blockSearch) getStreamStrSlow() string {
 	}
 
 	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, bb.B)
+	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
+	mustUnmarshalStreamTags(st, streamTagsCanonical)
 	bb.B = st.marshalString(bb.B[:0])
 	PutStreamTags(st)
 

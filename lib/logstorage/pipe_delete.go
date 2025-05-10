@@ -22,6 +22,10 @@ func (pd *pipeDelete) String() string {
 	return "delete " + fieldNamesString(pd.fields)
 }
 
+func (pd *pipeDelete) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pd, nil
+}
+
 func (pd *pipeDelete) canLiveTail() bool {
 	return true
 }
@@ -38,7 +42,7 @@ func (pd *pipeDelete) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pd, nil
 }
 
@@ -75,26 +79,14 @@ func parsePipeDelete(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("delete", "del", "rm", "drop") {
 		return nil, fmt.Errorf("expecting 'delete', 'del', 'rm' or 'drop'; got %q", lex.token)
 	}
+	lex.nextToken()
 
-	var fields []string
-	for {
-		lex.nextToken()
-		field, err := parseFieldName(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse field name: %w", err)
-		}
-
-		fields = append(fields, field)
-
-		switch {
-		case lex.isKeyword("|", ")", ""):
-			pd := &pipeDelete{
-				fields: fields,
-			}
-			return pd, nil
-		case lex.isKeyword(","):
-		default:
-			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|' or ')'", lex.token)
-		}
+	fields, err := parseCommaSeparatedFields(lex)
+	if err != nil {
+		return nil, err
 	}
+	pd := &pipeDelete{
+		fields: fields,
+	}
+	return pd, nil
 }

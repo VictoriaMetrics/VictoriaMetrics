@@ -19,6 +19,8 @@ import {
   LOGS_URL_PARAMS,
   WITHOUT_GROUPING
 } from "../../../constants/logs";
+import { getFromStorage, saveToStorage } from "../../../utils/storage";
+import LogParsingSwitches from "../../Configurators/LogsSettings/LogParsingSwitches";
 
 const {
   GROUP_BY,
@@ -46,9 +48,11 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
   const [dateFormat, setDateFormat] = useState(searchParams.get(DATE_FORMAT) || LOGS_DATE_FORMAT);
   const [errorFormat, setErrorFormat] = useState("");
 
+  const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
+
   const isGroupChanged = groupBy !== LOGS_GROUP_BY;
   const isDisplayFieldsChanged = displayFields.length !== 1 || displayFields[0] !== LOGS_DISPLAY_FIELDS;
-  const isTimeChanged = searchParams.get(DATE_FORMAT) !== LOGS_DATE_FORMAT;
+  const isTimeChanged = dateFormat !== LOGS_DATE_FORMAT;
   const hasChanges = [
     isGroupChanged,
     isDisplayFieldsChanged,
@@ -103,9 +107,18 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
   };
 
   const handleSaveAndClose = () => {
-    searchParams.set(DATE_FORMAT, dateFormat);
+    if (dateFormat === LOGS_DATE_FORMAT) {
+      searchParams.delete(DATE_FORMAT);
+    } else {
+      searchParams.set(DATE_FORMAT, dateFormat);
+    }
     setSearchParams(searchParams);
     handleClose();
+  };
+
+  const handleSetDisabledHovers = (value: boolean) => {
+    setDisabledHovers(value);
+    saveToStorage("LOGS_DISABLED_HOVERS", value);
   };
 
   const tooltipContent = () => {
@@ -213,6 +226,8 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
               </span>
             </div>
 
+            <LogParsingSwitches/>
+
             <div className="vm-group-logs-configurator-item">
               <Switch
                 value={noWrapLines}
@@ -220,7 +235,7 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
                 label="Single-line message"
               />
               <span className="vm-group-logs-configurator-item__info">
-                Displays message in a single line and truncates it with an ellipsis if it exceeds the available space
+                Displays message in a single line and truncates it with an ellipsis if it exceeds the available space.
               </span>
             </div>
 
@@ -232,6 +247,17 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
               />
               <span className="vm-group-logs-configurator-item__info">
                 Shows group headers in one line with a &quot;+N more&quot; badge for extra fields.
+              </span>
+            </div>
+
+            <div className="vm-group-logs-configurator-item">
+              <Switch
+                value={disabledHovers}
+                onChange={handleSetDisabledHovers}
+                label="Disable hover effects"
+              />
+              <span className="vm-group-logs-configurator-item__info">
+                Disable row highlighting on hover to improve performance with large datasets.
               </span>
             </div>
           </div>

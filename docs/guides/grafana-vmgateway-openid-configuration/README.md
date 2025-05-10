@@ -1,4 +1,4 @@
-Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) access to your metrics.
+Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
 to restrict access to metrics to only those that belong to the tenant.
@@ -8,7 +8,7 @@ to restrict access to metrics to only those that belong to the tenant.
 * Identity service that can issue [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token)
 * [Grafana](https://grafana.com/)
 * VictoriaMetrics single-node or cluster version
-* [vmgateway](https://docs.victoriametrics.com/vmgateway/)
+* [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/)
 * An active license key. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Configure identity service
@@ -26,7 +26,7 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
 }
 ```
 
-See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway/#access-control).
+See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control).
 
 ### Configuration example for Keycloak
 
@@ -49,7 +49,7 @@ See details about all supported options in the [vmgateway documentation](https:/
    ![Client secret](client-secret.webp)
    Copy the value of `Client secret`. It will be used later in Grafana configuration.<br>
 1. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
-   Click at `grafana-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
+   Click at `grafana-dedicated` -> `Configure a new mapper` -> `User attribute`.<br>
    ![Create mapper 1](create-mapper-1.webp)
    ![Create mapper 2](create-mapper-2.webp)
    Configure the mapper as follows<br>
@@ -61,8 +61,13 @@ See details about all supported options in the [vmgateway documentation](https:/
    
    ![Create mapper 3](create-mapper-3.webp)
    Click `Save`.<br>
-1. Go to `Users` -> select user to configure claims -> `Attributes`.<br>
-   Specify `vm_access` as `Key`.<br>
+1. Go to `Realm settings` -> `User profile`.<br>
+   Click `Create attribute`.<br>
+   Specify `vm_access` as `Attribute [Name]`.<br>
+   ![User attributes](create-attribute.webp)
+   Click `Save`.<br>
+1. Go to `Users` -> select user to configure.<br>
+   Modify value of `vm_access` attribute.<br>
    For the purpose of this example, we will use 2 users:<br>
    - for the first user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 0 },"extra_labels":{ "team": "admin" }}` as `Value`.
    - for the second user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 1 },"extra_labels":{ "team": "dev" }}` as `Value`.
@@ -133,7 +138,7 @@ or manually managing access at another proxy level.
 
 In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
 or `extra_filters` filled dynamically by using Identity Provider's user information.
-vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to provide additional filtering capabilities.
 
 For example, the following claims can be used to restrict user access to specific metrics:
@@ -159,7 +164,7 @@ So when user will try to query `vm_http_requests_total` query will be transforme
 
 ### Token signature verification
 
-It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/vmgateway/#jwt-signature-verification) at
+It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/victoriametrics/vmgateway/#jwt-signature-verification) at
 vmgateway.
 To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
@@ -181,7 +186,7 @@ Now vmgateway will print the following message on startup:
 
 That means that vmgateway has successfully fetched the public keys from the OpenID Connect discovery endpoint.
 
-It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway/#jwt-signature-verification) for details.
+It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/victoriametrics/vmgateway/#jwt-signature-verification) for details.
 
 ## Use Grafana to query metrics
 
@@ -195,7 +200,7 @@ In the "Type and version" section it is recommended to set the type to "Promethe
 This allows Grafana to use a more efficient API to get label values.
 
 You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) plugin.
-See installation instructions [here](https://docs.victoriametrics.com/victoriametrics-datasource/#installation).
+See installation instructions [here](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation).
 
 Enable `Forward OAuth identity` flag.<br>
 ![Oauth identity](grafana-ds.webp)
@@ -219,44 +224,44 @@ version: '3'
 
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:21.0
+    image: quay.io/keycloak/keycloak:26.1
     command:
       - start-dev
     ports:
       - 3001:8080
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: change_me
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: change_me
 
   grafana:
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:11.5.2
     network_mode: host
     volumes:
       - ./grafana.ini:/etc/grafana/grafana.ini
       - grafana_data:/var/lib/grafana/
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.111.0
+    image: victoriametrics/victoria-metrics:v1.116.0
     command:
       - -httpListenAddr=0.0.0.0:8429
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.111.0-cluster
+    image: victoriametrics/vmstorage:v1.116.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.111.0-cluster
+    image: victoriametrics/vminsert:v1.116.0-cluster
     command:
       - -storageNode=vmstorage:8400
       - -httpListenAddr=0.0.0.0:8480
 
   vmselect:
-    image: victoriametrics/vmselect:v1.111.0-cluster
+    image: victoriametrics/vmselect:v1.116.0-cluster
     command:
       - -storageNode=vmstorage:8401
       - -httpListenAddr=0.0.0.0:8481
 
   vmagent:
-    image: victoriametrics/vmagent:v1.111.0
+    image: victoriametrics/vmagent:v1.116.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -265,7 +270,7 @@ services:
       - -remoteWrite.url=http://vmsingle:8429/api/v1/write
 
   vmgateway-cluster:
-    image: victoriametrics/vmgateway:v1.111.0-enterprise
+    image: victoriametrics/vmgateway:v1.116.0-enterprise
     ports:
       - 8431:8431
     volumes:
@@ -281,7 +286,7 @@ services:
       - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
 
   vmgateway-single:
-    image: victoriametrics/vmgateway:v1.111.0-enterprise
+    image: victoriametrics/vmgateway:v1.116.0-enterprise
     ports:
       - 8432:8431
     volumes:
@@ -369,9 +374,9 @@ In order to create a client for vmagent to use, follow the steps below:
    ![Client secret](vmagent-client-secret.webp)
    Copy the value of `Client secret`. It will be used later in vmagent configuration.<br>
 1. Go to `Clients` -> `vmagent` -> `Client scopes`.<br>
-   Click at `vmagent-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
-   ![Create mapper 1](create-mapper-1.webp)
-   ![Create mapper 2](create-mapper-2.webp)
+   Click at `vmagent-dedicated` -> `Configure a new mapper` -> `User attribute`.<br>
+   ![Create mapper 1](vmagent-create-mapper-1.webp)
+   ![Create mapper 2](vmagent-create-mapper-2.webp)
    Configure the mapper as follows<br>
    - `Name` as `vm_access`.
    - `Token Claim Name` as `vm_access`.
@@ -379,13 +384,12 @@ In order to create a client for vmagent to use, follow the steps below:
    - `Claim JSON Type` as `JSON`.
      Enable `Add to ID token` and `Add to access token`.<br>
 
-   ![Create mapper 3](create-mapper-3.webp)
+   ![Create mapper 3](vmagent-create-mapper-3.webp)
    Click `Save`.<br>
 1. Go to `Service account roles` -> click on `service-account-vmagent`.<br>
    ![vmagent service account](vmagent-sa.webp)
 1. Go to `Attributes` tab and add an attribute.
-   Specify `vm_access` as `Key`.<br>
-   Specify `{"tenant_id" : {"account_id": 0, "project_id": 0 }}` as a value.<br>
+   Change `vm_access` attribute value to `{"tenant_id" : {"account_id": 0, "project_id": 0 }}`. <br>
    ![User attributes](vmagent-sa-attributes.webp)
    Click `Save`.
 
@@ -393,7 +397,7 @@ Once iDP configuration is done, vmagent configuration needs to be updated to use
 
 ```yaml
   vmagent:
-    image: victoriametrics/vmagent:v1.111.0
+    image: victoriametrics/vmagent:v1.116.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
       - ./vmagent-client-secret:/etc/vmagent/oauth2-client-secret

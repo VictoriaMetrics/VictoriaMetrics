@@ -16,9 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/klauspost/compress/gzip"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -27,7 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -46,6 +44,11 @@ var (
 		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields`)
 	ignoreFieldsUDP = flagutil.NewArrayString("syslog.ignoreFields.udp", "Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.udp. "+
 		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields`)
+
+	decolorizeFieldsTCP = flagutil.NewArrayString("syslog.decolorizeFields.tcp", "Fields to remove ANSI color codes across logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#decolorizing-fields`)
+	decolorizeFieldsUDP = flagutil.NewArrayString("syslog.decolorizeFields.udp", "Fields to remove ANSI color codes across logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#decolorizing-fields`)
 
 	extraFieldsTCP = flagutil.NewArrayString("syslog.extraFields.tcp", "Fields to add to logs ingested via the corresponding -syslog.listenAddr.tcp. "+
 		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields`)
@@ -190,6 +193,12 @@ func runUDPListener(addr string, argIdx int) {
 		logger.Fatalf("cannot parse -syslog.ignoreFields.udp=%q for -syslog.listenAddr.udp=%q: %s", ignoreFieldsStr, addr, err)
 	}
 
+	decolorizeFieldsStr := decolorizeFieldsUDP.GetOptionalArg(argIdx)
+	decolorizeFields, err := parseFieldsList(decolorizeFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.decolorizeFields.udp=%q for -syslog.listenAddr.udp=%q: %s", decolorizeFieldsStr, addr, err)
+	}
+
 	extraFieldsStr := extraFieldsUDP.GetOptionalArg(argIdx)
 	extraFields, err := parseExtraFields(extraFieldsStr)
 	if err != nil {
@@ -198,7 +207,7 @@ func runUDPListener(addr string, argIdx int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp, streamFields, ignoreFields, extraFields)
+		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp, streamFields, ignoreFields, decolorizeFields, extraFields)
 		close(doneCh)
 	}()
 
@@ -251,6 +260,12 @@ func runTCPListener(addr string, argIdx int) {
 		logger.Fatalf("cannot parse -syslog.ignoreFields.tcp=%q for -syslog.listenAddr.tcp=%q: %s", ignoreFieldsStr, addr, err)
 	}
 
+	decolorizeFieldsStr := decolorizeFieldsTCP.GetOptionalArg(argIdx)
+	decolorizeFields, err := parseFieldsList(decolorizeFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.decolorizeFields.tcp=%q for -syslog.listenAddr.tcp=%q: %s", decolorizeFieldsStr, addr, err)
+	}
+
 	extraFieldsStr := extraFieldsTCP.GetOptionalArg(argIdx)
 	extraFields, err := parseExtraFields(extraFieldsStr)
 	if err != nil {
@@ -259,7 +274,7 @@ func runTCPListener(addr string, argIdx int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp, streamFields, ignoreFields, extraFields)
+		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp, streamFields, ignoreFields, decolorizeFields, extraFields)
 		close(doneCh)
 	}()
 
@@ -274,14 +289,14 @@ func runTCPListener(addr string, argIdx int) {
 
 func checkCompressMethod(compressMethod, addr, protocol string) {
 	switch compressMethod {
-	case "", "none", "gzip", "deflate":
+	case "", "none", "zstd", "gzip", "deflate":
 		return
 	default:
-		logger.Fatalf("unsupported -syslog.compressMethod.%s=%q for -syslog.listenAddr.%s=%q; supported values: 'none', 'gzip', 'deflate'", protocol, compressMethod, protocol, addr)
+		logger.Fatalf("unsupported -syslog.compressMethod.%s=%q for -syslog.listenAddr.%s=%q; supported values: 'none', 'zstd', 'gzip', 'deflate'", protocol, compressMethod, protocol, addr)
 	}
 }
 
-func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
+func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, encoding string, useLocalTimestamp bool, streamFields, ignoreFields, decolorizeFields []string, extraFields []logstorage.Field) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -289,7 +304,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
+			cp := insertutil.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, decolorizeFields, extraFields)
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -314,7 +329,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 				}
 				bb.B = bb.B[:n]
 				udpRequestsTotal.Inc()
-				if err := processStream("udp", bb.NewReader(), compressMethod, useLocalTimestamp, cp); err != nil {
+				if err := processStream("udp", bb.NewReader(), encoding, useLocalTimestamp, cp); err != nil {
 					logger.Errorf("syslog: cannot process UDP data from %s at %s: %s", remoteAddr, localAddr, err)
 				}
 			}
@@ -323,7 +338,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
+func serveTCP(ln net.Listener, tenantID logstorage.TenantID, encoding string, useLocalTimestamp bool, streamFields, ignoreFields, decolorizeFields []string, extraFields []logstorage.Field) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -353,8 +368,8 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 
 		wg.Add(1)
 		go func() {
-			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
-			if err := processStream("tcp", c, compressMethod, useLocalTimestamp, cp); err != nil {
+			cp := insertutil.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, decolorizeFields, extraFields)
+			if err := processStream("tcp", c, encoding, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
 
@@ -369,52 +384,29 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 }
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
-func processStream(protocol string, r io.Reader, compressMethod string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
+func processStream(protocol string, r io.Reader, encoding string, useLocalTimestamp bool, cp *insertutil.CommonParams) error {
 	if err := vlstorage.CanWriteData(); err != nil {
 		return err
 	}
 
-	lmp := cp.NewLogMessageProcessor("syslog_" + protocol)
-	err := processStreamInternal(r, compressMethod, useLocalTimestamp, lmp)
+	lmp := cp.NewLogMessageProcessor("syslog_"+protocol, true)
+	err := processStreamInternal(r, encoding, useLocalTimestamp, lmp)
 	lmp.MustClose()
 
 	return err
 }
 
-func processStreamInternal(r io.Reader, compressMethod string, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
-	switch compressMethod {
-	case "", "none":
-	case "gzip":
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped data: %w", err)
-		}
-		r = zr
-	case "deflate":
-		zr, err := common.GetZlibReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read deflated data: %w", err)
-		}
-		r = zr
-	default:
-		logger.Panicf("BUG: unsupported compressMethod=%q; supported values: none, gzip, deflate", compressMethod)
+func processStreamInternal(r io.Reader, encoding string, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode syslog data: %w", err)
 	}
+	defer protoparserutil.PutUncompressedReader(reader)
 
-	err := processUncompressedStream(r, useLocalTimestamp, lmp)
-
-	switch compressMethod {
-	case "gzip":
-		zr := r.(*gzip.Reader)
-		common.PutGzipReader(zr)
-	case "deflate":
-		zr := r.(io.ReadCloser)
-		common.PutZlibReader(zr)
-	}
-
-	return err
+	return processUncompressedStream(reader, useLocalTimestamp, lmp)
 }
 
-func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
+func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
@@ -499,7 +491,7 @@ again:
 			slr.err = fmt.Errorf("cannot parse message length from %q: %w", msgLenStr, err)
 			return false
 		}
-		if maxMsgLen := insertutils.MaxLineSizeBytes.IntN(); msgLen > uint64(maxMsgLen) {
+		if maxMsgLen := insertutil.MaxLineSizeBytes.IntN(); msgLen > uint64(maxMsgLen) {
 			slr.err = fmt.Errorf("cannot read message longer than %d bytes; msgLen=%d", maxMsgLen, msgLen)
 			return false
 		}
@@ -551,7 +543,7 @@ func putSyslogLineReader(slr *syslogLineReader) {
 
 var syslogLineReaderPool sync.Pool
 
-func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
+func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
 	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
@@ -560,7 +552,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 	if useLocalTimestamp {
 		ts = time.Now().UnixNano()
 	} else {
-		nsecs, err := insertutils.ExtractTimestampFromFields("timestamp", p.Fields)
+		nsecs, err := insertutil.ExtractTimestampFromFields(timeFields, p.Fields)
 		if err != nil {
 			return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
 		}
@@ -573,6 +565,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 	return nil
 }
 
+var timeFields = []string{"timestamp"}
 var msgFields = []string{"message"}
 
 var (

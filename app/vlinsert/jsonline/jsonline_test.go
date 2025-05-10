@@ -2,19 +2,23 @@ package jsonline
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
-func TestProcessStreamInternal(t *testing.T) {
+func TestProcessStreamInternalSuccess(t *testing.T) {
 	f := func(data, timeField, msgField string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
+		timeFields := []string{timeField}
 		msgFields := []string{msgField}
-		tlp := &insertutils.TestLogMessageProcessor{}
+		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		processStreamInternal("test", r, timeField, msgFields, tlp)
+		if err := processStreamInternal("test", r, timeFields, msgFields, tlp); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
 		if err := tlp.Verify(timestampsExpected, resultExpected); err != nil {
 			t.Fatal(err)
@@ -44,22 +48,6 @@ func TestProcessStreamInternal(t *testing.T) {
 {"message":"baz"}`
 	f(data, timeField, msgField, timestampsExpected, resultExpected)
 
-	// invalid json
-	data = "foobar"
-	timeField = "@timestamp"
-	msgField = "aaa"
-	timestampsExpected = nil
-	resultExpected = ``
-	f(data, timeField, msgField, timestampsExpected, resultExpected)
-
-	// invalid timestamp field
-	data = `{"time":"foobar"}`
-	timeField = "time"
-	msgField = "abc"
-	timestampsExpected = nil
-	resultExpected = ``
-	f(data, timeField, msgField, timestampsExpected, resultExpected)
-
 	// invalid lines among valid lines
 	data = `
 dsfodmasd
@@ -76,4 +64,34 @@ asbsdf
 	resultExpected = `{"log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
 {"_msg":"baz"}`
 	f(data, timeField, msgField, timestampsExpected, resultExpected)
+}
+
+func TestProcessStreamInternalFailure(t *testing.T) {
+	f := func(data string) {
+		t.Helper()
+
+		tlp := &insertutil.TestLogMessageProcessor{}
+		r := strings.NewReader(data)
+		if err := processStreamInternal("test", r, []string{"time"}, nil, tlp); err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+
+		if err := tlp.Verify(nil, ""); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}
+
+	// invalid json
+	f("foobar")
+
+	f(`foo
+bar`)
+
+	f(`
+foo
+
+`)
+
+	// invalid timestamp field
+	f(`{"time":"foobar"}`)
 }

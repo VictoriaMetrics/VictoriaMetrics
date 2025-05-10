@@ -24,10 +24,10 @@ import (
 // Directory buckets - For directory buckets, you must make requests for this API
 // operation to the Zonal endpoint. These endpoints support virtual-hosted-style
 // requests in the format
-// https://amzn-s3-demo-bucket.s3express-zone-id.region-code.amazonaws.com/key-name
-// . Path-style requests are not supported. For more information about endpoints
-// in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
-// about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
+// https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
+// Path-style requests are not supported. For more information about endpoints in
+// Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about
+// endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // Permissions
 //
@@ -188,7 +188,7 @@ type GetObjectAttributesInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
+	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -203,12 +203,13 @@ type GetObjectAttributesInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
-	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
-	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
-	// you use this action with S3 on Outposts, the destination bucket must be the
-	// Outposts access point ARN or the access point alias. For more information about
-	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
+	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
+	// takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
@@ -297,11 +298,8 @@ type GetObjectAttributesOutput struct {
 
 	// Specifies whether the object retrieved was ( true ) or was not ( false ) a
 	// delete marker. If false , this response header does not appear in the response.
-	// To learn more about delete markers, see [Working with delete markers].
 	//
 	// This functionality is not supported for directory buckets.
-	//
-	// [Working with delete markers]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeleteMarker.html
 	DeleteMarker *bool
 
 	// An ETag is an opaque identifier assigned by a web server to a specific version

@@ -266,7 +266,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	des := fs.MustReadDir(partitionsPath)
 	ptws := make([]*partitionWrapper, len(des))
 
-	// Open partitions in parallel. This should improve VictoriaLogs initializiation duration
+	// Open partitions in parallel. This should improve VictoriaLogs initialization duration
 	// when it opens many partitions.
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
@@ -519,6 +519,9 @@ func (s *Storage) MustForceMerge(partitionNamePrefix string) {
 //
 // It is recommended checking whether the s is in read-only mode by calling IsReadOnly()
 // before calling MustAddRows.
+//
+// The added rows become visible for search after small duration of time.
+// Call DebugFlush if the added rows must be queried immediately (for example, it tests).
 func (s *Storage) MustAddRows(lr *LogRows) {
 	// Fast path - try adding all the rows to the hot partition
 	s.partitionsLock.Lock()
@@ -565,7 +568,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 		}
 		lrPart := m[day]
 		if lrPart == nil {
-			lrPart = GetLogRows(nil, nil, nil, "")
+			lrPart = GetLogRows(nil, nil, nil, nil, "")
 			m[day] = lrPart
 		}
 		lrPart.mustAddInternal(lr.streamIDs[i], ts, lr.rows[i], lr.streamTagsCanonicals[i])
@@ -652,7 +655,10 @@ func (s *Storage) IsReadOnly() bool {
 	return available < s.minFreeDiskSpaceBytes
 }
 
-func (s *Storage) debugFlush() {
+// DebugFlush flushes all the buffered rows, so they become visible for search.
+//
+// This function is for debugging and testing purposes only, since it is slow.
+func (s *Storage) DebugFlush() {
 	s.partitionsLock.Lock()
 	ptws := append([]*partitionWrapper{}, s.partitions...)
 	for _, ptw := range ptws {

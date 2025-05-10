@@ -3,7 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   # Alerts group for vmagent assumes that Grafana dashboard
-  # https://grafana.com/grafana/dashboards/12683/ is installed.
+  # https://grafana.com/grafana/dashboards/12683 is installed.
   # Pls update the `dashboard` annotation according to your setup.
   - name: vmagent
     interval: 30s
@@ -40,6 +40,17 @@ groups:
           dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=31&var-instance={{ $labels.instance }}"
           summary: "Vmagent fails to scrape one or more targets"
           description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to scrape targets for last 15m"
+
+      - alert: ScrapePoolHasNoTargets
+        expr: sum(vm_promscrape_scrape_pool_targets) without (status) == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Vmagent has scrape_pool with 0 configured/discovered targets"
+          description: "Vmagent \"{{ $labels.job }}\" on instance {{ $labels.instance }} has scrape_pool \"{{ $labels.scrape_job }}\"
+            with 0 discovered targets. It is likely a misconfiguration. Please follow https://docs.victoriametrics.com/victoriametrics/vmagent/#debugging-scrape-targets
+            to troubleshoot the scraping config."
 
       - alert: TooManyWriteErrors
         expr: |
@@ -157,5 +168,5 @@ groups:
           severity: warning
         annotations:
           summary: "Deduplication \"{{ $labels.job }}\" (instance {{ $labels.instance }}) can't be finished within configured deduplication interval."
-          description: "Deduplication process can't keep up with the load and might produce incorrect results. Check docs https://docs.victoriametrics.com/stream-aggregation/#deduplication and logs for more details.
+          description: "Deduplication process can't keep up with the load and might produce incorrect results. Check docs https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication and logs for more details.
             Possible solutions: increase deduplication interval; deduplicate smaller number of series; reduce samples' ingestion rate."

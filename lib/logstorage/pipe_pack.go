@@ -1,8 +1,9 @@
 package logstorage
 
 import (
-	"unsafe"
+	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -27,14 +28,12 @@ func updateNeededFieldsForPipePack(neededFields, unneededFields fieldsSet, resul
 	}
 }
 
-func newPipePackProcessor(workersCount int, ppNext pipeProcessor, resultField string, fields []string, marshalFields func(dst []byte, fields []Field) []byte) pipeProcessor {
+func newPipePackProcessor(ppNext pipeProcessor, resultField string, fields []string, marshalFields func(dst []byte, fields []Field) []byte) pipeProcessor {
 	return &pipePackProcessor{
 		ppNext:        ppNext,
 		resultField:   resultField,
 		fields:        fields,
 		marshalFields: marshalFields,
-
-		shards: make([]pipePackProcessorShard, workersCount),
 	}
 }
 
@@ -44,17 +43,10 @@ type pipePackProcessor struct {
 	fields        []string
 	marshalFields func(dst []byte, fields []Field) []byte
 
-	shards []pipePackProcessorShard
+	shards atomicutil.Slice[pipePackProcessorShard]
 }
 
 type pipePackProcessorShard struct {
-	pipePackProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipePackProcessorShardNopad{})%128]byte
-}
-
-type pipePackProcessorShardNopad struct {
 	rc resultColumn
 
 	buf    []byte
@@ -68,18 +60,21 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &ppp.shards[workerID]
+	shard := ppp.shards.Get(workerID)
 
 	shard.rc.name = ppp.resultField
 
+	csAll := br.getColumns()
 	cs := shard.cs[:0]
 	if len(ppp.fields) == 0 {
-		csAll := br.getColumns()
 		cs = append(cs, csAll...)
 	} else {
-		for _, f := range ppp.fields {
-			c := br.getColumnByName(f)
-			cs = append(cs, c)
+		for _, c := range csAll {
+			for _, f := range ppp.fields {
+				if c.name == f || strings.HasSuffix(f, "*") && strings.HasPrefix(c.name, f[:len(f)-1]) {
+					cs = append(cs, c)
+				}
+			}
 		}
 	}
 	shard.cs = cs
@@ -103,7 +98,7 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 	shard.fields = fields
 
-	br.addResultColumn(&shard.rc)
+	br.addResultColumn(shard.rc)
 	ppp.ppNext.writeBlock(workerID, br)
 
 	shard.rc.reset()
@@ -111,4 +106,16 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 
 func (ppp *pipePackProcessor) flush() error {
 	return nil
+}
+
+func fieldsWithOptionalStarsToString(fields []string) string {
+	a := make([]string, len(fields))
+	for i, f := range fields {
+		if strings.HasSuffix(f, "*") {
+			a[i] = quoteTokenIfNeeded(f[:len(f)-1]) + "*"
+		} else {
+			a[i] = quoteTokenIfNeeded(f)
+		}
+	}
+	return strings.Join(a, ", ")
 }

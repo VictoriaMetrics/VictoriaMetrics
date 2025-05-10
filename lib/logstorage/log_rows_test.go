@@ -5,11 +5,21 @@ import (
 	"testing"
 )
 
-func TestLogRows_StreamFieldsOverride(t *testing.T) {
-	f := func(rows []string, streamFields []Field, ignoreFields []string, resultExpected []string) {
+func TestLogRows_WildcardIgnoreFields(t *testing.T) {
+	type opts struct {
+		rows []string
+
+		streamFields []string
+		ignoreFields []string
+		extraFields  []Field
+
+		resultExpected []string
+	}
+
+	f := func(o opts) {
 		t.Helper()
 
-		lr := GetLogRows(nil, ignoreFields, nil, "foobar")
+		lr := GetLogRows(o.streamFields, o.ignoreFields, nil, o.extraFields, "foobar")
 		defer PutLogRows(lr)
 
 		tid := TenantID{
@@ -19,66 +29,51 @@ func TestLogRows_StreamFieldsOverride(t *testing.T) {
 
 		p := GetJSONParser()
 		defer PutJSONParser(p)
-		for i, r := range rows {
+		for i, r := range o.rows {
 			if err := p.ParseLogMessage([]byte(r)); err != nil {
 				t.Fatalf("unexpected error when parsing %q: %s", r, err)
 			}
 			timestamp := int64(i)*1_000 + 1
-			lr.MustAdd(tid, timestamp, p.Fields, streamFields)
+			lr.MustAdd(tid, timestamp, p.Fields, nil)
 		}
 
 		var result []string
-		for i := range rows {
+		for i := range o.rows {
 			s := lr.GetRowString(i)
 			result = append(result, s)
 		}
-		if !reflect.DeepEqual(result, resultExpected) {
-			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, resultExpected)
+		if !reflect.DeepEqual(result, o.resultExpected) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, o.resultExpected)
 		}
 	}
 
-	f([]string{
-		`{"foo":"bar","_msg":"abc"}`,
-		`{"xyz":"bar","_msg":"abc"}`,
-		`{"xyz":"123","_msg":"abc"}`,
-	}, []Field{
-		{
-			Name:  "xyz",
-			Value: "123",
+	o := opts{
+		rows: []string{
+			`{"foo.a":"bar","foo.b":"abc","z":"abc","x":"y","_msg":"aaa","foobar":"b"}`,
+			`{"_msg":"x"}`,
 		},
-	}, nil, []string{
-		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
-		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000001001Z","xyz":"bar"}`,
-		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000002001Z","xyz":"123"}`,
-	})
-	f([]string{
-		`{"foo":"bar","_msg":"abc"}`,
-		`{"xyz":"bar","_msg":"abc"}`,
-		`{"xyz":"123","_msg":"abc"}`,
-	}, []Field{
-		{
-			Name:  "xyz",
-			Value: "123",
+		streamFields: []string{"foo.a", "foo.b", "foobar"},
+		ignoreFields: []string{"foo.*", "x"},
+		extraFields: []Field{
+			{
+				Name:  "foo.a",
+				Value: "1234",
+			},
 		},
-		{
-			Name:  "f1",
-			Value: "v1",
+		resultExpected: []string{
+			`{"_msg":"aaa","_stream":"{foo.a=\"1234\",foobar=\"b\"}","_time":"1970-01-01T00:00:00.000000001Z","foo.a":"1234","foobar":"b","z":"abc"}`,
+			`{"_msg":"x","_stream":"{foo.a=\"1234\"}","_time":"1970-01-01T00:00:00.000001001Z","foo.a":"1234"}`,
 		},
-	}, []string{"xyz", "qwert"}, []string{
-		`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
-		`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000001001Z"}`,
-		`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000002001Z"}`,
-	})
+	}
+	f(o)
 }
 
-func TestLogRows_DefaultMsgValue(t *testing.T) {
+func TestLogRows_StreamFieldsOverride(t *testing.T) {
 	type opts struct {
 		rows []string
 
-		streamFields    []string
-		ignoreFields    []string
-		extraFields     []Field
-		defaultMsgValue string
+		streamFields []Field
+		ignoreFields []string
 
 		resultExpected []string
 	}
@@ -86,7 +81,99 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	f := func(o opts) {
 		t.Helper()
 
-		lr := GetLogRows(o.streamFields, o.ignoreFields, o.extraFields, o.defaultMsgValue)
+		lr := GetLogRows(nil, o.ignoreFields, nil, nil, "foobar")
+		defer PutLogRows(lr)
+
+		tid := TenantID{
+			AccountID: 123,
+			ProjectID: 456,
+		}
+
+		p := GetJSONParser()
+		defer PutJSONParser(p)
+		for i, r := range o.rows {
+			if err := p.ParseLogMessage([]byte(r)); err != nil {
+				t.Fatalf("unexpected error when parsing %q: %s", r, err)
+			}
+			timestamp := int64(i)*1_000 + 1
+			lr.MustAdd(tid, timestamp, p.Fields, o.streamFields)
+		}
+
+		var result []string
+		for i := range o.rows {
+			s := lr.GetRowString(i)
+			result = append(result, s)
+		}
+		if !reflect.DeepEqual(result, o.resultExpected) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, o.resultExpected)
+		}
+	}
+
+	var o opts
+
+	o = opts{
+		rows: []string{
+			`{"foo":"bar","_msg":"abc"}`,
+			`{"xyz":"bar","_msg":"abc"}`,
+			`{"xyz":"123","_msg":"abc"}`,
+		},
+		streamFields: []Field{
+			{
+				Name:  "xyz",
+				Value: "123",
+			},
+		},
+		resultExpected: []string{
+			`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
+			`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000001001Z","xyz":"bar"}`,
+			`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000002001Z","xyz":"123"}`,
+		},
+	}
+	f(o)
+
+	o = opts{
+		rows: []string{
+			`{"foo":"bar","_msg":"abc"}`,
+			`{"xyz":"bar","_msg":"abc"}`,
+			`{"xyz":"123","_msg":"abc"}`,
+		},
+		streamFields: []Field{
+			{
+				Name:  "xyz",
+				Value: "123",
+			},
+			{
+				Name:  "f1",
+				Value: "v1",
+			},
+		},
+		ignoreFields: []string{"xyz", "qwert"},
+		resultExpected: []string{
+			`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
+			`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000001001Z"}`,
+			`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000002001Z"}`,
+		},
+	}
+	f(o)
+}
+
+func TestLogRows_DefaultMsgValue(t *testing.T) {
+	type opts struct {
+		rows []string
+
+		streamFields     []string
+		ignoreFields     []string
+		decolorizeFields []string
+		extraFields      []Field
+		defaultMsgValue  string
+
+		resultExpected []string
+	}
+
+	f := func(o opts) {
+		t.Helper()
+
+		lr := GetLogRows(o.streamFields, o.ignoreFields, o.decolorizeFields, o.extraFields, o.defaultMsgValue)
 		defer PutLogRows(lr)
 
 		tid := TenantID{
@@ -208,4 +295,50 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	}
 	f(o)
 
+	// decolorize
+	o = opts{
+		rows: []string{
+			`{"_msg":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","bar":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
+			`{"_msg":"abc","bar":"baz","x":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
+		},
+		decolorizeFields: []string{"_msg", "bar"},
+		resultExpected: []string{
+			`{"_msg":"fooERROR bar","_stream":"{}","_time":"1970-01-01T00:00:00.000000001Z","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000001001Z","bar":"fooERROR bar"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000002001Z","bar":"baz","x":"\u001b[mfoo\u001b[1;31mERROR bar\u001b[10;5H"}`,
+		},
+	}
+	f(o)
+}
+
+func TestInsertRow_MarshalUnmarshal(t *testing.T) {
+	r := &InsertRow{
+		TenantID: TenantID{
+			AccountID: 123,
+			ProjectID: 456,
+		},
+		StreamTagsCanonical: "foobar",
+		Timestamp:           789,
+		Fields: []Field{
+			{
+				Name:  "x",
+				Value: "y",
+			},
+			{
+				Name:  "qwe",
+				Value: "rty",
+			},
+		},
+	}
+	data := r.Marshal(nil)
+
+	var r2 InsertRow
+	tail, err := r2.UnmarshalInplace(data)
+	if err != nil {
+		t.Fatalf("unexpected error when unmarshaling InsertRow: %s", err)
+	}
+	if len(tail) > 0 {
+		t.Fatalf("unexpected tail left after unmarshaling InsertRow; len(tail)=%d; tail=%X", len(tail), tail)
+	}
 }

@@ -11,18 +11,18 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 // SDCheckInterval is check interval for Nomad service discovery.
 var SDCheckInterval = flag.Duration("promscrape.nomadSDCheckInterval", 30*time.Second, "Interval for checking for changes in Nomad. "+
 	"This works only if nomad_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#nomad_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#nomad_sd_configs for details")
 
 // nomadWatcher is a watcher for nomad api, updates services map in background with long-polling.
 type nomadWatcher struct {
-	client *discoveryutils.Client
+	client *discoveryutil.Client
 
 	serviceNamesQueryArgs string
 
@@ -44,7 +44,7 @@ type serviceWatcher struct {
 }
 
 // newNomadWatcher creates new watcher and starts background service discovery for Nomad.
-func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace, region string) *nomadWatcher {
+func newNomadWatcher(client *discoveryutil.Client, sdc *SDConfig, namespace, region string) *nomadWatcher {
 	qa := url.Values{}
 	if sdc.AllowStale == nil || *sdc.AllowStale {
 		qa.Set("stale", "")

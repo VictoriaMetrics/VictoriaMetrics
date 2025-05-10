@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 type statsValues struct {
@@ -158,7 +161,7 @@ func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, b
 	return stateSizeIncrease
 }
 
-func (svp *statsValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (svp *statsValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	sv := sf.(*statsValues)
 	if svp.limitReached(sv) {
 		return
@@ -166,6 +169,45 @@ func (svp *statsValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
 
 	src := sfp.(*statsValuesProcessor)
 	svp.values = append(svp.values, src.values...)
+}
+
+func (svp *statsValuesProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	dst = encoding.MarshalVarUint64(dst, uint64(len(svp.values)))
+	for _, v := range svp.values {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
+	}
+	return dst
+}
+
+func (svp *statsValuesProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	valuesLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal valuesLen")
+	}
+	src = src[n:]
+
+	values := make([]string, valuesLen)
+	stateSize := int(unsafe.Sizeof(values[0])) * len(values)
+	for i := range values {
+		v, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot unmarshal value")
+		}
+		src = src[n:]
+
+		values[i] = string(v)
+		stateSize += len(v)
+	}
+	if len(values) == 0 {
+		values = nil
+	}
+	svp.values = values
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return stateSize, nil
 }
 
 func (svp *statsValuesProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {

@@ -84,7 +84,7 @@ func testFilterMatchForStreamID(t *testing.T, f filter, expectedRowIdxs []int) {
 
 func generateTestLogStreams(s *Storage, tenantID TenantID, getMsgValue func(int) string, rowsCount, streamsCount int) {
 	streamFields := []string{"host", "app"}
-	lr := GetLogRows(streamFields, nil, nil, "")
+	lr := GetLogRows(streamFields, nil, nil, nil, "")
 	var fields []Field
 	for i := range rowsCount {
 		fields = append(fields[:0], Field{
@@ -102,4 +102,5 @@ func generateTestLogStreams(s *Storage, tenantID TenantID, getMsgValue func(int)
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)
+	s.DebugFlush()
 }

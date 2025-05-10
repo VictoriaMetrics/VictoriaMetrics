@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"path/filepath"
@@ -38,15 +39,15 @@ func runParallel(concurrency int, parts []common.Part, f func(p common.Part) err
 	return err
 }
 
-func runParallelPerPath(concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error, progress func(elapsed time.Duration)) error {
+func runParallelPerPath(ctx context.Context, concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error, progress func(elapsed time.Duration)) error {
 	var err error
 	runWithProgress(progress, func() {
-		err = runParallelPerPathInternal(concurrency, perPath, f)
+		err = runParallelPerPathInternal(ctx, concurrency, perPath, f)
 	})
 	return err
 }
 
-func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error) error {
+func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error) error {
 	if concurrency <= 0 {
 		concurrency = 1
 	}
@@ -57,7 +58,8 @@ func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Par
 	// len(perPath) capacity guarantees non-blocking behavior below.
 	resultCh := make(chan error, len(perPath))
 	workCh := make(chan []common.Part, len(perPath))
-	stopCh := make(chan struct{})
+	ctxLocal, cancelLocal := context.WithCancel(ctx)
+	defer cancelLocal()
 
 	// Start workers
 	var wg sync.WaitGroup
@@ -67,7 +69,7 @@ func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Par
 			defer wg.Done()
 			for parts := range workCh {
 				select {
-				case <-stopCh:
+				case <-ctxLocal.Done():
 					return
 				default:
 				}
@@ -88,7 +90,7 @@ func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Par
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.
-			close(stopCh)
+			cancelLocal()
 			break
 		}
 	}
@@ -183,7 +185,7 @@ func getPartsSize(parts []common.Part) uint64 {
 }
 
 // NewRemoteFS returns new remote fs from the given path.
-func NewRemoteFS(path string) (common.RemoteFS, error) {
+func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
@@ -214,7 +216,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			Bucket:        bucket,
 			Dir:           dir,
 		}
-		if err := fs.Init(); err != nil {
+		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to gcs: %w", err)
 		}
 		return fs, nil
@@ -229,7 +231,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			Container: bucket,
 			Dir:       dir,
 		}
-		if err := fs.Init(); err != nil {
+		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to AZBlob: %w", err)
 		}
 		return fs, nil
@@ -251,7 +253,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			Bucket:                bucket,
 			Dir:                   dir,
 		}
-		if err := fs.Init(); err != nil {
+		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)
 		}
 		return fs, nil

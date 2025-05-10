@@ -43,6 +43,7 @@ export interface GraphViewProps {
   height?: number;
   isHistogram?: boolean;
   isAnomalyView?: boolean;
+  isPredefinedPanel?: boolean;
   spanGaps?: boolean;
 }
 
@@ -61,6 +62,7 @@ const GraphView: FC<GraphViewProps> = ({
   height,
   isHistogram,
   isAnomalyView,
+  isPredefinedPanel,
   spanGaps
 }) => {
   const graphDispatch = useGraphDispatch();
@@ -262,11 +264,11 @@ const GraphView: FC<GraphViewProps> = ({
           query={query}
           isAnomalyView={isAnomalyView}
           onChange={onChangeLegend}
+          isPredefinedPanel={isPredefinedPanel}
         />
       )}
       {isHistogram && showLegend && (
         <LegendHeatmap
-          series={series as SeriesItem[]}
           min={yaxis.limits.range[1][0] || 0}
           max={yaxis.limits.range[1][1] || 0}
           legendValue={legendValue}

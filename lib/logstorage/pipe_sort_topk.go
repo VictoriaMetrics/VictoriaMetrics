@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -17,17 +18,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func newPipeTopkProcessor(ps *pipeSort, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
-
-	shards := make([]pipeTopkProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeTopkProcessorShard{
-			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
-				ps: ps,
-			},
-		}
-	}
 
 	ptp := &pipeTopkProcessor{
 		ps:     ps,
@@ -35,9 +27,10 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	ptp.shards.Init = func(shard *pipeTopkProcessorShard) {
+		shard.ps = ps
 	}
 	ptp.stateSizeBudget.Store(maxStateSize)
 
@@ -50,20 +43,13 @@ type pipeTopkProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	shards []pipeTopkProcessorShard
+	shards atomicutil.Slice[pipeTopkProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeTopkProcessorShard struct {
-	pipeTopkProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeTopkProcessorShardNopad{})%128]byte
-}
-
-type pipeTopkProcessorShardNopad struct {
 	// ps points to the parent pipeSort.
 	ps *pipeSort
 
@@ -373,7 +359,7 @@ func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &ptp.shards[workerID]
+	shard := ptp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -402,14 +388,18 @@ func (ptp *pipeTopkProcessor) flush() error {
 	}
 
 	// Sort every shard in parallel
+	shards := ptp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	var wg sync.WaitGroup
-	shards := ptp.shards
-	for i := range shards {
+	for _, shard := range shards {
 		wg.Add(1)
 		go func(shard *pipeTopkProcessorShard) {
+			defer wg.Done()
 			shard.sortRows(ptp.stopCh)
-			wg.Done()
-		}(&shards[i])
+		}(shard)
 	}
 	wg.Wait()
 
@@ -420,8 +410,8 @@ func (ptp *pipeTopkProcessor) flush() error {
 	// Obtain all the partition keys
 	partitionKeysMap := make(map[string]struct{})
 	var partitionKeys []string
-	for i := range shards {
-		for k := range shards[i].rowsByPartition {
+	for _, shard := range shards {
+		for k := range shard.rowsByPartition {
 			if _, ok := partitionKeysMap[k]; !ok {
 				partitionKeysMap[k] = struct{}{}
 				partitionKeys = append(partitionKeys, k)

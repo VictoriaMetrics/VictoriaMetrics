@@ -1,0 +1,33 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+) %}
+
+{% stripspace %}
+MetricNamesStatsResponse generates response for /api/v1/status/metric_names_stats .
+{% func MetricNamesStatsResponse(stats *storage.MetricNamesStatsResponse, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+  "statsCollectedSince": {%dul= stats.CollectedSinceTs %},
+  "statsCollectedRecordsTotal": {%dul= stats.TotalRecords %},
+  "trackerMemoryMaxSizeBytes": {%dul= stats.MaxSizeBytes %},
+  "trackerCurrentMemoryUsageBytes": {%dul= stats.CurrentSizeBytes %},
+  "records":
+  [
+    {% for i, r := range stats.Records %}
+      {
+        "metricName":{%q= r.MetricName %},
+        "queryRequestsCount":{%dul= r.RequestsCount %},
+        "lastQueryRequestTimestamp":{%dul= r.LastRequestTs %}
+      }
+      {% if i+1 < len(stats.Records) %},{% endif %}
+    {% endfor %}
+  ]
+	{% code	qt.Done() %}
+	{% code	traceJSON := qt.ToJSON() %}
+	{% if traceJSON != "" %},"trace":{%s= traceJSON %}{% endif %}
+
+}
+{% endfunc %}
+
+{% endstripspace %}

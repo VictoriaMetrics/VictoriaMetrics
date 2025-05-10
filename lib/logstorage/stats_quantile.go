@@ -10,6 +10,7 @@ import (
 	"github.com/valyala/fastrand"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -187,9 +188,17 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 	return stateSizeIncrease
 }
 
-func (sqp *statsQuantileProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (sqp *statsQuantileProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsQuantileProcessor)
 	sqp.h.mergeState(&src.h)
+}
+
+func (sqp *statsQuantileProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return sqp.h.exportState(dst)
+}
+
+func (sqp *statsQuantileProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	return sqp.h.importState(src)
 }
 
 func (sqp *statsQuantileProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
@@ -244,6 +253,80 @@ type histogram struct {
 	count uint64
 
 	rng fastrand.RNG
+}
+
+func (h *histogram) exportState(dst []byte) []byte {
+	dst = encoding.MarshalVarUint64(dst, uint64(len(h.a)))
+	for _, v := range h.a {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
+	}
+
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(h.min))
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(h.max))
+	dst = encoding.MarshalVarUint64(dst, h.count)
+
+	return dst
+}
+
+func (h *histogram) importState(src []byte) (int, error) {
+	// read h.a
+	itemsLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read itemsLen")
+	}
+	src = src[n:]
+
+	a := make([]string, itemsLen)
+	stateSize := int(unsafe.Sizeof(a[0])) * len(a)
+	for i := range a {
+		value, n := encoding.UnmarshalBytes(src)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot read value")
+		}
+		src = src[n:]
+
+		a[i] = string(value)
+		stateSize += len(value)
+	}
+	if len(a) == 0 {
+		a = nil
+	}
+	h.a = a
+
+	// read h.min
+	value, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read min value")
+	}
+	src = src[n:]
+
+	h.min = string(value)
+	stateSize += len(value)
+
+	// read h.max
+	value, n = encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read max value")
+	}
+	src = src[n:]
+
+	h.max = string(value)
+	stateSize += len(value)
+
+	// read h.count
+	count, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read count")
+	}
+	src = src[n:]
+
+	h.count = count
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return stateSize, nil
 }
 
 func (h *histogram) update(v string) int {

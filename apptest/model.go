@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"slices"
 	"sort"
@@ -22,10 +23,18 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
-// PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
-type PrometheusWriter interface {
+// Writer contains methods for writing new data
+type Writer interface {
+	// Prometheus APIs
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+
+	// Graphit APIs
+	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
+
+	// OpenTSDB APIs
+	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
 
 // StorageFlusher defines a method that forces the flushing of data inserted
@@ -34,25 +43,36 @@ type StorageFlusher interface {
 	ForceFlush(t *testing.T)
 }
 
+// StorageMerger defines a method that forces the merging of data inserted
+// into the storage.
+type StorageMerger interface {
+	ForceMerge(t *testing.T)
+}
+
 // PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
 type PrometheusWriteQuerier interface {
-	PrometheusWriter
+	Writer
 	PrometheusQuerier
 	StorageFlusher
+	StorageMerger
 }
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant       string
-	Timeout      string
-	Start        string
-	End          string
-	Time         string
-	Step         string
-	ExtraFilters []string
-	ExtraLabels  []string
-	Trace        string
+	Tenant         string
+	Timeout        string
+	Start          string
+	End            string
+	Time           string
+	Step           string
+	ExtraFilters   []string
+	ExtraLabels    []string
+	Trace          string
+	ReduceMemUsage string
+	MaxLookback    string
+	LatencyOffset  string
+	Format         string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -73,6 +93,10 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_label", qos.ExtraLabels...)
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
+	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
+	addNonEmpty("max_lookback", qos.MaxLookback)
+	addNonEmpty("latency_offset", qos.LatencyOffset)
+	addNonEmpty("format", qos.Format)
 
 	return uv
 }
@@ -88,8 +112,11 @@ func (qos *QueryOpts) getTenant() string {
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
 type PrometheusAPIV1QueryResponse struct {
-	Status string
-	Data   *QueryData
+	Status    string
+	Data      *QueryData
+	ErrorType string
+	Error     string
+	IsPartial bool
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
@@ -106,6 +133,10 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 
 // Sort performs data.Result sort by metric labels
 func (pqr *PrometheusAPIV1QueryResponse) Sort() {
+	if pqr.Data == nil {
+		return
+	}
+
 	sort.Slice(pqr.Data.Result, func(i, j int) bool {
 		leftS := make([]string, 0, len(pqr.Data.Result[i].Metric))
 		rightS := make([]string, 0, len(pqr.Data.Result[j].Metric))
@@ -121,6 +152,25 @@ func (pqr *PrometheusAPIV1QueryResponse) Sort() {
 		return strings.Join(leftS, ",") < strings.Join(rightS, ",")
 	})
 
+	for _, result := range pqr.Data.Result {
+		sort.Slice(result.Samples, func(i, j int) bool {
+			a := result.Samples[i]
+			b := result.Samples[j]
+			if a.Timestamp != b.Timestamp {
+				return a.Timestamp < b.Timestamp
+			}
+
+			// Put NaNs at the end of the slice.
+			if math.IsNaN(a.Value) {
+				return false
+			}
+			if math.IsNaN(b.Value) {
+				return true
+			}
+
+			return a.Value < b.Value
+		})
+	}
 }
 
 // QueryData holds the query result along with its type.
@@ -185,6 +235,8 @@ type PrometheusAPIV1SeriesResponse struct {
 	IsPartial bool
 	Data      []map[string]string
 	Trace     *Trace
+	ErrorType string
+	Error     string
 }
 
 // NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new
@@ -253,4 +305,106 @@ func (t *Trace) Contains(s string) int {
 		times += c.Contains(s)
 	}
 	return times
+}
+
+// MetricNamesStatsResponse is an inmemory representation of the
+// /api/v1/status/metric_names_stats API response
+type MetricNamesStatsResponse struct {
+	Records []MetricNamesStatsRecord
+}
+
+// MetricNamesStatsRecord is a record item for MetricNamesStatsResponse
+type MetricNamesStatsRecord struct {
+	MetricName         string
+	QueryRequestsCount uint64
+}
+
+// SnapshotCreateResponse is an in-memory representation of the json response
+// returned by the /snapshot/create endpoint.
+type SnapshotCreateResponse struct {
+	Status   string
+	Snapshot string
+}
+
+// APIV1AdminTSDBSnapshotResponse is an in-memory representation of the json
+// response returned by the /api/v1/admin/tsdb/snapshot endpoint.
+type APIV1AdminTSDBSnapshotResponse struct {
+	Status string
+	Data   *SnapshotData
+}
+
+// SnapshotData holds the info about the snapshot created via
+// /api/v1/admin/tsdb/snapshot endpoint.
+type SnapshotData struct {
+	Name string
+}
+
+// SnapshotListResponse is an in-memory representation of the json response
+// returned by the /snapshot/list endpoint.
+type SnapshotListResponse struct {
+	Status    string
+	Snapshots []string
+}
+
+// SnapshotDeleteResponse is an in-memory representation of the json response
+// returned by the /snapshot/delete endpoint.
+type SnapshotDeleteResponse struct {
+	Status string
+	Msg    string
+}
+
+// SnapshotDeleteAllResponse is an in-memory representation of the json response
+// returned by the /snapshot/delete_all endpoint.
+type SnapshotDeleteAllResponse struct {
+	Status string
+}
+
+// TSDBStatusResponse is an in-memory representation of the json response
+// returned by the /prometheus/api/v1/status/tsdb endpoint.
+type TSDBStatusResponse struct {
+	IsPartial bool
+	Data      TSDBStatusResponseData
+}
+
+// Sort performs sorting of stats entries
+func (tsr *TSDBStatusResponse) Sort() {
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelName)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByFocusLabelValue)
+	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelValuePair)
+	sortTSDBStatusResponseEntries(tsr.Data.LabelValueCountByLabelName)
+}
+
+// TSDBStatusResponseData is a part of TSDBStatusResponse
+type TSDBStatusResponseData struct {
+	TotalSeries                  int
+	TotalLabelValuePairs         int
+	SeriesCountByMetricName      []TSDBStatusResponseMetricNameEntry
+	SeriesCountByLabelName       []TSDBStatusResponseEntry
+	SeriesCountByFocusLabelValue []TSDBStatusResponseEntry
+	SeriesCountByLabelValuePair  []TSDBStatusResponseEntry
+	LabelValueCountByLabelName   []TSDBStatusResponseEntry
+}
+
+// TSDBStatusResponseEntry defines stats entry for TSDBStatusResponseData
+type TSDBStatusResponseEntry struct {
+	Name  string
+	Count int
+}
+
+// TSDBStatusResponseMetricNameEntry defines metric names stats entry for TSDBStatusResponseData
+type TSDBStatusResponseMetricNameEntry struct {
+	Name                 string
+	Count                int
+	RequestsCount        int
+	LastRequestTimestamp int
+}
+
+func sortTSDBStatusResponseEntries(entries []TSDBStatusResponseEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		left, right := entries[i], entries[j]
+		if left.Count == right.Count {
+			return left.Name < right.Name
+		}
+		return left.Count < right.Count
+	})
 }

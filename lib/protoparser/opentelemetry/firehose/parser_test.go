@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 )
 
@@ -225,7 +225,7 @@ func TestProcessRequestBody(t *testing.T) {
 {__name__="amazonaws.com/AWS/EBS/VolumeReadOps",cloud.provider="aws",cloud.account.id="677435890598",cloud.region="us-east-1",aws.exporter.arn="arn:aws:cloudwatch:us-east-1:677435890598:metric-stream/custom_ebs_metric",quantile="1"} 0 1709217300000
 `
 	var callbackCalls atomic.Uint64
-	err := stream.ParseStream(bytes.NewReader(data), false, ProcessRequestBody, func(tss []prompbmarshal.TimeSeries) error {
+	err := stream.ParseStream(bytes.NewReader(data), "", ProcessRequestBody, func(tss []prompbmarshal.TimeSeries) error {
 		callbackCalls.Add(1)
 		s := formatTimeseries(tss)
 		if s != sExpected {
@@ -242,7 +242,7 @@ func TestProcessRequestBody(t *testing.T) {
 }
 
 func formatTimeseries(tss []prompbmarshal.TimeSeries) string {
-	var labels promutils.Labels
+	var labels promutil.Labels
 	var a []string
 	for _, ts := range tss {
 		labels.Labels = ts.Labels

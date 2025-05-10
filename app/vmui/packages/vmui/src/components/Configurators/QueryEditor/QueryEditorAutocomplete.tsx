@@ -1,11 +1,11 @@
 import React, { FC, useState, useEffect, useMemo, useCallback } from "preact/compat";
 import Autocomplete from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
-import { escapeRegexp, hasUnclosedQuotes } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
 import { QueryContextType } from "../../../types";
 import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "./QueryEditor";
+import { getExprLastPart, getValueByContext, getContext } from "./autocompleteUtils";
 
 const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   value,
@@ -26,11 +26,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     return { beforeCursor, afterCursor };
   }, [value, caretPosition]);
 
-  const exprLastPart = useMemo(() => {
-    const regexpSplit = /\s(or|and|unless|default|ifnot|if|group_left|group_right)\s|}|\+|\|-|\*|\/|\^/i;
-    const parts = values.beforeCursor.split(regexpSplit);
-    return parts[parts.length - 1];
-  }, [values]);
+  const exprLastPart = useMemo(() => getExprLastPart(values.beforeCursor), [values]);
 
   const metric = useMemo(() => {
     const regex1 = /\w+\((?<metricName>[^)]+)\)\s+(by|without|on|ignoring)\s*\(\w*/gi;
@@ -54,44 +50,9 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     return match ? match[match.length - 1] : "";
   }, [exprLastPart]);
 
-  const shouldSuppressAutoSuggestion = (value: string) => {
-    const pattern = /([{(),+\-*/^]|\b(?:or|and|unless|default|ifnot|if|group_left|group_right|by|without|on|ignoring)\b)/i;
-    const parts = value.split(/\s+/);
-    const partsCount = parts.length;
-    const lastPart = parts[partsCount - 1];
-    const preLastPart = parts[partsCount - 2];
+  const context = useMemo(() => getContext(values.beforeCursor, metric, label), [values, metric, label]);
 
-    const hasEmptyPartAndQuotes = !lastPart && hasUnclosedQuotes(value);
-    const suppressPreLast = (!lastPart || parts.length > 1) && !pattern.test(preLastPart);
-    return hasEmptyPartAndQuotes || suppressPreLast;
-  };
-
-  const context = useMemo(() => {
-    const valueBeforeCursor = values.beforeCursor.trim();
-    const endOfClosedBrackets = ["}", ")"].some(char => valueBeforeCursor.endsWith(char));
-    const endOfClosedQuotes = !hasUnclosedQuotes(valueBeforeCursor) && ["`", "'", "\""].some(char => valueBeforeCursor.endsWith(char));
-    if (!values.beforeCursor || endOfClosedBrackets || endOfClosedQuotes || shouldSuppressAutoSuggestion(values.beforeCursor)) {
-      return QueryContextType.empty;
-    }
-
-    const labelRegexp = /(?:by|without|on|ignoring)\s*\(\s*[^)]*$|\{[^}]*$/i;
-    const patternLabelValue = `(${escapeRegexp(metric)})?{?.+${escapeRegexp(label)}(=|!=|=~|!~)"?([^"]*)$`;
-    const labelValueRegexp = new RegExp(patternLabelValue, "g");
-
-    switch (true) {
-      case labelValueRegexp.test(values.beforeCursor):
-        return QueryContextType.labelValue;
-      case labelRegexp.test(values.beforeCursor):
-        return QueryContextType.label;
-      default:
-        return QueryContextType.metricsql;
-    }
-  }, [values, metric, label]);
-
-  const valueByContext = useMemo(() => {
-    const wordMatch = values.beforeCursor.match(/([\w_.:]+(?![},]))$/);
-    return wordMatch ? wordMatch[0] : "";
-  }, [values.beforeCursor]);
+  const valueByContext = useMemo(() => getValueByContext(values.beforeCursor), [values.beforeCursor]);
 
   const { metrics, labels, labelValues, loading } = useFetchQueryOptions({
     valueByContext,

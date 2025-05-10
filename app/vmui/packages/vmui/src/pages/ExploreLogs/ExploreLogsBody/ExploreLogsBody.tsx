@@ -14,6 +14,7 @@ import GroupLogs from "../GroupLogs/GroupLogs";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import LineLoader from "../../../components/Main/LineLoader/LineLoader";
 import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
+import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
 
 const MemoizedTableLogs = React.memo(TableLogs);
 const MemoizedGroupLogs = React.memo(GroupLogs);
@@ -47,7 +48,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
   const columns = useMemo(() => {
-    if (!data?.length) return [];
+    if (!data?.length || activeTab !== DisplayType.table) return [];
     const keys = new Set<string>();
     for (const item of data) {
       for (const key in item) {
@@ -55,7 +56,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
       }
     }
     return Array.from(keys);
-  }, [data]);
+  }, [data, activeTab]);
 
   const handleChangeTab = (view: string) => {
     setActiveTab(view as DisplayType);
@@ -83,7 +84,12 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
           "vm-explore-logs-body-header_mobile": isMobile,
         })}
       >
-        <div className="vm-section-header__tabs">
+        <div
+          className={classNames({
+            "vm-section-header__tabs": true,
+            "vm-explore-logs-body-header__tabs_mobile": isMobile,
+          })}
+        >
           <Tabs
             activeItem={String(activeTab)}
             items={tabs}
@@ -99,20 +105,28 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
               limit={rowsPerPage}
               onChange={handleSetRowsPerPage}
             />
-            <TableSettings
-              columns={columns}
-              selectedColumns={displayColumns}
-              onChangeColumns={setDisplayColumns}
-              tableCompact={tableCompact}
-              toggleTableCompact={toggleTableCompact}
-            />
+            <div className="vm-explore-logs-body-header__table-settings">
+              {data.length > 0 && <DownloadLogsButton logs={data} />}
+              <TableSettings
+                columns={columns}
+                selectedColumns={displayColumns}
+                onChangeColumns={setDisplayColumns}
+                tableCompact={tableCompact}
+                toggleTableCompact={toggleTableCompact}
+              />
+            </div>
           </div>
         )}
         {activeTab === DisplayType.group && (
-          <div
-            className="vm-explore-logs-body-header__settings"
-            ref={groupSettingsRef}
-          />
+          <>
+            <div
+              className="vm-explore-logs-body-header__settings"
+              ref={groupSettingsRef}
+            />
+          </>
+        )}
+        {activeTab === DisplayType.json && data.length > 0 && (
+          <DownloadLogsButton logs={data} />
         )}
       </div>
 

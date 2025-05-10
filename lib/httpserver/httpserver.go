@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -63,6 +64,8 @@ var (
 	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
 	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
 	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+
+	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
 )
 
 var (
@@ -92,42 +95,14 @@ type ServeOptions struct {
 	// /health, /debug/pprof and few others
 	// In addition basic auth check and authKey checks will be disabled for the given addr
 	//
-	// Mostly required by http proxy servers, which peforms own authorization and requests routing
+	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
 }
 
 // Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default all the responses are transparently compressed, since egress traffic is usually expensive.
-//
-// The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
-//
-// If useProxyProtocol is set to true for the corresponding addr, then the incoming connections are accepted via proxy protocol.
-// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandler) {
-	if rh == nil {
-		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
-			return false
-		}
-	}
-	opts := ServeOptions{
-		UseProxyProtocol: useProxyProtocol,
-	}
-	for idx, addr := range addrs {
-		if addr == "" {
-			continue
-		}
-		go serve(addr, rh, idx, opts)
-	}
-}
-
-// ServeWithOpts starts an http server on the given addrs with the given optional request handlers.
-//
-// By default all the responses are transparently compressed, since egress traffic is usually expensive.
-//
-// The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
-// TODO: rename to Serve and update Serve usage with new signature
-func ServeWithOpts(addrs []string, rh RequestHandler, opts ServeOptions) {
+func Serve(addrs []string, rh RequestHandler, opts ServeOptions) {
 	if rh == nil {
 		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
@@ -386,9 +361,6 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 }
 
 func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh RequestHandler) bool {
-	if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
-		return true
-	}
 
 	h := w.Header()
 
@@ -482,7 +454,7 @@ func isProtectedByAuthFlag(path string) bool {
 	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
 		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
 		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
-		strings.HasPrefix(path, "/snapshot/")
+		strings.HasPrefix(path, "/snapshot/") || strings.HasSuffix(path, "/admin/status/metric_names_stats/reset")
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
@@ -529,6 +501,10 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 // EnableCORS enables https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 // on the response.
 func EnableCORS(w http.ResponseWriter, _ *http.Request) {
+	if *disableCORS {
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680
+		return
+	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 }
 
@@ -648,7 +624,7 @@ func (rwa *responseWriterWithAbort) abort() {
 		logger.Panicf("BUG: abort can be called only after http response headers are sent")
 	}
 	if rwa.aborted {
-		logger.WarnfSkipframes(2, "cannot abort the connection, since it has been already aborted")
+		// Nothing to do. The connection has been already aborted.
 		return
 	}
 	hj, ok := rwa.ResponseWriter.(http.Hijacker)
@@ -755,15 +731,32 @@ func GetRequestURI(r *http.Request) string {
 		return requestURI
 	}
 	_ = r.ParseForm()
-	queryArgs := r.PostForm.Encode()
-	if len(queryArgs) == 0 {
+	if len(r.PostForm) == 0 {
 		return requestURI
+	}
+	// code copied from url.Query.Encode
+	var queryArgs strings.Builder
+	for k := range r.PostForm {
+		vs := r.PostForm[k]
+		// mask authKey as well-known secret
+		if k == "authKey" {
+			vs = []string{"secret"}
+		}
+		keyEscaped := url.QueryEscape(k)
+		for _, v := range vs {
+			if queryArgs.Len() > 0 {
+				queryArgs.WriteByte('&')
+			}
+			queryArgs.WriteString(keyEscaped)
+			queryArgs.WriteByte('=')
+			queryArgs.WriteString(url.QueryEscape(v))
+		}
 	}
 	delimiter := "?"
 	if strings.Contains(requestURI, delimiter) {
 		delimiter = "&"
 	}
-	return requestURI + delimiter + queryArgs
+	return requestURI + delimiter + queryArgs.String()
 }
 
 // Redirect redirects to the given url.

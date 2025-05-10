@@ -18,6 +18,7 @@ export interface GraphState {
   isEmptyHistogram: boolean
   /** when true, null data values will not cause line breaks */
   spanGaps: boolean
+  openSettings: boolean
 }
 
 export type GraphAction =
@@ -27,6 +28,7 @@ export type GraphAction =
   | { type: "SET_IS_HISTOGRAM", payload: boolean }
   | { type: "SET_IS_EMPTY_HISTOGRAM", payload: boolean }
   | { type: "SET_SPAN_GAPS", payload: boolean }
+  | { type: "SET_OPEN_SETTINGS", payload: boolean }
 
 export const initialGraphState: GraphState = {
   customStep: getQueryStringValue("g0.step_input", "") as string,
@@ -36,6 +38,7 @@ export const initialGraphState: GraphState = {
   isHistogram: false,
   isEmptyHistogram: false,
   spanGaps: false,
+  openSettings: false
 };
 
 export function reducer(state: GraphState, action: GraphAction): GraphState {
@@ -81,6 +84,11 @@ export function reducer(state: GraphState, action: GraphAction): GraphState {
       return {
         ...state,
         spanGaps: action.payload
+      };
+    case "SET_OPEN_SETTINGS":
+      return {
+        ...state,
+        openSettings: action.payload
       };
     default:
       throw new Error();

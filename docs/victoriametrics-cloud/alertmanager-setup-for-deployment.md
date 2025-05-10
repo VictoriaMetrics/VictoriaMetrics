@@ -5,6 +5,11 @@ menu:
   docs:
     parent: "cloud"
     weight: 4
+tags:
+   - metrics
+   - cloud
+   - enterprise
+   - guide
 aliases:
   - /victoriametrics-cloud/alertmanager-setup-for-deployment/index.html
   - /managed-victoriametrics/alertmanager-setup-for-deployment/index.html

@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.eurekaSDCheckInterval", 30*time.Second, "Interval for checking for changes in eureka. "+
 	"This works only if eureka_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#eureka_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#eureka_sd_configs for details")
 
 // SDConfig represents service discovery config for eureka.
 //
@@ -83,7 +83,7 @@ type DataCenterInfo struct {
 }
 
 // GetLabels returns Eureka labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -108,16 +108,16 @@ func (sdc *SDConfig) MustStop() {
 	}
 }
 
-func addInstanceLabels(apps *applications) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addInstanceLabels(apps *applications) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, app := range apps.Applications {
 		for _, instance := range app.Instances {
 			instancePort := 80
 			if instance.Port.Port != 0 {
 				instancePort = instance.Port.Port
 			}
-			targetAddress := discoveryutils.JoinHostPort(instance.HostName, instancePort)
-			m := promutils.NewLabels(24)
+			targetAddress := discoveryutil.JoinHostPort(instance.HostName, instancePort)
+			m := promutil.NewLabels(24)
 			m.Add("__address__", targetAddress)
 			m.Add("instance", instance.InstanceID)
 			m.Add("__meta_eureka_app_name", app.Name)
@@ -143,11 +143,11 @@ func addInstanceLabels(apps *applications) []*promutils.Labels {
 			if len(instance.DataCenterInfo.Name) > 0 {
 				m.Add("__meta_eureka_app_instance_datacenterinfo_name", instance.DataCenterInfo.Name)
 				for _, tag := range instance.DataCenterInfo.Metadata.Items {
-					m.Add(discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local), tag.Content)
+					m.Add(discoveryutil.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local), tag.Content)
 				}
 			}
 			for _, tag := range instance.Metadata.Items {
-				m.Add(discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local), tag.Content)
+				m.Add(discoveryutil.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local), tag.Content)
 			}
 			ms = append(ms, m)
 		}

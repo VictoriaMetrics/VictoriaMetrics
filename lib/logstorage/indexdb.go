@@ -49,7 +49,7 @@ type IndexdbStats struct {
 }
 
 type indexdb struct {
-	// streamsCreatedTotal is the number of log streams created since the indexdb intialization.
+	// streamsCreatedTotal is the number of log streams created since the indexdb initialization.
 	streamsCreatedTotal atomic.Uint64
 
 	// the generation of the filterStreamCache.
@@ -83,7 +83,7 @@ func mustOpenIndexdb(path, partitionName string, s *Storage) *indexdb {
 		s:             s,
 	}
 	var isReadOnly atomic.Bool
-	idb.tb = mergeset.MustOpenTable(path, idb.invalidateStreamFilterCache, mergeTagToStreamIDsRows, &isReadOnly)
+	idb.tb = mergeset.MustOpenTable(path, s.flushInterval, idb.invalidateStreamFilterCache, mergeTagToStreamIDsRows, &isReadOnly)
 	return idb
 }
 
@@ -437,7 +437,7 @@ func (is *indexSearch) getStreamIDsForTagRegexp(tenantID TenantID, tagName strin
 	return ids
 }
 
-func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical []byte) {
+func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical string) {
 	st := GetStreamTags()
 	mustUnmarshalStreamTags(st, streamTagsCanonical)
 	tenantID := streamID.tenantID
@@ -785,7 +785,7 @@ func (sp *tagToStreamIDsRowParser) Reset() {
 
 // Init initializes sp from b, which should contain encoded tenantID:name:value -> streamIDs row.
 //
-// b cannot be re-used until Reset call.
+// b cannot be reused until Reset call.
 //
 // ParseStreamIDs() must be called later for obtaining sp.StreamIDs from the given tail.
 func (sp *tagToStreamIDsRowParser) Init(b []byte) error {
@@ -815,7 +815,7 @@ func (sp *tagToStreamIDsRowParser) MarshalPrefix(dst []byte) []byte {
 
 // InitOnlyTail initializes sp.tail from tail, which must contain streamIDs.
 //
-// tail cannot be re-used until Reset call.
+// tail cannot be reused until Reset call.
 //
 // ParseStreamIDs() must be called later for obtaining sp.StreamIDs from the given tail.
 func (sp *tagToStreamIDsRowParser) InitOnlyTail(tail []byte) error {

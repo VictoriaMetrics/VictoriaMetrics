@@ -91,6 +91,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 	}
 
 	outputMode := outputModeJSONMultiline
+	disableColors := true
 	wrapLongLines := false
 	s := ""
 	for {
@@ -100,7 +101,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 			case io.EOF:
 				if s != "" {
 					// This is non-interactive query execution.
-					executeQuery(context.Background(), rl, s, outputMode, wrapLongLines)
+					executeQuery(context.Background(), rl, s, outputMode, disableColors, wrapLongLines)
 				}
 				return
 			case readline.ErrInterrupt:
@@ -176,6 +177,24 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 			s = ""
 			continue
 		}
+		if s == `\disable_colors` {
+			if !disableColors {
+				disableColors = true
+				fmt.Fprintf(rl, `disabled colors in compact output mode; enter \enable_colors for enabling it`+"\n")
+			}
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
+			continue
+		}
+		if s == `\enable_colors` {
+			if disableColors {
+				disableColors = false
+				fmt.Fprintf(rl, `enabled colors in compact output mode; type \disable_colors for disabling it`+"\n")
+			}
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
+			continue
+		}
 		if line != "" && !strings.HasSuffix(line, ";") {
 			// Assume the query is incomplete and allow the user finishing the query on the next line
 			s += "\n"
@@ -185,7 +204,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 
 		// Execute the query
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		executeQuery(ctx, rl, s, outputMode, wrapLongLines)
+		executeQuery(ctx, rl, s, outputMode, disableColors, wrapLongLines)
 		cancel()
 
 		historyLines = pushToHistory(rl, historyLines, s)
@@ -273,13 +292,15 @@ func printCommandsHelp(w io.Writer) {
 \c - compact output mode
 \logfmt - logfmt output mode
 \wrap_long_lines - toggles wrapping long lines
+\enable_colors - enable ANSI colors in compact output mode
+\disable_colors - disable ANSI colors in compact output mode
 \tail <query> - live tail <query> results
 
 See https://docs.victoriametrics.com/victorialogs/querying/vlogscli/ for more details
 `)
 }
 
-func executeQuery(ctx context.Context, output io.Writer, qStr string, outputMode outputMode, wrapLongLines bool) {
+func executeQuery(ctx context.Context, output io.Writer, qStr string, outputMode outputMode, disableColors, wrapLongLines bool) {
 	if strings.HasPrefix(qStr, `\tail `) {
 		tailQuery(ctx, output, qStr, outputMode)
 		return
@@ -293,7 +314,7 @@ func executeQuery(ctx context.Context, output io.Writer, qStr string, outputMode
 		_ = respBody.Close()
 	}()
 
-	if err := readWithLess(respBody, wrapLongLines); err != nil {
+	if err := readWithLess(respBody, disableColors, wrapLongLines); err != nil {
 		fmt.Fprintf(output, "error when reading query response: %s\n", err)
 		return
 	}

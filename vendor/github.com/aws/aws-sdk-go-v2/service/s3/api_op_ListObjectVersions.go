@@ -143,10 +143,7 @@ type ListObjectVersionsOutput struct {
 	// calculating the number of returns.
 	CommonPrefixes []types.CommonPrefix
 
-	// Container for an object that is a delete marker. To learn more about delete
-	// markers, see [Working with delete markers].
-	//
-	// [Working with delete markers]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeleteMarker.html
+	// Container for an object that is a delete marker.
 	DeleteMarkers []types.DeleteMarkerEntry
 
 	// The delimiter grouping the included keys. A delimiter is a character that you

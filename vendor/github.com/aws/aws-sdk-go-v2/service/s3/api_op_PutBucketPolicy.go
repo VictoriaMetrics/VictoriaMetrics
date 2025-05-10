@@ -116,31 +116,30 @@ type PutBucketPolicyInput struct {
 	// This member is required.
 	Policy *string
 
-	// Indicates the algorithm used to create the checksum for the request when you
-	// use the SDK. This header will not provide any additional functionality if you
-	// don't use the SDK. When you send this header, there must be a corresponding
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum-algorithm or x-amz-trailer header sent. Otherwise, Amazon S3
 	// fails the request with the HTTP status code 400 Bad Request .
 	//
 	// For the x-amz-checksum-algorithm  header, replace  algorithm  with the
 	// supported algorithm from the following list:
 	//
-	//   - CRC-32
+	//   - CRC32
 	//
-	//   - CRC-32C
+	//   - CRC32C
 	//
-	//   - CRC-64NVME
+	//   - SHA1
 	//
-	//   - SHA-1
-	//
-	//   - SHA-256
+	//   - SHA256
 	//
 	// For more information, see [Checking object integrity] in the Amazon S3 User Guide.
 	//
 	// If the individual checksum value you provide through x-amz-checksum-algorithm
 	// doesn't match the checksum algorithm you set through
-	// x-amz-sdk-checksum-algorithm , Amazon S3 fails the request with a BadDigest
-	// error.
+	// x-amz-sdk-checksum-algorithm , Amazon S3 ignores any provided ChecksumAlgorithm
+	// parameter and uses the checksum algorithm that matches the provided value in
+	// x-amz-checksum-algorithm .
 	//
 	// For directory buckets, when you use Amazon Web Services SDKs, CRC32 is the
 	// default checksum algorithm that's used for performance.
@@ -257,9 +256,6 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
-		return err
-	}
 	if err = addOpPutBucketPolicyValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -340,10 +336,9 @@ func getPutBucketPolicyRequestAlgorithmMember(input interface{}) (string, bool) 
 }
 
 func addPutBucketPolicyInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketPolicyRequestAlgorithmMember,
 		RequireChecksum:                  true,
-		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

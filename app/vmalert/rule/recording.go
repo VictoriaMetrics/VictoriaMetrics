@@ -6,9 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -28,6 +30,7 @@ type RecordingRule struct {
 	GroupID   uint64
 	GroupName string
 	File      string
+	Debug     bool
 
 	q datasource.Querier
 
@@ -41,8 +44,30 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *utils.Counter
-	samples *utils.Gauge
+	errors  *vmalertutil.Counter
+	samples *vmalertutil.Gauge
+}
+
+func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRuleMetrics {
+	rmr := &recordingRuleMetrics{}
+
+	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, rr.GroupName, rr.File, rr.ID())
+	rmr.errors = vmalertutil.NewCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
+	rmr.samples = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+		func() float64 {
+			e := rr.state.getLast()
+			return float64(e.Samples)
+		})
+
+	return rmr
+}
+
+func (m *recordingRuleMetrics) close() {
+	if m == nil {
+		return
+	}
+	m.errors.Unregister()
+	m.samples.Unregister()
 }
 
 // String implements Stringer interface
@@ -58,22 +83,27 @@ func (rr *RecordingRule) ID() uint64 {
 
 // NewRecordingRule creates a new RecordingRule
 func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
+	debug := group.Debug
+	if cfg.Debug != nil {
+		debug = *cfg.Debug
+	}
 	rr := &RecordingRule{
 		Type:      group.Type,
 		RuleID:    cfg.ID,
 		Name:      cfg.Record,
 		Expr:      cfg.Expr,
 		Labels:    cfg.Labels,
-		GroupID:   group.ID(),
+		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
-		metrics:   &recordingRuleMetrics{},
+		Debug:     debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
+			Debug:                     debug,
 		}),
 	}
 
@@ -87,21 +117,16 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	rr.state = &ruleState{
 		entries: make([]StateEntry, entrySize),
 	}
-
-	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, group.Name, group.File, rr.ID())
-	rr.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
-	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
-		func() float64 {
-			e := rr.state.getLast()
-			return float64(e.Samples)
-		})
 	return rr
 }
 
+func (rr *RecordingRule) registerMetrics(set *metrics.Set) {
+	rr.metrics = newRecordingRuleMetrics(set, rr)
+}
+
 // close unregisters rule metrics
-func (rr *RecordingRule) close() {
-	rr.metrics.errors.Unregister()
-	rr.metrics.samples.Unregister()
+func (rr *RecordingRule) unregisterMetrics() {
+	rr.metrics.close()
 }
 
 // execRange executes recording rule on the given time range similarly to Exec.
@@ -151,6 +176,8 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 		return nil, curState.Err
 	}
 
+	rr.logDebugf(ts, "query returned %d samples (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
+
 	qMetrics := res.Data
 	numSeries := len(qMetrics)
 	if limit > 0 && numSeries > limit {
@@ -182,6 +209,17 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 	}
 	rr.lastEvaluation = curEvaluation
 	return tss, nil
+}
+
+func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
+	if !rr.Debug {
+		return
+	}
+	prefix := fmt.Sprintf("DEBUG recording rule %q, %q:%q (%d) at %v: ",
+		rr.File, rr.GroupName, rr.Name, rr.RuleID, at.Format(time.RFC3339))
+
+	msg := fmt.Sprintf(format, args...)
+	logger.Infof("%s", prefix+msg)
 }
 
 func stringToLabels(s string) []prompbmarshal.Label {
@@ -244,6 +282,7 @@ func (rr *RecordingRule) updateWith(r Rule) error {
 	rr.Expr = nr.Expr
 	rr.Labels = nr.Labels
 	rr.q = nr.q
+	rr.Debug = nr.Debug
 	return nil
 }
 

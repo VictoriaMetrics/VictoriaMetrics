@@ -34,7 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -42,8 +42,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
@@ -105,7 +105,7 @@ func main() {
 	// Some workloads may need increased GOGC values. Then such values can be set via GOGC environment variable.
 	// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction metric exposed at /metrics page
 	// exceeds 0.05 for extended periods of time.
-	cgroup.SetGOGC(30)
+	cgroup.SetGOGC(50)
 
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -145,10 +145,10 @@ func main() {
 	startTime := time.Now()
 	remotewrite.StartIngestionRateLimiter()
 	remotewrite.Init()
-	common.StartUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
-			return influx.InsertHandlerForReader(nil, r, false)
+			return influx.InsertHandlerForReader(nil, r, "")
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {
@@ -165,7 +165,9 @@ func main() {
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	})
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -195,7 +197,7 @@ func main() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer.MustStop()
 	}
-	common.StopUnmarshalWorkers()
+	protoparserutil.StopUnmarshalWorkers()
 	remotewrite.Stop()
 
 	logger.Infof("successfully stopped vmagent in %.3f seconds", time.Since(startTime).Seconds())
@@ -242,7 +244,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>vmagent</h2>")
-		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent/'>https://docs.victoriametrics.com/vmagent/</a></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victoriametrics/vmagent/'>https://docs.victoriametrics.com/victoriametrics/vmagent/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
 			{"targets", "status for discovered active targets"},
@@ -282,7 +284,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch path {
 	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
-		if common.HandleVMProtoServerHandshake(w, r) {
+		if protoparserutil.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
 		prometheusWriteRequests.Inc()
@@ -331,11 +333,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "/influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -443,8 +445,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
+		// https://prometheus.io/docs/prometheus/latest/querying/api/#targets
 		state := r.FormValue("state")
-		promscrape.WriteAPIV1Targets(w, state)
+		scrapePool := r.FormValue("scrapePool")
+		promscrape.WriteAPIV1Targets(w, state, scrapePool)
 		return true
 	case "/prometheus/target_response", "/target_response":
 		promscrapeTargetResponseRequests.Inc()
@@ -587,11 +591,11 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "influx/query":
 		influxQueryRequests.Inc()
-		influxutils.WriteDatabaseNames(w)
+		influxutil.WriteDatabaseNames(w)
 		return true
 	case "influx/health":
 		influxHealthRequests.Inc()
-		influxutils.WriteHealthCheckResponse(w)
+		influxutil.WriteHealthCheckResponse(w)
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
@@ -750,7 +754,7 @@ func usage() {
 	const s = `
 vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
 
-See the docs at https://docs.victoriametrics.com/vmagent/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
 `
 	flagutil.Usage(s)
 }

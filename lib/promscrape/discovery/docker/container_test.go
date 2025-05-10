@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseContainers(t *testing.T) {
@@ -187,11 +187,11 @@ func TestParseContainers(t *testing.T) {
 }
 
 func TestAddContainerLabels(t *testing.T) {
-	f := func(c container, networkLabels map[string]*promutils.Labels, labelssExpected []*promutils.Labels) {
+	f := func(c container, networkLabels map[string]*promutil.Labels, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addContainersLabels([]container{c}, networkLabels, 8012, "foobar", false)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	data := []byte(`[
@@ -307,8 +307,8 @@ func TestAddContainerLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.17.0.2:8012",
 			"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 			"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -353,8 +353,8 @@ func TestAddContainerLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "foobar",
 			"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 			"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -407,8 +407,8 @@ func TestAddContainerLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.17.0.2:8080",
 			"__meta_docker_container_id": "90bc3b31aa13da5c0b11af2e228d54b38428a84e25d4e249ae9e9c95e51a0700",
 			"__meta_docker_container_label_com_docker_compose_config_hash":      "c9f0bd5bb31921f94cff367d819a30a0cc08d4399080897a6c5cd74b983156ec",
@@ -575,8 +575,8 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 	}
 
 	// matchFirstNetwork = false
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.3:3306",
 			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -592,7 +592,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "3306",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.3:33060",
 			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -608,7 +608,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "33060",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.21.0.3:3306",
 			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -624,7 +624,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "3306",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.21.0.3:33060",
 			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -642,11 +642,11 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 		}),
 	}
 	labelss := addContainersLabels(containers, networkLabels, 80, "localhost", false)
-	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+	discoveryutil.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 
 	// matchFirstNetwork = true, so labels of `dockersd_private1` are removed
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.3:3306",
 			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -662,7 +662,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "3306",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.3:33060",
 			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -680,7 +680,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 		}),
 	}
 	labelss = addContainersLabels(containers, networkLabels, 80, "localhost", true)
-	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+	discoveryutil.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 }
 
 // TestDockerLinkedNetworkSettings test the case when `NetworkMode` of a container linked to another container:
@@ -857,8 +857,8 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 		t.Fatalf("parseContainers() error: %s", err)
 	}
 
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.2:3306",
 			"__meta_docker_container_id": "f9ade4b83199d6f83020b7c0bfd1e8281b19dbf9e6cef2cf89bc45c8f8d20fe8",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -874,7 +874,7 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "3306",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.2:33060",
 			"__meta_docker_container_id": "f9ade4b83199d6f83020b7c0bfd1e8281b19dbf9e6cef2cf89bc45c8f8d20fe8",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -890,7 +890,7 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "33060",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.21.0.2:3306",
 			"__meta_docker_container_id": "f9ade4b83199d6f83020b7c0bfd1e8281b19dbf9e6cef2cf89bc45c8f8d20fe8",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -906,7 +906,7 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "3306",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.21.0.2:33060",
 			"__meta_docker_container_id": "f9ade4b83199d6f83020b7c0bfd1e8281b19dbf9e6cef2cf89bc45c8f8d20fe8",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -922,7 +922,7 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "33060",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.20.0.2:9104",
 			"__meta_docker_container_id": "59bf76e8816af98856b90dd619c91027145ca501043b1c51756d03b085882e06",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -939,7 +939,7 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 			"__meta_docker_network_scope":                              "local",
 			"__meta_docker_port_private":                               "9104",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                "172.21.0.2:9104",
 			"__meta_docker_container_id": "59bf76e8816af98856b90dd619c91027145ca501043b1c51756d03b085882e06",
 			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
@@ -959,11 +959,11 @@ func TestDockerLinkedNetworkSettings(t *testing.T) {
 	}
 	labelss := addContainersLabels(containers, networkLabels, 80, "localhost", false)
 
-	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+	discoveryutil.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 
 }
 
-func sortLabelss(labelss []*promutils.Labels) []*promutils.Labels {
+func sortLabelss(labelss []*promutil.Labels) []*promutil.Labels {
 	sort.Slice(labelss, func(i, j int) bool {
 		return labelss[i].Get("__address__")+labelss[i].Get("__meta_docker_container_id") < labelss[j].Get("__address__")+labelss[j].Get("__meta_docker_container_id")
 	})

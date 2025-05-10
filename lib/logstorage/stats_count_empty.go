@@ -1,9 +1,11 @@
 package logstorage
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -185,9 +187,29 @@ func (scp *statsCountEmptyProcessor) updateStatsForRow(sf statsFunc, br *blockRe
 	return 0
 }
 
-func (scp *statsCountEmptyProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (scp *statsCountEmptyProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsCountEmptyProcessor)
 	scp.rowsCount += src.rowsCount
+}
+
+func (scp *statsCountEmptyProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return encoding.MarshalVarUint64(dst, scp.rowsCount)
+}
+
+func (scp *statsCountEmptyProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	rowsCount, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal rowsCount")
+	}
+	src = src[n:]
+
+	scp.rowsCount = rowsCount
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return 0, nil
 }
 
 func (scp *statsCountEmptyProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {

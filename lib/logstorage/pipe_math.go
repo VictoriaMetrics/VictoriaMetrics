@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"unsafe"
 
 	"github.com/valyala/fastrand"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -67,6 +67,10 @@ func (pm *pipeMath) String() string {
 	}
 	s += " " + strings.Join(a, ", ")
 	return s
+}
+
+func (pm *pipeMath) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pm, nil
 }
 
 func (pm *pipeMath) canLiveTail() bool {
@@ -228,7 +232,7 @@ func (pm *pipeMath) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pm, nil
 }
 
@@ -236,12 +240,10 @@ func (pm *pipeMath) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pm *pipeMath) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pm *pipeMath) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	pmp := &pipeMathProcessor{
 		pm:     pm,
 		ppNext: ppNext,
-
-		shards: make([]pipeMathProcessorShard, workersCount),
 	}
 	return pmp
 }
@@ -250,17 +252,10 @@ type pipeMathProcessor struct {
 	pm     *pipeMath
 	ppNext pipeProcessor
 
-	shards []pipeMathProcessorShard
+	shards atomicutil.Slice[pipeMathProcessorShard]
 }
 
 type pipeMathProcessorShard struct {
-	pipeMathProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeMathProcessorShardNopad{})%128]byte
-}
-
-type pipeMathProcessorShardNopad struct {
 	// a holds all the data for rcs.
 	a arena
 
@@ -297,9 +292,9 @@ func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultCo
 		} else if f > maxValue {
 			maxValue = f
 		}
-		n := math.Float64bits(f)
+
 		bLen := len(b)
-		b = encoding.MarshalUint64(b, n)
+		b = marshalFloat64(b, f)
 		v := bytesutil.ToUnsafeString(b[bLen:])
 		rc.addValue(v)
 	}
@@ -421,7 +416,7 @@ func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	shard := &pmp.shards[workerID]
+	shard := pmp.shards.Get(workerID)
 	entries := pmp.pm.entries
 
 	shard.rcs = slicesutil.SetLength(shard.rcs, len(entries))
@@ -430,7 +425,7 @@ func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
 		rc := &rcs[i]
 		rc.name = e.resultField
 		minValue, maxValue := shard.executeMathEntry(e, rc, br)
-		br.addResultColumnFloat64(rc, minValue, maxValue)
+		br.addResultColumnFloat64(*rc, minValue, maxValue)
 	}
 
 	pmp.ppNext.writeBlock(workerID, br)
@@ -815,6 +810,10 @@ func parseMathExprFieldName(lex *lexer) (*mathExpr, error) {
 }
 
 func getCompoundMathToken(lex *lexer) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
+
 	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)

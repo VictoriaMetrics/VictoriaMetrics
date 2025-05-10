@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/internalinsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/journald"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
@@ -28,6 +29,11 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 
+	if path == "/internal/insert" {
+		internalinsert.RequestHandler(w, r)
+		return true
+	}
+
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
@@ -46,7 +52,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	switch {
-	case strings.HasPrefix(path, "/elasticsearch/"):
+	case strings.HasPrefix(path, "/elasticsearch"):
+		// some clients may omit trailing slash
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
 		path = strings.TrimPrefix(path, "/elasticsearch")
 		return elasticsearch.RequestHandler(path, w, r)
 	case strings.HasPrefix(path, "/loki/"):

@@ -5,6 +5,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 type statsAvg struct {
@@ -76,10 +79,37 @@ func (sap *statsAvgProcessor) updateStatsForRow(sf statsFunc, br *blockResult, r
 	return 0
 }
 
-func (sap *statsAvgProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (sap *statsAvgProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsAvgProcessor)
 	sap.sum += src.sum
 	sap.count += src.count
+}
+
+func (sap *statsAvgProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	dst = marshalFloat64(dst, sap.sum)
+	dst = encoding.MarshalVarUint64(dst, sap.count)
+	return dst
+}
+
+func (sap *statsAvgProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	if len(src) < 8 {
+		return 0, fmt.Errorf("cannot unmarshal sum from %d bytes; need 8 bytes", len(src))
+	}
+	sap.sum = unmarshalFloat64(bytesutil.ToUnsafeString(src))
+	src = src[8:]
+
+	count, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal count")
+	}
+	sap.count = count
+	src = src[n:]
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected tail left; len(tail)=%d", len(src))
+	}
+
+	return 0, nil
 }
 
 func (sap *statsAvgProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {

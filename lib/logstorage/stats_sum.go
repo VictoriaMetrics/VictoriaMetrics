@@ -1,8 +1,11 @@
 package logstorage
 
 import (
+	"fmt"
 	"math"
 	"strconv"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 type statsSum struct {
@@ -84,11 +87,23 @@ func (ssp *statsSumProcessor) updateState(f float64) {
 	}
 }
 
-func (ssp *statsSumProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (ssp *statsSumProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumProcessor)
 	if !math.IsNaN(src.sum) {
 		ssp.updateState(src.sum)
 	}
+}
+
+func (ssp *statsSumProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return marshalFloat64(dst, ssp.sum)
+}
+
+func (ssp *statsSumProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	if len(src) != 8 {
+		return 0, fmt.Errorf("unexpected state length; got %d bytes; want 8 bytes", len(src))
+	}
+	ssp.sum = unmarshalFloat64(bytesutil.ToUnsafeString(src))
+	return 0, nil
 }
 
 func (ssp *statsSumProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {

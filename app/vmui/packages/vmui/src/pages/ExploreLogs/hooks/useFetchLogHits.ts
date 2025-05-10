@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { getHitsTimeParams } from "../../../utils/logs";
 import { LOGS_GROUP_BY, LOGS_LIMIT_HITS } from "../../../constants/logs";
 import { isEmptyObject } from "../../../utils/object";
+import { useEffect } from "react";
 
 export const useFetchLogHits = (server: string, query: string) => {
   const [searchParams] = useSearchParams();
@@ -17,6 +18,11 @@ export const useFetchLogHits = (server: string, query: string) => {
 
   const url = useMemo(() => getLogHitsUrl(server), [server]);
 
+  const tenant = useMemo(() => ({
+    AccountID: searchParams.get("accountID") || "0",
+    ProjectID: searchParams.get("projectID") || "0",
+  }), [searchParams]);
+
   const getOptions = (query: string, period: TimeParams, signal: AbortSignal) => {
     const { start, end, step } = getHitsTimeParams(period);
 
@@ -24,8 +30,7 @@ export const useFetchLogHits = (server: string, query: string) => {
       signal,
       method: "POST",
       headers: {
-        AccountID: searchParams.get("accountID") || "0",
-        ProjectID: searchParams.get("projectID") || "0",
+        ...tenant,
       },
       body: new URLSearchParams({
         query: query.trim(),
@@ -77,6 +82,12 @@ export const useFetchLogHits = (server: string, query: string) => {
     setIsLoading(prev => ({ ...prev, [id]: false }));
   }, [url, query, searchParams]);
 
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current.abort();
+    };
+  }, []);
+
   return {
     logHits,
     isLoading: Object.values(isLoading).some(s => s),
@@ -85,7 +96,6 @@ export const useFetchLogHits = (server: string, query: string) => {
     abortController: abortControllerRef.current
   };
 };
-
 
 // Helper function to check if a hit is "other"
 const markIsOther = (hit: LogHits) => ({

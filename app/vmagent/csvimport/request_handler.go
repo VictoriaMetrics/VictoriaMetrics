@@ -7,9 +7,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -22,16 +22,16 @@ var (
 
 // InsertHandler processes csv data from req.
 func InsertHandler(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	return stream.Parse(req, func(rows []parser.Row) error {
+	return stream.Parse(req, func(rows []csvimport.Row) error {
 		return insertRows(at, rows, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []csvimport.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 

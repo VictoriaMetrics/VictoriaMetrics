@@ -136,7 +136,7 @@ type GetBucketLifecycleConfigurationOutput struct {
 	// Indicates which default minimum object size behavior is applied to the
 	// lifecycle configuration.
 	//
-	// This parameter applies to general purpose buckets only. It isn't supported for
+	// This parameter applies to general purpose buckets only. It is not supported for
 	// directory bucket lifecycle configurations.
 	//
 	//   - all_storage_classes_128K - Objects smaller than 128 KB will not transition

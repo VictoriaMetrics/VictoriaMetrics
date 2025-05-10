@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -14,10 +15,10 @@ type inmemoryPart struct {
 	bh blockHeader
 	mr metaindexRow
 
-	metaindexData bytesutil.ByteBuffer
-	indexData     bytesutil.ByteBuffer
-	itemsData     bytesutil.ByteBuffer
-	lensData      bytesutil.ByteBuffer
+	metaindexData chunkedbuffer.Buffer
+	indexData     chunkedbuffer.Buffer
+	itemsData     chunkedbuffer.Buffer
+	lensData      chunkedbuffer.Buffer
 }
 
 func (mp *inmemoryPart) Reset() {
@@ -36,16 +37,16 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
+	fs.MustWriteStreamSync(metaindexPath, &mp.metaindexData)
 
 	indexPath := filepath.Join(path, indexFilename)
-	fs.MustWriteSync(indexPath, mp.indexData.B)
+	fs.MustWriteStreamSync(indexPath, &mp.indexData)
 
 	itemsPath := filepath.Join(path, itemsFilename)
-	fs.MustWriteSync(itemsPath, mp.itemsData.B)
+	fs.MustWriteStreamSync(itemsPath, &mp.itemsData)
 
 	lensPath := filepath.Join(path, lensFilename)
-	fs.MustWriteSync(lensPath, mp.lensData.B)
+	fs.MustWriteStreamSync(lensPath, &mp.lensData)
 
 	mp.ph.MustWriteMetadata(path)
 
@@ -57,12 +58,7 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.Reset()
 
-	// Re-use mp.itemsData and mp.lensData in sb.
-	// This eliminates copying itemsData and lensData from sb to mp later.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2247
 	sb := &storageBlock{}
-	sb.itemsData = mp.itemsData.B[:0]
-	sb.lensData = mp.lensData.B[:0]
 
 	// Use the minimum possible compressLevel for compressing inmemoryPart,
 	// since it will be merged into file part soon.
@@ -75,13 +71,13 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 	mp.ph.firstItem = append(mp.ph.firstItem[:0], ib.items[0].String(ib.data)...)
 	mp.ph.lastItem = append(mp.ph.lastItem[:0], ib.items[len(ib.items)-1].String(ib.data)...)
 
-	mp.itemsData.B = sb.itemsData
+	mp.itemsData.MustWrite(sb.itemsData)
 	mp.bh.itemsBlockOffset = 0
-	mp.bh.itemsBlockSize = uint32(len(mp.itemsData.B))
+	mp.bh.itemsBlockSize = uint32(len(sb.itemsData))
 
-	mp.lensData.B = sb.lensData
+	mp.lensData.MustWrite(sb.lensData)
 	mp.bh.lensBlockOffset = 0
-	mp.bh.lensBlockSize = uint32(len(mp.lensData.B))
+	mp.bh.lensBlockSize = uint32(len(sb.lensData))
 
 	bb := inmemoryPartBytePool.Get()
 	bb.B = mp.bh.Marshal(bb.B[:0])
@@ -89,21 +85,25 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 		// marshaled blockHeader can exceed indexBlockSize when firstItem and commonPrefix sizes are close to indexBlockSize
 		logger.Panicf("BUG: too big index block: %d bytes; mustn't exceed %d bytes", len(bb.B), 3*maxIndexBlockSize)
 	}
-	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, compressLevel)
+	bbLen := len(bb.B)
+	bb.B = encoding.CompressZSTDLevel(bb.B, bb.B, compressLevel)
+	mp.indexData.MustWrite(bb.B[bbLen:])
 
 	mp.mr.firstItem = append(mp.mr.firstItem[:0], mp.bh.firstItem...)
 	mp.mr.blockHeadersCount = 1
 	mp.mr.indexBlockOffset = 0
-	mp.mr.indexBlockSize = uint32(len(mp.indexData.B))
+	mp.mr.indexBlockSize = uint32(len(bb.B[bbLen:]))
 	bb.B = mp.mr.Marshal(bb.B[:0])
-	mp.metaindexData.B = encoding.CompressZSTDLevel(mp.metaindexData.B[:0], bb.B, compressLevel)
+	bbLen = len(bb.B)
+	bb.B = encoding.CompressZSTDLevel(bb.B, bb.B, compressLevel)
+	mp.metaindexData.MustWrite(bb.B[bbLen:])
 	inmemoryPartBytePool.Put(bb)
 }
 
 var inmemoryPartBytePool bytesutil.ByteBufferPool
 
 // It is safe calling NewPart multiple times.
-// It is unsafe re-using mp while the returned part is in use.
+// It is unsafe reusing mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
 	size := mp.size()
 	p := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
@@ -111,5 +111,5 @@ func (mp *inmemoryPart) NewPart() *part {
 }
 
 func (mp *inmemoryPart) size() uint64 {
-	return uint64(cap(mp.metaindexData.B) + cap(mp.indexData.B) + cap(mp.itemsData.B) + cap(mp.lensData.B))
+	return uint64(mp.metaindexData.SizeBytes() + mp.indexData.SizeBytes() + mp.itemsData.SizeBytes() + mp.lensData.SizeBytes())
 }

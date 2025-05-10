@@ -32,7 +32,7 @@ type blockData struct {
 	constColumns []Field
 }
 
-// reset resets bd for subsequent re-use
+// reset resets bd for subsequent reuse
 func (bd *blockData) reset() {
 	bd.streamID.reset()
 	bd.uncompressedSizeBytes = 0
@@ -93,7 +93,7 @@ func (bd *blockData) unmarshalRows(dst *rows, sbu *stringsBlockUnmarshaler, vd *
 }
 
 // mustWriteTo writes bd to sw and updates bh accordingly
-func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
+func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters) {
 	bh.reset()
 
 	bh.streamID = bd.streamID
@@ -114,7 +114,7 @@ func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters, g *columnNa
 	}
 	csh.constColumns = append(csh.constColumns[:0], bd.constColumns...)
 
-	csh.mustWriteTo(bh, sw, g)
+	csh.mustWriteTo(bh, sw)
 
 	putColumnsHeader(csh)
 }
@@ -122,7 +122,7 @@ func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters, g *columnNa
 // mustReadFrom reads block data associated with bh from sr to bd.
 //
 // The bd is valid until a.reset() is called.
-func (bd *blockData) mustReadFrom(a *arena, bh *blockHeader, sr *streamReaders, partFormatVersion uint, columnNames []string) {
+func (bd *blockData) mustReadFrom(a *arena, bh *blockHeader, sr *streamReaders) {
 	bd.reset()
 
 	bd.streamID = bh.streamID
@@ -146,24 +146,24 @@ func (bd *blockData) mustReadFrom(a *arena, bh *blockHeader, sr *streamReaders, 
 	sr.columnsHeaderReader.MustReadFull(bb.B)
 
 	csh := getColumnsHeader()
-	if err := csh.unmarshalNoArena(bb.B, partFormatVersion); err != nil {
+	if err := csh.unmarshalInplace(bb.B, sr.partFormatVersion); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal columnsHeader: %s", sr.columnsHeaderReader.Path(), err)
 	}
-	if partFormatVersion >= 1 {
-		readColumnNamesFromColumnsHeaderIndex(bh, sr, csh, columnNames)
+	if sr.partFormatVersion >= 1 {
+		readColumnNamesFromColumnsHeaderIndex(bh, sr, csh)
 	}
 
 	chs := csh.columnHeaders
 	cds := bd.resizeColumnsData(len(chs))
 	for i := range chs {
-		cds[i].mustReadFrom(a, &chs[i], sr, partFormatVersion)
+		cds[i].mustReadFrom(a, &chs[i], sr)
 	}
 	bd.constColumns = appendFields(a, bd.constColumns[:0], csh.constColumns)
 	putColumnsHeader(csh)
 	longTermBufPool.Put(bb)
 }
 
-func readColumnNamesFromColumnsHeaderIndex(bh *blockHeader, sr *streamReaders, csh *columnsHeader, columnNames []string) {
+func readColumnNamesFromColumnsHeaderIndex(bh *blockHeader, sr *streamReaders, csh *columnsHeader) {
 	bb := longTermBufPool.Get()
 	defer longTermBufPool.Put(bb)
 
@@ -176,10 +176,10 @@ func readColumnNamesFromColumnsHeaderIndex(bh *blockHeader, sr *streamReaders, c
 	sr.columnsHeaderIndexReader.MustReadFull(bb.B)
 
 	cshIndex := getColumnsHeaderIndex()
-	if err := cshIndex.unmarshalNoArena(bb.B); err != nil {
+	if err := cshIndex.unmarshalInplace(bb.B); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal columnsHeaderIndex: %s", sr.columnsHeaderIndexReader.Path(), err)
 	}
-	if err := csh.setColumnNames(cshIndex, columnNames); err != nil {
+	if err := csh.setColumnNames(cshIndex, sr.columnNames); err != nil {
 		logger.Panicf("FATAL: %s: %s", sr.columnsHeaderIndexReader.Path(), err)
 	}
 
@@ -201,7 +201,7 @@ type timestampsData struct {
 	maxTimestamp int64
 }
 
-// reset resets td for subsequent re-use
+// reset resets td for subsequent reuse
 func (td *timestampsData) reset() {
 	td.data = nil
 	td.marshalType = 0
@@ -288,7 +288,7 @@ type columnData struct {
 	bloomFilterData []byte
 }
 
-// reset rests cd for subsequent re-use
+// reset rests cd for subsequent reuse
 func (cd *columnData) reset() {
 	cd.name = ""
 	cd.valueType = 0
@@ -353,7 +353,7 @@ func (cd *columnData) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 // mustReadFrom reads columns data associated with ch from sr to cd.
 //
 // cd is valid until a.reset() is called.
-func (cd *columnData) mustReadFrom(a *arena, ch *columnHeader, sr *streamReaders, partFormatVersion uint) {
+func (cd *columnData) mustReadFrom(a *arena, ch *columnHeader, sr *streamReaders) {
 	cd.reset()
 
 	cd.name = a.copyString(ch.name)
@@ -363,7 +363,7 @@ func (cd *columnData) mustReadFrom(a *arena, ch *columnHeader, sr *streamReaders
 	cd.maxValue = ch.maxValue
 	cd.valuesDict.copyFrom(a, &ch.valuesDict)
 
-	bloomValuesReader := sr.getBloomValuesReaderForColumnName(ch.name, partFormatVersion)
+	bloomValuesReader := sr.getBloomValuesReaderForColumnName(ch.name)
 
 	// read values
 	if ch.valuesOffset != bloomValuesReader.values.bytesRead {

@@ -12,25 +12,32 @@ import (
 type hitsMapAdaptive struct {
 	stateSizeBudget *int
 
-	// concurrency is the number of parallel workers to use when merging shards.
+	// concurrency is the number of parallel workers to use when merging hmShards.
 	//
-	// this field must be updated by the caller before using statsCountUniqProcessor.
+	// this field must be updated by the caller via init() before using hitsMapAdaptive.
 	concurrency uint
 
 	// hm tracks hits until the number of unique values reaches hitsMapAdaptiveMaxLen.
-	// After that hits are tracked by shards.
+	// After that hits are tracked by hmShards.
 	hm hitsMap
 
-	// shards tracks hits for big number of unique values.
+	// hmShards tracks hits for big number of unique values.
 	//
 	// Every shard contains hits for a share of unique values.
-	shards []hitsMap
+	hmShards []hitsMapShard
 
 	// a reduces memory allocations when counting the number of hits over big number of unique values.
 	a chunkedAllocator
 }
 
-// the maximum number of values to track in hitsMapAdaptive.hm before switching to hitsMapAdaptive.shards
+type hitsMapShard struct {
+	hitsMap
+
+	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(hitsMap{})%128]byte
+}
+
+// the maximum number of values to track in hitsMapAdaptive.hm before switching to hitsMapAdaptive.hmShards
 //
 // Too big value may slow down hitsMapMergeParallel() across big number of CPU cores.
 // Too small value may significantly increase RAM usage when hits for big number of unique values are counted.
@@ -53,18 +60,20 @@ func (hma *hitsMapAdaptive) clear() {
 
 func (hma *hitsMapAdaptive) stateSize() int {
 	n := hma.hm.stateSize()
-	for i := range hma.shards {
-		n += hma.shards[i].stateSize()
+
+	shards := hma.hmShards
+	for i := range shards {
+		n += shards[i].stateSize()
 	}
 	return n
 }
 
 func (hma *hitsMapAdaptive) entriesCount() uint64 {
-	if hma.shards == nil {
+	if hma.hmShards == nil {
 		return hma.hm.entriesCount()
 	}
 
-	shards := hma.shards
+	shards := hma.hmShards
 	n := uint64(0)
 	for i := range shards {
 		n += shards[i].entriesCount()
@@ -95,11 +104,11 @@ func (hma *hitsMapAdaptive) updateStateInt64(n int64, hits uint64) {
 }
 
 func (hma *hitsMapAdaptive) updateStateUint64(n, hits uint64) {
-	if hma.shards == nil {
+	if hma.hmShards == nil {
 		stateSize := hma.hm.updateStateUint64(&hma.a, n, hits)
 		if stateSize > 0 {
 			*hma.stateSizeBudget -= stateSize
-			hma.probablyMoveToShards()
+			hma.probablyMoveToShards(&hma.a)
 		}
 		return
 	}
@@ -108,11 +117,11 @@ func (hma *hitsMapAdaptive) updateStateUint64(n, hits uint64) {
 }
 
 func (hma *hitsMapAdaptive) updateStateNegativeInt64(n int64, hits uint64) {
-	if hma.shards == nil {
+	if hma.hmShards == nil {
 		stateSize := hma.hm.updateStateNegativeInt64(&hma.a, n, hits)
 		if stateSize > 0 {
 			*hma.stateSizeBudget -= stateSize
-			hma.probablyMoveToShards()
+			hma.probablyMoveToShards(&hma.a)
 		}
 		return
 	}
@@ -121,11 +130,11 @@ func (hma *hitsMapAdaptive) updateStateNegativeInt64(n int64, hits uint64) {
 }
 
 func (hma *hitsMapAdaptive) updateStateString(key []byte, hits uint64) {
-	if hma.shards == nil {
+	if hma.hmShards == nil {
 		stateSize := hma.hm.updateStateString(&hma.a, key, hits)
 		if stateSize > 0 {
 			*hma.stateSizeBudget -= stateSize
-			hma.probablyMoveToShards()
+			hma.probablyMoveToShards(&hma.a)
 		}
 		return
 	}
@@ -133,15 +142,15 @@ func (hma *hitsMapAdaptive) updateStateString(key []byte, hits uint64) {
 	*hma.stateSizeBudget -= hm.updateStateString(&hma.a, key, hits)
 }
 
-func (hma *hitsMapAdaptive) probablyMoveToShards() {
+func (hma *hitsMapAdaptive) probablyMoveToShards(a *chunkedAllocator) {
 	if hma.hm.entriesCount() < hitsMapAdaptiveMaxLen {
 		return
 	}
-	hma.moveToShards()
+	hma.moveToShards(a)
 }
 
-func (hma *hitsMapAdaptive) moveToShards() {
-	hma.shards = hma.a.newHitsMaps(hma.concurrency)
+func (hma *hitsMapAdaptive) moveToShards(a *chunkedAllocator) {
+	hma.hmShards = a.newHitsMapShards(hma.concurrency)
 
 	for n, pHits := range hma.hm.u64 {
 		hm := hma.getShardByUint64(n)
@@ -161,14 +170,14 @@ func (hma *hitsMapAdaptive) moveToShards() {
 
 func (hma *hitsMapAdaptive) getShardByUint64(n uint64) *hitsMap {
 	h := fastHashUint64(n)
-	shardIdx := h % uint64(len(hma.shards))
-	return &hma.shards[shardIdx]
+	shardIdx := h % uint64(len(hma.hmShards))
+	return &hma.hmShards[shardIdx].hitsMap
 }
 
 func (hma *hitsMapAdaptive) getShardByString(v []byte) *hitsMap {
 	h := xxhash.Sum64(v)
-	shardIdx := h % uint64(len(hma.shards))
-	return &hma.shards[shardIdx]
+	shardIdx := h % uint64(len(hma.hmShards))
+	return &hma.hmShards[shardIdx].hitsMap
 }
 
 type hitsMap struct {
@@ -321,13 +330,15 @@ func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f fun
 	var wg sync.WaitGroup
 	for i := range hmas {
 		hma := hmas[i]
-		if hma.shards != nil {
+		if hma.hmShards != nil {
 			continue
 		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			hma.moveToShards()
+
+			var a chunkedAllocator
+			hma.moveToShards(&a)
 		}()
 	}
 	wg.Wait()
@@ -335,16 +346,16 @@ func hitsMapMergeParallel(hmas []*hitsMapAdaptive, stopCh <-chan struct{}, f fun
 		return
 	}
 
-	cpusCount := len(hmas[0].shards)
+	cpusCount := len(hmas[0].hmShards)
 
 	for i := 0; i < cpusCount; i++ {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			hm := &hmas[0].shards[cpuIdx]
+			hm := &hmas[0].hmShards[cpuIdx].hitsMap
 			for j := range hmas[1:] {
-				src := &hmas[1+j].shards[cpuIdx]
+				src := &hmas[1+j].hmShards[cpuIdx].hitsMap
 				hm.mergeState(src, stopCh)
 				src.reset()
 			}

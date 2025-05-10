@@ -52,8 +52,8 @@ import (
 //     information about the encryption overriding behaviors in directory buckets, see [Specifying server-side encryption with KMS for new object uploads]
 //     .
 //
-//   - Your SSE-KMS configuration can only support 1 [customer managed key]per directory bucket's
-//     lifetime. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+//   - Your SSE-KMS configuration can only support 1 [customer managed key]per directory bucket for the
+//     lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 //
 //   - S3 Bucket Keys are always enabled for GET and PUT operations in a directory
 //     bucket and can’t be disabled. S3 Bucket Keys aren't supported, when you copy
@@ -164,9 +164,9 @@ type PutBucketEncryptionInput struct {
 	// This member is required.
 	ServerSideEncryptionConfiguration *types.ServerSideEncryptionConfiguration
 
-	// Indicates the algorithm used to create the checksum for the request when you
-	// use the SDK. This header will not provide any additional functionality if you
-	// don't use the SDK. When you send this header, there must be a corresponding
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
 	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
@@ -180,7 +180,7 @@ type PutBucketEncryptionInput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The Base64 encoded 128-bit MD5 digest of the server-side encryption
+	// The base64-encoded 128-bit MD5 digest of the server-side encryption
 	// configuration.
 	//
 	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
@@ -284,9 +284,6 @@ func (c *Client) addOperationPutBucketEncryptionMiddlewares(stack *middleware.St
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
-	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
-		return err
-	}
 	if err = addOpPutBucketEncryptionValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -367,10 +364,9 @@ func getPutBucketEncryptionRequestAlgorithmMember(input interface{}) (string, bo
 }
 
 func addPutBucketEncryptionInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketEncryptionRequestAlgorithmMember,
 		RequireChecksum:                  true,
-		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,
