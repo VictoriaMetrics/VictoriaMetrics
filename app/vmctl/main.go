@@ -102,7 +102,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalVerbose))
-					return otsdbProcessor.run(ctx)
+					return otsdbProcessor.run()
 				},
 			},
 			{
@@ -163,7 +163,7 @@ func main() {
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
 						c.Bool(globalVerbose))
-					return processor.run(ctx)
+					return processor.run()
 				},
 			},
 			{
@@ -306,7 +306,7 @@ func main() {
 						S3ForcePathStyle:        c.Bool(mimirS3ForcePathStyle),
 						S3TLSInsecureSkipVerify: c.Bool(mimirS3TLSInsecureSkipVerify),
 					}
-					cl, err := mimir.NewClient(mCfg)
+					cl, err := mimir.NewClient(ctx, mCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create mimir client: %s", err)
 					}
@@ -477,6 +477,9 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
+		if importer != nil {
+			importer.Close()
+		}
 		cancelCtx()
 	}()
 

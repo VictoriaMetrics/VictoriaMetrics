@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/oklog/ulid"
+	"github.com/oklog/ulid/v2"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
+	utils "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 )
 
@@ -112,7 +112,7 @@ func (f filter) inRange(minTime, maxTime int64) bool {
 
 // NewClient creates and validates new Client
 // with given Config
-func NewClient(cfg Config) (*Client, error) {
+func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.Path == "" {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
@@ -122,7 +122,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	var c Client
-	rfs, err := NewRemoteFS(cfg)
+	rfs, err := NewRemoteFS(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", cfg.Path, err)
 	}

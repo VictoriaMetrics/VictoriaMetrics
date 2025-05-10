@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -38,7 +37,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 	}
 }
 
-func (ip *influxProcessor) run(ctx context.Context) error {
+func (ip *influxProcessor) run() error {
 	series, err := ip.ic.Explore()
 	if err != nil {
 		return fmt.Errorf("explore query failed: %s", err)
@@ -68,7 +67,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 		go func() {
 			defer wg.Done()
 			for s := range seriesCh {
-				if err := ip.do(ctx, s); err != nil {
+				if err := ip.do(s); err != nil {
 					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
 					return
 				}
@@ -111,7 +110,7 @@ const dbLabel = "db"
 const nameLabel = "__name__"
 const valueField = "value"
 
-func (ip *influxProcessor) do(ctx context.Context, s *influx.Series) error {
+func (ip *influxProcessor) do(s *influx.Series) error {
 	cr, err := ip.ic.FetchDataPoints(s)
 	if err != nil {
 		return fmt.Errorf("failed to fetch datapoints: %s", err)
@@ -164,7 +163,7 @@ func (ip *influxProcessor) do(ctx context.Context, s *influx.Series) error {
 			Timestamps: time,
 			Values:     values,
 		}
-		if err := ip.im.Input(ctx, &ts); err != nil {
+		if err := ip.im.Input(&ts); err != nil {
 			return err
 		}
 	}

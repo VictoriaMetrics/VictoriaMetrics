@@ -112,7 +112,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 
 func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filter) error {
 	return rrp.src.Read(ctx, filter, func(series *vm.TimeSeries) error {
-		if err := rrp.dst.Input(ctx, series); err != nil {
+		if err := rrp.dst.Input(series); err != nil {
 			return fmt.Errorf(
 				"failed to read data for time range start: %d, end: %d, %s",
 				filter.StartTimestampMs, filter.EndTimestampMs, err)

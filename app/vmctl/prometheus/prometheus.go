@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
 )
 
 // Config contains a list of params needed
@@ -84,7 +84,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch blocks: %s", err)
 	}
-	s := &utils.Stats{
+	s := &vmctlutil.Stats{
 		Filtered: c.filter.min != 0 || c.filter.max != 0 || c.filter.label != "",
 		Blocks:   len(blocks),
 	}

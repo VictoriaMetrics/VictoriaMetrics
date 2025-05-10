@@ -110,7 +110,7 @@ func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error
 			Timestamps: timestamps,
 			Values:     values,
 		}
-		if err := pp.im.Input(ctx, &ts); err != nil {
+		if err := pp.im.Input(&ts); err != nil {
 			return err
 		}
 	}

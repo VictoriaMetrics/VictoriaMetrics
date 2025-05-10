@@ -1,6 +1,7 @@
 package mimir
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,7 @@ import (
 )
 
 // NewRemoteFS returns new remote fs from the given Config.
-func NewRemoteFS(cfg Config) (common.RemoteFS, error) {
+func NewRemoteFS(ctx context.Context, cfg Config) (common.RemoteFS, error) {
 	if len(cfg.Path) == 0 {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
@@ -44,7 +45,7 @@ func NewRemoteFS(cfg Config) (common.RemoteFS, error) {
 			Bucket:        bucket,
 			Dir:           dir,
 		}
-		if err := fsr.Init(); err != nil {
+		if err := fsr.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to gcs: %w", err)
 		}
 		return fsr, nil
@@ -59,7 +60,7 @@ func NewRemoteFS(cfg Config) (common.RemoteFS, error) {
 			Container: bucket,
 			Dir:       dir,
 		}
-		if err := fsr.Init(); err != nil {
+		if err := fsr.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to AZBlob: %w", err)
 		}
 		return fsr, nil
@@ -80,7 +81,7 @@ func NewRemoteFS(cfg Config) (common.RemoteFS, error) {
 			Bucket:                bucket,
 			Dir:                   dir,
 		}
-		if err := fsr.Init(); err != nil {
+		if err := fsr.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)
 		}
 		return fsr, nil

@@ -81,7 +81,7 @@ func TestMimirProcessorRun(t *testing.T) {
 		}
 
 		path := fmt.Sprintf("fs://%s/%s", dir, testMimirData)
-		runnner, err := mimir.NewClient(mimir.Config{
+		runnner, err := mimir.NewClient(ctx, mimir.Config{
 			TenantID: tenantID,
 			Path:     path,
 			Filter:   filter,
