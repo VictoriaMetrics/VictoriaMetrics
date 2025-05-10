@@ -83,7 +83,7 @@ Both [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [P
 * vmagent supports both pull and push data collection – it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, OpenTelemetry metrics protocol, CSV and JSON – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#features).
 * vmagent doesn't have limitations on backfilling of historical data.
 * vmagent can easily scale horizontally to multiple instances for scraping a big number of targets – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
-* vmagent supports [improved relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
+* vmagent supports [improved relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 * vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 * vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#loading-scrape-configs-from-multiple-files).
 * vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
