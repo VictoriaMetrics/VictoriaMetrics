@@ -1,0 +1,12 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs-body {
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: $color-text-disabled;
+    text-align: center;
+  }
+}

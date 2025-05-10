@@ -65,6 +65,7 @@
     "cross-env": "^7.0.3",
     "eslint": "^9.24.0",
     "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-unused-imports": "^4.1.4",
     "globals": "^16.0.0",
     "http-proxy-middleware": "^3.0.5",
     "jsdom": "^26.1.0",

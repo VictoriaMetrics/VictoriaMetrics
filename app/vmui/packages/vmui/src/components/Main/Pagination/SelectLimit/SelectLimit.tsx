@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useRef } from "preact/compat";
+import { FC, useMemo, useRef } from "preact/compat";
 import { ArrowDropDownIcon } from "../../Icons";
 import useBoolean from "../../../../hooks/useBoolean";
 import Popper from "../../Popper/Popper";
@@ -10,11 +10,12 @@ interface SelectLimitProps {
   limit: number | string;
   allowUnlimited?: boolean;
   onChange: (val: number) => void;
+  onOpenSelect?: () => void;
 }
 
 const defaultLimits = [10, 25, 50, 100, 250, 500, 1000];
 
-const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange }) => {
+const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange, onOpenSelect }) => {
   const { isMobile } = useDeviceDetect();
   const buttonRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +29,11 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange }) 
     setFalse: handleClose,
   } = useBoolean(false);
 
+  const handleClickSelect = () => {
+    toggleOpenList();
+    if(!openList) onOpenSelect?.();
+  };
+
   const handleChangeLimit = (n: number) => () => {
     onChange(n);
     handleClose();
@@ -37,7 +43,7 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange }) 
     <>
       <div
         className="vm-select-limits-button"
-        onClick={toggleOpenList}
+        onClick={handleClickSelect}
         ref={buttonRef}
       >
         <div>

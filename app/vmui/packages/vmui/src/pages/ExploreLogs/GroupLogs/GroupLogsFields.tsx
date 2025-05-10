@@ -8,9 +8,10 @@ import { getFromStorage } from "../../../utils/storage";
 
 interface Props {
   log: Logs;
+  hideGroupButton?: boolean;
 }
 
-const GroupLogsFields: FC<Props> = ({ log }) => {
+const GroupLogsFields: FC<Props> = ({ log, hideGroupButton }) => {
   const sortedFields = useMemo(() => {
     return Object.entries(log)
       .sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
@@ -41,6 +42,7 @@ const GroupLogsFields: FC<Props> = ({ log }) => {
               key={key}
               field={key}
               value={value}
+              hideGroupButton={hideGroupButton}
             />
           ))}
         </tbody>
