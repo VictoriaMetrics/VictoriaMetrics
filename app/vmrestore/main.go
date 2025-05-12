@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 )
 
@@ -38,9 +40,16 @@ func main() {
 	logger.Init()
 
 	listenAddrs := []string{*httpListenAddr}
-	go httpserver.Serve(listenAddrs, nil, nil)
+	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
 
-	srcFS, err := newSrcFS()
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		procutil.WaitForSigterm()
+		logger.Infof("received stop signal, canceling restore operation")
+		cancelFunc()
+	}()
+
+	srcFS, err := newSrcFS(ctx)
 	if err != nil {
 		logger.Fatalf("%s", err)
 	}
@@ -55,7 +64,7 @@ func main() {
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 	}
 	pushmetrics.Init()
-	if err := a.Run(); err != nil {
+	if err := a.Run(ctx); err != nil {
 		logger.Fatalf("cannot restore from backup: %s", err)
 	}
 	pushmetrics.Stop()
@@ -74,7 +83,7 @@ func usage() {
 	const s = `
 vmrestore restores VictoriaMetrics data from backups made by vmbackup.
 
-See the docs at https://docs.victoriametrics.com/vmrestore/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmrestore/ .
 `
 	flagutil.Usage(s)
 }
@@ -93,8 +102,8 @@ func newDstFS() (*fslocal.FS, error) {
 	return fs, nil
 }
 
-func newSrcFS() (common.RemoteFS, error) {
-	fs, err := actions.NewRemoteFS(*src)
+func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
+	fs, err := actions.NewRemoteFS(ctx, *src)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", *src, err)
 	}

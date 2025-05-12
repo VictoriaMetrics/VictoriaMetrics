@@ -10,7 +10,7 @@ import { useSearchParams } from "react-router-dom";
 
 const example = {
   flags: `-retentionPeriod=1y
--retentionFilters={env!="prod"}:2w
+-retentionFilter={env!="prod"}:2w
 `,
   metrics: `up
 up{env="dev"}
@@ -64,7 +64,7 @@ const RetentionFilters: FC = () => {
         <div className="vm-retention-filters-body__expr">
           <div className="vm-retention-filters-body__title">
             <p>Provide a list of flags for retention configuration. Note that
-              only <code>-retentionPeriod</code> and <code>-retentionFilters</code> flags are
+              only <code>-retentionPeriod</code> and <code>-retentionFilter</code> flags are
               supported.</p>
           </div>
           <TextField
@@ -75,7 +75,7 @@ const RetentionFilters: FC = () => {
             autofocus
             onEnter={handleApplyFilters}
             onChange={handleFlagsChangeInput}
-            placeholder={"-retentionPeriod=4w -retentionFilters=up{env=\"dev\"}:2w"}
+            placeholder={"-retentionPeriod=4w -retentionFilter=up{env=\"dev\"}:2w"}
           />
         </div>
         <div className="vm-retention-filters-body__expr">
@@ -109,7 +109,7 @@ const RetentionFilters: FC = () => {
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/#retention-filters"
+            href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters"
             rel="help noreferrer"
           >
             <WikiIcon/>

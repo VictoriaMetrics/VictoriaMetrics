@@ -34,7 +34,7 @@ See [quick start guide](#quick-start) on how to start working with VictoriaLogs 
 VictoriaLogs in cluster mode consists of `vlinsert`, `vlselect` and `vlstorage` components:
 
 - `vlinsert` accepts the ingested logs via [all the supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-  and spreads them among the `vlstorage` nodes listed via the `-storageNode` command-line flag.
+  and spreads them evenly among the `vlstorage` nodes listed via the `-storageNode` command-line flag.
 
 - `vlselect` accepts incoming queries via [all the supported HTTP querying endpoints](https://docs.victoriametrics.com/victorialogs/querying/),
   requests the needed data from `vlstorage` nodes listed via the `-storageNode` command-line flag, processes the queries and returns the corresponding responses.
@@ -62,7 +62,7 @@ and vice versa.
 - `vlselect` sends requests to HTTP endpoints at `vlstorage` starting with `/internal/select/`.
 
 This allows using various http proxies for authorization, routing and encryption of requests between these components.
-It is recommended to use [vmauth](https://docs.victoriametrics.com/vmauth/).
+It is recommended to use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/).
 
 See also [multi-level cluster setup](#multi-level-cluster-setup).
 
@@ -84,7 +84,7 @@ by running it with `-internalinsert.disable` and `-internalselect.disable` comma
 ## Multi-level cluster setup
 
 - `vlinsert` can send the ingested logs to other `vlinsert` nodes if they are specified via `-storageNode` command-line flag.
-  This allows building multi-level data ingestion schemes when top-level `vlinsert` spreads the incoming logs among multiple lower-level clusters of VictoriaLogs.
+  This allows building multi-level data ingestion schemes when top-level `vlinsert` spreads the incoming logs evenly among multiple lower-level clusters of VictoriaLogs.
 
 - `vlselect` can send queries to other `vlselect` nodes if they are specified via `-storageNode` command-line flag.
   This allows building multi-level cluster schemes when top-level `vlselect` queries multiple lower-level clusters of VictoriaLogs.
@@ -94,7 +94,7 @@ See [security docs](#security) on how to protect communications between multiple
 ## Security
 
 All the VictoriaLogs cluster components must run in protected internal network without direct access from the Internet.
-`vlstorage` must have no access from the Internet. HTTP authorization proxies such as [vmauth](https://docs.victoriametrics.com/vmauth/)
+`vlstorage` must have no access from the Internet. HTTP authorization proxies such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 must be used in front of `vlinsert` and `vlselect` for authorizing access to these components from the Internet.
 
 By default `vlinsert` and `vlselect` communicate with `vlstorage` via unencrypted HTTP. This is OK if all these components are located
@@ -127,7 +127,7 @@ It is also recommended authorizing HTTPS requests to `vlstorage` via Basic Auth:
   ./victoria-logs-prod -storageNode=... -storageNode.tls -storageNode.username=... -storageNode.password=...
   ```
 
-Another option is to use third-party HTTP proxies such as [vmauth](https://docs.victoriametrics.com/vmauth/), `nginx`, etc. for authorizing and encrypting communications
+Another option is to use third-party HTTP proxies such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/), `nginx`, etc. for authorizing and encrypting communications
 between VictoriaLogs cluster components over untrusted networks.
 
 
@@ -144,8 +144,8 @@ The following guide covers the following topics for Linux host:
 Download and unpack the latest VictoriaLogs release:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.20.0-victorialogs/victoria-logs-linux-amd64-v1.20.0-victorialogs.tar.gz
-tar xzf victoria-logs-linux-amd64-v1.20.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.22.1-victorialogs/victoria-logs-linux-amd64-v1.22.1-victorialogs.tar.gz
+tar xzf victoria-logs-linux-amd64-v1.22.1-victorialogs.tar.gz
 ```
 
 Start the first [`vlstorage` node](#architecture), which accepts incoming requests at the port `9491` and stores the ingested logs at `victoria-logs-data-1` directory:
@@ -164,7 +164,7 @@ Start the second `vlstorage` node, which accepts incoming requests at the port `
 ./victoria-logs-prod -httpListenAddr=:9492 -storageDataPath=victoria-logs-data-2 &
 ```
 
-Start `vlinsert` node, which [accepts logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) at the port `9481` and spreads them among the two `vlstorage` nodes started above:
+Start `vlinsert` node, which [accepts logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) at the port `9481` and spreads them evenly among the two `vlstorage` nodes started above:
 
 ```sh
 ./victoria-logs-prod -httpListenAddr=:9481 -storageNode=localhost:9491,localhost:9492 &

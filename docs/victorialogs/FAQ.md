@@ -69,7 +69,11 @@ VictoriaLogs and Grafana Loki have the following differences:
 
   VictoriaLogs provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
+  See [how to convert LogQL to LogsQL](https://docs.victoriametrics.com/victorialogs/logql-to-logsql/).
+
 - VictoriaLogs usually needs less RAM and storage space than Grafana Loki for the same amounts of logs.
+
+See [this article](https://itnext.io/why-victorialogs-is-a-better-alternative-to-grafana-loki-7e941567c4d5) for more details.
 
 
 ## What is the difference between VictoriaLogs and ClickHouse?
@@ -145,8 +149,6 @@ for limiting the amounts of exported logs.
 VictoriaLogs [accepts](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs without [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 In this case the `_msg` field is set to the default value, which can be configured via `-defaultMsgValue` command-line flag.
 
-Please note that the `_msg` field is **crucial** for VictoriaLogs, so it is highly recommended to fill it with meaningful content.
-
 ## What if my logs have multiple message fields candidates?
 
 If you [ingest](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs into VictoriaLogs
@@ -193,7 +195,7 @@ Note that log records with sizes close to `2MB` aren't handled efficiently by
 VictoriaLogs because per-block overhead translates to a single log record, and
 this overhead is big.
 
-The `2MB` limit is hadrcoded and is unlikely to increase.
+The `2MB` limit is hardcoded and is unlikely to increase.
 
 The limit can be set to the lower value during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 via `-insert.maxLineSizeBytes` command-line flag.
@@ -201,7 +203,7 @@ via `-insert.maxLineSizeBytes` command-line flag.
 ## What is the maximum supported field name length
 
 VictoriaLogs limits [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) name length to 128 bytes -
-Log entries with longer field names are ignored during [date ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+Log entries with longer field names are ignored during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
 The maximum length of a field name is hardcoded and is unikely to increase, since this may increase RAM and CPU usage.
 

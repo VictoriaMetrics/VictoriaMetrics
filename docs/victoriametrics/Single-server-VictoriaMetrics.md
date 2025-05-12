@@ -9,6 +9,7 @@ title: Single-node version
 tags:
   - metrics
 aliases:
+  - /Single-server-VictoriaMetrics/
   - /Single-server-VictoriaMetrics.html
   - /single-server-victoriametrics/index.html
   - /single-server-victoriametrics/

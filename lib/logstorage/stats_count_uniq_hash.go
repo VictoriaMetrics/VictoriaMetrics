@@ -528,7 +528,7 @@ func (sup *statsCountUniqHashProcessor) importState(src []byte, stopCh <-chan st
 			return 0, fmt.Errorf("cannot read uniqValues state: %w", err)
 		}
 		if len(tail) > 0 {
-			return 0, fmt.Errorf("unexpected tail left after imporing uniqValues state; len(tail)=%d", len(tail))
+			return 0, fmt.Errorf("unexpected tail left after importing uniqValues state; len(tail)=%d", len(tail))
 		}
 		return stateSize, nil
 	}

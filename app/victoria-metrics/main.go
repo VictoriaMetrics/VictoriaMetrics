@@ -32,7 +32,7 @@ var (
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
-		"equal to -dedup.minScrapeInterval > 0. See also -streamAggr.dedupInterval and https://docs.victoriametrics.com/#deduplication")
+		"equal to -dedup.minScrapeInterval > 0. See also -streamAggr.dedupInterval and https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
 	dryRun = flag.Bool("dryRun", false, "Whether to check config files without running VictoriaMetrics. The following config files are checked: "+
 		"-promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. "+
 		"This can be changed with -promscrape.config.strictParse=false command-line flag")
@@ -47,7 +47,7 @@ var (
 	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
 		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
 		" Changing the interval to the bigger values may delay downsampling, deduplication for historical data."+
-		" See also https://docs.victoriametrics.com/#deduplication")
+		" See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication")
 )
 
 // custom api help links [["/api","doc"]] without http.pathPrefix.
@@ -112,7 +112,9 @@ func main() {
 
 	startSelfScraper()
 
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	})
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()

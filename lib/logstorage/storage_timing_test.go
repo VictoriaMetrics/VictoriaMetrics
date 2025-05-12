@@ -27,24 +27,12 @@ func benchmarkStorageMustAddRows(b *testing.B, rowsPerInsert int) {
 	b.SetBytes(int64(rowsPerInsert))
 
 	b.RunParallel(func(pb *testing.PB) {
-		lr := GetLogRows(nil, nil, nil, "")
-		defer PutLogRows(lr)
+		lr := newTestLogRows(1, rowsPerInsert, 1)
 
-		tenantID := TenantID{
-			AccountID: 123,
-			ProjectID: 456,
-		}
-		ct := time.Now().UnixNano() - nsecsPerHour
-		for i := 0; i < rowsPerInsert; i++ {
-			timestamp := ct + int64(i)
-			fields := make([]Field, 20)
-			for j := range fields {
-				fields[j] = Field{
-					Name:  fmt.Sprintf("field-%d", j),
-					Value: fmt.Sprintf("value-%d-%d", i, j),
-				}
-			}
-			lr.MustAdd(tenantID, timestamp, fields, nil)
+		ct := time.Now().UnixNano() - nsecsPerMinute
+		timestamps := lr.timestamps
+		for i := range timestamps {
+			timestamps[i] = ct + int64(i)
 		}
 
 		for pb.Next() {

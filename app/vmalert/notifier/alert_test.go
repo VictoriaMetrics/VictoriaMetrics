@@ -61,7 +61,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		for k := range tplExpected {
 			got, exp := tpl[k], tplExpected[k]
 			if got != exp {
-				t.Fatalf("unexpected template for key=%q; got %q; want %q", k, got, exp)
+				t.Fatalf("unexpected template for key=%q; \ngot %q; \nwant %q", k, got, exp)
 			}
 		}
 	}
@@ -199,6 +199,16 @@ func TestAlertExecTemplate(t *testing.T) {
 		"grafana_url": `vm-grafana.com?from={{($activeAt.Add (parseDurationTime "1h")).Unix}}&to={{($activeAt.Add (parseDurationTime "-1h")).Unix}}`,
 	}, map[string]string{
 		"grafana_url": "vm-grafana.com?from=1660944898&to=1660937698",
+	})
+
+	// Datasource type
+	f(&Alert{
+		Type: "vlogs",
+		Expr: "up",
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com/explore?left={"datasource":"{{ if eq .Type "vlogs" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}","queries":[{"expr":"{{ .Expr }}"}]}`,
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com/explore?left={"datasource":"VictoriaLogs","queries":[{"expr":"up"}]}`,
 	})
 }
 

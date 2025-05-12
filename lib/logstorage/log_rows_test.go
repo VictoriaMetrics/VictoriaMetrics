@@ -19,7 +19,7 @@ func TestLogRows_WildcardIgnoreFields(t *testing.T) {
 	f := func(o opts) {
 		t.Helper()
 
-		lr := GetLogRows(o.streamFields, o.ignoreFields, o.extraFields, "foobar")
+		lr := GetLogRows(o.streamFields, o.ignoreFields, nil, o.extraFields, "foobar")
 		defer PutLogRows(lr)
 
 		tid := TenantID{
@@ -81,7 +81,7 @@ func TestLogRows_StreamFieldsOverride(t *testing.T) {
 	f := func(o opts) {
 		t.Helper()
 
-		lr := GetLogRows(nil, o.ignoreFields, nil, "foobar")
+		lr := GetLogRows(nil, o.ignoreFields, nil, nil, "foobar")
 		defer PutLogRows(lr)
 
 		tid := TenantID{
@@ -161,10 +161,11 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	type opts struct {
 		rows []string
 
-		streamFields    []string
-		ignoreFields    []string
-		extraFields     []Field
-		defaultMsgValue string
+		streamFields     []string
+		ignoreFields     []string
+		decolorizeFields []string
+		extraFields      []Field
+		defaultMsgValue  string
 
 		resultExpected []string
 	}
@@ -172,7 +173,7 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	f := func(o opts) {
 		t.Helper()
 
-		lr := GetLogRows(o.streamFields, o.ignoreFields, o.extraFields, o.defaultMsgValue)
+		lr := GetLogRows(o.streamFields, o.ignoreFields, o.decolorizeFields, o.extraFields, o.defaultMsgValue)
 		defer PutLogRows(lr)
 
 		tid := TenantID{
@@ -294,6 +295,21 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	}
 	f(o)
 
+	// decolorize
+	o = opts{
+		rows: []string{
+			`{"_msg":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","bar":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
+			`{"_msg":"abc","bar":"baz","x":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
+		},
+		decolorizeFields: []string{"_msg", "bar"},
+		resultExpected: []string{
+			`{"_msg":"fooERROR bar","_stream":"{}","_time":"1970-01-01T00:00:00.000000001Z","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000001001Z","bar":"fooERROR bar"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000002001Z","bar":"baz","x":"\u001b[mfoo\u001b[1;31mERROR bar\u001b[10;5H"}`,
+		},
+	}
+	f(o)
 }
 
 func TestInsertRow_MarshalUnmarshal(t *testing.T) {

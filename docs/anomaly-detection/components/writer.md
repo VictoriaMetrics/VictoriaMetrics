@@ -70,7 +70,7 @@ Datasource URL address
             </td>
             <td>
 
-For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.16.2" anomaly %}} is supported, to write data to multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.16.2" anomaly %}} is supported, to write data to multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <!-- Additional rows for metric_format -->
@@ -280,7 +280,7 @@ writer:
 
 ### Multitenancy support
 
-> This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. `multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.15.9" anomaly %}} is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
+> This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. `multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.15.9" anomaly %}} is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 Please note the different behaviors depending on the `tenant_id` value:
 
@@ -312,7 +312,7 @@ Please note the different behaviors depending on the `tenant_id` value:
 
 ### mTLS protection
 
-`vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/#mtls-protection){{% available_from "v1.16.3" anomaly %}}.
+`vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#mtls-protection){{% available_from "v1.16.3" anomaly %}}.
 
 For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_cert_file`, and `tls_key_file`, please refer to the [mTLS protection section](https://docs.victoriametrics.com/anomaly-detection/components/reader/#mtls-protection) in the [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) documentation. The configuration principles apply consistently across all these `vmanomaly` components.
 

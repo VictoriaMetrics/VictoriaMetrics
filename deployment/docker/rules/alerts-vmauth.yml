@@ -14,7 +14,7 @@ groups:
           summary: "vmauth ({{ $labels.instance }}) reached concurrent requests limit"
           description: "Possible solutions: increase the limit with flag: -maxConcurrentRequests, 
           deploy additional vmauth replicas, check requests latency at backend service. 
-          See more details at https://docs.victoriametrics.com/vmauth/#concurrency-limiting"
+          See more details at https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting"
       - alert: UserConcurrentRequestsLimitReached
         expr: sum(increase(vmauth_user_concurrent_requests_limit_reached_total[1m])) by (username) > 0
         for: 3m

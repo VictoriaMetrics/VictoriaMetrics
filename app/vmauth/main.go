@@ -57,15 +57,15 @@ var (
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
 		"Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSCertFile = flag.String("backend.TLSCertFile", "", "Optional path to TLS client certificate file, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSKeyFile = flag.String("backend.TLSKeyFile", "", "Optional path to TLS client key file, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	dryRun                   = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
 	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. "+
 		"Recommended when vmauth is exposed to the internet.")
@@ -96,20 +96,23 @@ func main() {
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
+
 	disableInternalRoutes := len(*httpInternalListenAddr) > 0
 	rh := requestHandlerWithInternalRoutes
 	if disableInternalRoutes {
 		rh = requestHandler
 	}
 
-	serveOpts := httpserver.ServeOptions{
-		UseProxyProtocol:     useProxyProtocol,
+	go httpserver.Serve(listenAddrs, rh, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+		// built-in routes will be exposed at *httpInternalListenAddr
 		DisableBuiltinRoutes: disableInternalRoutes,
-	}
-	go httpserver.ServeWithOpts(listenAddrs, rh, serveOpts)
+	})
 
 	if len(*httpInternalListenAddr) > 0 {
-		go httpserver.Serve(*httpInternalListenAddr, nil, internalRequestHandler)
+		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, httpserver.ServeOptions{
+			UseProxyProtocol: useProxyProtocol,
+		})
 	}
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -543,7 +546,7 @@ func usage() {
 	const s = `
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://docs.victoriametrics.com/vmauth/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
 `
 	flagutil.Usage(s)
 }

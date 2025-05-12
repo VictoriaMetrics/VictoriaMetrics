@@ -1,6 +1,7 @@
 package azremote
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -30,7 +31,7 @@ func TestFSInit_Failure(t *testing.T) {
 		env := testEnv(envArgs)
 		fs.envLookupFunc = env.LookupEnv
 
-		err := fs.Init()
+		err := fs.Init(context.Background())
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -89,7 +90,7 @@ func TestFSInit_Success(t *testing.T) {
 		env := testEnv(envArgs)
 		fs.envLookupFunc = env.LookupEnv
 
-		err := fs.Init()
+		err := fs.Init(context.Background())
 		if err != nil {
 			t.Fatalf("unexpected error at fs.Init(): %s", err)
 		}

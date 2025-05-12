@@ -2,12 +2,14 @@ package storage
 
 import (
 	"fmt"
+	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"testing/quick"
@@ -16,7 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
@@ -836,6 +838,71 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 	return nil
 }
 
+func TestStorageDeleteSeries_EmptyFilters(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMetrics = 10
+	mrs := make([]MetricRow, numMetrics)
+	allMetricNames := make([]string, numMetrics)
+	tr := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	step := (tr.MaxTimestamp - tr.MinTimestamp) / numMetrics
+	for i := range numMetrics {
+		name := fmt.Sprintf("metric_%04d", i)
+		mn := MetricName{
+			MetricGroup: []byte(name),
+		}
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+		mrs[i].Value = float64(i)
+		allMetricNames[i] = name
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertAllMetricNames := func(want []string) {
+		tfs := NewTagFilters()
+		if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+
+	// Confirm that metric names have been written to the index.
+	assertAllMetricNames(allMetricNames)
+
+	got, err := s.DeleteSeries(nil, []*TagFilters{}, 1e9)
+	if err != nil {
+		t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+	}
+	if got != 0 {
+		t.Fatalf("unexpected deleted series count: got %d, want 0", got)
+	}
+
+	// Ensure that metric names haven't been deleted.
+	assertAllMetricNames(allMetricNames)
+}
+
 func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -1603,6 +1670,125 @@ func testRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage)) {
 	wg.Wait()
 }
 
+// testListDirEntries returns the all paths inside `root` dir. The `root` dir
+// itself and paths that start with `ignorePrefix` are omitted.
+func testListDirEntries(t *testing.T, root string, ignorePrefix ...string) []string {
+	t.Helper()
+	var paths []string
+	f := func(path string, _ fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+		for _, prefix := range ignorePrefix {
+			if strings.HasPrefix(path, prefix) {
+				return nil
+			}
+		}
+		paths = append(paths, strings.TrimPrefix(path, root))
+		return nil
+	}
+	if err := filepath.WalkDir(root, f); err != nil {
+		t.Fatalf("could not walk dir %q: %v", root, err)
+	}
+	return paths
+}
+
+func TestStorageSnapshots_CreateListDelete(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numRows = 10000
+	minTimestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	maxTimestamp := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC).UnixMilli()
+	mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+
+	root := t.Name()
+	s := MustOpenStorage(root, OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	snapshotName := s.MustCreateSnapshot()
+	assertListSnapshots := func(want []string) {
+		got := s.MustListSnapshots()
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected snapshot list (-want, +got):\n%s", diff)
+		}
+	}
+	assertListSnapshots([]string{snapshotName})
+
+	// Check snapshot dir entries
+
+	var (
+		data           = filepath.Join(root, dataDirname)
+		smallData      = filepath.Join(data, smallDirname)
+		bigData        = filepath.Join(data, bigDirname)
+		indexData      = filepath.Join(root, indexdbDirname)
+		nextIndexData  = filepath.Join(root, indexdbDirname, s.idbNext.Load().name)
+		smallSnapshots = filepath.Join(smallData, snapshotsDirname)
+		bigSnapshots   = filepath.Join(bigData, snapshotsDirname)
+		indexSnapshots = filepath.Join(indexData, snapshotsDirname)
+		smallSnapshot  = filepath.Join(smallSnapshots, snapshotName)
+		bigSnapshot    = filepath.Join(bigSnapshots, snapshotName)
+		indexSnapshot  = filepath.Join(indexSnapshots, snapshotName)
+	)
+
+	assertDirEntries := func(srcDir, snapshotDir string, excludePath ...string) {
+		t.Helper()
+		dataDirEntries := testListDirEntries(t, srcDir, excludePath...)
+		snapshotDirEntries := testListDirEntries(t, snapshotDir)
+		if diff := cmp.Diff(dataDirEntries, snapshotDirEntries); diff != "" {
+			t.Fatalf("unexpected snapshot dir entries (-want, +got):\n%s", diff)
+		}
+	}
+	assertDirEntries(smallData, smallSnapshot, smallSnapshots)
+	assertDirEntries(bigData, bigSnapshot, bigSnapshots)
+	assertDirEntries(indexData, indexSnapshot, indexSnapshots, nextIndexData)
+
+	// Check snapshot symlinks
+
+	var (
+		snapshot     = filepath.Join(root, snapshotsDirname, snapshotName)
+		bigSymlink   = filepath.Join(snapshot, dataDirname, bigDirname)
+		smallSymlink = filepath.Join(snapshot, dataDirname, smallDirname)
+		indexSymlink = filepath.Join(snapshot, indexdbDirname)
+	)
+	assertSymlink := func(symlink string, wantRealpath string) {
+		t.Helper()
+		gotRealpath, err := filepath.EvalSymlinks(symlink)
+		if err != nil {
+			t.Fatalf("Could not evaluate symlink %q: %v", symlink, err)
+		}
+		if gotRealpath != wantRealpath {
+			t.Fatalf("unexpected realpath for symlink %q: got %q, want %q", symlink, gotRealpath, wantRealpath)
+		}
+	}
+	assertSymlink(bigSymlink, bigSnapshot)
+	assertSymlink(smallSymlink, smallSnapshot)
+	assertSymlink(indexSymlink, indexSnapshot)
+
+	// Check snapshot deletion.
+
+	if err := s.DeleteSnapshot(snapshotName); err != nil {
+		t.Fatalf("could not delete snapshot %q: %v", snapshotName, err)
+	}
+	assertListSnapshots([]string{})
+
+	assertPathDoesNotExist := func(path string) {
+		t.Helper()
+		if vmfs.IsPathExist(path) {
+			t.Fatalf("path was not expected to exist: %q", path)
+		}
+	}
+	assertPathDoesNotExist(snapshot)
+	assertPathDoesNotExist(bigSnapshot)
+	assertPathDoesNotExist(smallSnapshot)
+	assertPathDoesNotExist(indexSnapshot)
+}
+
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
@@ -1656,7 +1842,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 func testRemoveAll(t *testing.T) {
 	defer func() {
 		if !t.Failed() {
-			fs.MustRemoveAll(t.Name())
+			vmfs.MustRemoveAll(t.Name())
 		}
 	}()
 }
@@ -1880,6 +2066,57 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	return len(ids)
 }
 
+func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMetrics = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("metric_%d", i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = name
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		tfss := NewTagFilters()
+		if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfss}, tr, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.UnmarshalString(name); err != nil {
+				t.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
 func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -2093,6 +2330,442 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		maxMetrics: numRows * numDays,
 		wantCount:  numRows * numDays,
 	})
+}
+
+func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numRows = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numRows)
+		want := make([]string, numRows)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
+		mn := MetricName{
+			MetricGroup: []byte("metric"),
+			Tags: []Tag{
+				{
+					Key:   []byte("tbd"),
+					Value: []byte("value"),
+				},
+			},
+		}
+		for i := range numRows {
+			labelName := fmt.Sprintf("label_%d", i)
+			mn.Tags[0].Key = []byte(labelName)
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = labelName
+		}
+		want = append(want, "__name__")
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected label names (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
+func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numRows = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numRows)
+		want := make([]string, numRows)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
+		mn := MetricName{
+			MetricGroup: []byte("metric"),
+			Tags: []Tag{
+				{
+					Key:   []byte("label"),
+					Value: []byte("tbd"),
+				},
+			},
+		}
+		for i := range numRows {
+			labelValue := fmt.Sprintf("value_%d", i)
+			mn.Tags[0].Value = []byte(labelValue)
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = labelValue
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
+func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMetrics = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("prefix.metric%04d", i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = fmt.Sprintf("metric%04d", i)
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchTagValueSuffixes(nil, tr, "", "prefix.", '.', 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected tag value suffixes (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
+func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		const numMetrics = 10000
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("prefix.metric%04d", i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = name
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagGraphitePaths() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected graphite paths (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
+// testStorageOpOnVariousTimeRanges executes some storage operation on various
+// time ranges: 1h, 1d, 1m, etc.
+func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr TimeRange)) {
+	t.Helper()
+
+	t.Run("1h", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC).UnixMilli(),
+		})
+	})
+	t.Run("1d", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	t.Run("1m", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	t.Run("1y", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+}
+
+func TestStorageSearchLabelValues_EmptyValuesAreNotReturned(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numRows = 1000
+
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := make([]MetricRow, numRows)
+	want := make([]string, numRows)
+
+	for i := range numRows {
+		metricName := fmt.Sprintf("metric_%03d", i)
+		labelValue := fmt.Sprintf("value_%03d", i)
+		mn := MetricName{
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{
+					Key:   []byte("label_with_empty_value"),
+					Value: []byte(""),
+				},
+				{
+					Key:   []byte("label_with_non_empty_value"),
+					Value: []byte(labelValue),
+				},
+			},
+		}
+
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+		mrs[i].Value = float64(i)
+		want[i] = labelValue
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertSearchLabelValues := func(labelName string, want []string) {
+		got, err := s.SearchLabelValues(nil, labelName, nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	// First, ensure that non-empty label values are returned.
+	assertSearchLabelValues("label_with_non_empty_value", want)
+
+	// Now verify that empty label values are not returned.
+	assertSearchLabelValues("label_with_empty_value", []string{})
+}
+
+func TestStorageGetSeriesCount(t *testing.T) {
+	defer testRemoveAll(t)
+
+	// Inserts the numMetrics of the same metrics for each time range from trs
+	// and then gets the series count and compares it with wanted value.
+	f := func(numMetrics int, trs []TimeRange, want uint64) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numMetrics)
+		for i := range numMetrics {
+			metricName := fmt.Sprintf("metric_%d", i)
+			mn := MetricName{
+				MetricGroup: []byte(metricName),
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Value = float64(i)
+		}
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		for _, tr := range trs {
+			for i := range mrs {
+				mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+			}
+			s.AddRows(mrs, defaultPrecisionBits)
+		}
+		s.DebugFlush()
+
+		got, err := s.GetSeriesCount(noDeadline)
+		if err != nil {
+			t.Fatalf("GetSeriesCount() failed unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Errorf("unexpected series count: got %d, want %d", got, want)
+		}
+	}
+
+	const numMetrics = 100
+	month := func(m int) TimeRange {
+		return TimeRange{
+			MinTimestamp: time.Date(2024, time.Month(m), 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, time.Month(m), 20, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		}
+	}
+	var want uint64
+
+	oneMonth := []TimeRange{month(1)}
+	want = numMetrics
+	f(numMetrics, oneMonth, want)
+
+	twoMonths := []TimeRange{month(1), month(2)}
+	want = numMetrics
+	f(numMetrics, twoMonths, want)
+
+	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
+	want = numMetrics
+	f(numMetrics, fourMonths, want)
+}
+
+func TestStorageGetTSDBStatus(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		numLabelNames    = 50
+		numLabelValues   = 30
+		numMetricNames   = numLabelNames * numLabelValues
+		focusLabel       = "label_0000"
+		nameValueRepeats = 10 // greatest common divisor
+		valuesPerName    = numLabelValues / nameValueRepeats
+	)
+
+	mrs := make([]MetricRow, numMetricNames)
+	tr := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 13, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 13, 23, 59, 59, 0, time.UTC).UnixMilli(),
+	}
+	date := uint64(tr.MinTimestamp / msecPerDay)
+	for i := range numMetricNames {
+		metricName := fmt.Sprintf("metric_%04d", i)
+		labelName := fmt.Sprintf("label_%04d", i%numLabelNames)
+		labelValue := fmt.Sprintf("value_%04d", i%numLabelValues)
+		mn := MetricName{
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{
+					Key:   []byte(labelName),
+					Value: []byte(labelValue),
+				},
+			},
+		}
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+		mrs[i].Value = float64(i)
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	var got, want *TSDBStatus
+
+	// Check the date on which there is no data.
+	got, err := s.GetTSDBStatus(nil, nil, date-1, "", 6, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
+	}
+	want = &TSDBStatus{
+		SeriesCountByMetricName:      []TopHeapEntry{},
+		SeriesCountByLabelName:       []TopHeapEntry{},
+		SeriesCountByFocusLabelValue: []TopHeapEntry{},
+		SeriesCountByLabelValuePair:  []TopHeapEntry{},
+		LabelValueCountByLabelName:   []TopHeapEntry{},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
+	}
+
+	// Check the date on which there is data.
+	got, err = s.GetTSDBStatus(nil, nil, date, "label_0000", 6, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
+	}
+	want = &TSDBStatus{
+		TotalSeries:          numMetricNames,
+		TotalLabelValuePairs: numMetricNames + numLabelNames*numLabelValues,
+		SeriesCountByMetricName: []TopHeapEntry{
+			{Name: "metric_0000", Count: 1},
+			{Name: "metric_0001", Count: 1},
+			{Name: "metric_0002", Count: 1},
+			{Name: "metric_0003", Count: 1},
+			{Name: "metric_0004", Count: 1},
+			{Name: "metric_0005", Count: 1},
+		},
+		SeriesCountByLabelName: []TopHeapEntry{
+			{Name: "__name__", Count: numMetricNames},
+			{Name: "label_0000", Count: numLabelValues},
+			{Name: "label_0001", Count: numLabelValues},
+			{Name: "label_0002", Count: numLabelValues},
+			{Name: "label_0003", Count: numLabelValues},
+			{Name: "label_0004", Count: numLabelValues},
+		},
+		SeriesCountByFocusLabelValue: []TopHeapEntry{
+			{Name: "value_0000", Count: nameValueRepeats},
+			{Name: "value_0010", Count: nameValueRepeats},
+			{Name: "value_0020", Count: nameValueRepeats},
+		},
+		SeriesCountByLabelValuePair: []TopHeapEntry{
+			{Name: "label_0000=value_0000", Count: nameValueRepeats},
+			{Name: "label_0000=value_0010", Count: nameValueRepeats},
+			{Name: "label_0000=value_0020", Count: nameValueRepeats},
+			{Name: "label_0001=value_0001", Count: nameValueRepeats},
+			{Name: "label_0001=value_0011", Count: nameValueRepeats},
+			{Name: "label_0001=value_0021", Count: nameValueRepeats},
+		},
+		LabelValueCountByLabelName: []TopHeapEntry{
+			{Name: "__name__", Count: numMetricNames},
+			{Name: "label_0000", Count: valuesPerName},
+			{Name: "label_0001", Count: valuesPerName},
+			{Name: "label_0002", Count: valuesPerName},
+			{Name: "label_0003", Count: valuesPerName},
+			{Name: "label_0004", Count: valuesPerName},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
+	}
 }
 
 func TestStorageDate(t *testing.T) {
@@ -3291,6 +3964,46 @@ func TestStorageMetricTracker(t *testing.T) {
 	if len(mus.Records) != int(numRows) {
 		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
 	}
+}
+
+func TestStorageSearchTagValueSuffixes_maxTagValueSuffixes(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	const numMetrics = 1000
+	mrs := testGenerateMetricRowsWithPrefix(rng, numMetrics, "metric.", tr)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	assertSuffixCount := func(maxTagValueSuffixes, want int) {
+		suffixes, err := s.SearchTagValueSuffixes(nil, tr, "", "metric.", '.', maxTagValueSuffixes, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
+		}
+
+		if got := len(suffixes); got != want {
+			t.Fatalf("unexpected tag value suffix count: got %d, want %d", got, want)
+		}
+	}
+
+	// First, check that all the suffixes are returned if the limit is higher
+	// than numMetrics.
+	maxTagValueSuffixes := numMetrics + 1
+	wantCount := numMetrics
+	assertSuffixCount(maxTagValueSuffixes, wantCount)
+
+	// Now set the max value to one that is smaller than numMetrics. The search
+	// result must contain exactly that many suffixes.
+	maxTagValueSuffixes = numMetrics / 10
+	wantCount = maxTagValueSuffixes
+	assertSuffixCount(maxTagValueSuffixes, wantCount)
 }
 
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {

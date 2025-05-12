@@ -36,8 +36,8 @@ Just download archive for the needed Operating system and architecture, unpack i
 For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.20.0-victorialogs/victoria-logs-linux-amd64-v1.20.0-victorialogs.tar.gz
-tar xzf victoria-logs-linux-amd64-v1.20.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.22.1-victorialogs/victoria-logs-linux-amd64-v1.22.1-victorialogs.tar.gz
+tar xzf victoria-logs-linux-amd64-v1.22.1-victorialogs.tar.gz
 ./victoria-logs-prod -storageDataPath=victoria-logs-data
 ```
 
@@ -61,7 +61,7 @@ Here is the command to run VictoriaLogs in a Docker container:
 
 ```sh
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
-  docker.io/victoriametrics/victoria-logs:v1.20.0-victorialogs -storageDataPath=victoria-logs-data
+  docker.io/victoriametrics/victoria-logs:v1.22.1-victorialogs -storageDataPath=victoria-logs-data
 ```
 
 See also:
@@ -73,7 +73,8 @@ See also:
 ### Helm charts
 
 You can run VictoriaLogs in Kubernetes environment
-with [these Helm charts](https://docs.victoriametrics.com/helm/victorialogs-single/).
+with [VictoriaLogs single](https://docs.victoriametrics.com/helm/victorialogs-single/)
+or [cluster](https://docs.victoriametrics.com/helm/victorialogs-cluster) helm charts.
 
 ### Building from source code
 
@@ -151,5 +152,6 @@ Docker-compose demos that integrate VictoriaLogs and various log collectors:
 - [Vector demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector)
 - [Promtail demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail)
 
-You can use [this Helm chart](https://docs.victoriametrics.com/helm/victorialogs-single/)
-as a demo for running Vector in Kubernetes with VictoriaLogs.
+You can use [VictoriaLogs single](https://docs.victoriametrics.com/helm/victorialogs-single/)
+or [cluster](https://docs.victoriametrics.com/helm/victorialogs-cluster) helm charts as a demo for running Vector 
+in Kubernetes with VictoriaLogs.

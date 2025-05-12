@@ -65,6 +65,9 @@ type ResolverSettings struct {
 	// ConverterSettings contains settings that will be passed to Converter
 	// factories when instantiating Converters.
 	ConverterSettings ConverterSettings
+
+	// prevent unkeyed literal initialization
+	_ struct{}
 }
 
 // NewResolver returns a new Resolver that resolves configuration from multiple URIs.

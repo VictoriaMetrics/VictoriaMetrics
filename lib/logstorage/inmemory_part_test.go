@@ -75,7 +75,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		}
 	}
 
-	f(GetLogRows(nil, nil, nil, ""), 0, 0)
+	f(GetLogRows(nil, nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
 	f(newTestLogRows(1, 1, 0), 1, 1.3)
@@ -220,8 +220,8 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 
 	// Check empty readers
 	f(nil, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil, nil, "")}, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil, nil, ""), GetLogRows(nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, nil, ""), GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
 	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.3)
@@ -268,7 +268,7 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil, nil, "")
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	rng := rand.New(rand.NewSource(seed))
 	var fields []Field
 	for i := 0; i < streams; i++ {
@@ -385,7 +385,7 @@ func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRo
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil, nil, "")
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	var fields []Field
 	for i := 0; i < streams; i++ {
 		tenantID := TenantID{

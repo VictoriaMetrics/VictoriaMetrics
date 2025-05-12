@@ -388,7 +388,7 @@ func (ptp *pipeTopkProcessor) flush() error {
 	}
 
 	// Sort every shard in parallel
-	shards := ptp.shards.GetSlice()
+	shards := ptp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

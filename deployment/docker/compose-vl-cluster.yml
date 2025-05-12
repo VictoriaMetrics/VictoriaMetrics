@@ -36,30 +36,30 @@ services:
     user: root
 
   vlinsert:
-    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.22.1-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
       - "--storageNode=vlstorage-2:9428"
 
   vlselect-1:
-    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.22.1-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
       - "--storageNode=vlstorage-2:9428"
   vlselect-2:
-    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.22.1-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
       - "--storageNode=vlstorage-2:9428"
 
   vlstorage-1:
-    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.22.1-victorialogs
     command:
       - "--storageDataPath=/vlogs"
     volumes:
       - vldata-1:/vlogs
   vlstorage-2:
-    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.22.1-victorialogs
     command:
       - "--storageDataPath=/vlogs"
     volumes:
@@ -68,7 +68,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.115.0
+    image: victoriametrics/victoria-metrics:v1.116.0
     volumes:
       - vmdata:/storage
       - ./prometheus-vl-cluster.yml:/etc/prometheus/prometheus.yml
@@ -81,7 +81,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.115.0
+    image: victoriametrics/vmauth:v1.116.0
     depends_on:
       - "victoriametrics"
       - "vlselect-1"
@@ -97,7 +97,7 @@ services:
 
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.115.0
+    image: victoriametrics/vmalert:v1.116.0
     depends_on:
       - "vmauth"
       - "alertmanager"
@@ -111,15 +111,20 @@ services:
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
       # vlogs rule
-      - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
+      - ./vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
     command:
+      # it evaluates data against VictoriaMetrics and VictoriaLogs
+      # vmauth routes queries to corresponding datasource based on API path
       - "--datasource.url=http://vmauth:8427/"
-      - "--remoteRead.url=http://victoriametrics:8428/"
+      # results of alerting and recording rules are persisted to VictoriaMetrics only
       - "--remoteWrite.url=http://victoriametrics:8428/"
+      # alerts state is restored from VictoriaMetrics on restarts
+      - "--remoteRead.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     restart: always
 
   # alertmanager receives alerting notifications from vmalert
