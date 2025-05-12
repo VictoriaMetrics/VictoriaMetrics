@@ -2543,87 +2543,6 @@ func fastHashUint64(x uint64) uint64 {
 	return x * 2685821657736338717
 }
 
-// simplified version of dateMetricIDCache
-type metricIDCache struct {
-	// Contains vImmutable map
-	vImmutable atomic.Pointer[uint64set.Set]
-
-	// Contains vMutable map protected by mu
-	vMutable *uint64set.Set
-
-	// Contains the number of slow accesses to vMutable.
-	// Is used for deciding when to merge vMutable to vImmutable.
-	// Protected by mu.
-	slowHits int
-
-	mu sync.Mutex
-}
-
-func newMetricIDCache() *metricIDCache {
-	var mc metricIDCache
-	mc.vImmutable.Store(&uint64set.Set{})
-	mc.vMutable = &uint64set.Set{}
-	return &mc
-}
-
-func (mc *metricIDCache) Has(metricID uint64) bool {
-	if mc.vImmutable.Load().Has(metricID) {
-		// Fast path. The majority of calls must go here.
-		return true
-	}
-	// Slow path. Acquire the lock and search the vImmutable map again and then
-	// also search the vMutable map.
-	return mc.hasSlow(metricID)
-}
-
-func (mc *metricIDCache) hasSlow(metricID uint64) bool {
-	mc.mu.Lock()
-	defer mc.mu.Unlock()
-
-	// First, check vImmutable map again because the entry may have been moved to
-	// the vImmutable map by the time the caller acquires the lock.
-	vImmutable := mc.vImmutable.Load()
-	if mc.vImmutable.Load().Has(metricID) {
-		return true
-	}
-
-	// Then check vImmutable map.
-	vMutable := mc.vMutable
-	ok := vMutable.Has(metricID)
-	if ok {
-		mc.slowHits++
-		if mc.slowHits > (vImmutable.Len()+vMutable.Len())/2 {
-			// It is cheaper to merge vMutable part into vImmutable than to pay inter-cpu sync costs when accessing vMutable.
-			mc.syncLocked()
-			mc.slowHits = 0
-		}
-	}
-	return ok
-}
-
-func (mc *metricIDCache) Set(metricID uint64) {
-	mc.mu.Lock()
-	v := mc.vMutable
-	v.Add(metricID)
-	mc.mu.Unlock()
-}
-
-func (mc *metricIDCache) syncLocked() {
-	if mc.vMutable.Len() == 0 {
-		// Nothing to sync.
-		return
-	}
-
-	// Merge data from vImmutable into vMutable and then atomically replace vImmutable with the merged data.
-	vImmutable := mc.vImmutable.Load()
-	vMutable := mc.vMutable
-	vMutable.Union(vImmutable)
-
-	// Atomically replace vImmutable with vMutable
-	mc.vImmutable.Store(mc.vMutable)
-	mc.vMutable = &uint64set.Set{}
-}
-
 // dateMetricIDCache is fast cache for holding (date, metricID) entries.
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
@@ -2631,10 +2550,10 @@ type dateMetricIDCache struct {
 	syncsCount  atomic.Uint64
 	resetsCount atomic.Uint64
 
-	// Contains vImmutable map
+	// Contains immutable map
 	byDate atomic.Pointer[byDateMetricIDMap]
 
-	// Contains vMutable map protected by mu
+	// Contains mutable map protected by mu
 	byDateMutable *byDateMetricIDMap
 
 	// Contains the number of slow accesses to byDateMutable.
@@ -2683,8 +2602,8 @@ func (dmc *dateMetricIDCache) Has(idbID, date, metricID uint64) bool {
 		// Fast path. The majority of calls must go here.
 		return true
 	}
-	// Slow path. Acquire the lock and search the vImmutable map again and then
-	// also search the vMutable map.
+	// Slow path. Acquire the lock and search the immutable map again and then
+	// also search the mutable map.
 	return dmc.hasSlow(idbID, date, metricID)
 }
 
@@ -2692,15 +2611,15 @@ func (dmc *dateMetricIDCache) hasSlow(idbID, date, metricID uint64) bool {
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 
-	// First, check vImmutable map again because the entry may have been moved to
-	// the vImmutable map by the time the caller acquires the lock.
+	// First, check immutable map again because the entry may have been moved to
+	// the immutable map by the time the caller acquires the lock.
 	byDate := dmc.byDate.Load()
 	v := byDate.get(idbID, date)
 	if v.Has(metricID) {
 		return true
 	}
 
-	// Then check vImmutable map.
+	// Then check immutable map.
 	vMutable := dmc.byDateMutable.get(idbID, date)
 	ok := vMutable.Has(metricID)
 	if ok {
