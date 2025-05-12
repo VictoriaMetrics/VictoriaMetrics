@@ -71,7 +71,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters).
-- [FIPS compliant mode for all the components](https://docs.victoriametrics.com/victoriametrics/enterpries/#fips-compliance).
+- [FIPS compliant mode for all the components](https://docs.victoriametrics.com/victoriametrics/enterprise/#fips-compliance).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
 
