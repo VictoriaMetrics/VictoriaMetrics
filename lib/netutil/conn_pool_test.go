@@ -2,6 +2,7 @@ package netutil
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,4 +59,31 @@ func testConnPoolStartStop(t *testing.T, name string, ms *metrics.Set) {
 			t.Fatalf("expecting nil conn after MustStop()")
 		}
 	}
+}
+
+func TestGetPutDialConnectionPool(t *testing.T) {
+	t.Skip()
+	ms := metrics.NewSet()
+	dialTimeout := 5 * time.Second
+	compressLevel := 1
+	cp := NewConnPool(ms, "test-pool", "127.0.0.1:8401", handshake.VMSelectClient, compressLevel, dialTimeout, 0)
+
+	connChan := make(chan *handshake.BufferedConn, 50)
+	wg := sync.WaitGroup{}
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			conn, err := cp.Get()
+			if err != nil {
+				t.Fatalf("expecting non-nil error after MustStop(), err:%v", err)
+			}
+			connChan <- conn
+			wg.Done()
+		}()
+	}
+
+	for i := 0; i < 50; i++ {
+		cp.Put(<-connChan)
+	}
+	wg.Wait()
 }
