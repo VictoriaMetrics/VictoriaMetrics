@@ -108,11 +108,11 @@ func (mc *metricIDCache) hasSlow(metricID uint64) bool {
 	// First, check vImmutable map again because the entry may have been moved to
 	// the vImmutable map by the time the caller acquires the lock.
 	vImmutable := mc.vImmutable.Load()
-	if mc.vImmutable.Load().Has(metricID) {
+	if vImmutable.Has(metricID) {
 		return true
 	}
 
-	// Then check vImmutable map.
+	// Then check vMutable map.
 	vMutable := mc.vMutable
 	ok := vMutable.Has(metricID)
 	if ok {
