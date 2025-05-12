@@ -8,6 +8,28 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
   const playground = process.env.PLAYGROUND;
 
   switch (playground) {
+    case "METRICS": {
+      return {
+        "^/vmalert/.*": {
+          target: "https://play.victoriametrics.com",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
+        },
+        "^/api/.*": {
+          target: "https://play.victoriametrics.com/select/0/prometheus/",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
+        }
+      };
+    }
     case "LOGS": {
       return {
         "^/select/.*": {
