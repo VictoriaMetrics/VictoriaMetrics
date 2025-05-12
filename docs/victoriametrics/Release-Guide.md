@@ -4,6 +4,7 @@ title: Release process guidance
 menu:
   docs:
     parent: 'victoriametrics'
+    identifier: "release-process-guidance"
     weight: 501
 tags: []
 aliases:
