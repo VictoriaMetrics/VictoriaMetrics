@@ -124,7 +124,7 @@ services:
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
-      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"{{ if eq .Type "vlogs" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     restart: always
 
   # alertmanager receives alerting notifications from vmalert
