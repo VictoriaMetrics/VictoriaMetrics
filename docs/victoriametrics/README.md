@@ -73,12 +73,12 @@ VictoriaMetrics has the following prominent features:
   * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
-  * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
+  * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
   * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
   * [Native binary format](#how-to-import-data-in-native-format).
   * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
-  * [NewRelic infrastructure agent](#how-to-send-data-from-newrelic-agent).
+  * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent).
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
@@ -230,9 +230,10 @@ helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vic
 
 ## Playgrounds
 
-VictoriaMetrics has the following publicly available resources:
+VictoriaMetrics has the following publicly available demo resources:
+
 1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling playground, other tools and pages provided by VMUI.
+  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
 1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
   typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
   3 cluster installations for the recent OS and LTS versions running under the constant becnhmark.
@@ -282,12 +283,12 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Top queries](#top-queries) - shows most frequently executed queries;
   - [Active queries](#active-queries) - shows currently executed queries;
 - Tools:
-  - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
-  - [Query analyzer](#query-tracing) - playground for loading query results and traces in JSON format. See `Export query` button below;  
-  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
-  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
-  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - playground for [relabeling](#downsampling) configs {{% available_from "v1.105.0" %}}.
-  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - playground for [relabeling](#retention-filters) configs {{% available_from "v1.105.0" %}}.
+  - [Trace analyzer](#query-tracing) - exlpore query traces loaded from JSON;
+  - [Query analyzer](#query-tracing) - explore query results and traces loaded from JSON. See `Export query` button below;
+  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work;
+  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
+  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - debug [downsampling](#downsampling) configs {{% available_from "v1.105.0" %}}.
+  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - debug [retention filter](#retention-filters) configs {{% available_from "v1.105.0" %}}.
 
 VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, metric names, label names and label values. The auto-completion can be enabled
 by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can still be triggered for the current cursor position by pressing `ctrl+space`.
@@ -383,6 +384,7 @@ By default, all the time series for the selected date are analyzed. To narrow do
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 Resources:
+
  * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
  * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 
@@ -444,145 +446,19 @@ Moved to [integrations/graphite#selecting-graphite-metrics](https://docs.victori
 
 ## How to send data from OpenTSDB-compatible agents
 
-VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
-and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) for ingesting OpenTSDB data.
-The same protocol is used for [ingesting data in KairosDB](https://kairosdb.github.io/docs/PushingData.html).
+Moved to [integrations/opentsdb](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb).
 
 ### Sending data via `telnet put` protocol
 
-Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
-the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
-
-```sh
-/path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
-```
-
-Send data to the given address from OpenTSDB-compatible agents.
-
-Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
-```sh
-echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
-```
-
-An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
-```
-
-The `/api/v1/export` endpoint should return the following response:
-```json
-{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
-```
+Moved to [integrations/opentsdb#sending-data-via-telnet](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
 
 ### Sending OpenTSDB data via HTTP `/api/put` requests
 
-Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
-the following command enables OpenTSDB HTTP server on port `4242`:
-```sh
-/path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
-```
-
-Send data to the given address from OpenTSDB-compatible agents.
-
-Example for writing a single data point:
-```sh
-curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
-```
-
-Example for writing multiple data points in a single request:
-```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
-```
-
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
-```
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo"},"values":[45.34],"timestamps":[1566464846000]}
-{"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
-{"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
-```
-
-Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
-For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
+Moved to [integrations/opentsdb#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
 
 ## How to send data from NewRelic agent
 
-VictoriaMetrics accepts data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent)
-at `/newrelic/infra/v2/metrics/events/bulk` HTTP path.
-VictoriaMetrics receives [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-from NewRelic agent at the given path, transforms them to [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
-according to [these docs](#newrelic-agent-data-mapping) before storing the raw samples to the database.
-
-You need passing `COLLECTOR_URL` and `NRIA_LICENSE_KEY` environment variables to NewRelic infrastructure agent in order to send the collected metrics to VictoriaMetrics.
-The `COLLECTOR_URL` must point to `/newrelic` HTTP endpoint at VictoriaMetrics, while the `NRIA_LICENSE_KEY` must contain NewRelic license key,
-which can be obtained [here](https://newrelic.com/signup).
-For example, if VictoriaMetrics runs at `localhost:8428`, then the following command can be used for running NewRelic infrastructure agent:
-
-```sh
-COLLECTOR_URL="http://localhost:8428/newrelic" NRIA_LICENSE_KEY="NEWRELIC_LICENSE_KEY" ./newrelic-infra
-```
-
-### NewRelic agent data mapping
-
-VictoriaMetrics maps [NewRelic Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-to [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) in the following way:
-
-1. Every numeric field is converted into a raw sample with the corresponding name.
-1. The `eventType` and all the other fields with `string` value type are attached to every raw sample as [metric labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels).
-1. The `timestamp` field is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
-   The `timestamp` field may be specified either in seconds or in milliseconds since the [Unix Epoch](https://en.wikipedia.org/wiki/Unix_time).
-   If the `timestamp` field is missing, then the raw sample is stored with the current timestamp.
-
-For example, let's import the following NewRelic Events request to VictoriaMetrics:
-
-```json
-[
-  {
-    "Events":[
-      {
-        "eventType":"SystemSample",
-        "entityKey":"macbook-pro.local",
-        "cpuPercent":25.056660790748904,
-        "cpuUserPercent":8.687987912389374,
-        "cpuSystemPercent":16.36867287835953,
-        "cpuIOWaitPercent":0,
-        "cpuIdlePercent":74.94333920925109,
-        "cpuStealPercent":0,
-        "loadAverageOneMinute":5.42333984375,
-        "loadAverageFiveMinute":4.099609375,
-        "loadAverageFifteenMinute":3.58203125
-      }
-    ]
-  }
-]
-```
-
-Save this JSON into `newrelic.json` file and then use the following command in order to import it into VictoriaMetrics:
-
-```sh
-curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/infra/v2/metrics/events/bulk
-```
-
-Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
-
-```sh
-curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
-{"metric":{"__name__":"cpuStealPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
-{"metric":{"__name__":"loadAverageFiveMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[4.099609375],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuIOWaitPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuSystemPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[16.368672878359],"timestamps":[1697407970000]}
-{"metric":{"__name__":"loadAverageOneMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[5.42333984375],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuUserPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[8.687987912389],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuIdlePercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[74.9433392092],"timestamps":[1697407970000]}
-{"metric":{"__name__":"loadAverageFifteenMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[3.58203125],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[25.056660790748],"timestamps":[1697407970000]}
-```
+Moved to [integrations/newrelic#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
 
 ## Prometheus querying API usage
 
@@ -996,7 +872,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
-* OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
+* OpenTSDB http `/api/put` protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
   See [these docs](#how-to-import-data-in-json-line-format) for details.
 * `/api/v1/import/native` for importing data obtained from [/api/v1/export/native](#how-to-export-data-in-native-format).
@@ -1294,7 +1170,7 @@ VictoriaMetrics provides additional relabeling features such as Graphite-style r
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for more details.
 
 The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
-or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
+or at our [public demo playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug) for more details.
 
 

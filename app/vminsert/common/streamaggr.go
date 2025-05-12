@@ -45,10 +45,10 @@ var (
 	saCfgReloaderStopCh chan struct{}
 	saCfgReloaderWG     sync.WaitGroup
 
-	saCfgReloads   = metrics.NewCounter(`vminsert_streamagg_config_reloads_total`)
-	saCfgReloadErr = metrics.NewCounter(`vminsert_streamagg_config_reloads_errors_total`)
-	saCfgSuccess   = metrics.NewGauge(`vminsert_streamagg_config_last_reload_successful`, nil)
-	saCfgTimestamp = metrics.NewCounter(`vminsert_streamagg_config_last_reload_success_timestamp_seconds`)
+	saCfgReloads   *metrics.Counter
+	saCfgReloadErr *metrics.Counter
+	saCfgSuccess   *metrics.Gauge
+	saCfgTimestamp *metrics.Counter
 
 	sasGlobal    atomic.Pointer[streamaggr.Aggregators]
 	deduplicator *streamaggr.Deduplicator
@@ -86,6 +86,11 @@ func InitStreamAggr() {
 		}
 		return
 	}
+
+	saCfgReloads = metrics.NewCounter(`vminsert_streamagg_config_reloads_total`)
+	saCfgReloadErr = metrics.NewCounter(`vminsert_streamagg_config_reloads_errors_total`)
+	saCfgSuccess = metrics.NewGauge(`vminsert_streamagg_config_last_reload_successful`, nil)
+	saCfgTimestamp = metrics.NewCounter(`vminsert_streamagg_config_last_reload_success_timestamp_seconds`)
 
 	sighupCh := procutil.NewSighupChan()
 

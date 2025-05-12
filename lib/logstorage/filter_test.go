@@ -249,7 +249,7 @@ func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {
 		"job",
 		"instance",
 	}
-	lr := GetLogRows(streamTags, nil, nil, "")
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	var fields []Field
 	for i := range columns[0].values {
 		// Add stream tags

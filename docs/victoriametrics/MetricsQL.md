@@ -60,7 +60,7 @@ MetricsQL implements [PromQL](https://medium.com/@valyala/promql-tutorial-for-be
 and provides additional functionality mentioned below, which is aimed towards solving practical cases.
 Feel free [filing a feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you think MetricsQL misses certain useful functionality.
 
-This functionality can be evaluated at [VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/)
+This functionality can be evaluated at [VictoriaMetrics demo playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/)
 or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
 
 The list of MetricsQL features on top of PromQL:

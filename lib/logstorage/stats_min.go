@@ -155,31 +155,45 @@ func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResu
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.minValue)
-		smp.updateStateBytes(bb.B)
+		smp.updateStateWithLowerBound(br, c, bb.B)
 		bbPool.Put(bb)
 	case valueTypeInt64:
 		bb := bbPool.Get()
 		bb.B = marshalInt64String(bb.B[:0], int64(c.minValue))
-		smp.updateStateBytes(bb.B)
+		smp.updateStateWithLowerBound(br, c, bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
 		f := math.Float64frombits(c.minValue)
 		bb := bbPool.Get()
 		bb.B = marshalFloat64String(bb.B[:0], f)
-		smp.updateStateBytes(bb.B)
+		smp.updateStateWithLowerBound(br, c, bb.B)
 		bbPool.Put(bb)
 	case valueTypeIPv4:
 		bb := bbPool.Get()
 		bb.B = marshalIPv4String(bb.B[:0], uint32(c.minValue))
-		smp.updateStateBytes(bb.B)
+		smp.updateStateWithLowerBound(br, c, bb.B)
 		bbPool.Put(bb)
 	case valueTypeTimestampISO8601:
 		bb := bbPool.Get()
 		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.minValue))
-		smp.updateStateBytes(bb.B)
+		smp.updateStateWithLowerBound(br, c, bb.B)
 		bbPool.Put(bb)
 	default:
 		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
+	}
+}
+
+func (smp *statsMinProcessor) updateStateWithLowerBound(br *blockResult, c *blockResultColumn, lowerBound []byte) {
+	lowerBoundStr := bytesutil.ToUnsafeString(lowerBound)
+	if !smp.needsUpdateState(lowerBoundStr) {
+		return
+	}
+	if br.isFull() {
+		smp.setState(lowerBoundStr)
+	} else {
+		for _, v := range c.getValues(br) {
+			smp.updateStateString(v)
+		}
 	}
 }
 
@@ -189,14 +203,20 @@ func (smp *statsMinProcessor) updateStateBytes(b []byte) {
 }
 
 func (smp *statsMinProcessor) updateStateString(v string) {
+	if smp.needsUpdateState(v) {
+		smp.setState(v)
+	}
+}
+
+func (smp *statsMinProcessor) setState(v string) {
+	smp.min = strings.Clone(v)
 	if !smp.hasItems {
-		smp.min = strings.Clone(v)
 		smp.hasItems = true
-		return
 	}
-	if lessString(v, smp.min) {
-		smp.min = strings.Clone(v)
-	}
+}
+
+func (smp *statsMinProcessor) needsUpdateState(v string) bool {
+	return !smp.hasItems || lessString(v, smp.min)
 }
 
 func (smp *statsMinProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {

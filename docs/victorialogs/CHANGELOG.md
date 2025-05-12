@@ -18,11 +18,32 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.22.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.2-victorialogs)
+
+Released at 2025-05-10
+
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate [`min`](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats) and [`max`](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats) stats for numeric log fields.
+
+## [v1.22.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.1-victorialogs)
+
+Released at 2025-05-09
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix issue where log entries did not update after modifying the query. See [#8912](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8912).
+
+## [v1.22.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.0-victorialogs)
+
+Released at 2025-05-08
+
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add [`decolorize` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#decolorize-pipe) for dropping [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code) from the given log fields.
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add the ability to remove [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code) from the ingested log fields before storing them in the database. This can be done by passing comma-separated list of field names to remove ANSI color codes from, to `decolorize_fields` HTTP query arg or to `VL-Decolorize-Fields` HTTP header. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support for comma-separated list of fields at the `_time_field` HTTP query arg and at `VL-Time-Field` HTTP header. Then the first non-empty log field from the list is used as a timestamp field. This is useful when the ingested logs may contain log timestamp across different fields. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add sorting of fields by key in the Group tab. See [#8438](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8438).
 * FEATURE: [JSON lines data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api): return `400 Bad Request` if no logs were successfully processed. This improves error visibility for malformed requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8818).
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix log entry sorting in group mode (newest logs appear first). See [#8726](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8726).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix page freeze after timeline zooming and panning. See [#8655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8655).
 * BUGFIX: [replace_regexp](https://docs.victoriametrics.com/victorialogs/logsql/#replace_regexp-pipe): fixed infinite loop when regex pattern matches empty strings (e.g. `\d*`, `()`, `\b`). Also fixed incorrect behavior with anchors (`^`) due to repeated string slicing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8625).
+
 ## [v1.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.21.0-victorialogs)
 
 Released at 2025-04-25

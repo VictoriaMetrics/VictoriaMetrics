@@ -64,17 +64,18 @@ Install the Helm chart in a custom namespace
 1. Create a YAML file of Helm values called dbaas.yaml with following content
 
    ```yaml
-   externalVM:
-     read:
-       url: <reading url, you can find it in examples on Access page>
-       bearerTokenSecret:
-         name: dbaas-write-access-token
-         key: bearerToken
-     write:
-       url: <reading url, you can find it in examples on Access page>
-       bearerTokenSecret:
-         name: dbaas-read-access-token
-         key: bearerToken
+   external:
+     vm:
+       read:
+         url: <reading url, you can find it in examples on Access page>
+         bearerTokenSecret:
+           name: dbaas-write-access-token
+           key: bearerToken
+       write:
+         url: <reading url, you can find it in examples on Access page>
+         bearerTokenSecret:
+           name: dbaas-read-access-token
+           key: bearerToken
 
    vmsingle:
      enabled: false

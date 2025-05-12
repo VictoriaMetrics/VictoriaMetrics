@@ -7,10 +7,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -31,10 +34,57 @@ var (
 
 var labelsGlobal []prompbmarshal.Label
 
+var (
+	relabelConfigReloads      *metrics.Counter
+	relabelConfigReloadErrors *metrics.Counter
+	relabelConfigSuccess      *metrics.Gauge
+	relabelConfigTimestamp    *metrics.Counter
+)
+
+func initRelabelMetrics() {
+	relabelConfigReloads = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
+	relabelConfigReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
+	relabelConfigSuccess = metrics.NewGauge(`vmagent_relabel_config_last_reload_successful`, nil)
+	relabelConfigTimestamp = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
+}
+
 // CheckRelabelConfigs checks -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig.
 func CheckRelabelConfigs() error {
 	_, err := loadRelabelConfigs()
 	return err
+}
+
+func initRelabelConfigs() {
+	rcs, err := loadRelabelConfigs()
+	if err != nil {
+		logger.Fatalf("cannot initialize relabel configs: %s", err)
+	}
+	allRelabelConfigs.Store(rcs)
+	if rcs.isSet() {
+		initRelabelMetrics()
+		relabelConfigSuccess.Set(1)
+		relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
+	}
+}
+
+func reloadRelabelConfigs() {
+	rcs := allRelabelConfigs.Load()
+	if !rcs.isSet() {
+		return
+	}
+	relabelConfigReloads.Inc()
+	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
+	rcs, err := loadRelabelConfigs()
+	if err != nil {
+		relabelConfigReloadErrors.Inc()
+		relabelConfigSuccess.Set(0)
+		logger.Errorf("cannot reload relabel configs; preserving the previous configs; error: %s", err)
+		return
+	}
+	allRelabelConfigs.Store(rcs)
+	relabelConfigSuccess.Set(1)
+	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
+	logger.Infof("successfully reloaded relabel configs")
 }
 
 func loadRelabelConfigs() (*relabelConfigs, error) {
@@ -68,6 +118,21 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 type relabelConfigs struct {
 	global *promrelabel.ParsedConfigs
 	perURL []*promrelabel.ParsedConfigs
+}
+
+func (rcs *relabelConfigs) isSet() bool {
+	if rcs != nil {
+		return false
+	}
+	if rcs.global.Len() > 0 {
+		return true
+	}
+	for _, pc := range rcs.perURL {
+		if pc.Len() > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.

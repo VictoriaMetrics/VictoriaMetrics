@@ -60,18 +60,7 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 ## QuickStart
 
-To build `vmalert` from sources:
-
-```sh
-git clone https://github.com/VictoriaMetrics/VictoriaMetrics
-cd VictoriaMetrics
-make vmalert
-```
-
-The build binary will be placed in `VictoriaMetrics/bin` folder.
-
 To start using `vmalert` you will need the following things:
-
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
@@ -82,8 +71,17 @@ To start using `vmalert` you will need the following things:
   configured with multiple remote writes as a proxy;
 * remote read address [optional] - MetricsQL compatible datasource to restore alerts state from.
 
-Then configure `vmalert` accordingly:
+You can use the existing [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-single-server)
+as example. It already contains vmalert configured with list of alerting rules and integrated with Alert Manager and VictoriaMetrics.
 
+Alternatively, build `vmalert` from sources:
+```sh
+git clone https://github.com/VictoriaMetrics/VictoriaMetrics
+cd VictoriaMetrics
+make vmalert
+```
+
+Then run `vmalert`:
 ```sh
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
     -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
@@ -122,7 +120,7 @@ groups:
   [ - <rule_group> ]
 ```
 
-> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](/anomaly-detection/) in the following [guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/)
+> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/) in the following [guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/).
 
 > For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config), 
 > many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically. 
@@ -296,11 +294,12 @@ It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in a
 or execute expressions.
 The following variables are available in templating:
 
-| Variable                           | Description                                                                                               | Example                                                                                                                                                                                                   |
-|------------------------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Variable                           | Description                                                                                               | Example                                                                                                                                                                              |
+|------------------------------------|-----------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | $value or .Value                   | The current alert's value. Avoid using value in labels, it may cause unexpected issues.                   | Number of connections is {{ $value }}                                                                                                                                                |
 | $activeAt or .ActiveAt             | The moment of [time](https://pkg.go.dev/time) when alert became active (`pending` or `firing`).           | http://vm-grafana.com/<dashboard-id>?viewPanel=<panel-id>&from={{($activeAt.Add (parseDurationTime \"1h\")).UnixMilli}}&to={{($activeAt.Add (parseDurationTime \"-1h\")).UnixMilli}} |
 | $labels or .Labels                 | The list of labels of the current alert. Use as ".Labels.<label_name>".                                   | Too high number of connections for {{ .Labels.instance }}                                                                                                                            |
+| $type or .Type                     | The rule type: "graphite", "prometheus" or "vlogs"                                                        | Link: 'explore?left={"datasource":"{{ if eq .Type \"vlogs\" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}"]'                                                                      |
 | $alertID or .AlertID               | The current alert's ID generated by vmalert.                                                              | Link: vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}                                                                                                                      |
 | $groupID or .GroupID               | The current alert's group ID generated by vmalert.                                                        | Link: vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}                                                                                                                      |
 | $expr or .Expr                     | Alert's expression. Can be used for generating links to Grafana or other systems.                         | /api/v1/query?query={{ $expr&#124;queryEscape }}                                                                                                                                     |
@@ -450,7 +449,7 @@ vmalert [web UI](https://docs.victoriametrics.com/victoriametrics/vmalert/#web) 
 
 It is possible to override the link format. For example, to make the link to [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui)
 specify the following cmd-line flags:
-```
+```sh
 ./bin/vmalert \
     -external.url=http://<vmui-addr> \  # the hostname and port for datasource vmui 
     -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}' # the path built using alert expr
@@ -461,14 +460,16 @@ expression.
 
 The `-external.alert.source` cmd-line flag supports [templating](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating)
 and allows using labels and extra data related to the alert. For example, see the following link to Grafana:
-```
+```sh
 ./bin/vmalert \
     -external.url=http://<grafana-addr> \  # the hostname and port for Grafana 
-    -external.alert.source='explore?left={"datasource":"VictoriaMetrics","queries":[{"expr":{{ .Expr|jsonEscape|queryEscape }},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
+    -external.alert.source='explore?left={"datasource":"{{ if eq .Type \"vlogs\" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}","queries":[{"expr":{{ .Expr|jsonEscape|queryEscape }},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
 ```
 
 In this example, `-external.alert.source` will lead to Grafana's Explore page with `expr` field equal to alert expression,
 and time range will be selected starting from `"from":"{{ .ActiveAt.UnixMilli }}"` when alert became active.
+The `datasource` name is set to `VictoriaLogs` if rule's type {{% available_from "v1.117.0" %}} (`prometheus`, `vlogs` or `graphite`) is `vlogs`. 
+Otherwise, it is set to `VictoriaMetrics`. See [how we set alert source in docker](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cdaf83247caec32cce26e2cab226310ed0b46ee4/deployment/docker/compose-vl-single.yml#L106-L107).
 
 In addition to `source` link, some extra links could be added to alert's [annotations](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)
 field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/rules/alerts-cluster.yml#L44)
@@ -874,7 +875,7 @@ See more details [here](https://docs.victoriametrics.com/victoriametrics/vmalert
 ## Monitoring
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
-The default list of alerting rules for these metric can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
+See the [list of recommended alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml) to track the vmalert health.
 We recommend setting up regular scraping of this page either through [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or by Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
 
@@ -884,10 +885,64 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
-If you have suggestions for improvements or have found a bug - please open an issue on github or add
+If you have suggestions for improvements or have found a bug - please open an issue on GitHub or add
 a review to the dashboard.
 
 ## Troubleshooting
+
+### Rule state
+
+vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules))
+evaluation updates for each rule. The updates are available in vmalert [web UI](#web):
+1. Go to the `Groups` tab
+2. Find the corresponding Group and rule within it
+3. Click on `Details` link next to rule's name and check the `Last N updates` section:
+
+![vmalert state](vmalert_state.webp)
+
+Rows in the section represent ordered rule evaluations and their results.
+
+Every state has the following attributes:
+1. `Updated at` - the real time when this rule was executed by vmalert.
+1. `Executed at` - `time` param that was sent within the evaluation request to datasource.
+1. `Samples` - the amount of data samples returned during at this evaluation. Recording rule that has 0 samples produces
+    no results. Alerting rule that has 0 samples means `expr` condition is false and rule is in inactive state.
+1. `Series fetched` - the amount of series scanned during query evaluation. See [never-firing alerts](#never-firing-alerts).
+1. `Duration` - the time it took to evaluate the rule. If `Duration` is close or bigger to evaluation interval, then this
+    rule can skip evaluations. See how to deal with [slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries). 
+1.  `cURL` - contains an example of HTTP request sent by vmalert to the `-datasource.url` during evaluation, including all extra headers and query params. 
+    The command can be used for debugging purposes to see what vmalert receives in response from datasource. 
+    _Sensitive info is stripped from the `curl` examples - see [security](#security) section for more details._
+
+If a specific state shows that there were **no samples returned** and executed **cURL command returns some data**,
+then it is likely there was no data in datasource on the moment when rule was evaluated. See about [data delay](#data-delay).
+
+vmalert exposes `vmalert_recording_rules_last_evaluation_samples` for recording rules to represent the amount of samples
+returned during evaluations. The following alerting rule can be used to detect those recording rules that produce no data:
+```yaml
+      - alert: RecordingRulesNoData
+        expr: vmalert_recording_rules_last_evaluation_samples < 1
+        annotations:
+          summary: "Recording rule {{ $labels.recording }} ({{ $labels.group }}) produces no data"
+```
+
+_See more about alerting rules in [Monitoring](#monitoring)._
+
+### Alert state
+
+Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
+alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
+after **multiple consecutive evaluations**, where each evaluation of the expression must be positive.
+
+If at least one evaluation returns no data, then alert's state resets to the initial state.
+
+> Please note, the alert state is tracked individually for each returned time series during evaluation.
+> If 1st evaluation returned series A and B, and 2nd evaluation returned only B - then alert will remain active only for B.
+
+If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](http://localhost:1313/victoriametrics/vmalert/#alerts-state-on-restarts)
+in form of time series `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
+[vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how 
+alerts state changed in time.
 
 ### Data delay
 
@@ -897,7 +952,7 @@ It expects that the data is already present in configured `-datasource.url` at t
 
 ![vmalert expected evaluation](vmalert_ts_normal.gif)
 
-Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
+Usually, troubles begin when data in `-datasource.url` is delayed or absent. In such cases, evaluations
 may get empty response from the datasource and produce empty recording rules or reset alerts state:
 
 ![vmalert evaluation when data is delayed](vmalert_ts_data_delay.gif)
@@ -923,37 +978,12 @@ To compensate the latency in timestamps for produced evaluation results, `-rule.
 If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes),
 or you changed default value of `-search.latencyOffset` - consider increasing the `-rule.evalDelay` value accordingly.
 
-### Alerts state
-
-Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
-alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
-after multiple consecutive evaluations, and at each evaluation their expression must be true. If at least one evaluation
-becomes false, then alert's state resets to the initial state.
-
-If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
-`ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
-[vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how alerts state
-changed in time.
-
-vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)) 
-state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/victoriametrics/changelog/#v1860).
-To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
-and check the `Last updates` section:
-
-![vmalert state](vmalert_state.webp)
-
-Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
-HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
-no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
-moment when rule was evaluated. Sensitive info is stripped from the `curl` examples - see [security](#security) section
-for more details.
-
 ### Debug mode
 
 vmalert allows configuring more detailed logging for specific alerting or recording rule starting from {{% available_from "v1.116.0" %}}.
-Or for all rules within the [group](#groups) {{% available_from "#" %}}.
+Or for all rules within the [group](#groups) {{% available_from "v1.117.0" %}}.
 Just set `debug: true` in configuration and vmalert will start printing additional log messages:
-```shell-session
+```sh
 2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms, isPartial: false)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
 2022-09-15T13:35:56.178Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms, isPartial: false)

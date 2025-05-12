@@ -2604,6 +2604,8 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	// Verify that fields are correctly tracked before count(*)
 	f(`* | collapse_nums | count() r1`, ``, ``)
 	f(`* | copy a b, c d | count() r1`, ``, ``)
+	f(`* | decolorize | count() r1`, ``, ``)
+	f(`* | decolorize x | count() r1`, ``, ``)
 	f(`* | delete a, b | count() r1`, ``, ``)
 	f(`* | drop_empty_fields | count() r1`, ``, ``)
 	f(`* | extract "<f1>bar" from x | count() r1`, ``, ``)
@@ -2770,6 +2772,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("foo", true)
 	f("* | collapse_nums", true)
 	f("* | copy a b", true)
+	f("* | decolorize x", true)
 	f("* | rm a, b", true)
 	f("* | drop_empty_fields", true)
 	f("* | extract 'foo<bar>baz'", true)
@@ -2921,6 +2924,7 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 
 	// multiple pipes before stats is ok
 	f(`foo | extract "ip=<ip>," | stats by (host) count_uniq(ip)`, []string{"host"})
+	f(`foo | decolorize | count()`, []string{})
 
 	// sort, offset and limit pipes are allowed after stats
 	f(`foo | stats by (x, y) count() rows | sort by (rows) desc | offset 5 | limit 10`, []string{"x", "y"})
@@ -2990,6 +2994,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`*`)
 	f(`foo bar`)
 	f(`foo | by (a, b) count() | copy a b`)
+	f(`foo | by (a, b) count() | decolorize a`)
 	f(`foo | by (a, b) count() | delete a`)
 	f(`foo | count() | drop_empty_fields`)
 	f(`foo | count() | extract "foo<bar>baz"`)

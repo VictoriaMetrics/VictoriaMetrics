@@ -96,20 +96,23 @@ func main() {
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
+
 	disableInternalRoutes := len(*httpInternalListenAddr) > 0
 	rh := requestHandlerWithInternalRoutes
 	if disableInternalRoutes {
 		rh = requestHandler
 	}
 
-	serveOpts := httpserver.ServeOptions{
-		UseProxyProtocol:     useProxyProtocol,
+	go httpserver.Serve(listenAddrs, rh, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+		// built-in routes will be exposed at *httpInternalListenAddr
 		DisableBuiltinRoutes: disableInternalRoutes,
-	}
-	go httpserver.ServeWithOpts(listenAddrs, rh, serveOpts)
+	})
 
 	if len(*httpInternalListenAddr) > 0 {
-		go httpserver.Serve(*httpInternalListenAddr, nil, internalRequestHandler)
+		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, httpserver.ServeOptions{
+			UseProxyProtocol: useProxyProtocol,
+		})
 	}
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 

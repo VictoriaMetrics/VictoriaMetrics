@@ -11,9 +11,9 @@
 ![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
 <picture>
-  <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="docs/logo.webp" media="(prefers-color-scheme: light)">
-  <img src="docs/logo.webp" width="300" alt="VictoriaMetrics logo">
+  <source srcset="docs/victoriametrics/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="docs/victoriametrics/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="docs/victoriametrics/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-saving, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
@@ -43,13 +43,13 @@ VictoriaMetrics is optimized for timeseries data, even when old time series are 
     * [Prometheus exporters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter), [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus), [Prometheus exposition format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format).
     * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) over HTTP, TCP and UDP.
     * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-    * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-telnet-put-protocol).
-    * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests).
+    * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
+    * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
     * [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
     * [Arbitrary CSV data](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data).
     * [Native binary format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
     * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
-    * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent).
+    * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent).
     * [OpenTelemetry metrics format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
 * **NFS-based storages**: Supports storing data on NFS-based storages such as Amazon EFS, Google Filestore.
 * And many other features such as metrics relabeling, cardinality limiter, etc.

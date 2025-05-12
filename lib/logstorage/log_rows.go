@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -39,7 +40,10 @@ type LogRows struct {
 	streamFields map[string]struct{}
 
 	// ignoreFields is a filter for fields, which must be ignored during data ingestion
-	ignoreFields fieldsFilter
+	ignoreFields prefixfilter.Filter
+
+	// decolorizeFields is a filter for fields, which must be cleared from ANSI color escape sequences
+	decolorizeFields prefixfilter.Filter
 
 	// extraFields contains extra fields to add to all the logs at MustAdd().
 	extraFields []Field
@@ -131,13 +135,15 @@ func (lr *logRows) mustAddRow(streamID streamID, timestamp int64, fields []Field
 	for i := range fields {
 		f := &fields[i]
 
+		fieldName := getCanonicalFieldName(f.Name)
+
 		dstField := &dstFields[i]
 		if len(fieldsBuf) >= len(fields) {
 			fPrev := &fieldsBuf[len(fieldsBuf)-len(fields)]
-			if fPrev.Name == f.Name {
+			if fPrev.Name == fieldName {
 				dstField.Name = fPrev.Name
 			} else {
-				dstField.Name = lr.a.copyString(f.Name)
+				dstField.Name = lr.a.copyString(fieldName)
 			}
 			if fPrev.Value == f.Value {
 				dstField.Value = fPrev.Value
@@ -145,7 +151,7 @@ func (lr *logRows) mustAddRow(streamID streamID, timestamp int64, fields []Field
 				dstField.Value = lr.a.copyString(f.Value)
 			}
 		} else {
-			dstField.Name = lr.a.copyString(f.Name)
+			dstField.Name = lr.a.copyString(fieldName)
 			dstField.Value = lr.a.copyString(f.Value)
 		}
 	}
@@ -246,7 +252,8 @@ func (lr *LogRows) Reset() {
 		delete(sfs, k)
 	}
 
-	lr.ignoreFields.reset()
+	lr.ignoreFields.Reset()
+	lr.decolorizeFields.Reset()
 
 	lr.extraFields = nil
 
@@ -356,18 +363,21 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	if streamFields != nil {
 		// streamFields override lr.streamFields
 		for _, f := range streamFields {
-			if !lr.ignoreFields.match(f.Name) {
-				st.Add(f.Name, f.Value)
+			fieldName := getCanonicalFieldName(f.Name)
+			if !lr.ignoreFields.MatchString(fieldName) {
+				st.Add(fieldName, f.Value)
 			}
 		}
 	} else {
 		for _, f := range fields {
-			if _, ok := lr.streamFields[f.Name]; ok {
-				st.Add(f.Name, f.Value)
+			fieldName := getCanonicalFieldName(f.Name)
+			if _, ok := lr.streamFields[fieldName]; ok {
+				st.Add(fieldName, f.Value)
 			}
 		}
 		for _, f := range lr.extraStreamFields {
-			st.Add(f.Name, f.Value)
+			fieldName := getCanonicalFieldName(f.Name)
+			st.Add(fieldName, f.Value)
 		}
 	}
 
@@ -401,8 +411,8 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 	lr.timestamps = append(lr.timestamps, timestamp)
 
 	fieldsLen := len(lr.fieldsBuf)
-	hasMsgField := lr.addFieldsInternal(fields, &lr.ignoreFields, true)
-	if lr.addFieldsInternal(lr.extraFields, nil, false) {
+	hasMsgField := lr.addFieldsInternal(fields, &lr.ignoreFields, &lr.decolorizeFields, true)
+	if lr.addFieldsInternal(lr.extraFields, nil, nil, false) {
 		hasMsgField = true
 	}
 
@@ -418,7 +428,7 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 	lr.rows = append(lr.rows, row)
 }
 
-func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter, mustCopyFields bool) bool {
+func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields, decolorizeFields *prefixfilter.Filter, mustCopyFields bool) bool {
 	if len(fields) == 0 {
 		return false
 	}
@@ -433,7 +443,9 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 	for i := range fields {
 		f := &fields[i]
 
-		if ignoreFields.match(f.Name) {
+		fieldName := getCanonicalFieldName(f.Name)
+
+		if ignoreFields.MatchString(fieldName) {
 			continue
 		}
 		if f.Value == "" {
@@ -449,10 +461,6 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 		fb = append(fb, Field{})
 		dstField := &fb[len(fb)-1]
 
-		fieldName := f.Name
-		if fieldName == "_msg" {
-			fieldName = ""
-		}
 		if fieldName == "" {
 			hasMsgField = true
 		}
@@ -475,11 +483,24 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields *fieldsFilter,
 			} else {
 				dstField.Value = f.Value
 			}
+
+			if decolorizeFields.MatchString(fieldName) && hasColorSequences(dstField.Value) {
+				bLen := len(lr.a.b)
+				lr.a.b = dropColorSequences(lr.a.b, dstField.Value)
+				dstField.Value = bytesutil.ToUnsafeString(lr.a.b[bLen:])
+			}
 		}
 	}
 	lr.fieldsBuf = fb
 
 	return hasMsgField
+}
+
+func getCanonicalFieldName(fieldName string) string {
+	if fieldName == "_msg" {
+		return ""
+	}
+	return fieldName
 }
 
 // GetRowString returns string representation of the row with the given idx.
@@ -505,17 +526,20 @@ func (lr *LogRows) GetRowString(idx int) string {
 
 // GetLogRows returns LogRows from the pool for the given streamFields.
 //
-// streamFields is a set of field names, which must be associated with the stream.
+// streamFields is a set of fields, which must be associated with the stream.
 //
-// ignoreFields is a set of field names, which must be ignored during data ingestion.
-// ignoreFields entries may end with `*`. In this case they match any fields with the prefix until '*'.
+// ignoreFields is a set of fields, which must be ignored during data ingestion.
+// ignoreFields entries may end with '*'. In this case they match any fields with the prefix until '*'.
+//
+// decolorizeFields is a set of fields, which must be cleared from ANSI color escape sequences.
+// decolorizeFields enries may end with '*'. In this case they match any fields with the prefix until '*'.
 //
 // extraFields is a set of fields, which must be added to all the logs passed to MustAdd().
 //
 // defaultMsgValue is the default value to store in non-existing or empty _msg.
 //
 // Return back it to the pool with PutLogRows() when it is no longer needed.
-func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaultMsgValue string) *LogRows {
+func GetLogRows(streamFields, ignoreFields, decolorizeFields []string, extraFields []Field, defaultMsgValue string) *LogRows {
 	v := logRowsPool.Get()
 	if v == nil {
 		v = &LogRows{}
@@ -523,11 +547,21 @@ func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaul
 	lr := v.(*LogRows)
 
 	// initialize ignoreFields
-	lr.ignoreFields.addMulti(ignoreFields)
+	for _, f := range ignoreFields {
+		f = getCanonicalFieldName(f)
+		lr.ignoreFields.AddAllowFilter(f)
+	}
 	for _, f := range extraFields {
 		// Extra fields must override the existing fields for the sake of consistency and security,
 		// so the client won't be able to override them.
-		lr.ignoreFields.add(f.Name)
+		fieldName := getCanonicalFieldName(f.Name)
+		lr.ignoreFields.AddAllowFilter(fieldName)
+	}
+
+	// initialize decolorizeFields
+	for _, f := range decolorizeFields {
+		f = getCanonicalFieldName(f)
+		lr.decolorizeFields.AddAllowFilter(f)
 	}
 
 	// Initialize streamFields
@@ -537,16 +571,18 @@ func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaul
 		lr.streamFields = sfs
 	}
 	for _, f := range streamFields {
-		if !lr.ignoreFields.match(f) {
+		f = getCanonicalFieldName(f)
+		if !lr.ignoreFields.MatchString(f) {
 			sfs[f] = struct{}{}
 		}
 	}
 
 	// Initialize extraStreamFields
 	for _, f := range extraFields {
-		if slices.Contains(streamFields, f.Name) {
+		fieldName := getCanonicalFieldName(f.Name)
+		if slices.Contains(streamFields, fieldName) {
 			lr.extraStreamFields = append(lr.extraStreamFields, f)
-			delete(sfs, f.Name)
+			delete(sfs, fieldName)
 		}
 	}
 

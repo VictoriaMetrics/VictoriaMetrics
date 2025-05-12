@@ -833,12 +833,16 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 			// Already expanded.
 			return t, nil
 		}
-		metricName := ""
 		{
 			var me MetricExpr
 			// Populate me.LabelFilterss
 
+			// Find out if all or-subclauses that specify a metric name agree on one
+			// NB: cannot use a guard value because metric names can be any string
+			commonMetricName := ""
+			haveCommonMetric := true
 			for _, lfes := range t.labelFilterss {
+				localMetricName := ""
 				var lfsNew []LabelFilter
 				for _, lfe := range lfes {
 					if lfe.Value == nil {
@@ -849,15 +853,11 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 							// This means label name set and starts and ends with quotes
 							// but value is nil
 							if lfe.IsPossibleMetricName {
-								if metricName == "" {
-									metricName = lfe.Label
-									continue
-								} else {
-									if metricName != lfe.Label {
-										return nil, fmt.Errorf("parse error: metric name must not be set twice: %q or %q", metricName, lfe.Label)
-									}
-									continue
+								var err error
+								if lfsNew, localMetricName, err = checkAndPrependMetricNameFilter(lfsNew, localMetricName, lfe.Label); err != nil {
+									return nil, err
 								}
+								continue
 							}
 							return nil, fmt.Errorf("cannot find WITH template for %q inside %q", lfe.Label, t.AppendString(nil))
 						}
@@ -898,33 +898,42 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 						return nil, err
 					}
 					if lf.isMetricNameFilter() {
-						if metricName != "" && metricName != lf.Value {
-							return nil, fmt.Errorf("parse error: metric name must not be set twice: %q or %q", metricName, lf.Value)
+						if lfsNew, localMetricName, err = checkAndPrependMetricNameFilter(lfsNew, localMetricName, lf.Value); err != nil {
+							return nil, err
 						}
-						metricName = lf.Value
-						continue
+					} else {
+						lfsNew = append(lfsNew, *lf)
 					}
-					lfsNew = append(lfsNew, *lf)
+				}
+				if haveCommonMetric && localMetricName != "" {
+					if commonMetricName == "" {
+						commonMetricName = localMetricName
+					} else if commonMetricName != localMetricName {
+						haveCommonMetric = false
+					}
 				}
 				lfsNew = removeDuplicateLabelFilters(lfsNew)
 				me.LabelFilterss = append(me.LabelFilterss, lfsNew)
 			}
-			// Prepend metric name to latest
-			if metricName != "" {
-				lfesCount := len(t.labelFilterss)
-				for i := 1; i <= lfesCount; i++ {
-					lfsLastIndex := len(me.LabelFilterss) - i
-					var lfsNew []LabelFilter
-					var lfNew LabelFilter
-					lfNew.Label = "__name__"
-					lfNew.Value = metricName
-					lfsNew = append(lfsNew, lfNew)
-					lfsNew = append(lfsNew, me.LabelFilterss[lfsLastIndex]...)
-					me.LabelFilterss[lfsLastIndex] = lfsNew
+			// If all or-subclauses that specify a metric name agree on one, prepend it to clauses
+			// where __name__ is missing entirely (incuding regexes and negatives)
+			if haveCommonMetric && commonMetricName != "" {
+				for i, lfs := range me.LabelFilterss {
+					haveNameClause := false
+					for _, lf := range lfs {
+						if lf.Label == "__name__" {
+							haveNameClause = true
+							break
+						}
+					}
+					if !haveNameClause {
+						me.LabelFilterss[i] = prependMetricNameFilter(lfs, commonMetricName)
+					}
 				}
 			}
 			t = &me
 		}
+		metricName := t.getMetricName()
 		if metricName == "" {
 			return t, nil
 		}
@@ -993,6 +1002,20 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 	default:
 		return e, nil
 	}
+}
+
+func checkAndPrependMetricNameFilter(lfs []LabelFilter, metricName string, newMetricName string) ([]LabelFilter, string, error) {
+	if metricName != "" && metricName != newMetricName {
+		return nil, "", fmt.Errorf("parse error: metric name must not be set twice: %q or %q", metricName, newMetricName)
+	}
+	return prependMetricNameFilter(lfs, newMetricName), newMetricName, nil
+}
+
+func prependMetricNameFilter(lfs []LabelFilter, metricName string) []LabelFilter {
+	var lf LabelFilter
+	lf.Label = "__name__"
+	lf.Value = metricName
+	return append([]LabelFilter{lf}, lfs...)
 }
 
 func expandWithArgs(was []*withArgExpr, args []Expr) ([]Expr, error) {
@@ -1246,6 +1269,11 @@ func (p *parser) parseIdentList(allowStar bool) ([]string, error) {
 				return nil, err
 			}
 			return idents, nil
+		}
+		if isQuotedString(p.lex.Token) {
+			// indent could be quoted according to prometheus utf-8 encoding
+			// https://github.com/prometheus/proposals/blob/main/proposals/2023-08-21-utf8.md
+			p.lex.Token = p.lex.Token[1 : len(p.lex.Token)-1]
 		}
 		if !isIdentPrefix(p.lex.Token) {
 			return nil, fmt.Errorf(`identList: unexpected token %q; want "ident"`, p.lex.Token)

@@ -120,7 +120,7 @@ set via `-relabelConfig` command-line flag, so these labels can be set at this s
 The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
 such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting),
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) and
-[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-telnet-put-protocol).
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
 
 **Reads**
 
@@ -599,8 +599,8 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
     - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog) for details.
     - `datadog/api/beta/sketches` - for ingesting data with [DataDog lambda extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/).
     - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). TCP and UDP receiver is disabled by default. It is exposed on a distinct TCP address set via `-influxListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) for details.
-    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent) for details.
-    - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests) for details.
+    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent) for details.
+    - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)

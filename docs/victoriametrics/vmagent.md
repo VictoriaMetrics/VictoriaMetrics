@@ -257,8 +257,8 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb).
 * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
 * OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
-* NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent).
-* OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents).
+* NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent).
+* OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb).
 * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
 * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
