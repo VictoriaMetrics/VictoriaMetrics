@@ -44,16 +44,14 @@ type connWithTimestamp struct {
 
 var (
 	concurrentDialLimit = 8
-	once                = &sync.Once{}
 )
 
 // InitConcurrentDialLimit must be called before NewConnPool to init the concurrentDialLimit
 // according to the concurrent request limit.
 func InitConcurrentDialLimit(concurrentRequestLimit int) {
-	once.Do(func() {
-		// use 0.5 * limit as concurrent dial limit, minimum 8 but cap at 64 to prevent it from growing too fast.
-		concurrentDialLimit = min(64, max(8, concurrentRequestLimit/2))
-	})
+	// It should be initialized with`sync.Once`. Since it's used in only one place,
+	// extra code has been removed for simplicity.
+	concurrentDialLimit = min(64, max(8, concurrentRequestLimit/2))
 }
 
 // NewConnPool creates a new connection pool for the given addr.
