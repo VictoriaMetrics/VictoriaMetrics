@@ -75,7 +75,7 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 		go func() {
 			conn, err := cp.Get()
 			if err != nil {
-				t.Fatalf("expecting non-nil error after MustStop(), err:%v", err)
+				t.Errorf("expecting non-nil error after MustStop(), err:%v", err)
 			}
 			connChan <- conn
 			wg.Done()
