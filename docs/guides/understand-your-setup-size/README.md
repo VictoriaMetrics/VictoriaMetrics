@@ -159,18 +159,8 @@ vminsert and vmselect components are stateless, and can be easily scaled up or d
 
 ### VictoriaMetrics Cloud
 
-Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series.
-We assume that the Churn Rate is no more than **30%**. You may need to choose a more extensive deployment if you have a higher Churn Rate.
-
-#### Example
-
-Deployment type: **s.medium ~100k samples/s Ingestion Rate, ~2.5M of Active Time Series**
-
-You can collect metrics from
-
-- 10x Kubernetes cluster with 50 nodes each - 4200 * 10 * 50 = 2.1M
-- 500 node exporters - 0.5M
-- With metrics collection interval - 30s
+Please follow [these docs](http://docs.victoriametrics.com/victoriametrics-cloud/deployments/tiers-and-types/) for detailed
+VictoriaMetrics Cloud tiers and setup sizes information.
 
 ### On-Premise
 
