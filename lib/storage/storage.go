@@ -1110,7 +1110,8 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 
 // searchAndMerge concurrently performs a search operation on all partition
 // IndexDBs that overlap with the given time range and optionally legacy current
-// and previous IndexDBs. The individual search results are then merged.
+// and previous IndexDBs. The individual search results are then merged (merge function applied
+// only if search covers more than one index partition).
 //
 // The function creates a child query tracer for each search function call and
 // closes it once the search() returns. Thus, implementations of search func
@@ -1131,6 +1132,20 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	}
 	if legacyIDBCurr != nil {
 		idbs = append(idbs, legacyIDBCurr)
+	}
+
+	// It is faster to process one indexDB without spawning goroutines.
+	if len(idbs) == 1 {
+		idb := idbs[0]
+		qt := qt.NewChild("search indexDB: %q", idb.name)
+		defer qt.Done()
+		searchTR := s.adjustTimeRange(tr, idb.tr)
+		data, err := search(qt, idb, searchTR)
+		if err != nil {
+			var zeroValue T
+			return zeroValue, err
+		}
+		return data, nil
 	}
 
 	var wg sync.WaitGroup
@@ -1164,8 +1179,18 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 // mergeUniq combines the values of several slices into once slice, duplicate
 // values are ignored.
 func mergeUniq[T cmp.Ordered](data [][]T) []T {
-	all := []T{}
-	seen := make(map[T]struct{})
+	maxLength := 0
+	for _, s := range data {
+		if len(s) > maxLength {
+			maxLength = len(s)
+		}
+	}
+	if maxLength == 0 {
+		return []T{}
+	}
+
+	all := make([]T, 0, maxLength)
+	seen := make(map[T]struct{}, maxLength)
 	for _, s := range data {
 		if s == nil {
 			continue
