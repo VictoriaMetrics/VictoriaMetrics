@@ -97,20 +97,40 @@ of different sizes, that are derived from testing typical monitoring environment
 In this way, we ensure that tiers are optimized for common use cases, and translated into real-world
 data (i.e. _parameters_) such as: Ingestion rate, Active Time Series or Read rate.
 
+### Tier selection Parameters
+
+The following parameters are presented to the user when selecting a tier:
 
 | **Parameter**                             | **Maximum Value**                 | **Description**                                                                                                                                                                                                                                 |
 |-------------------------------------------|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Data Ingestion Rate**                   | Per Tier Limits                   | Number of [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) ingested per second.                                                                                                                                         |
 | **Active Time Series Count**              | Per Tier Limits                   | Number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) that received at least one data point in the last hour.                                                                                     |
 | **Read Rate**                             | Per Tier Limits                   | Number of datapoints retrieved from the database per second.                                                                                                                                                                                    |
+
+<br></br>
+Every deployment (Single-Node or Cluster) listed indicates the maximum expected load in Ingestion Rate, Active Time Series and Read Rate.
+
+### Other limits in tiers
+
+The previous simplified list is made upon several tests and assumptions that cover many general use
+cases, that lead to establishing other limits that users regularly don't need to take into account
+when selecting a tier.
+
+For example, we assume that the Churn Rate is lower than **30%**. You may need to choose a more extensive
+deployment for higher Churn Rates, or when combined with a high amount of series being read per query.
+
+Current usage and limits can be checked in the `Monitor` tab of the [deployments](https://console.victoriametrics.cloud/deployments)
+section per instance.
+
+A comprehensive list of these parameters is presented here:
+
+| **Parameter**                             | **Maximum Value**                 | **Description**                                                                                                                                                                                                                                 |
+|-------------------------------------------|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **New Series Over 24 Hours** (churn rate) | `<= Active Time Series Count`     | Number of new series created in 24 hours. High [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) leads to higher resource consumption.                                                                                |
 | **Concurrent Requests per Token**         | `<= 600`                          | Maximum concurrent requests per [access token](deployments/access-tokens.md). It is recommended to create separate tokens for different clients and environments. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com). |
 
+<br></br>
 For a detailed explanation of each parameter, visit the guide on [Understanding Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size.html).
-
-Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series.
-
-> [!WARNING] We assume that the Churn Rate is lower than **30%**. You may need to choose a more extensive deployment for higher Churn Rates.
 
 {{% collapse name="Selecting a Tier: Real-world example" %}}
 
