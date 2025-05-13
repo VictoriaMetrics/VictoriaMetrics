@@ -145,10 +145,8 @@ The operator repository [https://github.com/VictoriaMetrics/operator/](https://g
   - `VM_METRICS_VERSION` key in `defaultEnvs` map,
   - `BaseOperatorConf.MetricsVersion` default value.
 - Run `make docs`.
-- Cut a new version in `docs/CHANGELOG.md` ([example](https://github.com/VictoriaMetrics/operator/commit/93ac57c312984a01fc71f907628f4e03e463573c)).
-- Commit and push changes to `master`.
-- Create and push a new tag with the *new release version*.
-- Create github release from this tag with "Release notes" from `docs/CHANGELOG.md` for this version in description.
+- Add the dependency to the new release to the tip section in `docs/CHANGELOG.md` ([example](https://github.com/VictoriaMetrics/operator/pull/1355/commits/1d7f4439c359b371b05a06e93f615dbcfb266cf5)).
+- Commit and send a PR for review.
 
 ## Helm Charts
 
