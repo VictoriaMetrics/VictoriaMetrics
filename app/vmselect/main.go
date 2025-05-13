@@ -29,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
@@ -108,6 +109,7 @@ func main() {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
 
+	netutil.InitConcurrentDialLimit(*maxConcurrentRequests)
 	netstorage.Init(*storageNodes)
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 

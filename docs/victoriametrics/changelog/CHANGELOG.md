@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): dynamically adjusts the concurrent dial limit between 8 and 64 based on the `-search.maxConcurrentRequests`. Also, goroutines now have the chance to access available connections while awaiting the dial limit token.
+
 ## [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0)
 
 Released at 2025-05-09
