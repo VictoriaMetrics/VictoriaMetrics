@@ -145,6 +145,22 @@ This means that, with this `Tier` tou can collect metrics from:
 
 {{% /collapse %}}
 
+## Selecting Retention and Storage
+
+The last parameter needed to set up a deployment is the Storage needed for this deployment. Recommended
+storage is calculated upon **ingestion rate** and desired **retention**.
+
+Keeping in mind that storage can always be increased (but not downsized) **users are recommended to start
+small and scale as needed**.
+
+> [!TIP] Flexible storage helps to reduce costs and adapt it to your needs.
+
+For example, the full amount of storage needed for 6 months retention for a given tier will only be
+reached after those 6 months of operations. There's no need to reserve storage from the beginning.
+
+Features like Downsampling, Data Deduplication, Cardinality Explorer or Metrics usage are encouraged to
+further reduce your costs. Feel free to contact [support](mailto:support-cloud@victoriametrics.com) if
+you need more information.
 
 ## Flag Parameters Configuration
 
