@@ -40,7 +40,7 @@ Since `Single-node` deployments are just one instance, they cannot be highly ava
 this means that during configuration changes and software upgrades, your deployment will experience
 a few minutes downtime. (This period of unavailability is not included in the SLA).
 
-On the other hand, `Cluster` deployments do not experience such small downtimes.
+On the other hand, `Cluster` deployments do not experience such downtimes.
 
 {{% /collapse %}}
 
