@@ -1,5 +1,6 @@
 {% import (
 	"sort"
+	"slices"
 ) %}
 
 {% stripspace %}
@@ -11,16 +12,16 @@
 	%}
 	"data":[
         {% if len(serviceList) > 0 %}
-            {%s= serviceList[0] %}
+            {%q= serviceList[0] %}
             {% for _, service := range serviceList[1:] %}
-                ,{%s= service %}
+                ,{%q= service %}
             {% endfor %}
         {% endif %}
 	],
 	"errors": null,
 	"limit": 0,
 	"offset": 0,
-	"total": {%d= len(serviceList) %},
+	"total": {%d= len(serviceList) %}
 }
 {% endfunc %}
 
@@ -31,36 +32,147 @@
 	%}
 	"data":[
         {% if len(operationList) > 0 %}
-            {%s= operationList[0] %}
+            {%q= operationList[0] %}
             {% for _, operation := range operationList[1:] %}
-                ,{%s= operation %}
+                ,{%q= operation %}
             {% endfor %}
         {% endif %}
 	],
 	"errors": null,
 	"limit": 0,
 	"offset": 0,
-	"total": {%d= len(operationList) %},
+	"total": {%d= len(operationList) %}
 }
 {% endfunc %}
 
-{% func GetTracesResponse(Traces []string, processMap map[uint32]process) %}
+{% func GetTracesResponse(Traces []*Trace, traceProcessMap map[string]map[string]*Process) %}
 {
-	{% code
-	    sort.Slice(operationList, func(i, j int) bool { return operationList[i] < operationList[j] })
-	%}
 	"data":[
-        {% if len(operationList) > 0 %}
-            {%s= operationList[0] %}
-            {% for _, operation := range operationList[1:] %}
-                ,{%s= operation %}
+        {% if len(Traces) > 0 %}
+            {%= traceJson(Traces[0], traceProcessMap[Traces[0].Spans[0].TraceID]) %}
+            {% for _, trace := range Traces[1:] %}
+                ,{%= traceJson(trace, traceProcessMap[trace.Spans[0].TraceID]) %}
             {% endfor %}
         {% endif %}
 	],
 	"errors": null,
 	"limit": 0,
 	"offset": 0,
-	"total": {%d= len(operationList) %},
+	"total": {%d= len(Traces) %}
+}
+{% endfunc %}
+
+{% func traceJson(trace *Trace, processMap map[string]*Process) %}
+{
+    "processes": {
+        {%= processesMapJson(processMap) %}
+    },
+    "spans": [
+         {% if len(trace.Spans) > 0 %}
+            {%= spanJson(trace.Spans[0]) %}
+            {% for _, v := range trace.Spans[1:] %}
+                ,{%= spanJson(v) %}
+            {% endfor %}
+        {% endif %}
+    ],
+    "traceID": {%q= trace.Spans[0].TraceID %},
+    "warnings": null
+}
+{% endfunc %}
+
+{% func processesMapJson(processesMap map[string]*Process) %}
+{% code
+    sortedKeys := make([]string, 0, len(processesMap))
+    for k := range processesMap {
+        sortedKeys = append(sortedKeys, k)
+    }
+    slices.Sort(sortedKeys)
+%}
+{% if len(sortedKeys) > 0 %}
+    {%q= sortedKeys[0] %}:{%= processJson(processesMap[sortedKeys[0]]) %}
+    {% for _, k := range sortedKeys[1:] %}
+        ,{%q= k %}:{%= processJson(processesMap[k]) %}
+    {% endfor %}
+{% endif %}
+{% endfunc %}
+
+{% func processJson(process *Process) %}
+{
+    "serviceName": {%q= process.ServiceName %},
+    "tags": [
+        {% if len(process.Tags) > 0 %}
+            {%= tagJson(process.Tags[0]) %}
+            {% for _, v := range process.Tags[1:] %}
+                ,{%= tagJson(v) %}
+            {% endfor %}
+        {% endif %}
+    ]
+}
+{% endfunc %}
+
+{% func spanJson(span *Span) %}
+{
+	"duration":{%dl= span.Duration %},
+	"logs":[
+        {% if len(span.Logs) > 0 %}
+            {%= logJson(span.Logs[0]) %}
+            {% for _, v := range span.Logs[1:] %}
+                ,{%= logJson(v) %}
+            {% endfor %}
+        {% endif %}
+	],
+	"operationName":{%q= span.OperationName %},
+	"processID":{%q= span.ProcessID %},
+	"references": [
+        {% if len(span.References) > 0 %}
+            {%= spanRefJson(span.References[0]) %}
+            {% for _, v := range span.References[1:] %}
+                ,{%= spanRefJson(v) %}
+            {% endfor %}
+        {% endif %}
+	],
+	"spanID":{%q= span.SpanID %},
+	"startTime":{%dl= span.StartTime %},
+	"tags": [
+	    {% if len(span.Tags) > 0 %}
+            {%= tagJson(span.Tags[0]) %}
+            {% for _, v := range span.Tags[1:] %}
+                ,{%= tagJson(v) %}
+            {% endfor %}
+        {% endif %}
+	],
+	"traceID":{%q= span.TraceID %},
+	"warnings":null
+}
+{% endfunc %}
+
+{% func tagJson(tag KeyValue) %}
+{
+	"key":{%q= tag.Key %},
+	"type":"string",
+	"value":{%q= tag.VStr %}
+}
+{% endfunc %}
+
+{% func logJson(log Log) %}
+{
+	"timestamp":{%dl= log.Timestamp %},
+	"fields":[
+	    {% if len(log.Fields) > 0 %}
+            {%= tagJson(log.Fields[0]) %}
+            {% for _, v := range log.Fields[1:] %}
+                ,{%= tagJson(v) %}
+            {% endfor %}
+        {% endif %}
+	]
+}
+{% endfunc %}
+
+{% func spanRefJson(ref SpanRef) %}
+{
+	"refType":{%q= ref.RefType %},
+	"spanID":{%q= ref.SpanID %},
+	"traceID":{%q= ref.TraceID %}
 }
 {% endfunc %}
 

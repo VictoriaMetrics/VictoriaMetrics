@@ -40,7 +40,7 @@ type Span struct {
 type SpanRef struct {
 	TraceID string
 	SpanID  string
-	RefType int
+	RefType string
 }
 
 type KeyValue struct {
@@ -100,13 +100,13 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 			if err != nil {
 				return nil, err
 			}
-			sp.StartTime = unixNano
+			sp.StartTime = unixNano / 1000
 		case Duration:
 			nano, err := strconv.ParseInt(field.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			sp.Duration = nano
+			sp.Duration = nano / 1000
 		case StatusCode:
 			if field.Value == "2" {
 				spanTagList = append(spanTagList, KeyValue{Key: "error", VStr: "true"})
@@ -122,7 +122,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 		// resource level fields
 		// case ProcessID: // todo map otlp flags to jaeger flags
 		//	sp.ProcessID = field.Value
-		case ResourceAttrPrefix + ":service.name":
+		case ResourceAttrPrefix + "service.name":
 			sp.Process.ServiceName = field.Value
 		// scope level fields
 		case InstrumentationScopeName:
@@ -152,7 +152,8 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				log := logsMap[idx]
 				switch fieldName {
 				case EventTimeUnixNano:
-					log.Timestamp, _ = strconv.ParseInt(field.Value, 10, 64)
+					unixNano, _ := strconv.ParseInt(field.Value, 10, 64)
+					log.Timestamp = unixNano / 1000
 				case EventName:
 					log.Fields = append(log.Fields, KeyValue{Key: "event", VStr: field.Value})
 				case EventDroppedAttributesCount:
@@ -168,7 +169,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := refsMap[idx]; !ok {
 					refsMap[idx] = &SpanRef{
-						RefType: 1, // FOLLOW_FROM
+						RefType: "FOLLOW_FROM", // FOLLOW_FROM
 					}
 				}
 				ref := refsMap[idx]
@@ -182,12 +183,15 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				//case LinkDroppedAttributesCount:
 				default:
 					if strings.TrimPrefix(field.Name, LinkPrefix) == "opentracing.ref_type" && field.Value == "child_of" {
-						ref.RefType = 0 // CHILD_OF
+						ref.RefType = "CHILD_OF" // CHILD_OF
 					}
 				}
 			}
 		}
 	}
+
+	sp.Tags = spanTagList
+	sp.Process.Tags = processTagList
 
 	if sp.SpanID != "" {
 		return sp, nil

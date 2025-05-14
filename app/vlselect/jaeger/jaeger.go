@@ -2,6 +2,7 @@ package jaeger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -40,27 +41,27 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	startTime := time.Now()
 
 	path := r.URL.Path
-	if path == "/api/services" {
+	if path == "/select/jaeger/api/services" {
 		jaegerServicesRequests.Inc()
 		processGetServicesRequest(ctx, w, r)
 		jaegerServicesDuration.UpdateDuration(startTime)
 		return true
-	} else if strings.HasPrefix(path, "/api/services/") && strings.HasSuffix(path, "/operations") {
+	} else if strings.HasPrefix(path, "/select/jaeger/api/services/") && strings.HasSuffix(path, "/operations") {
 		jaegerOperationsRequests.Inc()
 		processGetOperationsRequest(ctx, w, r)
 		jaegerOperationsDuration.UpdateDuration(startTime)
 		return true
-	} else if path == "/api/traces" {
+	} else if path == "/select/jaeger/api/traces" {
 		jaegerTracesRequests.Inc()
-		// todo
+		processGetTracesRequest(ctx, w, r)
 		jaegerTracesDuration.UpdateDuration(startTime)
 		return true
-	} else if strings.HasPrefix(path, "/api/traces/") && len(path) > len("/api/traces/") {
+	} else if strings.HasPrefix(path, "/select/jaeger/api/traces/") && len(path) > len("/api/traces/") {
 		jaegerTraceRequests.Inc()
 		// todo
 		jaegerTraceDuration.UpdateDuration(startTime)
 		return true
-	} else if path == "/api/dependencies" {
+	} else if path == "/select/jaeger/api/dependencies" {
 		jaegerDependenciesRequests.Inc()
 		// todo
 		jaegerDependenciesDuration.UpdateDuration(startTime)
@@ -157,7 +158,46 @@ type row struct {
 }
 
 func parseTraceQueryParams(ctx context.Context, r *http.Request) (*traceQueryParameters, error) {
-	return nil, nil
+	p := &traceQueryParameters{}
+	q := r.URL.Query()
+	p.ServiceName = q.Get("service")
+	p.OperationName = q.Get("operation")
+	durationMin := q.Get("minDuration")
+	if durationMin != "" {
+		p.DurationMin, _ = time.ParseDuration(durationMin)
+	}
+	durationMax := q.Get("maxDuration")
+	if durationMax != "" {
+		p.DurationMax, _ = time.ParseDuration(durationMax)
+	}
+	numTraces := q.Get("limit")
+	if numTraces != "" {
+		p.NumTraces, _ = strconv.Atoi(numTraces)
+	}
+	startTimeMin := q.Get("start")
+	if startTimeMin != "" {
+		unixNano, err := strconv.ParseInt(startTimeMin, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse start [%s]: %w", startTimeMin, err)
+		}
+		p.StartTimeMin = time.UnixMicro(unixNano)
+	}
+	startTimeMax := q.Get("end")
+	if startTimeMax != "" {
+		unixNano, err := strconv.ParseInt(startTimeMax, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse end [%s]: %w", startTimeMax, err)
+		}
+		p.StartTimeMax = time.UnixMicro(unixNano)
+	}
+
+	tags := q.Get("tags")
+	if tags != "" {
+		if err := json.Unmarshal([]byte(tags), &p.Tags); err != nil {
+			return nil, fmt.Errorf("cannot parse tags [%s]: %w", tags, err)
+		}
+	}
+	return p, nil
 }
 
 func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -254,8 +294,8 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 		tracesMap[traceIDs[i]] = traces[i]
 	}
 
-	processIDMap := make(map[uint64]*ProcessListItem) // process name -> id
-
+	processIDMap := make(map[uint64]*ProcessListItem)       // process name -> id
+	traceProcessMap := make(map[string]map[string]*Process) // trace_id -> map[processID]->Process
 	for i := range rows {
 		var sp *Span
 		sp, err = FieldsToSpan(rows[i].fields)
@@ -268,24 +308,25 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 		ph := processHash(sp.Process)
 		if _, ok := processIDMap[ph]; !ok {
 			processIDMap[ph] = &ProcessListItem{
-				Process:   sp.Process,
 				ProcessID: len(processIDMap) + 1,
 			}
 		}
 		sp.ProcessID = "p" + strconv.Itoa(processIDMap[ph].ProcessID)
+
+		if _, ok := traceProcessMap[sp.TraceID]; !ok {
+			traceProcessMap[sp.TraceID] = make(map[string]*Process)
+		}
+		traceProcessMap[sp.TraceID][sp.ProcessID] = sp.Process
 		tracesMap[sp.TraceID].Spans = append(tracesMap[sp.TraceID].Spans, sp)
 	}
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-
-	//WriteGetTracesResponse(w, traces, processIDMap)
-
+	WriteGetTracesResponse(w, traces, traceProcessMap)
 	return
 }
 
 type ProcessListItem struct {
-	Process   *Process
 	ProcessID int
 }
 
@@ -377,12 +418,11 @@ type commonParams struct {
 }
 
 func getCommonParams(r *http.Request) (*commonParams, error) {
-	tenantIDsStr := r.FormValue("tenant_ids")
-	tenantIDs, err := logstorage.UnmarshalTenantIDs([]byte(tenantIDsStr))
+	tenantID, err := logstorage.GetTenantIDFromRequest(r)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal tenant_ids=%q: %w", tenantIDsStr, err)
+		return nil, fmt.Errorf("cannot obtain tenanID: %w", err)
 	}
-
+	tenantIDs := []logstorage.TenantID{tenantID}
 	cp := &commonParams{
 		TenantIDs: tenantIDs,
 	}
