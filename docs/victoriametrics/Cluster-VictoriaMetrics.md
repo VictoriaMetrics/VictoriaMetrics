@@ -120,7 +120,7 @@ set via `-relabelConfig` command-line flag, so these labels can be set at this s
 The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
 such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting),
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) and
-[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-telnet-put-protocol).
+[OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
 
 **Reads**
 
@@ -599,8 +599,8 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
     - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog) for details.
     - `datadog/api/beta/sketches` - for ingesting data with [DataDog lambda extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/).
     - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). TCP and UDP receiver is disabled by default. It is exposed on a distinct TCP address set via `-influxListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) for details.
-    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent) for details.
-    - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests) for details.
+    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent) for details.
+    - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
@@ -860,7 +860,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series)
   call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
-  Also see [How to delete time series](#how-to-delete-time-series) section to
+  Also see [How to delete time series](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series) section to
   learn about different ways of deleting series.
 - `-search.maxTSDBStatusTopNSeries` at `vmselect` limits the number of unique time
   series that can be queried with topN argument by a single
@@ -1002,7 +1002,6 @@ For example, the following config sets retention to 5 days for time series with 
 -retentionFilter='{vm_account_id="5",env="dev"}:5d'
 ```
 
-See also [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) for additional details on retention filters.
 See also [downsampling](#downsampling).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -1010,8 +1009,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/).
-It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling).
+[VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports configuring downsampling rules for different time series sets by passing `-downsampling.period` command-line flag to `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) for details.
 
 It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples

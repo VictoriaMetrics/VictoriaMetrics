@@ -7,23 +7,22 @@ menu:
     weight: 4
 ---
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/), [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) and
-[DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
+VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** accepts data from [DataDog agent](https://docs.datadoghq.com/agent/),
+[DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) and [DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
 via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` 
 or via "sketches" API at `/datadog/api/beta/sketches`.
 
-See full list of Graphite-related configuration flags by running:
-```bash
+_For logs ingestion see [DataDog integration with VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/)._
+
+See full list of DataDog-related configuration flags by running:
+```sh
 /path/to/victoria-metrics-prod --help | grep datadog
 ```
-
-VictoriaMetrics components like **vmagent**, **vminsert** or **single-node** can receive inserts from DataDog agent.
 
 See how to send data to VictoriaMetrics via [DataDog "submit metrics" API](https://docs.victoriametrics.com/url-examples/#datadogapiv2series).
 The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples/#apiv1export).
 
 ## Sending metrics to VictoriaMetrics
-
 
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL`
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.

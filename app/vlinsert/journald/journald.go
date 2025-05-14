@@ -53,8 +53,8 @@ func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
 		}
 		cp.TenantID = tenantID
 	}
-	if cp.TimeField != "" {
-		cp.TimeField = *journaldTimeField
+	if len(cp.TimeFields) == 0 {
+		cp.TimeFields = []string{*journaldTimeField}
 	}
 	if len(cp.StreamFields) == 0 {
 		cp.StreamFields = *journaldStreamFields
@@ -207,7 +207,7 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 		if !allowedJournaldEntryNameChars.MatchString(name) {
 			return fmt.Errorf("journald entry name should consist of `A-Z0-9_` characters and must start from non-digit symbol")
 		}
-		if name == cp.TimeField {
+		if slices.Contains(cp.TimeFields, name) {
 			n, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				return fmt.Errorf("failed to parse Journald timestamp, %w", err)

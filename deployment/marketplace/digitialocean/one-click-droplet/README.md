@@ -29,7 +29,7 @@ Besides scraping, VictoriaMetrics accepts write requests for various ingestion p
 
 - [Datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog), [Influx (telegraph)](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf), [JSON](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format), [CSV](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data), [Prometheus](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format)  on port :8428
 - [Graphite (statsd)](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) on port :2003 tcp/udp
-- [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents) on port :4242
+- [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb) on port :4242
 - Influx (telegraph) on port :8089 tcp/udp
 
 See more details and examples in [official documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).

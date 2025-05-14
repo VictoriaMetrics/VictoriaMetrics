@@ -40,28 +40,28 @@ VictoriaMetrics is available as:
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
 Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
-Then read [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
-and [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana) setup docs.
+See [available integrations](https://docs.victoriametrics.com/victoriametrics/integrations/) with other systems like 
+[Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) 
 and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
-### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
+### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {id="starting-vm-on-cloud"}
 
 1. Go to [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
 1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
 1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
 
-### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
+### Starting VictoriaMetrics Single Node via Docker {id="starting-vm-single-via-docker"}
 
 Download the newest available [VictoriaMetrics release](https://docs.victoriametrics.com/victoriametrics/changelog/)
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.116.0
+docker pull victoriametrics/victoria-metrics:v1.117.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.116.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.117.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
-_Make sure to choose non-enterprise release flavour, as it requires additional access to run._
+_For Enterprise images see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
 
 You should see:
 ```sh
@@ -78,7 +78,7 @@ Other available HTTP endpoints are listed on `http://localhost:8428` page.
 See how to [write](https://docs.victoriametrics.com/victoriametrics/quick-start/#write-data) or [read](https://docs.victoriametrics.com/victoriametrics/quick-start/#query-data)
 from VictoriaMetrics.
 
-### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
+### Starting VictoriaMetrics Cluster via Docker {id="starting-vm-cluster-via-docker"}
 
 Clone [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics) and start the docker environment 
 via `make docker-vm-cluster-up` command:
@@ -105,7 +105,7 @@ file._
 
 See more details about [cluster architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup).
 
-### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
+### Starting VictoriaMetrics Single Node from a Binary {id="starting-vm-single-from-a-binary"}
 
 1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). 
 For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
@@ -117,19 +117,16 @@ sudo tar -xvf <victoriametrics-archive> -C /usr/local/bin
 Replace `<victoriametrics-archive>` with the path to the archive you downloaded in step 1.
 
 3. Create a VictoriaMetrics user on the system:
-
 ```sh
 sudo useradd -s /usr/sbin/nologin victoriametrics
 ```
 
 4. Create a folder for storing VictoriaMetrics data:
-
 ```sh
 sudo mkdir -p /var/lib/victoria-metrics && sudo chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
 ```
 
 5. Create a Linux Service by running the following:
-
 ```sh
 sudo bash -c 'cat <<END >/etc/systemd/system/victoriametrics.service
 [Unit]
@@ -162,13 +159,11 @@ If you want to deploy VictoriaMetrics Single Node as a Windows Service review th
 > Please note, `victoriametrics` service is listening on `:8428` for HTTP connections (see `-httpListenAddr` flag).
 
 6. Start and enable the service by running the following command:
-
 ```sh 
 sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.service
 ```
 
-7. Check that service started successfully: 
-
+7. Check that service started successfully:
 ```sh
 sudo systemctl status victoriametrics.service
 ```
@@ -177,7 +172,7 @@ sudo systemctl status victoriametrics.service
 by going to `http://<ip_or_hostname>:8428/vmui`.
 
 
-### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
+### Starting VictoriaMetrics Cluster from Binaries {id="starting-vm-cluster-from-binaries"}
 
 VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security)),
@@ -189,7 +184,6 @@ On all nodes you will need to do the following:
 For Enterprise binaries see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
-
 ```sh
 sudo tar -xvf <victoriametrics-archive> -C /usr/local/bin
 ```
@@ -197,7 +191,6 @@ sudo tar -xvf <victoriametrics-archive> -C /usr/local/bin
 Replace `<victoriametrics-archive>` with the path to the archive you downloaded in step 1
 
 3. Create a user account for VictoriaMetrics:
-
 ```sh
 sudo useradd -s /usr/sbin/nologin victoriametrics
 ```
@@ -207,11 +200,11 @@ See recommendations for installing each type of [cluster component](https://docs
 ##### Installing vmstorage
 
 1. Create a folder for storing `vmstorage` data:
-
-`sudo mkdir -p /var/lib/vmstorage && sudo chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
+```sh
+sudo mkdir -p /var/lib/vmstorage && sudo chown -R victoriametrics:victoriametrics /var/lib/vmstorage
+```
 
 2. Create a Linux Service for `vmstorage` service by running the following command:
-
 ```sh
 sudo bash -c 'cat <<END >/etc/systemd/system/vmstorage.service
 [Unit]
@@ -241,13 +234,11 @@ for vmstorage can be added to `ExecStart` line.
 > on `:8401` for vmselect connections (see `--vmselectAddr` flag) and on `:8482` for HTTP connections (see `-httpListenAddr` flag).
 
 3. Start and Enable `vmstorage`:
-
 ```sh
 sudo systemctl daemon-reload && sudo systemctl enable --now vmstorage
 ```
 
 4. Check that service started successfully:
-
 ```sh
 sudo systemctl status vmstorage
 ```
@@ -258,7 +249,6 @@ It should say "VictoriaMetrics is Healthy".
 ##### Installing vminsert
 
 1. Create a Linux Service for `vminsert` by running the following command:
-
 ```sh
 sudo bash -c 'cat <<END >/etc/systemd/system/vminsert.service
 [Unit]
@@ -288,13 +278,11 @@ in one flag. See more details in `-storageNode` flag description [here](https://
 > Please note, `vminsert` service is listening on `:8480` for HTTP connections (see `-httpListenAddr` flag).
 
 2. Start and Enable `vminsert`:
-
 ```sh
 sudo systemctl daemon-reload && sudo systemctl enable --now vminsert.service
 ```
 
 3. Check that service started successfully:
-
 ```sh
 sudo systemctl status vminsert.service
 ```
@@ -305,14 +293,12 @@ It should say "VictoriaMetrics is Healthy"
 ##### Installing vmselect
 
 1. Create a folder to store temporary cache:
-
 ```sh
 sudo mkdir -p /var/lib/vmselect-cache && sudo chown -R victoriametrics:victoriametrics /var/lib/vmselect-cache
 ```
 
 2. Add a Linux Service for `vmselect` by running
-
-```bash
+```sh
 sudo bash -c 'cat <<END >/etc/systemd/system/vmselect.service
 [Unit]
 Description=VictoriaMetrics vmselect service
@@ -342,13 +328,11 @@ in one flag. See more details in `-storageNode` flag description [here](https://
 > Please note, `vmselect` service is listening on `:8481` for HTTP connections (see `-httpListenAddr` flag).
 
 3. Start and Enable `vmselect`:
-
 ```sh
 sudo systemctl daemon-reload && sudo systemctl enable --now vmselect.service
 ```
 
 4. Make sure the `vmselect` service is running:
-
 ```sh
 sudo systemctl status vmselect.service
 ```
@@ -362,8 +346,9 @@ There are two main models in monitoring for data collection: [push](https://docs
 and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Both are used in modern monitoring and both are 
 supported by VictoriaMetrics.
 
-See more details on [writing data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data).
-See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/victoriametrics/data-ingestion/).
+See more details on [key concepts of writing data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data).
+See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/victoriametrics/data-ingestion/)
+and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations).
 
 ## Query data
 
@@ -374,7 +359,8 @@ query language for executing read queries in VictoriaMetrics. See examples of Me
 VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
 
-See more details on [querying data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
+See more details on [key concepts of querying data](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data)
+and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations).
 
 ## Alerting
 

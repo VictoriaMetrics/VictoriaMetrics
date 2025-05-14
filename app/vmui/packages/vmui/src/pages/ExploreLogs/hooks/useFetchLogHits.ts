@@ -2,26 +2,20 @@ import { useCallback, useMemo, useRef, useState } from "preact/compat";
 import { getLogHitsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { LogHits } from "../../../api/types";
-import { useSearchParams } from "react-router-dom";
 import { getHitsTimeParams } from "../../../utils/logs";
 import { LOGS_GROUP_BY, LOGS_LIMIT_HITS } from "../../../constants/logs";
 import { isEmptyObject } from "../../../utils/object";
 import { useEffect } from "react";
+import { useTenant } from "../../../hooks/useTenant";
 
 export const useFetchLogHits = (server: string, query: string) => {
-  const [searchParams] = useSearchParams();
-
+  const tenant = useTenant();
   const [logHits, setLogHits] = useState<LogHits[]>([]);
   const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
   const abortControllerRef = useRef(new AbortController());
 
   const url = useMemo(() => getLogHitsUrl(server), [server]);
-
-  const tenant = useMemo(() => ({
-    AccountID: searchParams.get("accountID") || "0",
-    ProjectID: searchParams.get("projectID") || "0",
-  }), [searchParams]);
 
   const getOptions = (query: string, period: TimeParams, signal: AbortSignal) => {
     const { start, end, step } = getHitsTimeParams(period);
@@ -80,7 +74,7 @@ export const useFetchLogHits = (server: string, query: string) => {
       }
     }
     setIsLoading(prev => ({ ...prev, [id]: false }));
-  }, [url, query, searchParams]);
+  }, [url, query]);
 
   useEffect(() => {
     return () => {

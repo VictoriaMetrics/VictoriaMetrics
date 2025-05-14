@@ -18,18 +18,32 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: all the [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) components: provide FIPS compliant binaries and docker images. See [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/#fips-compliance) for the details.
-* FEATURE: all the VictoriaMetrics components: add `-http.disableCORS` cmd-line flag for disabling CORS headers. See [#8680](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680) for details. Thanks to @jmehrs for [#8684](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8684).
-* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `debug` option for [group](https://docs.victoriametrics.com/vmalert/#groups) for enabling [debug mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode) for all rules within the group. Thanks to @eyazici90 for [#8658](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8658).
-* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): add alerting rule `ScrapePoolHasNoTargets` to vmagent default rules. The new rule should notify user when there is a job with 0 configured or discovered targets, which is usually a sign of misconfiguration.
-* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): cancel currently running operation if graceful shutdown was requested. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8554).
-* FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): display completion status in `/api/v1/backups` API response and `backup list` command. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5361).
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `vm_retention_filters_partitions_scheduled` and `vm_retention_filters_partitions_scheduled_size_bytes` gauge metrics to reflect [retention filters](https://docs.victoriametrics.com/#retention-filters) process.
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): add support for Prometheus 3.0 utf-8 quoted labels during scraping. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8692) for details.
+**Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
 
+## [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0)
+
+Released at 2025-05-09
+
+* SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
+
+* FEATURE: all the [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) components: provide FIPS compliant binaries and docker images. See [FIPS compliance docs](https://docs.victoriametrics.com/victoriametrics/enterprise/#fips-compliance) for the details.
+* FEATURE: all the VictoriaMetrics components: add `-http.disableCORS` cmd-line flag for disabling CORS headers. See [#8680](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680) for details. Thanks to @jmehrs for [#8684](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8684).
+* FEATURE: all components: expose [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html) metrics when running under cgroup v2 (aka Kubernetes, Docker and modern Linux systems). These metrics may help identifying the root cause of performance issues related to the saturation of the available CPU and IO. See the list of exposed metrics [here](https://github.com/VictoriaMetrics/metrics/commit/255d4dc5c2d4e2a84a81f580095bd46f0de3afea).
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): cancel currently running operation if graceful shutdown was requested. See [#8554](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8554).
+* FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): display completion status in `/api/v1/backups` API response and `backup list` command. See [#5361](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5361).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `debug` option to [groups](https://docs.victoriametrics.com/vmalert/#groups) for enabling [debug mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode) for all rules within the group. Thanks to @eyazici90 for [#8658](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8658).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `.Type` and `$type` [template option](https://docs.victoriametrics.com/victoriametrics/vmalert/#templating) to display datasource type: `prometheus`, `vlogs` or `graphite`. It can be useful in annotations or for routing [source link](https://docs.victoriametrics.com/victoriametrics/vmalert/#link-to-alert-source) to corresponding datasource. 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add `vm_retention_filters_partitions_scheduled` and `vm_retention_filters_partitions_scheduled_size_bytes` gauge metrics to reflect [retention filters](https://docs.victoriametrics.com/#retention-filters) process.
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/): add support for Prometheus 3.0 utf-8 quoted labels during scraping. See [#8692](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8692) for details.
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): update the colors in the Metric Relabel Debug tool to softer tones that maintain good readability in both light and dark themes. See [#8871](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8871).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): limit the number of points per series and total response size (30 MiB) on the Raw Query page to prevent UI freezes when rendering large datasets. See [#7895](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7895).
+* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): add alerting rule `ScrapePoolHasNoTargets` to [vmagent default rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmagent.yml). The new rule should notify user when there is a job with 0 configured or discovered targets, which is usually a sign of misconfiguration.
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly parse quoted utf-8 label names in parentheses. See [#8826](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8826) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly parse metric name series selectors with `or` expressions. See [metricsql#50](https://github.com/VictoriaMetrics/metricsql/issues/50) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix various UI glitches and tidy up the visual styles. See [#8773](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773) for details.
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix parsing for (+/-)Inf values and scientific notation in `values` field. Thanks to @evkuzin for [#8847](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8847).
-* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `retentionFilter` flag name in debugging interface to make it consistent with flag definition. Previously, flag name in debugging interface was different from command-line configuration so copying command-line flags for debugging produced an error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8697).
-* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix various UI glitches and tidy up the visual styles. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8773) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `retentionFilter` flag name in debugging interface to make it consistent with flag definition. Previously, flag name in debugging interface was different from command-line configuration so copying command-line flags for debugging produced an error. See [#8697](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8697).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): create relabel config reload and stream aggregation config reload related metrics only if config is present. See [helm-charts#2119](https://github.com/VictoriaMetrics/helm-charts/issues/2119) for details.
 
 ## [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0)
@@ -216,6 +230,19 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7)
+
+Released at 2025-05-09
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly parse quoted utf-8 label names in parentheses. See [#8826](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8826) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): properly parse metric name series selectors with `or` expressions. See [metricsql#50](https://github.com/VictoriaMetrics/metricsql/issues/50) for details.
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix parsing for (+/-)Inf values and scientific notation in `values` field. Thanks to @evkuzin for [#8847](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8847).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): create relabel config reload and stream aggregation config reload related metrics only if config is present. See [helm-charts#2119](https://github.com/VictoriaMetrics/helm-charts/issues/2119) for details.
 
 ## [v1.110.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.6)
 
@@ -413,6 +440,19 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
+
+## [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20)
+
+Released at 2025-05-09
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade Go builder from Go1.23.8 to Go1.23.9. See the list of issues addressed in [Go1.23.9](https://github.com/golang/go/issues?q=milestone%3AGo1.23.9+label%3ACherryPickApproved)
+
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix parsing for (+/-)Inf values and scientific notation in `values` field. Thanks to @evkuzin for [#8847](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8847).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): create relabel config reload and stream aggregation config reload related metrics only if config is present. See [helm-charts#2119](https://github.com/VictoriaMetrics/helm-charts/issues/2119) for details.
 
 ## [v1.102.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.19)
 

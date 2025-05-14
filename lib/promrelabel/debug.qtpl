@@ -109,12 +109,12 @@ function submitRelabelDebugForm(e) {
                 <td><b><pre class="m-2">{%s ds.Rule %}</pre></b></td>
                 <td>
                     <div class="m-2" style="font-size: 0.9em" title="deleted and updated labels highlighted in red">
-                        {%= labelsWithHighlight(inLabels, changedLabels, "red") %}
+                        {%= labelsWithHighlight(inLabels, changedLabels, "#D15757") %}
                     </div>
                 </td>
                 <td>
                     <div class="m-2" style="font-size: 0.9em" title="added and updated labels highlighted in blue">
-                        {%= labelsWithHighlight(outLabels, changedLabels, "blue") %}
+                        {%= labelsWithHighlight(outLabels, changedLabels, "#4495e0") %}
                     </div>
                 </td>
         </tr>
@@ -156,8 +156,8 @@ function submitRelabelDebugForm(e) {
                     changedLabels := getChangedLabelNames(inLabels, outLabels)
                 %}
                 {
-                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "red") %},
-                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "blue") %},
+                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "#D15757") %},
+                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "#4495e0") %},
                     "rule": {%q= ds.Rule %}
                 }
                 {% if i != len(dss)-1 %},{% endif %}
