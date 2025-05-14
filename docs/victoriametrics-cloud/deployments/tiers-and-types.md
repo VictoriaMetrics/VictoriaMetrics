@@ -126,8 +126,9 @@ A comprehensive list of these parameters is presented here:
 
 | **Parameter**                             | **Maximum Value**                 | **Description**                                                                                                                                                                                                                                 |
 |-------------------------------------------|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **New Series Over 24 Hours** (churn rate) | `<= Active Time Series Count`     | Number of new series created in 24 hours. High [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) leads to higher resource consumption.                                                                                |
-| **Concurrent Requests per Token**         | `<= 600`                          | Maximum concurrent requests per [access token](deployments/access-tokens.md). It is recommended to create separate tokens for different clients and environments. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com). |
+| **New Series Over 24 Hours** (churn rate) | `<= 30% Active Time Series Count`     | Number of new series created in 24 hours. High [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) leads to higher resource consumption.                                                                                |
+| **Concurrent Requests per Token**         | `<= 600`                          | Maximum concurrent requests per [access token](deployments/access-tokens.md). It is recommended to create separate tokens for different users and environments. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com). |
+
 
 <br></br>
 For a detailed explanation of each parameter, visit the guide on [Understanding Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size.html).
@@ -162,15 +163,23 @@ Features like Downsampling, Data Deduplication, Cardinality Explorer or Metrics 
 further reduce your costs. Feel free to contact [support](mailto:support-cloud@victoriametrics.com) if
 you need more information.
 
-## Flag Parameters Configuration
+## Advanced Parameters: Flags
 
-Additionally, users may define additional parameters for Advanced use cases.
+Additionally, VictoriaMetrics Cloud exposes certain parameters (or [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags))
+that **advanced users** can tweak on their own under the `Advanced settings` section of every deployment
+after creation.
 
-| **Flag**                          | **Default Value**         | **Description**                                                                                                                                                                                                                                                                                                                                                     |
-|-----------------------------------|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Max Label Value Length**        | `<= 1kb` (Default: `4kb`) | Maximum length of label values. Time series with longer values are dropped. Large label values can lead to high RAM consumption. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com).                                                                                                                                                      |
-| **Max Labels per Time Series**    | `<= 30`                   | Maximum number of labels per time series. Time series with excess labels are dropped. Higher values can increase [cardinality](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#cardinality) and resource usage. This can be configured in [deployment settings](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#modifying-an-existing-deployment). |
+> [!WARNING] Changing default command-line flags may lead to errors
+> Modifying Advanced parameters can result into changes in resource consumption usage, causing a
+> deployment not being able to compute the load they were designed to support. In these cases,
+> a higher tier is most probably needed.
 
+Some of these advanced parameters are outlined below:
+
+| **Flag**                               | **Description**                                                             |
+|----------------------------------------|-----------------------------------------------------------------------------|
+| <nobr>`-maxLabelsPerTimeseries`</nobr> | Maximum number of labels per time series. Time series with excess labels are dropped. Higher values can increase [cardinality](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#cardinality) and resource usage.  |
+| `-maxLabelValueLen`                    | Maximum length of label values. Time series with longer values are dropped. Large label values can lead to high RAM consumption. This parameter is not exposed and can only be adjusted via [support](mailto:support-cloud@victoriametrics.com). **In general, label values with high values `~>1kb` are not supported**. |
 
 ## Terms and definitions
 
