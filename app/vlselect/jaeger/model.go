@@ -72,6 +72,8 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 			sp.SpanID = field.Value
 		case Name:
 			sp.OperationName = field.Value
+		case ParentSpanId:
+
 		case Kind:
 			if field.Value != "" {
 				spanKind := ""
@@ -192,6 +194,19 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 
 	sp.Tags = spanTagList
 	sp.Process.Tags = processTagList
+
+	for i := 0; i < len(refsMap); i++ {
+		idx := strconv.Itoa(i)
+		sp.References = append(sp.References, SpanRef{
+			refsMap[idx].TraceID, refsMap[idx].SpanID, refsMap[idx].RefType,
+		})
+	}
+	for i := 0; i < len(logsMap); i++ {
+		idx := strconv.Itoa(i)
+		sp.Logs = append(sp.Logs, Log{
+			logsMap[idx].Timestamp, logsMap[idx].Fields,
+		})
+	}
 
 	if sp.SpanID != "" {
 		return sp, nil
