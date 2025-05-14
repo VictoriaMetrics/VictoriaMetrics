@@ -1117,8 +1117,6 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 // closes it once the search() returns. Thus, implementations of search func
 // must not close the query tracer that they receive.
 func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
-	qt.Printf("start parallel indexDB search: timeRange=%s", &tr)
-
 	var idbs []*indexDB
 
 	ptIDBs := s.tb.GetIndexDBs(tr)
@@ -1132,6 +1130,12 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	}
 	if legacyIDBCurr != nil {
 		idbs = append(idbs, legacyIDBCurr)
+	}
+
+	if len(idbs) == 0 {
+		qt.Printf("no indexDBs found for timeRange=%s", &tr)
+		var zeroValue T
+		return zeroValue, nil
 	}
 
 	// It is faster to process one indexDB without spawning goroutines.
@@ -1148,6 +1152,7 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		return data, nil
 	}
 
+	qt.Printf("start parallel indexDB search: timeRange=%s", &tr)
 	var wg sync.WaitGroup
 	data := make([]T, len(idbs))
 	errs := make([]error, len(idbs))
