@@ -134,7 +134,7 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 // GraphiteWrite is a test helper function that sends a collection of records
 // to graphiteListenAddr port.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
 func (app *Vmsingle) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 	app.cli.Write(t, app.graphiteWriteAddr, records)
@@ -165,7 +165,7 @@ func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 // records in OpenTSDB format for the given tenant by sending an HTTP POST
 // request to /api/put vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#sending-opentsdb-data-via-http-apiput-requests
+// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http
 func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 

@@ -67,7 +67,7 @@ func TestExtractTimestampFromFields_Success(t *testing.T) {
 	f := func(timeField string, fields []logstorage.Field, nsecsExpected int64) {
 		t.Helper()
 
-		nsecs, err := ExtractTimestampFromFields(timeField, fields)
+		nsecs, err := ExtractTimestampFromFields([]string{timeField}, fields)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -140,7 +140,7 @@ func TestExtractTimestampFromFields_Error(t *testing.T) {
 		fields := []logstorage.Field{
 			{Name: "time", Value: s},
 		}
-		nsecs, err := ExtractTimestampFromFields("time", fields)
+		nsecs, err := ExtractTimestampFromFields([]string{"time"}, fields)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}

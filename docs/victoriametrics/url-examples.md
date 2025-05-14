@@ -472,7 +472,7 @@ echo '
 
 Additional information:
 
-* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent)
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/integrations/datadog)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 
@@ -540,7 +540,7 @@ echo '
 
 Additional information:
 
-* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-datadog-agent)
+* [How to send data from DataDog agent](https://docs.victoriametrics.com/victoriametrics/integrations/datadog)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ### /federate
@@ -588,8 +588,8 @@ curl http://<vmselect>:8481/select/0/graphite/metrics/find -d 'query=vm_http_req
 Additional information:
 
 * [Metrics find API in Graphite](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
-* [Graphite API in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-api-usage)
-* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [Graphite API in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage)
+* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting)
 * [URL Format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ### /influx/write
@@ -612,7 +612,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST htt
 
 Additional information:
 
-* [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+* [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb)
 * [URL Format](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
 ### /internal/resetRollupResultCache
@@ -676,7 +676,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Additional information:
 
 * [OpenTSDB http put API](http://opentsdb.net/docs/build/html/api_http/put.html)
-* [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents)
+* [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb)
 
 #### How to send Graphite data to VictoriaMetrics
 
@@ -698,5 +698,5 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminse
 
 Additional information:
 
-* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting)
 * [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)

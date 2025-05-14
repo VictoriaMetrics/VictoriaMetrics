@@ -7,7 +7,7 @@ ROOT_IMAGE ?= alpine:3.21.3
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.21.3
 
-GO_BUILDER_IMAGE := golang:1.24.2-alpine
+GO_BUILDER_IMAGE := golang:1.24.3-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -87,6 +87,7 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
+		--build-arg BINARY_SUFFIX="" \
 		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
 		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
 		--label "org.opencontainers.image.title=$(APP_NAME)" \
@@ -95,7 +96,6 @@ publish-via-docker:
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
 		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		) \
 		-o type=image \
 		--provenance=false \
@@ -107,6 +107,7 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
 		--build-arg APP_NAME=$(APP_NAME) \
+		--build-arg BINARY_SUFFIX="" \
 		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
 		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
 		--label "org.opencontainers.image.title=$(APP_NAME)" \
@@ -115,7 +116,6 @@ publish-via-docker:
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
 		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
 		) \
 		-o type=image \
 		--provenance=false \

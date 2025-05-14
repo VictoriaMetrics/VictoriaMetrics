@@ -12,7 +12,7 @@ VictoriaMetrics integrates with Grafana using either [Prometheus datasource](htt
 or [VictoriaMetrics datasource](https://grafana.com/grafana/plugins/victoriametrics-metrics-datasource/) plugins.
 
 Resources:
-* [VictoriaMetrics Grafana playground](https://play-grafana.victoriametrics.com)
+* [VictoriaMetrics Grafana demo playground](https://play-grafana.victoriametrics.com)
 * [VictoriaMetrics and Grafana in docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics)
 
 ## VictoriaMetrics datasource
@@ -38,7 +38,7 @@ Once connected, you can start building graphs and dashboards using [PromQL](http
 or [MetricsQL](https://docs.victoriametrics.com/metricsql/).
 
 VictoriaMetrics datasource is publicly available on [GitHub](https://github.com/VictoriaMetrics/victoriametrics-datasource).
-See more in [plugin docs](https://docs.victoriametrics.com/victoriametrics-datasource/).
+See more in [plugin docs](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/).
 
 _Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator._

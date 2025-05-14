@@ -77,6 +77,7 @@ See also:
 - [Multitenancy](#multitenancy)
 - [Stream fields](#stream-fields)
 - [Dropping fields](#dropping-fields)
+- [Decolorizing fields](#decolorizing-fields)
 - [Adding extra fields](#adding-extra-fields)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
@@ -165,6 +166,18 @@ For example, the following command starts VictoriaLogs, which drops `proc_id` an
 
 The list may contain field name prefixes ending with `*` such as `some-prefix*`. In this case all the log fields starting with this prefix
 are ignored during data ingestion.
+
+## Decolorizing fields
+
+VictoriaLogs supports `-syslog.decolorizeFields.tcp` and `-syslog.decolorizeFields.udp` command-line flags,
+which can be used for removing ANSI color codes from the provided list fields during ingestion of Syslog logs
+into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.upd` addresses.
+For example, the following command starts VictoriaLogs, which removes ANSI color codes from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+at logs recevied via TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.decolorizeFields.tcp='["_msg"]'
+```
 
 ## Adding extra fields
 

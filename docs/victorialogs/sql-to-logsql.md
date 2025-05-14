@@ -116,4 +116,4 @@ It is equivalent to the longer LogsQL query:
 
 [LogsQL pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) support much wider functionality comparing to SQL,
 so spend your spare time by reading [pipe docs](https://docs.victoriametrics.com/victorialogs/logsql/) and playing with them
-at [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/).
+at [VictoriaLogs demo playground](https://play-vmlogs.victoriametrics.com/).

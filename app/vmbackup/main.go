@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
@@ -95,10 +97,17 @@ func main() {
 	}
 
 	listenAddrs := []string{*httpListenAddr}
-	go httpserver.Serve(listenAddrs, nil, nil)
+	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		procutil.WaitForSigterm()
+		logger.Infof("received stop signal, canceling backup operation")
+		cancel()
+	}()
 
 	pushmetrics.Init()
-	err := makeBackup()
+	err := makeBackup(ctx)
 	deleteSnapshot()
 	if err != nil {
 		logger.Fatalf("cannot create backup: %s", err)
@@ -113,14 +122,14 @@ func main() {
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 
-func makeBackup() error {
-	dstFS, err := newDstFS()
+func makeBackup(ctx context.Context) error {
+	dstFS, err := newDstFS(ctx)
 	if err != nil {
 		return err
 	}
 	if *snapshotName == "" {
 		// Make server-side copy from -origin to -dst
-		originFS, err := newRemoteOriginFS()
+		originFS, err := newRemoteOriginFS(ctx)
 		if err != nil {
 			return err
 		}
@@ -139,7 +148,7 @@ func makeBackup() error {
 		if err != nil {
 			return err
 		}
-		originFS, err := newOriginFS()
+		originFS, err := newOriginFS(ctx)
 		if err != nil {
 			return err
 		}
@@ -199,8 +208,8 @@ func newSrcFS() (*fslocal.FS, error) {
 	return fs, nil
 }
 
-func newDstFS() (common.RemoteFS, error) {
-	fs, err := actions.NewRemoteFS(*dst)
+func newDstFS(ctx context.Context) (common.RemoteFS, error) {
+	fs, err := actions.NewRemoteFS(ctx, *dst)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-dst`=%q: %w", *dst, err)
 	}
@@ -239,22 +248,22 @@ func hasFilepathPrefix(path, prefix string) bool {
 	return true
 }
 
-func newOriginFS() (common.OriginFS, error) {
+func newOriginFS(ctx context.Context) (common.OriginFS, error) {
 	if len(*origin) == 0 {
 		return &fsnil.FS{}, nil
 	}
-	fs, err := actions.NewRemoteFS(*origin)
+	fs, err := actions.NewRemoteFS(ctx, *origin)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}
 	return fs, nil
 }
 
-func newRemoteOriginFS() (common.RemoteFS, error) {
+func newRemoteOriginFS(ctx context.Context) (common.RemoteFS, error) {
 	if len(*origin) == 0 {
 		return nil, fmt.Errorf("-origin cannot be empty when -snapshotName and -snapshot.createURL aren't set")
 	}
-	fs, err := actions.NewRemoteFS(*origin)
+	fs, err := actions.NewRemoteFS(ctx, *origin)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}

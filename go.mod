@@ -1,18 +1,12 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.24.2
+go 1.24.3
 
 // This is needed in order to avoid vmbackup and vmrestore binary size increase by 20MB
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8008
 //
 // TODO: remove this entry after https://github.com/googleapis/google-cloud-go/issues/11448 is fixed
 replace cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
-
-// This is needed in order to avoid breaking builds as Prometheus with v0.63.0
-// version is not released yet.
-//
-// TODO: remove this after the build error `undefined: promslog.AllowedFormat` is fixed.
-replace github.com/prometheus/common => github.com/prometheus/common v0.62.0
 
 // Pin AWS libraries to version before 2025-01-15
 // Release notes: https://github.com/aws/aws-sdk-go-v2/releases/tag/release-2025-01-15
@@ -40,8 +34,8 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
-	github.com/VictoriaMetrics/metrics v1.35.4
-	github.com/VictoriaMetrics/metricsql v0.84.4
+	github.com/VictoriaMetrics/metrics v1.36.0
+	github.com/VictoriaMetrics/metricsql v0.84.5
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.74
@@ -57,7 +51,7 @@ require (
 	github.com/influxdata/influxdb v1.12.0
 	github.com/klauspost/compress v1.18.0
 	github.com/mattn/go-isatty v0.0.20
-	github.com/prometheus/prometheus v0.303.0
+	github.com/prometheus/prometheus v0.303.1
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
@@ -67,7 +61,7 @@ require (
 	github.com/valyala/quicktemplate v1.8.0
 	golang.org/x/net v0.39.0
 	golang.org/x/oauth2 v0.29.0
-	golang.org/x/sys v0.32.0
+	golang.org/x/sys v0.33.0
 	google.golang.org/api v0.231.0
 	gopkg.in/yaml.v2 v2.4.0
 )

@@ -33,7 +33,7 @@ VictoriaMetrics has the following prominent features:
 
 * It can be used as long-term storage for Prometheus. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports the [Prometheus querying API](#prometheus-querying-api-usage).
-* It can be used as a drop-in replacement for Graphite in Grafana, because it supports the [Graphite API](#graphite-api-usage).
+* It can be used as a drop-in replacement for Graphite in Grafana, because it supports the [Graphite API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
   VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite - see [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#grammarly).
 * It is easy to setup and operate:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d)
@@ -70,15 +70,15 @@ VictoriaMetrics has the following prominent features:
   * [Metrics scraping from Prometheus exporters](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
   * [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
-  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
-  * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+  * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) over HTTP, TCP and UDP.
+  * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
-  * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
+  * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
   * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
   * [Native binary format](#how-to-import-data-in-native-format).
-  * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
-  * [NewRelic infrastructure agent](#how-to-send-data-from-newrelic-agent).
+  * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
+  * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic#sending-data-from-agent).
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
@@ -139,7 +139,7 @@ The following docs may be useful during initial VictoriaMetrics setup:
 * [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
 * [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
 * [How to query VictoriaMetrics via Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
-* [How to query VictoriaMetrics via Graphite API](#graphite-api-usage)
+* [How to query VictoriaMetrics via Graphite API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage)
 * [How to handle alerts](#alerting)
 
 VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
@@ -230,9 +230,10 @@ helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vic
 
 ## Playgrounds
 
-VictoriaMetrics has the following publicly available resources:
+VictoriaMetrics has the following publicly available demo resources:
+
 1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
-  It is available for testing the query engine, relabeling playground, other tools and pages provided by VMUI.
+  It is available for testing the query engine, relabeling debugger, other tools and pages provided by VMUI.
 1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
   typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
   3 cluster installations for the recent OS and LTS versions running under the constant becnhmark.
@@ -282,12 +283,12 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Top queries](#top-queries) - shows most frequently executed queries;
   - [Active queries](#active-queries) - shows currently executed queries;
 - Tools:
-  - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
-  - [Query analyzer](#query-tracing) - playground for loading query results and traces in JSON format. See `Export query` button below;  
-  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
-  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
-  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - playground for [relabeling](#downsampling) configs {{% available_from "v1.105.0" %}}.
-  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - playground for [relabeling](#retention-filters) configs {{% available_from "v1.105.0" %}}.
+  - [Trace analyzer](#query-tracing) - exlpore query traces loaded from JSON;
+  - [Query analyzer](#query-tracing) - explore query results and traces loaded from JSON. See `Export query` button below;
+  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work;
+  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
+  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - debug [downsampling](#downsampling) configs {{% available_from "v1.105.0" %}}.
+  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - debug [retention filter](#retention-filters) configs {{% available_from "v1.105.0" %}}.
 
 VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, metric names, label names and label values. The auto-completion can be enabled
 by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can still be triggered for the current cursor position by pressing `ctrl+space`.
@@ -383,6 +384,7 @@ By default, all the time series for the selected date are analyzed. To narrow do
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 Resources:
+
  * [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
  * [Cardinality explorer blog post](https://victoriametrics.com/blog/cardinality-explorer/).
 
@@ -424,423 +426,39 @@ See also [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), w
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/), [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) and
-[DataDog Lambda Extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/)
-via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v2/series` or via "sketches" API at `/datadog/api/beta/sketches`.
-
-### Sending metrics to VictoriaMetrics
-
-DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
-or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
-
-![DD to VM](README_sending_DD_metrics_to_VM.webp)
-
-To configure DataDog agent via ENV variable add the following prefix:
-
-
-```sh
-DD_DD_URL=http://victoriametrics:8428/datadog
-```
-
-
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog)._
-
-To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
-add the following line:
-
-```yaml
-dd_url: http://victoriametrics:8428/datadog
-```
-
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) also can accept DataDog metrics format. Depending on where vmagent will forward data,
-pick [single-node or cluster URL](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog) formats.
-
-### Sending metrics to DataDog and VictoriaMetrics
-
-DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
-sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
- 
-![DD to VM](README_sending_DD_metrics_to_VM_and_DD.webp)
- 
-Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
-
-```sh
-DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
-```
-
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadog)._
-
-
-To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
-add the following line:
-
-```yaml
-additional_endpoints:
-  "http://victoriametrics:8428/datadog":
-  - apikey
-```
-
-### Send metrics via Serverless DataDog plugin
-
-Disable logs (logs ingestion is not supported by VictoriaMetrics) and set a custom endpoint in `serverless.yaml`:
-
-```
-custom:
-  datadog:
-    enableDDLogs: false             # Disabled not supported DD logs
-    apiKey: fakekey                 # Set any key, otherwise plugin fails
-provider:
-  environment:
-    DD_DD_URL: <<vm-url>>/datadog   # VictoriaMetrics endpoint for DataDog
-```
-
-### Send via cURL
-
-See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadogapiv2series).
-
-The imported data can be read via [export API](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export).
-
-### Additional details
-
-VictoriaMetrics automatically sanitizes metric names for the data ingested via DataDog protocol
-according to [DataDog metric naming recommendations](https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics).
-If you need accepting metric names as is without sanitizing, then pass `-datadog.sanitizeMetricName=false` command-line flag to VictoriaMetrics.
-
-Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
-For example, `/datadog/api/v2/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
-
-DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
-undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet.
-This prevents from adding the configured tags to DataDog agent data sent into VictoriaMetrics.
-The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) alongside every DataDog agent,
-which must run with `DD_DD_URL=http://localhost:8429/datadog` environment variable.
-The sidecar `vmagent` must be configured with the needed tags via `-remoteWrite.label` command-line flag and must forward
-incoming data with the added tags to a centralized VictoriaMetrics specified via `-remoteWrite.url` command-line flag.
-
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) for details on how to add labels to metrics at `vmagent`.
+Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
 
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
-Use `http://<victoriametrics-addr>:8428` URL instead of InfluxDB url in agents' configs.
-For instance, put the following lines into `Telegraf` config, so it sends data to VictoriaMetrics instead of InfluxDB:
-
-```toml
-[[outputs.influxdb]]
-  urls = ["http://<victoriametrics-addr>:8428"]
-```
-
-Or in case of [`http`](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/http) output
-
-```toml
-[[outputs.http]]
-  url = "http://<victoriametrics-addr>:8428/influx/write"
-  data_format = "influx"
-  non_retryable_statuscodes = [400]
-```
-
-The size of the request sent to VictoriaMetrics's Influx HTTP endpoints is limited by `-influx.maxRequestSize` (default: 64Mb).
-For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: 1`
-HTTP header with each request or by setting `-influx.forceStreamMode` command-line flag to enable stream processing for all requests.
-Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
-it ignores invalid rows (only logs them) and ingests successfully parsed rows. If client cancels the ingestion request
-due to timeout or other reasons, it could happen that some lines from the workload were already parsed and ingested.
-
-Another option is to enable TCP and UDP receiver for InfluxDB line protocol via `-influxListenAddr` command-line flag
-and stream plain InfluxDB line protocol data to the configured TCP and/or UDP addresses. TCP and UDP receivers are 
-only working in streaming mode.
-
-VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
-* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
-  [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line. 
-  The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
-  read more about multi-tenancy [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#multi-tenancy).
-* Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
-* Field values are mapped to time series values.
-* Non-numeric field values are converted to 0.
-* Tags are mapped to Prometheus labels as-is.
-* If `-usePromCompatibleNaming` command-line flag is set, then all the metric names and label names
-  are normalized to [Prometheus-compatible naming](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels) by replacing unsupported chars with `_`.
-  For example, `foo.bar-baz/1` metric name or label name is substituted with `foo_bar_baz_1`.
-
-For example, the following InfluxDB line:
-
-```influxtextmetric
-foo,tag1=value1,tag2=value2 field1=12,field2=40
-```
-
-is converted into the following Prometheus data points:
-
-```promtextmetric
-foo_field1{tag1="value1", tag2="value2"} 12
-foo_field2{tag1="value1", tag2="value2"} 40
-```
-
-Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
-to local VictoriaMetrics using `curl`:
-
-```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
-```
-
-An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
-```
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
-{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
-```
-
-Note that InfluxDB line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
-while VictoriaMetrics stores them with *milliseconds* precision. It is allowed to ingest timestamps with seconds,
-microseconds or nanoseconds precision - VictoriaMetrics will automatically convert them to milliseconds.
-
-Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
-For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
-
-Some plugins for Telegraf such as [fluentd](https://github.com/fangli/fluent-plugin-influxdb), [Juniper/open-nti](https://github.com/Juniper/open-nti)
-or [Juniper/jitmon](https://github.com/Juniper/jtimon) send `SHOW DATABASES` query to `/query` and expect a particular database name in the response.
-Comma-separated list of expected databases can be passed to VictoriaMetrics via `-influx.databaseNames` command-line flag.
-
-### How to send data in InfluxDB v2 format
-
-VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
-
-
-In order to write data with InfluxDB line protocol to local VictoriaMetrics using `curl`:
-
-
-```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
-```
-
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
-```
+Moved to [integrations/influxdb](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf).
 
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
-Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
-the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
-
-```sh
-/path/to/victoria-metrics-prod -graphiteListenAddr=:2003
-```
-
-Use the configured address in Graphite-compatible agents. For instance, set `graphiteHost`
-to the VictoriaMetrics host in `StatsD` configs.
-
-Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
-
-```sh
-echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
-```
-
-The ingested metrics can be sanitized according to Prometheus naming convention by passing `-graphite.sanitizeMetricName` command-line flag
-to VictoriaMetrics. The following modifications are applied to the ingested samples when this flag is passed to VictoriaMetrics:
-
-- remove redundant dots, e.g: `metric..name` => `metric.name`
-- replace characters not matching `a-zA-Z0-9:_.` chars with `_`
-
-VictoriaMetrics sets the current time to the ingested samples if the timestamp is omitted.
-
-An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
-```
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
-```
-
-[Graphite relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling) can be used if the imported Graphite data is going to be queried via [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
+Moved to [integrations/graphite#ingesting](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#ingesting).
 
 ## Querying Graphite data
 
-Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
-
-* [Graphite API](#graphite-api-usage)
-* [Prometheus querying API](#prometheus-querying-api-usage). See also [selecting Graphite metrics](#selecting-graphite-metrics).
-* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
+Moved to [integrations/graphite#querying](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#querying).
 
 ## Selecting Graphite metrics
 
-VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster and it is easier to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/victoriametrics/metricsql/#label_graphite_group) function for extracting the given groups from Graphite metric name.
-
-The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`. They are transparently converted to `{value1,...,valueN}` syntax [used in Graphite](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). This allows using [multi-value template variables in Grafana](https://grafana.com/docs/grafana/latest/variables/formatting-multi-value-variables/) inside `__graphite__` pseudo-label. For example, Grafana expands `{__graphite__=~"foo.($bar).baz"}` into `{__graphite__=~"foo.(x|y).baz"}` if `$bar` template variable contains `x` and `y` values. In this case the query is automatically converted into `{__graphite__=~"foo.{x,y}.baz"}` before execution.
-
-VictoriaMetrics also supports Graphite query language - see [these docs](#graphite-render-api-usage).
+Moved to [integrations/graphite#selecting-graphite-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics).
 
 ## How to send data from OpenTSDB-compatible agents
 
-VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
-and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) for ingesting OpenTSDB data.
-The same protocol is used for [ingesting data in KairosDB](https://kairosdb.github.io/docs/PushingData.html).
+Moved to [integrations/opentsdb](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb).
 
 ### Sending data via `telnet put` protocol
 
-Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
-the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
-
-```sh
-/path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
-```
-
-Send data to the given address from OpenTSDB-compatible agents.
-
-Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
-
-
-```sh
-echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
-```
-
-
-An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
-```
-
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
-```
+Moved to [integrations/opentsdb#sending-data-via-telnet](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
 
 ### Sending OpenTSDB data via HTTP `/api/put` requests
 
-Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
-the following command enables OpenTSDB HTTP server on port `4242`:
-
-```sh
-/path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
-```
-
-Send data to the given address from OpenTSDB-compatible agents.
-
-Example for writing a single data point:
-
-
-```sh
-curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
-```
-
-
-Example for writing multiple data points in a single request:
-
-```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
-```
-
-
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-
-```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
-```
-
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo"},"values":[45.34],"timestamps":[1566464846000]}
-{"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
-{"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
-```
-
-Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
-For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
+Moved to [integrations/opentsdb#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
 
 ## How to send data from NewRelic agent
 
-VictoriaMetrics accepts data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent)
-at `/newrelic/infra/v2/metrics/events/bulk` HTTP path.
-VictoriaMetrics receives [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-from NewRelic agent at the given path, transforms them to [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
-according to [these docs](#newrelic-agent-data-mapping) before storing the raw samples to the database.
-
-You need passing `COLLECTOR_URL` and `NRIA_LICENSE_KEY` environment variables to NewRelic infrastructure agent in order to send the collected metrics to VictoriaMetrics.
-The `COLLECTOR_URL` must point to `/newrelic` HTTP endpoint at VictoriaMetrics, while the `NRIA_LICENSE_KEY` must contain NewRelic license key,
-which can be obtained [here](https://newrelic.com/signup).
-For example, if VictoriaMetrics runs at `localhost:8428`, then the following command can be used for running NewRelic infrastructure agent:
-
-```sh
-COLLECTOR_URL="http://localhost:8428/newrelic" NRIA_LICENSE_KEY="NEWRELIC_LICENSE_KEY" ./newrelic-infra
-```
-
-### NewRelic agent data mapping
-
-VictoriaMetrics maps [NewRelic Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-to [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) in the following way:
-
-1. Every numeric field is converted into a raw sample with the corresponding name.
-1. The `eventType` and all the other fields with `string` value type are attached to every raw sample as [metric labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels).
-1. The `timestamp` field is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
-   The `timestamp` field may be specified either in seconds or in milliseconds since the [Unix Epoch](https://en.wikipedia.org/wiki/Unix_time).
-   If the `timestamp` field is missing, then the raw sample is stored with the current timestamp.
-
-For example, let's import the following NewRelic Events request to VictoriaMetrics:
-
-```json
-[
-  {
-    "Events":[
-      {
-        "eventType":"SystemSample",
-        "entityKey":"macbook-pro.local",
-        "cpuPercent":25.056660790748904,
-        "cpuUserPercent":8.687987912389374,
-        "cpuSystemPercent":16.36867287835953,
-        "cpuIOWaitPercent":0,
-        "cpuIdlePercent":74.94333920925109,
-        "cpuStealPercent":0,
-        "loadAverageOneMinute":5.42333984375,
-        "loadAverageFiveMinute":4.099609375,
-        "loadAverageFifteenMinute":3.58203125
-      }
-    ]
-  }
-]
-```
-
-Save this JSON into `newrelic.json` file and then use the following command in order to import it into VictoriaMetrics:
-
-```sh
-curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/infra/v2/metrics/events/bulk
-```
-
-Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
-
-```sh
-curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
-{"metric":{"__name__":"cpuStealPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
-{"metric":{"__name__":"loadAverageFiveMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[4.099609375],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuIOWaitPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuSystemPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[16.368672878359],"timestamps":[1697407970000]}
-{"metric":{"__name__":"loadAverageOneMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[5.42333984375],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuUserPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[8.687987912389],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuIdlePercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[74.9433392092],"timestamps":[1697407970000]}
-{"metric":{"__name__":"loadAverageFifteenMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[3.58203125],"timestamps":[1697407970000]}
-{"metric":{"__name__":"cpuPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[25.056660790748],"timestamps":[1697407970000]}
-```
+Moved to [integrations/newrelic#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
 
 ## Prometheus querying API usage
 
@@ -945,66 +563,19 @@ in [export APIs](https://docs.victoriametrics.com/victoriametrics/single-server-
 
 ## Graphite API usage
 
-VictoriaMetrics supports data ingestion in Graphite protocol - see [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
-VictoriaMetrics supports the following Graphite querying APIs, which are needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/):
-
-* Render API - see [these docs](#graphite-render-api-usage).
-* Metrics API - see [these docs](#graphite-metrics-api-usage).
-* Tags API - see [these docs](#graphite-tags-api-usage).
-
-All the Graphite handlers can be prepended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
-
-VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector` query args for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.
-
-[Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
-
-VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [these docs](#selecting-graphite-metrics).
+Moved to [integrations/graphite#graphite-api-usage](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
 
 ### Graphite Render API usage
 
-VictoriaMetrics supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
-at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
-When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points
-stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
-
-#### Known Incompatibilities with `graphite-web`
-
-- **Timestamp Shifting**: VictoriaMetrics does not support shifting response timestamps outside the request time range as `graphite-web` does. This limitation impacts chained functions with time modifiers, such as `timeShift(summarize)`. For more details, refer to this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2969).
-
-- **Non-deterministic series order**: due to the distributed nature of metrics processing, functions within the `seriesLists` family can produce non-deterministic results. To ensure consistent results, arguments for these functions must be wrapped with a sorting function. For instance, the function `divideSeriesLists(series_list_1, series_list_2)` should be modified to `divideSeriesLists(sortByName(series_list_1), sortByName(series_list_2))`.  See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5810) for details.
-
-  The affected functions include:
-  - `aggregateSeriesLists`
-  - `diffSeriesLists`
-  - `multiplySeriesLists`
-  - `divideSeriesLists`
+Moved to [integrations/graphite#render-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api).
 
 ### Graphite Metrics API usage
 
-VictoriaMetrics supports the following handlers from [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api):
-
-* [/metrics/find](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
-* [/metrics/expand](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand)
-* [/metrics/index.json](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json)
-
-VictoriaMetrics accepts the following additional query args at `/metrics/find` and `/metrics/expand`:
-
-* `label` - for selecting arbitrary label values. By default, `label=__name__`, i.e. metric names are selected.
-* `delimiter` - for using different delimiters in metric name hierarchy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
-    that start with `node_`. By default `delimiter=.`.
+Moved to [integrations/graphite#metrics-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api).
 
 ### Graphite Tags API usage
 
-VictoriaMetrics supports the following handlers from [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html):
-
-* [/tags/tagSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
-* [/tags/tagMultiSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
-* [/tags](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
-* [/tags/{tag_name}](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
-* [/tags/findSeries](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
-* [/tags/autoComplete/tags](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
-* [/tags/autoComplete/values](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
-* [/tags/delSeries](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb)
+Moved to [integrations/graphite#tags-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api).
 
 ## How to build from sources
 
@@ -1296,12 +867,12 @@ see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 Additionally, VictoriaMetrics can accept metrics via the following popular data ingestion protocols (aka "push" protocols):
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
-* DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
-* InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
-* Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
+* DataDog `submit metrics` API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog) for details.
+* InfluxDB line protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf) for details.
+* Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
-* OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
+* OpenTSDB http `/api/put` protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
   See [these docs](#how-to-import-data-in-json-line-format) for details.
 * `/api/v1/import/native` for importing data obtained from [/api/v1/export/native](#how-to-export-data-in-native-format).
@@ -1310,7 +881,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * `/api/v1/import/prometheus` for importing data in Prometheus exposition format and in [Pushgateway format](https://github.com/prometheus/pushgateway#url).
   See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
-Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), [OpenTelemetry](#sending-data-via-opentelemetry) and [Influx Line Protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf))
+Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), [OpenTelemetry](#sending-data-via-opentelemetry) and [Influx Line Protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf))
 are optimized for performance and processes data in a streaming fashion.
 It means that client can transfer unlimited amount of data through the open connection. Because of this, import APIs
 may not return parsing errors to the client, as it is expected for data stream to be not interrupted. 
@@ -1599,7 +1170,7 @@ VictoriaMetrics provides additional relabeling features such as Graphite-style r
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for more details.
 
 The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
-or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
+or at our [public demo playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
 See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug) for more details.
 
 
@@ -1724,7 +1295,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
+- `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api).
 - `-search.maxFederateSeries` limits maximum number of time series, which can be returned via [/federate API](#federation). 
   The duration of the `/federate` queries is limited via `-search.maxQueryDuration` flag. This option allows limiting memory usage.
 - `-search.maxExportSeries` limits maximum number of time series, which can be returned from [/api/v1/export* APIs](#how-to-export-data-in-json-line-format).
@@ -2013,7 +1584,7 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ### Retention filters
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports e.g. `retention filters`,
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports `retention filters`,
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering), while the `duration`
@@ -2028,6 +1599,13 @@ For example, the following config sets 3 days retention for time series with `te
 ```sh
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
+
+There are two gauge metrics to monitor the retention filters process:
+
+- `vm_retention_filters_partitions_scheduled` shows the total number of partitions scheduled for retention filters 
+- `vm_retention_filters_partitions_scheduled_size_bytes` shows the total size of scheduled partitions.
+
+Additionally, a log message with the filter expression and the paritition name is written to the log on the start and completion of the operation.
 
 Important notes:
 
@@ -2539,7 +2117,7 @@ and [cardinality explorer docs](#cardinality-explorer).
   Alternatively, you can use [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
-  See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api).
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
@@ -2929,7 +2507,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphite.sanitizeMetricName
-     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -2977,12 +2555,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.forceStreamMode
-     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -influx.maxRequestSize size
-     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
@@ -3280,11 +2858,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-render-api-usage (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api (default 300000)
   -search.maxGraphiteTagKeys int
-     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#graphite-tags-api-usage (default 100000)
+     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api (default 100000)
   -search.maxLabelsAPIDuration duration
      The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
