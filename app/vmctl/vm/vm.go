@@ -299,6 +299,8 @@ func (im *Importer) Ping() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status code: %d", resp.StatusCode)
 	}
