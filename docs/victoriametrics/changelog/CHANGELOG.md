@@ -21,6 +21,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 **Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [#8836](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): fixed relabel config reloading and metrics initialization that are controlled by `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. Bug was introduced in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8676).
 
 ## [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0)
 
