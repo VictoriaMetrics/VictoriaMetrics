@@ -44,4 +44,24 @@
 }
 {% endfunc %}
 
+{% func GetTracesResponse(Traces []string, processMap map[uint32]process) %}
+{
+	{% code
+	    sort.Slice(operationList, func(i, j int) bool { return operationList[i] < operationList[j] })
+	%}
+	"data":[
+        {% if len(operationList) > 0 %}
+            {%s= operationList[0] %}
+            {% for _, operation := range operationList[1:] %}
+                ,{%s= operation %}
+            {% endfor %}
+        {% endif %}
+	],
+	"errors": null,
+	"limit": 0,
+	"offset": 0,
+	"total": {%d= len(operationList) %},
+}
+{% endfunc %}
+
 {% endstripspace %}

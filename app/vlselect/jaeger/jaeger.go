@@ -8,9 +8,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -148,7 +152,7 @@ type traceQueryParameters struct {
 }
 
 type row struct {
-	timestamp int64
+	timestamp string
 	fields    []logstorage.Field
 }
 
@@ -193,12 +197,28 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 	}
 	q.AddTimeFilter(query.StartTimeMin.UnixNano(), query.StartTimeMax.UnixNano())
 
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+
 	var rows []row
 	var rowsLock sync.Mutex
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+	var missingTimeColumn atomic.Bool
+
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		if missingTimeColumn.Load() {
+			return
+		}
+
+		columns := db.Columns
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+
+		timestamps, ok := db.GetTimestamps()
+		if !ok {
+			missingTimeColumn.Store(true)
+			cancel()
+			return
 		}
 
 		for i, timestamp := range timestamps {
@@ -218,26 +238,55 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 		}
 	}
 	logger.Infof("FindTraces query: %s", q.String())
-	if err = vlstorage.RunQuery(ctx, cp., q, writeBlock); err != nil {
-		return nil, err
+	if err = vlstorage.RunQuery(ctxWithCancel, cp.TenantIDs, q, writeBlock); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
 	}
-	tracesMap := make(map[string]*model.Trace)
-	traces := make([]*model.Trace, len(traceIDs), len(traceIDs))
+	if missingTimeColumn.Load() {
+		httpserver.Errorf(w, r, "missing _time column in the result for the query [%s]", q)
+		return
+	}
+
+	tracesMap := make(map[string]*Trace)
+	traces := make([]*Trace, len(traceIDs), len(traceIDs))
 	for i := range traceIDs {
-		traces[i] = &model.Trace{}
+		traces[i] = &Trace{}
 		tracesMap[traceIDs[i]] = traces[i]
 	}
 
+	processIDMap := make(map[uint64]*ProcessListItem) // process name -> id
+
 	for i := range rows {
-		sp, err := jaeger.FieldsToSpan(rows[i].fields)
+		var sp *Span
+		sp, err = FieldsToSpan(rows[i].fields)
 		if err != nil {
 			logger.Errorf("cannot unmarshal log fields [%v] to span: %s", rows[i].fields, err)
 			continue
 		}
 
-		tracesMap[sp.TraceID.String()].Spans = append(tracesMap[sp.TraceID.String()].Spans, sp)
+		// Process ID
+		ph := processHash(sp.Process)
+		if _, ok := processIDMap[ph]; !ok {
+			processIDMap[ph] = &ProcessListItem{
+				Process:   sp.Process,
+				ProcessID: len(processIDMap) + 1,
+			}
+		}
+		sp.ProcessID = "p" + strconv.Itoa(processIDMap[ph].ProcessID)
+		tracesMap[sp.TraceID].Spans = append(tracesMap[sp.TraceID].Spans, sp)
 	}
-	return traces, nil
+
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+
+	//WriteGetTracesResponse(w, traces, processIDMap)
+
+	return
+}
+
+type ProcessListItem struct {
+	Process   *Process
+	ProcessID int
 }
 
 func processGetTraceIDsRequest(ctx context.Context, cp *commonParams, query *traceQueryParameters) ([]string, error) {
@@ -338,4 +387,29 @@ func getCommonParams(r *http.Request) (*commonParams, error) {
 		TenantIDs: tenantIDs,
 	}
 	return cp, nil
+}
+
+var xxhashPool = &sync.Pool{
+	New: func() any {
+		return xxhash.New()
+	},
+}
+
+func processHash(process *Process) uint64 {
+	d := xxhashPool.Get().(*xxhash.Digest)
+	sort.Slice(process.Tags, func(i, j int) bool {
+		if process.Tags[i].Key < process.Tags[j].Key {
+			return true
+		}
+		return false
+	})
+	_, _ = d.WriteString(process.ServiceName)
+	for _, tag := range process.Tags {
+		_, _ = d.WriteString(tag.Key)
+		_, _ = d.WriteString(tag.VStr)
+	}
+	h := d.Sum64()
+	d.Reset()
+	xxhashPool.Put(d)
+	return h
 }

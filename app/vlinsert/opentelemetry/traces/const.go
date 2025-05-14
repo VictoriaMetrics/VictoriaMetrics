@@ -37,6 +37,8 @@ const (
 
 // Span_Event
 const (
+	EventPrefix = "event:"
+
 	EventTimeUnixNano           = "event_time_unix_nano"
 	EventName                   = "event_name"
 	EventAttrPrefix             = "event_attr:"
@@ -45,6 +47,8 @@ const (
 
 // Span_Link
 const (
+	LinkPrefix = "link:"
+
 	LinkTraceId                = "link_trace_id"
 	LinkSpanId                 = "link_span_id"
 	LinkTraceState             = "link_trace_state"

@@ -138,33 +138,35 @@ func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp
 		})
 	}
 
-	for _, event := range span.Events {
+	for idx, event := range span.Events {
+		eventFieldPrefix := EventPrefix + strconv.Itoa(idx) + ":"
 		fields = append(fields,
-			logstorage.Field{Name: EventTimeUnixNano, Value: strconv.FormatUint(event.TimeUnixNano, 10)},
-			logstorage.Field{Name: EventName, Value: event.Name},
-			logstorage.Field{Name: EventDroppedAttributesCount, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
+			logstorage.Field{Name: eventFieldPrefix + EventTimeUnixNano, Value: strconv.FormatUint(event.TimeUnixNano, 10)},
+			logstorage.Field{Name: eventFieldPrefix + EventName, Value: event.Name},
+			logstorage.Field{Name: eventFieldPrefix + EventDroppedAttributesCount, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
 		)
-
 		for _, eventAttr := range event.Attributes {
 			fields = append(fields, logstorage.Field{
-				Name:  EventAttrPrefix + eventAttr.Key,
+				Name:  eventFieldPrefix + EventAttrPrefix + eventAttr.Key,
 				Value: eventAttr.Value.FormatString(true),
 			})
 		}
 	}
 
-	for _, link := range span.Links {
+	for idx, link := range span.Links {
+		linkFieldPrefix := LinkPrefix + strconv.Itoa(idx) + ":"
+
 		fields = append(fields,
-			logstorage.Field{Name: LinkTraceId, Value: link.TraceId},
-			logstorage.Field{Name: LinkSpanId, Value: link.SpanId},
-			logstorage.Field{Name: LinkTraceState, Value: LinkTraceState},
-			logstorage.Field{Name: LinkDroppedAttributesCount, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
-			logstorage.Field{Name: LinkFlags, Value: strconv.FormatUint(uint64(link.Flags), 10)},
+			logstorage.Field{Name: linkFieldPrefix + LinkTraceId, Value: link.TraceId},
+			logstorage.Field{Name: linkFieldPrefix + LinkSpanId, Value: link.SpanId},
+			logstorage.Field{Name: linkFieldPrefix + LinkTraceState, Value: LinkTraceState},
+			logstorage.Field{Name: linkFieldPrefix + LinkDroppedAttributesCount, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
+			logstorage.Field{Name: linkFieldPrefix + LinkFlags, Value: strconv.FormatUint(uint64(link.Flags), 10)},
 		)
 
 		for _, linkAttr := range link.Attributes {
 			fields = append(fields, logstorage.Field{
-				Name:  LinkAttrPrefix + linkAttr.Key,
+				Name:  linkFieldPrefix + LinkAttrPrefix + linkAttr.Key,
 				Value: linkAttr.Value.FormatString(true),
 			})
 		}
