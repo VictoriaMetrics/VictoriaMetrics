@@ -96,7 +96,6 @@ publish-via-docker:
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
 		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		) \
 		-o type=image \
 		--provenance=false \
@@ -117,7 +116,6 @@ publish-via-docker:
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
 		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
 		) \
 		-o type=image \
 		--provenance=false \
