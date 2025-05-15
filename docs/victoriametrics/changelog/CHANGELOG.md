@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1)
+
+Released at 2025-05-15
+
 **Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
