@@ -33,8 +33,8 @@ versions.
 
 Released at 2025-05-09
 
-**Update notes:** This release includes changes that prevent from relabeling configuration reload at vmagent.
-We advise skipping this version and waiting for the fix in v1.117.1 or rollback to v1.116.0.
+**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+We advise skipping this version and waiting for the fix in v1.117.1. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
 
 * SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
 
@@ -247,6 +247,9 @@ Released at 2025-02-10
 
 Released at 2025-05-09
 
+**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+We advise skipping this version and waiting for the fix in v1.110.8. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
+
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
@@ -456,6 +459,9 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20)
 
 Released at 2025-05-09
+
+**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+We advise skipping this version and waiting for the fix in v1.102.21. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
