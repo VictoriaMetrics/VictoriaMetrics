@@ -132,9 +132,13 @@ func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp
 	)
 
 	for _, attr := range span.Attributes {
+		v := attr.Value.FormatString(true)
+		if len(v) == 0 {
+			v = "-"
+		}
 		fields = append(fields, logstorage.Field{
 			Name:  SpanAttrPrefix + attr.Key,
-			Value: attr.Value.FormatString(true),
+			Value: v,
 		})
 	}
 
@@ -146,9 +150,13 @@ func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp
 			logstorage.Field{Name: eventFieldPrefix + EventDroppedAttributesCount, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
 		)
 		for _, eventAttr := range event.Attributes {
+			v := eventAttr.Value.FormatString(true)
+			if len(v) == 0 {
+				v = "-"
+			}
 			fields = append(fields, logstorage.Field{
 				Name:  eventFieldPrefix + EventAttrPrefix + eventAttr.Key,
-				Value: eventAttr.Value.FormatString(true),
+				Value: v,
 			})
 		}
 	}
@@ -165,9 +173,13 @@ func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp
 		)
 
 		for _, linkAttr := range link.Attributes {
+			v := linkAttr.Value.FormatString(true)
+			if len(v) == 0 {
+				v = "-"
+			}
 			fields = append(fields, logstorage.Field{
 				Name:  linkFieldPrefix + LinkAttrPrefix + linkAttr.Key,
-				Value: linkAttr.Value.FormatString(true),
+				Value: v,
 			})
 		}
 	}
