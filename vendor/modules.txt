@@ -114,8 +114,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
 # github.com/VictoriaMetrics/easyproto v0.1.4
 ## explicit; go 1.18
 github.com/VictoriaMetrics/easyproto
-# github.com/VictoriaMetrics/fastcache v1.12.2
-## explicit; go 1.13
+# github.com/VictoriaMetrics/fastcache v1.12.4
+## explicit; go 1.24.0
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/metrics v1.36.0
 ## explicit; go 1.17
