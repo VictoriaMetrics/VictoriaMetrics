@@ -3,6 +3,7 @@
 package zstd
 
 import (
+	"maps"
 	"sync"
 	"sync/atomic"
 
@@ -64,9 +65,7 @@ func getEncoder(compressionLevel zstd.EncoderLevel) *zstd.Encoder {
 	if e = r1[compressionLevel]; e == nil {
 		e = newEncoder(compressionLevel)
 		r2 := make(map[zstd.EncoderLevel]*zstd.Encoder)
-		for k, v := range r1 {
-			r2[k] = v
-		}
+		maps.Copy(r2, r1)
 		r2[compressionLevel] = e
 		av.Store(r2)
 	}

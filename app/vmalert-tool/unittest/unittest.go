@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -358,12 +359,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	var groups []*rule.Group
 	for _, group := range testGroups {
 		mergedExternalLabels := make(map[string]string)
-		for k, v := range tg.ExternalLabels {
-			mergedExternalLabels[k] = v
-		}
-		for k, v := range externalLabels {
-			mergedExternalLabels[k] = v
-		}
+		maps.Copy(mergedExternalLabels, tg.ExternalLabels)
+		maps.Copy(mergedExternalLabels, externalLabels)
 		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
 		groups = append(groups, ng)
 	}
