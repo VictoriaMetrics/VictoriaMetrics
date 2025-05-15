@@ -62,6 +62,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 	logsMap := make(map[string]*Log)     // idx -> *Log
 	refsMap := make(map[string]*SpanRef) // idx -> *SpanRef
 
+	parentSpanRef := SpanRef{}
 	for _, field := range fields {
 		switch field.Name {
 		case "_stream":
@@ -73,7 +74,8 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 		case Name:
 			sp.OperationName = field.Value
 		case ParentSpanId:
-
+			parentSpanRef.SpanID = field.Value
+			parentSpanRef.RefType = "CHILD_OF"
 		case Kind:
 			if field.Value != "" {
 				spanKind := ""
@@ -161,7 +163,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				case EventDroppedAttributesCount:
 					log.Fields = append(log.Fields, KeyValue{Key: fieldName, VStr: field.Value})
 				default:
-					log.Fields = append(log.Fields, KeyValue{Key: strings.TrimPrefix(field.Name, EventAttrPrefix), VStr: field.Value})
+					log.Fields = append(log.Fields, KeyValue{Key: strings.TrimPrefix(fieldName, EventAttrPrefix), VStr: field.Value})
 				}
 			} else if strings.HasPrefix(field.Name, LinkAttrPrefix) {
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, LinkAttrPrefix), ":", 2)
@@ -195,8 +197,17 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 	sp.Tags = spanTagList
 	sp.Process.Tags = processTagList
 
+	if parentSpanRef.SpanID != "" {
+		parentSpanRef.TraceID = sp.TraceID
+		sp.References = append(sp.References, parentSpanRef)
+	}
 	for i := 0; i < len(refsMap); i++ {
 		idx := strconv.Itoa(i)
+		if len(sp.References) > 0 && parentSpanRef.TraceID == refsMap[idx].TraceID && parentSpanRef.SpanID == refsMap[idx].SpanID {
+			// We already added a reference to this span, but maybe with the wrong type, so override.
+			sp.References[0].RefType = refsMap[idx].RefType
+			continue
+		}
 		sp.References = append(sp.References, SpanRef{
 			refsMap[idx].TraceID, refsMap[idx].SpanID, refsMap[idx].RefType,
 		})

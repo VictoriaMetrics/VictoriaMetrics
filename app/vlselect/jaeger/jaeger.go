@@ -58,7 +58,7 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		return true
 	} else if strings.HasPrefix(path, "/select/jaeger/api/traces/") && len(path) > len("/api/traces/") {
 		jaegerTraceRequests.Inc()
-		// todo
+		processGetTraceRequest(ctx, w, r)
 		jaegerTraceDuration.UpdateDuration(startTime)
 		return true
 	} else if path == "/select/jaeger/api/dependencies" {
@@ -158,7 +158,12 @@ type row struct {
 }
 
 func parseTraceQueryParams(ctx context.Context, r *http.Request) (*traceQueryParameters, error) {
-	p := &traceQueryParameters{}
+	p := &traceQueryParameters{
+		StartTimeMin: time.Unix(0, 0),
+		StartTimeMax: time.Now(),
+		DurationMax:  time.Hour,
+		NumTraces:    20,
+	}
 	q := r.URL.Query()
 	p.ServiceName = q.Get("service")
 	p.OperationName = q.Get("operation")
@@ -198,6 +203,120 @@ func parseTraceQueryParams(ctx context.Context, r *http.Request) (*traceQueryPar
 		}
 	}
 	return p, nil
+}
+
+func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		logger.Infof("FindTraces finished in %dms", time.Since(start).Milliseconds())
+	}()
+
+	cp, err := getCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
+		return
+	}
+
+	paths := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
+	if len(paths) < 5 {
+		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
+		return
+	}
+	traceID := paths[len(paths)-1]
+
+	//query, err := parseTraceQueryParams(ctx, r)
+	//if err != nil {
+	//	httpserver.Errorf(w, r, "incorrect trace query params: %s", err)
+	//}
+
+	qStr := fmt.Sprintf(TraceId+": \"%s\"", traceID)
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse query [%s]: %s", qStr, err)
+		return
+	}
+	//q.AddTimeFilter(0, query.StartTimeMax.UnixNano())
+
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+
+	var rows []row
+	var rowsLock sync.Mutex
+	var missingTimeColumn atomic.Bool
+
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		if missingTimeColumn.Load() {
+			return
+		}
+
+		columns := db.Columns
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+
+		timestamps, ok := db.GetTimestamps()
+		if !ok {
+			missingTimeColumn.Store(true)
+			cancel()
+			return
+		}
+
+		for i, timestamp := range timestamps {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range columns {
+				if columns[j].Values[i] != "" {
+					fields = append(fields, logstorage.Field{Name: clonedColumnNames[j], Value: strings.Clone(columns[j].Values[i])})
+				}
+			}
+
+			rowsLock.Lock()
+			rows = append(rows, row{
+				timestamp: timestamp,
+				fields:    fields,
+			})
+			rowsLock.Unlock()
+		}
+	}
+	logger.Infof("FindTraces query: %s", q.String())
+	if err = vlstorage.RunQuery(ctxWithCancel, cp.TenantIDs, q, writeBlock); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if missingTimeColumn.Load() {
+		httpserver.Errorf(w, r, "missing _time column in the result for the query [%s]", q)
+		return
+	}
+
+	trace := &Trace{}
+	processIDMap := make(map[uint64]*ProcessListItem) // process name -> id
+	processMap := make(map[string]*Process)           // trace_id -> map[processID]->Process
+	for i := range rows {
+		var sp *Span
+		sp, err = FieldsToSpan(rows[i].fields)
+		if err != nil {
+			logger.Errorf("cannot unmarshal log fields [%v] to span: %s", rows[i].fields, err)
+			continue
+		}
+
+		// Process ID
+		ph := processHash(sp.Process)
+		if _, ok := processIDMap[ph]; !ok {
+			processIDMap[ph] = &ProcessListItem{
+				ProcessID: len(processIDMap) + 1,
+			}
+		}
+		sp.ProcessID = "p" + strconv.Itoa(processIDMap[ph].ProcessID)
+
+		processMap[sp.ProcessID] = sp.Process
+		trace.Spans = append(trace.Spans, sp)
+	}
+
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+	WriteGetTracesResponse(w, []*Trace{trace}, map[string]map[string]*Process{
+		traceID: processMap,
+	})
+	return
 }
 
 func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
