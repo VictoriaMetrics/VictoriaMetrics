@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): respect staleness markers when calculating `rate` and `increase` functions. The new behavior will interrupt rate/increase calculation if last sample on the selected time window is a [staleness marker](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers), making the series to disappear immediately instead of slowly fading away. See more details in [#8891-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891#issuecomment-2875542721).
+
 **Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
