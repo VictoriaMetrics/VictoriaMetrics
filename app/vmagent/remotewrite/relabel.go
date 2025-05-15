@@ -121,7 +121,7 @@ type relabelConfigs struct {
 }
 
 func (rcs *relabelConfigs) isSet() bool {
-	if rcs != nil {
+	if rcs == nil {
 		return false
 	}
 	if rcs.global.Len() > 0 {

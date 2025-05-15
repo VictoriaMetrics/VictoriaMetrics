@@ -681,10 +681,10 @@ func (opts *Options) NewConfig() (*Config, error) {
 	}
 	hd := xxhash.New()
 	for _, kv := range headers {
-		hd.Sum([]byte(kv.key))
-		hd.Sum([]byte("="))
-		hd.Sum([]byte(kv.value))
-		hd.Sum([]byte(","))
+		hd.Write([]byte(kv.key))
+		hd.Write([]byte("="))
+		hd.Write([]byte(kv.value))
+		hd.Write([]byte(","))
 	}
 	headersDigest := fmt.Sprintf("digest(headers)=%d", hd.Sum64())
 

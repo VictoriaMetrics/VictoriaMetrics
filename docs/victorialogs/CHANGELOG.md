@@ -18,6 +18,14 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly handle nested attributes by expanding them into separate top-level fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8862).
+
+## [v1.22.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.2-victorialogs)
+
+Released at 2025-05-10
+
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate [`min`](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats) and [`max`](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats) stats for numeric log fields.
+
 ## [v1.22.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.1-victorialogs)
 
 Released at 2025-05-09

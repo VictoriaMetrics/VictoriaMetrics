@@ -57,9 +57,9 @@ and performing [regular upgrades](https://docs.victoriametrics.com/victoriametri
 Download the newest available [VictoriaMetrics release](https://docs.victoriametrics.com/victoriametrics/changelog/)
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.116.0
+docker pull victoriametrics/victoria-metrics:v1.117.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.116.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.117.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 _For Enterprise images see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
 
