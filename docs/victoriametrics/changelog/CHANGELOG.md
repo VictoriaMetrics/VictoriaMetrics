@@ -20,12 +20,17 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 **Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [#8836](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): fixed relabel config reloading and metrics initialization that are controlled by `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. Bug was introduced in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8676).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly initialize relabel config reloading metrics for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. Bug was introduced in [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0). And back-ported to the [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7) and [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20)
+versions.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly reload authorization configuration on headers changes. See [This issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8931) for details. Thanks to @smallpath for the [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8938).
 
 ## [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0)
 
 Released at 2025-05-09
+
+**Update notes:** This release includes changes that prevent from relabeling configuration reload at vmagent.
+We advise skipping this version and waiting for the fix in v1.117.1 or rollback to v1.116.0.
 
 * SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
 
