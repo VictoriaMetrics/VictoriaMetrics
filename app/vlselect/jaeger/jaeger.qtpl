@@ -51,7 +51,9 @@
         {% if len(Traces) > 0 %}
             {%= traceJson(Traces[0], traceProcessMap[Traces[0].Spans[0].TraceID]) %}
             {% for _, trace := range Traces[1:] %}
-                ,{%= traceJson(trace, traceProcessMap[trace.Spans[0].TraceID]) %}
+                {% if len(trace.Spans) > 0 %}
+                    ,{%= traceJson(trace, traceProcessMap[trace.Spans[0].TraceID]) %}
+                {% endif %}
             {% endfor %}
         {% endif %}
 	],
