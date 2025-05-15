@@ -1853,8 +1853,13 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 
 func rollupDelta(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
+	// before calling rollup funcs. Only StaleNaNs could remain in values - see dropStaleNaNs().
 	values := rfa.values
+	if len(values) > 0 && decimal.IsStaleNaN(values[len(values)-1]) {
+		// if last sample on interval is staleness marker then the selected series is expected
+		// to stop rendering immediately. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
+		return nan
+	}
 	prevValue := rfa.prevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
@@ -1940,8 +1945,13 @@ func rollupDerivSlow(rfa *rollupFuncArg) float64 {
 
 func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
+	// before calling rollup funcs. Only StaleNaNs could remain in values - see  - see dropStaleNaNs().
 	values := rfa.values
+	if len(values) > 0 && decimal.IsStaleNaN(values[len(values)-1]) {
+		// if last sample on interval is staleness marker then the selected series is expected
+		// to stop rendering immediately. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
+		return nan
+	}
 	timestamps := rfa.timestamps
 	prevValue := rfa.prevValue
 	prevTimestamp := rfa.prevTimestamp
