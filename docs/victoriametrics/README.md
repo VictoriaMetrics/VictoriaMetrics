@@ -244,14 +244,6 @@ Additionally, we provide a [docker-compose environment](https://github.com/Victo
 for VictoriaMetrics and VictoriaLogs components. They are already configured, provisioned and interconnected.
 It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
 
-## Prometheus setup
-
-Moved to [integrations/prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
-
-## Grafana setup
-
-Moved to [integrations/grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
-
 ## How to upgrade VictoriaMetrics
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking [the CHANGELOG page](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing regular upgrades.
@@ -424,42 +416,6 @@ VictoriaMetrics also supports [importing data in Prometheus exposition format](#
 
 See also [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), which can be used as drop-in replacement for Prometheus.
 
-## How to send data from DataDog agent
-
-Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
-
-## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
-
-Moved to [integrations/influxdb](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf).
-
-## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
-
-Moved to [integrations/graphite#ingesting](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#ingesting).
-
-## Querying Graphite data
-
-Moved to [integrations/graphite#querying](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#querying).
-
-## Selecting Graphite metrics
-
-Moved to [integrations/graphite#selecting-graphite-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics).
-
-## How to send data from OpenTSDB-compatible agents
-
-Moved to [integrations/opentsdb](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb).
-
-### Sending data via `telnet put` protocol
-
-Moved to [integrations/opentsdb#sending-data-via-telnet](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
-
-### Sending OpenTSDB data via HTTP `/api/put` requests
-
-Moved to [integrations/opentsdb#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
-
-## How to send data from NewRelic agent
-
-Moved to [integrations/newrelic#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
-
 ## Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
@@ -560,22 +516,6 @@ in [export APIs](https://docs.victoriametrics.com/victoriametrics/single-server-
   It is possible to specify the needed timezone by adding `Z` (UTC), `+hh:mm` or `-hh:mm` suffix to partial time.
   For example, `2022-03-01Z` corresponds to the given date in UTC timezone, while `2022-03-01+06:30` corresponds to `2022-03-01` date at `06:30` timezone.
 - Relative duration comparing to the current time. For example, `1h5m`, `-1h5m` or `now-1h5m` means `one hour and five minutes ago`, while `now` means `now`.
-
-## Graphite API usage
-
-Moved to [integrations/graphite#graphite-api-usage](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
-
-### Graphite Render API usage
-
-Moved to [integrations/graphite#render-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api).
-
-### Graphite Metrics API usage
-
-Moved to [integrations/graphite#metrics-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api).
-
-### Graphite Tags API usage
-
-Moved to [integrations/graphite#tags-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api).
 
 ## How to build from sources
 
@@ -3038,3 +2978,67 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -vmui.defaultTimezone string
      The default timezone to be used in vmui. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local
 ```
+
+---
+
+Section below contains backward-compatible anchors for links that were moved or renamed.
+
+###### Prometheus setup
+
+Moved to [integrations/prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
+
+###### Grafana setup
+
+Moved to [integrations/grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
+
+###### How to send data from DataDog agent
+
+Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
+
+###### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
+
+Moved to [integrations/influxdb](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf).
+
+###### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
+
+Moved to [integrations/graphite#ingesting](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#ingesting).
+
+###### Querying Graphite data
+
+Moved to [integrations/graphite#querying](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#querying).
+
+###### Selecting Graphite metrics
+
+Moved to [integrations/graphite#selecting-graphite-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics).
+
+###### How to send data from OpenTSDB-compatible agents
+
+Moved to [integrations/opentsdb](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb).
+
+###### Sending data via `telnet put` protocol
+
+Moved to [integrations/opentsdb#sending-data-via-telnet](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-telnet).
+
+###### Sending OpenTSDB data via HTTP `/api/put` requests
+
+Moved to [integrations/opentsdb#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
+
+###### How to send data from NewRelic agent
+
+Moved to [integrations/newrelic#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http).
+
+###### Graphite API usage
+
+Moved to [integrations/graphite#graphite-api-usage](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
+
+###### Graphite Render API usage
+
+Moved to [integrations/graphite#render-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api).
+
+###### Graphite Metrics API usage
+
+Moved to [integrations/graphite#metrics-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api).
+
+###### Graphite Tags API usage
+
+Moved to [integrations/graphite#tags-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api).
