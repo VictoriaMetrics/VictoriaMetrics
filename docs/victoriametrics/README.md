@@ -31,7 +31,7 @@ We apply strict security measures in everything we do. See [Security page](https
 
 VictoriaMetrics has the following prominent features:
 
-* It can be used as long-term storage for Prometheus. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) for details.
+* It can be used as long-term storage for Prometheus. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports the [Prometheus querying API](#prometheus-querying-api-usage).
 * It can be used as a drop-in replacement for Graphite in Grafana, because it supports the [Graphite API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage).
   VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite - see [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#grammarly).
@@ -68,7 +68,7 @@ VictoriaMetrics has the following prominent features:
   [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * It supports metrics scraping, ingestion and [backfilling](#backfilling) via the following protocols:
   * [Metrics scraping from Prometheus exporters](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-  * [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
+  * [Prometheus remote write API](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
@@ -137,8 +137,8 @@ Other flags have good enough default values, so set them only if you really need
 The following docs may be useful during initial VictoriaMetrics setup:
 * [How to set up scraping of Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 * [How to ingest data to VictoriaMetrics](#how-to-import-time-series-data)
-* [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
-* [How to query VictoriaMetrics via Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
+* [How to set up Prometheus to write data to VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/)
+* [How to query VictoriaMetrics via Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/)
 * [How to query VictoriaMetrics via Graphite API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage)
 * [How to handle alerts](#alerting)
 
@@ -2985,15 +2985,15 @@ Section below contains backward-compatible anchors for links that were moved or 
 
 ###### Prometheus setup
 
-Moved to [integrations/prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
+Moved to [integrations/prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/).
 
 ###### Grafana setup
 
-Moved to [integrations/grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
+Moved to [integrations/grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
 ###### How to send data from DataDog agent
 
-Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog).
+Moved to [integrations/datadog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
 
 ###### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
@@ -3013,7 +3013,7 @@ Moved to [integrations/graphite#selecting-graphite-metrics](https://docs.victori
 
 ###### How to send data from OpenTSDB-compatible agents
 
-Moved to [integrations/opentsdb](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb).
+Moved to [integrations/opentsdb](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/).
 
 ###### Sending data via `telnet put` protocol
 
