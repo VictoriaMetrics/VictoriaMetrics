@@ -28,6 +28,7 @@
   "scripts": {
     "prestart": "npm run copy-metricsql-docs",
     "start": "vite",
+    "start:playground": "cross-env PLAYGROUND=METRICS npm run start",
     "start:logs": "vite --mode victorialogs",
     "start:logs:playground": "cross-env PLAYGROUND=LOGS npm run start:logs",
     "start:anomaly": "vite --mode vmanomaly",
