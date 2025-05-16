@@ -18,7 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): enhance alerting rule `DiskRunsOutOfSpaceIn3Days` and `NodeBecomesReadonlyIn3Days` to account for [deduplication](https://docs.victoriametrics.com/#deduplication) and [indexDB](https://docs.victoriametrics.com/#indexdb) when calculating disk consumption rate.
+* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): enhance alerting rule `DiskRunsOutOfSpaceIn3Days` and `NodeBecomesReadonlyIn3Days` to account for [deduplication](https://docs.victoriametrics.com/#deduplication) and [indexDB](https://docs.victoriametrics.com/#indexdb) growth when calculating disk consumption rate.
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): restore panel `Storage full ETA` using calculation logic from [#8955](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8955). It was previously removed in [#8492](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop duplicate labels when they appear in both the recording rule label spec and the expression result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8954) for details.
 
