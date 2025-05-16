@@ -1,13 +1,17 @@
 package workingsetcache
 
 import (
+	"errors"
 	"flag"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/fastcache"
 )
@@ -64,8 +68,37 @@ func Load(filePath string, maxBytes int) *Cache {
 	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
 }
 
+// loadFromFileOrNew attempts to load a fastcache.Cache from the given file path
+// If loading fails due to an error (e.g. corrupted or unreadable file), the error is logged
+// and a new cache is created with the specified maxBytes size.
+//
+// This improves observability by surfacing cache loading issues that would otherwise be silenty ignored.
+//
+// Arguments:
+// - filePath: Path to the Cache file to load.
+// - maxBytes: Maximum size in bytes for the cache
+//
+// Return:
+// - *fastcache.Cache: A loaded or newly created cache instance.
+func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
+	cache, err := fastcache.LoadFromFile(filePath)
+	if err == nil {
+		return cache
+	}
+
+	// Inverted logic: handle unexpected/loggable cases first
+	if strings.Contains(err.Error(), "contains maxBytes") {
+		logger.Warnf("cache file %s has mismatched memory size: %v", filePath, err)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		// Likely corruption or unexpected format
+		logger.Errorf("failed to load cache file %s: %v", filePath, err)
+	}
+
+	return fastcache.New(maxBytes)
+}
+
 func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
-	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes)
+	curr := loadFromFileOrNew(filePath, maxBytes)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
 	if cs.EntriesCount == 0 {
@@ -75,7 +108,7 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 		// Try loading it again with maxBytes / 2 size.
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
+		prev := loadFromFileOrNew(filePath, maxBytes/2)
 		curr := fastcache.New(maxBytes / 2)
 		c := newCacheInternal(curr, prev, split, maxBytes)
 		c.runWatchers(expireDuration)

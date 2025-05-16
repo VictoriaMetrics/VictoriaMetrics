@@ -141,7 +141,7 @@ func load(filePath string, maxBytes int) (*Cache, error) {
 	// Read bucket files from filePath dir.
 	d, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %s", filePath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", filePath, err)
 	}
 	defer func() {
 		_ = d.Close()
