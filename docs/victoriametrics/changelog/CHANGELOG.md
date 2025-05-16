@@ -33,8 +33,8 @@ versions.
 
 Released at 2025-05-09
 
-**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
-We advise skipping this version and waiting for the fix in v1.117.1. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
+**Known issues: `vmagent` in this release is affected by [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941). The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+Update to [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1) or rollback to [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0) instead.**
 
 * SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
 
@@ -96,9 +96,9 @@ Released at 2025-04-25
 
 ## [v1.115.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.115.0)
 
-**Update notes:** This release includes changes that may negatively impact data ingestion performance and could result in increased memory usage.
-We advise skipping this version and waiting for the fix in v1.116.0.
-See more details in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8674).
+**Known issues: This release includes changes that may negatively impact data ingestion performance and could result in increased memory usage.
+Update to [v1.116.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.116.0) or rollback to [v1.114.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.114.0) instead.
+See more details in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8674).**
 
 Released at 2025-04-04
 
@@ -158,7 +158,8 @@ Released at 2025-03-21
 
 Released at 2025-03-07
 
-**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
+**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [#8501](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. 
+If you are impacted by this, please upgrade to [v1.114.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.114.0) or rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
@@ -199,7 +200,8 @@ Released at 2025-03-07
 
 Released at 2025-02-21
 
-**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
+**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [#8501](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details.
+If you are impacted by this, please upgrade to [v1.114.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.114.0) or rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
@@ -260,8 +262,8 @@ versions.
 
 Released at 2025-05-09
 
-**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
-We advise skipping this version and waiting for the fix in v1.110.8. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
+**Known issues: `vmagent` in this release is affected by [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941). The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+Update to [v1.110.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.8) or rollback to [v1.110.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.6) instead.**
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -485,8 +487,8 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2025-05-09
 
-**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
-We advise skipping this version and waiting for the fix in v1.102.21. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
+**Known issues: `vmagent` in this release is affected by [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941). The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+Update to [v1.102.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.21) or rollback to [v1.102.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.19) instead.**
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
