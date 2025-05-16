@@ -18,9 +18,23 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1)
+
+Released at 2025-05-15
+
+**Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly initialize relabel config reloading metrics for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. Bug was introduced in [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0). And back-ported to the [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7) and [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20)
+versions.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly reload authorization configuration on headers changes. See [This issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8931) for details. Thanks to @smallpath for the [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8938).
+
 ## [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0)
 
 Released at 2025-05-09
+
+**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+We advise skipping this version and waiting for the fix in v1.117.1. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
 
 * SECURITY: upgrade Go builder from Go1.24.2 to Go1.24.3. See the list of issues addressed in [Go1.24.3](https://github.com/golang/go/issues?q=milestone%3AGo1.24.3+label%3ACherryPickApproved).
 
@@ -229,9 +243,25 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.8)
+
+Released at 2025-05-15
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [#8836](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly initialize relabel config reloading metrics for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. Bug was introduced in [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0). And back-ported to the [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7) and [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20)
+versions.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly reload authorization configuration on headers changes. See [This issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8931) for details. Thanks to @smallpath for the [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8938).
+
 ## [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7)
 
 Released at 2025-05-09
+
+**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+We advise skipping this version and waiting for the fix in v1.110.8. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -439,9 +469,24 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
 
+## [v1.102.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.21)
+
+Released at 2025-05-15
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [#8836](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly initialize relabel config reloading metrics for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. Bug was introduced in [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0). And back-ported to the [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7) and [v1.102.20](https://github.com/VictoriaMet
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly reload authorization configuration on headers changes. See [This issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8931) for details. Thanks to @smallpath for the [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8938).
+
 ## [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20)
 
 Released at 2025-05-09
+
+**Update Note 1:** This release introduces a bug in the `vmagent`. The `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags are not applied properly, causing the relabeling logic to be skipped.
+We advise skipping this version and waiting for the fix in v1.102.21. See more details in [#8941](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8941).
 
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
