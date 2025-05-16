@@ -260,9 +260,13 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 	}
 	for k := range rr.Labels {
 		prevLabel := promrelabel.GetLabelByName(m.Labels, k)
-		if prevLabel != nil && prevLabel.Value != rr.Labels[k] {
-			// Rename the prevLabel to "exported_" + label.Name
-			prevLabel.Name = fmt.Sprintf("exported_%s", prevLabel.Name)
+		if prevLabel != nil {
+			if prevLabel.Value != rr.Labels[k] {
+				// add "exported_" prefix to the original label if conflicted
+				prevLabel.Name = fmt.Sprintf("exported_%s", prevLabel.Name)
+			} else {
+				continue
+			}
 		}
 		m.Labels = append(m.Labels, prompbmarshal.Label{
 			Name:  k,
