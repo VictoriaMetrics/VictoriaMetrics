@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add "Live" tab that allows monitoring logs in real-time as they arrive. This feature helps users to observe the most recent log entries without manual refreshing, making troubleshooting and monitoring more efficient. See [#7046](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7046).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): enhance autocomplete with parsed field suggestions from unpack pipe. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8806).
 
 * BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly handle nested attributes by expanding them into separate top-level fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8862).
 * BUGFIX: [Datadog](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog/): respond HTTP 202 instead of HTTP 200 on successful Datadog endpoint ingestion as it's strictly required by Datadog agent. See [#8956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8956).

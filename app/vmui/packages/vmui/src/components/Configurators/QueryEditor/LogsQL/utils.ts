@@ -57,5 +57,5 @@ export const generateQuery = (contextData: ContextData): string => {
     fieldQuery = `${contextData.filterName}:${contextData.valueContext}*`;
   }
 
-  return contextData.queryBeforeIncompleteFilter ? `${contextData.queryBeforeIncompleteFilter} ${fieldQuery}` : fieldQuery;
+  return contextData.queryBeforeIncompleteFilter ? `${contextData.queryBeforeIncompleteFilter}${contextData.separator ?? " "}${fieldQuery}` : fieldQuery;
 };
