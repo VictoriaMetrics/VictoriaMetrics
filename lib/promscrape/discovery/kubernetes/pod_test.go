@@ -1,17 +1,15 @@
 package kubernetes
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParsePodListFailure(t *testing.T) {
-	f := func(s string) {
+	f := func(s, contentType string) {
 		t.Helper()
-		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parsePodList(r)
+		objectsByKey, _, err := parsePodList([]byte(s), contentType)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -19,10 +17,10 @@ func TestParsePodListFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty objectsByKey: %v", objectsByKey)
 		}
 	}
-	f(``)
-	f(`[1,23]`)
-	f(`{"items":[{"metadata":1}]}`)
-	f(`{"items":[{"metadata":{"labels":[1]}}]}`)
+	f(``, contentTypeJSON)
+	f(`[1,23]`, contentTypeJSON)
+	f(`{"items":[{"metadata":1}]}`, contentTypeJSON)
+	f(`{"items":[{"metadata":{"labels":[1]}}]}`, contentTypeJSON)
 }
 
 const testPodsList = `
@@ -691,10 +689,9 @@ const testPodsListIPv6AddressNoPorts = `
 `
 
 func TestParsePodListSuccess(t *testing.T) {
-	f := func(response string, expectedLabels []*promutil.Labels) {
+	f := func(response, contentType string, expectedLabels []*promutil.Labels) {
 		t.Helper()
-		r := bytes.NewBufferString(response)
-		objectsByKey, meta, err := parsePodList(r)
+		objectsByKey, meta, err := parsePodList([]byte(response), contentType)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -708,7 +705,7 @@ func TestParsePodListSuccess(t *testing.T) {
 		}
 	}
 
-	f(testPodsList, []*promutil.Labels{
+	f(testPodsList, contentTypeJSON, []*promutil.Labels{
 		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "172.17.0.2:1234",
 
@@ -751,7 +748,7 @@ func TestParsePodListSuccess(t *testing.T) {
 		}),
 	})
 
-	f(testPodsListIPv6Address, []*promutil.Labels{
+	f(testPodsListIPv6Address, contentTypeJSON, []*promutil.Labels{
 		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "[fd01:10:100:0:e38f:6f4b:9c53:9e4e]:1234",
 
@@ -793,7 +790,7 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_pod_annotationpresent_kubernetes_io_config_source": "true",
 		}),
 	})
-	f(testPodsListIPv6AddressNoPorts, []*promutil.Labels{
+	f(testPodsListIPv6AddressNoPorts, contentTypeJSON, []*promutil.Labels{
 		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "[fd01:10:100:0:e38f:6f4b:9c53:9e4e]",
 
