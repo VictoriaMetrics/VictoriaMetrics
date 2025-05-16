@@ -67,7 +67,9 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
             "172.18.0.2"
           ],
           "conditions": {
-            "ready": true
+            "ready": false,
+            "serving": false,
+            "terminating": true
           }
         }
       ],
@@ -124,7 +126,9 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
             "10.244.0.3"
           ],
           "conditions": {
-            "ready": true
+            "ready": true,
+            "serving": true,
+            "terminating": false
           },
           "targetRef": {
             "kind": "Pod",
@@ -172,6 +176,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_annotation_endpoints_kubernetes_io_last_change_trigger_time":        "2020-09-07T14:28:35Z",
 			"__meta_kubernetes_endpointslice_annotationpresent_endpoints_kubernetes_io_last_change_trigger_time": "true",
 			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                                          "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_serving":                                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":                                    "false",
 			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":                           "kind-control-plane",
 			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname":                   "true",
 			"__meta_kubernetes_endpointslice_label_endpointslice_kubernetes_io_managed_by":                       "endpointslice-controller.k8s.io",
@@ -192,6 +198,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_annotation_endpoints_kubernetes_io_last_change_trigger_time":        "2020-09-07T14:28:35Z",
 			"__meta_kubernetes_endpointslice_annotationpresent_endpoints_kubernetes_io_last_change_trigger_time": "true",
 			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                                          "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_serving":                                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":                                    "false",
 			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":                           "kind-control-plane",
 			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname":                   "true",
 			"__meta_kubernetes_endpointslice_label_endpointslice_kubernetes_io_managed_by":                       "endpointslice-controller.k8s.io",
@@ -207,7 +215,9 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "172.18.0.2:6443",
 			"__meta_kubernetes_endpointslice_address_type":                            "IPv4",
-			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "false",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "false",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "true",
 			"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "kubernetes",
 			"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
 			"__meta_kubernetes_endpointslice_name":                                    "kubernetes",
@@ -245,9 +255,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 						"10.13.15.15",
 					},
 					Conditions: EndpointConditions{
-						Ready: true,
+						Ready:       true,
+						Serving:     true,
+						Terminating: false,
 					},
 					Hostname: "foo.bar",
+					NodeName: "test-node",
 					TargetRef: ObjectReference{
 						Kind:      "Pod",
 						Namespace: "default",
@@ -361,7 +374,10 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
@@ -409,7 +425,10 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
@@ -486,7 +505,10 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
@@ -540,7 +562,10 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
