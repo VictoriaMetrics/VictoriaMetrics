@@ -258,12 +258,18 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 			Value: rr.Name,
 		})
 	}
+	// add extra labels configured by user
 	for k := range rr.Labels {
-		prevLabel := promrelabel.GetLabelByName(m.Labels, k)
-		if prevLabel != nil && prevLabel.Value != rr.Labels[k] {
-			// Rename the prevLabel to "exported_" + label.Name
-			prevLabel.Name = fmt.Sprintf("exported_%s", prevLabel.Name)
+		existingLabel := promrelabel.GetLabelByName(m.Labels, k)
+		if existingLabel != nil { // there is a conflict between extra and existing label
+			if existingLabel.Value == rr.Labels[k] {
+				// extra and existing labels are identical - do nothing
+				continue
+			}
+			// preserve existing label by adding "exported_" prefix
+			existingLabel.Name = fmt.Sprintf("exported_%s", existingLabel.Name)
 		}
+		// add extra label
 		m.Labels = append(m.Labels, prompbmarshal.Label{
 			Name:  k,
 			Value: rr.Labels[k],
