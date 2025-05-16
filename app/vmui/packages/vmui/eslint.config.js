@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
+import unusedImports from "eslint-plugin-unused-imports";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,7 @@ export default [...compat.extends(
   plugins: {
     react,
     "@typescript-eslint": typescriptEslint,
+    "unused-imports": unusedImports,
   },
 
   languageOptions: {
@@ -59,7 +61,7 @@ export default [...compat.extends(
       allowTernary: true
     }],
 
-    "@typescript-eslint/no-unused-vars": ["warn", {
+    "@typescript-eslint/no-unused-vars": ["error", {
       "argsIgnorePattern": "^_",
       "caughtErrors": "none",
       "caughtErrorsIgnorePattern": "^_",
@@ -67,6 +69,8 @@ export default [...compat.extends(
       "varsIgnorePattern": "^_",
       "ignoreRestSiblings": true
     }],
+    
+    "unused-imports/no-unused-imports": "error",
 
     "react/jsx-closing-bracket-location": [1, "line-aligned"],
 
@@ -85,6 +89,7 @@ export default [...compat.extends(
     quotes: ["error", "double"],
     semi: ["error", "always"],
     "react/prop-types": 0,
+    "react/react-in-jsx-scope": "off",
 
   },
 }];
