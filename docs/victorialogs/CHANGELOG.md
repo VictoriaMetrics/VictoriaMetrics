@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly handle nested attributes by expanding them into separate top-level fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8862).
+* BUGFIX: [Datadog](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog/): respond HTTP 202 instead of HTTP 200 on successful Datadog endpoint ingestion as it's strictly required by Datadog agent. See [#8956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8956).
 
 ## [v1.22.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.2-victorialogs)
 
