@@ -689,6 +689,9 @@ var indexItemsPool sync.Pool
 
 // HasTimestamp checks if index contains given timestamp.
 func (db *indexDB) HasTimestamp(timestamp int64) bool {
+	if db == nil {
+		return false
+	}
 	return timestamp >= db.tr.MinTimestamp && timestamp <= db.tr.MaxTimestamp
 }
 
