@@ -35,9 +35,9 @@ The use of VictoriaMetrics Enterprise components is permitted in the following c
 
 - [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) is built on top of VictoriaMetrics Enterprise.
 
-See [these docs](#running-victoriametrics-enterprise) for details on how to run VictoriaMetrics enterprise.
+See [these docs](#running-victoriametrics-enterprise) for details on how to run VictoriaMetrics Enterprise.
 
-## VictoriaMetrics enterprise features
+## VictoriaMetrics Enterprise features
 
 VictoriaMetrics Enterprise includes [all the features of the community edition](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prominent-features),
 plus the following additional features:

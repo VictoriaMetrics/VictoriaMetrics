@@ -21,7 +21,7 @@ You can also [request a free trial license](https://victoriametrics.com/products
 VictoriaMetrics is developed at a fast pace, so it is recommended to check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) periodically,
 and to perform [regular upgrades](#how-to-upgrade-victoriametrics).
 
-[VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) provides long-term support lines of releases (LTS releases) -
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) provides long-term support lines of releases (LTS releases) -
 see [these docs](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
 
 VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services.
@@ -1507,7 +1507,7 @@ VictoriaMetrics does not support indefinite retention, but you can specify an ar
 ### Multiple retentions
 
 Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)
-in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+in [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
 Community version of VictoriaMetrics supports only a single retention, which can be configured via [-retentionPeriod](#retention) command-line flag.
 If you need multiple retentions in community version of VictoriaMetrics, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
