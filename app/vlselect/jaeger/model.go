@@ -124,8 +124,6 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				spanTagList = append(spanTagList, KeyValue{Key: "w3c.tracestate", VStr: field.Value})
 			}
 		// resource level fields
-		// case ProcessID: // todo map otlp flags to jaeger flags
-		//	sp.ProcessID = field.Value
 		case ResourceAttrPrefix + "service.name":
 			sp.Process.ServiceName = field.Value
 		// scope level fields
@@ -143,7 +141,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 			} else if strings.HasPrefix(field.Name, SpanAttrPrefix) {
 				spanTagList = append(spanTagList, KeyValue{Key: strings.TrimPrefix(field.Name, SpanAttrPrefix), VStr: field.Value})
 			} else if strings.HasPrefix(field.Name, instrumentationScopeAttrPrefix) {
-				spanTagList = append(spanTagList, KeyValue{Key: strings.TrimPrefix(field.Name, SpanAttrPrefix), VStr: field.Value})
+				spanTagList = append(spanTagList, KeyValue{Key: strings.TrimPrefix(field.Name, instrumentationScopeAttrPrefix), VStr: field.Value})
 			} else if strings.HasPrefix(field.Name, EventPrefix) {
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, EventPrefix), ":", 2)
 				if len(fieldSplit) != 2 {
@@ -173,7 +171,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := refsMap[idx]; !ok {
 					refsMap[idx] = &SpanRef{
-						RefType: "FOLLOW_FROM", // FOLLOW_FROM
+						RefType: "FOLLOW_FROM", // default FOLLOW_FROM
 					}
 				}
 				ref := refsMap[idx]
