@@ -468,6 +468,15 @@ func (tb *table) PutIndexDBs(idbs []*indexDB) {
 	}
 }
 
+// MustGetIndexDBIDByHour returns the id of the indexDB which contains the
+// provided hour. If the indexDB does not exist it will be created.
+func (tb *table) MustGetIndexDBIDByHour(hour uint64) uint64 {
+	ts := int64(hour * msecPerHour)
+	idb := tb.MustGetIndexDB(ts)
+	defer tb.PutIndexDB(idb)
+	return idb.id
+}
+
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
 	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - tb.s.retentionMsecs

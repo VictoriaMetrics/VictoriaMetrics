@@ -189,15 +189,12 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 }
 
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
-	newStorage := func() *Storage {
-		var s Storage
-		s.currHourMetricIDs.Store(&hourMetricIDs{})
-		s.prevHourMetricIDs.Store(&hourMetricIDs{})
-		s.pendingHourEntries = &uint64set.Set{}
-		return &s
-	}
+	defer testRemoveAll(t)
+
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		hour := fasttime.UnixHour()
 		if hour%24 == 0 {
 			hour++
@@ -228,7 +225,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
@@ -247,9 +246,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load()
-		hmEmpty := &hourMetricIDs{}
-		if !reflect.DeepEqual(hmPrev, hmEmpty) {
-			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		if hmPrev.m.Len() > 0 {
+			t.Fatalf("hmPrev is not empty: %v", hmPrev)
 		}
 
 		if s.pendingHourEntries.Len() != 0 {
@@ -257,7 +255,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
@@ -294,7 +294,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
@@ -326,9 +328,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load()
-		hmEmpty := &hourMetricIDs{}
-		if !reflect.DeepEqual(hmPrev, hmEmpty) {
-			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		if hmPrev.m.Len() > 0 {
+			t.Fatalf("hmPrev is not empty: %v", hmPrev)
 		}
 
 		if s.pendingHourEntries.Len() != 0 {
@@ -336,7 +337,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour_start_of_day", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
@@ -369,9 +372,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load()
-		hmEmpty := &hourMetricIDs{}
-		if !reflect.DeepEqual(hmPrev, hmEmpty) {
-			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		if hmPrev.m.Len() > 0 {
+			t.Fatalf("hmPrev is not empty: %v", hmPrev)
 		}
 
 		if s.pendingHourEntries.Len() != 0 {
@@ -379,7 +381,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_from_previous_hour_new_day", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
 
 		hour := fasttime.UnixHour()
 		hour -= hour % 24

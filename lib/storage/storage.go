@@ -233,15 +233,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.metricNameCache = s.mustLoadCache("metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
 
-	hour := fasttime.UnixHour()
-	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids_v2")
-	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids_v2")
-	s.currHourMetricIDs.Store(hmCurr)
-	s.prevHourMetricIDs.Store(hmPrev)
-	s.pendingHourEntries = &uint64set.Set{}
-
-	s.pendingNextDayMetricIDs = &uint64set.Set{}
-
 	if opts.TrackMetricNamesStats {
 		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
@@ -295,9 +286,19 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Load nextDayMetricIDs cache after the data table is opened since it
 	// requires the table to operate properly.
+	// Load prevHourMetricIDs, currHourMetricIDs, and nextDayMetricIDs caches
+	// after the data table is opened since they require the partition index to
+	// operate properly.
+	hour := fasttime.UnixHour()
+	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids_v2")
+	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids_v2")
+	s.currHourMetricIDs.Store(hmCurr)
+	s.prevHourMetricIDs.Store(hmPrev)
+	s.pendingHourEntries = &uint64set.Set{}
 	date := fasttime.UnixDate()
 	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
+	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
@@ -925,7 +926,8 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 
 func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs {
 	hm := &hourMetricIDs{
-		hour: hour,
+		hour:  hour,
+		idbID: s.tb.MustGetIndexDBIDByHour(hour),
 	}
 	path := filepath.Join(s.cachePath, name)
 	if !fs.IsPathExist(path) {
@@ -2387,20 +2389,6 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	return firstError
 }
 
-// hmPrevAndCurrInSameIndexDB returns true if previous and current hour
-// metricIDs belong to the same indexDB.
-func (s *Storage) hmPrevAndCurrInSameIndexDB(hmPrev, hmCurr *hourMetricIDs) bool {
-	hmCurrTimestamp := int64(hmCurr.hour * msecPerHour)
-	hmCurrIDB := s.tb.MustGetIndexDB(hmCurrTimestamp)
-	defer s.tb.PutIndexDB(hmCurrIDB)
-
-	hmPrevTimestamp := int64(hmPrev.hour * msecPerHour)
-	hmPrevIDB := s.tb.MustGetIndexDB(hmPrevTimestamp)
-	defer s.tb.PutIndexDB(hmPrevIDB)
-
-	return hmPrevIDB == hmCurrIDB
-}
-
 func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmCurr *hourMetricIDs) error {
 	if s.disablePerDayIndex {
 		return nil
@@ -2431,7 +2419,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
-	hmPrevAndCurrInSameIndexDB := s.hmPrevAndCurrInSameIndexDB(hmPrev, hmCurr)
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -2469,7 +2456,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 				}
 				continue
 			}
-			if hmPrevAndCurrInSameIndexDB && date == hmPrevDate && hmPrev.m.Has(metricID) {
+			if hmPrev.idbID == hmCurr.idbID && date == hmPrevDate && hmPrev.m.Has(metricID) {
 				// The metricID is already registered for the current day on the previous hour.
 				continue
 			}
@@ -2876,11 +2863,13 @@ func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 	}
 
 	// Slow path: hm.m must be updated with non-empty s.pendingHourEntries.
+	idbID := hm.idbID
 	var m *uint64set.Set
 	if hm.hour == hour {
 		m = hm.m.Clone()
 		m.Union(newMetricIDs)
 	} else {
+		idbID = s.tb.MustGetIndexDBIDByHour(hour)
 		m = newMetricIDs
 		if hour%24 == 0 {
 			// Do not add pending metricIDs from the previous hour to the current hour on the next day,
@@ -2890,8 +2879,9 @@ func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 		}
 	}
 	hmNew := &hourMetricIDs{
-		m:    m,
-		hour: hour,
+		m:     m,
+		hour:  hour,
+		idbID: idbID,
 	}
 	s.currHourMetricIDs.Store(hmNew)
 	if hm.hour != hour {
@@ -2900,8 +2890,9 @@ func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 }
 
 type hourMetricIDs struct {
-	m    *uint64set.Set
-	hour uint64
+	m     *uint64set.Set
+	hour  uint64
+	idbID uint64
 }
 
 type legacyTSID struct {
