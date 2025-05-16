@@ -654,9 +654,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NextRetentionSeconds = uint64(d)
 
 	s.tb.UpdateMetrics(&m.TableMetrics)
-	// Add legacy IndexDB metrics to partition IndexDB metrics
-	// TODO(@rtm0): Keep them separate and introduce separate metrics for legacy
-	// IndexDB?
+
 	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
 	if legacyIDBPrev != nil {
