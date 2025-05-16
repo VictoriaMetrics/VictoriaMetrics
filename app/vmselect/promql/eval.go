@@ -189,14 +189,6 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	return &ec
 }
 
-type SimulateConfig struct {
-	LookbackDelta int64
-}
-
-func (ec *EvalConfig) Simulate(cfg SimulateConfig) {
-	ec.LookbackDelta = cfg.LookbackDelta
-}
-
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
 	ec.IsPartialResponse.CompareAndSwap(false, isPartialResponse)
 }

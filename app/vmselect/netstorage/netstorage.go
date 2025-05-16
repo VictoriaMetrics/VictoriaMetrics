@@ -324,7 +324,6 @@ func (rss *Results) runParallelSimulated(qt *querytracer.Tracer, f func(rs *Resu
 		}
 
 		rowProcessed := len(r.Timestamps)
-		rowsReadPerSeries.Update(float64(rowProcessed))
 		rowsProcessedTotal += rowProcessed
 		// seriesProcessedTotal++
 
