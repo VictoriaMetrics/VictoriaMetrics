@@ -160,6 +160,9 @@ type EvalConfig struct {
 
 	timestamps     []int64
 	timestampsOnce sync.Once
+
+	// Simulated samples
+	SimulatedSamples []*storage.SimulatedSample
 }
 
 // copyEvalConfig returns src copy.
@@ -184,6 +187,14 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
+}
+
+type SimulateConfig struct {
+	LookbackDelta int64
+}
+
+func (ec *EvalConfig) Simulate(cfg SimulateConfig) {
+	ec.LookbackDelta = cfg.LookbackDelta
 }
 
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
@@ -351,6 +362,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 
 func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
 	tf := getTransformFunc(fe.Name)
+	fmt.Println("evalTransformFunc", fe.Name)
 	if tf == nil {
 		return nil, &httpserver.UserReadableError{
 			Err: fmt.Errorf(`unknown func %q`, fe.Name),
@@ -1739,10 +1751,15 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	}
+	if len(ec.SimulatedSamples) > 0 {
+		sq.SimulatedSamples = ec.SimulatedSamples
+	}
+
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}
+
 	ec.updateIsPartialResponse(isPartial)
 	qs := ec.QueryStats
 	rssLen := rss.Len()
