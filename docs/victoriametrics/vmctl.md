@@ -391,7 +391,7 @@ If you have more than 1 vminsert, configure [load-balancing](https://docs.victor
 As soon as required flags are provided and healthchecks are done, `vmctl` will start exploring Prometheus snapshot.
 It fetches all available blocks in provided snapshot, reads the metadata and prints some stats for discovered data.
 
-> To filter out data from snapshot by time or by labels see [filtering](#filtering) section;
+> To filter out data from snapshot by time or by labels see filtering section below;
 
 After user confirmation, vmctl will start importing data from the snapshot.
 The importing process example for local installation of Prometheus
