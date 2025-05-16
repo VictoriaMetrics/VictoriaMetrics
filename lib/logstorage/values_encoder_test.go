@@ -239,6 +239,63 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 	f("2023-01-23T23:33:ssZ")
 }
 
+func TestParseUnixTimestamp_Success(t *testing.T) {
+	f := func(s string, timestampExpected int64) {
+		t.Helper()
+
+		timestamp, ok := TryParseUnixTimestamp(s)
+		if !ok {
+			t.Fatalf("cannot parse timestamp %q", s)
+		}
+		if timestamp != timestampExpected {
+			t.Fatalf("unexpected timestamp returned from TryParseUnixTimestamp(%q); got %d; want %d", s, timestamp, timestampExpected)
+		}
+	}
+
+	f("0", 0)
+
+	// nanoseconds
+	f("-1234567890123456789", -1234567890123456789)
+	f("1234567890123456789", 1234567890123456789)
+
+	// microseconds
+	f("-1234567890123456", -1234567890123456000)
+	f("1234567890123456", 1234567890123456000)
+	f("1234567890123456.789", 1234567890123456768)
+
+	// milliseconds
+	f("-1234567890123", -1234567890123000000)
+	f("1234567890123", 1234567890123000000)
+	f("1234567890123.456", 1234567890123456000)
+
+	// seconds
+	f("-1234567890", -1234567890000000000)
+	f("1234567890", 1234567890000000000)
+	f("-1234567890.123456", -1234567890123456000)
+}
+
+func TestParseUnixTimestamp_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		_, ok := TryParseUnixTimestamp(s)
+		if ok {
+			t.Fatalf("expecting failure when parsing %q", s)
+		}
+	}
+
+	// non-numeric timestamp
+	f("")
+	f("foobar")
+	f("foo.bar")
+
+	// too big timestamp
+	f("12345678901234567890")
+	f("-12345678901234567890")
+	f("12345678901234567890.235424")
+	f("-12345678901234567890.235424")
+}
+
 func TestTryParseTimestampISO8601String_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
