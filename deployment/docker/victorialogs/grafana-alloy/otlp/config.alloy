@@ -3,6 +3,14 @@ discovery.docker "default" {
   refresh_interval = "5s"
 }
 
+discovery.relabel "default" {
+  targets = discovery.docker.default.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container_name"
+  }
+}
+
 prometheus.exporter.self "default" {}
 
 prometheus.scrape "default" {
@@ -19,6 +27,7 @@ otelcol.receiver.prometheus "default" {
 otelcol.exporter.otlphttp "default" {
   client {
     endpoint = "http://victorialogs:9428/insert/opentelemetry"
+    headers  = { "VL-Stream-Fields" = "container_name" }
   }
   metrics_endpoint = "http://victoriametrics:8428/opentelemetry/v1/metrics"
 }
@@ -33,6 +42,6 @@ otelcol.receiver.loki "default" {
 
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.default.targets
+  targets    = discovery.relabel.default.output
   forward_to = [otelcol.receiver.loki.default.receiver]
 }
