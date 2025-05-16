@@ -84,6 +84,7 @@ Released at 2025-04-17
 
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): properly store the contents of the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for newly ingested logs. It was incorrectly replaced with `missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field` because of the bug in [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8707).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix incorrect table sorting for numeric columns. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8606).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): move compact mode of VictoriaLogs table to separate tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7047).
 
 ## [v1.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.18.0-victorialogs)
 
