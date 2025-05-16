@@ -33,8 +33,12 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     const part = logicalParts.find(p => caretPosition[0] >= p.position[0] && caretPosition[0] <= p.position[1]);
     if (!part) return;
     const cursorStartPosition = caretPosition[0] - part.position[0];
+    const prevPart = logicalParts.find(p => p.id === part.id - 1);
+    const queryBeforeIncompleteFilter = prevPart ? value.substring(0, prevPart.position[1] + 1) : undefined;
     return {
       ...part,
+      queryBeforeIncompleteFilter,
+      query: value,
       ...getContextData(part, cursorStartPosition)
     };
   }, [logicalParts, caretPosition]);
@@ -50,6 +54,8 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
         return fieldValues;
       case ContextType.PipeName:
         return pipeList;
+      case ContextType.FilterOrPipeName:
+        return [...fieldNames, ...pipeList];
       default:
         return [];
     }
@@ -58,7 +64,7 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   const getUpdatedValue = (insertValue: string, logicalParts: LogicalPart[], id?: number) => {
     return logicalParts.reduce((acc, part) => {
       const value = part.id === id ? insertValue : part.value;
-      const separator = part.type === LogicalPartType.Pipe ? " | " : " ";
+      const separator = part.separator === "|" ? " | " : " ";
       return `${acc}${separator}${value}`;
     }, "").trim();
   };
@@ -70,7 +76,7 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
       modifiedInsert += ":";
     } else if (contextType === ContextType.FilterValue) {
       const insertWithQuotes = value.startsWith("_stream:") ? modifiedInsert : `${JSON.stringify(modifiedInsert)}`;
-      modifiedInsert = `${contextData?.filterName || ""}:${insertWithQuotes}`;
+      modifiedInsert = `${contextData?.filterName || ""}${contextData?.operator || ":"}${insertWithQuotes}`;
     }
 
     return modifiedInsert;
@@ -86,7 +92,13 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
 
     const insertValue = getModifyInsert(insert, contextType, value, item.type);
     const newValue = getUpdatedValue(insertValue, logicalParts, id);
-    const updatedPosition = (position[0] || 1) + insertValue.length + (item.type === ContextType.PipeName ? 1 : 0);
+    const logicalPart = logicalParts.find(p => p.id === id);
+    const getPositionCorrection = () => {
+      if (logicalPart?.type === LogicalPartType.FilterOrPipe) return 1;
+      if (item.type === ContextType.PipeName) return 1;
+      return 0;
+    };
+    const updatedPosition = (position[0] || 1) + insertValue.length + getPositionCorrection();
 
     onSelect(newValue, updatedPosition);
   }, [contextData, logicalParts]);
