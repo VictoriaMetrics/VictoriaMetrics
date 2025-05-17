@@ -2353,7 +2353,7 @@ func MatchSimulatedSamples(accountID, projectID uint32, simulatedSamples []*Simu
 		}
 
 		for idx, mn := range simulatedSamples {
-			ok, err := matchTagFilters(mn.MetricName, toTFPointers(tfs.tfs), &kb)
+			ok, err := matchTagFilters(&mn.MetricName, toTFPointers(tfs.tfs), &kb)
 			if err != nil {
 				return nil, fmt.Errorf("cannot match MetricName %s against tagFilters: %w", mn.MetricName, err)
 			}

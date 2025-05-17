@@ -308,7 +308,7 @@ func (rss *Results) runParallelSimulated(qt *querytracer.Tracer, f func(rs *Resu
 
 		r := &tmpResult.rs
 		r.reset()
-		r.MetricName.CopyFrom(sample.MetricName)
+		r.MetricName.CopyFrom(&sample.MetricName)
 		for i, ts := range sample.Timestamps {
 			if ts >= rss.tr.MinTimestamp && ts <= rss.tr.MaxTimestamp {
 				r.Values = append(r.Values, sample.Value[i])
@@ -1968,10 +1968,10 @@ func ProcessSearchSimulated(qt *querytracer.Tracer, denyPartialResponse bool, sq
 
 	if len(matchedSamples) == 0 {
 		qt.Printf("no matching series found")
-		return rss, false, nil
+	} else {
+		qt.Printf("found %d series", len(rss.simulatedSamples))
 	}
 
-	qt.Printf("found %d series", len(rss.simulatedSamples))
 	return rss, false, nil
 }
 

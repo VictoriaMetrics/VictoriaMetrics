@@ -50,7 +50,13 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 
 	ec.validate()
 
-	e, err := parsePromQLWithCache(q)
+	var e metricsql.Expr
+	var err error
+	if len(ec.SimulatedSamples) > 0 {
+		e, err = parsePromQL(q)
+	} else {
+		e, err = parsePromQLWithCache(q)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -67,12 +73,18 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 	}
 
-	qid := activeQueriesV.Add(ec, q)
-	rv, err := evalExpr(qt, ec, e)
-	activeQueriesV.Remove(qid)
+	var rv []*timeseries
+	if len(ec.SimulatedSamples) > 0 {
+		rv, err = evalExpr(qt, ec, e)
+	} else {
+		qid := activeQueriesV.Add(ec, q)
+		rv, err = evalExpr(qt, ec, e)
+		activeQueriesV.Remove(qid)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	if isFirstPointOnly {
 		// Remove all the points except the first one from every time series.
 		for _, ts := range rv {
@@ -275,14 +287,7 @@ func getReverseCmpOp(op string) string {
 func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 	pcv := parseCacheV.get(q)
 	if pcv == nil {
-		e, err := metricsql.Parse(q)
-		if err == nil {
-			e = metricsql.Optimize(e)
-			e = adjustCmpOps(e)
-			if *treatDotsAsIsInRegexps {
-				e = escapeDotsInRegexpLabelFilters(e)
-			}
-		}
+		e, err := parsePromQL(q)
 		pcv = &parseCacheValue{
 			e:   e,
 			err: err,
@@ -293,6 +298,19 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 		return nil, pcv.err
 	}
 	return pcv.e, nil
+}
+
+func parsePromQL(q string) (metricsql.Expr, error) {
+	e, err := metricsql.Parse(q)
+	if err == nil {
+		e = metricsql.Optimize(e)
+		e = adjustCmpOps(e)
+		if *treatDotsAsIsInRegexps {
+			e = escapeDotsInRegexpLabelFilters(e)
+		}
+	}
+
+	return e, err
 }
 
 func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {

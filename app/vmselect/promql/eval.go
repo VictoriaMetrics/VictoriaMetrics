@@ -1917,7 +1917,9 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	}
 	putTimeseriesByWorkerID(tsw)
 
-	rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
+	if !rss.IsSimulated {
+		rowsScannedPerQuery.Update(float64(samplesScannedTotal.Load()))
+	}
 	qt.Printf("samplesScanned=%d", samplesScannedTotal.Load())
 	return tss, nil
 }

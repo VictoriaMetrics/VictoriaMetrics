@@ -330,9 +330,9 @@ type SearchQuery struct {
 }
 
 type SimulatedSample struct {
-	MetricName *MetricName `json:"-"` // can be nil
-	Timestamps []int64     `json:"timestamp"`
-	Value      []float64   `json:"value"`
+	MetricName MetricName `json:"-"` // can be nil
+	Timestamps []int64    `json:"timestamp"`
+	Value      []float64  `json:"value"`
 }
 
 func NewSimulatedSample(accountID, projectID uint32, metric map[string]string, timestamp []int64, value []float64) *SimulatedSample {

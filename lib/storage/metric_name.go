@@ -153,8 +153,8 @@ func GetMetricName() *MetricName {
 
 // GetMetricNameNoCache returns a MetricName from pool.
 // Use this only when the MetricName is rarely needed.
-func GetMetricNameNoCache(accountID, projectID uint32) *MetricName {
-	return &MetricName{AccountID: accountID, ProjectID: projectID}
+func GetMetricNameNoCache(accountID, projectID uint32) MetricName {
+	return MetricName{AccountID: accountID, ProjectID: projectID}
 }
 
 // PutMetricName returns mn to the pool.
