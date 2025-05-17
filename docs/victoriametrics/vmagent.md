@@ -577,9 +577,6 @@ generated metrics. But they still can be relabeled via `-remoteWrite.relabelConf
 
 This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
-[Streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), if configured,
-is performed after applying all the relabeling stages mentioned above.
-
 ### Relabeling enhancements
 
 This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-enhancements).

@@ -33,20 +33,26 @@ Relabeling in VictoriaMetrics happens in three main stages:
 Relabeling starts with `relabel_configs` in the prometheus scrape config
 (`-promscrape.config`).
 
-```yaml {hl_lines=[3,7]}
+```yaml {hl_lines=[3,8]}
 # global relabeling rules applied to all targets
 global:
   relabel_configs:
 
-# global metric relabeling applied to all metrics
+# job-specific target relabeling applied only to targets within this job
 scrape_configs:
-  - relabel_configs:
+  - job_name: "my-job"
+    relabel_configs:
 ```
 
 These rules are used during service discovery, before VictoriaMetrics begins
-scraping metrics from targets. The main purpose is to change or filter the list
-of discovered targets. You can add, remove, or update target labels—or drop
-targets completely.
+scraping metrics from targets.
+
+- `global.relabel_configs`: applied to all discovered targets from all jobs.
+- `scrape_configs[].relabel_configs`: applied only to targets within the
+  specified job.
+
+The main purpose is to change or filter the list of discovered targets. You can
+add, remove, or update target labels—or drop targets completely.
 
 Refer to the
 [Service Discovery Relabeling Cheatsheet](#service-discovery-relabeling-cheatsheet)
@@ -56,23 +62,36 @@ section for more examples.
 
 Once VictoriaMetrics has finished selecting the targets using `relabel_configs`,
 it starts scraping those endpoints. After scraping, you can apply
-`global.metric_relabel_configs` in the `-promscrape.config` file
-{{% available_from "v1.106.0" %}}.
+`global.metric_relabel_configs` for all metrics from all targets or
+`scrape_configs.metric_relabel_configs` for metrics from specific jobs in the
+-promscrape.config file {{% available_from "v1.106.0" %}}.
 
-```yaml {hl_lines=[3,7]}
+Once VictoriaMetrics has finished selecting the targets using `relabel_configs`,
+it starts scraping those endpoints. After scraping, you can apply
+`global.metric_relabel_configs` for all targets or
+`scrape_configs.metric_relabel_configs` for specific targets in the
+`-promscrape.config` file {{% available_from "v1.106.0" %}}.
+
+```yaml {hl_lines=[3,8]}
 # global metric relabeling applied to all metrics
 global:
   metric_relabel_configs:
 
 # scrape relabeling applied to all metrics
 scrape_configs:
-  - metric_relabel_configs:
+  - job_name: "my-job"
+    metric_relabel_configs:
 ```
 
 This is the second stage, and it operates on **individual metrics** that were
-just scraped from the targets, not the targets themselves. This means you can
-filter or modify the scraped time series before VictoriaMetrics stores them in
-its time series database.
+just scraped from the targets, not the targets themselves.
+
+- `global.metric_relabel_configs`: affects all scraped metrics from all jobs.
+- `scrape_configs[].metric_relabel_configs`: applies only to metrics scraped
+  from the specific job.
+
+This means you can filter or modify the scraped time series before
+VictoriaMetrics stores them in its time series database.
 
 Refer to the [Scraping Relabeling Cheatsheet](#scraping-relabeling-cheatsheet)
 section for more examples.
@@ -95,7 +114,9 @@ includes two phases:
 This functionality is essential for routing and filtering data in different ways
 for multiple backends. For example:
 
-- Send only metrics with `env=prod` to a production VictoriaMetrics cluster.
+- Send only metrics with `env=prod` to a production VictoriaMetrics cluster (see
+  [Splitting data streams among multiple systems](https://docs.victoriametrics.com/victoriametrics/vmagent/#splitting-data-streams-among-multiple-systems)
+  for how to configure this in `vmagent`).
 - Send only metrics with `env=dev` to a development cluster.
 - Send a subset of high-importance metrics to a Kafka topic for real-time
   analysis, while sending all metrics to long-term storage.
@@ -108,17 +129,19 @@ VictoriaMetrics relabeling is compatible with
 [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
 and provides the following enhancements:
 
-- **The `replacement` field**: allows constructing new label values by
-  referencing existing ones using the `{{label_name}}` syntax. For example, if a
-  metric has the labels `{instance="host123", job="node_exporter"}`, this rule
-  will set the `instance-job` label to `host123-node_exporter`:
+- **The `replacement` field**: allows you to construct new label values  
+  by referencing existing ones using the `{{label_name}}` syntax.  
+  For example, if a metric has the labels
+  `{instance="host123", job="node_exporter"}`,  
+  this rule will create or update the `fullname` label with the value
+  `host123-node_exporter`:
 
   ```yaml {hl_lines=[2]}
-  - target_label: "instance-job"
+  - target_label: "fullname"
     replacement: "{{instance}}-{{job}}"
   ```
 
-  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+target_label%3A+%22instance-job%22%0A++replacement%3A+%22%7B%7Binstance%7D%7D-%7B%7Bjob%7D%7D%22%0A&labels=%7B__name__%3D%22node_cpu_seconds_total%22%2C+instance%3D%22server-1%3A9100%22%2C+job%3D%22node_exporter%22%2C+mode%3D%22idle%22%2C+cpu%3D%220%22%7D)
+  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+target_label%3A+%22fullname%22%0A++replacement%3A+%22%7B%7Binstance%7D%7D-%7B%7Bjob%7D%7D%22&labels=%7B__name__%3D%22node_cpu_seconds_total%22%2C+instance%3D%22server-1%3A9100%22%2C+job%3D%22node_exporter%22%2C+mode%3D%22idle%22%2C+cpu%3D%220%22%7D)
 
 - **The `if` filter**: applies the `action` only to samples that match one or
   more
@@ -182,10 +205,10 @@ and provides the following enhancements:
 
 Beside enhancements, VictoriaMetrics also provides the following new actions:
 
-- **`replace_all` action**: Replaces all matches of regex in source*labels with
-  replacement, and writes the result to target_label. Example: replaces all
+- **`replace_all` action**: Replaces all matches of regex in `source_labels` with
+  replacement, and writes the result to `target_label`. Example: replaces all
   dashes `-` with underscores
-  `*`in metric names (e.g.`http-request-latency`to`http\*request\*latency`):
+  `_`in metric names (e.g.`http-request-latency`to`http_request_latency`):
 
   ```yaml {hl_lines=[1]}
   - action: replace_all
@@ -195,7 +218,7 @@ Beside enhancements, VictoriaMetrics also provides the following new actions:
     replacement: "_"
   ```
 
-  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+replace_all%0A++source_labels%3A+%5B%22__name__%22%5D%0A++target_label%3A+%22__name__%22%0A++regex%3A+%22-%22%0A++replacement%3A+%22*%22&labels=%7B**name**%3D%22http-request-latency%22%2C+instance%3D%22server-1%22%7D)
+  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+replace_all%0A++source_labels%3A+%5B%22__name__%22%5D%0A++target_label%3A+%22__name__%22%0A++regex%3A+%22-%22%0A++replacement%3A+%22_%22&labels=%7B__name__%3D%22http-request-latency%22%2C+instance%3D%22server-1%22%7D)
 
 - **`labelmap_all` action**: allows you to create new labels by renaming
   existing ones based on a regex pattern match against the original label's
@@ -335,12 +358,12 @@ see two types of targets:
   service discovery, before any relabeling rules are applied. This includes
   targets that may later be dropped.
 
-_This page is not available if `vmagent` is started with the
+_This option is not available when the component is started with the
 `-promscrape.dropOriginalLabels` flag._
 
 <!-- {{% collapse name="How to use `/targets` page?" %}} -->
 
-**How to use `/tagets` page**
+**How to use `/targets` page**
 
 This `/targets` page helps answer the following questions:
 
@@ -357,9 +380,10 @@ The `labels` column shows the labels for each target. These labels are attached
 to all metrics scraped from that target.
 
 You can click the label column of the target to see the original labels
-**before** any relabeling was applied.  
- _This view is not available if `vmagent` was started with the `-promscrape.dropOriginalLabels`
-flag._
+**before** any relabeling was applied.
+
+_This option is not available when the component is started with the
+`-promscrape.dropOriginalLabels` flag._
 
 **3. Why does a target have a certain set of labels?**
 
@@ -367,7 +391,7 @@ Click the `target` link in the `debug relabeling` column. This opens a
 step-by-step view of how the relabeling rules were applied to the original
 labels.
 
-_This link is not available if `vmagent` was started with the
+_This option is not available when the component is started with the
 `-promscrape.dropOriginalLabels` flag._
 
 **4. How are metric relabeling rules applied to scraped metrics?**
@@ -393,7 +417,8 @@ Each column on the page shows important details:
 
 This page shows all
 [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
-_It is not available if `vmagent` is started with the
+
+_This option is not available when the component is started with the
 `-promscrape.dropOriginalLabels` flag._
 
 It helps answer the following questions:
