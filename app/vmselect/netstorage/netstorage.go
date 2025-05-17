@@ -87,10 +87,18 @@ type Results struct {
 	tbfs []*tmpBlocksFile
 
 	packedTimeseries []packedTimeseries
+
+	// the result is simulated
+	IsSimulated      bool
+	simulatedSamples []*storage.SimulatedSample
 }
 
 // Len returns the number of results in rss.
 func (rss *Results) Len() int {
+	if rss.IsSimulated {
+		return len(rss.simulatedSamples)
+	}
+
 	return len(rss.packedTimeseries)
 }
 
@@ -246,6 +254,13 @@ var defaultMaxWorkersPerQuery = func() int {
 //
 // rss becomes unusable after the call to RunParallel.
 func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
+	// If the result is simulated,
+	// there's no need to update the metrics.
+	if rss.IsSimulated {
+		_, err := rss.runParallelSimulated(qt, f)
+		return err
+	}
+
 	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.closeTmpBlockFiles()
 
@@ -259,6 +274,69 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	qt.Donef("series=%d, samples=%d", seriesProcessedTotal, rowsProcessedTotal)
 
 	return err
+}
+
+func (rss *Results) runParallelSimulated(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
+	if len(rss.simulatedSamples) == 0 {
+		return 0, nil
+	}
+
+	rowsProcessedTotal := 0
+	// seriesProcessedTotal := len(rss.simulatedSamples)
+
+	cb := f
+	if rss.shouldConvertTenantToLabels {
+		cb = func(rs *Result, workerID uint) error {
+			metricNameTenantToTags(&rs.MetricName)
+			return f(rs, workerID)
+		}
+	}
+
+	tmpResult := getTmpResult()
+	defer putTmpResult(tmpResult)
+
+	// For simplicity, let's process serially first. Parallelization can be added if needed.
+	// If parallelization is desired, it would mirror the worker pool logic of the original runParallel,
+	// but iterating over rss.simulatedSamples entries.
+	workerID := uint(0)
+	var firstErr error
+	for _, sample := range rss.simulatedSamples {
+		if rss.deadline.Exceeded() {
+			firstErr = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
+			break
+		}
+
+		r := &tmpResult.rs
+		r.reset()
+		r.MetricName.CopyFrom(&sample.MetricName)
+		for i, ts := range sample.Timestamps {
+			if ts >= rss.tr.MinTimestamp && ts <= rss.tr.MaxTimestamp {
+				r.Values = append(r.Values, sample.Value[i])
+				r.Timestamps = append(r.Timestamps, ts)
+			}
+		}
+
+		// The input from the client is most likely already deduplicated, since it's emitted by
+		// vmselect. However, the client may modify the input instead of using the returned one.
+		dedupInterval := storage.GetDedupInterval()
+		if dedupInterval > 0 && len(r.Timestamps) > 0 {
+			r.Timestamps, r.Values = storage.DeduplicateSamples(r.Timestamps, r.Values, dedupInterval)
+		}
+
+		rowProcessed := len(r.Timestamps)
+		rowsProcessedTotal += rowProcessed
+		// seriesProcessedTotal++
+
+		if rowProcessed > 0 {
+			err := cb(r, workerID)
+			if err != nil {
+				firstErr = err
+				break
+			}
+		}
+	}
+
+	return rowsProcessedTotal, firstErr
 }
 
 func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
@@ -1794,6 +1872,10 @@ func (e limitExceededErr) Error() string { return e.err.Error() }
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) (*Results, bool, error) {
+	if len(sq.SimulatedSamples) > 0 {
+		return ProcessSearchSimulated(qt, denyPartialResponse, sq, deadline)
+	}
+
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1856,6 +1938,41 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	rss.shouldConvertTenantToLabels = sq.IsMultiTenant
 	rss.packedTimeseries = pts
 	return &rss, isPartial, nil
+}
+
+func ProcessSearchSimulated(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) (*Results, bool, error) {
+	qt = qt.NewChild("fetch matching series (simulated): %s", sq)
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+
+	// Process simulated samples.
+	matchedSamples, err := storage.MatchSimulatedSamples(sq.TenantTokens[0].AccountID, sq.TenantTokens[0].ProjectID, sq.SimulatedSamples, sq.TagFilterss)
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot match simulated samples: %w", err)
+	}
+
+	// Create a result set similar to ProcessSearchQuery
+	rss := &Results{
+		tr:               tr,
+		deadline:         deadline,
+		IsSimulated:      true,
+		simulatedSamples: matchedSamples,
+	}
+
+	if len(matchedSamples) == 0 {
+		qt.Printf("no matching series found")
+	} else {
+		qt.Printf("found %d series", len(rss.simulatedSamples))
+	}
+
+	return rss, false, nil
 }
 
 // ProcessBlocks calls processBlock per each block matching the given sq.

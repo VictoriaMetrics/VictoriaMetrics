@@ -324,6 +324,27 @@ type SearchQuery struct {
 
 	// The maximum number of time series the search query can return.
 	MaxMetrics int
+
+	// SimulatedSamples is used for simulating samples returned from storage nodes.
+	SimulatedSamples []*SimulatedSample
+}
+
+type SimulatedSample struct {
+	MetricName MetricName `json:"-"` // can be nil
+	Timestamps []int64    `json:"timestamp"`
+	Value      []float64  `json:"value"`
+}
+
+func NewSimulatedSample(accountID, projectID uint32, metric map[string]string, timestamp []int64, value []float64) *SimulatedSample {
+	ss := &SimulatedSample{
+		Timestamps: timestamp,
+		Value:      value,
+	}
+	ss.MetricName = GetMetricNameNoCache(accountID, projectID)
+	for k, v := range metric {
+		ss.MetricName.AddTag(k, v)
+	}
+	return ss
 }
 
 // GetTimeRange returns time range for the given sq.

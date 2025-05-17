@@ -2343,6 +2343,37 @@ func hasCompositeTagFilters(tfs []*tagFilter, prefix []byte) bool {
 	return false
 }
 
+func MatchSimulatedSamples(accountID, projectID uint32, simulatedSamples []*SimulatedSample, tagFilterss [][]TagFilter) ([]*SimulatedSample, error) {
+	var kb bytesutil.ByteBuffer
+	matchedSamples := make([]*SimulatedSample, 0, 1)
+	for _, rawTfs := range tagFilterss {
+		tfs := NewTagFilters(accountID, projectID)
+		for _, tf := range rawTfs {
+			tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp)
+		}
+
+		for idx, mn := range simulatedSamples {
+			ok, err := matchTagFilters(&mn.MetricName, toTFPointers(tfs.tfs), &kb)
+			if err != nil {
+				return nil, fmt.Errorf("cannot match MetricName %s against tagFilters: %w", mn.MetricName.String(), err)
+			}
+			if ok {
+				matchedSamples = append(matchedSamples, simulatedSamples[idx])
+			}
+		}
+	}
+
+	return matchedSamples, nil
+}
+
+func toTFPointers(tfs []tagFilter) []*tagFilter {
+	tfps := make([]*tagFilter, len(tfs))
+	for i := range tfs {
+		tfps[i] = &tfs[i]
+	}
+	return tfps
+}
+
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, mn.AccountID, mn.ProjectID)
 	for i, tf := range tfs {
