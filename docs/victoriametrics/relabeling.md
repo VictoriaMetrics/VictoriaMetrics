@@ -62,7 +62,8 @@ section for more examples.
 
 Once VictoriaMetrics has finished selecting the targets using `relabel_configs`,
 it starts scraping those endpoints. After scraping, you can apply
-`metric_relabel_configs` in the `-promscrape.config` file {{% available_from "v1.106.0" %}} to modify the scraped metrics:
+`metric_relabel_configs` in the `-promscrape.config` file
+{{% available_from "v1.106.0" %}} to modify the scraped metrics:
 
 ```yaml {hl_lines=[3,8]}
 # global metric relabeling applied to all metrics
@@ -197,10 +198,10 @@ and provides the following enhancements:
 
 Beside enhancements, VictoriaMetrics also provides the following new actions:
 
-- **`replace_all` action**: Replaces all matches of regex in `source_labels` with
-  replacement, and writes the result to `target_label`. Example: replaces all
-  dashes `-` with underscores
-  `_`in metric names (e.g.`http-request-latency`to`http_request_latency`):
+- **`replace_all` action**: Replaces all matches of regex in `source_labels`
+  with replacement, and writes the result to `target_label`. Example: replaces
+  all dashes `-` with underscores `_`in metric names
+  (e.g.`http-request-latency`to`http_request_latency`):
 
   ```yaml {hl_lines=[1]}
   - action: replace_all
@@ -355,8 +356,6 @@ _This option is not available when the component is started with the
 
 {{% collapse name="How to use `/targets` page?" %}}
 
-**How to use `/targets` page**
-
 This `/targets` page helps answer the following questions:
 
 **1. Why are some targets not being scraped?**
@@ -404,8 +403,6 @@ Each column on the page shows important details:
 {{% /collapse %}}
 
 {{% collapse name="How to use `/service-discovery` page?" %}}
-
-**How to use `/service-discovery` page**
 
 This page shows all
 [discovered targets](https://docs.victoriametrics.com/victoriametrics/sd_configs/).
@@ -872,11 +869,48 @@ automatically added to all the metrics scraped from targets.
 relabeling `metric_relabel_configs` and remote write relabeling
 `-remoteWrite.urlRelabelConfig`) and affects the individual metrics:
 
+{{% collapse name="How to remove labels from scraped metrics" %}}
+
+#### How to remove labels from scraped metrics
+
+Removing labels from scraped metrics is a good idea to avoid
+[high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
+and
+[high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
+issues.
+
+This can be done with either of the following actions:
+
+- `action: labeldrop`: drops labels with names matching the given `regex` option
+- `action: labelkeep`: drops labels with names not matching the given `regex`
+  option
+
+Let's see this in action:
+
+- Remove labels with names starting with the `kubernetes_` prefix from all
+  scraped metrics:
+  ```yaml
+  metric_relabel_configs:
+    - action: labeldrop
+      regex: "kubernetes_.*"
+  ```
+  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+labeldrop%0A++regex%3A+%22kubernetes_.*%22&labels=%7B__name__%3D%22container_cpu_usage_seconds_total%22%2Ccontainer%3D%22app%22%2C+kubernetes_namespace%3D%22default%22%2C+kubernetes_pod_name%3D%22app-123%22%7D)
+
+The `regex` option must match the whole label name from start to end, not just a
+part of it.
+
+Note that:
+
+- Labels that start with `__` are removed automatically after relabeling, so you
+  don't need to drop them with relabeling rules.
+
+{{% /collapse %}}
+
 {{% collapse name="How to remove labels from metrics subset" %}}
 
 #### How to remove labels from metrics subset
 
-You can remove certain labels from some metrics without affecting other labels
+You can remove certain labels from some metrics without affecting other metrics
 by using the `if` parameter with `labeldrop` action. The `if` parameter is a
 [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering) -
 it looks at the metric name and labels of each scraped time series.
@@ -892,54 +926,6 @@ metric_relabel_configs:
 ```
 
 [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+labeldrop%0A++if%3A+%27node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%27%0A++regex%3A+%22cpu%7Cmode%22&labels=%7B__name__%3D%22node_cpu_seconds_total%22%2C+mode%3D%22idle%22%2C+cpu%3D%220%22%2C+node%3D%22A%22%7D)
-
-{{% /collapse %}}
-
-{{% collapse name="How to rename scraped metrics" %}}
-
-#### How to rename scraped metrics
-
-The metric name is actually the value of a special label called `__name__` (see
-[Key Concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)).
-So renaming a metric is performed in the same way as changing a label value.
-Let's take some examples:
-
-- Rename `node_cpu_seconds_total` to `vm_node_cpu_seconds_total` across all the
-  scraped metrics:
-
-  ```yaml
-  metric_relabel_configs:
-    - if: "node_cpu_seconds_total"
-      replacement: vm_node_cpu_seconds_total
-      target_label: __name__
-  ```
-
-  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27node_cpu_seconds_total%27%0A++replacement%3A+vm_node_cpu_seconds_total%0A++target_label%3A+__name__&labels=%7B__name__%3D%22node_cpu_seconds_total%22%2C+cpu%3D%220%22%2C+mode%3D%22idle%22%7D)
-
-- Rename all metrics starting with `http_` to start with `web_` instead (e.g.
-  `http_requests_total` → `web_requests_total`):
-
-  ```yaml
-  metric_relabel_configs:
-    - source_labels: [__name__]
-      regex: "http_(.*)"
-      replacement: web_$1
-      target_label: __name__
-  ```
-
-  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__name__%5D%0A++regex%3A+%27http_%28.*%29%27%0A++replacement%3A+web_%241%0A++target_label%3A+__name__&labels=%7B__name__%3D%22http_response_time_seconds%22%2C+method%3D%22GET%22%7D)
-
-- Replace all dashes (`-`) in metric names with underscores (`_`) (e.g.
-  `nginx-ingress-latency` → `nginx_ingress_latency`):
-  ```yaml
-  metric_relabel_configs:
-    - source_labels: [__name__]
-      action: replace_all
-      regex: "-"
-      replacement: "_"
-      target_label: __name__
-  ```
-  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__name__%5D%0A++action%3A+replace_all%0A++regex%3A+%27-%27%0A++replacement%3A+%27_%27%0A++target_label%3A+__name__&labels=%7B__name__%3D%22nginx-ingress-latency%22%2C+host%3D%22example.com%22%7D)
 
 {{% /collapse %}}
 
@@ -1010,40 +996,51 @@ Below are a few illustrations:
 
 {{% /collapse %}}
 
-{{% collapse name="How to remove labels from scraped metrics" %}}
+{{% collapse name="How to rename scraped metrics" %}}
 
-#### How to remove labels from scraped metrics
+#### How to rename scraped metrics
 
-Removing labels from scraped metrics is a good idea to avoid
-[high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality)
-and
-[high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
-issues.
+The metric name is actually the value of a special label called `__name__` (see
+[Key Concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)).
+So renaming a metric is performed in the same way as changing a label value.
+Let's take some examples:
 
-This can be done with either of the following actions:
-
-- `action: labeldrop`: drops labels with names matching the given `regex` option
-- `action: labelkeep`: drops labels with names not matching the given `regex`
-  option
-
-Let's see this in action:
-
-- Remove labels with names starting with the `kubernetes_` prefix from all
+- Rename `node_cpu_seconds_total` to `vm_node_cpu_seconds_total` across all the
   scraped metrics:
+
   ```yaml
   metric_relabel_configs:
-    - action: labeldrop
-      regex: "kubernetes_.*"
+    - if: "node_cpu_seconds_total"
+      replacement: vm_node_cpu_seconds_total
+      target_label: __name__
   ```
-  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+labeldrop%0A++regex%3A+%22kubernetes_.*%22&labels=%7B__name__%3D%22container_cpu_usage_seconds_total%22%2Ccontainer%3D%22app%22%2C+kubernetes_namespace%3D%22default%22%2C+kubernetes_pod_name%3D%22app-123%22%7D)
 
-The `regex` option must match the whole label name from start to end, not just a
-part of it.
+  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27node_cpu_seconds_total%27%0A++replacement%3A+vm_node_cpu_seconds_total%0A++target_label%3A+__name__&labels=%7B__name__%3D%22node_cpu_seconds_total%22%2C+cpu%3D%220%22%2C+mode%3D%22idle%22%7D)
 
-Note that:
+- Rename all metrics starting with `http_` to start with `web_` instead (e.g.
+  `http_requests_total` → `web_requests_total`):
 
-- Labels that start with `__` are removed automatically after relabeling, so you
-  don't need to drop them with relabeling rules.
+  ```yaml
+  metric_relabel_configs:
+    - source_labels: [__name__]
+      regex: "http_(.*)"
+      replacement: web_$1
+      target_label: __name__
+  ```
+
+  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__name__%5D%0A++regex%3A+%27http_%28.*%29%27%0A++replacement%3A+web_%241%0A++target_label%3A+__name__&labels=%7B__name__%3D%22http_response_time_seconds%22%2C+method%3D%22GET%22%7D)
+
+- Replace all dashes (`-`) in metric names with underscores (`_`) (e.g.
+  `nginx-ingress-latency` → `nginx_ingress_latency`):
+  ```yaml
+  metric_relabel_configs:
+    - source_labels: [__name__]
+      action: replace_all
+      regex: "-"
+      replacement: "_"
+      target_label: __name__
+  ```
+  [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__name__%5D%0A++action%3A+replace_all%0A++regex%3A+%27-%27%0A++replacement%3A+%27_%27%0A++target_label%3A+__name__&labels=%7B__name__%3D%22nginx-ingress-latency%22%2C+host%3D%22example.com%22%7D)
 
 {{% /collapse %}}
 
