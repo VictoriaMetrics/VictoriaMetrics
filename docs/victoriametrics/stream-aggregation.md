@@ -15,7 +15,7 @@ can aggregate incoming [samples](https://docs.victoriametrics.com/victoriametric
 (or local storage for single-node VictoriaMetrics).
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-after applying all the configured [relabeling stages](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
+after applying all the configured [relabeling stages](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 **By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
 It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
@@ -931,7 +931,7 @@ The processed data is then stored in local storage and **can't be forwarded furt
 the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
 The data processing order is the following:
 
-1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) (if it is set)
+1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/victoriametrics/relabeling/) (if it is set)
 1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication)
    (if it is set to duration bigger than 0)
 1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) (if it is set)
@@ -946,7 +946,7 @@ Typical scenarios for data routing with `vmagent`:
 1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) command-line flag
    to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
 2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration)
-   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
+   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) via `-remoteWrite.urlRelabelConfig`
    can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
 # Deduplication
@@ -958,7 +958,7 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
   or via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url` destination.
   For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
   only the last sample per each seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 30 seconds.
-  The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) and
+  The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) and
   before performing the aggregation.
 
 - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
@@ -980,7 +980,7 @@ The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` com
 
 # Relabeling
 
-It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) to input and output metrics
+It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) to input and output metrics
 during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](#stream-aggregation-config).
 
 Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters before optional [deduplication](#deduplication).

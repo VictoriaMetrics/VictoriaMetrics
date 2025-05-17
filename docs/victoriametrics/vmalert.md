@@ -725,7 +725,7 @@ In this topology, `vmalert` is configured to persist rule results to `vmagent`. 
 is configured to fan-out received data to two or more destinations.
 Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability),
-or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
+or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 
 ### Web
@@ -1794,13 +1794,13 @@ dns_sd_configs:
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
-# See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
+# See https://docs.victoriametrics.com/victoriametrics/relabeling/
 relabel_configs:
   [ - <relabel_config> ... ]
 
 # List of relabel configurations for alert labels sent via Notifier.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
-# See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
+# See https://docs.victoriametrics.com/victoriametrics/relabeling/
 alert_relabel_configs:
   [ - <relabel_config> ... ]
 ```

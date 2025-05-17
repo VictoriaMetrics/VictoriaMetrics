@@ -1107,11 +1107,11 @@ Example contents for `-relabelConfig` file:
 ```
 
 VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling.
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for more details.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for more details.
 
 The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
 or at our [public demo playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabel-debug) for more details.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) for more details.
 
 
 ## Federation
