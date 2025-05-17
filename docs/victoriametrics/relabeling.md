@@ -353,7 +353,7 @@ see two types of targets:
 _This option is not available when the component is started with the
 `-promscrape.dropOriginalLabels` flag._
 
-<!-- {{% collapse name="How to use `/targets` page?" %}} -->
+{{% collapse name="How to use `/targets` page?" %}}
 
 **How to use `/targets` page**
 
@@ -401,9 +401,9 @@ Each column on the page shows important details:
 - `duration`: time taken for the last scrape.
 - `samples`: number of metrics exposed by the target during the last scrape.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="How to use `/service-discovery` page?" %}} -->
+{{% collapse name="How to use `/service-discovery` page?" %}}
 
 **How to use `/service-discovery` page**
 
@@ -428,7 +428,7 @@ original labels.
 The `discovered labels` column shows the original labels for each discovered
 target.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
 ## Relabeling Use Cases
 
@@ -439,26 +439,7 @@ target.
 and affects the targets (which will be scraped), their labels and all the
 metrics scraped from them:
 
-- [Drop targets](#how-to-drop-discovered-targets): Filter out unwanted targets
-  from being scraped based on their labels
-- [Configure scrape URLs](#how-to-modify-scrape-urls-in-targets): Change which
-  URL is used to fetch metrics from each target
-- [Remove labels](#how-to-remove-labels-from-targets): Delete specific labels
-  from discovered targets
-- [Remove labels from a subset of targets](#how-to-remove-labels-from-a-subset-of-targets):
-  Delete specific labels from a subset of discovered targets
-- [Add or update static labels](#how-to-add-labels-to-scrape-targets): Attach or
-  update constant label values to all metrics from specific targets
-- [Copy labels](#how-to-copy-labels-in-scrape-targets): Duplicate label values
-  from one label to another
-- [Modify instance/job labels](#how-to-modify-instance-and-job): Change the
-  default `instance` and `job` labels for discovered targets
-- [Extract label parts](#how-to-extract-label-parts): Parse and extract portions
-  of label values into new labels
-- [Remove prefixes](#how-to-remove-prefixes-from-target-label-names): Clean up
-  label names by removing common prefixes
-
-<!-- {{% collapse name="Remove discovered targets" %}} -->
+{{% collapse name="Remove discovered targets" %}}
 
 #### How to drop discovered targets
 
@@ -502,9 +483,9 @@ Here are examples of these options:
 See also
 [useful tips for target relabeling](#useful-tips-for-target-relabeling).
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Change which URL is used to fetch metrics from targets" %}} -->
+{{% collapse name="Change which URL is used to fetch metrics from targets" %}}
 
 #### How to modify scrape URLs in targets
 
@@ -569,9 +550,9 @@ scrape_configs:
 
 [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+target_label%3A+__scheme__%0A++replacement%3A+https%0A-+source_labels%3A+%5B__meta_kubernetes_pod_name%5D%0A++target_label%3A+__address__%0A-+source_labels%3A+%5B__meta_kubernetes_pod_container_name%5D%0A++target_label%3A+__param_name&labels=%7B__meta_kubernetes_pod_name%3D%22checkout-api-58c9d%22%2C+__meta_kubernetes_pod_container_name%3D%22app%22%2C+__meta_kubernetes_namespace%3D%22production%22%2C+__meta_kubernetes_pod_ip%3D%2210.42.6.25%22%2C+__address__%3D%2210.42.6.25%3A9100%22%2C+job%3D%22k8s%22%2C+instance%3D%2210.42.6.25%3A9100%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Remove labels from discovered targets" %}} -->
+{{% collapse name="Remove labels from discovered targets" %}}
 
 #### How to remove labels from targets
 
@@ -617,9 +598,9 @@ Note that:
 - The `regex` option must match the whole label name from start to end, not just
   a part of it.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Remove labels from a subset of targets" %}} -->
+{{% collapse name="Remove labels from a subset of targets" %}}
 
 #### How to remove labels from a subset of targets
 
@@ -647,9 +628,9 @@ scrape_configs:
 
 [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+labeldrop%0A++if%3A+%27%7B__address__%3D%7E%22pod123.%2B%22%7D%27%0A++regex%3A+%22pod_internal_.*%22&labels=%7B__address__%3D%22pod123-api-0.default.svc%3A8080%22%2C+__meta_kubernetes_namespace%3D%22production%22%2C+pod_internal_cost_center%3D%22devops%22%2C+pod_internal_sensitive%3D%22true%22%2C+pod_label_app%3D%22api%22%2C+job%3D%22k8s%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Remove prefixes from label names" %}} -->
+{{% collapse name="Remove prefixes from label names" %}}
 
 #### How to remove prefixes from target label names
 
@@ -690,9 +671,9 @@ Note that:
 - The `regex` option must match the whole label name from start to end, not just
   a part of it.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Add or update labels by extracting values of other labels" %}} -->
+{{% collapse name="Add or update labels by extracting values of other labels" %}}
 
 #### How to extract label parts
 
@@ -740,9 +721,9 @@ Note that:
   `;` separator (customized by the `separator` option) before being matched
   against the `regex`.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Add or update labels on discovered targets" %}} -->
+{{% collapse name="Add or update labels on discovered targets" %}}
 
 #### How to add labels to scrape targets
 
@@ -793,9 +774,9 @@ scrape_configs:
 See also
 [useful tips for target relabeling](#useful-tips-for-target-relabeling).
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Add labels by copying from other labels" %}} -->
+{{% collapse name="Add labels by copying from other labels" %}}
 
 #### How to copy labels in scrape targets
 
@@ -844,9 +825,9 @@ scrape_configs:
 
 [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__meta_kubernetes_pod_name%2C+__meta_kubernetes_pod_container_port_number%5D%0A++separator%3A+%22%3A%22%0A++target_label%3A+host_port&labels=%7B__meta_kubernetes_pod_name%3D%22api-server-746d95f76f-7r2hp%22%2C__meta_kubernetes_pod_container_port_number%3D%228080%22%2Cnamespace%3D%22backend%22%2Ccontainer%3D%22api%22%2Cinterface%3D%22eth0%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="Rename `instance` and `job` labels" %}} -->
+{{% collapse name="Rename `instance` and `job` labels" %}}
 
 #### How to modify instance and job
 
@@ -880,7 +861,7 @@ scrape_configs:
 
 [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+target_label%3A+job%0A++replacement%3A+kubernetes_pod_metrics&labels=%7B__address__%3D%2210.42.3.99%3A8080%22%2C+container%3D%22checkout%22%2C+pod%3D%22checkout-api-5d9f%22%2C+namespace%3D%22production%22%2C+job%3D%22k8s%22%2C+instance%3D%2210.42.3.99%3A8080%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
 Note: All the target-level labels which are not prefixed with `__` are
 automatically added to all the metrics scraped from targets.
@@ -891,20 +872,7 @@ automatically added to all the metrics scraped from targets.
 relabeling `metric_relabel_configs` and remote write relabeling
 `-remoteWrite.urlRelabelConfig`) and affects the individual metrics:
 
-- [Drop metrics](#how-to-drop-metrics-during-scrape): Filter out specific
-  metrics to reduce cardinality and storage requirements
-- [Rename metrics](#how-to-rename-scraped-metrics): Change metric names to
-  follow naming conventions or standards
-- [Add metric labels](#how-to-add-labels-to-scraped-metrics): Attach additional
-  labels to scraped metrics for better querying
-- [Change label values](#how-to-change-label-values-in-scraped-metrics): Modify
-  existing label values to normalize or transform them
-- [Remove metric labels](#how-to-remove-labels-from-scraped-metrics): Delete
-  specific labels from scraped metrics
-- [Remove labels with conditions](#how-to-remove-labels-from-metrics-subset):
-  Delete labels only from metrics matching specific criteria
-
-<!-- {{% collapse name="How to remove labels from metrics subset" %}} -->
+{{% collapse name="How to remove labels from metrics subset" %}}
 
 #### How to remove labels from metrics subset
 
@@ -925,9 +893,9 @@ metric_relabel_configs:
 
 [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+labeldrop%0A++if%3A+%27node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%27%0A++regex%3A+%22cpu%7Cmode%22&labels=%7B__name__%3D%22node_cpu_seconds_total%22%2C+mode%3D%22idle%22%2C+cpu%3D%220%22%2C+node%3D%22A%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="How to rename scraped metrics" %}} -->
+{{% collapse name="How to rename scraped metrics" %}}
 
 #### How to rename scraped metrics
 
@@ -973,9 +941,9 @@ Let's take some examples:
   ```
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__name__%5D%0A++action%3A+replace_all%0A++regex%3A+%27-%27%0A++replacement%3A+%27_%27%0A++target_label%3A+__name__&labels=%7B__name__%3D%22nginx-ingress-latency%22%2C+host%3D%22example.com%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="How to add labels to scraped metrics" %}} -->
+{{% collapse name="How to add labels to scraped metrics" %}}
 
 #### How to add labels to scraped metrics
 
@@ -1002,9 +970,9 @@ label name and the `replacement` field to set the label value. For example:
   ```
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27%7Bjob%3D%7E%22web-.*%22%2C+environment%21%3D%22staging%22%7D%27%0A++target_label%3A+team%0A++replacement%3A+platform&labels=%7B__name__%3D%22http_requests_total%22%2C+job%3D%22web-api%22%2C+environment%3D%22prod%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="How to change label values in scraped metrics" %}} -->
+{{% collapse name="How to change label values in scraped metrics" %}}
 
 #### How to change label values in scraped metrics
 
@@ -1040,9 +1008,9 @@ Below are a few illustrations:
   ```
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27%7Bjob%3D%7E%22api-service-.*%22%2Cenv%21%3D%22dev%22%7D%27%0A++source_labels%3A+%5Bjob%5D%0A++target_label%3A+job%0A++replacement%3A+prod_%241&labels=%7B__name__%3D%22http_requests_total%22%2Cjob%3D%22api-service-orders%22%2C+env%3D%22staging%22%2C+instance%3D%2210.0.0.5%3A8080%22%7D)
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="How to remove labels from scraped metrics" %}} -->
+{{% collapse name="How to remove labels from scraped metrics" %}}
 
 #### How to remove labels from scraped metrics
 
@@ -1077,9 +1045,9 @@ Note that:
 - Labels that start with `__` are removed automatically after relabeling, so you
   don't need to drop them with relabeling rules.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
-<!-- {{% collapse name="How to drop metrics during scrape" %}} -->
+{{% collapse name="How to drop metrics during scrape" %}}
 
 #### How to drop metrics during scrape
 
@@ -1117,7 +1085,7 @@ section instead of `relabel_configs` section. They serve different purposes:
 - The `scrape_configs[].metric_relabel_configs` apply after scraping, modifying
   or filtering individual metrics.
 
-<!-- {{% /collapse %}} -->
+{{% /collapse %}}
 
 ## Useful tips for target relabeling
 
