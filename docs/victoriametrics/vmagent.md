@@ -575,23 +575,23 @@ generated metrics. But they still can be relabeled via `-remoteWrite.relabelConf
 
 ## Relabeling
 
-This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 ### Relabeling enhancements
 
-This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-enhancements).
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-enhancements).
 
 ### Graphite relabeling
 
-This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#graphite-relabeling).
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#graphite-relabeling).
 
 ### Relabel debug
 
-This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 
 ## Debugging scrape targets
 
-This section is migrated to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 
 ## Prometheus staleness markers
 
