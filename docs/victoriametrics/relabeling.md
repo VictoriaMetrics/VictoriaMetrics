@@ -62,15 +62,7 @@ section for more examples.
 
 Once VictoriaMetrics has finished selecting the targets using `relabel_configs`,
 it starts scraping those endpoints. After scraping, you can apply
-`global.metric_relabel_configs` for all metrics from all targets or
-`scrape_configs.metric_relabel_configs` for metrics from specific jobs in the
--promscrape.config file {{% available_from "v1.106.0" %}}.
-
-Once VictoriaMetrics has finished selecting the targets using `relabel_configs`,
-it starts scraping those endpoints. After scraping, you can apply
-`global.metric_relabel_configs` for all targets or
-`scrape_configs.metric_relabel_configs` for specific targets in the
-`-promscrape.config` file {{% available_from "v1.106.0" %}}.
+`metric_relabel_configs` in the `-promscrape.config` file {{% available_from "v1.106.0" %}} to modify the scraped metrics:
 
 ```yaml {hl_lines=[3,8]}
 # global metric relabeling applied to all metrics
