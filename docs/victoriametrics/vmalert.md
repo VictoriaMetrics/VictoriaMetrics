@@ -707,6 +707,39 @@ or reducing resolution) and push results to "cold" cluster.
 
 ![vmalert multi cluster](vmalert_multicluster.webp)
 
+```mermaid
+flowchart TD
+
+    style vmalert fill:#FFCDD2,stroke:#F44336,stroke-width:2px
+    style raw_select fill:#BBDEFB,stroke:#2196F3,stroke-width:2px
+    style raw_insert fill:#BBDEFB,stroke:#2196F3,stroke-width:2px
+    style raw_storage fill:#E1BEE7,stroke:#9C27B0,stroke-width:2px
+    style agg_select fill:#C8E6C9,stroke:#4CAF50,stroke-width:2px
+    style agg_insert fill:#C8E6C9,stroke:#4CAF50,stroke-width:2px
+    style agg_storage fill:#E1BEE7,stroke:#9C27B0,stroke-width:2px
+
+    vmalert["vmalert"]
+
+    subgraph "Raw Data Cluster"
+        raw_select["vmselect"]
+        raw_insert["vminsert"]
+        raw_storage["vmstorage"]
+        raw_select --> raw_storage
+        raw_insert --> raw_storage
+    end
+
+    subgraph "Aggregated Data Cluster"
+        agg_select["vmselect"]
+        agg_insert["vminsert"]
+        agg_storage["vmstorage"]
+        agg_select --> agg_storage
+        agg_insert --> agg_storage
+    end
+
+    vmalert -->|"Execute aggregating recording rules"| raw_select
+    vmalert -->|"Persist results"| agg_insert
+```
+
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
@@ -721,12 +754,34 @@ we recommend using [vmagent](https://docs.victoriametrics.com/victoriametrics/vm
 
 ![vmalert multiple remote write destinations](vmalert_multiple_rw.webp)
 
+```mermaid
+graph TD
+
+    %% Style
+    style config_note fill:#FFFFFF,stroke:none,font-style:italic,color:#666
+    style vmalert fill:#FFCDD2,stroke:#F44336,stroke-width:2px
+    style vmagent fill:#C8E6C9,stroke:#4CAF50,stroke-width:2px
+    style vm1 fill:#BBDEFB,stroke:#2196F3,stroke-width:2px
+    style vm2 fill:#BBDEFB,stroke:#2196F3,stroke-width:2px
+
+    %% Nodes (in order to guide vertical placement)
+    config_note["-remoteWrite.url=<br>http:/​/vmagent"]
+    vmalert["vmalert"]
+    vmagent["vmagent"]
+    vm1["#emsp;vm-1#emsp;"]
+    vm2["#emsp;vm-2#emsp;"]
+
+    %% Flow
+    vmalert -->| persist results | vmagent
+    vmagent -->| remoteWrite.url=<br>https:/​/vm-1:8428/api/v1/write | vm1
+    vmagent -->| remoteWrite.url=<br>https:/​/vm-2:8428/api/v1/write | vm2
+```
+
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
 Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability),
 or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
-
 
 ### Web
 
