@@ -11,8 +11,8 @@ docs-image:
 		git clone --depth 1 git@github.com:VictoriaMetrics/vmdocs vmdocs; \
 	fi; \
 	cd vmdocs && \
-	git checkout main && \
-	git pull origin main && \
+	git checkout mermaid && \
+	git pull origin mermaid && \
 	cd .. && \
 	docker build \
 		-t vmdocs-docker-package \
