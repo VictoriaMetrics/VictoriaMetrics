@@ -161,9 +161,11 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 			if err != nil {
 				return nil, err
 			}
-			if bc != nil {
-				return bc, nil
+			if bc == nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
 			}
+			return bc, nil
 		}
 	}
 }
