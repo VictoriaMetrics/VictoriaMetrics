@@ -206,6 +206,8 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 	if err != nil {
 		logger.Fatalf("cannot perform request to %q: %s", cfg.url, err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode/100 != 2 {
 		logger.Fatalf("unexpected status code got from %q: %d; want 2xx", cfg.url, err)
 	}

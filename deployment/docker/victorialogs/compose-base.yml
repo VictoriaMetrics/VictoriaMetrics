@@ -19,11 +19,11 @@ services:
       retries: 10
 
   dd-proxy:
-    image: docker.io/victoriametrics/vmauth:v1.116.0
+    image: docker.io/victoriametrics/vmauth:v1.117.1
     restart: on-failure
     volumes:
       - ./:/etc/vmauth
-    command: -auth.config=/etc/vmauth/vmauth.yaml
+    command: -auth.config=/etc/vmauth/vmauth.yml
 
   victorialogs:
     extends: .victorialogs
@@ -34,7 +34,7 @@ services:
     deploy:
       replicas: 1
 
-  # second replica is needed for HA setup and its replica count is set to 1 in compose-ha.yaml file
+  # second replica is needed for HA setup and its replica count is set to 1 in compose-ha.yml file
   victorialogs-2:
     extends: .victorialogs
     ports:

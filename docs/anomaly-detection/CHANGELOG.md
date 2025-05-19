@@ -14,6 +14,15 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.22.1
+Released: 2025-05-11
+
+- FEATURE: Introduced a simplified backtesting mode for the [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) that treats your entire [`from`, `to`] (or [`from_iso`, `to_iso`]) range as an *inference* window and automatically generates the corresponding fit windows based on your `fit_window` setting. To enable it, set the `inference_only: true` flag in your BacktestingScheduler configuration.
+
+- BUGFIX: Resolved a crash when running the [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) with `n_jobs` greater than 1.
+
+- BUGFIX: Corrected the `start_from` logic in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) so that the *first* job now fires exactly at `start_from` (instead of occasionally adding `fit_every` to that time).
+
 ## v1.22.0-experimental
 Released: 2025-04-11
 
