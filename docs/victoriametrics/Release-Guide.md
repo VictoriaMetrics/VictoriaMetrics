@@ -94,9 +94,8 @@ Bumping the limits may significantly improve build speed.
 1. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
 1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md) for this release.
-1. Follow the instructions in [LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#lts-release).
-1. Verify that created images are stable and don't introduce regressions on [test environment](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
-1. Test new images on [sandbox](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
+1. Follow the instructions in [LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md#lts-release).
+1. Verify that created images are stable and don't introduce regressions in our sandbox environment. Follow instructions at [Testing Releases](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md#testing-releases).
 1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics:
 
    ```shell
@@ -126,14 +125,6 @@ Bumping the limits may significantly improve build speed.
 
 1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
-
-### Public Announcement
-
-* Publish message in Slack  at <https://victoriametrics.slack.com>
-* Post at X (Twitter) at <https://x.com/VictoriaMetrics>
-* Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
-* Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
-* Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
 
 ## Operator
 
