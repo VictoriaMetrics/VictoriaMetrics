@@ -109,7 +109,6 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 // mockServer does nothing. It only acts as a tcp server for connection test.
 type mockServer struct {
 	*httptest.Server
-	responseFunc func() []byte
 }
 
 func newMockServer() *mockServer {
@@ -120,7 +119,7 @@ func newMockServer() *mockServer {
 	return &s
 }
 
-func mockHandshake(c net.Conn, compressionLevel int) (*handshake.BufferedConn, error) {
+func mockHandshake(c net.Conn, _ int) (*handshake.BufferedConn, error) {
 	bc := &handshake.BufferedConn{
 		Conn: c,
 	}
