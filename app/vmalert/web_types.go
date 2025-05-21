@@ -28,6 +28,8 @@ type apiNotifier struct {
 type apiTarget struct {
 	Address string            `json:"address"`
 	Labels  map[string]string `json:"labels"`
+	// LastError contains the error faced while executing the rule.
+	LastError string `json:"lastError"`
 }
 
 // apiAlert represents a notifier.AlertingRule state
@@ -45,10 +47,6 @@ type apiAlert struct {
 
 	// ID is an unique Alert's ID within a group
 	ID string `json:"id"`
-	// RuleID is an unique Rule's ID within a group
-	RuleID string `json:"rule_id"`
-	// GroupID is an unique Group's ID
-	GroupID string `json:"group_id"`
 	// Expression contains the PromQL/MetricsQL expression
 	// for Rule's evaluation
 	Expression string `json:"expression"`
@@ -62,23 +60,13 @@ type apiAlert struct {
 	Stabilizing bool `json:"stabilizing"`
 }
 
-// WebLink returns a link to the alert which can be used in UI.
-func (aa *apiAlert) WebLink() string {
-	return fmt.Sprintf("alert?%s=%s&%s=%s",
-		paramGroupID, aa.GroupID, paramAlertID, aa.ID)
-}
-
-// APILink returns a link to the alert's JSON representation.
-func (aa *apiAlert) APILink() string {
-	return fmt.Sprintf("api/v1/alert?%s=%s&%s=%s",
-		paramGroupID, aa.GroupID, paramAlertID, aa.ID)
-}
-
 // apiGroup represents Group for web view
 // https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
 type apiGroup struct {
 	// Name is the group name as present in the config
 	Name string `json:"name"`
+	// File contains a path to the file with Group's config
+	File string `json:"file"`
 	// Rules contains both recording and alerting rules
 	Rules []apiRule `json:"rules"`
 	// Interval is the Group's evaluation interval in float seconds as present in the file.
@@ -92,8 +80,6 @@ type apiGroup struct {
 	Type string `json:"type"`
 	// ID is a unique Group ID
 	ID string `json:"id"`
-	// File contains a path to the file with Group's config
-	File string `json:"file"`
 	// Concurrency shows how many rules may be evaluated simultaneously
 	Concurrency int `json:"concurrency"`
 	// Params contains HTTP URL parameters added to each Rule's request
@@ -114,12 +100,6 @@ type apiGroup struct {
 	Healthy int
 	// NoMatch not matching rules count
 	NoMatch int
-}
-
-// groupAlerts represents a group of alerts for WEB view
-type groupAlerts struct {
-	Group  *apiGroup
-	Alerts []*apiAlert
 }
 
 // apiRule represents a Rule for web view
@@ -165,17 +145,8 @@ type apiRule struct {
 
 	// ID is a unique Alert's ID within a group
 	ID string `json:"id"`
-	// GroupID is an unique Group's ID
-	GroupID string `json:"group_id"`
-	// GroupName is Group name rule belong to
-	GroupName string `json:"group_name"`
-	// File is file name where rule is defined
-	File string `json:"file"`
 	// Debug shows whether debug mode is enabled
 	Debug bool `json:"debug"`
-
-	// MaxUpdates is the max number of recorded ruleStateEntry objects
-	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	Updates []rule.StateEntry `json:"-"`
 }
@@ -185,18 +156,6 @@ type apiRuleWithUpdates struct {
 	apiRule
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	StateUpdates []rule.StateEntry `json:"updates,omitempty"`
-}
-
-// APILink returns a link to the rule's JSON representation.
-func (ar apiRule) APILink() string {
-	return fmt.Sprintf("api/v1/rule?%s=%s&%s=%s",
-		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
-}
-
-// WebLink returns a link to the alert which can be used in UI.
-func (ar apiRule) WebLink() string {
-	return fmt.Sprintf("rule?%s=%s&%s=%s",
-		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
 }
 
 func ruleToAPI(r any) apiRule {
@@ -227,14 +186,10 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 		Health:            "ok",
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
-		MaxUpdates:        rule.GetRuleStateSize(rr),
 		Updates:           rule.GetAllRuleState(rr),
 
 		// encode as strings to avoid rounding
-		ID:        fmt.Sprintf("%d", rr.ID()),
-		GroupID:   fmt.Sprintf("%d", rr.GroupID),
-		GroupName: rr.GroupName,
-		File:      rr.File,
+		ID: fmt.Sprintf("%d", rr.ID()),
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -262,15 +217,11 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 		Alerts:            ruleToAPIAlert(ar),
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
-		MaxUpdates:        rule.GetRuleStateSize(ar),
-		Updates:           rule.GetAllRuleState(ar),
 		Debug:             ar.Debug,
+		Updates:           rule.GetAllRuleState(ar),
 
 		// encode as strings to avoid rounding in JSON
-		ID:        fmt.Sprintf("%d", ar.ID()),
-		GroupID:   fmt.Sprintf("%d", ar.GroupID),
-		GroupName: ar.GroupName,
-		File:      ar.File,
+		ID: fmt.Sprintf("%d", ar.ID()),
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -290,6 +241,15 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 	return r
 }
 
+// alertToAPI generates apiAlert object from alert by its id(hash)
+func alertToAPI(ar *rule.AlertingRule, id uint64) *apiAlert {
+	a := ar.GetAlert(id)
+	if a == nil {
+		return nil
+	}
+	return newAlertAPI(ar, a)
+}
+
 // ruleToAPIAlert generates list of apiAlert objects from existing alerts
 func ruleToAPIAlert(ar *rule.AlertingRule) []*apiAlert {
 	var alerts []*apiAlert
@@ -302,23 +262,11 @@ func ruleToAPIAlert(ar *rule.AlertingRule) []*apiAlert {
 	return alerts
 }
 
-// alertToAPI generates apiAlert object from alert by its id(hash)
-func alertToAPI(ar *rule.AlertingRule, id uint64) *apiAlert {
-	a := ar.GetAlert(id)
-	if a == nil {
-		return nil
-	}
-	return newAlertAPI(ar, a)
-}
-
 // NewAlertAPI creates apiAlert for notifier.Alert
 func newAlertAPI(ar *rule.AlertingRule, a *notifier.Alert) *apiAlert {
 	aa := &apiAlert{
 		// encode as strings to avoid rounding
-		ID:      fmt.Sprintf("%d", a.ID),
-		GroupID: fmt.Sprintf("%d", a.GroupID),
-		RuleID:  fmt.Sprintf("%d", ar.RuleID),
-
+		ID:          fmt.Sprintf("%d", a.ID),
 		Name:        a.Name,
 		Expression:  ar.Expr,
 		Labels:      a.Labels,

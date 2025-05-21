@@ -1,5 +1,5 @@
 export const getLogsUrl = (server: string): string =>
-  `${server}/select/logsql/query`;
+  `${server}/logsql/query`;
 
 export const getLogHitsUrl = (server: string): string =>
-  `${server}/select/logsql/hits`;
+  `${server}/logsql/hits`;
