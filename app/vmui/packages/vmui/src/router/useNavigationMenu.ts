@@ -3,7 +3,7 @@ import { useDashboardsState } from "../state/dashboards/DashboardsStateContext";
 import { useAppState } from "../state/common/StateContext";
 import { useMemo } from "preact/compat";
 import { processNavigationItems } from "./utils";
-import { getAnomalyNavigation, getDefaultNavigation, getLogsNavigation } from "./navigation";
+import { getAnomalyNavigation, getDefaultNavigation, getLogsNavigation, getAlertNavigation } from "./navigation";
 import { APP_TYPE, AppType } from "../constants/appType";
 
 const useNavigationMenu = () => {
@@ -25,9 +25,11 @@ const useNavigationMenu = () => {
   const menu = useMemo(() => {
     switch (APP_TYPE) {
       case AppType.victorialogs:
-        return getLogsNavigation();
+        return getLogsNavigation(navigationConfig);
       case AppType.vmanomaly:
         return getAnomalyNavigation();
+      case AppType.vmalert:
+        return getAlertNavigation();
       default:
         return getDefaultNavigation(navigationConfig);
     }

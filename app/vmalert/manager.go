@@ -29,44 +29,6 @@ type manager struct {
 	groups   map[uint64]*rule.Group
 }
 
-// ruleAPI generates apiRule object from alert by its ID(hash)
-func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
-	m.groupsMu.RLock()
-	defer m.groupsMu.RUnlock()
-
-	g, ok := m.groups[gID]
-	if !ok {
-		return apiRule{}, fmt.Errorf("can't find group with id %d", gID)
-	}
-	for _, rule := range g.Rules {
-		if rule.ID() == rID {
-			return ruleToAPI(rule), nil
-		}
-	}
-	return apiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
-}
-
-// alertAPI generates apiAlert object from alert by its ID(hash)
-func (m *manager) alertAPI(gID, aID uint64) (*apiAlert, error) {
-	m.groupsMu.RLock()
-	defer m.groupsMu.RUnlock()
-
-	g, ok := m.groups[gID]
-	if !ok {
-		return nil, fmt.Errorf("can't find group with id %d", gID)
-	}
-	for _, r := range g.Rules {
-		ar, ok := r.(*rule.AlertingRule)
-		if !ok {
-			continue
-		}
-		if apiAlert := alertToAPI(ar, aID); apiAlert != nil {
-			return apiAlert, nil
-		}
-	}
-	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
-}
-
 func (m *manager) start(ctx context.Context, groupsCfg []config.Group) error {
 	return m.update(ctx, groupsCfg, true)
 }

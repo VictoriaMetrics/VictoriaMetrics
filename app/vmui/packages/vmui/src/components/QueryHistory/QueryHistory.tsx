@@ -12,7 +12,7 @@ import { clearQueryHistoryStorage, getQueriesFromStorage, setFavoriteQueriesToSt
 import QueryHistoryItem from "./QueryHistoryItem";
 import classNames from "classnames";
 import "./style.scss";
-import { saveToStorage, StorageKeys } from "../../utils/storage";
+import { StorageKeys } from "../../utils/storage";
 import { arrayEquals } from "../../utils/array";
 
 interface Props {

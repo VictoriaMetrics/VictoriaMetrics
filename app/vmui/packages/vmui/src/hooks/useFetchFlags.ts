@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppState } from "../state/common/StateContext";
 import { useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../types";
-import { APP_TYPE_VM } from "../constants/appType";
+import { APP_TYPE_VM, APP_TYPE_LOGS } from "../constants/appType";
 import { getUrlWithoutTenant } from "../utils/tenants";
 
 const useFetchFlags = () => {
@@ -13,12 +13,12 @@ const useFetchFlags = () => {
 
   useEffect(() => {
     const fetchFlags = async () => {
-      if (!serverUrl || !APP_TYPE_VM) return;
+      if (!serverUrl || !(APP_TYPE_VM || APP_TYPE_LOGS)) return;
       setError("");
       setIsLoading(true);
 
       try {
-        const url = getUrlWithoutTenant(serverUrl).replace(/\/prometheus\/?$/, "");
+        const url = getUrlWithoutTenant(serverUrl);
         const response = await fetch(`${url}/flags`);
         const data = await response.text();
         const flags = data.split("\n").filter(flag => flag.trim() !== "")

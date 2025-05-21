@@ -1,0 +1,121 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-rule-item {
+  row-gap: $padding-global;
+  margin-right: $padding-global;
+  display: flex;
+  flex-direction: column;
+
+  .title {
+    font-weight: bold;
+    text-align: center;
+  }
+
+  a:hover > pre {
+    background-color: $color-hover-darker;
+    cursor: pointer;
+  }
+
+  pre {
+    background-color: $color-hover-black;
+    padding: $padding-global;
+    border-radius: $border-radius-small;
+    word-break: break-word;
+    white-space: pre-wrap;
+    .keyword, .function, .attr-name, .range-duration {
+      color: $color-keyword;
+    }
+  }
+
+  .col-small {
+    width: 15%;
+    white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  table {
+    width: 100%;
+    table-layout: fixed;
+    tr[id] {
+      cursor: pointer;
+      &:hover {
+        background-color: $color-hover-darker;
+      }
+    }
+    td {
+      padding: $padding-global $padding-small;
+    }
+    th[colspan], td[colspan] {
+      font-weight: bold;
+      text-align: center;
+      padding: 20px 0;
+    }
+    th {
+      font-weight: bold;
+      text-align: center;
+      padding: 0 $padding-small;
+    }
+  }
+
+  .badge-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $padding-small;
+  }
+
+  .badge {
+    padding: $padding-small;
+    border-radius: $border-radius-small;
+    background-color: $color-hover-black;
+    max-width: 300px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    width: fit-content;
+
+    &:is(.firing) {
+      background: $color-error;
+      color: $color-white;
+    }
+
+    &:is(.pending) {
+      background: $color-warning;
+      color: $color-white;
+    }
+  }
+}
+
+.vm-explore-alerts-rule {
+  padding: $padding-global;
+  padding-right: 0;
+  display: flex;
+  row-gap: $padding-global;
+  flex-direction: column;
+  position: relative;
+  border-radius: $border-radius-small;
+  &:is(.firing) {
+    border-left: $border-radius-small $color-error solid;
+  }
+
+  &:is(.inactive) {
+    border-left: $border-radius-small $color-success solid;
+  }
+
+  &:is(.pending) {
+    border-left: $border-radius-small $color-warning solid;
+  }
+
+  &:is(.no-match) {
+    border-left: $border-radius-small $color-notice solid;
+  }
+
+  &:is(.unhealthy) {
+    border-left: $border-radius-small $color-broken solid;
+  }
+
+  &:is(.ok) {
+    border-left: $border-radius-small $color-info solid;
+  }
+}
