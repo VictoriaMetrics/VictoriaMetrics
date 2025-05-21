@@ -23,6 +23,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop duplicate labels when they appear in both the recording rule label spec and the expression result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8954) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): consistently detect stale series in `increase`, `increase_pure` and `delta` MetricsQL functions when `-search.maxLookback`, `-search.setLookbackToStep` or `-search.maxStalenessInterval` flags are set. See [#8935](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935) for details.
 
 ## [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1)
 
