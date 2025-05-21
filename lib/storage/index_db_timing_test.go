@@ -298,12 +298,14 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.CopyFrom(&mn)
 		mnLocal.sortTags()
 		for pb.Next() {
+			is := db.getIndexSearch(noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				if !db.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {
+				if !is.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}
+			db.putIndexSearch(is)
 		}
 	})
 	b.StopTimer()
