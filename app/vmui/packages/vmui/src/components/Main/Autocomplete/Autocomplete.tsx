@@ -212,7 +212,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
           >
             {selected?.includes(option.value) && <DoneIcon/>}
             <>{option.icon}</>
-            <span>{option.value}</span>
+            <div className="vm-list-item-inner">
+              <span>{option.value}</span>
+              <div className={`circle ${option.value.toLowerCase().replace(" ", "-")}`}></div>
+            </div>
           </div>
         )}
       </div>

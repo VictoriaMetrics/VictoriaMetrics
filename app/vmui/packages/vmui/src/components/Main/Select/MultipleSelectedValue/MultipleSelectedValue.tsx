@@ -30,7 +30,7 @@ const MultipleSelectedValue: FC<MultipleSelectedValueProps> = ({ values, onRemov
         className="vm-select-input-content__selected"
         key={item}
       >
-        <span>{item}</span>
+        <span className={`badge ${item.toLowerCase().replace(" ", "-")}`}>{item}</span>
         <div onClick={createHandleClick(item)}>
           <CloseIcon/>
         </div>

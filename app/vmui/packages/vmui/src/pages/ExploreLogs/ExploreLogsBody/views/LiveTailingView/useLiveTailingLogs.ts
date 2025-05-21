@@ -47,7 +47,7 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
         AccountID: searchParams.get("accountID") || "0",
         ProjectID: searchParams.get("projectID") || "0"
       };
-      const response = await fetch(`${serverUrl}/select/logsql/tail`, {
+      const response = await fetch(`${serverUrl}/logsql/tail`, {
         signal,
         method: "POST",
         headers: {
@@ -149,4 +149,4 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
     resumeLiveTailing,
     clearLogs
   };
-}; 
+};

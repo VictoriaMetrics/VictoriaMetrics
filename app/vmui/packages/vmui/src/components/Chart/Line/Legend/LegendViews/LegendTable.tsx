@@ -4,7 +4,6 @@ import "./style.scss";
 import { LegendItemType } from "../../../../../types";
 import { MouseEvent } from "react";
 import classNames from "classnames";
-import get from "lodash.get";
 import { STATS_ORDER } from "../../../../../constants/graph";
 import { useShowStats } from "../hooks/useShowStats";
 
@@ -72,7 +71,7 @@ const LegendTable: FC<LegendProps> = ({ labels, duplicateFields, onChange }) => 
                   className="vm-legend-table-col"
                 >
                   <span className="vm-legend-table-col__content">
-                    {get(row, col.key)}
+                    {row?.[col.key]}
                   </span>
                 </td>
               ))}

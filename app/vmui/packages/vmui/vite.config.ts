@@ -10,8 +10,8 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
   switch (playground) {
     case "METRICS": {
       return {
-        "^/vmalert/.*": {
-          target: "https://play.victoriametrics.com",
+        "/api": {
+          target: "https://play.victoriametrics.com/select/0/prometheus",
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("error", (err) => {
@@ -19,8 +19,21 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
             });
           }
         },
-        "^/api/.*": {
-          target: "https://play.victoriametrics.com/select/0/prometheus/",
+        "/flags": {
+          target: "https://play.victoriametrics.com",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
+        }
+      };
+    }
+    case "ALERT": {
+      return {
+        "/api": {
+          target: "http://localhost:8880",
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("error", (err) => {
@@ -32,8 +45,8 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
     }
     case "LOGS": {
       return {
-        "^/select/.*": {
-          target: "https://play-vmlogs.victoriametrics.com",
+        "/logsql": {
+          target: "https://play-vmlogs.victoriametrics.com/select",
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
@@ -45,7 +58,21 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
               console.error("[proxy error]", err.message);
             });
           }
-        }
+        },
+        "/flags": {
+          target: "https://play-vmlogs.victoriametrics.com",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              proxyReq.removeHeader("AccountID");
+              proxyReq.removeHeader("ProjectID");
+            });
+            
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
+        },
       };
     }
     default: {

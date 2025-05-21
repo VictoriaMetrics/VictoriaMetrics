@@ -33,3 +33,12 @@ export const footerLinksToLogs = [
   },
   issueLink
 ];
+
+export const footerLinksToAlert = [
+  {
+    href: "https://docs.victoriametrics.com/victoriametrics/vmalert/",
+    Icon: WikiIcon,
+    title: "Documentation",
+  },
+  issueLink
+];

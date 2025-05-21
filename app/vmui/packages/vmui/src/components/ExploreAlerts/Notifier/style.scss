@@ -1,0 +1,55 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-notifier {
+  row-gap: $padding-global;
+  margin-right: $padding-global;
+  display: flex;
+  flex-direction: column;
+
+  .col-small {
+    width: 40%;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  table {
+    width: 100%;
+    table-layout: fixed;
+    td {
+      padding: $padding-global $padding-small;
+    }
+    th {
+      font-weight: bold;
+      text-align: center;
+      padding: 0 $padding-small;
+    }
+  }
+
+  .badge-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $padding-small;
+  }
+
+  .badge {
+    padding: $padding-small;
+    border-radius: $border-radius-small;
+    background-color: $color-hover-black;
+    max-width: 300px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    width: fit-content;
+
+    &:is(.firing) {
+      background: $color-error;
+      color: $color-white;
+    }
+
+    &:is(.pending) {
+      background: $color-warning;
+      color: $color-white;
+    }
+  }
+}
