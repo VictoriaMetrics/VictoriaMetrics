@@ -599,11 +599,11 @@ func (db *indexDB) putIndexSearch(is *indexSearch) {
 	is.mp.Reset()
 	is.deadline = 0
 
-	if db == nil {
-		logger.Panicf("BUG: indexDB must not be nil for non-nil indexSearch")
+	if db != nil {
+		db.indexSearchPool.Put(is)
 	}
 
-	db.indexSearchPool.Put(is)
+	logger.Panicf("BUG: indexDB must not be nil for non-nil indexSearch")
 }
 
 func generateTSID(dst *TSID, mn *MetricName) {
