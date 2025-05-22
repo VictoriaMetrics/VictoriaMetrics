@@ -1,0 +1,16 @@
+include:
+ - ../compose-base.yml
+services:
+  alloy:
+    image: docker.io/grafana/alloy:latest
+    restart: on-failure
+    user: 0:0
+    volumes:
+      - ${PWD}/config.alloy:/etc/alloy/config.alloy
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy
