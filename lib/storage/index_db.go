@@ -601,6 +601,7 @@ func (db *indexDB) putIndexSearch(is *indexSearch) {
 
 	if db != nil {
 		db.indexSearchPool.Put(is)
+		return
 	}
 
 	logger.Panicf("BUG: indexDB must not be nil for non-nil indexSearch")
