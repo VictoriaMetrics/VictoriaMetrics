@@ -125,7 +125,7 @@ services:
     command:
       - "--datasource.url=http://vmauth:8427/select/0/prometheus"
       - "--remoteRead.url=http://vmauth:8427/select/0/prometheus"
-      - "--remoteWrite.url=http://vmauth:8427/insert/0/prometheus/api/v1/write"
+      - "--remoteWrite.url=http://vmauth:8427/insert/0/prometheus"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
