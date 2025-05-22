@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): correctly handle `sort` pipe in queries — UI now respects the server-defined sort order instead of always sorting by time. See [#8660](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8660).
+
 ## [v1.23.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.0-victorialogs)
 
 Released at 2025-05-28
