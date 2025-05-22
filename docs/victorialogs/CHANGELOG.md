@@ -25,6 +25,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * BUGFIX: [Datadog](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog/): respond HTTP 202 instead of HTTP 200 on successful Datadog endpoint ingestion as it's strictly required by Datadog agent. See [#8956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8956).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly escape special characters in field values shown in autocomplete suggestions. See [#8925](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8925).
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): Properly handle time filters when querying vlstorage directly or through vlselect. See [#8985](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8985).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix an issue where queries were not triggered when relative time was selected and the chart was hidden. See [#8983](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8983).
 
 ## [v1.22.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.2-victorialogs)
 
