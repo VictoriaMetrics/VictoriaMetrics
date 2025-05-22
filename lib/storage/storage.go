@@ -1914,9 +1914,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		date := uint64(mr.Timestamp) / msecPerDay
 
 		if !idb.HasTimestamp(mr.Timestamp) {
-			if idb != nil && is != nil {
-				idb.putIndexSearch(is)
-			}
+			idb.putIndexSearch(is)
 			s.tb.PutIndexDB(idb)
 			idb = s.tb.MustGetIndexDB(mr.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
@@ -1999,9 +1997,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
 		newSeriesCount++
 	}
-	if idb != nil && is != nil {
-		idb.putIndexSearch(is)
-	}
+	idb.putIndexSearch(is)
 	s.tb.PutIndexDB(idb)
 
 	s.newTimeseriesCreated.Add(newSeriesCount)
@@ -2084,9 +2080,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		hour := uint64(r.Timestamp) / msecPerHour
 
 		if !idb.HasTimestamp(r.Timestamp) {
-			if idb != nil && is != nil {
-				idb.putIndexSearch(is)
-			}
+			idb.putIndexSearch(is)
 			s.tb.PutIndexDB(idb)
 			idb = s.tb.MustGetIndexDB(r.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
@@ -2216,9 +2210,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
-	if idb != nil && is != nil {
-		idb.putIndexSearch(is)
-	}
+	idb.putIndexSearch(is)
 	s.tb.PutIndexDB(idb)
 
 	s.slowRowInserts.Add(slowInsertsCount)
@@ -2516,9 +2508,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 
 		timestamp := int64(date) * msecPerDay
 		if !idb.HasTimestamp(timestamp) {
-			if is != nil {
-				idb.putIndexSearch(is)
-			}
+			idb.putIndexSearch(is)
 			s.tb.PutIndexDB(idb)
 			idb = s.tb.MustGetIndexDB(timestamp)
 			is = idb.getIndexSearch(noDeadline)
@@ -2544,9 +2534,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			metricID: metricID,
 		})
 	}
-	if is != nil {
-		idb.putIndexSearch(is)
-	}
+	idb.putIndexSearch(is)
 	s.tb.PutIndexDB(idb)
 
 	PutMetricName(mn)

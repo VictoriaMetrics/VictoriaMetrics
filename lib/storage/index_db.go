@@ -590,10 +590,18 @@ func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSe
 }
 
 func (db *indexDB) putIndexSearch(is *indexSearch) {
+	if is == nil {
+		return
+	}
+
 	is.ts.MustClose()
 	is.kb.Reset()
 	is.mp.Reset()
 	is.deadline = 0
+
+	if db == nil {
+		logger.Panicf("BUG: indexDB must not be nil for non-nil indexSearch")
+	}
 
 	db.indexSearchPool.Put(is)
 }
