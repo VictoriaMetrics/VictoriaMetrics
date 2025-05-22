@@ -34,6 +34,12 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
+	// Metadata to be set for uploaded objects.
+	Metadata map[string]string
+
+	// Metadata converted to representation required by azure sdk.
+	metadata map[string]*string
+
 	client *container.Client
 
 	ctx    context.Context
@@ -62,6 +68,12 @@ func (fs *FS) Init(ctx context.Context) error {
 
 	containerClient := sc.NewContainerClient(fs.Container)
 	fs.client = containerClient
+
+	meta := make(map[string]*string, len(fs.Metadata))
+	for k, v := range fs.Metadata {
+		meta[k] = &v
+	}
+	fs.metadata = meta
 
 	return nil
 }
@@ -249,6 +261,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 			// Continue checking
 		}
 	}
+	if err := fs.maybeSetMetadata(dbc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", p.Path, fs, err)
+	}
 
 	if *copyStatus != blob.CopyStatusTypeSuccess {
 		return fmt.Errorf("copy of %q from %s to %s failed: expected status %q, received %q (description: %q)", p.Path, src, fs, blob.CopyStatusTypeSuccess, *copyStatus, *copyStatusDescription)
@@ -288,7 +303,9 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
-
+	if err := fs.maybeSetMetadata(bc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", p.Path, fs, err)
+	}
 	return nil
 }
 
@@ -383,6 +400,9 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, bc.URL(), err)
 	}
+	if err := fs.maybeSetMetadata(bc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", path, fs, err)
+	}
 
 	return nil
 }
@@ -433,4 +453,16 @@ func cleanDirectory(dir string) string {
 	}
 
 	return dir
+}
+
+// maybeSetMetadata sets metadata for the blob if metadata is not empty.
+func (fs *FS) maybeSetMetadata(bc *blockblob.Client) error {
+	if len(fs.metadata) == 0 {
+		return nil
+	}
+	_, err := bc.SetMetadata(fs.ctx, fs.metadata, &blob.SetMetadataOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", bc.URL(), fs, err)
+	}
+	return nil
 }

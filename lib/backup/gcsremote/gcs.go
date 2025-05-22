@@ -34,6 +34,9 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
+	// Metadata to be set for uploaded objects.
+	Metadata map[string]string
+
 	bkt *storage.BucketHandle
 
 	ctx    context.Context
@@ -168,6 +171,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	if uint64(attr.Size) != p.Size {
 		return fmt.Errorf("unexpected %q size after copying from %s to %s; got %d bytes; want %d bytes", p.Path, src, fs, attr.Size, p.Size)
 	}
+	if err := fs.maybeSetMetadata(dstObj); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", p.Path, fs, dstObj.ObjectName(), err)
+	}
 	return nil
 }
 
@@ -204,6 +210,9 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	}
 	if uint64(n) != p.Size {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
+	}
+	if err := fs.maybeSetMetadata(o); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
 	return nil
 }
@@ -281,6 +290,9 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		_ = w.Close()
 		return fmt.Errorf("wrong data size uploaded to %q at %s (remote path %q); got %d bytes; want %d bytes", filePath, fs, o.ObjectName(), n, len(data))
 	}
+	if err := fs.maybeSetMetadata(o); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
+	}
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("cannot close %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}
@@ -311,4 +323,18 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	}
 	defer r.Close()
 	return io.ReadAll(r)
+}
+
+// maybeSetMetadata sets metadata for the object o if fs.Metadata is not empty.
+func (fs *FS) maybeSetMetadata(o *storage.ObjectHandle) error {
+	if len(fs.Metadata) == 0 {
+		return nil
+	}
+	_, err := o.Update(fs.ctx, storage.ObjectAttrsToUpdate{
+		Metadata: fs.Metadata,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", o.ObjectName(), fs, o.ObjectName(), err)
+	}
+	return nil
 }
