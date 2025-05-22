@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	objectMetadata = flag.String("objectMetadata", "", `Metadata to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}. Note that it is is not supported for local filesystem destinations.`)
+	objectMetadata = flag.String("objectMetadata", "", `Metadata to be set for uploaded objects to object storage. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}. Is ignored for local filesystem.`)
 
 	credsFilePath = flag.String("credsFilePath", "", "Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.\n"+
 		"See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html")
