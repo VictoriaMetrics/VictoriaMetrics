@@ -47,7 +47,7 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmagent v1.102.0 or higher",
+  "description": "Overview for VictoriaMetrics vmagent v1.117.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -1675,123 +1675,6 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Click on the line and choose Drilldown to show CPU usage per instance",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [
-                {
-                  "targetBlank": true,
-                  "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
-                }
-              ],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "percentunit"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 38
-          },
-          "id": 109,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": true,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "CPU ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
           "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
@@ -1860,7 +1743,7 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 12,
+            "x": 0,
             "y": 38
           },
           "id": 111,
@@ -1900,6 +1783,475 @@
             }
           ],
           "title": "RSS memory % usage ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Drilldown",
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                }
+              ],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          },
+          "id": 157,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "CPU % usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 46
+          },
+          "id": 155,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(instance)",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "RSS anonymous memory % usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 46
+          },
+          "id": 158,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} - waiting",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} - stalled",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "CPU pressure",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 54
+          },
+          "id": 156,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} - waiting",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} - stalled",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Memory pressure",
           "type": "timeseries"
         },
         {
@@ -1987,8 +2339,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
-            "y": 46
+            "x": 12,
+            "y": 54
           },
           "id": 81,
           "options": {
@@ -2018,7 +2370,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) ",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2033,7 +2385,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2044,6 +2396,343 @@
             }
           ],
           "title": "Disk writes/reads ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 62
+          },
+          "id": 39,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Goroutines ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows IO pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 62
+          },
+          "id": 159,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_pressure_io_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} - waiting",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_pressure_io_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{instance}} - stalled",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "IO pressure",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 70
+          },
+          "id": 41,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(max_over_time(process_num_threads{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "format": "time_series",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Threads ($instance)",
           "type": "timeseries"
         },
         {
@@ -2126,7 +2815,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 70
           },
           "id": 7,
           "options": {
@@ -2176,223 +2865,6 @@
             }
           ],
           "title": "Network  usage ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "Panel shows the percentage of open file descriptors in the OS per instance.\nReaching the limit of open files (100%) can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 5,
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "percentunit"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 54
-          },
-          "id": 83,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Open FDs usage % ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 0,
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 54
-          },
-          "id": 39,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "__auto",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Goroutines ($instance)",
           "type": "timeseries"
         },
         {
@@ -2464,7 +2936,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 78
           },
           "id": 135,
           "options": {
@@ -2573,7 +3045,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 78
           },
           "id": 149,
           "options": {
@@ -2678,7 +3150,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 86
           },
           "id": 154,
           "options": {
@@ -2723,6 +3195,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
+          "description": "Panel shows the percentage of open file descriptors in the OS per instance.\nReaching the limit of open files (100%) can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2761,7 +3234,7 @@
                   "mode": "off"
                 }
               },
-              "decimals": 0,
+              "decimals": 5,
               "links": [],
               "mappings": [],
               "min": 0,
@@ -2778,7 +3251,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2786,9 +3259,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 86
           },
-          "id": 41,
+          "id": 83,
           "options": {
             "legend": {
               "calcs": [
@@ -2814,15 +3287,16 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(process_num_threads{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 2,
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Threads ($instance)",
+          "title": "Open FDs usage % ($instance)",
           "type": "timeseries"
         }
       ],
@@ -2904,7 +3378,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1152
+            "y": 1580
           },
           "id": 92,
           "options": {
@@ -3010,7 +3484,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1152
+            "y": 1580
           },
           "id": 95,
           "options": {
@@ -3119,7 +3593,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1160
+            "y": 1588
           },
           "id": 98,
           "options": {
@@ -3228,7 +3702,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1160
+            "y": 1588
           },
           "id": 99,
           "options": {
@@ -3336,7 +3810,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1168
+            "y": 1596
           },
           "id": 79,
           "options": {
@@ -3444,7 +3918,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1168
+            "y": 1596
           },
           "id": 18,
           "links": [
@@ -3558,7 +4032,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1176
+            "y": 1604
           },
           "id": 127,
           "options": {
@@ -3664,7 +4138,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1176
+            "y": 1604
           },
           "id": 50,
           "options": {
@@ -3765,7 +4239,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 1184
+            "y": 1612
           },
           "id": 129,
           "options": {
@@ -3898,7 +4372,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 1184
+            "y": 1612
           },
           "id": 150,
           "options": {
@@ -4001,7 +4475,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1191
+            "y": 1619
           },
           "id": 151,
           "options": {
@@ -4122,7 +4596,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 1397
+            "y": 1825
           },
           "id": 48,
           "options": {
@@ -4230,7 +4704,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 1397
+            "y": 1825
           },
           "id": 76,
           "options": {
@@ -4336,7 +4810,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 1404
+            "y": 1832
           },
           "id": 132,
           "options": {
@@ -4444,7 +4918,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 1404
+            "y": 1832
           },
           "id": 133,
           "options": {
@@ -4551,7 +5025,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1411
+            "y": 1839
           },
           "id": 20,
           "options": {
@@ -4657,7 +5131,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1411
+            "y": 1839
           },
           "id": 126,
           "options": {
@@ -4762,7 +5236,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1419
+            "y": 1847
           },
           "id": 46,
           "options": {
@@ -4867,7 +5341,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1419
+            "y": 1847
           },
           "id": 148,
           "options": {
@@ -4972,7 +5446,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1427
+            "y": 1855
           },
           "id": 31,
           "options": {
@@ -5139,7 +5613,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1119
+            "y": 1547
           },
           "id": 73,
           "options": {
@@ -5256,7 +5730,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1119
+            "y": 1547
           },
           "id": 131,
           "options": {
@@ -5360,7 +5834,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1395
+            "y": 1823
           },
           "id": 130,
           "options": {
@@ -5477,7 +5951,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1395
+            "y": 1823
           },
           "id": 77,
           "options": {
@@ -5602,7 +6076,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1442
+            "y": 1870
           },
           "id": 146,
           "options": {
@@ -5704,7 +6178,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1442
+            "y": 1870
           },
           "id": 143,
           "options": {
@@ -5800,7 +6274,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1450
+            "y": 1878
           },
           "id": 147,
           "options": {
@@ -5903,7 +6377,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1450
+            "y": 1878
           },
           "id": 139,
           "options": {
@@ -6014,7 +6488,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1458
+            "y": 1886
           },
           "id": 142,
           "options": {
@@ -6111,7 +6585,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1458
+            "y": 1886
           },
           "id": 137,
           "options": {
@@ -6224,7 +6698,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1498
+            "y": 1926
           },
           "id": 141,
           "options": {
@@ -6352,7 +6826,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1400
+            "y": 1828
           },
           "id": 60,
           "options": {
@@ -6458,7 +6932,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1400
+            "y": 1828
           },
           "id": 66,
           "options": {
@@ -6564,7 +7038,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1408
+            "y": 1836
           },
           "id": 61,
           "options": {
@@ -6670,7 +7144,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1408
+            "y": 1836
           },
           "id": 65,
           "options": {
@@ -6775,7 +7249,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1416
+            "y": 1844
           },
           "id": 88,
           "options": {
@@ -6877,7 +7351,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1416
+            "y": 1844
           },
           "id": 84,
           "options": {
@@ -6982,7 +7456,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1424
+            "y": 1852
           },
           "id": 90,
           "options": {
@@ -7040,7 +7514,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 1452
+            "y": 100
           },
           "id": 115,
           "options": {
@@ -7052,7 +7526,7 @@
             "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
             "mode": "markdown"
           },
-          "pluginVersion": "10.4.2",
+          "pluginVersion": "11.5.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -7075,6 +7549,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -7107,7 +7582,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -7119,7 +7595,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1454
+            "y": 102
           },
           "id": 119,
           "options": {
@@ -7136,11 +7612,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "11.5.0",
           "targets": [
             {
               "datasource": {
@@ -7179,6 +7656,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -7211,7 +7689,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -7223,7 +7702,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1454
+            "y": 102
           },
           "id": 117,
           "options": {
@@ -7240,11 +7719,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "11.5.0",
           "targets": [
             {
               "datasource": {
@@ -7281,6 +7761,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -7313,7 +7794,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -7329,7 +7811,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1494
+            "y": 110
           },
           "id": 125,
           "links": [
@@ -7350,11 +7832,12 @@
               "showLegend": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "11.5.0",
           "targets": [
             {
               "datasource": {
@@ -7391,6 +7874,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -7422,7 +7906,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -7451,7 +7936,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1494
+            "y": 110
           },
           "id": 123,
           "options": {
@@ -7468,11 +7953,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "11.5.0",
           "targets": [
             {
               "datasource": {
@@ -7521,6 +8007,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -7552,7 +8039,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -7581,7 +8069,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1502
+            "y": 118
           },
           "id": 121,
           "options": {
@@ -7598,11 +8086,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "11.5.0",
           "targets": [
             {
               "datasource": {
