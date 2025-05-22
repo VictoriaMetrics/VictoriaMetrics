@@ -445,12 +445,14 @@ See how to aggregate regular histograms [here](#aggregating-histograms).
 
 The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
 
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
-
 ```metricsql
 sum(histogram_over_time(some_histogram_bucket[interval])) by (vmrange)
 ```
+
+Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
+
+
 
 See also:
 
