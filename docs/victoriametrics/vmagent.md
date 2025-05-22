@@ -182,7 +182,7 @@ See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
 `vmagent` can add, remove or update labels on the collected data before sending it to the remote storage. Additionally,
 it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
-Please see [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 ### Splitting data streams among multiple systems
 
@@ -572,26 +572,6 @@ adds `exported_` prefix to these metric names, so they don't clash with automati
 
 Relabeling defined in `relabel_configs` or `metric_relabel_configs` of scrape config isn't applied to automatically
 generated metrics. But they still can be relabeled via `-remoteWrite.relabelConfig` before sending metrics to remote address.
-
-## Relabeling
-
-Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
-
-### Relabeling enhancements
-
-Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-enhancements).
-
-### Graphite relabeling
-
-Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#graphite-relabeling).
-
-### Relabel debug
-
-Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
-
-## Debugging scrape targets
-
-Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 
 ## Prometheus staleness markers
 
@@ -2170,3 +2150,27 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -version
      Show VictoriaMetrics version
 ```
+
+---
+
+Section below contains backward-compatible anchors for links that were moved or renamed.
+
+###### Relabeling
+
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+
+###### Relabeling enhancements
+
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabeling-enhancements).
+
+###### Graphite relabeling
+
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#graphite-relabeling).
+
+###### Relabel debug
+
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
+
+###### Debugging scrape targets
+
+Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
