@@ -27,7 +27,7 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
         keys.add(key);
       }
     }
-    return Array.from(keys);
+    return Array.from(keys).sort((a,b) => a.localeCompare(b));
   }, [data]);
 
   const handleSetRowsPerPage = (limit: number) => {
@@ -77,4 +77,4 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
   );
 };
 
-export default TableView; 
+export default TableView;
