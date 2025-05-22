@@ -42,6 +42,18 @@ type connWithTimestamp struct {
 	lastActiveTime uint64
 }
 
+var (
+	concurrentDialLimit = 8
+)
+
+// InitConcurrentDialLimit must be called before NewConnPool to init the concurrentDialLimit
+// according to the concurrent request limit.
+func InitConcurrentDialLimit(concurrentRequestLimit int) {
+	// It should be initialized with`sync.Once`. Since it's used in only one place,
+	// extra code has been removed for simplicity.
+	concurrentDialLimit = min(64, max(8, concurrentRequestLimit/2))
+}
+
 // NewConnPool creates a new connection pool for the given addr.
 //
 // Name is used in metrics registered at ms.
@@ -52,7 +64,7 @@ type connWithTimestamp struct {
 func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout, userTimeout time.Duration) *ConnPool {
 	cp := &ConnPool{
 		d:                 NewTCPDialer(ms, name, addr, dialTimeout, userTimeout),
-		concurrentDialsCh: make(chan struct{}, 8),
+		concurrentDialsCh: make(chan struct{}, concurrentDialLimit),
 
 		name:             name,
 		handshakeFunc:    handshakeFunc,
@@ -133,23 +145,29 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 }
 
 func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
-	// Limit the number of concurrent dials.
-	// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
-	cp.concurrentDialsCh <- struct{}{}
-	defer func() {
-		<-cp.concurrentDialsCh
-	}()
-	// Make an attempt to get already established connections from the pool.
-	// It may appear there while waiting for cp.concurrentDialsCh.
-	bc, err := cp.tryGetConn()
-	if err != nil {
-		return nil, err
+	for {
+		select {
+		// Limit the number of concurrent dials.
+		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
+		case cp.concurrentDialsCh <- struct{}{}:
+			// Create new connection.
+			conn, err := cp.dialAndHandshake()
+			<-cp.concurrentDialsCh
+			return conn, err
+		default:
+			// Make attempt to get already established connections from the pool.
+			// It may appear there while waiting for cp.concurrentDialsCh.
+			bc, err := cp.tryGetConn()
+			if err != nil {
+				return nil, err
+			}
+			if bc == nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			return bc, nil
+		}
 	}
-	if bc != nil {
-		return bc, nil
-	}
-	// Pool is empty. Create new connection.
-	return cp.dialAndHandshake()
 }
 
 func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
