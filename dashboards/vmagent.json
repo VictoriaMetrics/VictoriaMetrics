@@ -3450,7 +3450,7 @@
             {
               "targetBlank": true,
               "title": "Relabeling",
-              "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling"
+              "url": "https://docs.victoriametrics.com/victoriametrics/relabeling/"
             }
           ],
           "options": {
