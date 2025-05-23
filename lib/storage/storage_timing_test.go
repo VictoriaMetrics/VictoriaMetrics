@@ -101,6 +101,134 @@ func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
 	benchmarkStorageOpOnVariousTimeRanges(b, f)
 }
 
+func benchmarkStorageAddRows(b *testing.B, f func(b *testing.B, prefillTr TimeRange, addTs int64, prefillPrefixName, addPrefixName string)) {
+	b.Helper()
+
+	prefill3mTr := TimeRange{
+		MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2000, 3, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+
+	b.Run(fmt.Sprintf("same_partition_same_day_same_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 30, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"metric")
+	})
+
+	b.Run(fmt.Sprintf("same_partition_next_day_same_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 31, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"metric")
+	})
+
+	b.Run(fmt.Sprintf("next_partition_same_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"metric")
+	})
+
+	b.Run(fmt.Sprintf("same_partition_same_day_new_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 30, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"new_metric")
+	})
+
+	b.Run(fmt.Sprintf("same_partition_next_day_new_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 31, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"new_metric")
+	})
+
+	b.Run(fmt.Sprintf("next_partition_new_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"new_metric")
+	})
+}
+
+func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
+	const numRows = 10_000
+
+	genMrs := func(numRows int, ts int64, prefixName string) []MetricRow {
+		mrs := make([]MetricRow, numRows)
+		mn := MetricName{
+			Tags: []Tag{
+				{[]byte("job"), []byte("webservice")},
+				{[]byte("instance"), []byte("1.2.3.4")},
+			},
+		}
+
+		for i := range numRows {
+			mr := &mrs[i]
+			mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefixName, i))
+			mr.MetricNameRaw = mn.marshalRaw(mr.MetricNameRaw[:0])
+			mr.Timestamp = ts
+			mr.Value = float64(i)
+		}
+
+		return mrs
+	}
+
+	prefill := func(b *testing.B, s *Storage, tr TimeRange, prefixName string) {
+		b.Helper()
+
+		numSamples := 10
+
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numSamples-1)
+		mrs := genMrs(numRows, tr.MinTimestamp, prefixName)
+
+		for i := range numSamples {
+			for j := range numRows {
+				mr := &mrs[j]
+				mr.Timestamp = tr.MinTimestamp + int64(i)*step
+				s.AddRows(mrs[j:j+1], defaultPrecisionBits)
+			}
+		}
+
+	}
+
+	f := func(b *testing.B, prefillTr TimeRange, addTs int64, prefillPrefixName, addPrefixName string) {
+		b.Helper()
+
+		b.StopTimer()
+		addMrs := genMrs(numRows, addTs, addPrefixName)
+		vmfs.MustRemoveAll(b.Name())
+		b.StartTimer()
+
+		for range b.N {
+			// prepare
+			b.StopTimer()
+			s := MustOpenStorage(b.Name(), OpenOptions{})
+			prefill(b, s, prefillTr, prefillPrefixName)
+			s.DebugFlush()
+			b.StartTimer()
+
+			// benchmark
+			s.AddRows(addMrs, defaultPrecisionBits)
+
+			// cleanup
+			b.StopTimer()
+			s.MustClose()
+			vmfs.MustRemoveAll(b.Name())
+			b.StartTimer()
+		}
+	}
+
+	benchmarkStorageAddRows(b, f)
+}
+
 func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 	f := func(b *testing.B, tr TimeRange) {
 		b.Helper()
