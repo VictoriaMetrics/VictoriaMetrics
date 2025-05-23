@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.118.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.118.0)
+
+Released at 2025-05-23
+
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): enhance alerting rule `DiskRunsOutOfSpaceIn3Days` and `NodeBecomesReadonlyIn3Days` to account for [deduplication](https://docs.victoriametrics.com/#deduplication) and [indexDB](https://docs.victoriametrics.com/#indexdb) growth when calculating disk consumption rate.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): restore panel `Storage full ETA` using calculation logic from [#8955](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8955). It was previously removed in [#8492](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards) for VictoriaMetrics single, cluster, vmagent and vmalert: add panels for [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics to dashboards. They could help to identify shortage of resources for VictoriaMetrics components.
