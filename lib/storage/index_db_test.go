@@ -2280,14 +2280,6 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 	})
 }
 
-func toTFPointers(tfs []tagFilter) []*tagFilter {
-	tfps := make([]*tagFilter, len(tfs))
-	for i := range tfs {
-		tfps[i] = &tfs[i]
-	}
-	return tfps
-}
-
 func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
