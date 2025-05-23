@@ -211,7 +211,7 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 		for range b.N {
 			// prepare
 			b.StopTimer()
-			s := MustOpenStorage(b.Name(), OpenOptions{})
+			s := MustOpenStorage(b.Name(), OpenOptions{doNotPersistDataOnClose: true})
 			prefill(b, s, prefillTr, prefillPrefixName)
 			b.StartTimer()
 

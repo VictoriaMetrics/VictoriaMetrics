@@ -145,6 +145,9 @@ type partition struct {
 	// wg.Add() must be called under partsLock after checking whether stopCh isn't closed.
 	// This should prevent from calling wg.Add() after stopCh is closed and wg.Wait() is called.
 	wg sync.WaitGroup
+
+	// only for testing purposes
+	doNotPersistDataOnClose bool
 }
 
 // partWrapper is a wrapper for the part.
@@ -306,6 +309,8 @@ func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, t
 		s:                s,
 		idb:              idb,
 		stopCh:           make(chan struct{}),
+		
+		doNotPersistDataOnClose: s.doNotPersistDataOnClose,
 	}
 	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
@@ -943,19 +948,23 @@ func (pt *partition) MustClose() {
 	// Wait for background workers to stop.
 	pt.wg.Wait()
 
-	// Flush the remaining in-memory rows to files.
-	pt.flushInmemoryRowsToFiles()
+	if !pt.doNotPersistDataOnClose {
+		// Flush the remaining in-memory rows to files.
+		pt.flushInmemoryRowsToFiles()
+	}
 
 	// Remove references from inmemoryParts, smallParts and bigParts, so they may be eventually closed
 	// after all the searches are done.
 	pt.partsLock.Lock()
 
-	if n := pt.rawRows.Len(); n > 0 {
-		logger.Panicf("BUG: raw rows must be empty at this stage; got %d rows", n)
-	}
+	if !pt.doNotPersistDataOnClose {
+		if n := pt.rawRows.Len(); n > 0 {
+			logger.Panicf("BUG: raw rows must be empty at this stage; got %d rows", n)
+		}
 
-	if n := len(pt.inmemoryParts); n > 0 {
-		logger.Panicf("BUG: in-memory parts must be empty at this stage; got %d parts", n)
+		if n := len(pt.inmemoryParts); n > 0 {
+			logger.Panicf("BUG: in-memory parts must be empty at this stage; got %d parts", n)
+		}
 	}
 	pt.inmemoryParts = nil
 

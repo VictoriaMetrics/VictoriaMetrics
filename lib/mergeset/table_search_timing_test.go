@@ -36,7 +36,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	// Force finishing pending merges
 	tb.MustClose()
 	var isReadOnly atomic.Bool
-	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly)
+	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly, false)
 	defer tb.MustClose()
 
 	keys := make([][]byte, len(items))

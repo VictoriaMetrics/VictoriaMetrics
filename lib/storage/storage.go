@@ -160,6 +160,9 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	// only for testing purposes
+	doNotPersistDataOnClose bool
 }
 
 // OpenOptions optional args for MustOpenStorage
@@ -169,6 +172,9 @@ type OpenOptions struct {
 	MaxDailySeries        int
 	DisablePerDayIndex    bool
 	TrackMetricNamesStats bool
+
+	// only for testing purposes
+	doNotPersistDataOnClose bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -191,6 +197,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
+
+	s.doNotPersistDataOnClose = opts.doNotPersistDataOnClose
 
 	// Check whether the cache directory must be removed
 	// It is removed if it contains resetCacheOnStartupFilename.
@@ -839,21 +847,23 @@ func (s *Storage) MustClose() {
 		legacyIDBCurr.MustClose()
 	}
 
-	// Save caches.
-	s.mustSaveCache(s.tsidCache, "metricName_tsid")
+	if !s.doNotPersistDataOnClose {
+		// Save caches.
+		s.mustSaveCache(s.tsidCache, "metricName_tsid")
+		s.mustSaveCache(s.metricIDCache, "metricID_tsid")
+		s.mustSaveCache(s.metricNameCache, "metricID_metricName")
+
+		hmCurr := s.currHourMetricIDs.Load()
+		s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids_v2")
+		hmPrev := s.prevHourMetricIDs.Load()
+		s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids_v2")
+
+		nextDayMetricIDs := s.nextDayMetricIDs.Load()
+		s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
+	}
 	s.tsidCache.Stop()
-	s.mustSaveCache(s.metricIDCache, "metricID_tsid")
 	s.metricIDCache.Stop()
-	s.mustSaveCache(s.metricNameCache, "metricID_metricName")
 	s.metricNameCache.Stop()
-
-	hmCurr := s.currHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids_v2")
-	hmPrev := s.prevHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids_v2")
-
-	nextDayMetricIDs := s.nextDayMetricIDs.Load()
-	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	s.metricsTracker.MustClose()
 	// Release lock file.

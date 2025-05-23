@@ -129,6 +129,9 @@ type Table struct {
 
 	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
 	flushPendingItemsWG syncwg.WaitGroup
+
+	// only for testing purposes
+	doNotPersistDataOnClose bool
 }
 
 type rawItemsShards struct {
@@ -342,7 +345,7 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
+func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool, doNotPersistDataOnClose bool) *Table {
 	path = filepath.Clean(path)
 
 	if flushInterval < pendingItemsFlushInterval {
@@ -366,6 +369,8 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 		fileParts:            pws,
 		inmemoryPartsLimitCh: make(chan struct{}, maxInmemoryParts),
 		stopCh:               make(chan struct{}),
+
+		doNotPersistDataOnClose: doNotPersistDataOnClose,
 	}
 	tb.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	tb.rawItems.init()
@@ -506,18 +511,22 @@ func (tb *Table) MustClose() {
 	// Wait for background workers to stop.
 	tb.wg.Wait()
 
-	// Flush the remaining in-memory items to files.
-	tb.flushInmemoryItemsToFiles()
+	if !tb.doNotPersistDataOnClose {
+		// Flush the remaining in-memory items to files.
+		tb.flushInmemoryItemsToFiles()
+	}
 
 	// Remove references to parts from the tb, so they may be eventually closed after all the searches are done.
 	tb.partsLock.Lock()
 
-	if n := tb.rawItems.Len(); n > 0 {
-		logger.Panicf("BUG: raw items must be empty at this stage; got %d items", n)
-	}
+	if !tb.doNotPersistDataOnClose {
+		if n := tb.rawItems.Len(); n > 0 {
+			logger.Panicf("BUG: raw items must be empty at this stage; got %d items", n)
+		}
 
-	if n := len(tb.inmemoryParts); n > 0 {
-		logger.Panicf("BUG: in-memory parts must be empty at this stage; got %d parts", n)
+		if n := len(tb.inmemoryParts); n > 0 {
+			logger.Panicf("BUG: in-memory parts must be empty at this stage; got %d parts", n)
+		}
 	}
 	tb.inmemoryParts = nil
 
