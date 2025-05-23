@@ -10,6 +10,7 @@ import (
 	"time"
 
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/felixge/fgprof"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -226,7 +227,20 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 		}
 	}
 
-	benchmarkStorageAddRows(b, f)
+	fgprofFileName := os.Getenv("FGPROF_FILE")
+	if fgprofFileName != "" {
+		fgprofFile, err := os.Create(fgprofFileName)
+		if err != nil {
+			b.Fatalf("failed to create fgprof file: %v", err)
+		}
+		defer fgprofFile.Close()
+
+		closeFn := fgprof.Start(fgprofFile, fgprof.FormatPprof)
+		benchmarkStorageAddRows(b, f)
+		closeFn()
+	} else {
+		benchmarkStorageAddRows(b, f)
+	}
 }
 
 func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
