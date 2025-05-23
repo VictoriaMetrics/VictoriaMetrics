@@ -184,6 +184,16 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		}
 	}
 
+	// Create parts.json file if it doesn't exist yet.
+	// This should prevent possible crash loops caused by being OOM during partition creation
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8873
+	partsFile := filepath.Join(path, partsFilename)
+	if !fs.IsPathExist(partsFile) {
+		smallPartNames := getPartNames(smallParts)
+		bigPartNames := getPartNames(bigParts)
+		mustWritePartNames(path, smallPartNames, bigPartNames)
+	}
+
 	ddb := &datadb{
 		pt:            pt,
 		flushInterval: flushInterval,
@@ -1165,14 +1175,36 @@ func mustWritePartNames(path string, smallPartNames, bigPartNames []string) {
 
 func mustReadPartNames(path string) []string {
 	partNamesPath := filepath.Join(path, partsFilename)
-	data, err := os.ReadFile(partNamesPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read %s: %s", partNamesPath, err)
+	if fs.IsPathExist(partNamesPath) {
+		data, err := os.ReadFile(partNamesPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %s: %s", partNamesPath, err)
+		}
+		var partNames []string
+		if err := json.Unmarshal(data, &partNames); err != nil {
+			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
+		}
+		return partNames
 	}
+
+	// The parts.json file is missing.
+	// Scan the directory for part directories.
+	logger.Warnf("parts.json file is missing at %q; collecting part names from existing directories", partNamesPath)
+	des := fs.MustReadDir(path)
 	var partNames []string
-	if err := json.Unmarshal(data, &partNames); err != nil {
-		logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
+			// Skip non-directories
+			continue
+		}
+		partName := de.Name()
+		if partName == "tmp" || partName == "txn" || fs.IsScheduledForRemoval(partName) {
+			// Skip special dirs
+			continue
+		}
+		partNames = append(partNames, partName)
 	}
+
 	return partNames
 }
 
