@@ -162,7 +162,6 @@ func benchmarkStorageAddRows(b *testing.B, f func(b *testing.B, prefillTr TimeRa
 
 func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 	const numRows = 10_000
-	const numSamples = 10
 	gomaxprocs := runtime.GOMAXPROCS(-1)
 
 	genMrs := func(numRows int, ts int64, prefixName string) []MetricRow {
@@ -186,12 +185,36 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 		return mrs
 	}
 
-	genPrefillMrs := func(numSamples, numRows int, tr TimeRange, prefixName string) [][]MetricRow {
+	genPrefillMrs := func(numSamples, numTimeseries int, tr TimeRange, prefixName string) [][]MetricRow {
 		b.Helper()
 		mrss := make([][]MetricRow, numSamples)
+
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numSamples-1)
-		for i := range mrss {
-			mrss[i] = genMrs(numRows, tr.MinTimestamp+int64(i)*step, prefixName)
+
+		mn := MetricName{
+			Tags: []Tag{
+				{[]byte("job"), []byte("webservice")},
+				{[]byte("instance"), []byte("1.2.3.4")},
+			},
+		}
+
+		// Move all samples of one timeseries to one batch.
+		// It helps avoid multiple TSID generation and generally faster.
+
+		for i := range numTimeseries {
+			batch := i % numSamples
+			shift := i / numSamples
+			if mrss[batch] == nil {
+				mrss[batch] = make([]MetricRow, numTimeseries)
+			}
+			mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefixName, i))
+			metricNameRaw := mn.marshalRaw(nil)
+			for j := range numSamples {
+				mr := &mrss[batch][shift*numSamples+j]
+				mr.MetricNameRaw = metricNameRaw
+				mr.Timestamp = tr.MinTimestamp + int64(j)*step
+				mr.Value = float64(i)
+			}
 		}
 		return mrss
 	}
@@ -204,7 +227,8 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 		b.Helper()
 
 		b.StopTimer()
-		prefillMrss := genPrefillMrs(numSamples, numRows, prefillTr, prefillPrefixName)
+		// use gomaxprocs as numSamples to warmup all shards
+		prefillMrss := genPrefillMrs(gomaxprocs, numRows, prefillTr, prefillPrefixName)
 		addMrs := genMrs(numRows, addTs, addPrefixName)
 		vmfs.MustRemoveAll(b.Name())
 		b.StartTimer()
