@@ -213,7 +213,6 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 			b.StopTimer()
 			s := MustOpenStorage(b.Name(), OpenOptions{})
 			prefill(b, s, prefillTr, prefillPrefixName)
-			s.DebugFlush()
 			b.StartTimer()
 
 			// benchmark
