@@ -526,7 +526,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 		var (
 			rowsAddedTotal int
 			dataSize       int64
-			indexSize      int64
 		)
 
 		path := b.Name()
@@ -548,7 +547,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 			rowsAddedTotal = numBatches * numRowsPerBatch
 			dataSize = benchmarkDirSize(path + "/data")
-			indexSize = benchmarkDirSize(path + "/indexdb")
 
 			s.MustClose()
 			vmfs.MustRemoveAll(path)
@@ -556,7 +554,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
 		b.ReportMetric(float64(dataSize)/(1024*1024), "data-MiB")
-		b.ReportMetric(float64(indexSize)/(1024*1024), "indexdb-MiB")
 	}
 
 	b.Run("HighChurnRate/perDayIndexes", func(b *testing.B) {
