@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix for multiple users access conflicts for tmp test folder. See [#9015](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9015).
+
 ## [v1.118.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.118.0)
 
 Released at 2025-05-23
