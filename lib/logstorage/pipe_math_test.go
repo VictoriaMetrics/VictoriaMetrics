@@ -30,6 +30,7 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math (x / 1d * 1s) as x`)
 	f(`math (x - y + z) as x`)
 	f(`math (x - (y + z)) as x`)
+	f(`math now() as current_time`)
 }
 
 func TestParsePipeMathFailure(t *testing.T) {
@@ -49,6 +50,7 @@ func TestParsePipeMathFailure(t *testing.T) {
 	f(`math round() as x`)
 	f(`math round(a, b, c) as x`)
 	f(`math rand(123) as x`)
+	f(`math now(123) as x`)
 }
 
 func TestPipeMath(t *testing.T) {
