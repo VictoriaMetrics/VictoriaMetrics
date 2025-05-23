@@ -598,6 +598,8 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 	var mns []MetricName
 	var tsids []TSID
 
+	is := db.getIndexSearch(noDeadline)
+
 	date := uint64(timestamp) / msecPerDay
 
 	var metricNameBuf []byte
@@ -619,7 +621,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 
 		// Create tsid for the metricName.
 		var tsid TSID
-		if !db.getTSIDByMetricName(&tsid, metricNameBuf, date) {
+		if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 			generateTSID(&tsid, &mn)
 			createAllIndexesForMetricName(db, &mn, &tsid, date)
 		}
@@ -627,6 +629,8 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 		mns = append(mns, mn)
 		tsids = append(tsids, tsid)
 	}
+
+	db.putIndexSearch(is)
 
 	// Flush index to disk, so it becomes visible for search
 	db.tb.DebugFlush()
@@ -658,9 +662,11 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		mn.sortTags()
 		metricName := mn.Marshal(nil)
 
-		if !db.getTSIDByMetricName(&tsidLocal, metricName, uint64(timestamp)/msecPerDay) {
+		is := db.getIndexSearch(noDeadline)
+		if !is.getTSIDByMetricName(&tsidLocal, metricName, uint64(timestamp)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
+		db.putIndexSearch(is)
 
 		if isConcurrent {
 			// Copy tsid.MetricID, since multiple TSIDs may match
@@ -1486,6 +1492,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	s := MustOpenStorage(path, OpenOptions{})
 	db := s.tb.MustGetIndexDB(timestamp)
+	is := db.getIndexSearch(noDeadline)
 
 	for day := 0; day < days; day++ {
 		date := baseDate - uint64(day)
@@ -1494,7 +1501,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var tsid TSID
-			if !db.getTSIDByMetricName(&tsid, metricNameBuf, date) {
+			if !is.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 				generateTSID(&tsid, &mn)
 				createAllIndexesForMetricName(db, &mn, &tsid, date)
 			}
@@ -1504,6 +1511,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		allMetricIDs.Union(&metricIDs)
 		perDayMetricIDs[date] = &metricIDs
 	}
+	db.putIndexSearch(is)
 
 	// Flush index to disk, so it becomes visible for search
 	db.tb.DebugFlush()
@@ -1532,6 +1540,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	db.putIndexSearch(is2)
 
 	// add a metric that will be deleted shortly
+	is3 := db.getIndexSearch(noDeadline)
 	day := days
 	date := baseDate - uint64(day)
 	mn := newMN("deletedMetric", day, 999)
@@ -1542,7 +1551,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	mn.sortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
 	var tsid TSID
-	if !db.getTSIDByMetricName(&tsid, metricNameBuf, date) {
+	if !is3.getTSIDByMetricName(&tsid, metricNameBuf, date) {
 		generateTSID(&tsid, &mn)
 		createAllIndexesForMetricName(db, &mn, &tsid, date)
 	}
@@ -1550,6 +1559,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	deletedSet := &uint64set.Set{}
 	deletedSet.Add(tsid.MetricID)
 	db.setDeletedMetricIDs(deletedSet)
+	db.putIndexSearch(is3)
 	db.tb.DebugFlush()
 
 	// Check SearchLabelNames with the specified time range.

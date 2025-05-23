@@ -1906,6 +1906,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var seriesRepopulated uint64
 
 	var idb *indexDB
+	var is *indexSearch
 
 	var firstWarn error
 	for i := range mrs {
@@ -1913,8 +1914,10 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		date := uint64(mr.Timestamp) / msecPerDay
 
 		if !idb.HasTimestamp(mr.Timestamp) {
+			idb.putIndexSearch(is)
 			s.tb.PutIndexDB(idb)
 			idb = s.tb.MustGetIndexDB(mr.Timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
 
 		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
@@ -1924,7 +1927,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				// Skip row, since it exceeds cardinality limit
 				continue
 			}
-			if !idb.hasMetricID(lTSID.TSID.MetricID) {
+			if !is.hasMetricID(lTSID.TSID.MetricID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -1936,7 +1939,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				idb.createGlobalIndexes(&lTSID.TSID, mn)
 			}
 			if !s.dateMetricIDCache.Has(idb.id, date, lTSID.TSID.MetricID) {
-				if !idb.hasDateMetricID(date, lTSID.TSID.MetricID) {
+				if !is.hasDateMetricID(date, lTSID.TSID.MetricID) {
 					if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 						if firstWarn == nil {
 							firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -1968,7 +1971,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
-		if idb.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
+		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
@@ -1994,6 +1997,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
 		newSeriesCount++
 	}
+	idb.putIndexSearch(is)
 	s.tb.PutIndexDB(idb)
 
 	s.newTimeseriesCreated.Add(newSeriesCount)
@@ -2030,6 +2034,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	var lTSID legacyTSID
 	var idb *indexDB
+	var is *indexSearch
 
 	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
@@ -2075,15 +2080,17 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		hour := uint64(r.Timestamp) / msecPerHour
 
 		if !idb.HasTimestamp(r.Timestamp) {
+			idb.putIndexSearch(is)
 			s.tb.PutIndexDB(idb)
 			idb = s.tb.MustGetIndexDB(r.Timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
-			if !idb.hasMetricID(prevTSID.MetricID) {
+			if !is.hasMetricID(prevTSID.MetricID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -2111,7 +2118,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				continue
 			}
 
-			if !idb.hasMetricID(lTSID.TSID.MetricID) {
+			if !is.hasMetricID(lTSID.TSID.MetricID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -2156,7 +2163,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		s.metricsTracker.RegisterIngestRequest(0, 0, mn.MetricGroup)
 
 		// Search for TSID for the given mr.MetricNameRaw in the indexdb.
-		if idb.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
+		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
@@ -2203,6 +2210,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
+	idb.putIndexSearch(is)
 	s.tb.PutIndexDB(idb)
 
 	s.slowRowInserts.Add(slowInsertsCount)
@@ -2319,6 +2327,8 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 
 	idbNext := s.tb.MustGetIndexDB(nextMonth.UnixMilli())
 	defer s.tb.PutIndexDB(idbNext)
+	isNext := idbNext.getIndexSearch(noDeadline)
+	defer idbNext.putIndexSearch(isNext)
 
 	var firstError error
 	var lTSID legacyTSID
@@ -2343,7 +2353,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 		}
 
 		// Check whether the given (date, metricID) is already present in idbNext.
-		if idbNext.hasDateMetricID(date, metricID) {
+		if isNext.hasDateMetricID(date, metricID) {
 			// Indexes are already pre-filled at idbNext.
 			//
 			// Register the (indexDB.id, date, metricID) entry in the cache,
@@ -2491,17 +2501,20 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	var firstError error
 	dateMetricIDsForCache := make(map[uint64][]dateMetricID)
 	mn := GetMetricName()
+	var is *indexSearch
 	for _, dmid := range pendingDateMetricIDs {
 		date := dmid.date
 		metricID := dmid.tsid.MetricID
 
 		timestamp := int64(date) * msecPerDay
 		if !idb.HasTimestamp(timestamp) {
+			idb.putIndexSearch(is)
 			s.tb.PutIndexDB(idb)
 			idb = s.tb.MustGetIndexDB(timestamp)
+			is = idb.getIndexSearch(noDeadline)
 		}
 
-		if !idb.hasDateMetricID(date, metricID) {
+		if !is.hasDateMetricID(date, metricID) {
 			// The (date, metricID) entry is missing in the indexDB. Add it there together with per-day index.
 			// It is OK if the (date, metricID) entry is added multiple times to indexdb
 			// by concurrent goroutines.
@@ -2521,6 +2534,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			metricID: metricID,
 		})
 	}
+	idb.putIndexSearch(is)
 	s.tb.PutIndexDB(idb)
 
 	PutMetricName(mn)

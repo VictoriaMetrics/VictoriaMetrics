@@ -590,12 +590,21 @@ func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSe
 }
 
 func (db *indexDB) putIndexSearch(is *indexSearch) {
+	if is == nil {
+		return
+	}
+
 	is.ts.MustClose()
 	is.kb.Reset()
 	is.mp.Reset()
 	is.deadline = 0
 
-	db.indexSearchPool.Put(is)
+	if db != nil {
+		db.indexSearchPool.Put(is)
+		return
+	}
+
+	logger.Panicf("BUG: indexDB must not be nil for non-nil indexSearch")
 }
 
 func generateTSID(dst *TSID, mn *MetricName) {
@@ -1808,16 +1817,13 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
-func (db *indexDB) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) bool {
-	dmis := db.getDeletedMetricIDs()
-
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
+func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) bool {
+	dmis := is.db.getDeletedMetricIDs()
 
 	ts := &is.ts
 	kb := &is.kb
 
-	if db.s.disablePerDayIndex {
+	if is.db.s.disablePerDayIndex {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
 	} else {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
@@ -2880,13 +2886,10 @@ func reverseBytes(dst, src []byte) []byte {
 	return dst
 }
 
-func (db *indexDB) hasDateMetricID(date, metricID uint64) bool {
+func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 	if date == globalIndexDate {
-		return db.hasMetricID(metricID)
+		return is.hasMetricID(metricID)
 	}
-
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
 
 	ts := &is.ts
 	kb := &is.kb
@@ -2907,14 +2910,11 @@ func (db *indexDB) hasDateMetricID(date, metricID uint64) bool {
 	return false
 }
 
-func (db *indexDB) hasMetricID(metricID uint64) bool {
-	ok := db.metricIDCache.Has(metricID)
+func (is *indexSearch) hasMetricID(metricID uint64) bool {
+	ok := is.db.metricIDCache.Has(metricID)
 	if ok {
 		return true
 	}
-
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
 
 	ts := &is.ts
 	kb := &is.kb
@@ -2927,7 +2927,7 @@ func (db *indexDB) hasMetricID(metricID uint64) bool {
 		logger.Panicf("FATAL: error when searching for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
 	}
 
-	db.metricIDCache.Set(metricID)
+	is.db.metricIDCache.Set(metricID)
 
 	return true
 }
