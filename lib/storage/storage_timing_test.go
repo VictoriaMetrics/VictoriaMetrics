@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"runtime"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -161,8 +162,11 @@ func benchmarkStorageAddRows(b *testing.B, f func(b *testing.B, prefillTr TimeRa
 
 func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 	const numRows = 10_000
+	const numSamples = 10
+	gomaxprocs := runtime.GOMAXPROCS(-1)
 
 	genMrs := func(numRows int, ts int64, prefixName string) []MetricRow {
+		b.Helper()
 		mrs := make([]MetricRow, numRows)
 		mn := MetricName{
 			Tags: []Tag{
@@ -174,7 +178,7 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 		for i := range numRows {
 			mr := &mrs[i]
 			mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefixName, i))
-			mr.MetricNameRaw = mn.marshalRaw(mr.MetricNameRaw[:0])
+			mr.MetricNameRaw = mn.marshalRaw(nil)
 			mr.Timestamp = ts
 			mr.Value = float64(i)
 		}
@@ -182,28 +186,25 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 		return mrs
 	}
 
-	prefill := func(b *testing.B, s *Storage, tr TimeRange, prefixName string) {
+	genPrefillMrs := func(numSamples, numRows int, tr TimeRange, prefixName string) [][]MetricRow {
 		b.Helper()
-
-		numSamples := 10
-
+		mrss := make([][]MetricRow, numSamples)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numSamples-1)
-		mrs := genMrs(numRows, tr.MinTimestamp, prefixName)
-
-		for i := range numSamples {
-			for j := range numRows {
-				mr := &mrs[j]
-				mr.Timestamp = tr.MinTimestamp + int64(i)*step
-			}
-			s.AddRows(mrs, defaultPrecisionBits)
+		for i := range mrss {
+			mrss[i] = genMrs(numRows, tr.MinTimestamp+int64(i)*step, prefixName)
 		}
+		return mrss
+	}
 
+	addOp := func(s *Storage, mrs []MetricRow) {
+		s.AddRows(mrs, defaultPrecisionBits)
 	}
 
 	f := func(b *testing.B, prefillTr TimeRange, addTs int64, prefillPrefixName, addPrefixName string) {
 		b.Helper()
 
 		b.StopTimer()
+		prefillMrss := genPrefillMrs(numSamples, numRows, prefillTr, prefillPrefixName)
 		addMrs := genMrs(numRows, addTs, addPrefixName)
 		vmfs.MustRemoveAll(b.Name())
 		b.StartTimer()
@@ -212,7 +213,7 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 			// prepare
 			b.StopTimer()
 			s := MustOpenStorage(b.Name(), OpenOptions{doNotPersistDataOnClose: true})
-			prefill(b, s, prefillTr, prefillPrefixName)
+			testDoConcurrently(s, addOp, gomaxprocs, false, prefillMrss)
 			b.StartTimer()
 
 			// benchmark
