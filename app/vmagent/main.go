@@ -43,7 +43,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/metadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
@@ -83,9 +82,7 @@ var (
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
-	enableMetadataCollection = flag.Bool("enableMetadataCollection", false, "Whether to enable Prometheus metadata collection")
-	metadataFilePath         = flag.String("metadataFilePath", "", "Path to the file for storing Prometheus metadata")
-	metadataFlushInterval    = flag.Duration("metadataFlushInterval", 0, "Interval between flushing Prometheus metadata to the file")
+	emitMetricMetadata    = flag.Bool("promscrape.emitMetricMetadata", false, "Whether to emit metric_metadata time series for scraped Prometheus metrics metadata (HELP/TYPE lines). Default: false.")
 )
 
 var (
@@ -93,7 +90,6 @@ var (
 	graphiteServer     *graphiteserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
-	metadataStorage    *metadata.Storage
 )
 
 var (
@@ -120,13 +116,6 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
-
-	if *enableMetadataCollection {
-		metadataStorage = metadata.NewStorage(*metadataFilePath, *metadataFlushInterval)
-		metadataStorage.Start()
-		promscrape.SetMetadataStorage(metadataStorage)
-		logger.Infof("Prometheus metadata collection enabled: file=%q, flushInterval=%s", *metadataFilePath, (*metadataFlushInterval).String())
-	}
 
 	if promscrape.IsDryRun() {
 		if err := promscrape.CheckConfig(); err != nil {
@@ -196,10 +185,6 @@ func main() {
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
 	promscrape.Stop()
-
-	if *enableMetadataCollection && metadataStorage != nil {
-		metadataStorage.Stop()
-	}
 
 	if len(*influxListenAddr) > 0 {
 		influxServer.MustStop()

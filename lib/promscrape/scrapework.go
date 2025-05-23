@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -27,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -202,6 +204,10 @@ type scrapeWork struct {
 	// ScrapeGroup is name of ScrapeGroup that
 	// scrapeWork belongs to
 	ScrapeGroup string
+
+	// metadata stores the most recently seen metadata for each metric
+	metadata     map[string]MetricMetadata
+	metadataLock sync.RWMutex
 
 	// This flag is set to true if series_limit is exceeded.
 	seriesLimitExceeded atomic.Bool
@@ -517,11 +523,9 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		if metadataStorage != nil {
-			wc.rows.UnmarshalWithMetadata(bodyString, sw.logError, metadataStorage.Callback())
-		} else {
-			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
-		}
+		wc.rows.UnmarshalWithMetadata(bodyString, sw.logError, prometheus.MetadataCallback(func(metadata *prometheus.MetricMetadata) {
+			sw.updateMetadata(metadata.MetricFamilyName, metadata.Type, metadata.Help, metadata.Unit)
+		}))
 	}
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
@@ -1127,4 +1131,45 @@ func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honor
 		dst = append(dst, label)
 	}
 	return dst
+}
+
+// getMetadataWithTimestamp returns a copy of the current metadata map with timestamps
+func (sw *scrapeWork) getMetadataWithTimestamp() []MetricMetadata {
+	sw.metadataLock.RLock()
+	defer sw.metadataLock.RUnlock()
+	
+	result := make([]MetricMetadata, 0, len(sw.metadata))
+	for _, meta := range sw.metadata {
+		result = append(result, meta)
+	}
+	return result
+}
+
+// updateMetadata updates the metadata for a metric with the current timestamp
+func (sw *scrapeWork) updateMetadata(metricName, metricType, help, unit string) {
+	sw.metadataLock.Lock()
+	defer sw.metadataLock.Unlock()
+
+	if sw.metadata == nil {
+		sw.metadata = make(map[string]MetricMetadata)
+	}
+
+	prev := sw.metadata[metricName]
+	if help == "" {
+		help = prev.Help
+	}
+	if unit == "" {
+		unit = prev.Unit
+	}
+	if metricType == "" {
+		metricType = prev.Type
+	}
+
+	sw.metadata[metricName] = MetricMetadata{
+		MetricFamily: metricName,
+		Type:         metricType,
+		Help:         help,
+		Unit:         unit,
+		LastSeen:     int64(fasttime.UnixTimestamp()),
+	}
 }

@@ -38,7 +38,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 var (
@@ -63,26 +62,9 @@ func CheckConfig() error {
 	return err
 }
 
-// Init initializes Prometheus scraper with config from the `-promscrape.config`.
-//
-// Scraped data is passed to pushData.
-func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
-	mustInitClusterMemberID()
-	globalStopChan = make(chan struct{})
-	scraperWG.Add(1)
-	go func() {
-		defer scraperWG.Done()
-		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
-	}()
-}
-
-// Stop stops Prometheus scraper.
-func Stop() {
-	close(globalStopChan)
-	scraperWG.Wait()
-}
-
 var (
+	pushDataGlobal func(at *auth.Token, wr *prompbmarshal.WriteRequest)
+
 	globalStopChan chan struct{}
 	scraperWG      sync.WaitGroup
 
@@ -103,12 +85,21 @@ func WriteConfigData(w io.Writer) {
 	_, _ = w.Write(*p)
 }
 
-// metadataStorage is the global metadata storage instance for Prometheus HELP/TYPE collection.
-var metadataStorage interface{ Callback() parser.MetadataCallback } = nil
+func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
+	pushDataGlobal = pushData
+	mustInitClusterMemberID()
+	globalStopChan = make(chan struct{})
+	scraperWG.Add(1)
+	go func() {
+		defer scraperWG.Done()
+		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
+	}()
+}
 
-// SetMetadataStorage sets the global metadata storage instance for Prometheus HELP/TYPE collection.
-func SetMetadataStorage(s interface{ Callback() parser.MetadataCallback }) {
-	metadataStorage = s
+// Stop stops Prometheus scraper.
+func Stop() {
+	close(globalStopChan)
+	scraperWG.Wait()
 }
 
 func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
@@ -475,4 +466,56 @@ func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *
 	sc.sw.ReadData = c.ReadData
 	sc.sw.PushData = pushData
 	return sc, nil
+}
+
+// MetricMetadata is a struct for deduplicated metadata
+// (copy from target.go or define here as needed)
+type MetricMetadata struct {
+	MetricFamily string
+	Type         string
+	Help         string
+	Unit         string
+	LastSeen     int64 // Unix timestamp of last scrape, for recency
+}
+
+// GetGlobalMetricMetadata returns a deduplicated map of all known metric metadata across all active scrape targets.
+// Deduplicate by metric name, preferring non-empty help, and if both have help, prefer the most recently seen.
+func GetGlobalMetricMetadata() map[string]MetricMetadata {
+	result := make(map[string]MetricMetadata)
+	activeTargets := getAllActiveScrapeWorks() // You may need to implement this helper to return []*scrapeWork
+	for _, sw := range activeTargets {
+		metaList := sw.getMetadataWithTimestamp() // You may need to implement this to return []MetricMetadata with LastSeen
+		for _, meta := range metaList {
+			prev, ok := result[meta.MetricFamily]
+			if !ok || (meta.Help != "" && prev.Help == "") || (meta.Help != "" && prev.Help != "" && meta.LastSeen > prev.LastSeen) {
+				copyMeta := MetricMetadata{
+					MetricFamily: meta.MetricFamily,
+					Type:         meta.Type,
+					Help:         meta.Help,
+					Unit:         meta.Unit,
+					LastSeen:     meta.LastSeen,
+				}
+				result[meta.MetricFamily] = copyMeta
+			}
+		}
+	}
+	return result
+}
+
+// getAllActiveScrapeWorks returns all currently active scrapeWork instances.
+func getAllActiveScrapeWorks() []*scrapeWork {
+	ts := []*scrapeWork{}
+	tsmGlobal.mu.Lock()
+	for sw := range tsmGlobal.m {
+		ts = append(ts, sw)
+	}
+	tsmGlobal.mu.Unlock()
+	return ts
+}
+
+// PushMetadataWriteRequest pushes a WriteRequest for metadata using the global pushData function.
+func PushMetadataWriteRequest(wr *prompbmarshal.WriteRequest) {
+	if pushDataGlobal != nil {
+		pushDataGlobal(nil, wr)
+	}
 }
