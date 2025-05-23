@@ -517,7 +517,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		if metadataStorage != nil {
+			wc.rows.UnmarshalWithMetadata(bodyString, sw.logError, metadataStorage.Callback())
+		} else {
+			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		}
 	}
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))

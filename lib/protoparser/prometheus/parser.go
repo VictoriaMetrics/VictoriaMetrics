@@ -13,6 +13,17 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// MetricMetadata represents metadata for a metric family
+type MetricMetadata struct {
+	MetricFamilyName string `json:"metric_family_name"`
+	Type             string `json:"type"`
+	Help             string `json:"help"`
+	Unit             string `json:"unit"`
+}
+
+// MetadataCallback is a function that receives metadata during parsing
+type MetadataCallback func(metadata *MetricMetadata)
+
 // Rows contains parsed Prometheus rows.
 type Rows struct {
 	Rows []Row
@@ -52,6 +63,16 @@ func stdErrLogger(s string) {
 func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	noEscapes := strings.IndexByte(s, '\\') < 0
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
+}
+
+// UnmarshalWithMetadata unmarshals Prometheus exposition text rows from s and calls
+// metadataCallback for each metadata entry encountered.
+//
+// This allows collecting HELP and TYPE metadata during parsing.
+// s shouldn't be modified while rs is in use.
+func (rs *Rows) UnmarshalWithMetadata(s string, errLogger func(s string), metadataCallback MetadataCallback) {
+	noEscapes := strings.IndexByte(s, '\\') < 0
+	rs.Rows, rs.tagsPool = unmarshalRowsWithMetadata(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger, metadataCallback)
 }
 
 // Row is a single Prometheus row.
@@ -182,15 +203,19 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
+	return unmarshalRowsWithMetadata(dst, s, tagsPool, noEscapes, errLogger, nil)
+}
+
+func unmarshalRowsWithMetadata(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string), metadataCallback MetadataCallback) ([]Row, []Tag) {
 	dstLen := len(dst)
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			dst, tagsPool = unmarshalRow(dst, s, tagsPool, noEscapes, errLogger)
+			dst, tagsPool = unmarshalRowWithMetadata(dst, s, tagsPool, noEscapes, errLogger, metadataCallback)
 			break
 		}
-		dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes, errLogger)
+		dst, tagsPool = unmarshalRowWithMetadata(dst, s[:n], tagsPool, noEscapes, errLogger, metadataCallback)
 		s = s[n+1:]
 	}
 	rowsReadScrape.Add(len(dst) - dstLen)
@@ -198,6 +223,10 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogge
 }
 
 func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
+	return unmarshalRowWithMetadata(dst, s, tagsPool, noEscapes, errLogger, nil)
+}
+
+func unmarshalRowWithMetadata(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string), metadataCallback MetadataCallback) ([]Row, []Tag) {
 	if len(s) > 0 && s[len(s)-1] == '\r' {
 		s = s[:len(s)-1]
 	}
@@ -207,7 +236,10 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 		return dst, tagsPool
 	}
 	if s[0] == '#' {
-		// Skip comment
+		// Parse metadata if callback is provided, otherwise skip comment
+		if metadataCallback != nil {
+			parseMetadata(s, metadataCallback)
+		}
 		return dst, tagsPool
 	}
 	if cap(dst) > len(dst) {
@@ -227,6 +259,74 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 		invalidLines.Inc()
 	}
 	return dst, tagsPool
+}
+
+// parseMetadata parses HELP and TYPE metadata from comment lines
+func parseMetadata(s string, metadataCallback MetadataCallback) {
+	if len(s) < 2 || s[0] != '#' {
+		return
+	}
+	
+	s = s[1:] // Skip the '#' character
+	s = skipLeadingWhitespace(s)
+	
+	if len(s) == 0 {
+		return
+	}
+	
+	// Look for HELP or TYPE keywords
+	if strings.HasPrefix(s, "HELP ") {
+		parseHelpMetadata(s[5:], metadataCallback)
+	} else if strings.HasPrefix(s, "TYPE ") {
+		parseTypeMetadata(s[5:], metadataCallback)
+	}
+}
+
+// parseHelpMetadata parses a HELP line: # HELP metric_name description
+func parseHelpMetadata(s string, metadataCallback MetadataCallback) {
+	s = skipLeadingWhitespace(s)
+	if len(s) == 0 {
+		return
+	}
+	
+	// Find the end of the metric name
+	n := nextWhitespace(s)
+	if n < 0 {
+		return // No help text
+	}
+	
+	metricName := s[:n]
+	helpText := skipLeadingWhitespace(s[n:])
+	
+	metadata := &MetricMetadata{
+		MetricFamilyName: metricName,
+		Help:             helpText,
+	}
+	metadataCallback(metadata)
+}
+
+// parseTypeMetadata parses a TYPE line: # TYPE metric_name type
+func parseTypeMetadata(s string, metadataCallback MetadataCallback) {
+	s = skipLeadingWhitespace(s)
+	if len(s) == 0 {
+		return
+	}
+	
+	// Find the end of the metric name
+	n := nextWhitespace(s)
+	if n < 0 {
+		return // No type
+	}
+	
+	metricName := s[:n]
+	metricType := skipLeadingWhitespace(s[n:])
+	metricType = skipTrailingWhitespace(metricType)
+	
+	metadata := &MetricMetadata{
+		MetricFamilyName: metricName,
+		Type:             metricType,
+	}
+	metadataCallback(metadata)
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)

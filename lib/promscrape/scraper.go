@@ -38,6 +38,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 var (
@@ -100,6 +101,14 @@ func WriteConfigData(w io.Writer) {
 		return
 	}
 	_, _ = w.Write(*p)
+}
+
+// metadataStorage is the global metadata storage instance for Prometheus HELP/TYPE collection.
+var metadataStorage interface{ Callback() parser.MetadataCallback } = nil
+
+// SetMetadataStorage sets the global metadata storage instance for Prometheus HELP/TYPE collection.
+func SetMetadataStorage(s interface{ Callback() parser.MetadataCallback }) {
+	metadataStorage = s
 }
 
 func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
