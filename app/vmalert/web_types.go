@@ -11,15 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 )
 
-const (
-	// ParamGroupID is group id key in url parameter
-	paramGroupID = "group_id"
-	// ParamAlertID is alert id key in url parameter
-	paramAlertID = "alert_id"
-	// ParamRuleID is rule id key in url parameter
-	paramRuleID = "rule_id"
-)
-
 // apiAlert represents a notifier.AlertingRule state
 // for WEB view
 // https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
@@ -35,33 +26,14 @@ type apiAlert struct {
 
 	// ID is an unique Alert's ID within a group
 	ID string `json:"id"`
-	// RuleID is an unique Rule's ID within a group
-	RuleID string `json:"rule_id"`
-	// GroupID is an unique Group's ID
-	GroupID string `json:"group_id"`
-	// Expression contains the PromQL/MetricsQL expression
-	// for Rule's evaluation
-	Expression string `json:"expression"`
 	// SourceLink contains a link to a system which should show
 	// why Alert was generated
-	SourceLink string `json:"source"`
+	SourceLink string `json:"sourceLink"`
 	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
 	// Stabilizing shows when firing state is kept because of
-	// `keep_firing_for` instead of real alert
+	// `keepFiringFor` instead of real alert
 	Stabilizing bool `json:"stabilizing"`
-}
-
-// WebLink returns a link to the alert which can be used in UI.
-func (aa *apiAlert) WebLink() string {
-	return fmt.Sprintf("alert?%s=%s&%s=%s",
-		paramGroupID, aa.GroupID, paramAlertID, aa.ID)
-}
-
-// APILink returns a link to the alert's JSON representation.
-func (aa *apiAlert) APILink() string {
-	return fmt.Sprintf("api/v1/alert?%s=%s&%s=%s",
-		paramGroupID, aa.GroupID, paramAlertID, aa.ID)
 }
 
 // apiGroup represents Group for web view
@@ -69,6 +41,8 @@ func (aa *apiAlert) APILink() string {
 type apiGroup struct {
 	// Name is the group name as present in the config
 	Name string `json:"name"`
+	// File contains a path to the file with Group's config
+	File string `json:"file"`
 	// Rules contains both recording and alerting rules
 	Rules []apiRule `json:"rules"`
 	// Interval is the Group's evaluation interval in float seconds as present in the file.
@@ -82,8 +56,6 @@ type apiGroup struct {
 	Type string `json:"type"`
 	// ID is a unique Group ID
 	ID string `json:"id"`
-	// File contains a path to the file with Group's config
-	File string `json:"file"`
 	// Concurrency shows how many rules may be evaluated simultaneously
 	Concurrency int `json:"concurrency"`
 	// Params contains HTTP URL parameters added to each Rule's request
@@ -91,25 +63,13 @@ type apiGroup struct {
 	// Headers contains HTTP headers added to each Rule's request
 	Headers []string `json:"headers,omitempty"`
 	// NotifierHeaders contains HTTP headers added to each alert request which will send to notifier
-	NotifierHeaders []string `json:"notifier_headers,omitempty"`
+	NotifierHeaders []string `json:"notifierHeaders,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
 	// EvalOffset Group will be evaluated at the exact time offset on the range of [0...evaluationInterval]
-	EvalOffset float64 `json:"eval_offset,omitempty"`
+	EvalOffset float64 `json:"evalOffset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
-	EvalDelay float64 `json:"eval_delay,omitempty"`
-	// Unhealthy unhealthy rules count
-	Unhealthy int
-	// Healthy passing rules count
-	Healthy int
-	// NoMatch not matching rules count
-	NoMatch int
-}
-
-// groupAlerts represents a group of alerts for WEB view
-type groupAlerts struct {
-	Group  apiGroup
-	Alerts []*apiAlert
+	EvalDelay float64 `json:"evalDelay,omitempty"`
 }
 
 // apiRule represents a Rule for web view
@@ -126,7 +86,7 @@ type apiRule struct {
 	// Duration represents Rule's `for` field
 	Duration float64 `json:"duration"`
 	// Alert will continue firing for this long even when the alerting expression no longer has results.
-	KeepFiringFor float64           `json:"keep_firing_for"`
+	KeepFiringFor float64           `json:"keepFiringFor"`
 	Labels        map[string]string `json:"labels,omitempty"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
 	// LastError contains the error faced while executing the rule.
@@ -155,38 +115,20 @@ type apiRule struct {
 
 	// ID is a unique Alert's ID within a group
 	ID string `json:"id"`
-	// GroupID is an unique Group's ID
-	GroupID string `json:"group_id"`
-	// GroupName is Group name rule belong to
-	GroupName string `json:"group_name"`
-	// File is file name where rule is defined
-	File string `json:"file"`
 	// Debug shows whether debug mode is enabled
 	Debug bool `json:"debug"`
-
-	// MaxUpdates is the max number of recorded ruleStateEntry objects
-	MaxUpdates int `json:"max_updates_entries"`
-	// Updates contains the ordered list of recorded ruleStateEntry objects
-	Updates []rule.StateEntry `json:"-"`
 }
 
-// apiRuleWithUpdates represents apiRule but with extra fields for marshalling
-type apiRuleWithUpdates struct {
-	apiRule
-	// Updates contains the ordered list of recorded ruleStateEntry objects
-	StateUpdates []rule.StateEntry `json:"updates,omitempty"`
+type apiNotifier struct {
+	Kind    string       `json:"kind"`
+	Targets []*apiTarget `json:"targets"`
 }
 
-// APILink returns a link to the rule's JSON representation.
-func (ar apiRule) APILink() string {
-	return fmt.Sprintf("api/v1/rule?%s=%s&%s=%s",
-		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
-}
-
-// WebLink returns a link to the alert which can be used in UI.
-func (ar apiRule) WebLink() string {
-	return fmt.Sprintf("rule?%s=%s&%s=%s",
-		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
+type apiTarget struct {
+	Address string            `json:"address"`
+	Labels  map[string]string `json:"labels"`
+	// LastError contains the error faced while executing the rule.
+	LastError string `json:"lastError"`
 }
 
 func ruleToAPI(r any) apiRule {
@@ -217,14 +159,9 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 		Health:            "ok",
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
-		MaxUpdates:        rule.GetRuleStateSize(rr),
-		Updates:           rule.GetAllRuleState(rr),
 
 		// encode as strings to avoid rounding
-		ID:        fmt.Sprintf("%d", rr.ID()),
-		GroupID:   fmt.Sprintf("%d", rr.GroupID),
-		GroupName: rr.GroupName,
-		File:      rr.File,
+		ID: fmt.Sprintf("%d", rr.ID()),
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -252,15 +189,10 @@ func alertingToAPI(ar *rule.AlertingRule) apiRule {
 		Alerts:            ruleToAPIAlert(ar),
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
-		MaxUpdates:        rule.GetRuleStateSize(ar),
-		Updates:           rule.GetAllRuleState(ar),
 		Debug:             ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
-		ID:        fmt.Sprintf("%d", ar.ID()),
-		GroupID:   fmt.Sprintf("%d", ar.GroupID),
-		GroupName: ar.GroupName,
-		File:      ar.File,
+		ID: fmt.Sprintf("%d", ar.ID()),
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
@@ -287,30 +219,18 @@ func ruleToAPIAlert(ar *rule.AlertingRule) []*apiAlert {
 		if a.State == notifier.StateInactive {
 			continue
 		}
-		alerts = append(alerts, newAlertAPI(ar, a))
+		alerts = append(alerts, newAlertAPI(a))
 	}
 	return alerts
 }
 
-// alertToAPI generates apiAlert object from alert by its id(hash)
-func alertToAPI(ar *rule.AlertingRule, id uint64) *apiAlert {
-	a := ar.GetAlert(id)
-	if a == nil {
-		return nil
-	}
-	return newAlertAPI(ar, a)
-}
-
 // NewAlertAPI creates apiAlert for notifier.Alert
-func newAlertAPI(ar *rule.AlertingRule, a *notifier.Alert) *apiAlert {
+func newAlertAPI(a *notifier.Alert) *apiAlert {
 	aa := &apiAlert{
 		// encode as strings to avoid rounding
-		ID:      fmt.Sprintf("%d", a.ID),
-		GroupID: fmt.Sprintf("%d", a.GroupID),
-		RuleID:  fmt.Sprintf("%d", ar.RuleID),
+		ID: fmt.Sprintf("%d", a.ID),
 
 		Name:        a.Name,
-		Expression:  ar.Expr,
 		Labels:      a.Labels,
 		Annotations: a.Annotations,
 		State:       a.State.String(),
@@ -327,7 +247,7 @@ func newAlertAPI(ar *rule.AlertingRule, a *notifier.Alert) *apiAlert {
 	return aa
 }
 
-func groupToAPI(g *rule.Group) apiGroup {
+func groupToAPI(g *rule.Group) *apiGroup {
 	g = g.DeepCopy()
 	ag := apiGroup{
 		// encode as string to avoid rounding
@@ -353,7 +273,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, ruleToAPI(r))
 	}
-	return ag
+	return &ag
 }
 
 func urlValuesToStrings(values url.Values) []string {

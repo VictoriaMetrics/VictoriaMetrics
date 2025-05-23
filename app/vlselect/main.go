@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	nethttputil "net/http/httputil"
+	"net/url"
 	"strings"
 	"time"
 
@@ -25,6 +27,7 @@ var (
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the search request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg")
+	vmalertProxyURL  = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -44,6 +47,7 @@ func getDefaultMaxConcurrentRequests() int {
 // Init initializes vlselect
 func Init() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	initVMAlertProxy()
 }
 
 // Stop stops vlselect
@@ -77,6 +81,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// Skip requests, which do not start with /select/, since these aren't our requests.
 		return false
 	}
+
 	path = strings.ReplaceAll(path, "//", "/")
 
 	if path == "/select/vmui" {
@@ -254,6 +259,36 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		logsql.ProcessStreamsRequest(ctx, w, r)
 		logsqlStreamsDuration.UpdateDuration(startTime)
 		return true
+	case "/select/api/v1/notifiers":
+		notifiersRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			r.URL.Path = path[len("/select"):]
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
+		return true
+	case "/select/api/v1/alerts":
+		alertsRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			r.URL.Path = path[len("/select"):]
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
+		return true
+	case "/select/api/v1/rules":
+		rulesRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			r.URL.Path = path[len("/select"):]
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"rules":[]}}`)
+		return true
 	default:
 		return false
 	}
@@ -271,6 +306,39 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 	}
 	return d
 }
+
+func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := recover()
+		if err == nil || err == http.ErrAbortHandler {
+			// Suppress http.ErrAbortHandler panic.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1353
+			return
+		}
+		// Forward other panics to the caller.
+		panic(err)
+	}()
+	r.Host = vmalertProxyHost
+	vmalertProxy.ServeHTTP(w, r)
+}
+
+// initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
+func initVMAlertProxy() {
+	if len(*vmalertProxyURL) == 0 {
+		return
+	}
+	proxyURL, err := url.Parse(*vmalertProxyURL)
+	if err != nil {
+		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
+	}
+	vmalertProxyHost = proxyURL.Host
+	vmalertProxy = nethttputil.NewSingleHostReverseProxy(proxyURL)
+}
+
+var (
+	vmalertProxyHost string
+	vmalertProxy     *nethttputil.ReverseProxy
+)
 
 var (
 	logsqlFacetsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/facets"}`)
@@ -308,4 +376,7 @@ var (
 
 	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
+	rulesRequests      = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/rules"}`)
+	alertsRequests     = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/alerts"}`)
+	notifiersRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/notifiers"}`)
 )

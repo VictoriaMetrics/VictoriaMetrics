@@ -14,7 +14,6 @@ import useBoolean from "../../../hooks/useBoolean";
 import Modal from "../../../components/Main/Modal/Modal";
 import { marked } from "marked";
 import Button from "../../../components/Main/Button/Button";
-import get from "lodash.get";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -36,7 +35,7 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
       ]))
     ].map(key => ({
       column: key.split(".").pop(),
-      values: dataWithStats.map(data => get(data, key, "-"))
+      values: dataWithStats.map(data => data?.[key] || "-")
     })).filter(({ values }) => values.length && values.every(v => v !== "-"));
   }, [dataWithStats]);
 

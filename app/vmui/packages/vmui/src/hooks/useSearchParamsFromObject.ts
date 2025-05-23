@@ -7,11 +7,18 @@ const useSearchParamsFromObject = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const setSearchParamsFromKeys = useCallback((objectParams: Record<string, string | number>) => {
-    const hasSearchParams = !!Array.from(searchParams.values()).length;
+    const hasSearchParams = !!searchParams.size;
     let hasChanged = false;
 
+    searchParams.keys().forEach(key => {
+      if (key in objectParams === false) {
+        searchParams.delete(key);
+        hasChanged = true;
+      }
+    });
+
     Object.entries(objectParams).forEach(([key, value]) => {
-      if (searchParams.get(key) !== `${value}`) {
+      if (!searchParams.get(key) !== `${value}`) {
         searchParams.set(key, `${value}`);
         hasChanged = true;
       }
