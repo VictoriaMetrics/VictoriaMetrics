@@ -194,8 +194,8 @@ func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
 			for j := range numRows {
 				mr := &mrs[j]
 				mr.Timestamp = tr.MinTimestamp + int64(i)*step
-				s.AddRows(mrs[j:j+1], defaultPrecisionBits)
 			}
+			s.AddRows(mrs, defaultPrecisionBits)
 		}
 
 	}
