@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -237,11 +238,15 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 	var at *auth.Token
+	etfs := ec.EnforcedTagFilterss
+
 	if !ec.IsMultiTenant {
 		at = ec.AuthTokens[0]
+	} else {
+		etfs = getFiltersWithTenants(ec)
 	}
 
-	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
+	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, etfs)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		qt.Printf("nothing found")
@@ -263,7 +268,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, etfs)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -369,11 +374,14 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
+	etfs := ec.EnforcedTagFilterss
 	var at *auth.Token
 	if !ec.IsMultiTenant {
 		at = ec.AuthTokens[0]
+	} else {
+		etfs = getFiltersWithTenants(ec)
 	}
-	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
+	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], at, expr, window, ec.Step, etfs)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf.B) > 0 {
@@ -407,6 +415,26 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	mi.AddKey(key, timestamps[0], timestamps[len(timestamps)-1])
 	metainfoBuf.B = mi.Marshal(metainfoBuf.B[:0])
 	rrc.c.Set(metainfoKey.B, metainfoBuf.B)
+}
+
+func getFiltersWithTenants(ec *EvalConfig) [][]storage.TagFilter {
+	etfs := ec.EnforcedTagFilterss
+	var f []storage.TagFilter
+	for _, ts := range ec.AuthTokens {
+		f = f[:0]
+		f = append(f,
+			storage.TagFilter{
+				Key:   []byte("vm_account_id"),
+				Value: strconv.AppendUint(nil, uint64(ts.AccountID), 10),
+			},
+			storage.TagFilter{
+				Key:   []byte("vm_project_id"),
+				Value: strconv.AppendUint(nil, uint64(ts.ProjectID), 10),
+			},
+		)
+		etfs = append(etfs, append([]storage.TagFilter(nil), f...))
+	}
+	return etfs
 }
 
 var (
