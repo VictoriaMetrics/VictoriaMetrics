@@ -1,0 +1,169 @@
+{% import (
+	"sort"
+) %}
+
+{% stripspace %}
+
+{% func GetServicesResponse(serviceList []string) %}
+{
+	{% code
+	    sort.Slice(serviceList, func(i, j int) bool { return serviceList[i] < serviceList[j] })
+	%}
+	"data":[
+        {% if len(serviceList) > 0 %}
+            {%q= serviceList[0] %}
+            {% for _, service := range serviceList[1:] %}
+                ,{%q= service %}
+            {% endfor %}
+        {% endif %}
+	],
+	"errors": null,
+	"limit": 0,
+	"offset": 0,
+	"total": {%d= len(serviceList) %}
+}
+{% endfunc %}
+
+{% func GetOperationsResponse(operationList []string) %}
+{
+	{% code
+	    sort.Slice(operationList, func(i, j int) bool { return operationList[i] < operationList[j] })
+	%}
+	"data":[
+        {% if len(operationList) > 0 %}
+            {%q= operationList[0] %}
+            {% for _, operation := range operationList[1:] %}
+                ,{%q= operation %}
+            {% endfor %}
+        {% endif %}
+	],
+	"errors": null,
+	"limit": 0,
+	"offset": 0,
+	"total": {%d= len(operationList) %}
+}
+{% endfunc %}
+
+{% func GetTracesResponse(Traces []*Trace) %}
+{
+	"data":[
+        {% if len(Traces) > 0 && len(Traces[0].Spans) > 0 %}
+            {%= traceJson(Traces[0]) %}
+            {% for _, trace := range Traces[1:] %}
+                {% if len(trace.Spans) > 0 %}
+                    ,{%= traceJson(trace) %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+	],
+	"errors": null,
+	"limit": 0,
+	"offset": 0,
+	"total": {%d= len(Traces) %}
+}
+{% endfunc %}
+
+{% func traceJson(trace *Trace) %}
+{
+    "processes": {
+        {% if len(trace.ProcessMap) > 0 %}
+            {%q= trace.ProcessMap[0].ProcessID %}:{%= processJson(trace.ProcessMap[0].Process) %}
+            {% for _, v := range trace.ProcessMap[1:] %}
+                ,{%q= v.ProcessID %}:{%= processJson(v.Process) %}
+            {% endfor %}
+        {% endif %}
+    },
+    "spans": [
+         {% if len(trace.Spans) > 0 %}
+            {%= spanJson(trace.Spans[0]) %}
+            {% for _, v := range trace.Spans[1:] %}
+                ,{%= spanJson(v) %}
+            {% endfor %}
+        {% endif %}
+    ],
+    "traceID": {%q= trace.Spans[0].TraceID %},
+    "warnings": null
+}
+{% endfunc %}
+
+{% func processJson(process Process) %}
+{
+    "serviceName": {%q= process.ServiceName %},
+    "tags": [
+        {% if len(process.Tags) > 0 %}
+            {%= tagJson(process.Tags[0]) %}
+            {% for _, v := range process.Tags[1:] %}
+                ,{%= tagJson(v) %}
+            {% endfor %}
+        {% endif %}
+    ]
+}
+{% endfunc %}
+
+{% func spanJson(span *Span) %}
+{
+	"duration":{%dl= span.Duration %},
+	"logs":[
+        {% if len(span.Logs) > 0 %}
+            {%= logJson(span.Logs[0]) %}
+            {% for _, v := range span.Logs[1:] %}
+                ,{%= logJson(v) %}
+            {% endfor %}
+        {% endif %}
+	],
+	"operationName":{%q= span.OperationName %},
+	"processID":{%q= span.ProcessID %},
+	"references": [
+        {% if len(span.References) > 0 %}
+            {%= spanRefJson(span.References[0]) %}
+            {% for _, v := range span.References[1:] %}
+                ,{%= spanRefJson(v) %}
+            {% endfor %}
+        {% endif %}
+	],
+	"spanID":{%q= span.SpanID %},
+	"startTime":{%dl= span.StartTime %},
+	"tags": [
+	    {% if len(span.Tags) > 0 %}
+            {%= tagJson(span.Tags[0]) %}
+            {% for _, v := range span.Tags[1:] %}
+                ,{%= tagJson(v) %}
+            {% endfor %}
+        {% endif %}
+	],
+	"traceID":{%q= span.TraceID %},
+	"warnings":null
+}
+{% endfunc %}
+
+{% func tagJson(tag KeyValue) %}
+{
+	"key":{%q= tag.Key %},
+	"type":"string",
+	"value":{%q= tag.VStr %}
+}
+{% endfunc %}
+
+{% func logJson(log Log) %}
+{
+	"timestamp":{%dl= log.Timestamp %},
+	"fields":[
+	    {% if len(log.Fields) > 0 %}
+            {%= tagJson(log.Fields[0]) %}
+            {% for _, v := range log.Fields[1:] %}
+                ,{%= tagJson(v) %}
+            {% endfor %}
+        {% endif %}
+	]
+}
+{% endfunc %}
+
+{% func spanRefJson(ref SpanRef) %}
+{
+	"refType":{%q= ref.RefType %},
+	"spanID":{%q= ref.SpanID %},
+	"traceID":{%q= ref.TraceID %}
+}
+{% endfunc %}
+
+{% endstripspace %}

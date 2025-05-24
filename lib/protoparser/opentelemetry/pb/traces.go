@@ -461,6 +461,12 @@ type Span_Event struct {
 }
 
 func (se *Span_Event) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	//message Event {
+	//	fixed64 time_unix_nano = 1;
+	//	string name = 2;
+	//	repeated opentelemetry.proto.common.v1.KeyValue attributes = 3;
+	//	uint32 dropped_attributes_count = 4;
+	//}
 	mm.AppendFixed64(1, se.TimeUnixNano)
 	mm.AppendString(2, se.Name)
 	for _, a := range se.Attributes {
@@ -620,8 +626,13 @@ type Status struct {
 }
 
 func (s *Status) marshalProtobuf(mm *easyproto.MessageMarshaler) {
-	mm.AppendString(1, s.Message)
-	mm.AppendInt32(2, int32(s.Code))
+	//message Status {
+	//	reserved 1;
+	//	string message = 2;
+	//	StatusCode code = 3;
+	//}
+	mm.AppendString(2, s.Message)
+	mm.AppendInt32(3, int32(s.Code))
 }
 
 func (s *Status) unmarshalProtobuf(src []byte) (err error) {
@@ -632,13 +643,13 @@ func (s *Status) unmarshalProtobuf(src []byte) (err error) {
 			return fmt.Errorf("cannot read next field in Status: %w", err)
 		}
 		switch fc.FieldNum {
-		case 1:
+		case 2:
 			message, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read status message")
 			}
 			s.Message = strings.Clone(message)
-		case 2:
+		case 3:
 			code, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read status code")

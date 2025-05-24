@@ -1,10 +1,11 @@
 package opentelemetry
 
 import (
+	"net/http"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/opentelemetry/logs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/opentelemetry/traces"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"net/http"
 )
 
 // RequestHandler processes Opentelemetry insert requests

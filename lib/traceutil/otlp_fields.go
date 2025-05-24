@@ -1,15 +1,16 @@
-package traces
+package traceutil
 
 // Resource
 const (
-	ResourceAttrPrefix = "resource_attr:"
+	ResourceAttrPrefix      = "resource_attr:"
+	ResourceAttrServiceName = "resource_attr:service.name" // ResourceAttrServiceName service name is a special resource attribute
 )
 
 // ScopeSpans - InstrumentationScope
 const (
-	InstrumentationScopeName       = ""
-	InstrumentationScopeVersion    = ""
-	instrumentationScopeAttrPrefix = "scope_attr:"
+	InstrumentationScopeName       = "scope_name"
+	InstrumentationScopeVersion    = "scope_version"
+	InstrumentationScopeAttrPrefix = "scope_attr:"
 )
 
 // Span
@@ -25,15 +26,21 @@ const (
 	EndTimeUnixNano        = "end_time_unix_nano"
 	SpanAttrPrefix         = "span_attr:"
 	DroppedAttributesCount = "dropped_attributes_count"
-	// Event Here
+	// Span_Event Here
 	DroppedEventsCount = "dropped_events_count"
-	// Links Here
+	// Span_Link Here
 	DroppedLinksCount = "dropped_links_count"
 	// Status Here
+
+	// Duration field is calculated by end-start to allow duration filter on span.
+	// It's not part of OTLP.
+	Duration = "duration"
 )
 
 // Span_Event
 const (
+	EventPrefix = "event:"
+
 	EventTimeUnixNano           = "event_time_unix_nano"
 	EventName                   = "event_name"
 	EventAttrPrefix             = "event_attr:"
@@ -42,6 +49,8 @@ const (
 
 // Span_Link
 const (
+	LinkPrefix = "link:"
+
 	LinkTraceId                = "link_trace_id"
 	LinkSpanId                 = "link_span_id"
 	LinkTraceState             = "link_trace_state"
