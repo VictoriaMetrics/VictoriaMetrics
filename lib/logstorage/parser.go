@@ -1597,7 +1597,7 @@ func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	lex.nextToken()
 	suffix := ""
 	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
-		s += lex.token
+		suffix += lex.rawToken
 		lex.nextToken()
 	}
 	if suffix == "" {
