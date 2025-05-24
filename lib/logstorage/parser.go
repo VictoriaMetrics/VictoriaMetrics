@@ -1549,7 +1549,7 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
 		s += lex.rawToken
 		lex.nextToken()
 	}
@@ -1596,7 +1596,7 @@ func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	rawS := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
 		suffix += lex.rawToken
 		lex.nextToken()
 	}
@@ -1614,7 +1614,7 @@ func getCompoundFuncArg(lex *lexer) string {
 	rawArg := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") {
+	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") && !lex.isEnd() {
 		suffix += lex.rawToken
 		lex.nextToken()
 	}
