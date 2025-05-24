@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -74,6 +75,8 @@ var (
 
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
+
+var searchMetricNamesFn = netstorage.SearchMetricNames
 
 // ExpandWithExprs handles the request to /expand-with-exprs
 func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
@@ -1304,4 +1307,103 @@ func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMem
 // GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
 func GetMaxUniqueTimeSeries() int {
 	return maxUniqueTimeseriesValue
+}
+
+// MetadataHandler implements the /api/v1/metadata endpoint for Prometheus-compatible metric metadata discovery.
+// It uses the series API logic to find all metric_metadata series and returns metadata in the Prometheus API format.
+func MetadataHandler(w http.ResponseWriter, r *http.Request) {
+	tracerEnabled := httputil.GetBool(r, "trace")
+	qt := querytracer.New(tracerEnabled, "%s", r.URL.Path)
+	startTime := time.Now()
+
+	// Build a fake request with match[]=metric_metadata and optional metric label
+	req := r.Clone(r.Context())
+	q := req.URL.Query()
+	metricFilter := r.FormValue("metric")
+	if metricFilter != "" {
+		q.Set("match[]", fmt.Sprintf(`metric_metadata{metric=\"%s\"}`, metricFilter))
+	} else {
+		q.Set("match[]", "metric_metadata")
+	}
+	req.URL.RawQuery = q.Encode()
+	req.Form = q
+
+	cp, err := getCommonParamsForLabelsAPI(req, startTime, true)
+	if err != nil {
+		writeMetadataError(w, err)
+		return
+	}
+
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
+	metricNames, err := searchMetricNamesFn(qt, sq, cp.deadline)
+	if err != nil {
+		writeMetadataError(w, err)
+		return
+	}
+
+	// Parse limit and limit_per_metric params
+	limit := 0
+	limitPerMetric := 0
+	if s := r.FormValue("limit"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if s := r.FormValue("limit_per_metric"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			limitPerMetric = n
+		}
+	}
+
+	result := make(map[string][]map[string]string)
+	count := 0
+	for _, metricNameStr := range metricNames {
+		var mn storage.MetricName
+		if err := mn.UnmarshalString(metricNameStr); err != nil {
+			continue // skip malformed
+		}
+		labels := make(map[string]string)
+		for _, tag := range mn.Tags {
+			labels[string(tag.Key)] = string(tag.Value)
+		}
+		metric := labels["metric"]
+		typ := labels["type"]
+		help := labels["help"]
+		unit := labels["unit"]
+		if metric == "" {
+			continue // skip malformed
+		}
+		if limit > 0 && count >= limit {
+			break
+		}
+		if _, ok := result[metric]; !ok {
+			result[metric] = []map[string]string{}
+			count++
+		}
+		if limitPerMetric > 0 && len(result[metric]) >= limitPerMetric {
+			continue
+		}
+		// Only add if not already present (deduplication)
+		if len(result[metric]) == 0 {
+			result[metric] = append(result[metric], map[string]string{
+				"type": typ,
+				"help": help,
+				"unit": unit,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	resp := map[string]interface{}{
+		"status": "success",
+		"data":   result,
+	}
+	enc := json.NewEncoder(w)
+	enc.Encode(resp)
+}
+
+func writeMetadataError(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	fmt.Fprintf(w, `{"status":"error","errorType":"internal","error":"%s"}`, err.Error())
 }

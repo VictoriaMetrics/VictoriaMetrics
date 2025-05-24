@@ -41,6 +41,7 @@ import (
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -83,6 +84,8 @@ var (
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
 	emitMetricMetadata    = flag.Bool("promscrape.emitMetricMetadata", false, "Whether to emit metric_metadata time series for scraped Prometheus metrics metadata (HELP/TYPE lines). Default: false.")
+	debugMetricMetadataEmission = flag.Bool("promscrape.debugMetricMetadataEmission", false, "Enable debug logging for metric_metadata emission. Default: false.")
+	metricMetadataInterval = flag.Duration("promscrape.metricMetadataInterval", 30*time.Second, "Interval for emitting metric_metadata time series. Default: 30s.")
 )
 
 var (
@@ -165,6 +168,16 @@ func main() {
 	}
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
+
+	// Add debug logging for metric_metadata emission
+	if *emitMetricMetadata {
+		go func() {
+			for {
+				time.Sleep(*metricMetadataInterval)
+				emitMetricMetadataOnce()
+			}
+		}()
+	}
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -758,4 +771,46 @@ vmagent collects metrics data via popular data ingestion protocols and routes it
 See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
 `
 	flagutil.Usage(s)
+}
+
+// Extracted emission logic for testability
+func emitMetricMetadataOnce() {
+	meta := promscrape.GetGlobalMetricMetadata()
+	if *debugMetricMetadataEmission {
+		logger.Infof("[metric_metadata] Emission tick: found %d metadata entries", len(meta))
+		var n int
+		for k, v := range meta {
+			if n < 5 {
+				logger.Infof("[metric_metadata] Example: metric=%q type=%q help=%q unit=%q", k, v.Type, v.Help, v.Unit)
+			}
+			n++
+		}
+	}
+	// The actual emission logic for metric_metadata
+	var tss []prompbmarshal.TimeSeries
+	timestamp := time.Now().Unix() * 1000
+	for metric, meta := range meta {
+		labels := []prompbmarshal.Label{
+			{Name: "__name__", Value: "metric_metadata"},
+			{Name: "metric", Value: metric},
+			{Name: "type", Value: meta.Type},
+			{Name: "help", Value: meta.Help},
+			{Name: "unit", Value: meta.Unit},
+		}
+		tss = append(tss, prompbmarshal.TimeSeries{
+			Labels:  labels,
+			Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: timestamp}},
+		})
+	}
+	if *debugMetricMetadataEmission {
+		logger.Infof("[metric_metadata] Emitting %d metric_metadata time series", len(tss))
+		for i := 0; i < len(tss) && i < 5; i++ {
+			logger.Infof("[metric_metadata] Emitted labels: %+v", tss[i].Labels)
+		}
+	}
+	wr := &prompbmarshal.WriteRequest{Timeseries: tss}
+	promscrape.PushMetadataWriteRequest(wr)
+	if *debugMetricMetadataEmission {
+		logger.Infof("[metric_metadata] PushMetadataWriteRequest called with %d time series", len(tss))
+	}
 }

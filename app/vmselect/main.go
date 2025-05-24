@@ -43,6 +43,7 @@ var (
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
+	enableMetadataAPI = flag.Bool("prometheus.enableMetadataAPI", false, "Enable the /api/v1/metadata endpoint for Prometheus metric metadata discovery.")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -423,6 +424,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "/api/v1/metadata":
+		metadataRequests.Inc()
+		if !*enableMetadataAPI {
+			// Dummy response as in the original implementation
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"status":"success","data":{}}`)
+			return true
+		}
+		prometheus.MetadataHandler(w, r)
+		return true
 	default:
 		return false
 	}
@@ -561,12 +572,6 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
-		return true
-	case "/api/v1/metadata":
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
-		metadataRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
 	case "/api/v1/status/buildinfo":
 		buildInfoRequests.Inc()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -78,4 +79,50 @@ scrape_configs:
   static_configs:
     - targets:
         - localhost:8429`, true)
+}
+
+func TestGetGlobalMetricMetadata_DeduplicationAndRecency(t *testing.T) {
+	// Save and restore tsmGlobal.m
+	tsmGlobal.mu.Lock()
+	orig := make(map[*scrapeWork]*targetStatus)
+	for k, v := range tsmGlobal.m {
+		orig[k] = v
+	}
+	tsmGlobal.m = make(map[*scrapeWork]*targetStatus)
+	tsmGlobal.mu.Unlock()
+	defer func() {
+		tsmGlobal.mu.Lock()
+		tsmGlobal.m = orig
+		tsmGlobal.mu.Unlock()
+	}()
+
+	now := time.Now().Unix()
+	// Create two scrapeWorks with overlapping metric families
+	sw1 := &scrapeWork{
+		metadata: map[string]MetricMetadata{
+			"foo": {MetricFamily: "foo", Type: "gauge", Help: "help1", Unit: "s", LastSeen: now - 10},
+			"bar": {MetricFamily: "bar", Type: "counter", Help: "", Unit: "", LastSeen: now - 5},
+		},
+	}
+	sw2 := &scrapeWork{
+		metadata: map[string]MetricMetadata{
+			"foo": {MetricFamily: "foo", Type: "gauge", Help: "help2", Unit: "s", LastSeen: now - 5}, // newer help
+			"bar": {MetricFamily: "bar", Type: "counter", Help: "bar help", Unit: "", LastSeen: now - 20}, // older but with help
+		},
+	}
+	tsmGlobal.mu.Lock()
+	tsmGlobal.m[sw1] = &targetStatus{}
+	tsmGlobal.m[sw2] = &targetStatus{}
+	tsmGlobal.mu.Unlock()
+
+	meta := GetGlobalMetricMetadata()
+	if len(meta) != 2 {
+		t.Fatalf("expected 2 metrics, got %d", len(meta))
+	}
+	if meta["foo"].Help != "help2" {
+		t.Errorf("expected foo help2, got %q", meta["foo"].Help)
+	}
+	if meta["bar"].Help != "bar help" {
+		t.Errorf("expected bar help 'bar help', got %q", meta["bar"].Help)
+	}
 }

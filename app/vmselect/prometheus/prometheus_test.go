@@ -7,7 +7,14 @@ import (
 	"runtime"
 	"testing"
 
+	"encoding/json"
+	"io/ioutil"
+	"net/http/httptest"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
@@ -255,4 +262,97 @@ func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f(0, int(math.Round(4*1024*1024*1024*0.4)), 2e9)
 	f(4, 0, 0)
 
+}
+
+func TestMetadataHandler_Limits(t *testing.T) {
+	// Save and restore the original searchMetricNamesFn
+	origSearchMetricNamesFn := searchMetricNamesFn
+	defer func() { searchMetricNamesFn = origSearchMetricNamesFn }()
+
+	// Mock metric metadata series
+	mockSeries := []string{
+		"metric_metadata\x01help\x01foo help\x01metric\x01foo\x01type\x01gauge\x01unit\x01seconds\x01",
+		"metric_metadata\x01help\x01bar help\x01metric\x01bar\x01type\x01counter\x01unit\x01bytes\x01",
+		"metric_metadata\x01help\x01baz help\x01metric\x01baz\x01type\x01gauge\x01unit\x01count\x01",
+	}
+
+	searchMetricNamesFn = func(_ *querytracer.Tracer, _ *storage.SearchQuery, _ searchutil.Deadline) ([]string, error) {
+		return mockSeries, nil
+	}
+
+	testCases := []struct {
+		name   string
+		query  string
+		expect map[string][]map[string]string
+	}{
+		{
+			name:  "no limits",
+			query: "",
+			expect: map[string][]map[string]string{
+				"foo": {{"type": "gauge", "help": "foo help", "unit": "seconds"}},
+				"bar": {{"type": "counter", "help": "bar help", "unit": "bytes"}},
+				"baz": {{"type": "gauge", "help": "baz help", "unit": "count"}},
+			},
+		},
+		{
+			name:  "limit=2",
+			query: "limit=2",
+			expect: map[string][]map[string]string{
+				"foo": {{"type": "gauge", "help": "foo help", "unit": "seconds"}},
+				"bar": {{"type": "counter", "help": "bar help", "unit": "bytes"}},
+			},
+		},
+		{
+			name:  "limit_per_metric=0 (no effect)",
+			query: "limit_per_metric=0",
+			expect: map[string][]map[string]string{
+				"foo": {{"type": "gauge", "help": "foo help", "unit": "seconds"}},
+				"bar": {{"type": "counter", "help": "bar help", "unit": "bytes"}},
+				"baz": {{"type": "gauge", "help": "baz help", "unit": "count"}},
+			},
+		},
+		{
+			name:  "limit=1",
+			query: "limit=1",
+			expect: map[string][]map[string]string{
+				"foo": {{"type": "gauge", "help": "foo help", "unit": "seconds"}},
+			},
+		},
+		{
+			name:  "limit_per_metric=1",
+			query: "limit_per_metric=1",
+			expect: map[string][]map[string]string{
+				"foo": {{"type": "gauge", "help": "foo help", "unit": "seconds"}},
+				"bar": {{"type": "counter", "help": "bar help", "unit": "bytes"}},
+				"baz": {{"type": "gauge", "help": "baz help", "unit": "count"}},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/api/v1/metadata?"+tc.query, nil)
+			rw := httptest.NewRecorder()
+			MetadataHandler(rw, req)
+			resp := rw.Result()
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("unexpected status: %d", resp.StatusCode)
+			}
+			body, _ := ioutil.ReadAll(resp.Body)
+			var parsed struct {
+				Status string `json:"status"`
+				Data   map[string][]map[string]string `json:"data"`
+			}
+			if err := json.Unmarshal(body, &parsed); err != nil {
+				t.Fatalf("failed to parse response: %v\nbody: %s", err, string(body))
+			}
+			if parsed.Status != "success" {
+				t.Fatalf("unexpected status: %s", parsed.Status)
+			}
+			if !reflect.DeepEqual(parsed.Data, tc.expect) {
+				t.Errorf("unexpected data.\nGot:  %#v\nWant: %#v", parsed.Data, tc.expect)
+			}
+		})
+	}
 }
