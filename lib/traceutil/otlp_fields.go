@@ -15,10 +15,10 @@ const (
 
 // Span
 const (
-	TraceId                = "trace_id"
-	SpanId                 = "span_id"
+	TraceID                = "trace_id"
+	SpanID                 = "span_id"
 	TraceState             = "trace_state"
-	ParentSpanId           = "parent_span_id"
+	ParentSpanID           = "parent_span_id"
 	Flags                  = "flags"
 	Name                   = "name"
 	Kind                   = "kind"
@@ -51,8 +51,8 @@ const (
 const (
 	LinkPrefix = "link:"
 
-	LinkTraceId                = "link_trace_id"
-	LinkSpanId                 = "link_span_id"
+	LinkTraceID                = "link_trace_id"
+	LinkSpanID                 = "link_span_id"
 	LinkTraceState             = "link_trace_state"
 	LinkAttrPrefix             = "link_attr:"
 	LinkDroppedAttributesCount = "link_dropped_attributes_count"

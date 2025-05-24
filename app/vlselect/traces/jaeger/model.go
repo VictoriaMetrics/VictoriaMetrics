@@ -9,76 +9,76 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/traceutil"
 )
 
-type Trace struct {
-	Spans      []*Span
-	ProcessMap []Trace_ProcessMapping
+type trace struct {
+	spans      []*span
+	processMap []processMap
 }
 
-type Trace_ProcessMapping struct {
-	ProcessID string
-	Process   Process
+type processMap struct {
+	processID string
+	process   process
 }
 
-type Process struct {
-	ServiceName string
-	Tags        []KeyValue
+type process struct {
+	serviceName string
+	tags        []keyValue
 }
 
-type Span struct {
-	TraceID       string
-	SpanID        string
-	OperationName string
-	References    []SpanRef
-	Flags         uint32
-	StartTime     int64
-	Duration      int64
-	Tags          []KeyValue
-	Logs          []Log
-	Process       *Process
-	ProcessID     string
-	Warnings      []string
+type span struct {
+	traceID       string
+	spanID        string
+	operationName string
+	references    []spanRef
+	//flags         uint32 // OTLP - jaeger conversion does not use this field, but it exists in jaeger definition.
+	startTime int64
+	duration  int64
+	tags      []keyValue
+	logs      []log
+	process   *process
+	processID string
+	//warnings      []string // OTLP - jaeger conversion does not use this field, but it exists in jaeger definition.
 }
 
-type SpanRef struct {
-	TraceID string
-	SpanID  string
-	RefType string
+type spanRef struct {
+	traceID string
+	spanID  string
+	refType string
 }
 
-type KeyValue struct {
-	Key  string
-	VStr string
+type keyValue struct {
+	key  string
+	vStr string
 }
 
-type Log struct {
-	Timestamp int64
-	Fields    []KeyValue
+type log struct {
+	timestamp int64
+	fields    []keyValue
 }
 
-// FieldsToSpan convert OTLP spans in fields to Jaeger Spans.
-func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
-	sp := &Span{
-		Process: &Process{},
+// fieldsToSpan convert OTLP spans in fields to Jaeger Spans.
+func fieldsToSpan(fields []logstorage.Field) (*span, error) {
+	sp := &span{
+		process: &process{},
 	}
 
-	processTagList, spanTagList := make([]KeyValue, 0, len(fields)), make([]KeyValue, 0, len(fields))
-	logsMap := make(map[string]*Log)     // idx -> *Log
-	refsMap := make(map[string]*SpanRef) // idx -> *SpanRef
+	processTagList, spanTagList := make([]keyValue, 0, len(fields)), make([]keyValue, 0, len(fields))
+	logsMap := make(map[string]*log)     // idx -> *Log
+	refsMap := make(map[string]*spanRef) // idx -> *SpanRef
 
-	parentSpanRef := SpanRef{}
+	parentSpanRef := spanRef{}
 	for _, field := range fields {
 		switch field.Name {
 		case "_stream":
 			//logstorage.GetStreamTags()
-		case traceutil.TraceId:
-			sp.TraceID = field.Value
-		case traceutil.SpanId:
-			sp.SpanID = field.Value
+		case traceutil.TraceID:
+			sp.traceID = field.Value
+		case traceutil.SpanID:
+			sp.spanID = field.Value
 		case traceutil.Name:
-			sp.OperationName = field.Value
-		case traceutil.ParentSpanId:
-			parentSpanRef.SpanID = field.Value
-			parentSpanRef.RefType = "CHILD_OF"
+			sp.operationName = field.Value
+		case traceutil.ParentSpanID:
+			parentSpanRef.spanID = field.Value
+			parentSpanRef.refType = "CHILD_OF"
 		case traceutil.Kind:
 			if field.Value != "" {
 				spanKind := ""
@@ -94,7 +94,7 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				case "5":
 					spanKind = "consumer"
 				}
-				spanTagList = append(spanTagList, KeyValue{Key: "span.kind", VStr: spanKind})
+				spanTagList = append(spanTagList, keyValue{key: "span.kind", vStr: spanKind})
 			}
 		case traceutil.Flags:
 			// todo trace does not contain "flag" in result
@@ -108,44 +108,44 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 			if err != nil {
 				return nil, err
 			}
-			sp.StartTime = unixNano / 1000
+			sp.startTime = unixNano / 1000
 		case traceutil.Duration:
 			nano, err := strconv.ParseInt(field.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			sp.Duration = nano / 1000
+			sp.duration = nano / 1000
 		case traceutil.StatusCode:
 			if field.Value == "2" {
-				spanTagList = append(spanTagList, KeyValue{Key: "error", VStr: "true"})
+				spanTagList = append(spanTagList, keyValue{key: "error", vStr: "true"})
 			}
 		case traceutil.StatusMessage:
 			if field.Value != "" {
-				spanTagList = append(spanTagList, KeyValue{Key: "otel.status_description", VStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: "otel.status_description", vStr: field.Value})
 			}
 		case traceutil.TraceState:
 			if field.Value != "" {
-				spanTagList = append(spanTagList, KeyValue{Key: "w3c.tracestate", VStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: "w3c.tracestate", vStr: field.Value})
 			}
 		// resource level fields
 		case traceutil.ResourceAttrServiceName:
-			sp.Process.ServiceName = field.Value
+			sp.process.serviceName = field.Value
 		// scope level fields
 		case traceutil.InstrumentationScopeName:
 			if field.Value != "" {
-				spanTagList = append(spanTagList, KeyValue{Key: "otel.scope.name", VStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: "otel.scope.name", vStr: field.Value})
 			}
 		case traceutil.InstrumentationScopeVersion:
 			if field.Value != "" {
-				spanTagList = append(spanTagList, KeyValue{Key: "otel.scope.version", VStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: "otel.scope.version", vStr: field.Value})
 			}
 		default:
 			if strings.HasPrefix(field.Name, traceutil.ResourceAttrPrefix) {
-				processTagList = append(processTagList, KeyValue{Key: strings.TrimPrefix(field.Name, traceutil.ResourceAttrPrefix), VStr: field.Value})
+				processTagList = append(processTagList, keyValue{key: strings.TrimPrefix(field.Name, traceutil.ResourceAttrPrefix), vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, traceutil.SpanAttrPrefix) {
-				spanTagList = append(spanTagList, KeyValue{Key: strings.TrimPrefix(field.Name, traceutil.SpanAttrPrefix), VStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, traceutil.SpanAttrPrefix), vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, traceutil.InstrumentationScopeAttrPrefix) {
-				spanTagList = append(spanTagList, KeyValue{Key: strings.TrimPrefix(field.Name, traceutil.InstrumentationScopeAttrPrefix), VStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, traceutil.InstrumentationScopeAttrPrefix), vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, traceutil.EventPrefix) {
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, traceutil.EventPrefix), ":", 2)
 				if len(fieldSplit) != 2 {
@@ -153,20 +153,20 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				}
 				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := logsMap[idx]; !ok {
-					logsMap[idx] = &Log{}
+					logsMap[idx] = &log{}
 				}
 				log := logsMap[idx]
 				switch fieldName {
 				case traceutil.EventTimeUnixNano:
 					unixNano, _ := strconv.ParseInt(field.Value, 10, 64)
-					log.Timestamp = unixNano / 1000
+					log.timestamp = unixNano / 1000
 				case traceutil.EventName:
-					log.Fields = append(log.Fields, KeyValue{Key: "event", VStr: field.Value})
+					log.fields = append(log.fields, keyValue{key: "event", vStr: field.Value})
 				case traceutil.EventDroppedAttributesCount:
 					//no need to display
 					//log.Fields = append(log.Fields, KeyValue{Key: fieldName, VStr: field.Value})
 				default:
-					log.Fields = append(log.Fields, KeyValue{Key: strings.TrimPrefix(fieldName, traceutil.EventAttrPrefix), VStr: field.Value})
+					log.fields = append(log.fields, keyValue{key: strings.TrimPrefix(fieldName, traceutil.EventAttrPrefix), vStr: field.Value})
 				}
 			} else if strings.HasPrefix(field.Name, traceutil.LinkAttrPrefix) {
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, traceutil.LinkAttrPrefix), ":", 2)
@@ -175,54 +175,54 @@ func FieldsToSpan(fields []logstorage.Field) (*Span, error) {
 				}
 				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := refsMap[idx]; !ok {
-					refsMap[idx] = &SpanRef{
-						RefType: "FOLLOW_FROM", // default FOLLOW_FROM
+					refsMap[idx] = &spanRef{
+						refType: "FOLLOW_FROM", // default FOLLOW_FROM
 					}
 				}
 				ref := refsMap[idx]
 				switch fieldName {
-				case traceutil.LinkTraceId:
-					ref.TraceID = field.Value
-				case traceutil.LinkSpanId:
-					ref.SpanID = field.Value
+				case traceutil.LinkTraceID:
+					ref.traceID = field.Value
+				case traceutil.LinkSpanID:
+					ref.spanID = field.Value
 				//case LinkTraceState:
 				//case LinkFlags:
 				//case LinkDroppedAttributesCount:
 				default:
 					if strings.TrimPrefix(field.Name, traceutil.LinkPrefix) == "opentracing.ref_type" && field.Value == "child_of" {
-						ref.RefType = "CHILD_OF" // CHILD_OF
+						ref.refType = "CHILD_OF" // CHILD_OF
 					}
 				}
 			}
 		}
 	}
 
-	sp.Tags = spanTagList
-	sp.Process.Tags = processTagList
+	sp.tags = spanTagList
+	sp.process.tags = processTagList
 
-	if parentSpanRef.SpanID != "" {
-		parentSpanRef.TraceID = sp.TraceID
-		sp.References = append(sp.References, parentSpanRef)
+	if parentSpanRef.spanID != "" {
+		parentSpanRef.traceID = sp.traceID
+		sp.references = append(sp.references, parentSpanRef)
 	}
 	for i := 0; i < len(refsMap); i++ {
 		idx := strconv.Itoa(i)
-		if len(sp.References) > 0 && parentSpanRef.TraceID == refsMap[idx].TraceID && parentSpanRef.SpanID == refsMap[idx].SpanID {
+		if len(sp.references) > 0 && parentSpanRef.traceID == refsMap[idx].traceID && parentSpanRef.spanID == refsMap[idx].spanID {
 			// We already added a reference to this span, but maybe with the wrong type, so override.
-			sp.References[0].RefType = refsMap[idx].RefType
+			sp.references[0].refType = refsMap[idx].refType
 			continue
 		}
-		sp.References = append(sp.References, SpanRef{
-			refsMap[idx].TraceID, refsMap[idx].SpanID, refsMap[idx].RefType,
+		sp.references = append(sp.references, spanRef{
+			refsMap[idx].traceID, refsMap[idx].spanID, refsMap[idx].refType,
 		})
 	}
 	for i := 0; i < len(logsMap); i++ {
 		idx := strconv.Itoa(i)
-		sp.Logs = append(sp.Logs, Log{
-			logsMap[idx].Timestamp, logsMap[idx].Fields,
+		sp.logs = append(sp.logs, log{
+			logsMap[idx].timestamp, logsMap[idx].fields,
 		})
 	}
 
-	if sp.SpanID != "" {
+	if sp.spanID != "" {
 		return sp, nil
 	}
 	return nil, fmt.Errorf("invalid fields: %v", fields)

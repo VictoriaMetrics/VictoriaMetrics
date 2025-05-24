@@ -31,6 +31,7 @@ var (
 	defaultStreamFields = []string{traceutil.ResourceAttrServiceName, traceutil.Name}
 )
 
+// HandleProtobuf handles the trace ingestion request.
 func HandleProtobuf(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
@@ -114,10 +115,10 @@ func pushFieldsFromScopeSpans(ss *pb.ScopeSpans, commonFields []logstorage.Field
 func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
 	fields := scopeCommonFields
 	fields = append(fields,
-		logstorage.Field{Name: traceutil.TraceId, Value: span.TraceId},
-		logstorage.Field{Name: traceutil.SpanId, Value: span.SpanId},
+		logstorage.Field{Name: traceutil.TraceID, Value: span.TraceID},
+		logstorage.Field{Name: traceutil.SpanID, Value: span.SpanID},
 		logstorage.Field{Name: traceutil.TraceState, Value: span.TraceState},
-		logstorage.Field{Name: traceutil.ParentSpanId, Value: span.ParentSpanId},
+		logstorage.Field{Name: traceutil.ParentSpanID, Value: span.ParentSpanID},
 		logstorage.Field{Name: traceutil.Flags, Value: strconv.FormatUint(uint64(span.Flags), 10)},
 		logstorage.Field{Name: traceutil.Name, Value: span.Name},
 		logstorage.Field{Name: traceutil.Kind, Value: strconv.FormatInt(int64(span.Kind), 10)},
@@ -169,8 +170,8 @@ func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp
 		linkFieldPrefix := traceutil.LinkPrefix + strconv.Itoa(idx) + ":"
 
 		fields = append(fields,
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkTraceId, Value: link.TraceId},
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkSpanId, Value: link.SpanId},
+			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkTraceID, Value: link.TraceID},
+			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkSpanID, Value: link.SpanID},
 			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkTraceState, Value: traceutil.LinkTraceState},
 			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkDroppedAttributesCount, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
 			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkFlags, Value: strconv.FormatUint(uint64(link.Flags), 10)},

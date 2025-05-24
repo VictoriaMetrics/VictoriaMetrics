@@ -4,12 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/traceutil"
@@ -29,6 +29,24 @@ var (
 	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
 		"This limit affects Jaeger's `/api/services/*/operations` API.")
 )
+
+// CommonParams common query params that shared by all requests.
+type CommonParams struct {
+	TenantIDs []logstorage.TenantID
+}
+
+// GetCommonParams get common params from request for all traces query APIs.
+func GetCommonParams(r *http.Request) (*CommonParams, error) {
+	tenantID, err := logstorage.GetTenantIDFromRequest(r)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain tenanID: %w", err)
+	}
+	tenantIDs := []logstorage.TenantID{tenantID}
+	cp := &CommonParams{
+		TenantIDs: tenantIDs,
+	}
+	return cp, nil
+}
 
 // TraceQueryParam is the parameters for querying a batch of traces.
 type TraceQueryParam struct {
@@ -50,7 +68,7 @@ type Row struct {
 
 // GetServiceNameList returns all unique service names within *traceServiceAndSpanNameLookbehind window.
 // todo: cache of recent result.
-func GetServiceNameList(ctx context.Context, cp *common.CommonParams) ([]string, error) {
+func GetServiceNameList(ctx context.Context, cp *CommonParams) ([]string, error) {
 	currentTime := time.Now()
 
 	// query: _time:[start, end] *
@@ -75,7 +93,7 @@ func GetServiceNameList(ctx context.Context, cp *common.CommonParams) ([]string,
 
 // GetSpanNameList returns all unique span names for a service within *traceServiceAndSpanNameLookbehind window.
 // todo: cache of recent result.
-func GetSpanNameList(ctx context.Context, cp *common.CommonParams, serviceName string) ([]string, error) {
+func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) ([]string, error) {
 	currentTime := time.Now()
 
 	// query: _time:[start, end] {"resource_attr:service.name"=serviceName}
@@ -110,11 +128,11 @@ func GetSpanNameList(ctx context.Context, cp *common.CommonParams, serviceName s
 //  4. skip [0,  now-2 * traceSearchStep-traceMaxDurationWindow] and return.
 //
 // todo in-memory cache of hot traces.
-func GetTrace(ctx context.Context, cp *common.CommonParams, traceID string) ([]*Row, error) {
+func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
 	currentTime := time.Now()
 
 	// query: trace_id:traceID
-	qStr := fmt.Sprintf(traceutil.TraceId+": \"%s\"", traceID)
+	qStr := fmt.Sprintf(traceutil.TraceID+": \"%s\"", traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -204,7 +222,7 @@ func GetTrace(ctx context.Context, cp *common.CommonParams, traceID string) ([]*
 // 1. input time range: [00:00, 09:00]
 // 2. found 20 trace id, and adjust time range to: [08:00, 09:00]
 // 3. find spans on time range: [08:00-traceMaxDurationWindow, 09:00+traceMaxDurationWindow]
-func GetTraceList(ctx context.Context, cp *common.CommonParams, param *TraceQueryParam) ([]string, []*Row, error) {
+func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, []*Row, error) {
 	currentTime := time.Now()
 
 	// query 1: filter_confitions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
@@ -217,7 +235,7 @@ func GetTraceList(ctx context.Context, cp *common.CommonParams, param *TraceQuer
 	}
 
 	// query 2: trace_id:in(traceID, traceID, ...)
-	qStr := fmt.Sprintf(traceutil.TraceId+":in(%s)", strings.Join(traceIDs, ","))
+	qStr := fmt.Sprintf(traceutil.TraceID+":in(%s)", strings.Join(traceIDs, ","))
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -280,7 +298,7 @@ func GetTraceList(ctx context.Context, cp *common.CommonParams, param *TraceQuer
 
 // getTraceIDList returns traceIDs according to the search params.
 // It also returns the earliest start time of these traces, to help reducing the time range for spans search.
-func getTraceIDList(ctx context.Context, cp *common.CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
+func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
 	currentTime := time.Now()
 	// query: <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	qStr := ""
@@ -301,7 +319,7 @@ func getTraceIDList(ctx context.Context, cp *common.CommonParams, param *TraceQu
 	if param.DurationMax > 0 {
 		qStr += fmt.Sprintf("AND duration:<%d ", param.DurationMax.Nanoseconds())
 	}
-	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+traceutil.TraceId+") | fields _time, "+traceutil.TraceId+" | sort by (_time) desc", "AND ")
+	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+traceutil.TraceID+") | fields _time, "+traceutil.TraceID+" | sort by (_time) desc", "AND ")
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
@@ -320,7 +338,7 @@ func getTraceIDList(ctx context.Context, cp *common.CommonParams, param *TraceQu
 // findTraceIDsSplitTimeRange try to search from the nearest time range of the end time.
 // if the result already met requirement of `limit`, return.
 // otherwise, amplify the time range to 5x and search again, until the start time exceed the input.
-func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *common.CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
+func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
 	currentTime := time.Now()
 
 	step := time.Minute
@@ -333,9 +351,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *co
 		columns := db.Columns
 		for i := range columns {
 			if columns[i].Name == "trace_id" {
-				for _, v := range columns[i].Values {
-					traceIDList = append(traceIDList, v)
-				}
+				traceIDList = append(traceIDList, columns[i].Values...)
 			} else if columns[i].Name == "_time" {
 				for _, v := range columns[i].Values {
 					if v < maxStartTimeStr {

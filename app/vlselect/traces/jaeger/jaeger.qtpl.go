@@ -139,17 +139,17 @@ func GetOperationsResponse(operationList []string) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:47
-func StreamGetTracesResponse(qw422016 *qt422016.Writer, Traces []*Trace) {
+func StreamGetTracesResponse(qw422016 *qt422016.Writer, traces []*trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:47
 	qw422016.N().S(`{"data":[`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:50
-	if len(Traces) > 0 && len(Traces[0].Spans) > 0 {
+	if len(traces) > 0 && len(traces[0].spans) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:51
-		streamtraceJson(qw422016, Traces[0])
+		streamtraceJson(qw422016, traces[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:52
-		for _, trace := range Traces[1:] {
+		for _, trace := range traces[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:53
-			if len(trace.Spans) > 0 {
+			if len(trace.spans) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:53
 				qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:54
@@ -163,29 +163,29 @@ func StreamGetTracesResponse(qw422016 *qt422016.Writer, Traces []*Trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:57
 	qw422016.N().S(`],"errors": null,"limit": 0,"offset": 0,"total":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:62
-	qw422016.N().D(len(Traces))
+	qw422016.N().D(len(traces))
 //line app/vlselect/traces/jaeger/jaeger.qtpl:62
 	qw422016.N().S(`}`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
-func WriteGetTracesResponse(qq422016 qtio422016.Writer, Traces []*Trace) {
+func WriteGetTracesResponse(qq422016 qtio422016.Writer, traces []*trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
-	StreamGetTracesResponse(qw422016, Traces)
+	StreamGetTracesResponse(qw422016, traces)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
 	qt422016.ReleaseWriter(qw422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
-func GetTracesResponse(Traces []*Trace) string {
+func GetTracesResponse(traces []*trace) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
-	WriteGetTracesResponse(qb422016, Traces)
+	WriteGetTracesResponse(qb422016, traces)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
 	qs422016 := string(qb422016.B)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:64
@@ -196,27 +196,27 @@ func GetTracesResponse(Traces []*Trace) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:66
-func streamtraceJson(qw422016 *qt422016.Writer, trace *Trace) {
+func streamtraceJson(qw422016 *qt422016.Writer, trace *trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:66
 	qw422016.N().S(`{"processes": {`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:69
-	if len(trace.ProcessMap) > 0 {
+	if len(trace.processMap) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:70
-		qw422016.N().Q(trace.ProcessMap[0].ProcessID)
+		qw422016.N().Q(trace.processMap[0].processID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:70
 		qw422016.N().S(`:`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:70
-		streamprocessJson(qw422016, trace.ProcessMap[0].Process)
+		streamprocessJson(qw422016, trace.processMap[0].process)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:71
-		for _, v := range trace.ProcessMap[1:] {
+		for _, v := range trace.processMap[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:71
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:72
-			qw422016.N().Q(v.ProcessID)
+			qw422016.N().Q(v.processID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:72
 			qw422016.N().S(`:`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:72
-			streamprocessJson(qw422016, v.Process)
+			streamprocessJson(qw422016, v.process)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:73
 		}
 //line app/vlselect/traces/jaeger/jaeger.qtpl:74
@@ -224,11 +224,11 @@ func streamtraceJson(qw422016 *qt422016.Writer, trace *Trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:74
 	qw422016.N().S(`},"spans": [`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:77
-	if len(trace.Spans) > 0 {
+	if len(trace.spans) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:78
-		streamspanJson(qw422016, trace.Spans[0])
+		streamspanJson(qw422016, trace.spans[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:79
-		for _, v := range trace.Spans[1:] {
+		for _, v := range trace.spans[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:79
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:80
@@ -240,14 +240,14 @@ func streamtraceJson(qw422016 *qt422016.Writer, trace *Trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:82
 	qw422016.N().S(`],"traceID":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:84
-	qw422016.N().Q(trace.Spans[0].TraceID)
+	qw422016.N().Q(trace.spans[0].traceID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:84
 	qw422016.N().S(`,"warnings": null}`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
-func writetraceJson(qq422016 qtio422016.Writer, trace *Trace) {
+func writetraceJson(qq422016 qtio422016.Writer, trace *trace) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
@@ -258,7 +258,7 @@ func writetraceJson(qq422016 qtio422016.Writer, trace *Trace) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
-func traceJson(trace *Trace) string {
+func traceJson(trace *trace) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:87
@@ -273,19 +273,19 @@ func traceJson(trace *Trace) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:89
-func streamprocessJson(qw422016 *qt422016.Writer, process Process) {
+func streamprocessJson(qw422016 *qt422016.Writer, process process) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:89
 	qw422016.N().S(`{"serviceName":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:91
-	qw422016.N().Q(process.ServiceName)
+	qw422016.N().Q(process.serviceName)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:91
 	qw422016.N().S(`,"tags": [`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:93
-	if len(process.Tags) > 0 {
+	if len(process.tags) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:94
-		streamtagJson(qw422016, process.Tags[0])
+		streamtagJson(qw422016, process.tags[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:95
-		for _, v := range process.Tags[1:] {
+		for _, v := range process.tags[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:95
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:96
@@ -300,7 +300,7 @@ func streamprocessJson(qw422016 *qt422016.Writer, process Process) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:101
-func writeprocessJson(qq422016 qtio422016.Writer, process Process) {
+func writeprocessJson(qq422016 qtio422016.Writer, process process) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:101
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:101
@@ -311,7 +311,7 @@ func writeprocessJson(qq422016 qtio422016.Writer, process Process) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:101
-func processJson(process Process) string {
+func processJson(process process) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:101
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:101
@@ -326,19 +326,19 @@ func processJson(process Process) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:103
-func streamspanJson(qw422016 *qt422016.Writer, span *Span) {
+func streamspanJson(qw422016 *qt422016.Writer, span *span) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:103
 	qw422016.N().S(`{"duration":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:105
-	qw422016.N().DL(span.Duration)
+	qw422016.N().DL(span.duration)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:105
 	qw422016.N().S(`,"logs":[`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:107
-	if len(span.Logs) > 0 {
+	if len(span.logs) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:108
-		streamlogJson(qw422016, span.Logs[0])
+		streamlogJson(qw422016, span.logs[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:109
-		for _, v := range span.Logs[1:] {
+		for _, v := range span.logs[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:109
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:110
@@ -350,19 +350,19 @@ func streamspanJson(qw422016 *qt422016.Writer, span *Span) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:112
 	qw422016.N().S(`],"operationName":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:114
-	qw422016.N().Q(span.OperationName)
+	qw422016.N().Q(span.operationName)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:114
 	qw422016.N().S(`,"processID":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:115
-	qw422016.N().Q(span.ProcessID)
+	qw422016.N().Q(span.processID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:115
 	qw422016.N().S(`,"references": [`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:117
-	if len(span.References) > 0 {
+	if len(span.references) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:118
-		streamspanRefJson(qw422016, span.References[0])
+		streamspanRefJson(qw422016, span.references[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:119
-		for _, v := range span.References[1:] {
+		for _, v := range span.references[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:119
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:120
@@ -374,19 +374,19 @@ func streamspanJson(qw422016 *qt422016.Writer, span *Span) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:122
 	qw422016.N().S(`],"spanID":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:124
-	qw422016.N().Q(span.SpanID)
+	qw422016.N().Q(span.spanID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:124
 	qw422016.N().S(`,"startTime":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:125
-	qw422016.N().DL(span.StartTime)
+	qw422016.N().DL(span.startTime)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:125
 	qw422016.N().S(`,"tags": [`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:127
-	if len(span.Tags) > 0 {
+	if len(span.tags) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:128
-		streamtagJson(qw422016, span.Tags[0])
+		streamtagJson(qw422016, span.tags[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:129
-		for _, v := range span.Tags[1:] {
+		for _, v := range span.tags[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:129
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:130
@@ -398,14 +398,14 @@ func streamspanJson(qw422016 *qt422016.Writer, span *Span) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:132
 	qw422016.N().S(`],"traceID":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:134
-	qw422016.N().Q(span.TraceID)
+	qw422016.N().Q(span.traceID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:134
 	qw422016.N().S(`,"warnings":null}`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
-func writespanJson(qq422016 qtio422016.Writer, span *Span) {
+func writespanJson(qq422016 qtio422016.Writer, span *span) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
@@ -416,7 +416,7 @@ func writespanJson(qq422016 qtio422016.Writer, span *Span) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
-func spanJson(span *Span) string {
+func spanJson(span *span) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:137
@@ -431,22 +431,22 @@ func spanJson(span *Span) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:139
-func streamtagJson(qw422016 *qt422016.Writer, tag KeyValue) {
+func streamtagJson(qw422016 *qt422016.Writer, tag keyValue) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:139
 	qw422016.N().S(`{"key":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:141
-	qw422016.N().Q(tag.Key)
+	qw422016.N().Q(tag.key)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:141
 	qw422016.N().S(`,"type":"string","value":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:143
-	qw422016.N().Q(tag.VStr)
+	qw422016.N().Q(tag.vStr)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:143
 	qw422016.N().S(`}`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
-func writetagJson(qq422016 qtio422016.Writer, tag KeyValue) {
+func writetagJson(qq422016 qtio422016.Writer, tag keyValue) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
@@ -457,7 +457,7 @@ func writetagJson(qq422016 qtio422016.Writer, tag KeyValue) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
-func tagJson(tag KeyValue) string {
+func tagJson(tag keyValue) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:145
@@ -472,19 +472,19 @@ func tagJson(tag KeyValue) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:147
-func streamlogJson(qw422016 *qt422016.Writer, log Log) {
+func streamlogJson(qw422016 *qt422016.Writer, l log) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:147
 	qw422016.N().S(`{"timestamp":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:149
-	qw422016.N().DL(log.Timestamp)
+	qw422016.N().DL(l.timestamp)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:149
 	qw422016.N().S(`,"fields":[`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:151
-	if len(log.Fields) > 0 {
+	if len(l.fields) > 0 {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:152
-		streamtagJson(qw422016, log.Fields[0])
+		streamtagJson(qw422016, l.fields[0])
 //line app/vlselect/traces/jaeger/jaeger.qtpl:153
-		for _, v := range log.Fields[1:] {
+		for _, v := range l.fields[1:] {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:153
 			qw422016.N().S(`,`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:154
@@ -499,22 +499,22 @@ func streamlogJson(qw422016 *qt422016.Writer, log Log) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
-func writelogJson(qq422016 qtio422016.Writer, log Log) {
+func writelogJson(qq422016 qtio422016.Writer, l log) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
-	streamlogJson(qw422016, log)
+	streamlogJson(qw422016, l)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
 	qt422016.ReleaseWriter(qw422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
-func logJson(log Log) string {
+func logJson(l log) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
-	writelogJson(qb422016, log)
+	writelogJson(qb422016, l)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
 	qs422016 := string(qb422016.B)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:159
@@ -525,26 +525,26 @@ func logJson(log Log) string {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:161
-func streamspanRefJson(qw422016 *qt422016.Writer, ref SpanRef) {
+func streamspanRefJson(qw422016 *qt422016.Writer, ref spanRef) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:161
 	qw422016.N().S(`{"refType":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:163
-	qw422016.N().Q(ref.RefType)
+	qw422016.N().Q(ref.refType)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:163
 	qw422016.N().S(`,"spanID":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:164
-	qw422016.N().Q(ref.SpanID)
+	qw422016.N().Q(ref.spanID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:164
 	qw422016.N().S(`,"traceID":`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:165
-	qw422016.N().Q(ref.TraceID)
+	qw422016.N().Q(ref.traceID)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:165
 	qw422016.N().S(`}`)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167
-func writespanRefJson(qq422016 qtio422016.Writer, ref SpanRef) {
+func writespanRefJson(qq422016 qtio422016.Writer, ref spanRef) {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167
@@ -555,7 +555,7 @@ func writespanRefJson(qq422016 qtio422016.Writer, ref SpanRef) {
 }
 
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167
-func spanRefJson(ref SpanRef) string {
+func spanRefJson(ref spanRef) string {
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/traces/jaeger/jaeger.qtpl:167

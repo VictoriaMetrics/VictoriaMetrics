@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/query"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -37,13 +36,14 @@ var (
 	jaegerDependenciesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/dependencies"}`)
 )
 
-// hash pool for ProcessID
+// hash pool for processID
 var xxhashPool = &sync.Pool{
 	New: func() any {
 		return xxhash.New()
 	},
 }
 
+// RequestHandler is the entry point for all jaeger query APIs.
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	httpserver.EnableCORS(w, r)
 	startTime := time.Now()
@@ -79,7 +79,7 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 }
 
 func processGetServicesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := common.GetCommonParams(r)
+	cp, err := query.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -94,11 +94,10 @@ func processGetServicesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
 	WriteGetServicesResponse(w, serviceList)
-	return
 }
 
 func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := common.GetCommonParams(r)
+	cp, err := query.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -122,11 +121,10 @@ func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
 	WriteGetOperationsResponse(w, operationList)
-	return
 }
 
 func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := common.GetCommonParams(r)
+	cp, err := query.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -147,50 +145,49 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		return
 	}
 
-	trace := &Trace{}
-	processIDMap := make(map[uint64]string) // process name -> id
-	processMap := make(map[string]*Process) // trace_id -> map[processID]->Process
+	t := &trace{}
+	processHashIDMap := make(map[uint64]string)      // process name -> process id
+	processIDProcessMap := make(map[string]*process) // map[processID]->process
 	for i := range rows {
-		var sp *Span
-		sp, err = FieldsToSpan(rows[i].Fields)
+		var sp *span
+		sp, err = fieldsToSpan(rows[i].Fields)
 		if err != nil {
 			logger.Errorf("cannot unmarshal log fields [%v] to span: %s", rows[i].Fields, err)
 			continue
 		}
 
 		// Process ID
-		ph := hashProcess(sp.Process)
-		if _, ok := processIDMap[ph]; !ok {
-			processID := "p" + strconv.Itoa(len(processIDMap)+1)
-			processIDMap[ph] = processID
-			processMap[processID] = sp.Process
+		processHash := hashProcess(sp.process)
+		if _, ok := processHashIDMap[processHash]; !ok {
+			processID := "p" + strconv.Itoa(len(processHashIDMap)+1)
+			processHashIDMap[processHash] = processID
+			processIDProcessMap[processID] = sp.process
 		}
 
-		sp.ProcessID = processIDMap[ph]
-		trace.Spans = append(trace.Spans, sp)
+		sp.processID = processHashIDMap[processHash]
+		t.spans = append(t.spans, sp)
 	}
 
 	// 6. attach process info to this trace
-	trace.ProcessMap = make([]Trace_ProcessMapping, 0, len(processMap))
-	for processID, process := range processMap {
-		trace.ProcessMap = append(trace.ProcessMap, Trace_ProcessMapping{
-			ProcessID: processID,
-			Process:   *process,
+	t.processMap = make([]processMap, 0, len(processIDProcessMap))
+	for processID, p := range processIDProcessMap {
+		t.processMap = append(t.processMap, processMap{
+			processID: processID,
+			process:   *p,
 		})
 	}
 
-	sort.Slice(trace.ProcessMap, func(i, j int) bool {
-		return trace.ProcessMap[i].ProcessID < trace.ProcessMap[j].ProcessID
+	sort.Slice(t.processMap, func(i, j int) bool {
+		return t.processMap[i].processID < t.processMap[j].processID
 	})
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteGetTracesResponse(w, []*Trace{trace})
-	return
+	WriteGetTracesResponse(w, []*trace{t})
 }
 
 func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := common.GetCommonParams(r)
+	cp, err := query.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -199,11 +196,16 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 	param, err := parseJaegerTraceQueryParam(ctx, r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect trace query params: %s", err)
+		return
 	}
 
 	traceIDList, rows, err := query.GetTraceList(ctx, cp, param)
+	if err != nil {
+		httpserver.Errorf(w, r, "get trace list error: %s", err)
+		return
+	}
 	if len(rows) == 0 {
-		// Write results
+		// Write empty results
 		w.Header().Set("Content-Type", "application/json")
 		WriteGetTracesResponse(w, nil)
 		return
@@ -211,69 +213,70 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 
 	// convert fields spans to jaeger spans, and group by trace_id.
 	//
-	// 1. prepare a trace_id -> *Trace map
-	tracesMap := make(map[string]*Trace)
-	traces := make([]*Trace, len(traceIDList), len(traceIDList))
+	// 1. prepare a trace_id -> *trace map
+	tracesMap := make(map[string]*trace)
+	traces := make([]*trace, len(traceIDList))
 	for i := range traceIDList {
-		traces[i] = &Trace{}
+		traces[i] = &trace{}
 		tracesMap[traceIDList[i]] = traces[i]
 	}
 
 	processHashMap := make(map[uint64]string)               // process_unique_hash -> pid
-	traceProcessMap := make(map[string]map[string]*Process) // trace_id -> map[processID]->Process
+	traceProcessMap := make(map[string]map[string]*process) // trace_id -> map[processID]->process
 	for i := range rows {
 		// 2. convert fields to jaeger spans.
-		var sp *Span
-		sp, err = FieldsToSpan(rows[i].Fields)
+		var sp *span
+		sp, err = fieldsToSpan(rows[i].Fields)
 		if err != nil {
 			logger.Errorf("cannot unmarshal log fields [%v] to span: %s", rows[i].Fields, err)
 			continue
 		}
 
 		// 3. calculate the process that this span belongs to
-		procHash := hashProcess(sp.Process)
+		procHash := hashProcess(sp.process)
 		if _, ok := processHashMap[procHash]; !ok {
 			// format process id as Jaeger does: `p{idx}`, where {idx} starts from 1.
 			processHashMap[procHash] = "p" + strconv.Itoa(len(processHashMap)+1)
 		}
 		// and attach the process info to the span.
-		sp.ProcessID = processHashMap[procHash]
+		sp.processID = processHashMap[procHash]
 
 		// 4. add the process info to this trace (if process not exists).
-		if _, ok := traceProcessMap[sp.TraceID]; !ok {
-			traceProcessMap[sp.TraceID] = make(map[string]*Process)
+		if _, ok := traceProcessMap[sp.traceID]; !ok {
+			traceProcessMap[sp.traceID] = make(map[string]*process)
 		}
-		if _, ok := traceProcessMap[sp.TraceID][sp.ProcessID]; !ok {
-			traceProcessMap[sp.TraceID][sp.ProcessID] = sp.Process
+		if _, ok := traceProcessMap[sp.traceID][sp.processID]; !ok {
+			traceProcessMap[sp.traceID][sp.processID] = sp.process
 		}
 
 		// 5. append this span to the trace it belongs to.
-		tracesMap[sp.TraceID].Spans = append(tracesMap[sp.TraceID].Spans, sp)
+		tracesMap[sp.traceID].spans = append(tracesMap[sp.traceID].spans, sp)
 	}
 
 	// 6. attach process info to each trace
 	for traceID, trace := range tracesMap {
-		trace.ProcessMap = make([]Trace_ProcessMapping, 0, len(traceProcessMap[traceID]))
+		trace.processMap = make([]processMap, 0, len(traceProcessMap[traceID]))
 		for processID, process := range traceProcessMap[traceID] {
-			trace.ProcessMap = append(trace.ProcessMap, Trace_ProcessMapping{
-				ProcessID: processID,
-				Process:   *process,
+			trace.processMap = append(trace.processMap, processMap{
+				processID: processID,
+				process:   *process,
 			})
 		}
 
-		sort.Slice(trace.ProcessMap, func(i, j int) bool {
-			return trace.ProcessMap[i].ProcessID < trace.ProcessMap[j].ProcessID
+		sort.Slice(trace.processMap, func(i, j int) bool {
+			return trace.processMap[i].processID < trace.processMap[j].processID
 		})
 	}
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
 	WriteGetTracesResponse(w, traces)
-	return
 }
 
 // parseJaegerTraceQueryParam parse Jaeger request to unified query.TraceQueryParam.
-func parseJaegerTraceQueryParam(ctx context.Context, r *http.Request) (*query.TraceQueryParam, error) {
+func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.TraceQueryParam, error) {
+	var err error
+
 	// default params
 	p := &query.TraceQueryParam{
 		StartTimeMin: time.Unix(0, 0),
@@ -285,16 +288,28 @@ func parseJaegerTraceQueryParam(ctx context.Context, r *http.Request) (*query.Tr
 	p.SpanName = q.Get("operation")
 	durationMin := q.Get("minDuration")
 	if durationMin != "" {
-		p.DurationMin, _ = time.ParseDuration(durationMin)
+		p.DurationMin, err = time.ParseDuration(durationMin)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse minDuration [%s]: %w", durationMin, err)
+		}
 	}
+
 	durationMax := q.Get("maxDuration")
 	if durationMax != "" {
-		p.DurationMax, _ = time.ParseDuration(durationMax)
+		p.DurationMax, err = time.ParseDuration(durationMax)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse maxDuration [%s]: %w", durationMax, err)
+		}
 	}
+
 	limit := q.Get("limit")
 	if limit != "" {
-		p.Limit, _ = strconv.Atoi(limit)
+		p.Limit, err = strconv.Atoi(limit)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse limit [%s]: %w", limit, err)
+		}
 	}
+
 	startTimeMin := q.Get("start")
 	if startTimeMin != "" {
 		unixNano, err := strconv.ParseInt(startTimeMin, 10, 64)
@@ -303,6 +318,7 @@ func parseJaegerTraceQueryParam(ctx context.Context, r *http.Request) (*query.Tr
 		}
 		p.StartTimeMin = time.UnixMicro(unixNano)
 	}
+
 	startTimeMax := q.Get("end")
 	if startTimeMax != "" {
 		unixNano, err := strconv.ParseInt(startTimeMax, 10, 64)
@@ -322,18 +338,15 @@ func parseJaegerTraceQueryParam(ctx context.Context, r *http.Request) (*query.Tr
 }
 
 // hashProcess generate hash result for a process according to its tags.
-func hashProcess(process *Process) uint64 {
+func hashProcess(process *process) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
-	sort.Slice(process.Tags, func(i, j int) bool {
-		if process.Tags[i].Key < process.Tags[j].Key {
-			return true
-		}
-		return false
+	sort.Slice(process.tags, func(i, j int) bool {
+		return process.tags[i].key < process.tags[j].key
 	})
-	_, _ = d.WriteString(process.ServiceName)
-	for _, tag := range process.Tags {
-		_, _ = d.WriteString(tag.Key)
-		_, _ = d.WriteString(tag.VStr)
+	_, _ = d.WriteString(process.serviceName)
+	for _, tag := range process.tags {
+		_, _ = d.WriteString(tag.key)
+		_, _ = d.WriteString(tag.vStr)
 	}
 	h := d.Sum64()
 	d.Reset()

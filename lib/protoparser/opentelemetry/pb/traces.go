@@ -8,8 +8,10 @@ import (
 )
 
 type (
-	Span_SpanKind     int32
-	Status_StatusCode int32
+	// SpanKind see: https://opentelemetry.io/docs/specs/otel/trace/api/#spankind
+	SpanKind int32
+	// StatusCode see: https://opentelemetry.io/docs/specs/otel/trace/api/#set-status
+	StatusCode int32
 )
 
 // ExportTraceServiceRequest represent the OTLP protobuf message
@@ -255,20 +257,20 @@ func (is *InstrumentationScope) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L88
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L380
 type Span struct {
-	TraceId                string
-	SpanId                 string
+	TraceID                string
+	SpanID                 string
 	TraceState             string
-	ParentSpanId           string
+	ParentSpanID           string
 	Flags                  uint32
 	Name                   string
-	Kind                   Span_SpanKind
+	Kind                   SpanKind
 	StartTimeUnixNano      uint64
 	EndTimeUnixNano        uint64
 	Attributes             []*KeyValue
 	DroppedAttributesCount uint32
-	Events                 []*Span_Event
+	Events                 []*SpanEvent
 	DroppedEventsCount     uint32
-	Links                  []*Span_Link
+	Links                  []*SpanLink
 	DroppedLinksCount      uint32
 	Status                 Status
 }
@@ -291,23 +293,23 @@ func (s *Span) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	//	uint32 dropped_links_count = 14;
 	//	Status status = 15;
 	//}
-	traceID, err := hex.DecodeString(s.TraceId)
+	traceID, err := hex.DecodeString(s.TraceID)
 	if err != nil {
-		traceID = []byte(s.TraceId)
+		traceID = []byte(s.TraceID)
 	}
 	mm.AppendBytes(1, traceID)
 
-	spanID, err := hex.DecodeString(s.SpanId)
+	spanID, err := hex.DecodeString(s.SpanID)
 	if err != nil {
-		spanID = []byte(s.SpanId)
+		spanID = []byte(s.SpanID)
 	}
 	mm.AppendBytes(2, spanID)
 
 	mm.AppendString(3, s.TraceState)
 
-	parentSpanID, err := hex.DecodeString(s.ParentSpanId)
+	parentSpanID, err := hex.DecodeString(s.ParentSpanID)
 	if err != nil {
-		parentSpanID = []byte(s.ParentSpanId)
+		parentSpanID = []byte(s.ParentSpanID)
 	}
 	mm.AppendBytes(4, parentSpanID)
 
@@ -343,13 +345,13 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read span trace id")
 			}
-			s.TraceId = hex.EncodeToString(traceID)
+			s.TraceID = hex.EncodeToString(traceID)
 		case 2:
 			spanID, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read span span id")
 			}
-			s.SpanId = hex.EncodeToString(spanID)
+			s.SpanID = hex.EncodeToString(spanID)
 		case 3:
 			traceState, ok := fc.String()
 			if !ok {
@@ -361,7 +363,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read span parent span id")
 			}
-			s.ParentSpanId = hex.EncodeToString(parentSpanID)
+			s.ParentSpanID = hex.EncodeToString(parentSpanID)
 		case 5:
 			name, ok := fc.String()
 			if !ok {
@@ -373,7 +375,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read span kind")
 			}
-			s.Kind = Span_SpanKind(kind)
+			s.Kind = SpanKind(kind)
 		case 7:
 			startTimeUnixNano, ok := fc.Fixed64()
 			if !ok {
@@ -407,7 +409,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read span event data")
 			}
-			s.Events = append(s.Events, &Span_Event{})
+			s.Events = append(s.Events, &SpanEvent{})
 			a := s.Events[len(s.Events)-1]
 			if err = a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal span event: %w", err)
@@ -424,7 +426,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read span links data")
 			}
-			s.Links = append(s.Links, &Span_Link{})
+			s.Links = append(s.Links, &SpanLink{})
 			a := s.Links[len(s.Links)-1]
 			if err = a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal span link: %w", err)
@@ -448,19 +450,19 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
-// Span_Event is a time-stamped annotation of the span, consisting of user-supplied
+// SpanEvent is a time-stamped annotation of the span, consisting of user-supplied
 // text description and key-value pairs.
 //
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L222
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L613
-type Span_Event struct {
+type SpanEvent struct {
 	TimeUnixNano           uint64
 	Name                   string
 	Attributes             []*KeyValue
 	DroppedAttributesCount uint32
 }
 
-func (se *Span_Event) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+func (se *SpanEvent) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	//message Event {
 	//	fixed64 time_unix_nano = 1;
 	//	string name = 2;
@@ -475,7 +477,7 @@ func (se *Span_Event) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	mm.AppendUint32(4, se.DroppedAttributesCount)
 }
 
-func (se *Span_Event) unmarshalProtobuf(src []byte) (err error) {
+func (se *SpanEvent) unmarshalProtobuf(src []byte) (err error) {
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -516,23 +518,23 @@ func (se *Span_Event) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
-// Span_Link is a pointer from the current span to another span in the same trace or in a
+// SpanLink is a pointer from the current span to another span in the same trace or in a
 // different trace. For example, this can be used in batching operations,
 // where a single batch handler processes multiple requests from different
 // traces or when the handler receives a request from a different project.
 //
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L251
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L693
-type Span_Link struct {
-	TraceId                string
-	SpanId                 string
+type SpanLink struct {
+	TraceID                string
+	SpanID                 string
 	TraceState             string
 	Attributes             []*KeyValue
 	DroppedAttributesCount uint32
 	Flags                  uint32
 }
 
-func (sl *Span_Link) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+func (sl *SpanLink) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	//message Link {
 	//	bytes trace_id = 1;
 	//	bytes span_id = 2;
@@ -541,15 +543,15 @@ func (sl *Span_Link) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	//	uint32 dropped_attributes_count = 5;
 	//	fixed32 flags = 6;
 	//}
-	traceID, err := hex.DecodeString(sl.TraceId)
+	traceID, err := hex.DecodeString(sl.TraceID)
 	if err != nil {
-		traceID = []byte(sl.TraceId)
+		traceID = []byte(sl.TraceID)
 	}
 	mm.AppendBytes(1, traceID)
 
-	spanID, err := hex.DecodeString(sl.SpanId)
+	spanID, err := hex.DecodeString(sl.SpanID)
 	if err != nil {
-		spanID = []byte(sl.SpanId)
+		spanID = []byte(sl.SpanID)
 	}
 	mm.AppendBytes(2, spanID)
 
@@ -562,7 +564,7 @@ func (sl *Span_Link) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	mm.AppendFixed32(6, sl.Flags)
 }
 
-func (sl *Span_Link) unmarshalProtobuf(src []byte) (err error) {
+func (sl *SpanLink) unmarshalProtobuf(src []byte) (err error) {
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -575,13 +577,13 @@ func (sl *Span_Link) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read span link trace id")
 			}
-			sl.TraceId = hex.EncodeToString(traceID)
+			sl.TraceID = hex.EncodeToString(traceID)
 		case 2:
 			spanID, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read span link span id")
 			}
-			sl.SpanId = hex.EncodeToString(spanID)
+			sl.SpanID = hex.EncodeToString(spanID)
 		case 3:
 			traceState, ok := fc.String()
 			if !ok {
@@ -622,7 +624,7 @@ func (sl *Span_Link) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L791
 type Status struct {
 	Message string
-	Code    Status_StatusCode
+	Code    StatusCode
 }
 
 func (s *Status) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -654,7 +656,7 @@ func (s *Status) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read status code")
 			}
-			s.Code = Status_StatusCode(code)
+			s.Code = StatusCode(code)
 		}
 	}
 	return nil
