@@ -977,7 +977,7 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 }
 
-func (psp *pipeStatsProcessor) flush() error {
+func (psp *pipeStatsProcessor) flush(intermediate bool) error {
 	if psp.err != nil {
 		return psp.err
 	}
@@ -1008,7 +1008,7 @@ func (psp *pipeStatsProcessor) flush() error {
 			defer wg.Done()
 
 			psw := newPipeStatsWriter(psp, workerID)
-			psw.writeShardData(psms[workerID])
+			psw.writeShardData(psms[workerID], intermediate)
 			psw.flush()
 		}(uint(i))
 	}
@@ -1049,12 +1049,12 @@ func newPipeStatsWriter(psp *pipeStatsProcessor, workerID uint) *pipeStatsWriter
 	return psw
 }
 
-func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup) {
+func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup, intermediate bool) {
 	isRemote := psw.psp.ps.mode == pipeStatsModeRemote
 	stopCh := psw.psp.stopCh
 	for i, sfp := range psg.sfps {
 		bufLen := len(psw.valuesBuf)
-		if isRemote {
+		if isRemote || intermediate {
 			psw.valuesBuf = sfp.exportState(psw.valuesBuf, stopCh)
 		} else {
 			psw.valuesBuf = sfp.finalizeStats(psg.funcs[i].f, psw.valuesBuf, stopCh)
@@ -1094,7 +1094,7 @@ func (psw *pipeStatsWriter) flush() {
 	psw.valuesBuf = psw.valuesBuf[:0]
 }
 
-func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
+func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap, intermediate bool) {
 	byFields := psw.psp.ps.byFields
 	if len(byFields) == 1 {
 		for n, psg := range psm.u64 {
@@ -1108,7 +1108,7 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 			psw.valuesBuf = marshalUint64String(psw.valuesBuf, n)
 			psw.values = append(psw.values, bytesutil.ToUnsafeString(psw.valuesBuf[valuesBufLen:]))
 
-			psw.writePipeStatsGroup(psg)
+			psw.writePipeStatsGroup(psg, intermediate)
 		}
 		for n, psg := range psm.negative64 {
 			if needStop(psw.psp.stopCh) {
@@ -1121,7 +1121,7 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 			psw.valuesBuf = marshalInt64String(psw.valuesBuf, int64(n))
 			psw.values = append(psw.values, bytesutil.ToUnsafeString(psw.valuesBuf[valuesBufLen:]))
 
-			psw.writePipeStatsGroup(psg)
+			psw.writePipeStatsGroup(psg, intermediate)
 		}
 		for key, psg := range psm.strings {
 			if needStop(psw.psp.stopCh) {
@@ -1130,7 +1130,7 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 			psw.values = psw.values[:0]
 
 			psw.values = append(psw.values, key)
-			psw.writePipeStatsGroup(psg)
+			psw.writePipeStatsGroup(psg, intermediate)
 		}
 	} else {
 		for key, psg := range psm.strings {
@@ -1153,7 +1153,7 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 				logger.Panicf("BUG: unexpected number of values decoded from keyBuf; got %d; want %d", len(psw.values), len(byFields))
 			}
 
-			psw.writePipeStatsGroup(psg)
+			psw.writePipeStatsGroup(psg, intermediate)
 		}
 	}
 }

@@ -104,7 +104,7 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.rc.reset()
 }
 
-func (ppp *pipePackProcessor) flush() error {
+func (ppp *pipePackProcessor) flush(_ bool) error {
 	return nil
 }
 

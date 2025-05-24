@@ -335,7 +335,7 @@ func (pfp *pipeFacetsProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.writeBlock(br)
 }
 
-func (pfp *pipeFacetsProcessor) flush() error {
+func (pfp *pipeFacetsProcessor) flush(_ bool) error {
 	if n := pfp.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", pfp.pf.String(), pfp.maxStateSize/(1<<20))
 	}

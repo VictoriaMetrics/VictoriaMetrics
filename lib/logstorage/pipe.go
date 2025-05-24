@@ -76,7 +76,7 @@ type pipeProcessor interface {
 	// flush is called after all the worker goroutines are stopped.
 	//
 	// It is guaranteed that flush() is called for every pipeProcessor returned from pipe.newPipeProcessor().
-	flush() error
+	flush(bool) error
 }
 
 type noopPipeProcessor func(workerID uint, br *blockResult)
@@ -89,7 +89,7 @@ func (npp noopPipeProcessor) writeBlock(workerID uint, br *blockResult) {
 	npp(workerID, br)
 }
 
-func (npp noopPipeProcessor) flush() error {
+func (npp noopPipeProcessor) flush(bool) error {
 	logger.Panicf("BUG: mustn't be called!")
 	return nil
 }

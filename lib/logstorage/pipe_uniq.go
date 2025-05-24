@@ -271,7 +271,7 @@ func (pup *pipeUniqProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 }
 
-func (pup *pipeUniqProcessor) flush() error {
+func (pup *pipeUniqProcessor) flush(_ bool) error {
 	if n := pup.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", pup.pu.String(), pup.maxStateSize/(1<<20))
 	}

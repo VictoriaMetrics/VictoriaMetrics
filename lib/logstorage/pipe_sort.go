@@ -450,7 +450,7 @@ func (psp *pipeSortProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.writeBlock(br)
 }
 
-func (psp *pipeSortProcessor) flush() error {
+func (psp *pipeSortProcessor) flush(_ bool) error {
 	if n := psp.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
 	}

@@ -75,7 +75,7 @@ func (pop *pipeOffsetProcessor) writeBlock(workerID uint, br *blockResult) {
 	pop.ppNext.writeBlock(workerID, br)
 }
 
-func (pop *pipeOffsetProcessor) flush() error {
+func (pop *pipeOffsetProcessor) flush(_ bool) error {
 	return nil
 }
 

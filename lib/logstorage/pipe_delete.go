@@ -71,7 +71,7 @@ func (pdp *pipeDeleteProcessor) writeBlock(workerID uint, br *blockResult) {
 	pdp.ppNext.writeBlock(workerID, br)
 }
 
-func (pdp *pipeDeleteProcessor) flush() error {
+func (pdp *pipeDeleteProcessor) flush(_ bool) error {
 	return nil
 }
 

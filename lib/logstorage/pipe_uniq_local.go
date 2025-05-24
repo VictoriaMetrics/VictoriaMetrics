@@ -124,7 +124,7 @@ func getColumnValuess(br *blockResult, fields []string) [][]string {
 	return columnValuess
 }
 
-func (pup *pipeUniqLocalProcessor) flush() error {
+func (pup *pipeUniqLocalProcessor) flush(_ bool) error {
 	pu := pup.pu.pu
 	shards := pup.shards.All()
 	if len(shards) == 0 {

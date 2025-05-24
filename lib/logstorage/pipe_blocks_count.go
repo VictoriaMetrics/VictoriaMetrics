@@ -79,7 +79,7 @@ func (pcp *pipeBlocksCountProcessor) writeBlock(workerID uint, _ *blockResult) {
 	shard.blocksCount++
 }
 
-func (pcp *pipeBlocksCountProcessor) flush() error {
+func (pcp *pipeBlocksCountProcessor) flush(_ bool) error {
 	if needStop(pcp.stopCh) {
 		return nil
 	}

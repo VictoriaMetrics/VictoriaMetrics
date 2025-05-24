@@ -91,7 +91,7 @@ func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
 	pcp.ppNext.writeBlock(workerID, br)
 }
 
-func (pcp *pipeCopyProcessor) flush() error {
+func (pcp *pipeCopyProcessor) flush(_ bool) error {
 	return nil
 }
 

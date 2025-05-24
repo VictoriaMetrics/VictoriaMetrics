@@ -93,7 +93,7 @@ func (pfp *pipeFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
 	pfp.ppNext.writeBlock(workerID, br)
 }
 
-func (pfp *pipeFieldsProcessor) flush() error {
+func (pfp *pipeFieldsProcessor) flush(_ bool) error {
 	return nil
 }
 

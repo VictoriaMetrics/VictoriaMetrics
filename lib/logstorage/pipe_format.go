@@ -178,7 +178,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.rc.reset()
 }
 
-func (pfp *pipeFormatProcessor) flush() error {
+func (pfp *pipeFormatProcessor) flush(_ bool) error {
 	return nil
 }
 

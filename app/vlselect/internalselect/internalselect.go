@@ -23,6 +23,7 @@ import (
 )
 
 var disableSelect = flag.Bool("internalselect.disable", false, "Whether to disable /internal/select/* HTTP endpoints")
+var intermediateKey = any("intermediate")
 
 // RequestHandler processes requests to /internal/select/*
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -41,6 +42,7 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vl_http_requests_total{path=%q}`, path)).Inc()
+	ctx = context.WithValue(ctx, intermediateKey, true)
 	if err := rh(ctx, w, r); err != nil && !netutil.IsTrivialNetworkError(err) {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vl_http_request_errors_total{path=%q}`, path)).Inc()
 		httpserver.Errorf(w, r, "%s", err)

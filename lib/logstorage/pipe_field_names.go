@@ -136,7 +136,7 @@ func (shard *pipeFieldNamesProcessorShard) updateColumnHits(columnName string, h
 	*pHits += hits
 }
 
-func (pfp *pipeFieldNamesProcessor) flush() error {
+func (pfp *pipeFieldNamesProcessor) flush(_ bool) error {
 	if needStop(pfp.stopCh) {
 		return nil
 	}

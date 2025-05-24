@@ -154,7 +154,7 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.wctx.reset()
 }
 
-func (pjp *pipeJoinProcessor) flush() error {
+func (pjp *pipeJoinProcessor) flush(_ bool) error {
 	return nil
 }
 

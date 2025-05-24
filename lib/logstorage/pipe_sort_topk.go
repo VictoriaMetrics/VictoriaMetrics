@@ -378,7 +378,7 @@ func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.writeBlock(br)
 }
 
-func (ptp *pipeTopkProcessor) flush() error {
+func (ptp *pipeTopkProcessor) flush(_ bool) error {
 	if n := ptp.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.ps.String(), ptp.maxStateSize/(1<<20))
 	}

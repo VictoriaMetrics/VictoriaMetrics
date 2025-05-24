@@ -194,7 +194,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.uctx.reset()
 }
 
-func (pup *pipeUnpackProcessor) flush() error {
+func (pup *pipeUnpackProcessor) flush(_ bool) error {
 	return nil
 }
 

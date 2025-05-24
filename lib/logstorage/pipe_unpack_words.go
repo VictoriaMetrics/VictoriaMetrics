@@ -131,7 +131,7 @@ func (pup *pipeUnpackWordsProcessor) writeBlock(workerID uint, br *blockResult) 
 	shard.a.reset()
 }
 
-func (pup *pipeUnpackWordsProcessor) flush() error {
+func (pup *pipeUnpackWordsProcessor) flush(_ bool) error {
 	return nil
 }
 

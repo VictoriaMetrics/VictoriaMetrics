@@ -92,7 +92,7 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 	plp.cancel()
 }
 
-func (plp *pipeLimitProcessor) flush() error {
+func (plp *pipeLimitProcessor) flush(_ bool) error {
 	return nil
 }
 

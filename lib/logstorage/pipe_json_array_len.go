@@ -159,7 +159,7 @@ func (shard *pipeJSONArrayLenProcessorShard) getJSONArrayLen(v string) int {
 	return len(shard.tmpValues)
 }
 
-func (plp *pipeJSONArrayLenProcessor) flush() error {
+func (plp *pipeJSONArrayLenProcessor) flush(_ bool) error {
 	return nil
 }
 
