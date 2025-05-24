@@ -436,7 +436,7 @@ func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.a.reset()
 }
 
-func (pmp *pipeMathProcessor) flush() error {
+func (pmp *pipeMathProcessor) flush(_ bool) error {
 	return nil
 }
 

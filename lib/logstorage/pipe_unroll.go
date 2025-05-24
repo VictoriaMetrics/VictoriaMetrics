@@ -199,7 +199,7 @@ func (shard *pipeUnrollProcessorShard) writeUnrolledFields(fieldNames []string, 
 	shard.fields = fields
 }
 
-func (pup *pipeUnrollProcessor) flush() error {
+func (pup *pipeUnrollProcessor) flush(_ bool) error {
 	return nil
 }
 

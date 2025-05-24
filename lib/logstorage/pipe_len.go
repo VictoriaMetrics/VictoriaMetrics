@@ -142,7 +142,7 @@ func (shard *pipeLenProcessorShard) getEncodedLen(v string) string {
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
 }
 
-func (plp *pipeLenProcessor) flush() error {
+func (plp *pipeLenProcessor) flush(_ bool) error {
 	return nil
 }
 

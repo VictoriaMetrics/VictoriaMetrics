@@ -99,6 +99,6 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.a.reset()
 }
 
-func (pup *pipeUpdateProcessor) flush() error {
+func (pup *pipeUpdateProcessor) flush(_ bool) error {
 	return nil
 }

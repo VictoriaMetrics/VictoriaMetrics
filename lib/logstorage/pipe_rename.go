@@ -95,7 +95,7 @@ func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
 	prp.ppNext.writeBlock(workerID, br)
 }
 
-func (prp *pipeRenameProcessor) flush() error {
+func (prp *pipeRenameProcessor) flush(_ bool) error {
 	return nil
 }
 

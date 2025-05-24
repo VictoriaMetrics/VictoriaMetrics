@@ -62,7 +62,7 @@ func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Fiel
 		brw.writeRow(row)
 	}
 	brw.flush()
-	pp.flush()
+	pp.flush(false)
 
 	ppTest.expectRows(t, rowsExpected)
 }
@@ -155,7 +155,7 @@ func (pp *testPipeProcessor) writeBlock(_ uint, br *blockResult) {
 	}
 }
 
-func (pp *testPipeProcessor) flush() error {
+func (pp *testPipeProcessor) flush(_ bool) error {
 	return nil
 }
 

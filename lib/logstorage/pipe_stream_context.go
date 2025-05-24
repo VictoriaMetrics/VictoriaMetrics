@@ -625,7 +625,7 @@ func (pcp *pipeStreamContextProcessor) writeBlock(workerID uint, br *blockResult
 	shard.writeBlock(pcp, br)
 }
 
-func (pcp *pipeStreamContextProcessor) flush() error {
+func (pcp *pipeStreamContextProcessor) flush(_ bool) error {
 	n := pcp.stateSizeBudget.Load()
 	if n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", pcp.pc.String(), pcp.maxStateSize/(1<<20))

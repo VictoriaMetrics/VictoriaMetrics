@@ -160,6 +160,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 type searchFunc func(stopCh <-chan struct{}, writeBlock writeBlockResultFunc) error
 
 func runPipes(ctx context.Context, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) error {
+	intermediate, _ := ctx.Value("intermediate").(bool)
 	stopCh := ctx.Done()
 	if len(pipes) == 0 {
 		// Fast path when there are no pipes
@@ -185,7 +186,7 @@ func runPipes(ctx context.Context, pipes []pipe, search searchFunc, writeBlock w
 
 	var errFlush error
 	for i, pp := range pps {
-		if err := pp.flush(); err != nil && errFlush == nil {
+		if err := pp.flush(intermediate); err != nil && errFlush == nil {
 			errFlush = err
 		}
 		cancel := cancels[i]

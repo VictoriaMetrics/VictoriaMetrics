@@ -107,7 +107,7 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.wctx.reset()
 }
 
-func (psp *pipeBlockStatsProcessor) flush() error {
+func (psp *pipeBlockStatsProcessor) flush(_ bool) error {
 	return nil
 }
 

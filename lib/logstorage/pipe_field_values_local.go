@@ -96,7 +96,7 @@ func (pfp *pipeFieldValuesLocalProcessor) writeBlock(workerID uint, br *blockRes
 	}
 }
 
-func (pfp *pipeFieldValuesLocalProcessor) flush() error {
+func (pfp *pipeFieldValuesLocalProcessor) flush(_ bool) error {
 	pf := pfp.pf.pf
 	shards := pfp.shards.All()
 	if len(shards) == 0 {

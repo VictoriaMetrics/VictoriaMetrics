@@ -233,7 +233,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.a.reset()
 }
 
-func (pep *pipeExtractProcessor) flush() error {
+func (pep *pipeExtractProcessor) flush(_ bool) error {
 	return nil
 }
 

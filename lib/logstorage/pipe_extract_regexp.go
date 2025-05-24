@@ -264,7 +264,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard.a.reset()
 }
 
-func (pep *pipeExtractRegexpProcessor) flush() error {
+func (pep *pipeExtractRegexpProcessor) flush(_ bool) error {
 	return nil
 }
 

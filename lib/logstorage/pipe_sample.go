@@ -121,7 +121,7 @@ func (shard *pipeSampleProcessorShard) writeRow(workerID uint, br *blockResult, 
 	shard.br.reset()
 }
 
-func (psp *pipeSampleProcessor) flush() error {
+func (psp *pipeSampleProcessor) flush(_ bool) error {
 	return nil
 }
 

@@ -74,7 +74,7 @@ func (pup *pipeUnionProcessor) writeBlock(workerID uint, br *blockResult) {
 	pup.ppNext.writeBlock(workerID, br)
 }
 
-func (pup *pipeUnionProcessor) flush() error {
+func (pup *pipeUnionProcessor) flush(_ bool) error {
 	// execute the query to union
 	ctxWithCancel, cancel := contextutil.NewStopChanContext(pup.stopCh)
 	defer cancel()

@@ -151,7 +151,7 @@ func getFloat64CompatibleHash(v string) float64 {
 	return float64(h)
 }
 
-func (php *pipeHashProcessor) flush() error {
+func (php *pipeHashProcessor) flush(_ bool) error {
 	return nil
 }
 

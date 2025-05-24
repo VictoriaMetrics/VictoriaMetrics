@@ -104,7 +104,7 @@ func (pdp *pipeDropEmptyFieldsProcessor) writeBlock(workerID uint, br *blockResu
 	shard.wctx.flush()
 }
 
-func (pdp *pipeDropEmptyFieldsProcessor) flush() error {
+func (pdp *pipeDropEmptyFieldsProcessor) flush(_ bool) error {
 	return nil
 }
 
