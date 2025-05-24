@@ -24,6 +24,20 @@ import (
 // It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
 // like /api/v1/write calls.
 func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
+	return ParseWithMetadata(r, defaultTimestamp, encoding, limitConcurrency, callback, errLogger, nil)
+}
+
+// ParseWithMetadata parses lines with Prometheus exposition format from r and calls callback for the parsed rows.
+// Additionally, it calls metadataCallback for any metadata (HELP/TYPE) encountered during parsing.
+//
+// The callback can be called concurrently multiple times for streamed data from r.
+//
+// callback shouldn't hold rows after returning.
+//
+// limitConcurrency defines whether to control the number of concurrent calls to this function.
+// It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
+// like /api/v1/write calls.
+func ParseWithMetadata(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row) error, errLogger func(string), metadataCallback prometheus.MetadataCallback) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode Prometheus text exposition data: %w", err)
@@ -44,6 +58,7 @@ func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrenc
 		uw.errLogger = errLogger
 		uw.ctx = ctx
 		uw.callback = callback
+		uw.metadataCallback = metadataCallback
 		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
@@ -139,6 +154,7 @@ type unmarshalWork struct {
 	errLogger        func(string)
 	defaultTimestamp int64
 	reqBuf           []byte
+	metadataCallback prometheus.MetadataCallback
 }
 
 func (uw *unmarshalWork) reset() {
@@ -148,6 +164,7 @@ func (uw *unmarshalWork) reset() {
 	uw.errLogger = nil
 	uw.defaultTimestamp = 0
 	uw.reqBuf = uw.reqBuf[:0]
+	uw.metadataCallback = nil
 }
 
 func (uw *unmarshalWork) runCallback(rows []prometheus.Row) {
@@ -164,7 +181,10 @@ func (uw *unmarshalWork) runCallback(rows []prometheus.Row) {
 
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	if uw.errLogger != nil {
+	if uw.metadataCallback != nil {
+		// Use metadata-aware parsing
+		uw.rows.UnmarshalWithMetadata(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger, uw.metadataCallback)
+	} else if uw.errLogger != nil {
 		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
 	} else {
 		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))

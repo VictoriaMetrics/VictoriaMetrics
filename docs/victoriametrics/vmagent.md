@@ -2174,3 +2174,55 @@ Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/
 ###### Debugging scrape targets
 
 Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
+
+## Emitting Prometheus Metric Metadata
+
+`vmagent` can emit Prometheus metric metadata as a special time series, enabling full compatibility with the Prometheus `/api/v1/metadata` API in VictoriaMetrics.
+
+### How it works
+
+When enabled, `vmagent` periodically emits a time series named `metric_metadata` for each scraped metric, encoding the metric's `HELP`, `TYPE`, and `UNIT` information as labels. This allows VictoriaMetrics to serve accurate metric metadata to Prometheus-compatible clients and tools.
+
+- The emitted time series has the following labels:
+  - `metric`: the metric name
+  - `type`: the metric type (e.g., `gauge`, `counter`)
+  - `help`: the metric help string
+  - `unit`: the metric unit (if available)
+
+Example emitted time series:
+
+```
+metric_metadata{metric="http_requests_total", type="counter", help="Total number of HTTP requests", unit=""} 1
+```
+
+### Enabling the feature
+
+To enable metric metadata emission, use the following flags:
+
+- `-promscrape.emitMetricMetadata`  
+  Enables emission of `metric_metadata` time series for all scraped metrics. Default: `false`.
+
+- `-promscrape.metricMetadataInterval`  
+  Interval for emitting metric metadata time series. Default: `30s`.
+
+Example:
+```sh
+./vmagent -promscrape.emitMetricMetadata -promscrape.metricMetadataInterval=1m ...
+```
+
+### How it integrates
+
+- The emitted `metric_metadata` time series are ingested into VictoriaMetrics.
+- The `/api/v1/metadata` endpoint in VictoriaMetrics and vmsingle will serve this metadata, making the API fully compatible with Prometheus.
+- You can also query the metadata directly as a time series:
+  ```
+  {__name__="metric_metadata"}
+  ```
+
+### CLI Flags
+
+- `-promscrape.emitMetricMetadata`  
+  Whether to emit metric_metadata time series for scraped Prometheus metrics metadata (HELP/TYPE lines). Default: false.
+
+- `-promscrape.metricMetadataInterval`  
+  Interval for emitting metric_metadata time series. Default: 30s.
