@@ -823,8 +823,8 @@ func getCompoundMathToken(lex *lexer) (string, error) {
 	rawS := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
-		s += lex.token
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
+		suffix += lex.rawToken
 		lex.nextToken()
 	}
 	if suffix == "" {
