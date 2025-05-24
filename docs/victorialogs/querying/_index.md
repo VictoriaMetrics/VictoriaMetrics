@@ -6,7 +6,10 @@ menu:
     identifier: victorialogs-querying
     parent: "victorialogs"
     weight: 4
+tags:
+  - logs
 aliases:
+  - /VictoriaLogs/querying/
   - /victorialogs/querying/
   - /victorialogs/querying/index.html
 ---

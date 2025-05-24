@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -173,4 +176,174 @@ metric{env="test"} 20
 metric{env="dev"} 15
 metric{env="bar"} 25
 `)
+}
+
+func TestShardAmountRemoteWriteCtx(t *testing.T) {
+	// 1. distribute 100000 series to n nodes.
+	// 2. remove the last node from healthy list.
+	// 3. distribute the same 10000 series to (n-1) node again.
+	// 4. check active time series change rate:
+	// change rate must < (3/total nodes). e.g. +30% if 10 you have 10 nodes.
+
+	f := func(remoteWriteCount int, healthyIdx []int, replicas int) {
+		t.Helper()
+		defer func() {
+			rwctxsGlobal = nil
+			rwctxsGlobalIdx = nil
+			rwctxConsistentHashGlobal = nil
+		}()
+
+		rwctxsGlobal = make([]*remoteWriteCtx, remoteWriteCount)
+		rwctxsGlobalIdx = make([]int, remoteWriteCount)
+		rwctxs := make([]*remoteWriteCtx, 0, len(healthyIdx))
+
+		for i := range remoteWriteCount {
+			rwCtx := &remoteWriteCtx{
+				idx: i,
+			}
+			rwctxsGlobalIdx[i] = i
+
+			if i >= len(healthyIdx) {
+				rwctxsGlobal[i] = rwCtx
+				continue
+			}
+			hIdx := healthyIdx[i]
+			if hIdx != i {
+				rwctxs = append(rwctxs, &remoteWriteCtx{
+					idx: hIdx,
+				})
+			} else {
+				rwctxs = append(rwctxs, rwCtx)
+			}
+			rwctxsGlobal[i] = rwCtx
+		}
+
+		seriesCount := 100000
+		// build 1000000 series
+		tssBlock := make([]prompbmarshal.TimeSeries, 0, seriesCount)
+		for i := 0; i < seriesCount; i++ {
+			tssBlock = append(tssBlock, prompbmarshal.TimeSeries{
+				Labels: []prompbmarshal.Label{
+					{
+						Name:  "label",
+						Value: strconv.Itoa(i),
+					},
+				},
+				Samples: []prompbmarshal.Sample{
+					{
+						Timestamp: 0,
+						Value:     0,
+					},
+				},
+			})
+		}
+
+		// build consistent hash for x remote write context
+		// build active time series set
+		nodes := make([]string, 0, remoteWriteCount)
+		activeTimeSeriesByNodes := make([]map[string]struct{}, remoteWriteCount)
+		for i := 0; i < remoteWriteCount; i++ {
+			nodes = append(nodes, fmt.Sprintf("node%d", i))
+			activeTimeSeriesByNodes[i] = make(map[string]struct{})
+		}
+		rwctxConsistentHashGlobal = consistenthash.NewConsistentHash(nodes, 0)
+
+		// create shards
+		x := getTSSShards(len(rwctxs))
+		shards := x.shards
+
+		// execute
+		shardAmountRemoteWriteCtx(tssBlock, shards, rwctxs, replicas)
+
+		for i, nodeIdx := range healthyIdx {
+			for _, ts := range shards[i] {
+				// add it to node[nodeIdx]'s active time series
+				activeTimeSeriesByNodes[nodeIdx][prompbmarshal.LabelsToString(ts.Labels)] = struct{}{}
+			}
+		}
+
+		totalActiveTimeSeries := 0
+		for _, activeTimeSeries := range activeTimeSeriesByNodes {
+			totalActiveTimeSeries += len(activeTimeSeries)
+		}
+		avgActiveTimeSeries1 := totalActiveTimeSeries / remoteWriteCount
+		putTSSShards(x)
+
+		// removed last node
+		rwctxs = rwctxs[:len(rwctxs)-1]
+		healthyIdx = healthyIdx[:len(healthyIdx)-1]
+
+		x = getTSSShards(len(rwctxs))
+		shards = x.shards
+
+		// execute
+		shardAmountRemoteWriteCtx(tssBlock, shards, rwctxs, replicas)
+		for i, nodeIdx := range healthyIdx {
+			for _, ts := range shards[i] {
+				// add it to node[nodeIdx]'s active time series
+				activeTimeSeriesByNodes[nodeIdx][prompbmarshal.LabelsToString(ts.Labels)] = struct{}{}
+			}
+		}
+
+		totalActiveTimeSeries = 0
+		for _, activeTimeSeries := range activeTimeSeriesByNodes {
+			totalActiveTimeSeries += len(activeTimeSeries)
+		}
+		avgActiveTimeSeries2 := totalActiveTimeSeries / remoteWriteCount
+
+		changed := math.Abs(float64(avgActiveTimeSeries2-avgActiveTimeSeries1) / float64(avgActiveTimeSeries1))
+		threshold := 3 / float64(remoteWriteCount)
+
+		if changed >= threshold {
+			t.Fatalf("average active time series before: %d, after: %d, changed: %.2f. threshold: %.2f", avgActiveTimeSeries1, avgActiveTimeSeries2, changed, threshold)
+		}
+
+	}
+
+	f(5, []int{0, 1, 2, 3, 4}, 1)
+
+	f(5, []int{0, 1, 2, 3, 4}, 2)
+
+	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, 1)
+
+	f(10, []int{0, 1, 2, 3, 4, 5, 6, 7, 9}, 3)
+}
+
+func TestCalculateHealthyRwctxIdx(t *testing.T) {
+	f := func(total int, healthyIdx []int, unhealthyIdx []int) {
+		t.Helper()
+
+		healthyMap := make(map[int]bool)
+		for _, idx := range healthyIdx {
+			healthyMap[idx] = true
+		}
+		rwctxsGlobal = make([]*remoteWriteCtx, total)
+		rwctxsGlobalIdx = make([]int, total)
+		rwctxs := make([]*remoteWriteCtx, 0, len(healthyIdx))
+		for i := range rwctxsGlobal {
+			rwctx := &remoteWriteCtx{idx: i}
+			rwctxsGlobal[i] = rwctx
+			if healthyMap[i] {
+				rwctxs = append(rwctxs, rwctx)
+			}
+			rwctxsGlobalIdx[i] = i
+		}
+
+		gotHealthyIdx, gotUnhealthyIdx := calculateHealthyRwctxIdx(rwctxs)
+		if !reflect.DeepEqual(healthyIdx, gotHealthyIdx) {
+			t.Errorf("calculateHealthyRwctxIdx want healthyIdx = %v, got %v", healthyIdx, gotHealthyIdx)
+		}
+		if !reflect.DeepEqual(unhealthyIdx, gotUnhealthyIdx) {
+			t.Errorf("calculateHealthyRwctxIdx want unhealthyIdx = %v, got %v", unhealthyIdx, gotUnhealthyIdx)
+		}
+	}
+
+	f(5, []int{0, 1, 2, 3, 4}, nil)
+	f(5, []int{0, 1, 2, 4}, []int{3})
+	f(5, []int{2, 4}, []int{0, 1, 3})
+	f(5, []int{0, 2, 4}, []int{1, 3})
+	f(5, []int{}, []int{0, 1, 2, 3, 4})
+	f(5, []int{4}, []int{0, 1, 2, 3})
+	f(1, []int{0}, nil)
+	f(1, []int{}, []int{0})
 }

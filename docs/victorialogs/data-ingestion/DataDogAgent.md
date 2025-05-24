@@ -7,14 +7,16 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 5
 url: /victorialogs/data-ingestion/datadog-agent/
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/DataDogAgent.html
 ---
 
-Datadog Agent doesn't support custom path prefix, so for this reason it's required to use [VMAuth](https://docs.victoriametrics.com/vmauth/) or any other
+Datadog Agent doesn't support custom path prefix, so for this reason it's required to use [VMAuth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or any other
 reverse proxy to append `/insert/datadog` path prefix to all Datadog API logs requests.
 
-In case of [VMAuth](https://docs.victoriametrics.com/vmauth/) your config should look like:
+In case of [VMAuth](https://docs.victoriametrics.com/victoriametrics/vmauth/) your config should look like:
 
 ```yaml
 unauthorized_user:

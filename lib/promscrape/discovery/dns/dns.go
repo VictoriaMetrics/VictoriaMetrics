@@ -18,7 +18,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.dnsSDCheckInterval", 30*time.Second, "Interval for checking for changes in dns. "+
 	"This works only if dns_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#dns_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#dns_sd_configs for details")
 
 // SDConfig represents service discovery config for DNS.
 //

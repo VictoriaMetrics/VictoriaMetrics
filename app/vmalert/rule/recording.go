@@ -83,6 +83,10 @@ func (rr *RecordingRule) ID() uint64 {
 
 // NewRecordingRule creates a new RecordingRule
 func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
+	debug := group.Debug
+	if cfg.Debug != nil {
+		debug = *cfg.Debug
+	}
 	rr := &RecordingRule{
 		Type:      group.Type,
 		RuleID:    cfg.ID,
@@ -92,14 +96,14 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.GetID(),
 		GroupName: group.Name,
 		File:      group.File,
-		Debug:     cfg.Debug,
+		Debug:     debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
-			Debug:                     cfg.Debug,
+			Debug:                     debug,
 		}),
 	}
 
@@ -254,12 +258,18 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 			Value: rr.Name,
 		})
 	}
+	// add extra labels configured by user
 	for k := range rr.Labels {
-		prevLabel := promrelabel.GetLabelByName(m.Labels, k)
-		if prevLabel != nil && prevLabel.Value != rr.Labels[k] {
-			// Rename the prevLabel to "exported_" + label.Name
-			prevLabel.Name = fmt.Sprintf("exported_%s", prevLabel.Name)
+		existingLabel := promrelabel.GetLabelByName(m.Labels, k)
+		if existingLabel != nil { // there is a conflict between extra and existing label
+			if existingLabel.Value == rr.Labels[k] {
+				// extra and existing labels are identical - do nothing
+				continue
+			}
+			// preserve existing label by adding "exported_" prefix
+			existingLabel.Name = fmt.Sprintf("exported_%s", existingLabel.Name)
 		}
+		// add extra label
 		m.Labels = append(m.Labels, prompbmarshal.Label{
 			Name:  k,
 			Value: rr.Labels[k],

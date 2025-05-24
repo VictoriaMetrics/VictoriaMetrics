@@ -56,7 +56,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 //
 // The call is blocked until the data is flushed to vmstorage or the timeout is reached.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
@@ -72,7 +72,7 @@ func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts Q
 // The call accepts the records but does not guarantee successful flush to vmstorage.
 // Flushing may still be in progress on the function return.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 

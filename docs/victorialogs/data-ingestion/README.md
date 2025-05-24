@@ -103,6 +103,10 @@ echo '{ "log": { "level": "info", "message": "hello world" }, "date": "0", "stre
 
 It is possible to push unlimited number of log lines in a single request to this API.
 
+VictoriaLogs skips invalid JSON lines and continues parsing the remaining lines. It logs the warning
+with the reason why it skipped invalid JSON lines. It also increments the `vl_http_errors_total{path="/insert/jsonline"}` counter
+at the [`/metrics` page](https://docs.victoriametrics.com/victorialogs/#monitoring) per every invalid JSON line.
+
 If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
 Otherwise the timestamp field must be in one of the following formats:
@@ -194,6 +198,11 @@ See also:
 - [HTTP parameters, which can be passed to the API](#http-parameters).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
+### Opentelemetry API
+
+VictoriaLogs accepts logs in [OpenTelemetry format](https://opentelemetry.io/docs/specs/otel/logs/data-model/) at the `/insert/opentelemetry/v1/logs` HTTP endpoint.
+See more details [in these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/).
+
 ### HTTP parameters
 
 VictoriaLogs accepts the following configuration parameters via [HTTP headers](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields)
@@ -218,6 +227,9 @@ All the [HTTP-based data ingestion protocols](#http-apis) support the following 
   containing [log timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
   This is usually the `@timestamp` field for Filebeat and Logstash.
 
+  The `_time_field` arg may contain comma-separated list of field names. In this case the first non-empty field from the list
+  is used as log timestamp.
+
   If the `_time_field` arg isn't set, then VictoriaLogs reads the timestamp from the `_time` field. If this field doesn't exist, then the current timestamp is used.
 
 - `_stream_fields` - comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
@@ -227,7 +239,11 @@ All the [HTTP-based data ingestion protocols](#http-apis) support the following 
 
 - `ignore_fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion. The list may contain field name prefixes ending with `*` such a `some-prefix*`.
-  In this case all the log fields starting with `some-prefix` are ignored during data ingestion.
+  In this case all the log fields starting with `some-prefix` are ignored.
+
+- `decolorize_fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  where ANSI color codes must be removed during data ingestion. The list may contain field name prefixes ending with `*` such as `some-prefix*`.
+  In this case all ANSI color codes are removed from all the fields starting with `some-prefix`.
 
 - `extra_fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
@@ -261,6 +277,9 @@ additionally to [HTTP query args](#http-query-string-parameters):
   containing [log timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
   This is usually the `@timestamp` field for Filebeat and Logstash.
 
+  The `VL-Time-Field` header may contain comma-separated list of field names. In this case the first non-empty field from the list
+  is treated as log timestamp.
+
   If the `VL-Time-Field` header isn't set, then VictoriaLogs reads the timestamp from the `_time` field. If this field doesn't exist, then the current timestamp is used.
 
 - `VL-Stream-Fields` - comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
@@ -270,7 +289,11 @@ additionally to [HTTP query args](#http-query-string-parameters):
 
 - `VL-Ignore-Fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion. The list may contain field name prefixes ending with `*` such a `some-prefix*`.
-  In this case all the log fields starting with `some-prefix` are ignored during data ingestion.
+  In this case all the log fields starting with `some-prefix` are ignored.
+
+- `VL-Decolorize-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  where ANSI color codes must be removed during data ingestion. The list may contain field name prefixes ending with `*` such as `some-prefix*`.
+  In this case ANS color codes are removed from all the log fields starting with `some-prefix`.
 
 - `VL-Extra-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
@@ -280,6 +303,14 @@ additionally to [HTTP query args](#http-query-string-parameters):
   the ingested data is logged by VictoriaLogs, so it can be investigated later.
 
 See also [HTTP Query string parameters](#http-query-string-parameters).
+
+## Decolorizing
+
+If the ingested logs contain [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code), then it is recommended dropping these color codes before
+storing the logs in VictoriaLogs. This simplifies further querying and analysis of such logs.
+
+Decolorizing can be done either at the log collector / shipper side or at the VictoriaLogs side with `decolorize_fields` HTTP query arg
+and `VL-Decolorize-Fields` HTTP request header according to [these docs](#http-parameters).
 
 ## Troubleshooting
 

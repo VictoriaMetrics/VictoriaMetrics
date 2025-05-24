@@ -53,7 +53,7 @@ func GetReader(r io.Reader) *Reader {
 	return zr
 }
 
-// PutReader returns zr to the pool, so it could be re-used via GetReader.
+// PutReader returns zr to the pool, so it could be reused via GetReader.
 func PutReader(zr *Reader) {
 	if err := zr.d.Reset(nil); err != nil {
 		logger.Panicf("BUG: unexpected error when resetting ZSTD reader: %s", err)
@@ -118,7 +118,7 @@ func GetWriter(w io.Writer, level int) *Writer {
 	return zw
 }
 
-// PutWriter returns zw to the pool, so it could be re-used via GetWriter.
+// PutWriter returns zw to the pool, so it could be reused via GetWriter.
 func PutWriter(zw *Writer) {
 	zw.e.Reset(nil)
 

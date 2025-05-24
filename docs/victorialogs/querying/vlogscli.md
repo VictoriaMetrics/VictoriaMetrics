@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-querying"
     weight: 1
+tags:
+  - logs
 ---
 
 `vlogsqcli` is an interactive command-line tool for querying [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
@@ -23,8 +25,8 @@ or from docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/v
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.20.0-victorialogs/vlogscli-linux-amd64-v1.20.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v1.20.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.22.2-victorialogs/vlogscli-linux-amd64-v1.22.2-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v1.22.2-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
@@ -152,6 +154,7 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
   This mode shows field values as is if the response contains a single field
   (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)
   plus optional [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+  See also [docs about ANSI colors](#ansi-colors).
 * [Logfmt output](https://brandur.org/logfmt). Type `\logfmt` and press `enter` for this mode.
 
 
@@ -162,3 +165,12 @@ This helps inspecting responses with many lines. If you need investigating the c
 then press buttons with '->' and '<-' arrows on the keyboard.
 
 Type `\wrap_long_lines` in the prompt and press enter in order to toggle automatic wrapping of long lines.
+
+## ANSI colors
+
+By default `vlogscli` doesn't display colored text in the compact [output mode](#output-modes) if the returned logs contain [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code).
+It shows the ANSI color codes instead. Type `\enable_colors` for enabling colored text. Type `\disable_color` for disabling colored text.
+
+ANSI colors make harder analyzing the logs, so it is recommended stripping ANSI colors at data ingestion stage
+according to [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#decolorizing).
+

@@ -479,7 +479,7 @@ type roundTripper struct {
 	trBase             *http.Transport
 	getTLSConfigCached getTLSConfigFunc
 
-	// mu protects acces to rootCAPrev and trPrev
+	// mu protects access to rootCAPrev and trPrev
 	mu         sync.Mutex
 	rootCAPrev *x509.CertPool
 	trPrev     *http.Transport
@@ -681,10 +681,10 @@ func (opts *Options) NewConfig() (*Config, error) {
 	}
 	hd := xxhash.New()
 	for _, kv := range headers {
-		hd.Sum([]byte(kv.key))
-		hd.Sum([]byte("="))
-		hd.Sum([]byte(kv.value))
-		hd.Sum([]byte(","))
+		_, _ = hd.Write([]byte(kv.key))
+		_, _ = hd.Write([]byte("="))
+		_, _ = hd.Write([]byte(kv.value))
+		_, _ = hd.Write([]byte(","))
 	}
 	headersDigest := fmt.Sprintf("digest(headers)=%d", hd.Sum64())
 
@@ -756,15 +756,15 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 	passwordFile := ba.PasswordFile
 	if username == "" && usernameFile == "" {
 		return fmt.Errorf("missing `username` and `username_file` in `basic_auth` section; please specify one; " +
-			"see https://docs.victoriametrics.com/sd_configs/#http-api-client-options")
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
 	}
 	if username != "" && usernameFile != "" {
 		return fmt.Errorf("both `username` and `username_file` are set in `basic_auth` section; please specify only one; " +
-			"see https://docs.victoriametrics.com/sd_configs/#http-api-client-options")
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
 	}
 	if password != "" && passwordFile != "" {
 		return fmt.Errorf("both `password` and `password_file` are set in `basic_auth` section; please specify only one; " +
-			"see https://docs.victoriametrics.com/sd_configs/#http-api-client-options")
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
 	}
 	if usernameFile != "" {
 		usernameFile = fscore.GetFilepath(baseDir, usernameFile)

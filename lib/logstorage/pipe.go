@@ -140,6 +140,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
 		}
 		return pc, nil
+	case lex.isKeyword("decolorize"):
+		pd, err := parsePipeDecolorize(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'decolorize' pipe: %w", err)
+		}
+		return pd, nil
 	case lex.isKeyword("delete", "del", "rm", "drop"):
 		pd, err := parsePipeDelete(lex)
 		if err != nil {
@@ -401,6 +407,7 @@ var pipeNames = func() map[string]struct{} {
 		"blocks_count",
 		"collapse_nums",
 		"copy", "cp",
+		"decolorize",
 		"delete", "del", "rm", "drop",
 		"drop_empty_fields",
 		"extract",

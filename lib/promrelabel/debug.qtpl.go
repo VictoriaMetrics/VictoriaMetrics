@@ -76,7 +76,7 @@ func StreamRelabelDebugStepsHTML(qw422016 *qt422016.Writer, targetURL, targetID 
 //line lib/promrelabel/debug.qtpl:35
 	htmlcomponents.StreamNavbar(qw422016)
 //line lib/promrelabel/debug.qtpl:35
-	qw422016.N().S(`<div class="container-fluid"><a href="https://docs.victoriametrics.com/relabeling/" target="_blank">Relabeling docs</a>`)
+	qw422016.N().S(`<div class="container-fluid"><a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling docs</a>`)
 //line lib/promrelabel/debug.qtpl:37
 	qw422016.N().S(` `)
 //line lib/promrelabel/debug.qtpl:39
@@ -251,11 +251,11 @@ func streamrelabelDebugSteps(qw422016 *qt422016.Writer, dss []DebugStep, targetU
 //line lib/promrelabel/debug.qtpl:109
 		qw422016.N().S(`</pre></b></td><td><div class="m-2" style="font-size: 0.9em" title="deleted and updated labels highlighted in red">`)
 //line lib/promrelabel/debug.qtpl:112
-		streamlabelsWithHighlight(qw422016, inLabels, changedLabels, "red")
+		streamlabelsWithHighlight(qw422016, inLabels, changedLabels, "#D15757")
 //line lib/promrelabel/debug.qtpl:112
 		qw422016.N().S(`</div></td><td><div class="m-2" style="font-size: 0.9em" title="added and updated labels highlighted in blue">`)
 //line lib/promrelabel/debug.qtpl:117
-		streamlabelsWithHighlight(qw422016, outLabels, changedLabels, "blue")
+		streamlabelsWithHighlight(qw422016, outLabels, changedLabels, "#4495e0")
 //line lib/promrelabel/debug.qtpl:117
 		qw422016.N().S(`</div></td></tr>`)
 //line lib/promrelabel/debug.qtpl:121
@@ -375,11 +375,11 @@ func StreamRelabelDebugStepsJSON(qw422016 *qt422016.Writer, targetURL, targetID 
 //line lib/promrelabel/debug.qtpl:157
 			qw422016.N().S(`{"inLabels":`)
 //line lib/promrelabel/debug.qtpl:159
-			qw422016.N().Q(labelsWithHighlight(inLabels, changedLabels, "red"))
+			qw422016.N().Q(labelsWithHighlight(inLabels, changedLabels, "#D15757"))
 //line lib/promrelabel/debug.qtpl:159
 			qw422016.N().S(`,"outLabels":`)
 //line lib/promrelabel/debug.qtpl:160
-			qw422016.N().Q(labelsWithHighlight(outLabels, changedLabels, "blue"))
+			qw422016.N().Q(labelsWithHighlight(outLabels, changedLabels, "#4495e0"))
 //line lib/promrelabel/debug.qtpl:160
 			qw422016.N().S(`,"rule":`)
 //line lib/promrelabel/debug.qtpl:161

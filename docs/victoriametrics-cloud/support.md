@@ -6,6 +6,10 @@ menu:
     parent: "cloud"
     weight: 12
     name: Support
+tags:
+  - metrics
+  - cloud
+  - enterprise
 ---
 ## Basic Support
 All offerings include [Silver level](https://victoriametrics.com/plans-features/) of support, where we maintain the health of your deployments, perform system upgrades, and proactively contact customers if issues arise.

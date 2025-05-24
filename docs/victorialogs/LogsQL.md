@@ -5,13 +5,17 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 5
+tags:
+  - logs
 aliases:
+- /VictoriaLogs/LogsQL.html
 - /victorialogs/LogsQL.html
+- /victorialogs/LogsQL/
 ---
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial)
-and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/)
-in order to feel the language.
+See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial),
+[how to convert Loki queries to VictoriaLogs queries](https://docs.victoriametrics.com/victorialogs/logql-to-logsql/)
+and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/).
 
 LogsQL provides the following features:
 
@@ -39,7 +43,7 @@ error
 
 It is recommended to use [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/) for querying VictoriaLogs.
 
-If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
+If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes according to [these docs](#string-literals).
 For example, the following query finds all the log messages with `and` [word](#word):
 
 ```logsql
@@ -153,7 +157,7 @@ _time:5m log.level:error -(buggy_app OR foobar)
 ```
 
 The field name can be wrapped into quotes if it contains special chars or keywords, which may clash with LogsQL syntax.
-Any [word](#word) also can be wrapped into quotes. So the following query is equivalent to the previous one:
+Any [word](#word) also can be wrapped into quotes according to [these docs](#string-literals). So the following query is equivalent to the previous one:
 
 ```logsql
 "_time":"5m" "log.level":"error" -("buggy_app" OR "foobar")
@@ -241,7 +245,7 @@ then its' name followed by the colon must be put in front of the filter. For exa
 to the `log.level` field, then use `log.level:error` query.
 
 Field names and filter args can be put into quotes if they contain special chars, which may clash with LogsQL syntax. LogsQL supports quoting via double quotes `"`,
-single quotes `'` and backticks:
+single quotes `'` and backticks according to [these docs](#string-literals):
 
 ```logsql
 "some 'field':123":i('some("value")') AND `other"value'`
@@ -289,8 +293,8 @@ It uses various optimizations in order to accelerate full scan queries without t
 but such queries can be slow if the storage contains large number of logs over long time range. The easiest way to optimize queries
 is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
-For example, the following query returns [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
+For example, the following query returns logs ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word)
+at the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 _time:1h AND error
@@ -314,10 +318,10 @@ The following formats are supported for `_time` filter:
 - `_time:<max_time` - matches logs with timestamps smaller than the `max_time`.
 - `_time:<=max_time` - matches logs with timestamps smaller or equal to the `max_time`.
 - `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
     For example, `_time:[2023-04-01Z, 2023-04-30Z]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04Z`.
 - `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
     For example, `_time:[2023-02-01Z, 2023-03-01Z)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02Z`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.
@@ -443,7 +447,7 @@ See also:
 
 VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `{...}` filter, which may contain arbitrary
-[Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
+[Prometheus-compatible label selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 For example, the following query selects [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with `app` field equal to `nginx`:
@@ -575,7 +579,7 @@ See also:
 
 ### Phrase filter
 
-Is you need to search for log messages with the specific phrase inside them, then just wrap the phrase in quotes.
+Is you need to search for log messages with the specific phrase inside them, then just wrap the phrase into quotes according to [these docs](#string-literals).
 The phrase can contain any chars, including whitespace, punctuation, parens, etc. They are taken into account during the search.
 For example, the following query matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with `ssh: login fail` phrase inside them:
@@ -655,7 +659,7 @@ This query doesn't match the following log messages:
 - `Error: foobar`, since the `Error` [word](#word) starts with capital letter. Use `i(err*)` for this case. See [these docs](#case-insensitive-filter) for details.
 - `fooerror`, since the `fooerror` [word](#word) doesn't start with `err`. Use `~"err"` for this case. See [these docs](#substring-filter) for details.
 
-Prefix filter can be applied to [phrases](#phrase-filter). For example, the following query matches
+Prefix filter can be applied to [phrases](#phrase-filter) put inside quotes according to [these docs](#string-literals). For example, the following query matches
 [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) containing phrases with `unexpected fail` prefix:
 
 ```logsql
@@ -689,7 +693,7 @@ in order to apply it to the given field. For example, the following query matche
 log.level:err*
 ```
 
-If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
+If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes according to [these docs](#string-literals).
 For example, the following query matches `log:level` field containing any word with the `err` prefix.
 
 ```logsql
@@ -714,8 +718,8 @@ See also:
 
 ### Substring filter
 
-If it is needed to find logs with some substring, then `~"substring"` filter can be used. For example, the following query matches log entries,
-which contain `ampl` text in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+If it is needed to find logs with some substring, then `~"substring"` filter can be used. The substring can be but in quotes according to [these docs](#string-literals).
+For example, the following query matches log entries, which contain `ampl` text in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 ~"ampl"
@@ -728,6 +732,9 @@ It matches the following messages:
 
 It doesn't match `EXAMPLE message`, since `AMPL` substring here is in uppercase. Use `~"(?i)ampl"` filter instead. Note that case-insensitive filter
 may be much slower than case-sensitive one.
+
+Note that the substring filter in reality is just a [regexp filter](#regexp-filter), so special regexp chars must be escaped there. For example,
+if you need to search for `foo.bar` substring, then `~"foo\\.bar"` filter must be used, since the `.` char means `any character` in the regexp filter.
 
 Performance tip: prefer using [word filter](#word-filter) and [phrase filter](#phrase-filter), since substring filter may be quite slow.
 
@@ -1055,7 +1062,7 @@ in order to apply it to the given field. For example, the following query matche
 log.level:i(error)
 ```
 
-If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
+If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes according to [these docs](#string-literals).
 For example, the following query matches `log:level` field containing `error` [word](#word) in any case.
 
 ```logsql
@@ -1082,7 +1089,7 @@ See also:
 
 Sometimes it is needed to find [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with [words](#word) or phrases in a particular order. For example, if log messages with `error` word followed by `open file` phrase
-must be found, then the following LogsQL query can be used:
+must be found, then the following LogsQL query can be used (every word / phrase can be quoted according to [these docs](#string-literals)):
 
 ```logsql
 seq("error", "open file")
@@ -1101,7 +1108,7 @@ in order to apply it to the given field. For example, the following query matche
 event.original:seq(error, "open file")
 ```
 
-If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
+If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes according to [these docs](https://go.dev/ref/spec#String_literals).
 For example, the following query matches `event:original` field containing `(error, "open file")` sequence:
 
 ```logsql
@@ -1120,6 +1127,7 @@ See also:
 ### Regexp filter
 
 LogsQL supports regular expression filter with [re2 syntax](https://github.com/google/re2/wiki/Syntax) via `~"regex"` syntax.
+The `regex` can be but in one of the supported quotes according to [these docs](#string-literals).
 For example, the following query returns all the log messages containing `err` or `warn` susbstrings:
 
 ```logsql
@@ -1153,7 +1161,7 @@ in order to apply it to the given field. For example, the following query matche
 event.original:~"err|warn"
 ```
 
-If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
+If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes according to [these docs](#string-literals).
 For example, the following query matches `event:original` field containing either `err` or `warn` substrings:
 
 ```logsql
@@ -1204,8 +1212,7 @@ The range boundaries can contain any [supported numeric values](#numeric-values)
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), since the `4.2` number is surrounded by other text.
-Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
-and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
+Extract the numeric value from the message with [`extract` pipe](#extract-pipe) and then apply the `range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Performance tips:
 
@@ -1247,8 +1254,8 @@ user.ip:ipv4_range("1.2.3.4")
 
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
 doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
-and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
+since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with [`extract` pipe](#extract-pipe)
+and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted field.
 
 Hints:
 
@@ -1493,6 +1500,7 @@ LogsQL supports the following pipes:
 - [`blocks_count`](#blocks_count-pipe) counts the number of blocks with logs processed by the query.
 - [`collapse_nums`](#collapse_nums-pipe) replaces all the decimal and hexadecimal numbers with `<N>` in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`decolorize`](#decolorize-pipe) drops [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values.
 - [`extract`](#extract-pipe) extracts the specified text into the given log fields.
@@ -1648,6 +1656,32 @@ See also:
 - [`rename` pipe](#rename-pipe)
 - [`fields` pipe](#fields-pipe)
 - [`delete` pipe](#delete-pipe)
+
+### decolorize pipe
+
+`<q> | decolorize <field>` [pipe](#pipes) drops [ANSI color codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
+from the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across all the logs returned by [`<q>` query](#query-syntax).
+
+The `<field>` may be omitted if ANSI color codes must be dropped from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+For example, the following query drops ANSI color codes from all the `_msg` fields over the logs for the last 5 minutes:
+
+```logsql
+_time:5m | decolorize
+```
+
+This query is equivalent to the following query:
+
+```logsql
+_time:5m | decolorize _msg
+```
+
+It is recommended dropping ANSI color codes at data ingestion stage according to [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#decolorizing).
+This simplifies further querying of the logs without the need to apply `| decolorize` pipe to them.
+
+See also:
+
+- [`replace` pipe](#replace-pipe)
+- [`replace_regexp` pipe](#replace_regexp-pipe)
 
 ### delete pipe
 
@@ -2627,6 +2661,7 @@ See also:
 - [`collapse_nums` pipe](#collapse_nums-pipe)
 - [`format` pipe](#format-pipe)
 - [`extract` pipe](#extract-pipe)
+- [`decolorize` pipe](#decolorize-pipe)
 
 #### Conditional replace_regexp
 
@@ -3967,6 +4002,8 @@ LogsQL supports the following transformations on the log entries selected with [
   See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [`math` pipe](#math-pipe).
 
+See also [other pipes](#pipes), which can be applied to the selected logs.
+
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
 with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
@@ -3998,6 +4035,15 @@ LogsQL provides the following [pipes](#pipes) for limiting the number of returne
 ## Querying specific fields
 
 Specific log fields can be queried via [`fields` pipe](#fields-pipe).
+
+## String literals
+
+LogsQL supports the following string literals:
+
+- `"double quoted"`. Double quote and backslash inside such a string must be escaped with `\`: `"escape\"doublequote and \\ backslash"`.
+  Double-quoted strings may contain special sequences such as `\n`, `\t`, `\f`, `\x8c`, etc. They are decoded according to [these docs](https://go.dev/ref/spec#String_literals).
+- `'single quoted'`. Single quote and backsliash inside such a string must be escaped with `\`: `'escape\'singlequote and \\ backslash'`.
+- ``` `backtick quoted` ```. Strings with backslashes, double quotes and single quotes shouldn't be escaped inside backtick-quoted strings.
 
 ## Comments
 

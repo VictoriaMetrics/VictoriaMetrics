@@ -25,10 +25,10 @@ var (
 		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
 		`This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter`)
 	disableImplicitConversion = flag.Bool("search.disableImplicitConversion", false, "Whether to return an error for queries that rely on implicit subquery conversions, "+
-		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
+		"see https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries for details. "+
 		"See also -search.logImplicitConversion.")
 	logImplicitConversion = flag.Bool("search.logImplicitConversion", false, "Whether to log queries with implicit subquery conversions, "+
-		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
+		"see https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries for details. "+
 		"Such conversion can be disabled using -search.disableImplicitConversion.")
 )
 
@@ -54,10 +54,10 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		if isInvalid && *disableImplicitConversion {
 			// we don't add query=%q to err message as it will be added by the caller
 			return nil, fmt.Errorf("query requires implicit conversion and is rejected according to -search.disableImplicitConversion command-line flag. " +
-				"See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details")
+				"See https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions for details")
 		}
 		if isInvalid && *logImplicitConversion {
-			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
+			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
 		}
 	}
 

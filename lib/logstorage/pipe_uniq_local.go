@@ -97,7 +97,7 @@ func (pup *pipeUniqLocalProcessor) writeBlock(workerID uint, br *blockResult) {
 		value := string(buf)
 		hits64, ok := tryParseUint64(hits[rowIdx])
 		if !ok {
-			logger.Panicf("BUG: unexpected hits recevied from the remote storage at the column %q: %q; it must be uint64", pu.hitsFieldName, hits[rowIdx])
+			logger.Panicf("BUG: unexpected hits received from the remote storage at the column %q: %q; it must be uint64", pu.hitsFieldName, hits[rowIdx])
 		}
 		shard.vhs = append(shard.vhs, ValueWithHits{
 			Value: value,
@@ -126,7 +126,7 @@ func getColumnValuess(br *blockResult, fields []string) [][]string {
 
 func (pup *pipeUniqLocalProcessor) flush() error {
 	pu := pup.pu.pu
-	shards := pup.shards.GetSlice()
+	shards := pup.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

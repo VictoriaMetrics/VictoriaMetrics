@@ -525,10 +525,11 @@ func (q *Query) GetFilterTimeRange() (int64, int64) {
 func (q *Query) AddTimeFilter(start, end int64) {
 	startStr := marshalTimestampRFC3339NanoString(nil, start)
 	endStr := marshalTimestampRFC3339NanoString(nil, end)
+
 	ft := &filterTime{
 		minTimestamp: start,
-		maxTimestamp: end,
-		stringRepr:   fmt.Sprintf("[%s, %s]", startStr, endStr),
+		maxTimestamp: getMatchingEndTime(end, string(endStr)),
+		stringRepr:   fmt.Sprintf("[%s,%s]", startStr, endStr), // should be matched with parsing logic
 	}
 
 	q.visitSubqueries(func(q *Query) {

@@ -8,6 +8,7 @@ menu:
     parent: victoriametrics
     weight: 40
 aliases:
+- /victoriametrics-datasource/
 - /victoriametrics-datasource.html
 # old doc name before it was renamed
 - /grafana-datasource/

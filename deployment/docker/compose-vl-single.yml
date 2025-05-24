@@ -38,7 +38,9 @@ services:
   #  VictoriaLogs instance, a single process responsible for
   #  storing logs and serving read queries.
   victorialogs:
-    image: victoriametrics/victoria-logs:v1.20.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.22.2-victorialogs
+    ports:
+      - "9428:9428"
     command:
       - "--storageDataPath=/vlogs"
     volumes:
@@ -47,7 +49,9 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.115.0
+    image: victoriametrics/victoria-metrics:v1.117.1
+    ports:
+      - "8428:8428"
     volumes:
       - vmdata:/storage
       - ./prometheus-vl-single.yml:/etc/prometheus/prometheus.yml
@@ -60,7 +64,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.115.0
+    image: victoriametrics/vmauth:v1.117.1
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -74,7 +78,7 @@ services:
 
   # vmalert executes alerting and recording rules according to the given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.115.0
+    image: victoriametrics/vmalert:v1.117.1
     depends_on:
       - "vmauth"
       - "alertmanager"
@@ -87,15 +91,20 @@ services:
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
       # vlogs rule
-      - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
+      - ./vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
     command:
+      # it evaluates data against VictoriaMetrics and VictoriaLogs
+      # vmauth routes queries to corresponding datasource based on API path
       - "--datasource.url=http://vmauth:8427/"
-      - "--remoteRead.url=http://victoriametrics:8428/"
+      # results of alerting and recording rules are persisted to VictoriaMetrics only
       - "--remoteWrite.url=http://victoriametrics:8428/"
+      # alerts state is restored from VictoriaMetrics on restarts
+      - "--remoteRead.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"{{ if eq .Type "vlogs" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     restart: always
 
   # alertmanager receives alerting notifications from vmalert

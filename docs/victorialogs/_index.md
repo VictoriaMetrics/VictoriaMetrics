@@ -6,7 +6,11 @@ menu:
     weight: 15
     identifier: victorialogs
     pageRef: /victorialogs/
+tags:
+  - logs
 aliases:
+- /VictoriaLogs.html
+- /VictoriaLogs/
 - /victorialogs/
 - /victorialogs/index.html
 ---

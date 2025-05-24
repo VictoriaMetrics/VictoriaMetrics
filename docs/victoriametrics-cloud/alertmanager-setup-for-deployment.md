@@ -1,10 +1,15 @@
 ---
-weight: 4
+weight: 15
 title: Setup Alertmanager & VMAlert for VictoriaMetrics Cloud
 menu:
   docs:
     parent: "cloud"
-    weight: 4
+    weight: 15
+tags:
+   - metrics
+   - cloud
+   - enterprise
+   - guide
 aliases:
   - /victoriametrics-cloud/alertmanager-setup-for-deployment/index.html
   - /managed-victoriametrics/alertmanager-setup-for-deployment/index.html

@@ -1,7 +1,7 @@
 // Package metricsql implements MetricsQL parser.
 //
 // This parser can parse PromQL. Additionally it can parse all the MetricsQL extensions.
-// See https://docs.victoriametrics.com/metricsql/ for details about MetricsQL.
+// See https://docs.victoriametrics.com/victoriametrics/metricsql/ for details about MetricsQL.
 //
 // Usage:
 //

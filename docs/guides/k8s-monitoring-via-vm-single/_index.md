@@ -5,6 +5,10 @@ menu:
   docs:
     parent: "guides"
     weight: 2
+tags:
+  - metrics
+  - guide
+  - kubernetes
 aliases:
 - /guides/k8s-monitoring-via-vm-single.html
 ---

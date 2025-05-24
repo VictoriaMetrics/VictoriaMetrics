@@ -77,7 +77,7 @@ func TestPrometheusProcessorRun(t *testing.T) {
 			LabelValue: matchValue,
 		}
 
-		runnner, err := prometheus.NewClient(prometheus.Config{
+		runner, err := prometheus.NewClient(prometheus.Config{
 			Snapshot: testSnapshot,
 			Filter:   filter,
 		})
@@ -85,7 +85,7 @@ func TestPrometheusProcessorRun(t *testing.T) {
 			t.Fatalf("cannot create prometheus client: %s", err)
 		}
 		p := &prometheusProcessor{
-			cl: runnner,
+			cl: runner,
 			im: importer,
 			cc: 1,
 		}

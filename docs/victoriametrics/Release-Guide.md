@@ -4,7 +4,9 @@ title: Release process guidance
 menu:
   docs:
     parent: 'victoriametrics'
+    identifier: "release-process-guidance"
     weight: 501
+tags: []
 aliases:
 - /Release-Guide.html
 - /release-guide/index.html
@@ -41,7 +43,7 @@ Bumping the limits may significantly improve build speed.
 
 ## Release version and Docker images
 
-1. Make sure all the changes are documented in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/changelog/CHANGELOG.md).
+1. Make sure all the changes are documented in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md).
    Ideally, every change must be documented in the commit with the change. Alternatively, the change must be documented immediately
    after the commit, which adds the change.
 1. Run `make vmui-update` and `make vmui-logs-update` commands to re-build static files for `vmui`. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650). 
@@ -50,9 +52,9 @@ Bumping the limits may significantly improve build speed.
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
 1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
-1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/changelog/CHANGELOG.md)
+1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md)
    and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
-1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/lts-releases/).
+1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
 1. Make sure you get all changes fetched `git fetch --all`.
 1. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
@@ -60,9 +62,10 @@ Bumping the limits may significantly improve build speed.
    * `git tag -s v1.xx.y-enterprise` in `enterprise-single-node` branch
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
 1. Run `TAG=v1.xx.y make publish-release`. This command performs the following tasks:
-   a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
+
+   - a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
       This step can be run manually with the command `make release` from the needed git tag.
-   b) Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
+   - b)  Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
       for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
       The multi-platform Docker image is built for the following platforms:
       * linux/amd64
@@ -71,11 +74,13 @@ Bumping the limits may significantly improve build speed.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
+
 1. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
-   a) Create draft GitHub release with the name `TAG`. This step can be run manually
+
+   - a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
-   b) Upload all the binaries and checksums created at step `9a` to that release.
+   - b) Upload all the binaries and checksums created at step `11a` to that release.
       This step can be run manually with the command `make github-upload-assets`.
       It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
       which must be created at the step `a`.
@@ -85,29 +90,41 @@ Bumping the limits may significantly improve build speed.
         file created at the step `a`.
       - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
+
 1. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
-1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/changelog/CHANGELOG.md) for this release.
-1. Follow the instructions in [LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#lts-release).
-1. Verify that created images are stable and don't introduce regressions on [test environment](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
-1. Test new images on [sandbox](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
-1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
+1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md) for this release.
+1. Follow the instructions in [LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md#lts-release).
+1. Verify that created images are stable and don't introduce regressions in our sandbox environment. Follow instructions at [Testing Releases](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md#testing-releases).
+1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics:
+
+   ```shell
+   git push origin v1.xx.y
+   git push origin v1.xx.y-cluster
+   ```
+
    Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
-   branches in private repository.
+   branches in private repository:
+
+   ```shell
+   git push enterprise v1.xx.y
+   git push enterprise v1.xx.y-cluster
+   git push enterprise v1.xx.y-enterprise
+   git push enterprise v1.xx.y-enterprise-cluster
+   ```
+
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
+
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
 1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
-1. Bump VictoriaMetrics version at `deployment/docker/*.yml`.
+1. Bump VictoriaMetrics version at `deployment/docker/*.yml`. For example:
+
+   ```shell
+   for f in $(grep "v1\.116\.0" -R deployment/docker/ -l); do sed -i 's/v1.116.0/v1.117.0/g' $f; done
+   ```
+
 1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
-
-### Public Announcement
-
-* Publish message in Slack  at <https://victoriametrics.slack.com>
-* Post at X (Twitter) at <https://x.com/VictoriaMetrics>
-* Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
-* Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
-* Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
 
 ## Operator
 
@@ -115,20 +132,12 @@ The operator repository [https://github.com/VictoriaMetrics/operator/](https://g
 
 ### Bump the version of images
 
-- Bump `Version` field in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go) with new release version for:
-  - `vmalert` in `BaseOperatorConf.VMAlertDefault.Version`,
-  - `vmagent` in `BaseOperatorConf.VMAgentDefault.Version`,
-  - `vmsingle` in `BaseOperatorConf.VMSingleDefault.Version`,
-  - `vmselect` in `BaseOperatorConf.VMClusterDefault.VMSelectDefault.Version`,
-  - `vmstorage` in `BaseOperatorConf.VMClusterDefault.VMStorageDefault.Version`,
-  - `vminsert` in `BaseOperatorConf.VMClusterDefault.VMInsertDefault.Version`,
-  - `vmbackupmanager` in `BaseOperatorConf.VMBackup.Version` (should be enterprise version),
-  - `vmauth` in `BaseOperatorConf.VMAuthDefault.Version`.
-- Run `make operator-conf`.
-- Rename "Next release" section in `docs/CHANGELOG.md` to the *new release version* and create new empty "Next release" section.
-- Commit and push changes to `master`.
-- Create and push a new tag with the *new release version*.
-- Create github release from this tag with "Release notes" from `docs/CHANGELOG.md` for this version in description.
+- Bump the VictoriaMetrics version in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go) with new release version for:
+  - `VM_METRICS_VERSION` key in `defaultEnvs` map,
+  - `BaseOperatorConf.MetricsVersion` default value.
+- Run `make docs`.
+- Add the dependency to the new release to the tip section in `docs/CHANGELOG.md` ([example](https://github.com/VictoriaMetrics/operator/pull/1355/commits/1d7f4439c359b371b05a06e93f615dbcfb266cf5)).
+- Commit and send a PR for review.
 
 ## Helm Charts
 
@@ -148,9 +157,10 @@ Do these updates to the following charts:
 1. Update `vmalert` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/Chart.yaml)
 1. Update `vmauth` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/Chart.yaml)
 1. Update `cluster` chart `version` and `appVersion` in  [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/Chart.yaml)
+1. Update `distributed` chart `version` and `appVersion` in  [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-distributed/Chart.yaml)
+1. Update `gateway` chart `version` and `appVersion` in  [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
 1. Update `k8s-stack` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
-1. Update `single-node` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
-1. Update `vmgateway` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
+1. Update `single` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
 
 See commit example [here](https://github.com/VictoriaMetrics/helm-charts/commit/0ec3ab81795cb098d4741451b66886cc6d9be36c).
 

@@ -52,8 +52,8 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
         const aTimestamp = getNanoTimestamp(a._time);
         const bTimestamp = getNanoTimestamp(b._time);
 
-        if (aTimestamp > bTimestamp) return 1;
-        if (aTimestamp < bTimestamp) return -1;
+        if (aTimestamp < bTimestamp) return 1;
+        if (aTimestamp > bTimestamp) return -1;
         return 0;
       });
 
@@ -95,6 +95,8 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
     setPage(newPage);
     window.scrollTo({ top: 0 });
   };
+
+  const getLogs = useCallback(() => logs, [logs]);
 
   useEffect(() => {
     setExpandGroups(new Array(groupData.length).fill(!isMobile));
@@ -162,7 +164,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
-          <DownloadLogsButton logs={logs} />
+          <DownloadLogsButton getLogs={getLogs} />
           <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}

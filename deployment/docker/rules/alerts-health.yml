@@ -145,4 +145,4 @@ groups:
             * reduce the query load;
             * increase compute resources or number of replicas;
             * adjust limits `-search.maxConcurrentRequests` and `-search.maxQueueDuration`.
-            See more at https://docs.victoriametrics.com/troubleshooting/#slow-queries.
+            See more at https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries.

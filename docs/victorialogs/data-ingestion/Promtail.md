@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 4
+tags:
+  - logs
 aliases:
   - /victorialogs/data-ingestion/Promtail.html
   - /victorialogs/data-ingestion/promtail.html
@@ -35,8 +37,8 @@ clients:
 
 In this case the JSON with log fields is stored as a string in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 so later it could be parsed at query time with the [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe).
-JSON parsing at query can be slow and can consume a lot of additional CPU time and disk read IO bandwidth. That's why it isn't
-recommended disabling JSON message parsing.
+JSON parsing at query can be slow and can consume a lot of additional CPU time and disk read IO bandwidth. That's why it is
+recommended enabling JSON message parsing at data ingestion.
 
 VictoriaLogs uses [log stream labels](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) defined at the client side,
 e.g. at Promtail, Grafana Agent or Grafana Alloy. Sometimes it may be needed overriding the set of these fields. This can be done via `_stream_fields`

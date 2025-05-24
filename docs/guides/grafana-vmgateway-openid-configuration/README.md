@@ -1,4 +1,4 @@
-Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) access to your metrics.
+Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
 to restrict access to metrics to only those that belong to the tenant.
@@ -8,7 +8,7 @@ to restrict access to metrics to only those that belong to the tenant.
 * Identity service that can issue [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token)
 * [Grafana](https://grafana.com/)
 * VictoriaMetrics single-node or cluster version
-* [vmgateway](https://docs.victoriametrics.com/vmgateway/)
+* [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/)
 * An active license key. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Configure identity service
@@ -26,7 +26,7 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
 }
 ```
 
-See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway/#access-control).
+See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control).
 
 ### Configuration example for Keycloak
 
@@ -138,7 +138,7 @@ or manually managing access at another proxy level.
 
 In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
 or `extra_filters` filled dynamically by using Identity Provider's user information.
-vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
+vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to provide additional filtering capabilities.
 
 For example, the following claims can be used to restrict user access to specific metrics:
@@ -164,7 +164,7 @@ So when user will try to query `vm_http_requests_total` query will be transforme
 
 ### Token signature verification
 
-It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/vmgateway/#jwt-signature-verification) at
+It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/victoriametrics/vmgateway/#jwt-signature-verification) at
 vmgateway.
 To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
@@ -186,7 +186,7 @@ Now vmgateway will print the following message on startup:
 
 That means that vmgateway has successfully fetched the public keys from the OpenID Connect discovery endpoint.
 
-It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway/#jwt-signature-verification) for details.
+It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/victoriametrics/vmgateway/#jwt-signature-verification) for details.
 
 ## Use Grafana to query metrics
 
@@ -200,7 +200,7 @@ In the "Type and version" section it is recommended to set the type to "Promethe
 This allows Grafana to use a more efficient API to get label values.
 
 You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) plugin.
-See installation instructions [here](https://docs.victoriametrics.com/victoriametrics-datasource/#installation).
+See installation instructions [here](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation).
 
 Enable `Forward OAuth identity` flag.<br>
 ![Oauth identity](grafana-ds.webp)
@@ -241,27 +241,27 @@ services:
       - grafana_data:/var/lib/grafana/
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.115.0
+    image: victoriametrics/victoria-metrics:v1.117.1
     command:
       - -httpListenAddr=0.0.0.0:8429
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.115.0-cluster
+    image: victoriametrics/vmstorage:v1.117.1-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.115.0-cluster
+    image: victoriametrics/vminsert:v1.117.1-cluster
     command:
       - -storageNode=vmstorage:8400
       - -httpListenAddr=0.0.0.0:8480
 
   vmselect:
-    image: victoriametrics/vmselect:v1.115.0-cluster
+    image: victoriametrics/vmselect:v1.117.1-cluster
     command:
       - -storageNode=vmstorage:8401
       - -httpListenAddr=0.0.0.0:8481
 
   vmagent:
-    image: victoriametrics/vmagent:v1.115.0
+    image: victoriametrics/vmagent:v1.117.1
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -270,7 +270,7 @@ services:
       - -remoteWrite.url=http://vmsingle:8429/api/v1/write
 
   vmgateway-cluster:
-    image: victoriametrics/vmgateway:v1.115.0-enterprise
+    image: victoriametrics/vmgateway:v1.117.1-enterprise
     ports:
       - 8431:8431
     volumes:
@@ -286,7 +286,7 @@ services:
       - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
 
   vmgateway-single:
-    image: victoriametrics/vmgateway:v1.115.0-enterprise
+    image: victoriametrics/vmgateway:v1.117.1-enterprise
     ports:
       - 8432:8431
     volumes:
@@ -397,7 +397,7 @@ Once iDP configuration is done, vmagent configuration needs to be updated to use
 
 ```yaml
   vmagent:
-    image: victoriametrics/vmagent:v1.115.0
+    image: victoriametrics/vmagent:v1.117.1
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
       - ./vmagent-client-secret:/etc/vmagent/oauth2-client-secret

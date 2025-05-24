@@ -25,8 +25,8 @@ var (
 	addr    = flag.String("addr", "stdout", "HTTP address to push the generated logs to; if it is set to stdout, then logs are generated to stdout")
 	workers = flag.Int("workers", 1, "The number of workers to use to push logs to -addr")
 
-	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/#timestamp-formats")
-	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/#timestamp-formats")
+	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats")
+	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats")
 	activeStreams = flag.Int("activeStreams", 100, "The number of active log streams to generate; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields")
 	totalStreams  = flag.Int("totalStreams", 0, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
 		"during data generation")
@@ -206,6 +206,8 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 	if err != nil {
 		logger.Fatalf("cannot perform request to %q: %s", cfg.url, err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode/100 != 2 {
 		logger.Fatalf("unexpected status code got from %q: %d; want 2xx", cfg.url, err)
 	}
