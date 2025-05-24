@@ -1137,7 +1137,7 @@ func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honor
 func (sw *scrapeWork) getMetadataWithTimestamp() []MetricMetadata {
 	sw.metadataLock.RLock()
 	defer sw.metadataLock.RUnlock()
-	
+
 	result := make([]MetricMetadata, 0, len(sw.metadata))
 	for _, meta := range sw.metadata {
 		result = append(result, meta)

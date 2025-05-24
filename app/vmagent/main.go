@@ -80,12 +80,12 @@ var (
 	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
-	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
-	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
-	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
-	emitMetricMetadata    = flag.Bool("promscrape.emitMetricMetadata", false, "Whether to emit metric_metadata time series for scraped Prometheus metrics metadata (HELP/TYPE lines). Default: false.")
+	maxLabelsPerTimeseries      = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
+	maxLabelNameLen             = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
+	maxLabelValueLen            = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
+	emitMetricMetadata          = flag.Bool("promscrape.emitMetricMetadata", false, "Whether to emit metric_metadata time series for scraped Prometheus metrics metadata (HELP/TYPE lines). Default: false.")
 	debugMetricMetadataEmission = flag.Bool("promscrape.debugMetricMetadataEmission", false, "Enable debug logging for metric_metadata emission. Default: false.")
-	metricMetadataInterval = flag.Duration("promscrape.metricMetadataInterval", 30*time.Second, "Interval for emitting metric_metadata time series. Default: 30s.")
+	metricMetadataInterval      = flag.Duration("promscrape.metricMetadataInterval", 30*time.Second, "Interval for emitting metric_metadata time series. Default: 30s.")
 )
 
 var (

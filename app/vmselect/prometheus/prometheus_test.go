@@ -341,7 +341,7 @@ func TestMetadataHandler_Limits(t *testing.T) {
 			}
 			body, _ := ioutil.ReadAll(resp.Body)
 			var parsed struct {
-				Status string `json:"status"`
+				Status string                         `json:"status"`
 				Data   map[string][]map[string]string `json:"data"`
 			}
 			if err := json.Unmarshal(body, &parsed); err != nil {

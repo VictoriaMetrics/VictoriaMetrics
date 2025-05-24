@@ -85,6 +85,7 @@ func WriteConfigData(w io.Writer) {
 	_, _ = w.Write(*p)
 }
 
+// Init initializes the Prometheus scraper with the given pushData function.
 func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
 	pushDataGlobal = pushData
 	mustInitClusterMemberID()

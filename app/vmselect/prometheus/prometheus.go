@@ -1400,7 +1400,9 @@ func MetadataHandler(w http.ResponseWriter, r *http.Request) {
 		"data":   result,
 	}
 	enc := json.NewEncoder(w)
-	enc.Encode(resp)
+	if err := enc.Encode(resp); err != nil {
+		logger.Errorf("failed to encode /api/v1/metadata response: %s", err)
+	}
 }
 
 func writeMetadataError(w http.ResponseWriter, err error) {

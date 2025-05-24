@@ -106,7 +106,7 @@ func TestGetGlobalMetricMetadata_DeduplicationAndRecency(t *testing.T) {
 	}
 	sw2 := &scrapeWork{
 		metadata: map[string]MetricMetadata{
-			"foo": {MetricFamily: "foo", Type: "gauge", Help: "help2", Unit: "s", LastSeen: now - 5}, // newer help
+			"foo": {MetricFamily: "foo", Type: "gauge", Help: "help2", Unit: "s", LastSeen: now - 5},      // newer help
 			"bar": {MetricFamily: "bar", Type: "counter", Help: "bar help", Unit: "", LastSeen: now - 20}, // older but with help
 		},
 	}

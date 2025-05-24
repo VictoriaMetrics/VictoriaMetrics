@@ -266,14 +266,14 @@ func parseMetadata(s string, metadataCallback MetadataCallback) {
 	if len(s) < 2 || s[0] != '#' {
 		return
 	}
-	
+
 	s = s[1:] // Skip the '#' character
 	s = skipLeadingWhitespace(s)
-	
+
 	if len(s) == 0 {
 		return
 	}
-	
+
 	// Look for HELP or TYPE keywords
 	if strings.HasPrefix(s, "HELP ") {
 		parseHelpMetadata(s[5:], metadataCallback)
@@ -288,16 +288,16 @@ func parseHelpMetadata(s string, metadataCallback MetadataCallback) {
 	if len(s) == 0 {
 		return
 	}
-	
+
 	// Find the end of the metric name
 	n := nextWhitespace(s)
 	if n < 0 {
 		return // No help text
 	}
-	
+
 	metricName := s[:n]
 	helpText := skipLeadingWhitespace(s[n:])
-	
+
 	metadata := &MetricMetadata{
 		MetricFamilyName: metricName,
 		Help:             helpText,
@@ -311,17 +311,17 @@ func parseTypeMetadata(s string, metadataCallback MetadataCallback) {
 	if len(s) == 0 {
 		return
 	}
-	
+
 	// Find the end of the metric name
 	n := nextWhitespace(s)
 	if n < 0 {
 		return // No type
 	}
-	
+
 	metricName := s[:n]
 	metricType := skipLeadingWhitespace(s[n:])
 	metricType = skipTrailingWhitespace(metricType)
-	
+
 	metadata := &MetricMetadata{
 		MetricFamilyName: metricName,
 		Type:             metricType,
