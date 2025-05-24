@@ -18,6 +18,10 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
+const (
+	maxLimit = 1000
+)
+
 // Jaeger Query APIs metrics
 var (
 	jaegerServicesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/trace/jaeger/api/services"}`)
@@ -307,6 +311,9 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 		p.Limit, err = strconv.Atoi(limit)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse limit [%s]: %w", limit, err)
+		}
+		if p.Limit > maxLimit {
+			return nil, fmt.Errorf("limit should be not higher than %d", maxLimit)
 		}
 	}
 
