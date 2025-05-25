@@ -39,13 +39,13 @@ http://<victoria-traces>:<port>/insert/opentelemetry/v1/traces
 Now, config your applications or trace collectors to export data to VictoriaTraces. Here's an example config for the OpenTelemetry Collector:
 ```yaml
 exporters:
-  otlphttp/victorialogs:
+  otlphttp/victoriatraces:
     traces_endpoint: http://<victoria-traces>:<port>/insert/opentelemetry/v1/traces
 
 service:
   pipelines:
     traces:
-      exporters: [otlphttp/victorialogs]
+      exporters: [otlphttp/victoriatraces]
 ```
 
 You can browse `http://<victoria-traces>:<port>/select/vmui` to verify the data ingestion, as trace spans should be displayed as logs.
