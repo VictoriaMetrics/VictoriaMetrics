@@ -1064,7 +1064,7 @@ curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 
 It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
-## Prometheus Metric Metadata Support(experimental)
+## Prometheus Metric Metadata Support
 
 VictoriaMetrics can now serve the Prometheus `/api/v1/metadata` endpoint, allowing external tools and dashboards to retrieve metric metadata (HELP, TYPE, UNIT) in the standard Prometheus format.
 
