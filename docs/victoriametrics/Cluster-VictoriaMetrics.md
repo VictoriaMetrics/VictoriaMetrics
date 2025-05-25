@@ -1064,6 +1064,18 @@ curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 
 It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
+## Prometheus Metric Metadata Support(experimental)
+
+VictoriaMetrics can now serve the Prometheus `/api/v1/metadata` endpoint, allowing external tools and dashboards to retrieve metric metadata (HELP, TYPE, UNIT) in the standard Prometheus format.
+
+To enable this feature:
+
+1. **In `vmagent`**: Start `vmagent` with the `-promscrape.emitMetricMetadata` flag (and optionally adjust `-promscrape.metricMetadataInterval`). This causes `vmagent` to emit `metric_metadata` time series for all scraped metrics.
+
+2. **In `vmsingle` or `vmselect`**: Start your VictoriaMetrics instance with the `-prometheus.enableMetadataAPI` flag. This enables the `/api/v1/metadata` endpoint, which will serve the ingested metadata in the Prometheus-compatible format.
+
+Both steps are required for full `/api/v1/metadata` compatibility. For more details and usage examples, see the [vmagent documentation](./vmagent.md#emitting-prometheus-metric-metadata).
+
 
 ## vmalert
 
@@ -2023,7 +2035,3 @@ Below is the output for `/path/to/vmstorage -help`:
   -vmselectAddr string
      TCP address to accept connections from vmselect services (default ":8401")
 ```
-
-> **Prometheus Metric Metadata Support**
->
-> When `vmagent` is run with `-promscrape.emitMetricMetadata`, VictoriaMetrics will ingest and serve Prometheus metric metadata, making the `/api/v1/metadata` endpoint fully compatible with Prometheus. See [vmagent documentation](./vmagent.md#emitting-prometheus-metric-metadata) for details.
