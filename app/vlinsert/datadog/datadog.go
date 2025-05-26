@@ -95,6 +95,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 	// There is no need in updating v2LogsRequestDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	v2LogsRequestDuration.UpdateDuration(startTime)
+	w.WriteHeader(http.StatusAccepted)
 	fmt.Fprintf(w, `{}`)
 	return true
 }

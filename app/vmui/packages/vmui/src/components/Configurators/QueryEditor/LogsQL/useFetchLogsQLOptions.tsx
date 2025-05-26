@@ -9,7 +9,7 @@ import { useCallback } from "react";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { LogsFiledValues } from "../../../../api/types";
 import { useLogsDispatch, useLogsState } from "../../../../state/logsPanel/LogsStateContext";
-import { useSearchParams } from "react-router-dom";
+import { useTenant } from "../../../../hooks/useTenant";
 
 type FetchDataArgs = {
   urlSuffix: string;
@@ -28,12 +28,11 @@ const icons = {
 };
 
 export const useFetchLogsQLOptions = (contextData?: ContextData) => {
-  const [searchParams] = useSearchParams();
-
   const { serverUrl } = useAppState();
   const { period: { start, end } } = useTimeState();
   const { autocompleteCache } = useLogsState();
   const dispatch = useLogsDispatch();
+  const tenant = useTenant();
 
   const [loading, setLoading] = useState(false);
 
@@ -66,11 +65,6 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
     abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;
-
-    const tenant = {
-      AccountID: searchParams.get("accountID") || "0",
-      ProjectID: searchParams.get("projectID") || "0"
-    };
     const tenantString = new URLSearchParams(tenant).toString();
 
     const key = `${urlSuffix}?${params?.toString()}&${tenantString}`;

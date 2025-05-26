@@ -69,7 +69,7 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     if (insertType === ContextType.FilterName) {
       modifiedInsert += ":";
     } else if (contextType === ContextType.FilterValue) {
-      const insertWithQuotes = value.startsWith("_stream:") ? modifiedInsert : `"${modifiedInsert}"`;
+      const insertWithQuotes = value.startsWith("_stream:") ? modifiedInsert : `${JSON.stringify(modifiedInsert)}`;
       modifiedInsert = `${contextData?.filterName || ""}:${insertWithQuotes}`;
     }
 

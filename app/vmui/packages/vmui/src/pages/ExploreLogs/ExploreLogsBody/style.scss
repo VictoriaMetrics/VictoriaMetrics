@@ -4,7 +4,15 @@
   position: relative;
 
   &-header {
+    background-color: $color-background-block;
+    z-index: 1;
     margin: -$padding-medium 0-$padding-medium 0;
+    position: sticky;
+    top: 0;
+
+    @media (max-width:1000px) {
+      top: 51px;
+    }
 
     &_mobile {
       margin: -$padding-global 0-$padding-global 0;
@@ -17,11 +25,6 @@
       align-items: center;
       gap: $padding-small;
       justify-content: flex-end;
-    }
-
-    &__table-settings {
-      display: flex;
-      flex-direction: row;
     }
 
     &__log-info {

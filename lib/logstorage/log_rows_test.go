@@ -295,18 +295,38 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 	}
 	f(o)
 
-	// decolorize
+	// decolorize with _msg field
 	o = opts{
 		rows: []string{
 			`{"_msg":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `","abc":"de","bar":"baz"}`,
+			`{"":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `","abc":"de","bar":"baz"}`,
 			`{"_msg":"abc","bar":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
 			`{"_msg":"abc","bar":"baz","x":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
 		},
 		decolorizeFields: []string{"_msg", "bar"},
 		resultExpected: []string{
 			`{"_msg":"fooERROR bar","_stream":"{}","_time":"1970-01-01T00:00:00.000000001Z","abc":"de","bar":"baz"}`,
-			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000001001Z","bar":"fooERROR bar"}`,
-			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000002001Z","bar":"baz","x":"\u001b[mfoo\u001b[1;31mERROR bar\u001b[10;5H"}`,
+			`{"_msg":"fooERROR bar","_stream":"{}","_time":"1970-01-01T00:00:00.000001001Z","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000002001Z","bar":"fooERROR bar"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000003001Z","bar":"baz","x":"\u001b[mfoo\u001b[1;31mERROR bar\u001b[10;5H"}`,
+		},
+	}
+	f(o)
+
+	// decolorize with "" field name (canonical _msg field)
+	o = opts{
+		rows: []string{
+			`{"_msg":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `","abc":"de","bar":"baz"}`,
+			`{"":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","bar":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
+			`{"_msg":"abc","bar":"baz","x":"` + "\x1b[mfoo\x1b[1;31mERROR bar\x1b[10;5H" + `"}`,
+		},
+		decolorizeFields: []string{"", "bar"},
+		resultExpected: []string{
+			`{"_msg":"fooERROR bar","_stream":"{}","_time":"1970-01-01T00:00:00.000000001Z","abc":"de","bar":"baz"}`,
+			`{"_msg":"fooERROR bar","_stream":"{}","_time":"1970-01-01T00:00:00.000001001Z","abc":"de","bar":"baz"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000002001Z","bar":"fooERROR bar"}`,
+			`{"_msg":"abc","_stream":"{}","_time":"1970-01-01T00:00:00.000003001Z","bar":"baz","x":"\u001b[mfoo\u001b[1;31mERROR bar\u001b[10;5H"}`,
 		},
 	}
 	f(o)

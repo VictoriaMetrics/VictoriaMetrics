@@ -374,6 +374,14 @@ schedulers:
 
 ## Backtesting scheduler
 
+> A new, more intuitive backtesting mode is available {{% available_from "v1.22.1" anomaly %}}. In **Inference only** mode, the window you specify via `[from, to]` (or `[from_iso, to_iso]`) is used *solely for inference*, and the corresponding training (“fit”) windows are determined automatically. To enable this behavior, set:
+> ```yaml
+> inference_only: true
+> ```
+>
+> in your scheduler configuration. (The default is `false` for backward-compatibility.) For full details, see [Inference only mode](#inference-only-mode).
+
+
 ### Parameters
 As for [Oneoff scheduler](#oneoff-scheduler), timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
 ISO format supported time zone offset formats are:
@@ -422,7 +430,55 @@ Allows *proportionally faster (yet more resource-intensive)* evaluations of a co
     </tbody>
 </table>
 
+### Inference only mode
+
+In **Inference only** mode {{% available_from "v1.22.1" anomaly %}}, the scheduler splits your overall time window into non-overlapping inference segments and automatically derives the preceding training segments:
+
+1. **Inference Window**  
+   - Defined by your `from`/`to` (or `from_iso`/`to_iso`) parameters.
+   - Each inference segment spans the configured `fit_every` duration.
+2. **Training Window**  
+   - Automatically set to the configured `fit_window` immediately preceding each inference segment.
+   - Ensures each model is trained on the most recent `fit_window` of data before inferring, see [example](#example) section for the details
+
+#### Configuration Parameters
+- `inference_only: true`: Enables of such inference-only behavior.
+- `from`, `to` (or `from_iso`, `to_iso`): Overall inference-only timeframe.
+- `fit_window`: Duration of historical data used for each training run (e.g. `P7D`, `PT1H`).
+- `fit_every`: Interval between consecutive training/inference cycles.
+- `n_jobs`: Number of parallel jobs for backtesting (default: `1`).
+
+#### Example
+
+The config
+
+```yaml
+# other config sections ...
+schedulers:
+  backtesting_inference_only:       # scheduler alias
+    class: "backtesting"
+    fit_window: "P7D"               # train on the 7-day window preceding each inference
+    fit_every: "PT12H"              # inference interval of 12 hours
+    inference_only: true            # use [from, to] to construct inference windows only
+    from_iso: "2025-05-08T03:00:00Z"
+    to_iso:   "2025-05-09T00:00:00Z"
+    n_jobs: 2                       # number of parallel jobs
+```
+
+will result in 2 intervals:
+
+- Complete inference interval (12h): `2025-05-08T12:00:00Z` - `2025-05-09T00:00:00Z`
+<br>Training window (7d): `2025-05-01T12:00:00Z` - `2025-05-08T12:00:00Z`
+
+- Partial inference interval (9h): `2025-05-08T03:00:00Z` - `2025-05-08T12:00:00Z` 
+<br>(start is "clipped" by `from_iso` so it's less than `fit_every`)
+<br>Training window (7d): `2025-05-01T03:00:00Z` - `2025-05-08T03:00:00Z`
+
+Where models, fit on training window, will be used to calculate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) on respective inference windows.
+
 ### Defining overall timeframe
+
+> This legacy mode is retained for backward compatibility and is less straightforward. Use it only if you cannot upgrade `vmanomaly` to [v1.22.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1221) or later.
 
 This timeframe will be used for slicing on intervals `(fit_window, infer_window == fit_every)`, starting from the *latest available* time point, which is `to_*` and going back, until no full `fit_window + infer_window` interval exists within the provided timeframe.
 <table class="params">

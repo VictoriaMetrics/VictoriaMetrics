@@ -295,15 +295,15 @@ func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Respon
 	// Return true if the request execution is completed and retry is not required
 	attempt := func() bool {
 		resp, reqErr = hc.client.Do(req)
-		if reqErr == nil {
-			statusCode := resp.StatusCode
-			if statusCode != http.StatusTooManyRequests {
+		if reqErr != nil {
+			if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
 				return true
 			}
-		} else if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
-			return true
+
+			return false
 		}
-		return false
+
+		return resp.StatusCode != http.StatusTooManyRequests
 	}
 
 	if attempt() {

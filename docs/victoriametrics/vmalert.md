@@ -468,7 +468,8 @@ and allows using labels and extra data related to the alert. For example, see th
 
 In this example, `-external.alert.source` will lead to Grafana's Explore page with `expr` field equal to alert expression,
 and time range will be selected starting from `"from":"{{ .ActiveAt.UnixMilli }}"` when alert became active.
-The `datasource` name is set to `VictoriaLogs` if rule's type {{% available_from "v1.117.0" %}} (`prometheus`, `vlogs` or `graphite`) is `vlogs`. Otherwise, it is set to `VictoriaMetrics`.
+The `datasource` name is set to `VictoriaLogs` if rule's type {{% available_from "v1.117.0" %}} (`prometheus`, `vlogs` or `graphite`) is `vlogs`. 
+Otherwise, it is set to `VictoriaMetrics`. See [how we set alert source in docker](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cdaf83247caec32cce26e2cab226310ed0b46ee4/deployment/docker/compose-vl-single.yml#L106-L107).
 
 In addition to `source` link, some extra links could be added to alert's [annotations](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)
 field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9751ea10983d42068487624849cac7ad6fd7e1d8/deployment/docker/rules/alerts-cluster.yml#L44)
@@ -724,7 +725,7 @@ In this topology, `vmalert` is configured to persist rule results to `vmagent`. 
 is configured to fan-out received data to two or more destinations.
 Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability),
-or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling).
+or time series modification via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 
 ### Web
@@ -1793,13 +1794,13 @@ dns_sd_configs:
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
-# See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
+# See https://docs.victoriametrics.com/victoriametrics/relabeling/
 relabel_configs:
   [ - <relabel_config> ... ]
 
 # List of relabel configurations for alert labels sent via Notifier.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
-# See https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling
+# See https://docs.victoriametrics.com/victoriametrics/relabeling/
 alert_relabel_configs:
   [ - <relabel_config> ... ]
 ```
