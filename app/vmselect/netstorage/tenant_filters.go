@@ -25,10 +25,6 @@ func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tf
 		return nil, nil, fmt.Errorf("cannot apply filters to tenants: %w", err)
 	}
 
-	if len(tts) == 0 { // Avoid global query if tenant does not exist
-		return tts, tfs, nil
-	}
-
 	return tts, otherFilters, nil
 }
 
