@@ -1,10 +1,10 @@
 ---
-weight: 5
+weight: 16
 title: Alerting with vmalert and VictoriaMetrics Cloud
 menu:
   docs:
     parent: "cloud"
-    weight: 5
+    weight: 16
 tags:
   - metrics
   - cloud

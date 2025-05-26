@@ -1,4 +1,4 @@
-FROM golang:1.23-bullseye as aws-lambda-rie
+FROM golang:1.24-bullseye as aws-lambda-rie
 
 # Install custom aws-lambda-rie till Telemetry API support is not merged
 # https://github.com/aws/aws-lambda-runtime-interface-emulator/pull/137
@@ -26,7 +26,7 @@ RUN \
 WORKDIR /var/task
 COPY --from=aws-lambda-rie /aws-lambda-rie /var/task/aws-lambda-rie
 COPY main.py /var/task/
-COPY --from=public.ecr.aws/datadog/lambda-extension:73 /opt/. /opt/
+COPY --from=public.ecr.aws/datadog/lambda-extension:78 /opt/. /opt/
 
 ENTRYPOINT ["/var/task/aws-lambda-rie"]
 CMD ["/usr/local/bin/python", "-m", "awslambdaric", "main.lambda_handler"]

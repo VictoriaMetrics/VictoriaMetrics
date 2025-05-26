@@ -2020,7 +2020,7 @@ func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrappe
 	}
 
 	// Copy the appliedRetentionFilename to dstDir.
-	// This file can be created by VictoriaMetrics enterprise.
+	// This file can be created by VictoriaMetrics Enterprise.
 	// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters .
 	// Do not make hard link to this file, since it can be modified over time.
 	srcPath := filepath.Join(srcDir, appliedRetentionFilename)
