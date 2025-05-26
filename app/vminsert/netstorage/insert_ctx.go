@@ -235,22 +235,6 @@ func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
 	return &ctx.at
 }
 
-// CleanAuthTokenLabels removes vm_account_id and vm_project_id labels.
-func (ctx *InsertCtx) CleanAuthTokenLabels() {
-	tmpLabels := ctx.Labels[:0]
-	for _, label := range ctx.Labels {
-		if label.Name == "vm_account_id" || label.Name == "vm_project_id" {
-			continue
-		}
-		tmpLabels = append(tmpLabels, label)
-	}
-	cleanLabels := ctx.Labels[len(tmpLabels):]
-	for i := range cleanLabels {
-		cleanLabels[i] = prompbmarshal.Label{}
-	}
-	ctx.Labels = tmpLabels
-}
-
 func parseUint32(s string) uint32 {
 	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
