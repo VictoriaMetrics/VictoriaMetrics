@@ -5118,7 +5118,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `3*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every two seconds.",
+          "description": "How many data points are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `5*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every 5 seconds. The index datapoints value in general is much lower",
           "fieldConfig": {
             "defaults": {
               "color": {
