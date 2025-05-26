@@ -7,6 +7,7 @@ import (
 
 func TestIsErrMissingPort(t *testing.T) {
 	f := func(addr string, expected bool) {
+		t.Helper()
 		_, _, err := net.SplitHostPort(addr)
 		if IsErrMissingPort(err) != expected {
 			t.Fatalf("unexpected result for %q; got %v; want %v", addr, !expected, expected)
@@ -15,6 +16,9 @@ func TestIsErrMissingPort(t *testing.T) {
 
 	f("127.0.0.1", true)
 	f("http://127.0.0.1:8080", false)
+
+	f("[::1]", true)
+	f("http://[::1]:8080", false)
 }
 
 func TestNormalizeAddrSuccess(t *testing.T) {
@@ -31,6 +35,8 @@ func TestNormalizeAddrSuccess(t *testing.T) {
 
 	f("127.0.0.1", 80, "127.0.0.1:80")
 	f("127.0.0.1:123", 80, "127.0.0.1:123")
+	f("[::1]", 80, "[::1]:80")
+	f("[::1]:123", 80, "[::1]:123")
 }
 
 func TestNormalizeAddrError(t *testing.T) {
@@ -44,6 +50,8 @@ func TestNormalizeAddrError(t *testing.T) {
 
 	// Invalid number of octets in address
 	f("1:2:3:4:5:6:7:8:9:10")
+	// Invalid IPv6 address format
+	f("::1:2:3:4:5:6:7:8:9")
 
 	// Invalid address format
 	f("http://127.0.0.1")
