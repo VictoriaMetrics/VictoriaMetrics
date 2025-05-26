@@ -62,7 +62,13 @@ func insertRows(at *auth.Token, block *stream.Block, extraLabels []prompbmarshal
 	if !ctx.TryPrepareLabels(hasRelabeling) {
 		return nil
 	}
+	// remove vm_account_id and vm_project_id labels if tenant specified.
+	if at != nil {
+		ctx.CleanAuthTokenLabels()
+	}
+	// use specified tenant or acquire one from data.
 	atLocal := ctx.GetLocalAuthToken(at)
+
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 	values := block.Values
