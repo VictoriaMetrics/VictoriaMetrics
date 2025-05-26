@@ -19,7 +19,7 @@ services:
       retries: 10
 
   dd-proxy:
-    image: docker.io/victoriametrics/vmauth:v1.117.1
+    image: docker.io/victoriametrics/vmauth:v1.118.0
     restart: on-failure
     volumes:
       - ./:/etc/vmauth
