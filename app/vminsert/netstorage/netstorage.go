@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
@@ -22,8 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -530,10 +530,12 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 	sns := make([]*storageNode, 0, len(addrs))
 	stopCh := make(chan struct{})
 	for _, addr := range addrs {
-		if _, _, err := net.SplitHostPort(addr); err != nil {
-			// Automatically add missing port.
-			addr += ":8400"
+		normalizedAddr, err := netutil.NormalizeAddr(addr, 8400)
+		if err != nil {
+			logger.Fatalf("cannot normalize -storageNode=%q: %s", addr, err)
 		}
+		addr = normalizedAddr
+
 		sn := &storageNode{
 			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmstorageDialTimeout, *vmstorageUserTimeout),
 

@@ -65,3 +65,32 @@ var Dialer = &net.Dialer{
 	KeepAlive: 30 * time.Second,
 	DualStack: TCP6Enabled(),
 }
+
+// IsErrMissingPort checks if the given error is due to a missing port in the address.
+// It is expected to be used to validate error returned by net.SplitHostPort
+func IsErrMissingPort(err error) bool {
+	if err == nil {
+		return false
+	}
+	// There is no specific error exported for missing port in address.
+	// So we check for the substring.
+	return strings.Contains(err.Error(), "missing port in address")
+}
+
+// NormalizeAddr normalizes the given addr by adding defaultPort if it is missing.
+// It returns the normalized address in the form "host:port".
+// It is expected that addr is in the form "host" or "host:port".
+func NormalizeAddr(addr string, defaultPort int) (string, error) {
+	if strings.Index(addr, "/") > 0 {
+		return "", fmt.Errorf("invalid address %q; expected format: host:port", addr)
+	}
+
+	_, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		if IsErrMissingPort(err) {
+			return fmt.Sprintf("%s:%d", addr, defaultPort), nil
+		}
+		return "", fmt.Errorf("invalid address %q; expected format: host:port", addr)
+	}
+	return addr, nil
+}
