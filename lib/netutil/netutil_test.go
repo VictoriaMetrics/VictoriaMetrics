@@ -19,6 +19,11 @@ func TestIsErrMissingPort(t *testing.T) {
 
 	f("[::1]", true)
 	f("http://[::1]:8080", false)
+
+	f("vmstorage-0", true)
+	f("vmstorage-0.svc.cluster.local.", true)
+	f("http://vmstorage-0:8080", false)
+	f("http://vmstorage-0.svc.cluster.local.:8080", false)
 }
 
 func TestNormalizeAddrSuccess(t *testing.T) {
@@ -37,6 +42,8 @@ func TestNormalizeAddrSuccess(t *testing.T) {
 	f("127.0.0.1:123", 80, "127.0.0.1:123")
 	f("[::1]", 80, "[::1]:80")
 	f("[::1]:123", 80, "[::1]:123")
+	f("vmstorage-0.svc.cluster.local.", 80, "vmstorage-0.svc.cluster.local.:80")
+	f("vmstorage-0.svc.cluster.local.:123", 80, "vmstorage-0.svc.cluster.local.:123")
 }
 
 func TestNormalizeAddrError(t *testing.T) {
@@ -56,4 +63,6 @@ func TestNormalizeAddrError(t *testing.T) {
 	// Invalid address format
 	f("http://127.0.0.1")
 	f("http://127.0.0.1:80")
+	f("http://vmstorage-0.svc.cluster.local.")
+	f("http://vmstorage-0.svc.cluster.local.:80")
 }
