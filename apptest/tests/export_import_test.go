@@ -30,8 +30,8 @@ func TestClusterExportImport(t *testing.T) {
 	testExportImportNative(tc.T(), sut)
 }
 
-// testExportImportNative test if auth token is handled correctly.
-// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9016
+// testExportImportNative test export and import in VictoriaMetrics’ native format.
+// see: https://docs.victoriametrics.com/#how-to-import-data-in-native-format
 func testExportImportNative(t *testing.T, sut at.PrometheusWriteQuerier) {
 	// create test data
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
