@@ -68,7 +68,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.117.1
+    image: victoriametrics/victoria-metrics:v1.118.0
     volumes:
       - vmdata:/storage
       - ./prometheus-vl-cluster.yml:/etc/prometheus/prometheus.yml
@@ -81,7 +81,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.117.1
+    image: victoriametrics/vmauth:v1.118.0
     depends_on:
       - "victoriametrics"
       - "vlselect-1"
@@ -97,7 +97,7 @@ services:
 
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.117.1
+    image: victoriametrics/vmalert:v1.118.0
     depends_on:
       - "vmauth"
       - "alertmanager"
