@@ -218,8 +218,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-				time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			requestHeader := httpserver.GetRequestHeader(r)
+			if len(requestHeader) > 0 {
+				logger.Infof("client has canceled the request after %.3f seconds: requestHeader=%s, remoteAddr=%s, requestURI: %q",
+					time.Since(startTime).Seconds(), requestHeader, remoteAddr, requestURI)
+			} else {
+				logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			}
 			return true
 		case <-t.C:
 			timerpool.Put(t)
@@ -244,8 +250,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				requestHeader := httpserver.GetRequestHeader(r)
+				if len(requestHeader) > 0 {
+					logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: requestHeader=%s, remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+						*logSlowQueryDuration, requestHeader, remoteAddr, d.Seconds(), requestURI)
+				} else {
+					logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+						*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				}
+
 				slowQueries.Inc()
 			}
 		}()

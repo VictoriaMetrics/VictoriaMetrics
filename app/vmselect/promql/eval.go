@@ -147,6 +147,9 @@ type EvalConfig struct {
 	// The request URI isn't stored here because its' construction may take non-trivial amounts of CPU.
 	GetRequestURI func() string
 
+	// The callback, which returns the request header during logging.
+	GetRequestHeader func() string
+
 	// Whether to deny partial response.
 	DenyPartialResponse bool
 
@@ -178,6 +181,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
 	ec.GetRequestURI = src.GetRequestURI
+	ec.GetRequestHeader = src.GetRequestHeader
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse.Store(src.IsPartialResponse.Load())
 	ec.QueryStats = src.QueryStats
@@ -1777,10 +1781,16 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
-		logger.Warnf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
+		requestHeader := ec.GetRequestHeader()
+		logMsg := fmt.Sprintf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
 			"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
 			"the query selects %d time series and generates %d points across all the time series; try reducing the number of selected time series",
 			ec.QuotedRemoteAddr, requestURI, expr.AppendString(nil), rollupMemorySize, maxMemory, timeseriesLen*len(rcs), rollupPoints)
+		if len(requestHeader) > 0 {
+			logger.Warnf("requestHeader=%s, %s", requestHeader, logMsg)
+		} else {
+			logger.Warnf("%s", logMsg)
+		}
 	}
 	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		rss.Cancel()
