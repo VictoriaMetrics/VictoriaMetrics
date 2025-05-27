@@ -62,8 +62,22 @@ func mustDeletePartition(path string) {
 func mustOpenPartition(s *Storage, path string) *partition {
 	name := filepath.Base(path)
 
-	// Open indexdb
 	indexdbPath := filepath.Join(path, indexdbDirname)
+	isIndexDBExist := fs.IsPathExist(indexdbPath)
+
+	datadbPath := filepath.Join(path, datadbDirname)
+	isDatadbExist := fs.IsPathExist(datadbPath)
+
+	if !isIndexDBExist {
+		if isDatadbExist {
+			logger.Panicf("FATAL: indexdb directory %s is missing, but datadb directory %s exists. "+
+				"This indicates corruption. Manually remove the %s partition to resolve it (partition data will be lost)",
+				indexdbPath, datadbPath, path)
+		}
+
+		logger.Warnf("creating missing indexdb directory %s, this could happen if VictoriaLogs shuts down uncleanly (via OOM crash, a panic, SIGKILL or hardware shutdown) while creating new per-day partition", indexdbPath)
+		mustCreateIndexdb(indexdbPath)
+	}
 	idb := mustOpenIndexdb(indexdbPath, name, s)
 
 	// Start initializing the partition
@@ -74,8 +88,11 @@ func mustOpenPartition(s *Storage, path string) *partition {
 		idb:  idb,
 	}
 
-	// Open datadb
-	datadbPath := filepath.Join(path, datadbDirname)
+	if !fs.IsPathExist(datadbPath) {
+		logger.Warnf("creating missing datadb directory %s, this could happen if VictoriaLogs shuts down uncleanly (via OOM crash, a panic, SIGKILL or hardware shutdown) while creating new per-day partition", datadbPath)
+		mustCreateDatadb(datadbPath)
+	}
+
 	pt.ddb = mustOpenDatadb(pt, datadbPath, s.flushInterval)
 
 	return pt
