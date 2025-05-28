@@ -18,11 +18,22 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): enhance alerting rule `DiskRunsOutOfSpaceIn3Days` and `NodeBecomesReadonlyIn3Days` to account for [deduplication](https://docs.victoriametrics.com/#deduplication) and [indexDB](https://docs.victoriametrics.com/#indexdb) growth when calculating disk consumption rate.
-* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): restore panel `Storage full ETA` using calculation logic from [#8955](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8955). It was previously removed in [#8492](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
 * FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): dynamically adjusts the concurrent dial limit between 8 and 64 based on `-search.maxConcurrentRequests`. Additionally, goroutines now have the opportunity to access available connections while awaiting the dial limit token. This enables faster connection establishment when sudden requests arrive and reduces the blocking time during the availability check for connections.
 
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix access conflicts for the temporary test folder when multiple users run tests on the same host. Thanks to @evkuzin for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9015).
+
+## [v1.118.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.118.0)
+
+Released at 2025-05-23
+
+* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): enhance alerting rule `DiskRunsOutOfSpaceIn3Days` and `NodeBecomesReadonlyIn3Days` to account for [deduplication](https://docs.victoriametrics.com/#deduplication) and [indexDB](https://docs.victoriametrics.com/#indexdb) growth when calculating disk consumption rate.
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): restore panel `Storage full ETA` using calculation logic from [#8955](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8955). It was previously removed in [#8492](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8492).
+* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/dashboards) for VictoriaMetrics single, cluster, vmagent and vmalert: add panels for [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics to dashboards. They could help to identify shortage of resources for VictoriaMetrics components.
+
+
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop duplicate labels when they appear in both the recording rule label spec and the expression result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8954) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic during query execution when query stats tracking is disabled with `-search.queryStats.lastQueriesCount=0`. See [#8973](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8973).
 
 ## [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1)
 
@@ -250,6 +261,17 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.9)
+
+Released at 2025-05-23
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop duplicate labels when they appear in both the recording rule label spec and the expression result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8954) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
+
 ## [v1.110.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.8)
 
 Released at 2025-05-15
@@ -474,6 +496,16 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
+
+## [v1.102.22](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.22)
+
+Released at 2025-05-23
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
 
 ## [v1.102.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.21)
 

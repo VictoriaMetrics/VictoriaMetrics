@@ -525,10 +525,11 @@ func (q *Query) GetFilterTimeRange() (int64, int64) {
 func (q *Query) AddTimeFilter(start, end int64) {
 	startStr := marshalTimestampRFC3339NanoString(nil, start)
 	endStr := marshalTimestampRFC3339NanoString(nil, end)
+
 	ft := &filterTime{
 		minTimestamp: start,
-		maxTimestamp: end,
-		stringRepr:   fmt.Sprintf("[%s, %s]", startStr, endStr),
+		maxTimestamp: getMatchingEndTime(end, string(endStr)),
+		stringRepr:   fmt.Sprintf("[%s,%s]", startStr, endStr), // should be matched with parsing logic
 	}
 
 	q.visitSubqueries(func(q *Query) {
@@ -1548,7 +1549,7 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
 		s += lex.rawToken
 		lex.nextToken()
 	}
@@ -1595,8 +1596,8 @@ func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	rawS := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
-		s += lex.token
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
+		suffix += lex.rawToken
 		lex.nextToken()
 	}
 	if suffix == "" {
@@ -1613,7 +1614,7 @@ func getCompoundFuncArg(lex *lexer) string {
 	rawArg := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") {
+	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") && !lex.isEnd() {
 		suffix += lex.rawToken
 		lex.nextToken()
 	}

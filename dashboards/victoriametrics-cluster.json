@@ -58,11 +58,11 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.102.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.117.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 3,
+  "id": 1,
   "links": [
     {
       "icon": "doc",
@@ -1632,7 +1632,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1648,7 +1649,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 719
+            "y": 38
           },
           "id": 66,
           "options": {
@@ -1687,6 +1688,122 @@
             }
           ],
           "title": "RSS memory % usage ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Drilldown",
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                }
+              ],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          },
+          "id": 64,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "CPU ($instance)",
           "type": "timeseries"
         },
         {
@@ -1746,7 +1863,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1761,8 +1879,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 12,
-            "y": 719
+            "x": 0,
+            "y": 46
           },
           "id": 138,
           "options": {
@@ -1808,6 +1926,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Shows CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1843,41 +1962,33 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "off"
+                  "mode": "line"
                 }
               },
-              "links": [
-                {
-                  "targetBlank": true,
-                  "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
-                }
-              ],
+              "decimals": 0,
+              "links": [],
               "mappings": [],
               "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "s"
             },
             "overrides": []
           },
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
-            "y": 727
+            "x": 12,
+            "y": 46
           },
-          "id": 64,
+          "id": 219,
           "options": {
             "legend": {
               "calcs": [
@@ -1894,7 +2005,7 @@
             "tooltip": {
               "hideZeros": false,
               "mode": "multi",
-              "sort": "none"
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.5.0",
@@ -1905,17 +2016,153 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "exemplar": true,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "intervalFactor": 2,
+              "legendFormat": "{{job}} - waiting",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{job}} - stalled",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "CPU ($instance)",
+          "title": "CPU pressure",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 54
+          },
+          "id": 220,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{job}} - waiting",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{job}} - stalled",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Memory pressure",
           "type": "timeseries"
         },
         {
@@ -1968,7 +2215,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1997,7 +2245,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 727
+            "y": 54
           },
           "id": 122,
           "options": {
@@ -2108,7 +2356,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2140,7 +2389,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 735
+            "y": 62
           },
           "id": 117,
           "options": {
@@ -2233,7 +2482,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2262,7 +2512,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 735
+            "y": 62
           },
           "id": 204,
           "options": {
@@ -2372,7 +2622,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2388,7 +2639,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 743
+            "y": 70
           },
           "id": 68,
           "options": {
@@ -2436,6 +2687,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Shows IO pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2471,23 +2723,23 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "off"
+                  "mode": "line"
                 }
               },
+              "decimals": 0,
+              "links": [],
               "mappings": [],
+              "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "s"
             },
             "overrides": []
           },
@@ -2495,9 +2747,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 743
+            "y": 70
           },
-          "id": 119,
+          "id": 221,
           "options": {
             "legend": {
               "calcs": [
@@ -2525,15 +2777,31 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "exemplar": true,
-              "expr": "sum(max_over_time(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+              "expr": "max(rate(process_pressure_io_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "format": "time_series",
               "interval": "",
-              "legendFormat": "{{job}}",
+              "intervalFactor": 2,
+              "legendFormat": "{{job}} - waiting",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(rate(process_pressure_io_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "{{job}} - stalled",
+              "range": true,
+              "refId": "B"
             }
           ],
-          "title": "TCP connections ($instance)",
+          "title": "IO pressure",
           "type": "timeseries"
         },
         {
@@ -2587,7 +2855,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2603,7 +2872,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 751
+            "y": 78
           },
           "id": 70,
           "options": {
@@ -2694,7 +2963,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2710,9 +2980,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 751
+            "y": 78
           },
-          "id": 120,
+          "id": 119,
           "options": {
             "legend": {
               "calcs": [
@@ -2741,14 +3011,14 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "sum(max_over_time(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
               "interval": "",
-              "legendFormat": "__auto",
+              "legendFormat": "{{job}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "TCP connections rate ($instance)",
+          "title": "TCP connections ($instance)",
           "type": "timeseries"
         },
         {
@@ -2803,7 +3073,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2819,7 +3090,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 759
+            "y": 86
           },
           "id": 210,
           "options": {
@@ -2864,7 +3135,6 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2900,26 +3170,24 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "line"
+                  "mode": "off"
                 }
               },
-              "decimals": 0,
-              "links": [],
               "mappings": [],
-              "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
-                    "value": 0.1
+                    "value": 80
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2927,9 +3195,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 759
+            "y": 86
           },
-          "id": 213,
+          "id": 120,
           "options": {
             "legend": {
               "calcs": [
@@ -2939,7 +3207,9 @@
               ],
               "displayMode": "table",
               "placement": "bottom",
-              "showLegend": true
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
             },
             "tooltip": {
               "hideZeros": false,
@@ -2955,16 +3225,15 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance, le))) by(job)",
-              "format": "time_series",
+              "exemplar": true,
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
               "interval": "",
-              "intervalFactor": 2,
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Go scheduling latency",
+          "title": "TCP connections rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -3019,7 +3288,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -3031,7 +3301,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 767
+            "y": 94
           },
           "id": 218,
           "options": {
@@ -3070,6 +3340,115 @@
           ],
           "title": "Memory allocations rate",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 94
+          },
+          "id": 213,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
+          "type": "timeseries"
         }
       ],
       "title": "Resource usage ($job)",
@@ -3095,7 +3474,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 1303
+            "y": 1394
           },
           "id": 211,
           "options": {
@@ -3196,7 +3575,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1368
+            "y": 1459
           },
           "id": 102,
           "options": {
@@ -3314,7 +3693,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1368
+            "y": 1459
           },
           "id": 108,
           "options": {
@@ -3419,7 +3798,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1376
+            "y": 1467
           },
           "id": 170,
           "options": {
@@ -3528,7 +3907,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1376
+            "y": 1467
           },
           "id": 107,
           "options": {
@@ -3631,7 +4010,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 1384
+            "y": 1475
           },
           "id": 144,
           "options": {
@@ -3738,7 +4117,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 1384
+            "y": 1475
           },
           "id": 58,
           "options": {
@@ -3849,7 +4228,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1393
+            "y": 1484
           },
           "id": 142,
           "links": [
@@ -3964,7 +4343,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1393
+            "y": 1484
           },
           "id": 215,
           "options": {
@@ -4070,7 +4449,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1401
+            "y": 1492
           },
           "id": 135,
           "options": {
@@ -4193,7 +4572,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1401
+            "y": 1492
           },
           "id": 217,
           "options": {
@@ -4293,7 +4672,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1409
+            "y": 1500
           },
           "id": 183,
           "options": {
@@ -4429,7 +4808,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1409
+            "y": 1500
           },
           "id": 214,
           "options": {
@@ -4545,7 +4924,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2595
+            "y": 2686
           },
           "id": 76,
           "options": {
@@ -4660,7 +5039,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2595
+            "y": 2686
           },
           "id": 86,
           "options": {
@@ -4784,7 +5163,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2604
+            "y": 2695
           },
           "id": 80,
           "options": {
@@ -4888,7 +5267,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2604
+            "y": 2695
           },
           "id": 78,
           "options": {
@@ -5003,7 +5382,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2612
+            "y": 2703
           },
           "id": 82,
           "options": {
@@ -5110,7 +5489,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2612
+            "y": 2703
           },
           "id": 74,
           "options": {
@@ -5211,8 +5590,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5228,7 +5606,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 132
           },
           "id": 100,
           "options": {
@@ -5326,8 +5704,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5343,7 +5720,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 132
           },
           "id": 167,
           "options": {
@@ -5467,8 +5844,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5500,7 +5876,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 139
           },
           "id": 133,
           "options": {
@@ -5612,8 +5988,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5629,7 +6004,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 140
           },
           "id": 151,
           "options": {
@@ -5753,8 +6128,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5786,7 +6160,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 56
+            "y": 147
           },
           "id": 212,
           "links": [
@@ -5900,8 +6274,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5917,7 +6290,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 56
+            "y": 147
           },
           "id": 55,
           "options": {
@@ -6008,8 +6381,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6025,7 +6397,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 64
+            "y": 155
           },
           "id": 54,
           "options": {
@@ -6115,8 +6487,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6132,7 +6503,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 64
+            "y": 155
           },
           "id": 22,
           "options": {
@@ -6246,8 +6617,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6263,7 +6633,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 72
+            "y": 163
           },
           "id": 20,
           "options": {
@@ -6337,7 +6707,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `3*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every two seconds. The index datapoints value in general is much lower.",
+          "description": "How many data points are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `5*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every 5 seconds. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6383,8 +6753,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6417,7 +6786,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 72
+            "y": 163
           },
           "id": 14,
           "options": {
@@ -6530,8 +6899,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -6543,7 +6911,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 80
+            "y": 171
           },
           "id": 202,
           "options": {
@@ -6647,8 +7015,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6664,7 +7031,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 80
+            "y": 171
           },
           "id": 141,
           "links": [
@@ -6756,8 +7123,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6786,7 +7152,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 88
+            "y": 179
           },
           "id": 206,
           "options": {
@@ -6889,8 +7255,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6906,7 +7271,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 88
+            "y": 179
           },
           "id": 216,
           "options": {
@@ -7019,7 +7384,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2608
+            "y": 2699
           },
           "id": 92,
           "options": {
@@ -7144,7 +7509,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2608
+            "y": 2699
           },
           "id": 95,
           "options": {
@@ -7265,7 +7630,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2616
+            "y": 2707
           },
           "id": 163,
           "options": {
@@ -7408,7 +7773,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2616
+            "y": 2707
           },
           "id": 165,
           "options": {
@@ -7547,7 +7912,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2624
+            "y": 2715
           },
           "id": 178,
           "options": {
@@ -7653,7 +8018,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2624
+            "y": 2715
           },
           "id": 180,
           "options": {
@@ -7759,7 +8124,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2632
+            "y": 2723
           },
           "id": 179,
           "options": {
@@ -7865,7 +8230,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2632
+            "y": 2723
           },
           "id": 181,
           "options": {
@@ -7982,7 +8347,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2640
+            "y": 2731
           },
           "id": 93,
           "options": {
@@ -8111,7 +8476,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2640
+            "y": 2731
           },
           "id": 207,
           "options": {
@@ -8242,7 +8607,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2609
+            "y": 2700
           },
           "id": 97,
           "options": {
@@ -8367,7 +8732,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2609
+            "y": 2700
           },
           "id": 99,
           "options": {
@@ -8490,7 +8855,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2617
+            "y": 2708
           },
           "id": 185,
           "options": {
@@ -8633,7 +8998,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2617
+            "y": 2708
           },
           "id": 187,
           "options": {
@@ -8772,7 +9137,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2625
+            "y": 2716
           },
           "id": 139,
           "options": {
@@ -8878,7 +9243,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2625
+            "y": 2716
           },
           "id": 114,
           "options": {
@@ -8992,7 +9357,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2633
+            "y": 2724
           },
           "id": 208,
           "options": {
@@ -9121,7 +9486,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2633
+            "y": 2724
           },
           "id": 209,
           "options": {
@@ -9239,7 +9604,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2641
+            "y": 2732
           },
           "id": 88,
           "options": {
@@ -9303,7 +9668,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 2658
+            "y": 2749
           },
           "id": 198,
           "options": {
@@ -9380,7 +9745,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2660
+            "y": 2751
           },
           "id": 189,
           "options": {
@@ -9480,7 +9845,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2660
+            "y": 2751
           },
           "id": 190,
           "options": {
@@ -9580,7 +9945,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 2668
+            "y": 2759
           },
           "id": 192,
           "options": {
@@ -9686,7 +10051,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 2668
+            "y": 2759
           },
           "id": 196,
           "options": {
@@ -9778,8 +10143,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -9791,7 +10155,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2675
+            "y": 2766
           },
           "id": 200,
           "options": {
@@ -9892,7 +10256,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2675
+            "y": 2766
           },
           "id": 201,
           "options": {
@@ -10010,7 +10374,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2683
+            "y": 2774
           },
           "id": 203,
           "options": {
