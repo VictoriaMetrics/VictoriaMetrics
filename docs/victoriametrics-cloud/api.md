@@ -21,6 +21,11 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
 
 ## API Swagger/OpenAPI Reference: [https://console.victoriametrics.cloud/api-docs](https://console.victoriametrics.cloud/api-docs)
 
+## API Client
+
+You can use [victoriametrics-cloud-api-go](https://github.com/VictoriaMetrics/victoriametrics-cloud-api-go) library to integrate your golang projects with VictoriaMetrics Cloud API. 
+This library provides a convenient way to interact with the API, making it easier to manage deployments, access tokens, and other resources programmatically.
+
 ## API Key Properties:
 
 * **Name**: Human-readable, for team context.
