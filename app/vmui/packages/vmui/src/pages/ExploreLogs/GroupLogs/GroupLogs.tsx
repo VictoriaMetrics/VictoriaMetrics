@@ -96,6 +96,8 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
     window.scrollTo({ top: 0 });
   };
 
+  const getLogs = useCallback(() => logs, [logs]);
+
   useEffect(() => {
     setExpandGroups(new Array(groupData.length).fill(!isMobile));
   }, [groupData]);
@@ -162,7 +164,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
-          <DownloadLogsButton logs={logs} />
+          <DownloadLogsButton getLogs={getLogs} />
           <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}

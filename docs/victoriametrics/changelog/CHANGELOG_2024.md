@@ -125,7 +125,7 @@ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/victo
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be useful when rules are retrieved via HTTP URL where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add service discovery support for [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources. See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#puppetdb_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5744).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): support scraping from Kubernetes Native Sidecars. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7287).
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `metric_relabel_configs` and `relabel_configs` to the `global` section of [scrape configuration](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format). Relabeling configuration specified in `global` section will be prepended to relabeling configs of all jobs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6966) and [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `metric_relabel_configs` and `relabel_configs` to the `global` section of [scrape configuration](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format). Relabeling configuration specified in `global` section will be prepended to relabeling configs of all jobs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6966) and [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards) for VM single-node, cluster, vmalert, vmagent, VictoriaLogs: add `Restarts` panel to show the events of process restarts. This panel should help correlate events of restart with unexpected behavior of processes.
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `RemoteWriteDroppingData` to track number of dropped samples that weren't sent to remote write URL.
 * FEATURE: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): use `evaluation_interval` as default `interval` value in [test_group](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/index.html#lttest_groupgt). This change aligns with promtool behavior.
@@ -256,7 +256,7 @@ Released at 2024-08-28
 
 Released at 2024-12-13
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -278,7 +278,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-11-29
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -294,7 +294,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-11-15
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -312,7 +312,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-11-04
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -324,7 +324,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-10-21
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -339,7 +339,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-10-02
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -373,7 +373,7 @@ Released at 2024-09-23
 
 Released at 2024-08-28
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -398,7 +398,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-08-01
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -421,7 +421,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 
 Released at 2024-07-17
 
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11020) release**
 
@@ -732,7 +732,7 @@ Released at 2024-02-14
 
 Released at 2024-12-13
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -752,7 +752,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-11-29
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -766,7 +766,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-11-15
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -780,7 +780,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-11-04
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -791,7 +791,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-10-21
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -804,7 +804,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-10-02
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -834,7 +834,7 @@ Released at 2024-09-23
 
 Released at 2024-08-28
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -853,7 +853,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-07-17
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -877,7 +877,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-06-07
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -899,7 +899,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-04-19
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -919,7 +919,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-03-01
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -939,7 +939,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-02-14
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -959,7 +959,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-02-01
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 
@@ -974,7 +974,7 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-01-30
 
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v1970) release**
 

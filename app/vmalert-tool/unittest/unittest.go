@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -99,8 +98,11 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		}()
 	}
 
-	// adding time.Now().UnixNano() to avoid possible file conflict when multiple processes run on a single host
-	storagePath = filepath.Join(os.TempDir(), testStoragePath, strconv.FormatInt(time.Now().UnixNano(), 10))
+	tmpFolder, err := os.MkdirTemp(os.TempDir(), testStoragePath)
+	if err != nil {
+		logger.Fatalf("failed to create tmp dir for tests: %v", err)
+	}
+	storagePath = tmpFolder
 	processFlags()
 	vminsert.Init()
 	vmselect.Init()

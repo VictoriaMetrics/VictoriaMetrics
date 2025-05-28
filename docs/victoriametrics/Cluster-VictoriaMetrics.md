@@ -980,7 +980,7 @@ Restoring from backup:
 
 ## Retention filters
 
-[VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports configuring multiple retentions for distinct sets of time series
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports configuring multiple retentions for distinct sets of time series
 by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) for details on this feature.
 
 Additionally, enterprise version of VictoriaMetrics cluster supports multiple retentions for distinct sets of [tenants](#multitenancy)
@@ -1009,7 +1009,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-[VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports configuring downsampling rules for different time series sets by passing `-downsampling.period` command-line flag to `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) for details.
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports configuring downsampling rules for different time series sets by passing `-downsampling.period` command-line flag to `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling) for details.
 
 It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering)
 on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples

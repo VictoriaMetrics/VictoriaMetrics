@@ -3668,7 +3668,7 @@ See also:
 
 ### json_values stats
 
-`json_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns packs the given fields into JSON per every log entry and returns JSON array,
+`json_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) packs the given fields into JSON per every log entry and returns JSON array,
 which can be unrolled with [`unroll` pipe](#unroll-pipe).
 
 For example, the following query returns per-`app` JSON arrays containing [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)

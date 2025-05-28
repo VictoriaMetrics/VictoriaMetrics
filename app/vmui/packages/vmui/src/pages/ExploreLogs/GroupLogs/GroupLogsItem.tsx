@@ -18,9 +18,11 @@ import GroupLogsFields from "./GroupLogsFields";
 interface Props {
   log: Logs;
   displayFields?: string[];
+  hideGroupButton?: boolean;
+  onItemClick?: (log: Logs) => void;
 }
 
-const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
+const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, hideGroupButton }) => {
   const {
     value: isOpenFields,
     toggle: toggleOpenFields,
@@ -75,6 +77,11 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
     }
   };
 
+  const handleClick = () => {
+    toggleOpenFields();
+    onItemClick?.(log);
+  };
+
   useEventListener("storage", handleUpdateStage);
 
   return (
@@ -84,7 +91,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
           "vm-group-logs-row-content": true,
           "vm-group-logs-row-content_interactive": !disabledHovers,
         })}
-        onClick={toggleOpenFields}
+        onClick={handleClick}
       >
         {hasFields && (
           <div
@@ -123,7 +130,10 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
           ))}
         </div>
       </div>
-      {hasFields && isOpenFields && <GroupLogsFields log={log}/>}
+      {hasFields && isOpenFields && <GroupLogsFields
+        hideGroupButton={hideGroupButton}
+        log={log}
+      />}
     </div>
   );
 };

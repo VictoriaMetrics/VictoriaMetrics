@@ -367,37 +367,39 @@ so we disable it via `--remote-read-use-stream=false`.
 
 ## Migrating data from Prometheus
 
-`vmctl` supports the `prometheus` mode for migrating data from Prometheus to VictoriaMetrics time-series database.
-Migration is based on reading Prometheus snapshot, which is basically a hard-link to Prometheus data files.
+`vmctl` can migrate historical data from Prometheus to VictoriaMetrics.
+See `./vmctl prometheus --help` for details and full list of flags. Also see Prometheus [related articles](#articles).
 
-See `./vmctl prometheus --help` for details and full list of flags. Also see Prometheus related articles [here](#articles).
+To start migration, take [a snapshot of Prometheus data](https://www.robustperception.io/taking-snapshots-of-prometheus-data).
+vmctl needs to have access to the taken snapshot and to the VictoriaMetrics address to start the migration:
+```sh
+./vmctl prometheus \
+  --vm-addr=<victoriametrics-addr>:8428 \
+  --prom-snapshot=/path/to/snapshot
+```
 
-To use migration tool please specify the file path to Prometheus snapshot `--prom-snapshot` (see how to make a snapshot [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data)) and VictoriaMetrics address `--vm-addr`.
-Please note, that `vmctl` *do not make a snapshot from Prometheus*, it uses an already prepared snapshot. More about Prometheus snapshots may be found [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data) and [here](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043).
-Flag `--vm-addr` for single-node VM is usually equal to `--httpListenAddr`, and for cluster version
-is equal to `--httpListenAddr` flag of vminsert component. Please note, that vmctl performs initial readiness check for the given address
-by checking `/health` endpoint. For cluster version it is additionally required to specify the `--vm-account-id` flag.
-See more details for cluster version [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+_Replace `<victoriametrics-addr>` with the VictoriaMetrics hostname or IP address._
 
-As soon as required flags are provided and all endpoints are accessible, `vmctl` will start the Prometheus snapshot exploration.
-Basically, it just fetches all available blocks in provided snapshot and read the metadata. It also does initial filtering by time
-if flags `--prom-filter-time-start` or `--prom-filter-time-end` were set. The exploration procedure prints some stats from read blocks.
-Please note that stats are not taking into account timeseries or samples filtering. This will be done during importing process.
+For cluster version you need to additionally specify the `--vm-account-id` flag and use vminsert address:
+```
+http://<vminsert-addr>:8480
+```
+_Replace `<vminsert-addr>` with the hostname or IP address of vminsert service._
 
-The importing process takes the snapshot blocks revealed from Explore procedure and processes them one by one
-accumulating timeseries and samples. Please note, that `vmctl` relies on responses from InfluxDB on this stage,
-so ensure that Explore queries are executed without errors or limits. Please see this
-[issue](https://github.com/VictoriaMetrics/vmctl/issues/30) for details.
-The data processed in chunks and then sent to VM.
+If you have more than 1 vminsert, configure [load-balancing](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup).
 
+As soon as required flags are provided and healthchecks are done, `vmctl` will start exploring Prometheus snapshot.
+It fetches all available blocks in provided snapshot, reads the metadata and prints some stats for discovered data.
+
+> To filter out data from snapshot by time or by labels see filtering section below;
+
+After user confirmation, vmctl will start importing data from the snapshot.
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
 ```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
-  --vm-concurrency=1 \
-  --vm-batch-size=200000 \
-  --prom-concurrency=3
+  --vm-addr=http://localhost:8428
 Prometheus import mode
 Prometheus snapshot stats:
   blocks found: 14;
@@ -421,29 +423,14 @@ Found 14 blocks to import. Continue? [Y/n] y
 2020/02/23 15:50:03 Total time: 51.077451066s
 ```
 
-### Data mapping
-
-VictoriaMetrics has very similar data model to Prometheus and supports [RemoteWrite integration](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
-So no data changes will be applied.
-
-### Configuration
-
-Run the following command to get all configuration options:
-```sh
-./vmctl prometheus --help
-```
-
-
 ### Filtering
 
-The filtering consists of three parts: by timeseries and time.
+The filtering consists of two parts: by labels and by time.
 
-Filtering by time may be configured via flags `--prom-filter-time-start` and `--prom-filter-time-end`
-in RFC3339 format. This filter applied twice: to drop blocks out of range and to filter timeseries in blocks with
-overlapping time range.
+Filtering by time is configured via flags `--prom-filter-time-start` and `--prom-filter-time-end` in RFC3339 format.
+The filter is applied twice: to drop blocks on exploration phase and to filter timeseries within the blocks.
 
 Example of applying time filter:
-
 ```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --prom-filter-time-start=2020-02-07T00:07:01Z \
@@ -459,17 +446,15 @@ Prometheus snapshot stats:
 Found 2 blocks to import. Continue? [Y/n] y
 ```
 
-Please notice, that total amount of blocks in provided snapshot is 14, but only 2 of them were in provided
-time range. So other 12 blocks were marked as `skipped`. The amount of samples and series is not taken into account,
+Please note, that total amount of blocks in provided snapshot is 14, but only 2 of them satisfied the time filter.
+Other 12 blocks were marked as `skipped`. The amount of samples and series is not taken into account,
 since this is heavy operation and will be done during import process.
 
-Filtering by timeseries is configured with following flags:
-
+Filtering by labels is configured with following flags:
 - `--prom-filter-label` - the label name, e.g. `__name__` or `instance`;
 - `--prom-filter-label-value` - the regular expression to filter the label value. By default, matches all `.*`
 
 For example:
-
 ```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --prom-filter-label="__name__" \
@@ -498,6 +483,10 @@ Found 2 blocks to import. Continue? [Y/n] y
   import requests retries: 0;
 2020/02/23 15:51:07 Total time: 7.153158218s
 ```
+
+To achieve the best migration speed consider running vmctl in the same network as VictoriaMetrics.
+See more about [Prometheus migration speed tuning](https://docs.victoriametrics.com/victoriametrics/vmctl/#prometheus-mode)
+and how to read [importing stats](https://docs.victoriametrics.com/victoriametrics/vmctl/#importer-stats).
 
 ## Migrating data by remote read protocol
 
