@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/valyala/fastrand"
 
@@ -580,6 +581,8 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 		return parseMathExprMax(lex)
 	case lex.isKeyword("min"):
 		return parseMathExprMin(lex)
+	case lex.isKeyword("now"):
+		return parseMathExprNow(lex)
 	case lex.isKeyword("rand"):
 		return parseMathExprRand(lex)
 	case lex.isKeyword("round"):
@@ -652,6 +655,26 @@ func parseMathExprMin(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) < 2 {
 		return nil, fmt.Errorf("'min' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprNow(lex *lexer) (*mathExpr, error) {
+	if !lex.isKeyword("now") {
+		return nil, fmt.Errorf("missing 'now' keyword")
+	}
+	lex.nextToken()
+
+	args, err := parseMathFuncArgs(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse args for 'now' function: %w", err)
+	}
+	if len(args) != 0 {
+		return nil, fmt.Errorf("'now' function must have no args; got %d args", len(args))
+	}
+	me := &mathExpr{
+		op: "now",
+		f:  mathFuncNow,
 	}
 	return me, nil
 }
@@ -1009,6 +1032,13 @@ func mathFuncRand(result []float64, _ [][]float64) {
 	for i := range result {
 		n := fastrand.Uint32()
 		result[i] = float64(n) / (1 << 32)
+	}
+}
+
+func mathFuncNow(result []float64, _ [][]float64) {
+	nowNanos := float64(time.Now().UnixNano())
+	for i := range result {
+		result[i] = nowNanos
 	}
 }
 
