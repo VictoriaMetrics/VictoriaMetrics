@@ -249,7 +249,7 @@ func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 
 	for _, ot := range oldT {
 		if _, ok := newT[ot.Addr()]; !ok {
-			ot.Notifier.Close()
+			ot.Close()
 		}
 	}
 	cw.targets[key] = targets

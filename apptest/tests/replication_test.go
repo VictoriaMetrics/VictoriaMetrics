@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -377,7 +376,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(at.PrometheusAPIV1SeriesResponse{}, "Data"),
 			},
 		})
 	}
@@ -1030,7 +1029,7 @@ func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(at.PrometheusAPIV1SeriesResponse{}, "Data"),
 			},
 		})
 	}
@@ -1151,7 +1150,7 @@ func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Data"),
+				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Data"),
 			},
 		})
 	}

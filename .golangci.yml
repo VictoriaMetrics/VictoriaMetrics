@@ -1,22 +1,29 @@
-run:
-  timeout: 2m
-
+version: "2"
 linters:
-  enable:
-  - revive
-
-issues:
-  exclude-rules:
-  - linters:
-    - staticcheck
-    text: "SA(4003|1019|5011):"
-  include:
-  - EXC0012
-  - EXC0014
-
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - "fmt.Fprintf"
-      - "fmt.Fprint"
-      - "(net/http.ResponseWriter).Write"
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprint
+        - (net/http.ResponseWriter).Write
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: 'SA(4003|1019|5011):'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

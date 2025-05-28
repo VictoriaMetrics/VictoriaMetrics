@@ -943,7 +943,7 @@ func (uw *urlWatcher) removeObjectLocked(key string) {
 func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 	role := uw.role
 	attachNodeMetadata := uw.gw.attachNodeMetadata
-	if !(role == "pod" || role == "service" || (attachNodeMetadata && role == "node")) {
+	if role != "pod" && role != "service" && (attachNodeMetadata && role == "node") {
 		// Nothing to update
 		return
 	}

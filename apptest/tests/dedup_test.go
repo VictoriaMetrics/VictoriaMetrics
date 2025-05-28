@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -134,7 +133,7 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 		},
 	}
 
-	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
+	sut.PrometheusAPIV1Write(t, data, at.QueryOpts{})
 	sut.ForceFlush(t)
 	sut.ForceMerge(t)
 
@@ -207,7 +206,7 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected response",
 		Got: func() any {
-			got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, apptest.QueryOpts{
+			got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, at.QueryOpts{
 				ReduceMemUsage: "1",
 				Start:          fmt.Sprintf("%d", start.UnixMilli()),
 				End:            fmt.Sprintf("%d", end.UnixMilli()),

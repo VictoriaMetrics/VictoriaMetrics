@@ -1380,7 +1380,7 @@ func aggregateSeriesList(ec *evalConfig, fe *graphiteql.FuncExpr, nextSeriesFirs
 	}
 
 	if len(ssFirst) != len(ssSecond) {
-		return nil, fmt.Errorf("First and second lists must have equal number of series; got %d vs %d series", len(ssFirst), len(ssSecond))
+		return nil, fmt.Errorf("first and second lists must have equal number of series; got %d vs %d series", len(ssFirst), len(ssSecond))
 	}
 	if stepFirst != stepSecond {
 		return nil, fmt.Errorf("step mismatch for first and second: %d vs %d", stepFirst, stepSecond)

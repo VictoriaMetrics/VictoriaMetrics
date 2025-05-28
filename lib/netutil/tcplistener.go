@@ -38,7 +38,7 @@ func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Con
 		accepts:      ms.NewCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
 		acceptErrors: ms.NewCounter(fmt.Sprintf(`vm_tcplistener_errors_total{name=%q, addr=%q, type="accept"}`, name, addr)),
 	}
-	tln.connMetrics.init(ms, "vm_tcplistener", name, addr)
+	tln.init(ms, "vm_tcplistener", name, addr)
 	return tln, err
 }
 
