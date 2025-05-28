@@ -4106,7 +4106,7 @@ Internally duration values are converted into nanoseconds.
 - It is highly recommended specifying [stream filter](#stream-filter) in order to narrow down the search
   to specific [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - It is recommended specifying [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) you need in query results
-  with the [`field` pipe](#fields-pipe), if the selected log entries contain big number of fields, which aren't interesting to you.
+  with the [`fields` pipe](#fields-pipe), if the selected log entries contain big number of fields, which aren't interesting to you.
   This saves disk read IO and CPU time needed for reading and unpacking all the log fields from disk.
 - Move faster filters such as [word filter](#word-filter) and [phrase filter](#phrase-filter) to the beginning of the query.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
