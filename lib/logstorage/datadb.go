@@ -1189,8 +1189,8 @@ func mustReadPartNames(path string) []string {
 
 			// Parts exist but parts.json is missing - this is an unexpected state that requires manual intervention
 			logger.Panicf("FATAL: cannot read %s: %s; found part directories %v in %s. "+
-				"This indicates corruption. Remove %s to rebuild it from the list of existing parts",
-				partNamesPath, err, partDirs, path, partNamesPath)
+				"This indicates corruption. Manually remove the %s partition directory to resolve the corruption (the partition data will be lost)",
+				partNamesPath, err, partDirs, path, path)
 		}
 		logger.Panicf("FATAL: cannot read %s: %s", partNamesPath, err)
 	}

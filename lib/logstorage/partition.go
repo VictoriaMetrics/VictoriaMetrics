@@ -88,7 +88,7 @@ func mustOpenPartition(s *Storage, path string) *partition {
 		idb:  idb,
 	}
 
-	if !fs.IsPathExist(datadbPath) {
+	if !isDatadbExist {
 		logger.Warnf("creating missing datadb directory %s, this could happen if VictoriaLogs shuts down uncleanly (via OOM crash, a panic, SIGKILL or hardware shutdown) while creating new per-day partition", datadbPath)
 		mustCreateDatadb(datadbPath)
 	}
