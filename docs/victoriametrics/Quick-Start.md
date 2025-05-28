@@ -41,7 +41,7 @@ VictoriaMetrics is available as:
 
 Just download VictoriaMetrics and follow [these instructions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
 See [available integrations](https://docs.victoriametrics.com/victoriametrics/integrations/) with other systems like 
-[Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
+[Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) or [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) 
 and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
@@ -357,7 +357,7 @@ User Interface for querying and visualizing metrics. [MetricsQL](https://docs.vi
 query language for executing read queries in VictoriaMetrics. See examples of MetricsQL queries [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#metricsql).
 
 VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
-for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
+for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
 See more details on [key concepts of querying data](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data)
 and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations).
