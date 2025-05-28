@@ -99,7 +99,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
 	//

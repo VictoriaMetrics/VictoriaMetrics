@@ -191,7 +191,7 @@ func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
 	}
 	n := strings.Index(path, "://")
 	if n < 0 {
-		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `azblob://`, `fs://`", path)
+		return nil, fmt.Errorf("missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `azblob://`, `fs://`", path)
 	}
 	scheme := path[:n]
 	dir := path[n+len("://"):]
