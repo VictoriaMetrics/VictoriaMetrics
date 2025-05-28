@@ -31,6 +31,7 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math (x - y + z) as x`)
 	f(`math (x - (y + z)) as x`)
 	f(`math now() as current_time`)
+	f(`math round((now() - max_time) / 1s) as duration_seconds`)
 }
 
 func TestParsePipeMathFailure(t *testing.T) {
