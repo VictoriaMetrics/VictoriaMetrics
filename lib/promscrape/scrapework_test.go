@@ -580,7 +580,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515#issuecomment-2741063155
 		lowerExpectedDelta := pushedTimeseries.Load() - timeseriesExpectedDelta
 		upperExpectedDelta := pushedTimeseries.Load() + timeseriesExpectedDelta + 1
-		if !(timeseriesExpected >= lowerExpectedDelta && timeseriesExpected < upperExpectedDelta) {
+		if timeseriesExpected < lowerExpectedDelta || timeseriesExpected >= upperExpectedDelta {
 			t.Fatalf("unexpected number of pushed timeseries; got %d; want within range [%d, %d)",
 				pushedTimeseries.Load(),
 				lowerExpectedDelta,

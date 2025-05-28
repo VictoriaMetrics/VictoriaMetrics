@@ -585,7 +585,7 @@ golangci-lint: install-golangci-lint
 	GOEXPERIMENT=synctest golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.7
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.1.6
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`
