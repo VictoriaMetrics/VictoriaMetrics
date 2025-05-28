@@ -46,12 +46,14 @@ var (
 	concurrentDialLimit = 8
 )
 
-// InitConcurrentDialLimit must be called before NewConnPool to init the concurrentDialLimit
-// according to the concurrent request limit.
+```suggestion
+// InitConcurrentDialLimit initiates the concurrentDialLimit with value between 8 and 64 based on the given concurrentRequestLimit.
+// It must be called before NewConnPool call.
 func InitConcurrentDialLimit(concurrentRequestLimit int) {
 	// It should be initialized with`sync.Once`. Since it's used in only one place,
 	// extra code has been removed for simplicity.
-	concurrentDialLimit = min(64, max(8, concurrentRequestLimit/2))
+       limit := max(concurrentRequestLimit/2, 8)
+       concurrentDialLimit = min(limit, 64)
 }
 
 // NewConnPool creates a new connection pool for the given addr.
