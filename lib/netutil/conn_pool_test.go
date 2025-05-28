@@ -86,7 +86,7 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 		go func() {
 			conn, err := cp.Get()
 			if err != nil {
-				t.Errorf("get conn from connection pool err:%v", err)
+				t.Fatalf("get conn from connection pool err:%v", err)
 			}
 			connChan <- conn
 		}()
