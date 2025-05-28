@@ -115,7 +115,7 @@ Released at 2020-11-26
   at the rate exceeding the given limit. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905#issuecomment-729395855>
 * FEATURE: add remoteAddr to slow query log in order to simplify identifying the client that sends slow queries to VictoriaMetrics.
   Slow query logging is controlled with `-search.logSlowQueryDuration` command-line flag.
-* FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See <https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api>
+* FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See <https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#tags-api>
 * FEATURE: log metric name plus all its labels when the metric timestamp is out of the configured retention. This should simplify detecting the source of metrics with unexpected timestamps.
 * FEATURE: add `-dryRun` command-line flag to single-node VictoriaMetrics in order to check config file pointed by `-promscrape.config`.
 
@@ -147,7 +147,7 @@ Released at 2020-11-16
 * FEATURE: added `/internal/force_flush` http handler for flushing recently ingested data from in-memory buffers to persistent storage.
   See [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#troubleshooting) for more details.
 * FEATURE: added [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html) support.
-  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#tags-api) for details.
 
 * BUGFIX: do not return data points in the end of the selected time range for time series ending in the middle of the selected time range.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887> and <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845>
@@ -319,7 +319,7 @@ Released at 2020-09-30
   The adjustment was increasing the resulting GOMAXPROCS by 1, which looked confusing to users.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-698595309> .
 * BUGFIX: vmagent: do not show `-remoteWrite.url` in initial logs if `-remoteWrite.showURL` isn't set. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/773> .
-* BUGFIX: properly handle case when [/metrics/find](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#metrics-api) finds both a leaf and a node for the given `query=prefix.*`.
+* BUGFIX: properly handle case when [/metrics/find](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api) finds both a leaf and a node for the given `query=prefix.*`.
   In this case only the node must be returned with stripped dot in the end of id as carbonapi does.
 
 ## Previous releases
