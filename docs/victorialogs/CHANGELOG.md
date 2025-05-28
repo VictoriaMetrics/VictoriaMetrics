@@ -18,6 +18,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.23.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.0-victorialogs)
+
+Released at 2025-05-28
+
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add "Live" tab that allows monitoring logs in real-time as they arrive. This feature helps users to observe the most recent log entries without manual refreshing, making troubleshooting and monitoring more efficient. See [#7046](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7046).
 * FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/23274) and [dashboards/single](https://grafana.com/grafana/dashboards/22084): add panels for [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics to dashboards. They could help to identify shortage of resources for VictoriaLogs components.
 * FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): add `now()` function, which returns the current [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
