@@ -18,6 +18,8 @@ import QueryAnalyzer from "./pages/QueryAnalyzer";
 import DownsamplingFilters from "./pages/DownsamplingFilters";
 import RetentionFilters from "./pages/RetentionFilters";
 import RawQueryPage from "./pages/RawQueryPage";
+import ExploreRules from "./pages/ExploreAlerts/ExploreRules";
+import ExploreNotifiers from "./pages/ExploreAlerts/ExploreNotifiers";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
@@ -88,6 +90,14 @@ const App: FC = () => {
                 <Route
                   path={router.retentionDebug}
                   element={<RetentionFilters/>}
+                />
+                <Route
+                  path={router.alertRules}
+                  element={<ExploreRules/>}
+                />
+                <Route
+                  path={router.alertNotifiers}
+                  element={<ExploreNotifiers/>}
                 />
               </Route>
             </Routes>

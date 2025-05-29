@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -21,104 +19,49 @@ import (
 
 var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 
-var (
-	apiLinks = [][2]string{
-		// api links are relative since they can be used by external clients,
-		// such as Grafana, and proxied via vmselect.
-		{"api/v1/rules", "list all loaded groups and rules"},
-		{"api/v1/alerts", "list all active alerts"},
-		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
-	}
-	systemLinks = [][2]string{
-		{"vmalert/groups", "UI"},
-		{"flags", "command-line flags"},
-		{"metrics", "list of application metrics"},
-		{"-/reload", "reload configuration"},
-	}
-	navItems = []tpl.NavItem{
-		{Name: "vmalert", URL: "../vmalert", Icon: "vm"},
-		{Name: "Groups", URL: "groups"},
-		{Name: "Alerts", URL: "alerts"},
-		{Name: "Notifiers", URL: "notifiers"},
-		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
-	}
-)
-
 type requestHandler struct {
 	m *manager
 }
 
 var (
-	//go:embed static
-	staticFiles   embed.FS
-	staticHandler = http.FileServer(http.FS(staticFiles))
-	staticServer  = http.StripPrefix("/vmalert", staticHandler)
+	//go:embed vmui
+	vmuiFiles      embed.FS
+	vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 )
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
-	if strings.HasPrefix(r.URL.Path, "/vmalert/static") {
-		staticServer.ServeHTTP(w, r)
+	path := r.URL.Path
+	if path == "/vmui" {
+		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		_ = r.ParseForm()
+		newURL := "vmui/?" + r.Form.Encode()
+		httpserver.Redirect(w, newURL)
 		return true
 	}
-
-	switch r.URL.Path {
-	case "/", "/vmalert", "/vmalert/":
+	if path == "" || path == "/" {
 		if r.Method != http.MethodGet {
-			httpserver.Errorf(w, r, "path %q supports only GET method", r.URL.Path)
 			return false
 		}
-		WriteWelcome(w, r)
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, "<h2>VictoriaMetrics VMAlert</h2></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victoriametrics/vmalert/'>https://docs.victoriametrics.com/victoriametrics/vmalert/</a></br>")
+		fmt.Fprintf(w, "Useful endpoints:</br>")
+		httpserver.WriteAPIHelp(w, [][2]string{
+			{"vmui", "Web UI"},
+			{"api/v1/notifiers", "list all static and discovered endpoints, where alerts are sent to"},
+			{"api/v1/rules", "list all loaded groups and rules"},
+			{"api/v1/alerts", "list all active alerts"},
+			{"-/reload", "reload configuration"},
+		})
 		return true
-	case "/vmalert/alerts":
-		WriteListAlerts(w, r, rh.groupAlerts())
-		return true
-	case "/vmalert/alert":
-		alert, err := rh.getAlert(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		WriteAlert(w, r, alert)
-		return true
-	case "/vmalert/rule":
-		rule, err := rh.getRule(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		WriteRuleDetails(w, r, rule)
-		return true
-	case "/vmalert/groups":
-		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
-		data := rh.groups(rf)
-		WriteListGroups(w, r, data, filter)
-		return true
-	case "/vmalert/notifiers":
-		WriteListTargets(w, r, notifier.GetTargets())
-		return true
-
-	// special cases for Grafana requests,
-	// served without `vmalert` prefix:
-	case "/rules":
-		// Grafana makes an extra request to `/rules`
-		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		var data []apiGroup
-		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
-		data = rh.groups(rf)
-		WriteListGroups(w, r, data, filter)
-		return true
-
-	case "/vmalert/api/v1/rules", "/api/v1/rules":
+	}
+	switch path {
+	case "/api/v1/rules":
 		// path used by Grafana for ng alerting
-		var data []byte
-		var err error
-
-		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
-		data, err = rh.listGroups(rf)
-
+		rf := extractRulesFilter(r)
+		data, err := rh.listGroups(rf)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -126,8 +69,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
-
-	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
+	case "/api/v1/alerts":
 		// path used by Grafana for ng alerting
 		data, err := rh.listAlerts()
 		if err != nil {
@@ -137,33 +79,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
-	case "/vmalert/api/v1/alert", "/api/v1/alert":
-		alert, err := rh.getAlert(r)
+	case "/api/v1/notifiers":
+		data, err := rh.listNotifiers()
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		data, err := json.Marshal(alert)
-		if err != nil {
-			httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
-			return true
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
-		return true
-	case "/vmalert/api/v1/rule", "/api/v1/rule":
-		rule, err := rh.getRule(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		rwu := apiRuleWithUpdates{
-			apiRule:      rule,
-			StateUpdates: rule.Updates,
-		}
-		data, err := json.Marshal(rwu)
-		if err != nil {
-			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -177,48 +96,19 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
-
-	default:
-		return false
 	}
-}
-
-func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
-	if err != nil {
-		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
+	if strings.HasPrefix(path, "/vmui") {
+		r.URL.Path = path
+		vmuiFileServer.ServeHTTP(w, r)
+		return true
 	}
-	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 64)
-	if err != nil {
-		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramRuleID, err)
-	}
-	obj, err := rh.m.ruleAPI(groupID, ruleID)
-	if err != nil {
-		return apiRule{}, errResponse(err, http.StatusNotFound)
-	}
-	return obj, nil
-}
-
-func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
-	}
-	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", paramAlertID, err)
-	}
-	a, err := rh.m.alertAPI(groupID, alertID)
-	if err != nil {
-		return nil, errResponse(err, http.StatusNotFound)
-	}
-	return a, nil
+	return false
 }
 
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []apiGroup `json:"groups"`
+		Groups []*apiGroup `json:"groups"`
 	} `json:"data"`
 }
 
@@ -229,11 +119,9 @@ type rulesFilter struct {
 	ruleNames     []string
 	ruleType      string
 	excludeAlerts bool
-	onlyUnhealthy bool
-	onlyNoMatch   bool
 }
 
-func extractRulesFilter(r *http.Request, filter string) rulesFilter {
+func extractRulesFilter(r *http.Request) rulesFilter {
 	rf := rulesFilter{}
 
 	var ruleType string
@@ -251,20 +139,15 @@ func extractRulesFilter(r *http.Request, filter string) rulesFilter {
 	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
 	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
 	rf.files = append([]string{}, r.Form["file[]"]...)
-	switch filter {
-	case "unhealthy":
-		rf.onlyUnhealthy = true
-	case "noMatch":
-		rf.onlyNoMatch = true
-	}
 	return rf
 }
 
-func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
+func (rh *requestHandler) listGroups(rf rulesFilter) ([]byte, error) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	groups := make([]apiGroup, 0)
+	lr := listGroupsResponse{Status: "success"}
+	lr.Data.Groups = make([]*apiGroup, 0)
 	for _, group := range rh.m.groups {
 		if len(rf.groupNames) > 0 && !slices.Contains(rf.groupNames, group.Name) {
 			continue
@@ -287,35 +170,18 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 			if rf.excludeAlerts {
 				r.Alerts = nil
 			}
-			if (r.LastError == "" && rf.onlyUnhealthy) || (!isNoMatch(r) && rf.onlyNoMatch) {
-				continue
-			}
-			if r.LastError != "" {
-				g.Unhealthy++
-			} else {
-				g.Healthy++
-			}
-			if isNoMatch(r) {
-				g.NoMatch++
-			}
 			filteredRules = append(filteredRules, r)
 		}
 		g.Rules = filteredRules
-		groups = append(groups, g)
+		lr.Data.Groups = append(lr.Data.Groups, g)
 	}
 	// sort list of groups for deterministic output
-	slices.SortFunc(groups, func(a, b apiGroup) int {
+	slices.SortFunc(lr.Data.Groups, func(a, b *apiGroup) int {
 		if a.Name != b.Name {
 			return strings.Compare(a.Name, b.Name)
 		}
 		return strings.Compare(a.File, b.File)
 	})
-	return groups
-}
-
-func (rh *requestHandler) listGroups(rf rulesFilter) ([]byte, error) {
-	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups(rf)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
@@ -331,33 +197,6 @@ type listAlertsResponse struct {
 	Data   struct {
 		Alerts []*apiAlert `json:"alerts"`
 	} `json:"data"`
-}
-
-func (rh *requestHandler) groupAlerts() []groupAlerts {
-	rh.m.groupsMu.RLock()
-	defer rh.m.groupsMu.RUnlock()
-
-	var gAlerts []groupAlerts
-	for _, g := range rh.m.groups {
-		var alerts []*apiAlert
-		for _, r := range g.Rules {
-			a, ok := r.(*rule.AlertingRule)
-			if !ok {
-				continue
-			}
-			alerts = append(alerts, ruleToAPIAlert(a)...)
-		}
-		if len(alerts) > 0 {
-			gAlerts = append(gAlerts, groupAlerts{
-				Group:  groupToAPI(g),
-				Alerts: alerts,
-			})
-		}
-	}
-	slices.SortFunc(gAlerts, func(a, b groupAlerts) int {
-		return strings.Compare(a.Group.Name, b.Group.Name)
-	})
-	return gAlerts
 }
 
 func (rh *requestHandler) listAlerts() ([]byte, error) {
@@ -391,9 +230,38 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	return b, nil
 }
 
-func errResponse(err error, sc int) *httpserver.ErrorWithStatusCode {
-	return &httpserver.ErrorWithStatusCode{
-		Err:        err,
-		StatusCode: sc,
+type listNotifiersResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		Notifiers []*apiNotifier `json:"notifiers"`
+	} `json:"data"`
+}
+
+func (rh *requestHandler) listNotifiers() ([]byte, error) {
+	targets := notifier.GetTargets()
+
+	lr := listNotifiersResponse{Status: "success"}
+	lr.Data.Notifiers = make([]*apiNotifier, 0)
+	for protoName, protoTargets := range targets {
+		notifier := &apiNotifier{
+			Kind:    string(protoName),
+			Targets: make([]*apiTarget, 0, len(protoTargets)),
+		}
+		for _, target := range protoTargets {
+			notifier.Targets = append(notifier.Targets, &apiTarget{
+				Address: target.Notifier.Addr(),
+				Labels:  target.Labels.ToMap(),
+			})
+		}
+		lr.Data.Notifiers = append(lr.Data.Notifiers, notifier)
 	}
+
+	b, err := json.Marshal(lr)
+	if err != nil {
+		return nil, &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf(`error encoding list of notifiers: %w`, err),
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	return b, nil
 }

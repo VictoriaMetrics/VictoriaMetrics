@@ -5,7 +5,6 @@ import dayjs from "dayjs";
 import { DATE_FULL_TIMEZONE_FORMAT } from "../../constants/date";
 import { MetricResult } from "../../api/types";
 import useEventListener from "../useEventListener";
-import get from "lodash.get";
 
 interface LineTooltipHook {
   u?: uPlot;
@@ -30,7 +29,7 @@ const useLineTooltip = ({ u, metrics, unit }: LineTooltipHook) => {
 
   const getTooltipProps = useCallback((): ChartTooltipProps => {
     const { left, top } = point;
-    const xArr = (get(u, ["data", 1, 0], []) || []) as number[];
+    const xArr = (u?.data?.[1]?.[0] || []) as number[];
     const xVal = u ? u.posToVal(left, "x") : 0;
     const yVal = u ? u.posToVal(top, "y") : 0;
     const xIdx = xArr.findIndex((t, i) => xVal >= t && xVal < xArr[i + 1]) || -1;

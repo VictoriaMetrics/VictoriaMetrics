@@ -492,25 +492,6 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 
-	if path == "/vmalert" {
-		// vmalert access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
-		// is hidden behind vmauth or similar proxy.
-		httpserver.Redirect(w, "vmalert/")
-		return true
-	}
-	if strings.HasPrefix(path, "/vmalert/") {
-		vmalertRequests.Inc()
-		if len(*vmalertProxyURL) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
-			return true
-		}
-		proxyVMAlertRequests(w, r)
-		return true
-	}
-
 	switch path {
 	case "/api/v1/status/active_queries":
 		statusActiveQueriesRequests.Inc()
@@ -542,7 +523,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		prettifyQueryRequests.Inc()
 		prometheus.PrettifyQuery(w, r)
 		return true
-	case "/api/v1/rules", "/rules":
+	case "/api/v1/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
 			proxyVMAlertRequests(w, r)
@@ -552,7 +533,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"groups":[]}}`)
 		return true
-	case "/api/v1/alerts", "/alerts":
+	case "/api/v1/alerts":
 		alertsRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
 			proxyVMAlertRequests(w, r)
@@ -561,6 +542,15 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
+		return true
+	case "/api/v1/notifiers":
+		notifiersRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
 		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
@@ -691,9 +681,9 @@ var (
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/prettify-query"}`)
 
-	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
-	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
-	alertsRequests  = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	rulesRequests     = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
+	alertsRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	notifiersRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/notifiers"}`)
 
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)

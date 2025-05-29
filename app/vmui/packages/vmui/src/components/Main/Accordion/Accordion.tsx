@@ -18,17 +18,14 @@ const Accordion: FC<AccordionProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(defaultExpanded);
 
-  const toggleOpen = () => {
+  const toggleOpen = (event: { currentTarget: { open: boolean } }) => {
     const selection = window.getSelection();
     if (selection && selection.toString()) {
+      event.preventDefault();
       return; // If the text is selected, cancel the execution of toggle.
     }
-
-    setIsOpen((prev) => {
-      const newState = !prev;
-      onChange && onChange(newState);
-      return newState;
-    });
+    onChange && onChange(event.currentTarget.open);
+    setIsOpen(event.currentTarget.open);
   };
 
   useEffect(() => {
@@ -37,23 +34,22 @@ const Accordion: FC<AccordionProps> = ({
 
   return (
     <>
-      <header
-        className={`vm-accordion-header ${isOpen && "vm-accordion-header_open"}`}
-        onClick={toggleOpen}
+      <details
+        className="vm-accordion-section"
+        key="content"
+        open={isOpen}
       >
-        {title}
-        <div className={`vm-accordion-header__arrow ${isOpen && "vm-accordion-header__arrow_open"}`}>
-          <ArrowDownIcon />
-        </div>
-      </header>
-      {isOpen && (
-        <section
-          className="vm-accordion-section"
-          key="content"
+        <summary
+          className="vm-accordion-header"
+          onClick={toggleOpen}
         >
-          {children}
-        </section>
-      )}
+          {title}
+          <div className="vm-accordion-header__arrow">
+            <ArrowDownIcon />
+          </div>
+        </summary>
+        {children}
+      </details>
     </>
   );
 };

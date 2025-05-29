@@ -5,7 +5,6 @@ import { PlayCircleOutlineIcon } from "../../../../components/Main/Icons";
 import Button from "../../../../components/Main/Button/Button";
 import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
-import get from "lodash.get";
 import dayjs from "dayjs";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
 
@@ -176,7 +175,7 @@ const TableCells: FC<CardinalityTableCells> = ({
         );
 
       default:
-        return get(row, cell.id, "");
+        return row?.[cell.id] || "";
     }
   };
 

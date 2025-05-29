@@ -5,6 +5,9 @@ $color-error: var(--color-error);
 $color-warning: var(--color-warning);
 $color-info: var(--color-info);
 $color-success: var(--color-success);
+$color-notice: var(--color-notice);
+$color-broken: var(--color-broken);
+$color-keyword: var(--color-keyword);
 
 $color-primary-text: var(--color-primary-text);
 $color-secondary-text: var(--color-secondary-text);
@@ -37,6 +40,9 @@ $padding-medium: 12px;
 $padding-small: 8px;
 
 
+/************* line height *************/
+$line-height-table: 40px;
+
 /************* fonts *************/
 $font-family-global: system-ui;
 $font-family-monospace: monospace;
@@ -61,4 +67,5 @@ $box-shadow: var(--box-shadow);
 $box-shadow-popper: var(--box-shadow-popper);
 
 $color-hover-black: var(--color-hover-black);
+$color-hover-darker: var(--color-hover-darker);
 $vh: var(--vh);
