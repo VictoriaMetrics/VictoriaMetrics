@@ -1680,8 +1680,8 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 			return fmt.Errorf("cannot unmarshal metricName: %w", err)
 		}
 		if sq.IsMultiTenant {
-		// there is no need to add tenant labels if export is happening for one tenant
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9016
+			// there is no need to add tenant labels if export is happening for one tenant
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9016
 			metricNameTenantToTags(mn)
 		}
 		if err := f(mn, &mb.Block, tr, workerID); err != nil {
