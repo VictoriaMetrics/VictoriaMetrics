@@ -529,13 +529,17 @@ test-full-386:
 integration-test: victoria-metrics vmagent vmalert vmauth
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
-# Currently can only be run locally because it requires another victoria-metrics
-# binary that uses legacy indexDB to be present somewhere on the local file
-# system.
-# The path to such a binary needs to be provided via VM_LEGACY_VMSINGLE_PATH env
-# variable.
 integration-test-legacy: victoria-metrics vmbackup vmrestore
-	go test ./apptest/... -run="^TestLegacySingle.*"
+	VERSION=v1.118.0; \
+	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
+	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
+	DIR=/tmp/$${VERSION}; \
+	BINARY=$${DIR}/victoria-metrics-prod; \
+	ARCHIVE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
+	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}/$${ARCHIVE}; \
+	mkdir -p $${DIR}; \
+	test -f $${BINARY} || curl --output-dir /tmp -LO $${URL} && tar xzf /tmp/$${ARCHIVE} -C $${DIR}; \
+	VM_LEGACY_VMSINGLE_PATH=$${BINARY} go test ./apptest/tests -run="^TestLegacySingle.*"
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...
