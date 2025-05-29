@@ -10,7 +10,7 @@ function actionAll(isCollapse) {
 
 function groupFilter(key) {
     if (key) {
-        location.href = `?filter=${key}`;
+        location.href = `?cond=${key}`;
     } else {
         window.location = window.location.pathname;
     }
