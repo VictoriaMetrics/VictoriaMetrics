@@ -285,7 +285,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		metricIDCache:              newMetricIDCache(),
 		prefetchedMetricIDs:        &uint64set.Set{},
 	}
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly, s.doNotPersistDataOnClose)
 	db.tb = tb
 	db.incRef()
 	db.loadDeletedMetricIDs()

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"runtime"
 	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/felixge/fgprof"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -99,6 +101,170 @@ func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
 	}
 
 	benchmarkStorageOpOnVariousTimeRanges(b, f)
+}
+
+func benchmarkStorageAddRows(b *testing.B, f func(b *testing.B, prefillTr TimeRange, addTs int64, prefillPrefixName, addPrefixName string)) {
+	b.Helper()
+
+	prefill3mTr := TimeRange{
+		MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2000, 3, 30, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+
+	b.Run(fmt.Sprintf("same_partition_same_day_same_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 30, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"metric")
+	})
+
+	b.Run(fmt.Sprintf("same_partition_next_day_same_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 31, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"metric")
+	})
+
+	b.Run(fmt.Sprintf("next_partition_same_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"metric")
+	})
+
+	b.Run(fmt.Sprintf("same_partition_same_day_new_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 30, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"new_metric")
+	})
+
+	b.Run(fmt.Sprintf("same_partition_next_day_new_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 3, 31, 12, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"new_metric")
+	})
+
+	b.Run(fmt.Sprintf("next_partition_new_metrics"), func(b *testing.B) {
+		f(b,
+			prefill3mTr,
+			time.Date(2000, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			"metric",
+			"new_metric")
+	})
+}
+
+func BenchmarkStorageAddRowsSequentiallyToPrefilledStorage(b *testing.B) {
+	const numRows = 10_000
+	gomaxprocs := runtime.GOMAXPROCS(-1)
+
+	genMrs := func(numRows int, ts int64, prefixName string) []MetricRow {
+		b.Helper()
+		mrs := make([]MetricRow, numRows)
+		mn := MetricName{
+			Tags: []Tag{
+				{[]byte("job"), []byte("webservice")},
+				{[]byte("instance"), []byte("1.2.3.4")},
+			},
+		}
+
+		for i := range numRows {
+			mr := &mrs[i]
+			mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefixName, i))
+			mr.MetricNameRaw = mn.marshalRaw(nil)
+			mr.Timestamp = ts
+			mr.Value = float64(i)
+		}
+
+		return mrs
+	}
+
+	genPrefillMrs := func(numSamples, numTimeseries int, tr TimeRange, prefixName string) [][]MetricRow {
+		b.Helper()
+		mrss := make([][]MetricRow, numSamples)
+
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numSamples-1)
+
+		mn := MetricName{
+			Tags: []Tag{
+				{[]byte("job"), []byte("webservice")},
+				{[]byte("instance"), []byte("1.2.3.4")},
+			},
+		}
+
+		// Move all samples of one timeseries to one batch.
+		// It helps avoid multiple TSID generation and generally faster.
+
+		for i := range numTimeseries {
+			batch := i % numSamples
+			shift := i / numSamples
+			if mrss[batch] == nil {
+				mrss[batch] = make([]MetricRow, numTimeseries)
+			}
+			mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefixName, i))
+			metricNameRaw := mn.marshalRaw(nil)
+			for j := range numSamples {
+				mr := &mrss[batch][shift*numSamples+j]
+				mr.MetricNameRaw = metricNameRaw
+				mr.Timestamp = tr.MinTimestamp + int64(j)*step
+				mr.Value = float64(i)
+			}
+		}
+		return mrss
+	}
+
+	addOp := func(s *Storage, mrs []MetricRow) {
+		s.AddRows(mrs, defaultPrecisionBits)
+	}
+
+	f := func(b *testing.B, prefillTr TimeRange, addTs int64, prefillPrefixName, addPrefixName string) {
+		b.Helper()
+
+		b.StopTimer()
+		// use gomaxprocs as numSamples to warmup all shards
+		prefillMrss := genPrefillMrs(gomaxprocs, numRows, prefillTr, prefillPrefixName)
+		addMrs := genMrs(numRows, addTs, addPrefixName)
+		vmfs.MustRemoveAll(b.Name())
+		b.StartTimer()
+
+		for range b.N {
+			// prepare
+			b.StopTimer()
+			s := MustOpenStorage(b.Name(), OpenOptions{doNotPersistDataOnClose: true})
+			testDoConcurrently(s, addOp, gomaxprocs, false, prefillMrss)
+			b.StartTimer()
+
+			// benchmark
+			s.AddRows(addMrs, defaultPrecisionBits)
+
+			// cleanup
+			b.StopTimer()
+			s.MustClose()
+			vmfs.MustRemoveAll(b.Name())
+			b.StartTimer()
+		}
+	}
+
+	fgprofFileName := os.Getenv("FGPROF_FILE")
+	if fgprofFileName != "" {
+		fgprofFile, err := os.Create(fgprofFileName)
+		if err != nil {
+			b.Fatalf("failed to create fgprof file: %v", err)
+		}
+		defer fgprofFile.Close()
+
+		closeFn := fgprof.Start(fgprofFile, fgprof.FormatPprof)
+		benchmarkStorageAddRows(b, f)
+		closeFn()
+	} else {
+		benchmarkStorageAddRows(b, f)
+	}
 }
 
 func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
