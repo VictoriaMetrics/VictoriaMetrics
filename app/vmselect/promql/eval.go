@@ -72,7 +72,7 @@ func ValidateMaxPointsPerSeries(start, end, step int64, maxPoints int) error {
 
 // AdjustStartEnd adjusts start and end values, so response caching may be enabled.
 //
-// See EvalConfig.mayCache() for details.
+// See EvalConfig.Cacheable() for details.
 func AdjustStartEnd(start, end, step int64) (int64, int64) {
 	if *disableCache {
 		// Do not adjust start and end values when cache is disabled.
@@ -86,7 +86,7 @@ func AdjustStartEnd(start, end, step int64) (int64, int64) {
 	}
 
 	// Round start and end to values divisible by step in order
-	// to enable response caching (see EvalConfig.mayCache).
+	// to enable response caching (see EvalConfig.Cacheable).
 	start, end = alignStartEnd(start, end, step)
 
 	// Make sure that the new number of points is the same as the initial number of points.
@@ -199,7 +199,8 @@ func (ec *EvalConfig) validate() {
 	}
 }
 
-func (ec *EvalConfig) mayCache() bool {
+// Cacheable returns true if the query results can be cached.
+func (ec *EvalConfig) Cacheable() bool {
 	if *disableCache {
 		return false
 	}
@@ -261,7 +262,7 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 	if qt.Enabled() {
 		query := string(e.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		mayCache := ec.mayCache()
+		mayCache := ec.Cacheable()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
 	rv, err := evalExprInternal(qt, ec, e)
@@ -1160,7 +1161,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return tssCached, offset, nil
 	}
 
-	if !ec.mayCache() {
+	if !ec.Cacheable() {
 		qt.Printf("do not apply instant rollup optimization because of disabled cache")
 		return evalAt(qt, timestamp, window)
 	}
@@ -1641,7 +1642,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		}
 		return tss, nil
 	}
-	if !ec.mayCache() {
+	if !ec.Cacheable() {
 		qt.Printf("do not fetch series from cache, since it is disabled in the current context")
 		return evalWithConfig(ec)
 	}
