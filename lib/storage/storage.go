@@ -1117,6 +1117,9 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 // closes it once the search() returns. Thus, implementations of search func
 // must not close the query tracer that they receive.
 func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
+	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
+	defer qt.Done()
+
 	var idbs []*indexDB
 
 	ptIDBs := s.tb.GetIndexDBs(tr)
@@ -1133,7 +1136,7 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	}
 
 	if len(idbs) == 0 {
-		qt.Printf("no indexDBs found for timeRange=%s", &tr)
+		qt.Printf("no indexDBs found")
 		var zeroValue T
 		return zeroValue, nil
 	}
@@ -1141,9 +1144,9 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	// It is faster to process one indexDB without spawning goroutines.
 	if len(idbs) == 1 {
 		idb := idbs[0]
-		qt := qt.NewChild("search indexDB: %q", idb.name)
-		defer qt.Done()
 		searchTR := s.adjustTimeRange(tr, idb.tr)
+		qt := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
+		defer qt.Done()
 		data, err := search(qt, idb, searchTR)
 		if err != nil {
 			var zeroValue T
@@ -1152,21 +1155,23 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		return data, nil
 	}
 
-	qt.Printf("start parallel indexDB search: timeRange=%s", &tr)
+	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
 	var wg sync.WaitGroup
 	data := make([]T, len(idbs))
 	errs := make([]error, len(idbs))
 	for i, idb := range idbs {
-		qt := qt.NewChild("search indexDB: %q", idb.name)
+		searchTR := s.adjustTimeRange(tr, idb.tr)
+		qt := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
 		wg.Add(1)
-		go func(qt *querytracer.Tracer, i int, idb *indexDB) {
+		go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
 			defer wg.Done()
 			defer qt.Done()
-			searchTR := s.adjustTimeRange(tr, idb.tr)
-			data[i], errs[i] = search(qt, idb, searchTR)
-		}(qt, i, idb)
+
+			data[i], errs[i] = search(qt, idb, tr)
+		}(qt, i, idb, searchTR)
 	}
 	wg.Wait()
+	qtSearch.Done()
 
 	for _, err := range errs {
 		if err != nil {
@@ -1175,8 +1180,9 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		}
 	}
 
-	qt.Printf("merge %d results", len(data))
+	qtMerge := qt.NewChild("merge search results")
 	result := merge(data)
+	qtMerge.Done()
 
 	return result, nil
 }
@@ -1225,13 +1231,13 @@ func mergeUniq[T cmp.Ordered](data [][]T) []T {
 // time range is ignored and the metrics are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
-	defer qt.Done()
+	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
 		return s.searchMetricNames(qt, idb, tfss, tr, maxMetrics, deadline)
 	}
 	metricNames, err := searchAndMerge(qt, s, tr, search, mergeUniq)
-	qt.Printf("found %d metric names", len(metricNames))
+
+	qt.Donef("found %d metric names", len(metricNames))
 	return metricNames, err
 }
 
@@ -1292,7 +1298,7 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // from them. However, because legacy indexDBs are read-only, no background
 // merges will be performed.
 func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
-	qt = qt.NewChild("deleting series for %s", tfss)
+	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
 
 	if len(tfss) == 0 {
@@ -1301,8 +1307,6 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 
 	// Not using Storage.searchAndMerge because this method does not follow the
 	// same search-then-merge pattern as most other public methods.
-
-	qt.Printf("start parallel search across all indexDBs...")
 
 	var idbs []*indexDB
 
@@ -1323,22 +1327,35 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		idbs = append(idbs, legacyIDBCurr)
 	}
 
+	if len(idbs) == 0 {
+		qt.Printf("found no indexDBs")
+		return 0, nil
+	}
+
+	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
+
+	// Unconditionally search global index since a given day in per-day
+	// index may not contain the full set of metricIDs that correspond
+	// to the tfss.
+	tr := globalIndexTimeRange
+
 	var wg sync.WaitGroup
 	metricIDss := make([][]uint64, len(idbs))
 	errs := make([]error, len(idbs))
 	for i, idb := range idbs {
+		qt := qtSearch.NewChild("search indexDB %s: filters=%s, timeRange=%s, maxMetrics=%d", idb.name, tfss, &tr, maxMetrics)
 		wg.Add(1)
-		go func(i int, idb *indexDB) {
+		go func(qt *querytracer.Tracer, i int, idb *indexDB) {
 			defer wg.Done()
+			defer qt.Done()
 			is := idb.getIndexSearch(noDeadline)
 			defer idb.putIndexSearch(is)
-			// Unconditionally search global index since a given day in per-day
-			// index may not contain the full set of metricIDs that correspond
-			// to the tfss.
-			metricIDss[i], errs[i] = is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
-		}(i, idb)
+			metricIDss[i], errs[i] = is.searchMetricIDs(qt, tfss, tr, maxMetrics)
+		}(qt, i, idb)
 	}
 	wg.Wait()
+
+	qtSearch.Done()
 
 	for _, err := range errs {
 		if err != nil {
@@ -1348,30 +1365,35 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
 	s.resetAndSaveTSIDCache()
+	qt.Printf("reset and save tsidCache")
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
-	qt.Printf("start parallel metricID deletion in all indexDBs...")
+	qtDelete := qt.NewChild("delete from %d indexDBs in parallel", len(idbs))
 	deletedMetricIDs := &uint64set.Set{}
 	for i, idb := range idbs {
 		metricIDs := metricIDss[i]
+		qt := qtDelete.NewChild("delete %d metricIDs from indexDB %s", len(metricIDs), idb.name)
 		if len(metricIDs) == 0 {
+			qt.Done()
 			// Do not call idb.deleteMetricIDs for empty metricIDs to avoid
 			// unnecessary resetting of tfss cache.
 			continue
 		}
 		wg.Add(1)
-		go func(idb *indexDB, metricIDs []uint64) {
+		go func(qt *querytracer.Tracer, idb *indexDB, metricIDs []uint64) {
 			defer wg.Done()
+			defer qt.Done()
 			idb.deleteMetricIDs(metricIDs)
-		}(idb, metricIDs)
+		}(qt, idb, metricIDs)
 		deletedMetricIDs.AddMulti(metricIDs)
 	}
 	wg.Wait()
+	qtDelete.Done()
 
 	n := deletedMetricIDs.Len()
-	qt.Printf("deleted %d metricIDs", n)
+	qt.Donef("deleted %d metricIDs", n)
 	return n, nil
 }
 
