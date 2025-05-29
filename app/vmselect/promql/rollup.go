@@ -530,7 +530,7 @@ type rollupFuncArg struct {
 	timestamps []int64
 
 	// Real value preceding values.
-	// Is populated if preceding value is within the -search.maxStalenessInterval (rc.LookbackDelta).
+	// Is populated if preceding value is within the rc.LookbackDelta.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -781,13 +781,18 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		rfa.realPrevValue = nan
 		if i > 0 {
 			prevValue, prevTimestamp := values[i-1], timestamps[i-1]
-			// set realPrevValue if rc.LookbackDelta == 0
-			// or if distance between datapoint in prev interval and beginning of this interval
+			// set realPrevValue if rc.LookbackDelta == 0 or
+			// if distance between datapoint in prev interval and first datapoint in this interval
 			// doesn't exceed LookbackDelta.
 			// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1381
 			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
 			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045
-			if rc.LookbackDelta == 0 || (tStart-prevTimestamp) < rc.LookbackDelta {
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935
+			currTimestamp := tStart
+			if len(rfa.timestamps) > 0 {
+				currTimestamp = rfa.timestamps[0]
+			}
+			if rc.LookbackDelta == 0 || (currTimestamp-prevTimestamp) < rc.LookbackDelta {
 				rfa.realPrevValue = prevValue
 			}
 		}
@@ -1831,14 +1836,18 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
-	// restore to the real value because of potential staleness reset
-	prevValue := rfa.realPrevValue
+	prevValue := rfa.prevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
 			return nan
 		}
 		// Assume the counter starts from 0.
 		prevValue = 0
+		if !math.IsNaN(rfa.realPrevValue) {
+			// Assume that the value didn't change during the current gap
+			// if realPrevValue exists.
+			prevValue = rfa.realPrevValue
+		}
 	}
 	if len(values) == 0 {
 		// Assume the counter didn't change since prevValue.
