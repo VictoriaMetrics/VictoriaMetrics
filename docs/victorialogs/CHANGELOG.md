@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [multi-level cluster setup](https://docs.victoriametrics.com/victorialogs/cluster/#multi-level-cluster-setup): properly calculate [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) functions when a `vlselect` node queries other `vlselect` nodes, which, in turn, query `vlstorage` nodes. Previously such setup resulted in the `unexpected non-empty tail left` error for all the queries with `stats` pipe (explicit or implicit). See [#8815](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8815).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): correctly handle `sort` pipe in queries — UI now respects the server-defined sort order instead of always sorting by time. See [#8660](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8660).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add alphabetical sorting for record fields in selectors and table view. See [#8438](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8438).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix an issue where queries were not triggered when relative time was selected and the chart was hidden. See [#8983](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8983).
