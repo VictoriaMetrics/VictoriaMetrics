@@ -759,7 +759,7 @@ func getSearchQuery(qt *querytracer.Tracer, at *auth.Token, cp *commonParams, ma
 	if at != nil {
 		return storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, maxSeries), nil
 	}
-	tt, tfs, err := netstorage.GetTenantTokensFromFilters(qt, storage.TimeRange{MinTimestamp: cp.start, MaxTimestamp: cp.end}, cp.filterss, cp.deadline)
+	tt, tfs, err := netstorage.GetTenantTokensFromFilters(qt, storage.TimeRange{MinTimestamp: cp.start, MaxTimestamp: cp.end}, cp.filterss, cp.deadline, true)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain tenant tokens: %w", err)
 	}
@@ -1118,7 +1118,7 @@ func populateAuthTokens(qt *querytracer.Tracer, ec *promql.EvalConfig, at *auth.
 		return nil
 	}
 
-	tt, tfs, err := netstorage.GetTenantTokensFromFilters(qt, storage.TimeRange{MinTimestamp: ec.Start, MaxTimestamp: ec.End}, ec.EnforcedTagFilterss, deadline)
+	tt, tfs, err := netstorage.GetTenantTokensFromFilters(qt, storage.TimeRange{MinTimestamp: ec.Start, MaxTimestamp: ec.End}, ec.EnforcedTagFilterss, deadline, ec.Cacheable())
 	if err != nil {
 		return fmt.Errorf("cannot obtain tenant tokens for the given search query: %w", err)
 	}

@@ -17,28 +17,36 @@ import (
 )
 
 var (
-	tenantsCacheDuration = flag.Duration("search.tenantCacheExpireDuration", 5*time.Minute, "The expiry duration for list of tenants for multi-tenant queries.")
+	tenantsCacheDuration = flag.Duration("search.tenantCacheExpireDuration", 5*time.Minute, "The expiry duration for list of tenants for multi-tenant queries. 0 value disables caching of tenants.")
 )
 
 // TenantsCached returns the list of tenants available in the storage.
-func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.Deadline) ([]storage.TenantToken, error) {
-	qt.Printf("fetching tenants on timeRange=%s", tr.String())
+func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.Deadline, mayCache bool) ([]storage.TenantToken, error) {
+	qtL := qt.NewChild("fetching tenants on timeRange=%s", tr.String())
+	defer qtL.Done()
 
 	initTenantsCacheVOnce.Do(func() {
 		tenantsCacheV = newTenantsCache(*tenantsCacheDuration)
 	})
 
-	cached := tenantsCacheV.get(tr)
-	qt.Printf("fetched %d tenants from cache", len(cached))
-	if len(cached) > 0 {
-		return cached, nil
+	useCache := mayCache && tenantsCacheDuration.Seconds() > 0
+
+	if useCache {
+		cached := tenantsCacheV.get(tr)
+		qtL.Printf("fetched %d tenants from cache", len(cached))
+		if len(cached) > 0 {
+			return cached, nil
+		}
+	} else {
+		qtL.Printf("skipping cache for tenants")
 	}
-	tenants, err := Tenants(qt, tr, deadline)
+
+	tenants, err := Tenants(qtL, tr, deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
 	}
 
-	qt.Printf("fetched %d tenants from storage", len(tenants))
+	qtL.Printf("fetched %d tenants from storage", len(tenants))
 
 	tt := make([]storage.TenantToken, len(tenants))
 	for i, t := range tenants {
@@ -50,8 +58,12 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 		tt[i].ProjectID = projectID
 	}
 
-	tenantsCacheV.put(tr, tt)
-	qt.Printf("put %d tenants into cache", len(tenants))
+	if useCache {
+		tenantsCacheV.put(tr, tt)
+		qtL.Printf("put %d tenants into cache", len(tenants))
+	} else {
+		qtL.Printf("skip putting tenants into cache")
+	}
 
 	return tt, nil
 }
