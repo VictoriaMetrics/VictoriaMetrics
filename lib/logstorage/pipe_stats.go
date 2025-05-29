@@ -32,10 +32,29 @@ type pipeStats struct {
 
 type pipeStatsMode int
 
+func (psm pipeStatsMode) needExportState() bool {
+	switch psm {
+	case pipeStatsModeRemote, pipeStatsModeProxy:
+		return true
+	default:
+		return false
+	}
+}
+
+func (psm pipeStatsMode) needImportState() bool {
+	switch psm {
+	case pipeStatsModeLocal, pipeStatsModeProxy:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	pipeStatsModeDefault = pipeStatsMode(0)
 	pipeStatsModeRemote  = pipeStatsMode(1)
 	pipeStatsModeLocal   = pipeStatsMode(2)
+	pipeStatsModeProxy   = pipeStatsMode(3)
 )
 
 type pipeStatsFunc struct {
@@ -112,6 +131,8 @@ func (ps *pipeStats) String() string {
 		s = "stats_remote"
 	case pipeStatsModeLocal:
 		s = "stats_local"
+	case pipeStatsModeProxy:
+		s = "stats_proxy"
 	default:
 		logger.Panicf("BUG: unknown mode: %d", ps.mode)
 	}
@@ -130,10 +151,11 @@ func (ps *pipeStats) String() string {
 		logger.Panicf("BUG: pipeStats must contain at least a single statsFunc")
 	}
 	a := make([]string, len(funcs))
-	isLocal := ps.mode == pipeStatsModeLocal
+
+	needImportState := ps.mode.needImportState()
 	for i, f := range funcs {
 		resultNameQuoted := quoteTokenIfNeeded(f.resultName)
-		if isLocal {
+		if needImportState {
 			a[i] = fmt.Sprintf("import_state(%s) as %s", resultNameQuoted, resultNameQuoted)
 		} else {
 			line := f.f.String()
@@ -153,7 +175,19 @@ func (ps *pipeStats) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
 	psRemote.mode = pipeStatsModeRemote
 
 	psLocal := *ps
-	psLocal.mode = pipeStatsModeLocal
+
+	switch ps.mode {
+	case pipeStatsModeDefault:
+		psLocal.mode = pipeStatsModeLocal
+	case pipeStatsModeLocal:
+		logger.Panicf("BUG: stats_local cannot be split")
+	case pipeStatsModeProxy:
+		logger.Panicf("BUG: stats_proxy cannot be split")
+	case pipeStatsModeRemote:
+		psLocal.mode = pipeStatsModeProxy
+	default:
+		logger.Panicf("BUG: unexpected pipeStatsMode: %d", ps.mode)
+	}
 
 	return &psRemote, []pipe{&psLocal}
 }
@@ -163,7 +197,7 @@ func (ps *pipeStats) canLiveTail() bool {
 }
 
 func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if ps.mode == pipeStatsModeLocal {
+	if ps.mode.needImportState() {
 		ps.updateNeededFieldsLocal(neededFields, unneededFields)
 		return
 	}
@@ -900,7 +934,7 @@ func (psg *pipeStatsGroup) importStateFromRow(columnValues [][]string, rowIdx in
 		v := columnValues[i][rowIdx]
 		stateSize, err := sfp.importState(bytesutil.ToUnsafeBytes(v), stopCh)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("cannot import state for %s: %w", psg.funcs[i].f, err)
 		}
 		n += stateSize
 	}
@@ -970,7 +1004,7 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 		shard.stateSizeBudget += stateSizeBudgetChunk
 	}
 
-	if psp.ps.mode == pipeStatsModeLocal {
+	if psp.ps.mode.needImportState() {
 		shard.writeBlockLocal(br)
 	} else {
 		shard.writeBlockDefault(br)
@@ -1050,11 +1084,11 @@ func newPipeStatsWriter(psp *pipeStatsProcessor, workerID uint) *pipeStatsWriter
 }
 
 func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup) {
-	isRemote := psw.psp.ps.mode == pipeStatsModeRemote
+	needExportState := psw.psp.ps.mode.needExportState()
 	stopCh := psw.psp.stopCh
 	for i, sfp := range psg.sfps {
 		bufLen := len(psw.valuesBuf)
-		if isRemote {
+		if needExportState {
 			psw.valuesBuf = sfp.exportState(psw.valuesBuf, stopCh)
 		} else {
 			psw.valuesBuf = sfp.finalizeStats(psg.funcs[i].f, psw.valuesBuf, stopCh)
@@ -1221,6 +1255,7 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
 		switch {
 		case lex.isKeyword("stats"):
 			lex.nextToken()
+			ps.mode = pipeStatsModeDefault
 		case lex.isKeyword("stats_remote"):
 			lex.nextToken()
 			ps.mode = pipeStatsModeRemote
