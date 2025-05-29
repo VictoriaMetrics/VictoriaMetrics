@@ -1721,6 +1721,7 @@ func TestRollupDeltaWithStaleness(t *testing.T) {
 	})
 
 	t.Run("issue-8935", func(t *testing.T) {
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935
 		// below dataset has a gap that exceeds LookbackDelta.
 		// The step is picked in a way that on [60e3-90e3] window
 		// the prevValue will be NaN, but 60e3-55e3 still matches
