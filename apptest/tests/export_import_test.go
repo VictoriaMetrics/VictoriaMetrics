@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestSingleExportImport(t *testing.T) {
+func TestSingleExportImportNative(t *testing.T) {
 	os.RemoveAll(t.Name())
 
 	tc := at.NewTestCase(t)
@@ -19,7 +19,7 @@ func TestSingleExportImport(t *testing.T) {
 	testExportImportNative(tc.T(), sut)
 }
 
-func TestClusterExportImport(t *testing.T) {
+func TestClusterExportImportNative(t *testing.T) {
 	os.RemoveAll(t.Name())
 
 	tc := at.NewTestCase(t)
