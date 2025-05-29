@@ -25,9 +25,10 @@ or follow this interactive guide:
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/4;"
+    height="3400" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/grafana" >
+    src="https://console.victoriametrics.cloud/public/integrations/grafana" 
+    style="background: white;" >
 </iframe>

@@ -14,7 +14,7 @@ aliases:
   - /data-ingestion/telegraf/index.html
   - /data-ingestion/telegraf/
 ---
-This document covers various output configurations for Telegraf for shipping data [via HTTP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf)
+This document covers various output configurations for Telegraf for shipping data [via HTTP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf)
 to VictoriaMetrics. All the options examples below can be combined to fit your use case.
 
 To avoid storing Passwords in configuration files you can store as a key value pair in `/etc/default/telegraf` on Linux as follows

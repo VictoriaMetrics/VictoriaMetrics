@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
+import { FC, useEffect, useRef, useMemo } from "preact/compat";
 import Button from "../../Main/Button/Button";
 import { SearchIcon, SettingsIcon } from "../../Main/Icons";
 import "./style.scss";
@@ -49,8 +49,8 @@ const TableSettings: FC<TableSettingsProps> = ({
 
   const filteredColumns = useMemo(() => {
     const allColumns = customColumns.concat(columns);
-    if (!searchColumn) return allColumns;
-    return allColumns.filter(col => col.includes(searchColumn));
+    const result = searchColumn ? allColumns.filter(col => col.includes(searchColumn)) : allColumns;
+    return result.sort((a, b) => a.localeCompare(b));
   }, [columns, customColumns, searchColumn]);
 
   const isAllChecked = useMemo(() => {

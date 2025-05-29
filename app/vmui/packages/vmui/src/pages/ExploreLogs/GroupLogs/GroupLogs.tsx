@@ -17,9 +17,9 @@ import Pagination from "../../../components/Main/Pagination/Pagination";
 import SelectLimit from "../../../components/Main/Pagination/SelectLimit/SelectLimit";
 import { usePaginateGroups } from "../hooks/usePaginateGroups";
 import { GroupLogsType } from "../../../types";
-import { getNanoTimestamp } from "../../../utils/time";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import DownloadLogsButton from "../DownloadLogsButton/DownloadLogsButton";
+import { hasSortPipe } from "../../../components/Configurators/QueryEditor/LogsQL/utils/sort";
 
 interface Props {
   logs: Logs[];
@@ -29,6 +29,9 @@ interface Props {
 const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
   const { isMobile } = useDeviceDetect();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const query = searchParams.get("query") || "";
+  const queryHasSort = hasSortPipe(query);
 
   const [page, setPage] = useState(1);
   const [expandGroups, setExpandGroups] = useState<boolean[]>([]);
@@ -47,15 +50,10 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = getStreamPairs(streamValue);
 
-      // values sorting by time
-      const values = item.values.sort((a, b) => {
-        const aTimestamp = getNanoTimestamp(a._time);
-        const bTimestamp = getNanoTimestamp(b._time);
-
-        if (aTimestamp < bTimestamp) return 1;
-        if (aTimestamp > bTimestamp) return -1;
-        return 0;
-      });
+      // VictoriaLogs sends rows oldest → newest when the query has no `| sort` pipe,
+      // so we reverse the array to put the newest entries first.
+      // If a sort is already specified, keep the original order.
+      const values = queryHasSort ? item.values : item.values.toReversed();
 
       return {
         keys: item.keys,
@@ -64,8 +62,8 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
         pairs,
         total: values.length,
       };
-    }).sort((a, b) => b.values.length - a.values.length); // groups sorting
-  }, [logs, groupBy]);
+    }).sort((a, b) => b.total - a.total); // groups sorting
+  }, [logs, groupBy, queryHasSort]);
 
   const paginatedGroups = usePaginateGroups(groupData, page, rowsPerPage);
 
@@ -164,7 +162,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
-          <DownloadLogsButton getLogs={getLogs} />
+          <DownloadLogsButton getLogs={getLogs}/>
           <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}

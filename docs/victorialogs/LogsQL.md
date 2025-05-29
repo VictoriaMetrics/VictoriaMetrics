@@ -2403,6 +2403,7 @@ The following mathematical operations are supported by `math` pipe:
 - `ln(arg)` - returns [natural logarithm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
+- `now()` - returns the current [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
 - `rand()` - returns pseudo-random number in the range `[0...1)`.
 - `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
   For example, `round(temperature, 0.1)` rounds `temperature` field to one decimal digit after the point.
@@ -3668,7 +3669,7 @@ See also:
 
 ### json_values stats
 
-`json_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns packs the given fields into JSON per every log entry and returns JSON array,
+`json_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) packs the given fields into JSON per every log entry and returns JSON array,
 which can be unrolled with [`unroll` pipe](#unroll-pipe).
 
 For example, the following query returns per-`app` JSON arrays containing [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)

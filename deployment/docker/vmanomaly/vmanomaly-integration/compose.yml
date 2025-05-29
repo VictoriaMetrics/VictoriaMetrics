@@ -1,6 +1,6 @@
 services:
   vmagent:
-    image: victoriametrics/vmagent:v1.117.1
+    image: victoriametrics/vmagent:v1.118.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -14,7 +14,7 @@ services:
     restart: always
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.117.1
+    image: victoriametrics/victoria-metrics:v1.118.0
     ports:
       - 8428:8428
     volumes:
@@ -40,7 +40,7 @@ services:
     restart: always
 
   vmalert:
-    image: victoriametrics/vmalert:v1.117.1
+    image: victoriametrics/vmalert:v1.118.0
     depends_on:
       - "victoriametrics"
     ports:
