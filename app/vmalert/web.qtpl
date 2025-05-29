@@ -93,18 +93,18 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, groups []apiGroup, filter string) %}
+{% func ListGroups(r *http.Request, groups []*apiGroup, filter string) %}
     {%code
         prefix := vmalertutil.Prefix(r.URL.Path)
         filters := map[string]string{
             "":          "All",
             "unhealthy": "Unhealthy",
-            "noMatch":   "No Match",
+            "nomatch":   "No Match",
         }
         icons := map[string]string{
             "":          "all",
             "unhealthy": "unhealthy",
-            "noMatch":   "nomatch",
+            "nomatch":   "nomatch",
         }
         currentText := filters[filter]
         currentIcon := icons[filter]
