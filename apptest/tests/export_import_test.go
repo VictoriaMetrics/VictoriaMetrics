@@ -1,11 +1,12 @@
 package tests
 
 import (
+	"os"
+	"testing"
+
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"os"
-	"testing"
 )
 
 func TestSingleExportImportNative(t *testing.T) {
