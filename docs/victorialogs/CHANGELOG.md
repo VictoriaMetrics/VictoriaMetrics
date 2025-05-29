@@ -18,13 +18,19 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.23.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.0-victorialogs)
+
+Released at 2025-05-28
+
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add "Live" tab that allows monitoring logs in real-time as they arrive. This feature helps users to observe the most recent log entries without manual refreshing, making troubleshooting and monitoring more efficient. See [#7046](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7046).
 * FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/23274) and [dashboards/single](https://grafana.com/grafana/dashboards/22084): add panels for [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics to dashboards. They could help to identify shortage of resources for VictoriaLogs components.
+* FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): add `now()` function, which returns the current [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
 
 * BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly handle nested attributes by expanding them into separate top-level fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8862).
 * BUGFIX: [Datadog](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog/): respond HTTP 202 instead of HTTP 200 on successful Datadog endpoint ingestion as it's strictly required by Datadog agent. See [#8956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8956).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly escape special characters in field values shown in autocomplete suggestions. See [#8925](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8925).
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): Properly handle time filters when querying vlstorage directly or through vlselect. See [#8985](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8985).
+* BUGFIX: Self-healing from OOM interruption during the creation of a daily partition. See [#8873](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8873).
 
 ## [v1.22.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.2-victorialogs)
 
