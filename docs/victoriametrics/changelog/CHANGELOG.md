@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): improve stale series detection in `increase`, `increase_pure` and `delta` MetricsQL functions when `-search.maxLookback`, `-search.setLookbackToStep` or `-search.maxStalenessInterval` flags are set. See [#8935](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935) for details.
+
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix access conflicts for the temporary test folder when multiple users run tests on the same host. Thanks to @evkuzin for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9015).
 * BUGFIX: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): fix the alerting rule `ScrapePoolHasNoTargets`. Previously, it may cause false positive in [sharding mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
@@ -32,7 +34,6 @@ Released at 2025-05-23
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop duplicate labels when they appear in both the recording rule label spec and the expression result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8954) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic during query execution when query stats tracking is disabled with `-search.queryStats.lastQueriesCount=0`. See [#8973](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8973).
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): consistently detect stale series in `increase`, `increase_pure` and `delta` MetricsQL functions when `-search.maxLookback`, `-search.setLookbackToStep` or `-search.maxStalenessInterval` flags are set. See [#8935](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935) for details.
 
 ## [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1)
 
