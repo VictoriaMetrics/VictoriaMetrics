@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): allow disabling tenant cache for [multitenant read queries](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) by using `-search.disableCache` or `-search.tenantCacheExpireDuration=0` command-line flags, or by adding `nocache=1` query parameter. It can be useful for debugging purposes and in cases of frequent tenants creation.
+
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix access conflicts for the temporary test folder when multiple users run tests on the same host. Thanks to @evkuzin for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9015).
 
 ## [v1.118.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.118.0)
