@@ -20,6 +20,16 @@ const (
 	paramRuleID = "rule_id"
 )
 
+type apiNotifier struct {
+	Kind    string       `json:"kind"`
+	Targets []*apiTarget `json:"targets"`
+}
+
+type apiTarget struct {
+	Address string            `json:"address"`
+	Labels  map[string]string `json:"labels"`
+}
+
 // apiAlert represents a notifier.AlertingRule state
 // for WEB view
 // https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
@@ -36,19 +46,19 @@ type apiAlert struct {
 	// ID is an unique Alert's ID within a group
 	ID string `json:"id"`
 	// RuleID is an unique Rule's ID within a group
-	RuleID string `json:"rule_id"`
+	RuleID string `json:"ruleId"`
 	// GroupID is an unique Group's ID
-	GroupID string `json:"group_id"`
+	GroupID string `json:"groupId"`
 	// Expression contains the PromQL/MetricsQL expression
 	// for Rule's evaluation
 	Expression string `json:"expression"`
 	// SourceLink contains a link to a system which should show
 	// why Alert was generated
-	SourceLink string `json:"source"`
+	SourceLink string `json:"sourceLink"`
 	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
 	// Stabilizing shows when firing state is kept because of
-	// `keep_firing_for` instead of real alert
+	// `keepFiringFor` instead of real alert
 	Stabilizing bool `json:"stabilizing"`
 }
 
@@ -91,13 +101,13 @@ type apiGroup struct {
 	// Headers contains HTTP headers added to each Rule's request
 	Headers []string `json:"headers,omitempty"`
 	// NotifierHeaders contains HTTP headers added to each alert request which will send to notifier
-	NotifierHeaders []string `json:"notifier_headers,omitempty"`
+	NotifierHeaders []string `json:"notifierHeaders,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
 	// EvalOffset Group will be evaluated at the exact time offset on the range of [0...evaluationInterval]
-	EvalOffset float64 `json:"eval_offset,omitempty"`
+	EvalOffset float64 `json:"evalOffset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
-	EvalDelay float64 `json:"eval_delay,omitempty"`
+	EvalDelay float64 `json:"evalDelay,omitempty"`
 	// Unhealthy unhealthy rules count
 	Unhealthy int
 	// Healthy passing rules count
@@ -108,7 +118,7 @@ type apiGroup struct {
 
 // groupAlerts represents a group of alerts for WEB view
 type groupAlerts struct {
-	Group  apiGroup
+	Group  *apiGroup
 	Alerts []*apiAlert
 }
 
@@ -126,7 +136,7 @@ type apiRule struct {
 	// Duration represents Rule's `for` field
 	Duration float64 `json:"duration"`
 	// Alert will continue firing for this long even when the alerting expression no longer has results.
-	KeepFiringFor float64           `json:"keep_firing_for"`
+	KeepFiringFor float64           `json:"keepFiringFor"`
 	Labels        map[string]string `json:"labels,omitempty"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
 	// LastError contains the error faced while executing the rule.
@@ -327,7 +337,7 @@ func newAlertAPI(ar *rule.AlertingRule, a *notifier.Alert) *apiAlert {
 	return aa
 }
 
-func groupToAPI(g *rule.Group) apiGroup {
+func groupToAPI(g *rule.Group) *apiGroup {
 	g = g.DeepCopy()
 	ag := apiGroup{
 		// encode as string to avoid rounding
@@ -353,7 +363,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, ruleToAPI(r))
 	}
-	return ag
+	return &ag
 }
 
 func urlValuesToStrings(values url.Values) []string {
