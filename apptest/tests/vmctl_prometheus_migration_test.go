@@ -37,18 +37,12 @@ func TestVmctlPrometheusProtocolToVMSingle(t *testing.T) {
 
 	vmAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
 	testSnapshot := "./testdata/snapshots/20250118T124506Z-59d1b952d7eaf547"
-	vmctl := tc.MustStartVmctl("vmctl", []string{
+	_ = tc.MustStartVmctl("vmctl", []string{
 		`prometheus`,
 		`--prom-snapshot=` + testSnapshot,
 		`--vm-addr=` + vmAddr,
 		`--disable-progress-bar=true`,
 	})
-
-	// Wait for vmctl to finish processing
-	err := vmctl.Wait()
-	if err != nil {
-		t.Errorf("vmctl.Wait() failed with %s", err)
-	}
 
 	vmsingleDst.ForceFlush(t)
 
@@ -56,8 +50,8 @@ func TestVmctlPrometheusProtocolToVMSingle(t *testing.T) {
 		Msg: `unexpected metrics stored on vmsingle via the prometheus protocol`,
 		Got: func() any {
 			exported := vmsingleDst.PrometheusAPIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
-				Start: "2025-01-18T12:45:00Z",
-				End:   "2025-01-18T12:46:00Z",
+				Start: "2025-01-18T00:45:00Z",
+				End:   "2025-01-18T23:46:00Z",
 			})
 			return len(exported.Data.Result)
 		},

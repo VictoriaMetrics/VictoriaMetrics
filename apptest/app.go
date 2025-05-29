@@ -38,6 +38,7 @@ type app struct {
 type appOptions struct {
 	defaultFlags map[string]string
 	extractREs   []*regexp.Regexp
+	wait         bool
 }
 
 // startApp starts an instance of an app using the app binary file path and
@@ -92,7 +93,11 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
-	return app, extracts, nil
+	if opts.wait {
+		err = cmd.Wait()
+	}
+
+	return app, extracts, err
 }
 
 // setDefaultFlags adds flags with default values to `flags` if it does not
@@ -115,10 +120,6 @@ func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
 // Stop sends the app process a SIGINT signal and waits until it terminates
 // gracefully.
 func (app *app) Stop() {
-	if app.Name() == vmctlAppName {
-		log.Printf("vmctl process %s is a cli, it is expected to run until it finish it work", app.instance)
-		return
-	}
 	if err := app.process.Signal(os.Interrupt); err != nil {
 		log.Fatalf("Could not send SIGINT signal to %s process: %v", app.instance, err)
 	}
