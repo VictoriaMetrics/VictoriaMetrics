@@ -1691,7 +1691,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.skipSlowReplicas
      Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. Enabling this setting may improve query speed, but it could also lead to incomplete results if some queried data has less than -replicationFactor copies at vmstorage nodes. Consider enabling this setting only if all the queried data contains -replicationFactor copies in the cluster
   -search.tenantCacheExpireDuration duration
-     The expiry duration for list of tenants for multi-tenant queries. (default 5m0s)
+     The expiry duration for list of tenants for multi-tenant queries. The expiry duration for list of tenants for multi-tenant queries. 0 value disables caching of tenants. (default 5m0s)
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
