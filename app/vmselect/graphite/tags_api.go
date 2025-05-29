@@ -22,9 +22,9 @@ import (
 
 var (
 	maxGraphiteTagKeysPerSearch = flag.Int("search.maxGraphiteTagKeys", 100e3, "The maximum number of tag keys returned from Graphite API, which returns tags. "+
-		"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api")
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#tags-api")
 	maxGraphiteTagValuesPerSearch = flag.Int("search.maxGraphiteTagValues", 100e3, "The maximum number of tag values returned from Graphite API, which returns tag values. "+
-		"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#tags-api")
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#tags-api")
 )
 
 // TagsDelSeriesHandler implements /tags/delSeries handler.

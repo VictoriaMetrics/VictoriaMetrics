@@ -1719,6 +1719,33 @@ func TestRollupDeltaWithStaleness(t *testing.T) {
 		timestampsExpected := []int64{0, 10e3, 20e3, 30e3, 40e3}
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
+
+	t.Run("issue-8935", func(t *testing.T) {
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935
+		// below dataset has a gap that exceeds LookbackDelta.
+		// The step is picked in a way that on [60e3-90e3] window
+		// the prevValue will be NaN, but 60e3-55e3 still matches
+		// timestamp=10e3 and stores its value as realPrevValue.
+		// This results into delta=1-50=-49 increase result.
+		// The fix makes it to deduct LookbackDelta not from window start
+		// but from first captured data point in the window, so it becomes 70e3-55e3=15e3.
+		// And realPrevValue becomes NaN due to staleness detection.
+		timestamps = []int64{0, 10000, 70000, 80000}
+		values = []float64{50, 50, 1, 1}
+		rc := rollupConfig{
+			Func:               rollupDelta,
+			Start:              0,
+			End:                90e3,
+			Step:               30e3,
+			LookbackDelta:      55e3,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, _ := rc.Do(nil, values, timestamps)
+		valuesExpected := []float64{0, 0, 0, 1}
+		timestampsExpected := []int64{0, 30e3, 60e3, 90e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
 }
 
 func TestRollupIncreasePureWithStaleness(t *testing.T) {

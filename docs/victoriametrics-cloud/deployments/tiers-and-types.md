@@ -127,7 +127,7 @@ A comprehensive list of these parameters is presented here:
 | **Parameter**                             | **Maximum Value**                 | **Description**                                                                                                                                                                                                                                 |
 |-------------------------------------------|-----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **New Series Over 24 Hours** (churn rate) | `<= 30% Active Time Series Count`     | Number of new series created in 24 hours. High [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) leads to higher resource consumption.                                                                                |
-| **Concurrent Requests per Token**         | `<= 600`                          | Maximum concurrent requests per [access token](deployments/access-tokens.md). It is recommended to create separate tokens for different users and environments. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com). |
+| **Concurrent Requests per Token**         | `<= 600`                          | Maximum concurrent requests per [access token](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/). It is recommended to create separate tokens for different users and environments. This can be adjusted via [support](mailto:support-cloud@victoriametrics.com). |
 
 
 <br></br>

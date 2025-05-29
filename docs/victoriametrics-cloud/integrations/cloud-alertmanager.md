@@ -19,9 +19,10 @@ To configure alerting rules and notifications using the hosted Alertmanager, sim
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/2;"
+    height="950" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/cloud-alertmanager" >
+    src="https://console.victoriametrics.cloud/public/integrations/cloud-alertmanager" 
+    style="background: white;" >
 </iframe>

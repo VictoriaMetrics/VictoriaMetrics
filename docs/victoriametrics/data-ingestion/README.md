@@ -17,7 +17,7 @@ so the urls in the rest of the documentation will look like `https://<victoriame
 - [Vector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vector/)
 - [vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/)
 - [Grafana Alloy](https://docs.victoriametrics.com/victoriametrics/data-ingestion/alloy/)
-- [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
+- [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/)
 
 
 ## Supported Platforms

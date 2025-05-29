@@ -187,7 +187,7 @@ func (app *Vmsingle) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts
 // records in OpenTSDB format for the given tenant by sending an HTTP POST
 // request to /api/put vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http
+// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http
 func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 

@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): improve stale series detection in `increase`, `increase_pure` and `delta` MetricsQL functions when `-search.maxLookback`, `-search.setLookbackToStep` or `-search.maxStalenessInterval` flags are set. See [#8935](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935) for details.
+
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): fix access conflicts for the temporary test folder when multiple users run tests on the same host. Thanks to @evkuzin for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9015).
+* BUGFIX: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules): fix the alerting rule `ScrapePoolHasNoTargets`. Previously, it may cause false positive in [sharding mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): remove tenant labels `vm_account_id` and `vm_project_id` from [exported data](https://docs.victoriametrics.com/#how-to-export-time-series) if tenant info was [specified in URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format). These labels will be present only if export is done via [/multitenant/ endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), as such response could contain series belonging to different tenants. This change also fixes inconsistency in vmctl's [cluster-to-cluster migration mode](https://docs.victoriametrics.com/victoriametrics/vmctl/#cluster-to-cluster-migration-mode)  - see [#9016](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9016) for details. Thank @fxrlv for the bug report.
 
 ## [v1.118.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.118.0)
@@ -222,7 +226,7 @@ If you are impacted by this, please upgrade to [v1.114.0](https://github.com/Vic
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): allow [disabling per-day indexes](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate) for workloads with low or zero churn rates via `-disablePerDayIndex` cmd-line flag. This option works the best for IoT cases and significantly loads resource and disk usage. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6976).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add command-line flag `-notifier.sendTimeout(default 10s)` to allow configuring request timeout when sending alerts to the corresponding `-notifier.url`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8287) for details. Thanks to @gjkim42 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8297).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add support of [aggregation windows](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows) to improve accuracy of stream aggregation. This feature is especially important for aggregation of [histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram), but enabling this feature requires additional memory. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-influx.forceStreamMode` cmd-line flag to force stream processing for data ingested via [InfluxDB protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8269).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-influx.forceStreamMode` cmd-line flag to force stream processing for data ingested via [InfluxDB protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8269).
 * FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): support overriding vmstorage `-maxUniqueTimeseries` with specific resource limits: `-search.maxLabelsAPISeries`, `-search. maxSeries`, `-search.maxTSDBStatusSeries` and `-search.maxDeleteSeries`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add legend customization options - table view, hiding common values, grouping by label, and custom label format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8031) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8263).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): look back for recent data for longer time intervals when switching to Table or JSON view. The look back window depends on the `step` setting, which is now set as `end - start` (30m) by default. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240).
@@ -257,6 +261,17 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.9)
+
+Released at 2025-05-23
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop duplicate labels when they appear in both the recording rule label spec and the expression result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8954) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
 
 ## [v1.110.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.8)
 
@@ -482,6 +497,16 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
+
+## [v1.102.22](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.22)
+
+Released at 2025-05-23
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix inconsistency with Prometheus in labels discovered by using [Kubernetes service-discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) with `role: endpointslice`. See [#8959](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8959).
 
 ## [v1.102.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.21)
 
