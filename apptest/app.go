@@ -112,9 +112,13 @@ func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
 	return flags
 }
 
-// stop sends the app process a SIGINT signal and waits until it terminates
+// Stop sends the app process a SIGINT signal and waits until it terminates
 // gracefully.
 func (app *app) Stop() {
+	if app.Name() == vmctlAppName {
+		log.Printf("vmctl process %s is a cli, it is expected to run until it finish it work", app.instance)
+		return
+	}
 	if err := app.process.Signal(os.Interrupt); err != nil {
 		log.Fatalf("Could not send SIGINT signal to %s process: %v", app.instance, err)
 	}

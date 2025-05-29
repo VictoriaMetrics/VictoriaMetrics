@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestCase holds the state and defines clean-up procedure common for all test
@@ -249,6 +250,18 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerie
 	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
 
 	return &Vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
+}
+
+// MustStartVmctl is a test helper function that starts an instance of vmctl
+func (tc *TestCase) MustStartVmctl(instance string, flags []string) *Vmctl {
+	tc.t.Helper()
+
+	app, err := StartVmctl(instance, flags)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
 }
 
 func (tc *TestCase) addApp(instance string, app Stopper) {
