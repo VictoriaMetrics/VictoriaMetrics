@@ -3,7 +3,8 @@ package logstorage
 import (
 	"sync"
 	"unicode"
-	"unicode/utf8"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
@@ -32,7 +33,7 @@ func (t *tokenizer) reset() {
 }
 
 func (t *tokenizer) tokenizeString(dst []string, s string, keepDuplicateTokens bool) []string {
-	if !isASCII(s) {
+	if !stringsutil.IsASCII(s) {
 		// Slow path - s contains unicode chars
 		return t.tokenizeStringUnicode(dst, s, keepDuplicateTokens)
 	}
@@ -114,15 +115,6 @@ func (t *tokenizer) tokenizeStringUnicode(dst []string, s string, keepDuplicateT
 		}
 	}
 	return dst
-}
-
-func isASCII(s string) bool {
-	for i := range s {
-		if s[i] >= utf8.RuneSelf {
-			return false
-		}
-	}
-	return true
 }
 
 func isTokenChar(c byte) bool {
