@@ -228,3 +228,70 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 		t.Errorf("unexpected multitenancy tenants cache entries; got %d; want 0", got)
 	}
 }
+
+func TestClusterMultiTenantSelectUsingTenancyCache(t *testing.T) {
+	os.RemoveAll(t.Name())
+
+	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage",
+		"-retentionPeriod=100y",
+	})
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + vmstorage.VminsertAddr(),
+	})
+	vmselect := tc.MustStartVmselect("vmselect", []string{
+		"-storageNode=" + vmstorage.VmselectAddr(),
+		"-search.tenantCacheExpireDuration=5m",
+	})
+
+	var commonSamples = []string{
+		`foo_bar 1.00 1652169600000`, // 2022-05-10T08:00:00Z
+		`foo_bar 2.00 1652169660000`, // 2022-05-10T08:01:00Z
+		`foo_bar 3.00 1652169720000`, // 2022-05-10T08:02:00Z
+	}
+
+	// test for empty tenants request
+
+	// ingest per tenant data and verify it with search
+	tenantIDs := []string{"1:1", "1:15"}
+	instantCT := "2022-05-10T08:05:00.000Z"
+	for _, tenantID := range tenantIDs {
+		vminsert.PrometheusAPIV1ImportPrometheus(t, commonSamples, apptest.QueryOpts{Tenant: tenantID})
+	}
+	vmstorage.ForceFlush(t)
+
+	//  /api/v1/query
+	want := apptest.NewPrometheusAPIV1QueryResponse(t,
+		`{"data":
+       {"result":[
+          {"metric":{"__name__":"foo_bar","vm_account_id":"1","vm_project_id": "1"},"value":[1652169900,"3"]},
+          {"metric":{"__name__":"foo_bar","vm_account_id":"1","vm_project_id":"15"},"value":[1652169900,"3"]}
+                 ]
+       }
+     }`,
+	)
+	got := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+		Tenant: "multitenant",
+		Time:   instantCT,
+	})
+
+	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	if got := vmselect.GetIntMetric(t, `vm_cache_requests_total{type="multitenancy/tenants"}`); got != 1 {
+		t.Errorf("unexpected multitenancy tenants cache requests; got %d; want 1", got)
+	}
+
+	if got := vmselect.GetIntMetric(t, `vm_cache_misses_total{type="multitenancy/tenants"}`); got != 1 {
+		t.Errorf("unexpected multitenancy tenants cache misses; got %d; want 1", got)
+	}
+
+	if got := vmselect.GetIntMetric(t, `vm_cache_entries{type="multitenancy/tenants"}`); got != 1 {
+		t.Errorf("unexpected multitenancy tenants cache entries; got %d; want 1", got)
+	}
+}
