@@ -1440,7 +1440,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores. (default 32)
+     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
