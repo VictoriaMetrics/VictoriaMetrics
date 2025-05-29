@@ -163,6 +163,7 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	if len(tc.items) == 0 {
+		tc.misses.Add(1)
 		return nil
 	}
 	ct := time.Now()
@@ -190,6 +191,9 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 	tenants := make([]storage.TenantToken, 0, len(result))
 	for t := range result {
 		tenants = append(tenants, t)
+	}
+	if len(tenants) == 0 {
+		tc.misses.Add(1)
 	}
 
 	return tenants
