@@ -1363,10 +1363,6 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		}
 	}
 
-	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
-	s.resetAndSaveTSIDCache()
-	qt.Printf("reset and save tsidCache")
-
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
@@ -1393,6 +1389,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	qtDelete.Done()
 
 	n := deletedMetricIDs.Len()
+	if n > 0 {
+		// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
+		s.resetAndSaveTSIDCache()
+		qt.Printf("reset and save tsidCache")
+	}
+
 	qt.Donef("deleted %d metricIDs", n)
 	return n, nil
 }

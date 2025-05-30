@@ -18,6 +18,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -630,6 +632,146 @@ func testStorageRandTimestamps(s *Storage) error {
 		return fmt.Errorf("expecting at least one row in storage")
 	}
 	return nil
+}
+
+func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMonths = 100
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric"), false, false); err != nil {
+		t.Fatalf("cannot add tag filter: %s", err)
+	}
+
+	addRows := func(reverse bool) {
+		var mn MetricName
+		mn.Tags = []Tag{
+			{[]byte("job"), []byte("job")},
+		}
+		mn.MetricGroup = []byte(fmt.Sprintf("metric"))
+		metricNameRaw := mn.marshalRaw(nil)
+
+		ts := time.Unix(0, 0)
+		inc := 1
+		if reverse {
+			ts = ts.AddDate(0, numMonths-1, 0)
+			inc = -1
+		}
+		for range numMonths {
+			mr := MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     ts.UnixMilli(),
+				Value:         1,
+			}
+			s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+			ts = ts.AddDate(0, inc, 0)
+		}
+	}
+
+	countMonthsWithLabels := func() int {
+		ts := time.Unix(0, 0)
+		n := 0
+		for range numMonths {
+			lns, err := s.SearchLabelNames(nil, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
+			if err != nil {
+				t.Fatalf("error in SearchLabelNames() at the start: %s", err)
+			}
+			if len(lns) != 0 {
+				n += 1
+			}
+			ts = ts.AddDate(0, 1, 0)
+		}
+		return n
+	}
+
+	countRows := func() int {
+		var search Search
+		defer search.MustClose()
+
+		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt}, 1e5, noDeadline)
+		n := 0
+		for search.NextMetricBlock() {
+			var b Block
+			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
+			n += b.RowsCount()
+		}
+		return n
+	}
+
+	deleteSeries := func() error {
+		ch := make(chan error, 1)
+
+		go func() {
+			var err error
+			for {
+				var n int
+				n, err = s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
+				if err != nil {
+					break
+				}
+
+				// at least one month must be deleted
+				if n > 0 {
+					break
+				}
+			}
+			ch <- err
+		}()
+
+		tt := time.NewTimer(5 * time.Second)
+		select {
+		case err := <-ch:
+			return err
+		case <-tt.C:
+			return fmt.Errorf("timeout")
+		}
+	}
+
+	// Verify no metrics exist
+	rowsCount := countRows()
+	if rowsCount != 0 {
+		t.Fatalf("unexpected rows count at the start; got %d; want 0", rowsCount)
+	}
+
+	// run addRows and deleteSeries concurrently to trigger race condition
+	group := errgroup.Group{}
+	group.Go(func() error {
+		addRows(false)
+		return nil
+	})
+	group.Go(deleteSeries)
+	err := group.Wait()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Verify metrics are partially deleted
+	s.DebugFlush()
+	rowsCount = countRows()
+	if rowsCount >= numMonths {
+		t.Fatalf("unexpected metrics count after delete; got %d; want <%d", rowsCount, numMonths)
+	}
+
+	// Verify all deleted TSIDs are recreated. TSIDs should be deleted only for some subset of months in the beginning.
+	// Add rows in reverse order to ensure that cache is not leaking between partitions.
+	addRows(true)
+	s.DebugFlush()
+	labelsCount := countMonthsWithLabels()
+
+	if labelsCount != numMonths {
+		t.Fatalf("unexpected labels count after second add; got %d; want %d", labelsCount, numMonths)
+	}
+
+	// Verify metrics are partially deleted
+	rowsCount = countRows()
+	if rowsCount < numMonths {
+		t.Fatalf("unexpected metrics count after delete; got %d; want >=%d", rowsCount, numMonths)
+	}
+
+	s.MustClose()
 }
 
 func TestStorageDeleteSeries(t *testing.T) {
