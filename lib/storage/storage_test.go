@@ -608,9 +608,15 @@ func testStorageRandTimestamps(s *Storage) error {
 }
 
 func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
-	path := "TestStorageAddDeleteSeriesConcurrently"
+	defer testRemoveAll(t)
+
 	const numMonths = 100
-	s := MustOpenStorage(path, OpenOptions{})
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric"), false, false); err != nil {
+		t.Fatalf("cannot add tag filter: %s", err)
+	}
 
 	addRows := func(reverse bool) {
 		var mn MetricName
@@ -637,7 +643,7 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 		}
 	}
 
-	calcMonthsWithLabels := func() int {
+	countMonthsWithLabels := func() int {
 		ts := time.Unix(0, 0)
 		n := 0
 		for range numMonths {
@@ -653,11 +659,7 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 		return n
 	}
 
-	calcRows := func() int {
-		tfs := NewTagFilters()
-		if err := tfs.Add(nil, []byte("metric"), false, false); err != nil {
-			t.Fatalf("cannot add regexp tag filter: %s", err)
-		}
+	countRows := func() int {
 		var search Search
 		defer search.MustClose()
 
@@ -672,25 +674,36 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 	}
 
 	deleteSeries := func() error {
-		tfs := NewTagFilters()
-		if err := tfs.Add(nil, []byte("metric"), false, false); err != nil {
-			return fmt.Errorf("cannot add regexp tag filter: %w", err)
-		}
+		ch := make(chan error, 1)
 
-		// at least one month must be deleted
-		for {
-			n, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
-			if err != nil {
-				return fmt.Errorf("error in DeleteSeries: %w", err)
+		go func() {
+			var err error
+			for {
+				var n int
+				n, err = s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
+				if err != nil {
+					break
+				}
+
+				// at least one month must be deleted
+				if n > 0 {
+					break
+				}
 			}
-			if n > 0 {
-				return nil
-			}
+			ch <- err
+		}()
+
+		tt := time.NewTimer(5 * time.Second)
+		select {
+		case err := <-ch:
+			return err
+		case <-tt.C:
+			return fmt.Errorf("timeout")
 		}
 	}
 
 	// Verify no metrics exist
-	rowsCount := calcRows()
+	rowsCount := countRows()
 	if rowsCount != 0 {
 		t.Fatalf("unexpected rows count at the start; got %d; want 0", rowsCount)
 	}
@@ -710,7 +723,7 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 
 	// Verify metrics are partially deleted
 	s.DebugFlush()
-	rowsCount = calcRows()
+	rowsCount = countRows()
 	if rowsCount >= numMonths {
 		t.Fatalf("unexpected metrics count after delete; got %d; want <%d", rowsCount, numMonths)
 	}
@@ -719,22 +732,19 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 	// Add rows in reverse order to ensure that cache is not leaking between partitions.
 	addRows(true)
 	s.DebugFlush()
-	labelsCount := calcMonthsWithLabels()
+	labelsCount := countMonthsWithLabels()
 
 	if labelsCount != numMonths {
 		t.Fatalf("unexpected labels count after second add; got %d; want %d", labelsCount, numMonths)
 	}
 
 	// Verify metrics are partially deleted
-	rowsCount = calcRows()
+	rowsCount = countRows()
 	if rowsCount < numMonths {
 		t.Fatalf("unexpected metrics count after delete; got %d; want >=%d", rowsCount, numMonths)
 	}
 
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
 }
 
 func TestStorageDeleteSeries(t *testing.T) {
