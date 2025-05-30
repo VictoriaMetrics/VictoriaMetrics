@@ -68,12 +68,11 @@ var Dialer = &net.Dialer{
 
 // IsErrMissingPort checks if the given error is due to a missing port in the address.
 // It is expected to be used to validate error returned by net.SplitHostPort
+// See https://github.com/golang/go/blob/ed08d2ad0928c0fc77cc2053863616ffb58c5aac/src/net/ipsock.go#L167
 func IsErrMissingPort(err error) bool {
 	if err == nil {
 		return false
 	}
-	// There is no specific error exported for missing port in address.
-	// So we check for the substring.
 	return strings.Contains(err.Error(), "missing port in address")
 }
 
@@ -86,10 +85,9 @@ func NormalizeAddr(addr string, defaultPort int) (string, error) {
 	}
 
 	_, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		if IsErrMissingPort(err) {
-			return fmt.Sprintf("%s:%d", addr, defaultPort), nil
-		}
+	if IsErrMissingPort(err) {
+		return fmt.Sprintf("%s:%d", addr, defaultPort), nil
+	} else if err != nil {
 		return "", fmt.Errorf("invalid address %q; expected format: host:port", addr)
 	}
 	return addr, nil
