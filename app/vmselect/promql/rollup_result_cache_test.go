@@ -160,6 +160,42 @@ func TestRollupResultCache(t *testing.T) {
 		}
 	})
 
+	// Timeseries were found in meta, but were not found in series
+	t.Run("found-in-meta-not-found-in-series", func(t *testing.T) {
+		ResetRollupResultCache()
+		tss := []*timeseries{
+			{
+				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
+				Values:     []float64{0, 0, 1, 2, 5, 6},
+			},
+		}
+		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
+
+		var at = ec.AuthTokens[0]
+
+		bb := bbPool.Get()
+		defer bbPool.Put(bb)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, fe, window, ec.Step, ec.EnforcedTagFilterss)
+		metainfoBuf := rollupResultCacheV.c.Get(nil, bb.B)
+
+		var mi rollupResultCacheMetainfo
+		if err := mi.Unmarshal(metainfoBuf); err != nil {
+			t.Fatalf("BUG: cannot unmarshal rollupResultCacheMetainfo: %s; it looks like it was improperly saved", err)
+		}
+		key := mi.GetBestKey(ec.Start, ec.End)
+		bb.B = key.Marshal(bb.B[:0])
+
+		rollupResultCacheV.c.SetBig(bb.B, []byte{})
+
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ec, fe, window)
+		if newStart != 1000 {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
+		}
+		if len(tss) != 0 {
+			t.Fatalf("got %d timeseries, while expecting zero", len(tss))
+		}
+	})
+
 	// Store timeseries below start
 	t.Run("before-start", func(t *testing.T) {
 		ResetRollupResultCache()
