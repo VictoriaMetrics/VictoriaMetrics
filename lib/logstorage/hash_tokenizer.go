@@ -6,6 +6,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // tokenizeHashes extracts word tokens from a, hashes them, appends hashes to dst and returns the result.
@@ -66,7 +67,7 @@ func (t *hashTokenizer) reset() {
 }
 
 func (t *hashTokenizer) tokenizeString(dst []uint64, s string) []uint64 {
-	if !isASCII(s) {
+	if !stringsutil.IsASCII(s) {
 		// Slow path - s contains unicode chars
 		return t.tokenizeStringUnicode(dst, s)
 	}
