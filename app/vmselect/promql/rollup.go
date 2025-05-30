@@ -1,12 +1,12 @@
 package promql
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -16,10 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
-
-var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The minimum interval for staleness calculations. "+
-	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
-	"See also '-search.maxStalenessInterval'")
 
 var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":        newRollupFuncOneArg(rollupAbsent),
@@ -369,7 +365,7 @@ func getRollupTag(expr metricsql.Expr) (string, error) {
 }
 
 func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
-	window, lookbackDelta int64, sharedTimestamps []int64, isMultiTenant bool) (
+	window, lookbackDelta int64, sharedTimestamps []int64, isMultiTenant bool, minStalenessInterval time.Duration) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
@@ -404,6 +400,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 			isDefaultRollup:       funcName == "default_rollup",
 			samplesScannedPerCall: samplesScannedPerCall,
 			isMultiTenant:         isMultiTenant,
+			minStalenessInterval:  minStalenessInterval,
 		}
 	}
 
@@ -600,6 +597,9 @@ type rollupConfig struct {
 	// Whether the rollup is used in multi-tenant mode.
 	// This is used in order to populate labels with tenancy information.
 	isMultiTenant bool
+
+	// The minimum interval for staleness calculations.
+	minStalenessInterval time.Duration
 }
 
 func (rc *rollupConfig) getTimestamps() []int64 {
@@ -723,8 +723,8 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
 	}
-	if *minStalenessInterval > 0 {
-		if msi := minStalenessInterval.Milliseconds(); msi > 0 && maxPrevInterval < msi {
+	if rc.minStalenessInterval > 0 {
+		if msi := rc.minStalenessInterval.Milliseconds(); msi > 0 && maxPrevInterval < msi {
 			maxPrevInterval = msi
 		}
 	}
