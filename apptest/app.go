@@ -38,6 +38,7 @@ type app struct {
 type appOptions struct {
 	defaultFlags map[string]string
 	extractREs   []*regexp.Regexp
+	wait         bool
 }
 
 // startApp starts an instance of an app using the app binary file path and
@@ -54,6 +55,8 @@ type appOptions struct {
 // records match the regular expression).
 func startApp(instance string, binary string, flags []string, opts *appOptions) (*app, []string, error) {
 	flags = setDefaultFlags(flags, opts.defaultFlags)
+
+	var err error
 
 	cmd := exec.Command(binary, flags...)
 	stdout, err := cmd.StdoutPipe()
@@ -92,7 +95,11 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
-	return app, extracts, nil
+	if opts.wait {
+		err = cmd.Wait()
+	}
+
+	return app, extracts, err
 }
 
 // setDefaultFlags adds flags with default values to `flags` if it does not
