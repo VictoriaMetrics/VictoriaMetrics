@@ -53,8 +53,15 @@ The backup manager creates the following directory hierarchy at `-dst`:
 * `/monthly/` - contains monthly backups. Each backup is named as `YYYY-MM`
 
 The `vmbackupmanager` takes backups every hour if hourly backups are not disabled; otherwise, 
-it defaults to taking backups every 24 hours. You can control the schedule using the `-backupInterval` flag. 
-For example, if you want to take backups three times per day, set `-backupInterval=8h`.
+it defaults to taking backups every 24 hours at 00:00 in UTC timezone. 
+You can control the schedule using the `-backupInterval` and `-backupScheduleTimezone` command-line flags. 
+The `-backupScheduleTimezone` flag specifies the timezone to use for scheduling daily, weekly, and monthly backups. 
+Note that overriding `-backupInterval` means daily, weekly, and monthly backups will be taken at specified intervals
+and not daily at midnight.
+
+For example:
+- if you want to take backups three times per day, set `-backupInterval=8h`
+- if you want to take backups daily at midnight in `Europe/Paris` timezone, set `-backupScheduleTimezone="Europe/Paris"`
 
 To get the full list of supported flags please run the following command:
 
@@ -441,6 +448,8 @@ command-line flags:
      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
   -backupInterval duration
      Interval between backups. If set to 0 interval is set to 1h if hourly backups are enabled and 24h otherwise
+  -backupScheduleTimezone string
+     Timezone to use for scheduling daily, weekly and monthly backups. Example: 'America/New_York', 'Europe/London', 'Asia/Tokyo' (default "UTC")
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
