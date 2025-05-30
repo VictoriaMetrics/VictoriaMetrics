@@ -1342,16 +1342,6 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 	pt.partsLock.Unlock()
 }
 
-func (pt *partition) runFinalDedup(stopCh <-chan struct{}) error {
-	t := time.Now()
-	logger.Infof("start removing duplicate samples from partition (%s, %s)", pt.bigPartsPath, pt.smallPartsPath)
-	if err := pt.ForceMergeAllParts(stopCh); err != nil {
-		return fmt.Errorf("cannot remove duplicate samples from partition (%s, %s): %w", pt.bigPartsPath, pt.smallPartsPath, err)
-	}
-	logger.Infof("duplicate samples have been removed from partition (%s, %s) in %.3f seconds", pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
-	return nil
-}
-
 func (pt *partition) isFinalDedupNeeded() bool {
 	dedupInterval := GetDedupInterval()
 
