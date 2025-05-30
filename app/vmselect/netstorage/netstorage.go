@@ -3188,10 +3188,12 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 }
 
 func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *storageNode {
-	if _, _, err := net.SplitHostPort(addr); err != nil {
-		// Automatically add missing port.
-		addr += ":8401"
+	normalizedAddr, err := netutil.NormalizeAddr(addr, 8401)
+	if err != nil {
+		logger.Fatalf("cannot normalize -storageNode=%q: %s", addr, err)
 	}
+	addr = normalizedAddr
+
 	// There is no need in requests compression, since vmselect requests are usually very small.
 	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
 

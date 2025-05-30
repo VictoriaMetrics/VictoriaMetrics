@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"net"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -557,10 +556,11 @@ func resetRollupResultCaches() {
 		return
 	}
 	for _, selectNode := range *selectNodes {
-		if _, _, err := net.SplitHostPort(selectNode); err != nil {
-			// Add missing port
-			selectNode += ":8481"
+		normalizedAddr, err := netutil.NormalizeAddr(selectNode, 8481)
+		if err != nil {
+			logger.Fatalf("cannot normalize -selectNode=%q: %s", selectNode, err)
 		}
+		selectNode = normalizedAddr
 		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
 		resp, err := httpClient.Get(callURL)
 		if err != nil {
