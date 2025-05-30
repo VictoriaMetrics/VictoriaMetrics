@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"flag"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -37,6 +38,23 @@ func TestGetQuotedRemoteAddr(t *testing.T) {
 	f("1.2.3.4", "", `"1.2.3.4"`)
 	f("1.2.3.4", "foo.bar", `"1.2.3.4, X-Forwarded-For: foo.bar"`)
 	f("1.2\n\"3.4", "foo\nb\"ar", `"1.2\n\"3.4, X-Forwarded-For: foo\nb\"ar"`)
+}
+
+func TestGetRequestHeader(t *testing.T) {
+	f := func(r *http.Request, expectedValue string) {
+		t.Helper()
+
+		value := GetRequestHeader(r)
+		if value != expectedValue {
+			t.Fatalf("unexpected header value;\ngot\n%s\nwant\n%s", value, expectedValue)
+		}
+	}
+
+	f(&http.Request{Header: http.Header{"X-Webauth-User1": []string{"foo"}}}, "")
+
+	// Set the flag to log request headers
+	flag.Set("search.logRequestHeaders", "X-Webauth-User1")
+	f(&http.Request{Header: http.Header{"X-Webauth-User1": []string{"foo"}}}, "X-Webauth-User1=foo")
 }
 
 func TestBasicAuthMetrics(t *testing.T) {

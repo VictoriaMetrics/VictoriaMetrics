@@ -66,6 +66,8 @@ var (
 	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
 
 	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
+
+	logRequestHeaders = flagutil.NewArrayString("search.logRequestHeaders", "Optional log request headers to HTTP requests made by vmselect; usage: -search.logRequestHeaders=X-Webauth-User1,...,X-Webauth-UserN")
 )
 
 var (
@@ -568,6 +570,27 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 	}
 	// quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
 	return stringsutil.JSONString(remoteAddr)
+}
+
+// GetRequestHeader returns string with values of request headers specified in -search.logRequestHeaders flag.
+func GetRequestHeader(r *http.Request) string {
+	if len(*logRequestHeaders) == 0 {
+		return ""
+	}
+
+	b := strings.Builder{}
+	for i, header := range *logRequestHeaders {
+		if val := r.Header.Get(header); len(val) > 0 {
+			b.WriteString(header)
+			b.WriteString("=")
+			b.WriteString(val)
+			if i != len(*logRequestHeaders)-1 {
+				b.WriteString(" ")
+			}
+		}
+
+	}
+	return b.String()
 }
 
 type responseWriterWithAbort struct {
