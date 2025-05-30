@@ -595,6 +595,8 @@ command-line flags:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -restore.disableSourceBackupValidation
+     Disable validation of source backup presence and completeness when creating a restore mark.
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
   -s3ForcePathStyle
