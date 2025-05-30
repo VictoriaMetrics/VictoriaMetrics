@@ -123,7 +123,6 @@ type TracesResponseData struct {
 }
 
 // Process is the structure for Jaeger Process.
-
 type Process struct {
 	ServiceName string `json:"serviceName"`
 	Tags        []Tag  `json:"tags"`

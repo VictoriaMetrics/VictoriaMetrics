@@ -193,7 +193,7 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 		Msg: "unexpected /select/jaeger/api/traces response",
 		Got: func() any {
 			return sut.JaegerAPITraces(t, at.JaegerQueryParam{
-				query.TraceQueryParam{
+				TraceQueryParam: query.TraceQueryParam{
 					ServiceName:  serviceName,
 					StartTimeMin: spanTime.Add(-10 * time.Minute),
 					StartTimeMax: spanTime.Add(10 * time.Minute),

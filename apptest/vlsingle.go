@@ -143,20 +143,19 @@ func (app *Vlsingle) JaegerAPITrace(t *testing.T, traceID string, opts QueryOpts
 
 // JaegerAPIDependencies is a test helper function that queries for the dependencies.
 // This method is not implemented in Vlsingle and this test is no-op for now.
-func (app *Vlsingle) JaegerAPIDependencies(t *testing.T, opts QueryOpts) {}
+func (app *Vlsingle) JaegerAPIDependencies(_ *testing.T, _ QueryOpts) {}
 
 // OTLPExportTraces is a test helper function that exports OTLP trace data
 // by sending an HTTP POST request to /insert/opentelemetry/v1/traces
 // vlsingle endpoint.
-func (app *Vlsingle) OTLPExportTraces(t *testing.T, request *pb.ExportTraceServiceRequest, opts QueryOpts) {
+func (app *Vlsingle) OTLPExportTraces(t *testing.T, request *pb.ExportTraceServiceRequest, _ QueryOpts) {
 	t.Helper()
-	
+
 	pbData := request.MarshalProtobuf(nil)
 	_, code := app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
 	if code != 200 {
 		t.Fatalf("got %d, expected 200", code)
 	}
-	return
 }
 
 // HTTPAddr returns the address at which the vmstorage process is listening
