@@ -5,6 +5,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/jaeger"
 	"net/http"
 	"strings"
 	"time"
@@ -125,6 +126,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// since the timeout must be controlled by the vlselect.
 		internalselect.RequestHandler(ctx, w, r)
 		return true
+	}
+
+	if strings.HasPrefix(path, "/select/jaeger/") {
+		// Jaeger HTTP APIs for distributed tracing.
+		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
+		return jaeger.RequestHandler(ctx, w, r)
 	}
 
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
