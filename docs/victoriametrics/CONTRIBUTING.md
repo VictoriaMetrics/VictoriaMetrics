@@ -64,7 +64,7 @@ A pull request should contain the following attributes:
    Read your commit message as "This commit will ..", don't capitalize the first letter
 1. A link to the issue related to this change, if any.
 1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
-   To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
+   To run tests and code checks locally execute commands `make test-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
