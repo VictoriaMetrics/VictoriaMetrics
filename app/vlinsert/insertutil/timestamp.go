@@ -38,7 +38,10 @@ func ExtractTimestampFromFields(timeFields []string, fields []logstorage.Field) 
 }
 
 func parseTimestamp(s string) (int64, error) {
-	if s == "" || s == "0" {
+	// "-" is a nil timestamp value, if the syslog
+	// application is incapable of obtaining system time
+	// https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.3
+	if s == "" || s == "0" || s == "-" {
 		return time.Now().UnixNano(), nil
 	}
 	if len(s) <= len("YYYY") || s[len("YYYY")] != '-' {

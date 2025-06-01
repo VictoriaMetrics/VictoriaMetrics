@@ -164,7 +164,7 @@ field via `_time_field` HTTP query arg or via `VL-Time-Field` HTTP header during
 For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg.
 See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 
-If `_time` field is missing or if it equals `0`, then the data ingestion time is used as log entry timestamp.
+If `_time` field is missing, or if it equals `0`, or if it equals `-`, then the data ingestion time is used as log entry timestamp.
 
 The `_time` field is used by [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for quickly narrowing down
 the search to the selected time range.
