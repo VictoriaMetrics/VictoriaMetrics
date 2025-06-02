@@ -15,7 +15,7 @@ aliases:
 ---
 ## What is the main purpose of VictoriaMetrics?
 
-To provide the best monitoring solution.
+To provide the best observability solution.
 
 ## Who uses VictoriaMetrics?
 
