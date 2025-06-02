@@ -896,18 +896,19 @@ func (db *DataBlock) RowsCount() int {
 	return 0
 }
 
-// GetTimestamps returns _time column values from db.
+// GetTimestamps appends _time column values from db to dst and returns the result.
 //
-// It returns false if db doesn't have _time column.
-func (db *DataBlock) GetTimestamps() ([]string, bool) {
+// It returns false if db doesn't have _time column or this column has invalid timestamps.
+func (db *DataBlock) GetTimestamps(dst []int64) ([]int64, bool) {
 	columns := db.Columns
 	for i := range columns {
 		c := &columns[i]
-		if c.Name == "_time" {
-			return c.Values, true
+		if c.Name != "_time" {
+			continue
 		}
+		return tryParseTimestamps(dst, c.Values)
 	}
-	return nil, false
+	return dst, false
 }
 
 // Marshal appends marshaled db to dst and returns the result.
