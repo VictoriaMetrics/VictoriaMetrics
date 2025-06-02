@@ -3,7 +3,8 @@ package logstorage
 import (
 	"sync"
 	"unicode"
-	"unicode/utf8"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
@@ -32,7 +33,7 @@ func (t *tokenizer) reset() {
 }
 
 func (t *tokenizer) tokenizeString(dst []string, s string, keepDuplicateTokens bool) []string {
-	if !isASCII(s) {
+	if !stringsutil.IsASCII(s) {
 		// Slow path - s contains unicode chars
 		return t.tokenizeStringUnicode(dst, s, keepDuplicateTokens)
 	}
@@ -116,21 +117,55 @@ func (t *tokenizer) tokenizeStringUnicode(dst []string, s string, keepDuplicateT
 	return dst
 }
 
-func isASCII(s string) bool {
-	for i := range s {
-		if s[i] >= utf8.RuneSelf {
-			return false
-		}
-	}
-	return true
-}
-
-func isTokenChar(c byte) bool {
+func isTokenCharSlow(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'
 }
 
-func isTokenRune(c rune) bool {
+func isTokenChar(c byte) bool {
+	return tokenCharTable[c] != 0
+}
+
+var tokenCharTable [256]byte = initTokenCharTable()
+
+func initTokenCharTable() (table [256]byte) {
+	for c := 'a'; c <= 'z'; c++ {
+		table[c] = 0xff
+	}
+	for c := 'A'; c <= 'Z'; c++ {
+		table[c] = 0xff
+	}
+	for c := '0'; c <= '9'; c++ {
+		table[c] = 0xff
+	}
+	table['_'] = 0xff
+	return
+}
+
+func isTokenRuneSlow(c rune) bool {
 	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
+}
+
+const unicodeCharCount = 65536
+
+var unicodeTokenTable [unicodeCharCount / 8]byte = initUnicodeTokenCharTable()
+
+func initUnicodeTokenCharTable() (table [unicodeCharCount / 8]byte) {
+	for i := 0; i < unicodeCharCount; i++ {
+		r := rune(i)
+		if isTokenRuneSlow(r) {
+			byteIndex := i / 8
+			bitIndex := i & 7
+			table[byteIndex] |= (1 << bitIndex)
+		}
+	}
+	return
+}
+
+func isTokenRune(c rune) bool {
+	if c < unicodeCharCount {
+		return (unicodeTokenTable[c/8] & (1 << (c & 7))) != 0
+	}
+	return unicode.IsLetter(c) || unicode.IsDigit(c)
 }
 
 func getTokenizer() *tokenizer {
