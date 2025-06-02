@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
@@ -674,31 +675,26 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 	}
 
 	deleteSeries := func() error {
-		ch := make(chan error, 1)
-
-		go func() {
-			var err error
-			for {
-				var n int
-				n, err = s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
-				if err != nil {
-					break
-				}
-
-				// at least one month must be deleted
-				if n > 0 {
-					break
-				}
-			}
-			ch <- err
-		}()
-
 		tt := time.NewTimer(5 * time.Second)
-		select {
-		case err := <-ch:
-			return err
-		case <-tt.C:
-			return fmt.Errorf("timeout")
+		defer tt.Stop()
+
+		for {
+			n, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
+			if err != nil {
+				return err
+			}
+
+			// at least one month must be deleted
+			if n > 0 {
+				logger.Errorf("deleted %d series", n)
+				return nil
+			}
+
+			select {
+			case <-tt.C:
+				return fmt.Errorf("timeout")
+			default:
+			}
 		}
 	}
 
