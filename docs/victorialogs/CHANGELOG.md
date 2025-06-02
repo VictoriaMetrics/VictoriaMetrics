@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [querying HTTP APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api): properly drop LogsQL pipes from the provided `query` before obtaining field names and values. This is needed in order to properly implement auto-suggestion for log field names and values. See [#9068](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9068#issuecomment-2931275012).
+
 ## [v1.23.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.2-victorialogs)
 
 Released at 2025-05-30
