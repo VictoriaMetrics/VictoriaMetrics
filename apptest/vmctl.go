@@ -16,6 +16,3 @@ func StartVmctl(instance string, flags []string) (*Vmctl, error) {
 		app: app,
 	}, nil
 }
-
-// Stop is no-op for vmctl as it is a CLI tool.
-func (vmctl *Vmctl) Stop() {}
