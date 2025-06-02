@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -196,36 +197,26 @@ type mathBinaryOp struct {
 	f        mathFunc
 }
 
-func (pm *pipeMath) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (pm *pipeMath) updateNeededFields(pf *prefixfilter.Filter) {
 	for i := len(pm.entries) - 1; i >= 0; i-- {
 		e := pm.entries[i]
-		if neededFields.contains("*") {
-			if !unneededFields.contains(e.resultField) {
-				unneededFields.add(e.resultField)
-
-				fs := newFieldsSet()
-				e.expr.updateNeededFields(fs)
-				unneededFields.removeFields(fs.getAll())
-			}
-		} else {
-			if neededFields.contains(e.resultField) {
-				neededFields.remove(e.resultField)
-				e.expr.updateNeededFields(neededFields)
-			}
+		if pf.MatchString(e.resultField) {
+			pf.AddDenyFilter(e.resultField)
+			e.expr.updateNeededFields(pf)
 		}
 	}
 }
 
-func (me *mathExpr) updateNeededFields(neededFields fieldsSet) {
+func (me *mathExpr) updateNeededFields(pf *prefixfilter.Filter) {
 	if me.isConst {
 		return
 	}
 	if me.fieldName != "" {
-		neededFields.add(me.fieldName)
+		pf.AddAllowFilter(me.fieldName)
 		return
 	}
 	for _, arg := range me.args {
-		arg.updateNeededFields(neededFields)
+		arg.updateNeededFields(pf)
 	}
 }
 

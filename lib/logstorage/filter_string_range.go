@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 var maxStringRangeValue = string([]byte{255, 255, 255, 255})
@@ -24,8 +25,8 @@ func (fr *filterStringRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
 }
 
-func (fr *filterStringRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterStringRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterStringRange) applyToBlockResult(br *blockResult, bm *bitmap) {

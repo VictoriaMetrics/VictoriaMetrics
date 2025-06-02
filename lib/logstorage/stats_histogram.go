@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -21,8 +22,8 @@ func (sh *statsHistogram) String() string {
 	return "histogram(" + quoteTokenIfNeeded(sh.fieldName) + ")"
 }
 
-func (sh *statsHistogram) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, []string{sh.fieldName})
+func (sh *statsHistogram) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(sh.fieldName)
 }
 
 func (sh *statsHistogram) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -272,7 +273,7 @@ func parseStatsHistogram(lex *lexer) (*statsHistogram, error) {
 		return nil, fmt.Errorf("cannot parse field name: %w", err)
 	}
 	if len(fields) != 1 {
-		return nil, fmt.Errorf("unexpected number of fields; got %d; want 1", len(fields))
+		return nil, fmt.Errorf("'histogram' accepts only a single field; got %d fields", len(fields))
 	}
 
 	sh := &statsHistogram{

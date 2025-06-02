@@ -222,11 +222,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	bs.br.mustInit(bs, bm)
 
 	// fetch the requested columns to bs.br.
-	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns(bsw.so.unneededColumnNames)
-	} else {
-		bs.br.initRequestedColumns(bsw.so.neededColumnNames)
-	}
+	bs.br.initColumns(bsw.so.fieldsFilter)
 }
 
 func (bs *blockSearch) partFormatVersion() uint {
@@ -234,9 +230,7 @@ func (bs *blockSearch) partFormatVersion() uint {
 }
 
 func (bs *blockSearch) getConstColumnValue(name string) string {
-	if name == "_msg" {
-		name = ""
-	}
+	name = getCanonicalFieldName(name)
 
 	if bs.partFormatVersion() < 1 {
 		csh := bs.getColumnsHeader()
@@ -282,9 +276,7 @@ func (bs *blockSearch) getConstColumnValue(name string) string {
 }
 
 func (bs *blockSearch) getColumnHeader(name string) *columnHeader {
-	if name == "_msg" {
-		name = ""
-	}
+	name = getCanonicalFieldName(name)
 
 	if bs.partFormatVersion() < 1 {
 		csh := bs.getColumnsHeader()

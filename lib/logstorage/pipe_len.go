@@ -6,6 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeLen processes '| len ...' pipe.
@@ -32,17 +33,10 @@ func (pl *pipeLen) canLiveTail() bool {
 	return true
 }
 
-func (pl *pipeLen) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if !unneededFields.contains(pl.resultField) {
-			unneededFields.add(pl.resultField)
-			unneededFields.remove(pl.fieldName)
-		}
-	} else {
-		if neededFields.contains(pl.resultField) {
-			neededFields.remove(pl.resultField)
-			neededFields.add(pl.fieldName)
-		}
+func (pl *pipeLen) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchString(pl.resultField) {
+		pf.AddDenyFilter(pl.resultField)
+		pf.AddAllowFilter(pl.fieldName)
 	}
 }
 

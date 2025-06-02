@@ -14,6 +14,7 @@ func TestParseStatsCountEmptySuccess(t *testing.T) {
 	f(`count_empty(*)`)
 	f(`count_empty(a)`)
 	f(`count_empty(a, b)`)
+	f(`count_empty(a*, b)`)
 }
 
 func TestParseStatsCountEmptyFailure(t *testing.T) {

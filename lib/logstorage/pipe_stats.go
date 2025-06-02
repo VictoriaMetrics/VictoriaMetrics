@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -72,8 +73,8 @@ type statsFunc interface {
 	// String returns string representation of statsFunc
 	String() string
 
-	// updateNeededFields update neededFields with the fields needed for calculating the given stats
-	updateNeededFields(neededFields fieldsSet)
+	// updateNeededFields update pf with the fields needed for calculating the given stats
+	updateNeededFields(pf *prefixfilter.Filter)
 
 	// newStatsProcessor must create new statsProcessor for calculating stats for the given statsFunc
 	//
@@ -196,41 +197,38 @@ func (ps *pipeStats) canLiveTail() bool {
 	return false
 }
 
-func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (ps *pipeStats) updateNeededFields(pf *prefixfilter.Filter) {
 	if ps.mode.needImportState() {
-		ps.updateNeededFieldsLocal(neededFields, unneededFields)
+		ps.updateNeededFieldsLocal(pf)
 		return
 	}
 
-	neededFieldsOrig := neededFields.clone()
-	neededFields.reset()
+	pfOrig := pf.Clone()
+	pf.Reset()
 
 	// byFields are needed unconditionally, since the output number of rows depends on them.
 	for _, bf := range ps.byFields {
-		neededFields.add(bf.name)
+		pf.AddAllowFilter(bf.name)
 	}
 
 	for _, f := range ps.funcs {
-		if neededFieldsOrig.contains(f.resultName) && !unneededFields.contains(f.resultName) {
-			f.f.updateNeededFields(neededFields)
+		if pfOrig.MatchString(f.resultName) {
+			f.f.updateNeededFields(pf)
 			if f.iff != nil {
-				neededFields.addFields(f.iff.neededFields)
+				pf.AddAllowFilters(f.iff.allowFilters)
 			}
 		}
 	}
-
-	unneededFields.reset()
 }
 
-func (ps *pipeStats) updateNeededFieldsLocal(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (ps *pipeStats) updateNeededFieldsLocal(pf *prefixfilter.Filter) {
+	pf.Reset()
 
 	for _, bf := range ps.byFields {
-		neededFields.add(bf.name)
+		pf.AddAllowFilter(bf.name)
 	}
 	for _, f := range ps.funcs {
-		neededFields.add(f.resultName)
+		pf.AddAllowFilter(f.resultName)
 	}
 }
 
@@ -1665,6 +1663,19 @@ func tryParseBucketSize(s string) (float64, bool) {
 }
 
 func parseFieldNamesInParens(lex *lexer) ([]string, error) {
+	fieldNames, err := parseFieldFiltersInParens(lex)
+	if err != nil {
+		return nil, err
+	}
+	for _, fieldName := range fieldNames {
+		if prefixfilter.IsWildcardFilter(fieldName) {
+			return nil, fmt.Errorf("the field name %q cannot end with '*'", fieldName)
+		}
+	}
+	return fieldNames, nil
+}
+
+func parseFieldFiltersInParens(lex *lexer) ([]string, error) {
 	if !lex.isKeyword("(") {
 		return nil, fmt.Errorf("missing `(`")
 	}
@@ -1678,7 +1689,7 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 		if lex.isKeyword(",") {
 			return nil, fmt.Errorf("unexpected `,`")
 		}
-		field, err := parseFieldName(lex)
+		field, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
 		}
@@ -1695,6 +1706,17 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 }
 
 func parseFieldName(lex *lexer) (string, error) {
+	fieldName, err := parseFieldFilter(lex)
+	if err != nil {
+		return "", err
+	}
+	if prefixfilter.IsWildcardFilter(fieldName) {
+		return "", fmt.Errorf("field name cannot end with '*'; got %q", fieldName)
+	}
+	return fieldName, nil
+}
+
+func parseFieldFilter(lex *lexer) (string, error) {
 	fieldName, err := getCompoundToken(lex)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse field name: %w", err)
@@ -1706,10 +1728,7 @@ func parseFieldName(lex *lexer) (string, error) {
 func fieldNamesString(fields []string) string {
 	a := make([]string, len(fields))
 	for i, f := range fields {
-		if f != "*" {
-			f = quoteTokenIfNeeded(f)
-		}
-		a[i] = f
+		a[i] = quoteFieldFilterIfNeeded(f)
 	}
 	return strings.Join(a, ", ")
 }

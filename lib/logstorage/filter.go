@@ -1,12 +1,16 @@
 package logstorage
 
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
+)
+
 // filter must implement filtering for log entries.
 type filter interface {
 	// String returns string representation of the filter
 	String() string
 
-	// udpdateNeededFields must update neededFields with fields needed for the filter
-	updateNeededFields(neededFields fieldsSet)
+	// udpdateNeededFields must update pf with fields needed for the filter
+	updateNeededFields(pf *prefixfilter.Filter)
 
 	// applyToBlockSearch must update bm according to the filter applied to the given bs block
 	applyToBlockSearch(bs *blockSearch, bm *bitmap)

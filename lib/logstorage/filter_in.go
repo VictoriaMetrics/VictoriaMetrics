@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterIn matches any exact value from the values map.
@@ -20,8 +21,8 @@ func (fi *filterIn) String() string {
 	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
 }
 
-func (fi *filterIn) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fi.fieldName)
+func (fi *filterIn) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fi.fieldName)
 }
 
 func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {

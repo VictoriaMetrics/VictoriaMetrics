@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackWords processes '| unpack_words ...' pipe.
@@ -55,17 +56,10 @@ func (pu *pipeUnpackWords) visitSubqueries(_ func(q *Query)) {
 	// do nothing
 }
 
-func (pu *pipeUnpackWords) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if !unneededFields.contains(pu.dstField) {
-			unneededFields.add(pu.dstField)
-			unneededFields.remove(pu.srcField)
-		}
-	} else {
-		if neededFields.contains(pu.dstField) {
-			neededFields.remove(pu.dstField)
-			neededFields.add(pu.srcField)
-		}
+func (pu *pipeUnpackWords) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchString(pu.dstField) {
+		pf.AddDenyFilter(pu.dstField)
+		pf.AddAllowFilter(pu.srcField)
 	}
 }
 

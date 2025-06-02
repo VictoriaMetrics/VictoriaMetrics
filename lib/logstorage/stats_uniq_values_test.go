@@ -15,6 +15,7 @@ func TestParseStatsUniqValuesSuccess(t *testing.T) {
 	f(`uniq_values(*)`)
 	f(`uniq_values(a)`)
 	f(`uniq_values(a, b)`)
+	f(`uniq_values(a*, b)`)
 	f(`uniq_values(a, b) limit 10`)
 }
 

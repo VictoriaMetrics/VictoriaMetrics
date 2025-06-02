@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeDecolorize processes '| decolorize ...' pipe.
@@ -29,7 +30,7 @@ func (pd *pipeDecolorize) canLiveTail() bool {
 	return true
 }
 
-func (pd *pipeDecolorize) updateNeededFields(_, _ fieldsSet) {
+func (pd *pipeDecolorize) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 

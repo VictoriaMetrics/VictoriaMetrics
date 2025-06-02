@@ -8,18 +8,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsMin struct {
-	fields []string
+	fieldFilters []string
 }
 
 func (sm *statsMin) String() string {
-	return "min(" + statsFuncFieldsToString(sm.fields) + ")"
+	return "min(" + fieldNamesString(sm.fieldFilters) + ")"
 }
 
-func (sm *statsMin) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
+func (sm *statsMin) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sm.fieldFilters)
 }
 
 func (sm *statsMin) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -33,44 +34,29 @@ type statsMinProcessor struct {
 
 func (smp *statsMinProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sm := sf.(*statsMin)
+
 	minLen := len(smp.min)
 
-	fields := sm.fields
-	if len(fields) == 0 {
-		// Find the minimum value across all the columns
-		for _, c := range br.getColumns() {
-			smp.updateStateForColumn(br, c)
-		}
-	} else {
-		// Find the minimum value across the requested columns
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			smp.updateStateForColumn(br, c)
-		}
+	mc := getMatchingColumns(br, sm.fieldFilters)
+	for _, c := range mc.cs {
+		smp.updateStateForColumn(br, c)
 	}
+	putMatchingColumns(mc)
 
 	return len(smp.min) - minLen
 }
 
 func (smp *statsMinProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	sm := sf.(*statsMin)
+
 	minLen := len(smp.min)
 
-	fields := sm.fields
-	if len(fields) == 0 {
-		// Find the minimum value across all the fields for the given row
-		for _, c := range br.getColumns() {
-			v := c.getValueAtRow(br, rowIdx)
-			smp.updateStateString(v)
-		}
-	} else {
-		// Find the minimum value across the requested fields for the given row
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			smp.updateStateString(v)
-		}
+	mc := getMatchingColumns(br, sm.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		smp.updateStateString(v)
 	}
+	putMatchingColumns(mc)
 
 	return minLen - len(smp.min)
 }
@@ -224,12 +210,12 @@ func (smp *statsMinProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {
-	fields, err := parseStatsFuncFields(lex, "min")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "min")
 	if err != nil {
 		return nil, err
 	}
 	sm := &statsMin{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	return sm, nil
 }

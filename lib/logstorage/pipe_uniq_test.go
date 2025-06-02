@@ -10,10 +10,6 @@ func TestParsePipeUniqSuccess(t *testing.T) {
 		expectParsePipeSuccess(t, pipeStr)
 	}
 
-	f(`uniq`)
-	f(`uniq with hits`)
-	f(`uniq limit 10`)
-	f(`uniq with hits limit 10`)
 	f(`uniq by (x)`)
 	f(`uniq by (x) limit 10`)
 	f(`uniq by (x, y)`)
@@ -28,6 +24,12 @@ func TestParsePipeUniqFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
+	f(`uniq`)
+	f(`uniq hits`)
+	f(`uniq limit`)
+	f(`uniq by ()`)
+	f(`uniq by (*)`)
+	f(`uniq by (a*)`)
 	f(`uniq by`)
 	f(`uniq by hits`)
 	f(`uniq by foo bar`)
@@ -42,116 +44,6 @@ func TestPipeUniq(t *testing.T) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
-
-	f("uniq", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	})
-
-	f("uniq hits", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-			{"hits", "2"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-			{"hits", "1"},
-		},
-	})
-
-	f("uniq hits limit 2", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-			{"hits", "2"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-			{"hits", "1"},
-		},
-	})
-
-	f("uniq hits limit 3", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-			{"hits", "2"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-			{"hits", "1"},
-		},
-	})
 
 	f("uniq by (a)", [][]Field{
 		{
@@ -385,32 +277,29 @@ func TestPipeUniq(t *testing.T) {
 }
 
 func TestPipeUniqUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
-	f("uniq", "*", "", "*", "")
-	f("uniq by()", "*", "", "*", "")
-	f("uniq by(*)", "*", "", "*", "")
 	f("uniq by(f1,f2)", "*", "", "f1,f2", "")
 	f("uniq by(f1,f2) with hits", "*", "", "f1,f2", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("uniq by(s1, s2)", "*", "f1,f2", "s1,s2", "")
-	f("uniq", "*", "f1,f2", "*", "")
-	f("uniq with hits", "*", "f1,f2", "*", "")
+	f("uniq by(s1, s2)", "*", "f*", "s1,s2", "")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("uniq by(s1, s2)", "*", "s1,f1,f2", "s1,s2", "")
-	f("uniq by(*)", "*", "s1,f1,f2", "*", "")
 	f("uniq by(s1, s2)", "*", "s1,s2,f1", "s1,s2", "")
+	f("uniq by(s1, s2)", "*", "s*,f*", "s1,s2", "")
 
 	// needed fields do not intersect with src
 	f("uniq by (s1, s2)", "f1,f2", "", "s1,s2", "")
+	f("uniq by (s1, s2)", "f*", "", "s1,s2", "")
 
 	// needed fields intersect with src
 	f("uniq by (s1, s2)", "s1,f1,f2", "", "s1,s2", "")
-	f("uniq by (*)", "s1,f1,f2", "", "*", "")
+	f("uniq by (s1, s2)", "s*,f*", "", "s1,s2", "")
 }

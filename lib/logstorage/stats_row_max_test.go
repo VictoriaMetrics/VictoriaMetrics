@@ -14,6 +14,7 @@ func TestParseStatsRowMaxSuccess(t *testing.T) {
 	f(`row_max(foo)`)
 	f(`row_max(foo, bar)`)
 	f(`row_max(foo, bar, baz)`)
+	f(`row_max(foo, bar*, baz)`)
 }
 
 func TestParseStatsRowMaxFailure(t *testing.T) {
