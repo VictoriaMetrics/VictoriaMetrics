@@ -18,12 +18,9 @@ import (
 	"testing/synctest"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
@@ -608,32 +605,35 @@ func testStorageRandTimestamps(s *Storage) error {
 	return nil
 }
 
-func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
+func TestStorageDeletePendingSeries(t *testing.T) {
 	defer testRemoveAll(t)
 
-	const numMonths = 100
+	const numMonths = 10
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 
+	var metricGroupName = []byte("metric")
 	tfs := NewTagFilters()
-	if err := tfs.Add(nil, []byte("metric"), false, false); err != nil {
+	if err := tfs.Add(nil, metricGroupName, false, false); err != nil {
 		t.Fatalf("cannot add tag filter: %s", err)
 	}
 
-	addRows := func(reverse bool) {
+	addRows := func(from, to time.Time, reverse bool) {
+		t.Helper()
+
 		var mn MetricName
 		mn.Tags = []Tag{
 			{[]byte("job"), []byte("job")},
 		}
-		mn.MetricGroup = []byte(fmt.Sprintf("metric"))
+		mn.MetricGroup = metricGroupName
 		metricNameRaw := mn.marshalRaw(nil)
 
-		ts := time.Unix(0, 0)
+		ts := from
 		inc := 1
 		if reverse {
-			ts = ts.AddDate(0, numMonths-1, 0)
 			inc = -1
+			ts = to
 		}
-		for range numMonths {
+		for {
 			mr := MetricRow{
 				MetricNameRaw: metricNameRaw,
 				Timestamp:     ts.UnixMilli(),
@@ -641,26 +641,50 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 			}
 			s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
 			ts = ts.AddDate(0, inc, 0)
+			if ts.After(to) || ts.Before(from) {
+				break
+			}
 		}
 	}
 
-	countMonthsWithLabels := func() int {
+	assertDeleteSeries := func(want int) {
+		t.Helper()
+
+		n, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
+		if err != nil {
+			t.Fatalf("error in DeleteSeries: %s", err)
+		}
+
+		if n != want {
+			t.Fatalf("unexpected number of deleted series; got %d; want %d", n, want)
+		}
+	}
+
+	assertCountMonthsWithLabels := func(min, max int) {
+		t.Helper()
+
 		ts := time.Unix(0, 0)
 		n := 0
 		for range numMonths {
 			lns, err := s.SearchLabelNames(nil, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
 			if err != nil {
-				t.Fatalf("error in SearchLabelNames() at the start: %s", err)
+				t.Fatalf("error in SearchLabelNames: %s", err)
+				return
 			}
 			if len(lns) != 0 {
 				n += 1
 			}
 			ts = ts.AddDate(0, 1, 0)
 		}
-		return n
+
+		if n < min || n > max {
+			t.Fatalf("unexpected labels count; got %d; want between %d and %d", n, min, max)
+		}
 	}
 
-	countRows := func() int {
+	assertCountRows := func(min, max int) {
+		t.Helper()
+
 		var search Search
 		defer search.MustClose()
 
@@ -671,74 +695,42 @@ func TestStorageAddDeleteSeriesConcurrently(t *testing.T) {
 			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
 			n += b.RowsCount()
 		}
-		return n
-	}
-
-	deleteSeries := func() error {
-		tt := time.NewTimer(5 * time.Second)
-		defer tt.Stop()
-
-		for {
-			n, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
-			if err != nil {
-				return err
-			}
-
-			// at least one month must be deleted
-			if n > 0 {
-				logger.Errorf("deleted %d series", n)
-				return nil
-			}
-
-			select {
-			case <-tt.C:
-				return fmt.Errorf("timeout")
-			default:
-			}
+		if err := search.Error(); err != nil {
+			t.Fatalf("error in Search: %s", err)
+		}
+		if n < min || n > max {
+			t.Fatalf("unexpected rows count; got %d; want between %d and %d", n, min, max)
 		}
 	}
 
 	// Verify no metrics exist
-	rowsCount := countRows()
-	if rowsCount != 0 {
-		t.Fatalf("unexpected rows count at the start; got %d; want 0", rowsCount)
-	}
+	assertCountRows(0, 0)
 
-	// run addRows and deleteSeries concurrently to trigger race condition
-	group := errgroup.Group{}
-	group.Go(func() error {
-		addRows(false)
-		return nil
-	})
-	group.Go(deleteSeries)
-	err := group.Wait()
+	start := time.Unix(0, 0)
+	middle := start.AddDate(0, (numMonths-1)/2, 0)
+	end := start.AddDate(0, numMonths-1, 0)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	// Add some rows and flush, so next DeleteSeries() can delete them
+	addRows(start, middle, false)
+	s.DebugFlush()
+
+	// Add the rest of the rows – DeleteSeries() won't see them since they are not flushed yet
+	addRows(middle.AddDate(0, 1, 0), end, false)
+
+	assertDeleteSeries(1)
 
 	// Verify metrics are partially deleted
 	s.DebugFlush()
-	rowsCount = countRows()
-	if rowsCount >= numMonths {
-		t.Fatalf("unexpected metrics count after delete; got %d; want <%d", rowsCount, numMonths)
-	}
+	assertCountRows(0, numMonths-1)
 
 	// Verify all deleted TSIDs are recreated. TSIDs should be deleted only for some subset of months in the beginning.
 	// Add rows in reverse order to ensure that cache is not leaking between partitions.
-	addRows(true)
+	addRows(start, end, true)
 	s.DebugFlush()
-	labelsCount := countMonthsWithLabels()
+	assertCountMonthsWithLabels(numMonths, numMonths)
 
-	if labelsCount != numMonths {
-		t.Fatalf("unexpected labels count after second add; got %d; want %d", labelsCount, numMonths)
-	}
-
-	// Verify metrics are partially deleted
-	rowsCount = countRows()
-	if rowsCount < numMonths {
-		t.Fatalf("unexpected metrics count after delete; got %d; want >=%d", rowsCount, numMonths)
-	}
+	// Verify all metrics are present
+	assertCountRows(numMonths, numMonths*2-1)
 
 	s.MustClose()
 }
