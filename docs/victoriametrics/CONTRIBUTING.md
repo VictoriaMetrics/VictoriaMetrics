@@ -63,7 +63,7 @@ Pull requests requirements are the following:
 1. A commit message should contain clear and concise description of what was done and for what purpose.
    Use the imperative, present tense: "change" not "changed" nor "changes". Read your commit message as "This commit will ..", don't capitalize the first letter.
    Message should be prefixed with `<dir>/<component>:` to show what component has been changed, i.e. `app/vmalert: fix...`.
-1. A link to the issue related to the change, if any.
+1. A link to the issue(s) related to the change, if any. Use `Fixes [issue link]` if the PR resolves the issue, or `Related to [issue link]` for reference.
 1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
    To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
