@@ -71,6 +71,22 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
+// PrometheusAPIV1ExportNative is a test helper function that performs the export of
+// raw samples in native binary format by sending an HTTP POST request to
+// /prometheus/api/v1/export/native vmselect endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
+func (app *Vmselect) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
+	t.Helper()
+
+	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export/native", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	values.Add("match[]", query)
+	values.Add("format", "promapi")
+	res, _ := app.cli.PostForm(t, exportURL, values)
+	return []byte(res)
+}
+
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmselect endpoint.

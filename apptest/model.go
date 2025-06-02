@@ -21,6 +21,7 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
 }
 
 // Writer contains methods for writing new data
@@ -29,6 +30,7 @@ type Writer interface {
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
 	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts)
 
 	// Graphit APIs
 	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
