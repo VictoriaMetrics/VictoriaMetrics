@@ -105,7 +105,7 @@ func (s *Set) GetOrCreateHistogram(name string) *Histogram {
 	s.mu.Unlock()
 	if nm == nil {
 		// Slow path - create and register missing histogram.
-		if err := validateMetric(name); err != nil {
+		if err := ValidateMetric(name); err != nil {
 			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 		}
 		nmNew := &namedMetric{
@@ -163,7 +163,7 @@ func (s *Set) GetOrCreateCounter(name string) *Counter {
 	s.mu.Unlock()
 	if nm == nil {
 		// Slow path - create and register missing counter.
-		if err := validateMetric(name); err != nil {
+		if err := ValidateMetric(name); err != nil {
 			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 		}
 		nmNew := &namedMetric{
@@ -221,7 +221,7 @@ func (s *Set) GetOrCreateFloatCounter(name string) *FloatCounter {
 	s.mu.Unlock()
 	if nm == nil {
 		// Slow path - create and register missing counter.
-		if err := validateMetric(name); err != nil {
+		if err := ValidateMetric(name); err != nil {
 			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 		}
 		nmNew := &namedMetric{
@@ -284,7 +284,7 @@ func (s *Set) GetOrCreateGauge(name string, f func() float64) *Gauge {
 	s.mu.Unlock()
 	if nm == nil {
 		// Slow path - create and register missing gauge.
-		if err := validateMetric(name); err != nil {
+		if err := ValidateMetric(name); err != nil {
 			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 		}
 		nmNew := &namedMetric{
@@ -335,7 +335,7 @@ func (s *Set) NewSummary(name string) *Summary {
 //
 // The returned summary is safe to use from concurrent goroutines.
 func (s *Set) NewSummaryExt(name string, window time.Duration, quantiles []float64) *Summary {
-	if err := validateMetric(name); err != nil {
+	if err := ValidateMetric(name); err != nil {
 		panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 	}
 	sm := newSummary(window, quantiles)
@@ -389,7 +389,7 @@ func (s *Set) GetOrCreateSummaryExt(name string, window time.Duration, quantiles
 	s.mu.Unlock()
 	if nm == nil {
 		// Slow path - create and register missing summary.
-		if err := validateMetric(name); err != nil {
+		if err := ValidateMetric(name); err != nil {
 			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 		}
 		sm := newSummary(window, quantiles)
@@ -434,7 +434,7 @@ func (s *Set) registerSummaryQuantilesLocked(name string, sm *Summary) {
 }
 
 func (s *Set) registerMetric(name string, m metric) {
-	if err := validateMetric(name); err != nil {
+	if err := ValidateMetric(name); err != nil {
 		panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 	}
 	s.mu.Lock()

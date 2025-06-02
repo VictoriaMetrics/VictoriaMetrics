@@ -98,6 +98,8 @@ type ChangeEvent struct {
 	// Error is nil if the config is changed and needs to be re-fetched.
 	// Any non-nil error indicates that there was a problem with watching the config changes.
 	Error error
+	// prevent unkeyed literal initialization
+	_ struct{}
 }
 
 // Retrieved holds the result of a call to the Retrieve method of a Provider object.
