@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -198,14 +199,13 @@ func (fs *FS) Init(ctx context.Context) error {
 	fs.metadata = m
 
 	if len(fs.Tags) > 0 {
-		t := ""
+		tags := make([]string, 0, len(fs.Tags))
 		for k, v := range fs.Tags {
-			if len(t) > 0 {
-				t += "&"
-			}
-			t += fmt.Sprintf("%s=%s", k, v)
+			tags = append(tags, fmt.Sprintf("%s=%s", k, v))
 		}
-		fs.tags = &t
+		sort.Strings(tags)
+		tagsString := strings.Join(tags, "&")
+		fs.tags = &tagsString
 	}
 
 	return nil
