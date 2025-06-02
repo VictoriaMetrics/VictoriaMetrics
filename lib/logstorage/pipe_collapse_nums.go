@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeCollapseNums processes '| collapse_nums ...' pipe.
@@ -120,7 +121,7 @@ func parsePipeCollapseNums(lex *lexer) (pipe, error) {
 }
 
 func appendCollapseNums(dst []byte, s string) []byte {
-	if !isASCII(s) {
+	if !stringsutil.IsASCII(s) {
 		return appendCollapseNumsUnicode(dst, s)
 	}
 
