@@ -5,25 +5,16 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
-func updateNeededFieldsForPipePack(neededFields, unneededFields fieldsSet, resultField string, fields []string) {
-	if neededFields.contains("*") {
-		if !unneededFields.contains(resultField) {
-			if len(fields) > 0 {
-				unneededFields.removeFields(fields)
-			} else {
-				unneededFields.reset()
-			}
-		}
-	} else {
-		if neededFields.contains(resultField) {
-			neededFields.remove(resultField)
-			if len(fields) > 0 {
-				neededFields.addFields(fields)
-			} else {
-				neededFields.add("*")
-			}
+func updateNeededFieldsForPipePack(pf *prefixfilter.Filter, resultField string, fieldFilters []string) {
+	if pf.MatchString(resultField) {
+		pf.AddDenyFilter(resultField)
+		if len(fieldFilters) > 0 {
+			pf.AddAllowFilters(fieldFilters)
+		} else {
+			pf.AddAllowFilter("*")
 		}
 	}
 }
@@ -106,16 +97,4 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 
 func (ppp *pipePackProcessor) flush() error {
 	return nil
-}
-
-func fieldsWithOptionalStarsToString(fields []string) string {
-	a := make([]string, len(fields))
-	for i, f := range fields {
-		if strings.HasSuffix(f, "*") {
-			a[i] = quoteTokenIfNeeded(f[:len(f)-1]) + "*"
-		} else {
-			a[i] = quoteTokenIfNeeded(f)
-		}
-	}
-	return strings.Join(a, ", ")
 }

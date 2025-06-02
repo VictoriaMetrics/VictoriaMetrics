@@ -8,18 +8,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsMax struct {
-	fields []string
+	fieldFilters []string
 }
 
 func (sm *statsMax) String() string {
-	return "max(" + statsFuncFieldsToString(sm.fields) + ")"
+	return "max(" + fieldNamesString(sm.fieldFilters) + ")"
 }
 
-func (sm *statsMax) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
+func (sm *statsMax) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sm.fieldFilters)
 }
 
 func (sm *statsMax) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -33,42 +34,29 @@ type statsMaxProcessor struct {
 
 func (smp *statsMaxProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sm := sf.(*statsMax)
+
 	maxLen := len(smp.max)
 
-	if len(sm.fields) == 0 {
-		// Find the minimum value across all the columns
-		for _, c := range br.getColumns() {
-			smp.updateStateForColumn(br, c)
-		}
-	} else {
-		// Find the minimum value across the requested columns
-		for _, field := range sm.fields {
-			c := br.getColumnByName(field)
-			smp.updateStateForColumn(br, c)
-		}
+	mc := getMatchingColumns(br, sm.fieldFilters)
+	for _, c := range mc.cs {
+		smp.updateStateForColumn(br, c)
 	}
+	putMatchingColumns(mc)
 
 	return len(smp.max) - maxLen
 }
 
 func (smp *statsMaxProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	sm := sf.(*statsMax)
+
 	maxLen := len(smp.max)
 
-	if len(sm.fields) == 0 {
-		// Find the minimum value across all the fields for the given row
-		for _, c := range br.getColumns() {
-			v := c.getValueAtRow(br, rowIdx)
-			smp.updateStateString(v)
-		}
-	} else {
-		// Find the minimum value across the requested fields for the given row
-		for _, field := range sm.fields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			smp.updateStateString(v)
-		}
+	mc := getMatchingColumns(br, sm.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		smp.updateStateString(v)
 	}
+	putMatchingColumns(mc)
 
 	return maxLen - len(smp.max)
 }
@@ -222,12 +210,12 @@ func (smp *statsMaxProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {
-	fields, err := parseStatsFuncFields(lex, "max")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "max")
 	if err != nil {
 		return nil, err
 	}
 	sm := &statsMax{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	return sm, nil
 }

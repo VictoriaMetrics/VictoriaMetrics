@@ -14,6 +14,7 @@ func TestParseStatsJSONValuesSuccess(t *testing.T) {
 	f(`json_values(*)`)
 	f(`json_values(a)`)
 	f(`json_values(a, b)`)
+	f(`json_values(a*, b)`)
 	f(`json_values(a, b) limit 10`)
 }
 

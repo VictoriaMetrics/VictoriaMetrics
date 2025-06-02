@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFormat processes '| format ...' pipe.
@@ -56,40 +57,24 @@ func (pf *pipeFormat) canLiveTail() bool {
 	return true
 }
 
-func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (pf *pipeFormat) updateNeededFields(f *prefixfilter.Filter) {
+	if f.MatchNothing() {
 		if pf.iff != nil {
-			neededFields.addFields(pf.iff.neededFields)
+			f.AddAllowFilters(pf.iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		if !unneededFields.contains(pf.resultField) {
-			if !pf.keepOriginalFields && !pf.skipEmptyResults {
-				unneededFields.add(pf.resultField)
-			}
-			if pf.iff != nil {
-				unneededFields.removeFields(pf.iff.neededFields)
-			}
-			for _, step := range pf.steps {
-				if step.field != "" {
-					unneededFields.remove(step.field)
-				}
-			}
+	if f.MatchString(pf.resultField) {
+		if !pf.keepOriginalFields && !pf.skipEmptyResults {
+			f.AddDenyFilter(pf.resultField)
 		}
-	} else {
-		if neededFields.contains(pf.resultField) {
-			if !pf.keepOriginalFields && !pf.skipEmptyResults {
-				neededFields.remove(pf.resultField)
-			}
-			if pf.iff != nil {
-				neededFields.addFields(pf.iff.neededFields)
-			}
-			for _, step := range pf.steps {
-				if step.field != "" {
-					neededFields.add(step.field)
-				}
+		if pf.iff != nil {
+			f.AddAllowFilters(pf.iff.allowFilters)
+		}
+		for _, step := range pf.steps {
+			if step.field != "" {
+				f.AddAllowFilter(step.field)
 			}
 		}
 	}
@@ -187,74 +172,76 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	bLen := len(b)
 	for _, step := range pf.steps {
 		b = append(b, step.prefix...)
-		if step.field != "" {
-			c := br.getColumnByName(step.field)
-			v := c.getValueAtRow(br, rowIdx)
-			switch step.fieldOpt {
-			case "base64decode":
-				result, ok := appendBase64Decode(b, v)
-				if !ok {
-					b = append(b, v...)
-				} else {
-					b = result
-				}
-			case "base64encode":
-				b = appendBase64Encode(b, v)
-			case "duration":
-				nsecs, ok := tryParseInt64(v)
-				if !ok {
-					b = append(b, v...)
-				} else {
-					b = marshalDurationString(b, nsecs)
-				}
-			case "duration_seconds":
-				nsecs, ok := tryParseDuration(v)
-				if !ok {
-					b = append(b, v...)
-				} else {
-					secs := float64(nsecs) / 1e9
-					b = marshalFloat64String(b, secs)
-				}
-			case "hexdecode":
-				b = appendHexDecode(b, v)
-			case "hexencode":
-				b = appendHexEncode(b, v)
-			case "hexnumdecode":
-				b = appendHexUint64Decode(b, v)
-			case "hexnumencode":
-				n, ok := tryParseUint64(v)
-				if !ok {
-					b = append(b, v...)
-				} else {
-					b = appendHexUint64Encode(b, n)
-				}
-			case "ipv4":
-				ipNum, ok := tryParseUint64(v)
-				if !ok || ipNum > math.MaxUint32 {
-					b = append(b, v...)
-				} else {
-					b = marshalIPv4String(b, uint32(ipNum))
-				}
-			case "lc":
-				b = appendLowercase(b, v)
-			case "time":
-				nsecs, ok := tryParseInt64(v)
-				if !ok {
-					b = append(b, v...)
-				} else {
-					b = marshalTimestampRFC3339NanoString(b, nsecs)
-				}
-			case "q":
-				b = quicktemplate.AppendJSONString(b, v, true)
-			case "uc":
-				b = appendUppercase(b, v)
-			case "urldecode":
-				b = appendURLDecode(b, v)
-			case "urlencode":
-				b = appendURLEncode(b, v)
-			default:
+		if step.field == "" {
+			continue
+		}
+
+		c := br.getColumnByName(step.field)
+		v := c.getValueAtRow(br, rowIdx)
+		switch step.fieldOpt {
+		case "base64decode":
+			result, ok := appendBase64Decode(b, v)
+			if !ok {
 				b = append(b, v...)
+			} else {
+				b = result
 			}
+		case "base64encode":
+			b = appendBase64Encode(b, v)
+		case "duration":
+			nsecs, ok := tryParseInt64(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				b = marshalDurationString(b, nsecs)
+			}
+		case "duration_seconds":
+			nsecs, ok := tryParseDuration(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				secs := float64(nsecs) / 1e9
+				b = marshalFloat64String(b, secs)
+			}
+		case "hexdecode":
+			b = appendHexDecode(b, v)
+		case "hexencode":
+			b = appendHexEncode(b, v)
+		case "hexnumdecode":
+			b = appendHexUint64Decode(b, v)
+		case "hexnumencode":
+			n, ok := tryParseUint64(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				b = appendHexUint64Encode(b, n)
+			}
+		case "ipv4":
+			ipNum, ok := tryParseUint64(v)
+			if !ok || ipNum > math.MaxUint32 {
+				b = append(b, v...)
+			} else {
+				b = marshalIPv4String(b, uint32(ipNum))
+			}
+		case "lc":
+			b = appendLowercase(b, v)
+		case "time":
+			nsecs, ok := tryParseInt64(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				b = marshalTimestampRFC3339NanoString(b, nsecs)
+			}
+		case "q":
+			b = quicktemplate.AppendJSONString(b, v, true)
+		case "uc":
+			b = appendUppercase(b, v)
+		case "urldecode":
+			b = appendURLDecode(b, v)
+		case "urlencode":
+			b = appendURLEncode(b, v)
+		default:
+			b = append(b, v...)
 		}
 	}
 	shard.a.b = b
@@ -286,6 +273,13 @@ func parsePipeFormat(lex *lexer) (pipe, error) {
 	steps, err := parsePatternSteps(formatStr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", formatStr, err)
+	}
+
+	// Verify that all the fields mentioned in the format pattern do not end with '*'
+	for _, step := range steps {
+		if prefixfilter.IsWildcardFilter(step.field) {
+			return nil, fmt.Errorf("'pattern' %q cannot contain wildcard fields like %q", formatStr, step.field)
+		}
 	}
 
 	// parse optional 'as ...` part

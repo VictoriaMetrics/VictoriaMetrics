@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterEqField matches if the given fields have equivalent values.
@@ -13,15 +14,27 @@ import (
 type filterEqField struct {
 	fieldName      string
 	otherFieldName string
+
+	prefixFilter     prefixfilter.Filter
+	prefixFilterOnce sync.Once
 }
 
 func (fe *filterEqField) String() string {
 	return fmt.Sprintf("%seq_field(%s)", quoteFieldNameIfNeeded(fe.fieldName), quoteTokenIfNeeded(fe.otherFieldName))
 }
 
-func (fe *filterEqField) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fe.fieldName)
-	neededFields.add(fe.otherFieldName)
+func (fe *filterEqField) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fe.fieldName)
+	pf.AddAllowFilter(fe.otherFieldName)
+}
+
+func (fe *filterEqField) getPrefixFilter() *prefixfilter.Filter {
+	fe.prefixFilterOnce.Do(fe.initPrefixFilter)
+	return &fe.prefixFilter
+}
+
+func (fe *filterEqField) initPrefixFilter() {
+	fe.prefixFilter.AddAllowFilters([]string{fe.fieldName, fe.otherFieldName})
 }
 
 func (fe *filterEqField) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -168,7 +181,9 @@ func (fe *filterEqField) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 func (fe *filterEqField) applyFilterString(bs *blockSearch, bm *bitmap) {
 	br := getBlockResult()
 	br.mustInit(bs, bm)
-	br.initRequestedColumns([]string{fe.fieldName, fe.otherFieldName})
+
+	pf := fe.getPrefixFilter()
+	br.initColumns(pf)
 
 	c := br.getColumnByName(fe.fieldName)
 	cOther := br.getColumnByName(fe.otherFieldName)

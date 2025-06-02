@@ -18,6 +18,29 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [`delete` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe): allow deleting all the fields with common prefix via `... | delete prefix*` syntax.
+* FEATURE: [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe): allow keeping all the fields with common prefix via `... | fields prefix*` syntax.
+* FEATURE: [`copy` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#copy-pipe): allow copying all the fields with common prefix to fields with another common prefix via `... | copy old_prefix* as new_prefix*` syntax.
+* FEATURE: [`rename` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#rename-pipe): allow renaming all the fields with common prefix to fields with another common prefix via `... | rename old_prefix* as new_prefix*` syntax.
+* FEATURE: [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
+* FEATURE: [`unpack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
+* FEATURE: [`avg` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the average value over all the fields with common prefix via `avg(prefix*)` syntax.
+* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
+* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
+* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
+* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
+* FEATURE: [`sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum-stats): allow calculating the sum for all the fields with common prefix via `sum(prefix*)` syntax.
+* FEATURE: [`sum_len` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum_len-stats): allow calculating the sum of byte lengths for all the fields with common prefix via `sum_len(prefix*)` syntax.
+* FEATURE: [`count` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count-stats): allow calculating the number of logs with at least a single non-empty field across fields with common prefix via `count(prefix*)` syntax.
+* FEATURE: [`count_empty` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count_empty-stats): allow calculating the number of logs with empty fields with common prefix via `count_empty(prefix*)` syntax.
+* FEATURE: [`rate_sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the per-second rate over the sum of all the fields with common prefix via `rate_sum(prefix*)` syntax.
+* FEATURE: [`row_any` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow returning all the fields with common prefix via `row_any(prefix*)` syntax.
+* FEATURE: [`row_max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow returning all the fields with common prefix via `row_max(max_field, prefix*)` syntax.
+* FEATURE: [`row_min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow returning all the fields with common prefix via `row_min(min_field, prefix*)` syntax.
+* FEATURE: [`uniq_values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#uniq_values-stats): allow fetching unique values for all the fields with common prefix via `uniq_values(prefix*)` syntax.
+* FEATURE: [`values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#values-stats): allow fetching values for all the fields with common prefix via `values(prefix*)` syntax.
+* FEATURE: [`json_values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#json_values-stats): allow fetching values for all the fields with common prefix via `json_values(prefix*)` syntax.
+
 ## [v1.23.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.3-victorialogs)
 
 Released at 2025-06-02

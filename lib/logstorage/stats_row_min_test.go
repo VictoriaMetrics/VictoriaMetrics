@@ -14,6 +14,7 @@ func TestParseStatsRowMinSuccess(t *testing.T) {
 	f(`row_min(foo)`)
 	f(`row_min(foo, bar)`)
 	f(`row_min(foo, bar, baz)`)
+	f(`row_min(foo, bar*, baz)`)
 }
 
 func TestParseStatsRowMinFailure(t *testing.T) {

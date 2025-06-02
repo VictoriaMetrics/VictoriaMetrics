@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeCollapseNums processes '| collapse_nums ...' pipe.
@@ -43,8 +44,8 @@ func (pc *pipeCollapseNums) canLiveTail() bool {
 	return true
 }
 
-func (pc *pipeCollapseNums) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pc.field, pc.iff)
+func (pc *pipeCollapseNums) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUpdatePipe(pf, pc.field, pc.iff)
 }
 
 func (pc *pipeCollapseNums) hasFilterInWithQuery() bool {

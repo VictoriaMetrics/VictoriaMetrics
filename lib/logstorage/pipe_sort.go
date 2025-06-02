@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -58,7 +59,7 @@ func (ps *pipeSort) String() string {
 	}
 
 	if len(ps.partitionByFields) > 0 {
-		s += " partition by (" + fieldsToString(ps.partitionByFields) + ")"
+		s += " partition by (" + fieldNamesString(ps.partitionByFields) + ")"
 	}
 
 	if ps.offset > 0 {
@@ -88,33 +89,24 @@ func (ps *pipeSort) canLiveTail() bool {
 	return false
 }
 
-func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (ps *pipeSort) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		return
 	}
 
 	if ps.rankFieldName != "" {
-		neededFields.remove(ps.rankFieldName)
-		if neededFields.contains("*") {
-			unneededFields.add(ps.rankFieldName)
-		}
+		pf.AddDenyFilter(ps.rankFieldName)
 	}
 
 	if len(ps.byFields) == 0 {
-		neededFields.add("*")
-		unneededFields.reset()
+		pf.AddAllowFilter("*")
 	} else {
 		for _, bf := range ps.byFields {
-			neededFields.add(bf.name)
-			unneededFields.remove(bf.name)
+			pf.AddAllowFilter(bf.name)
 		}
 	}
 
-	if neededFields.contains("*") {
-		unneededFields.removeFields(ps.partitionByFields)
-	} else {
-		neededFields.addFields(ps.partitionByFields)
-	}
+	pf.AddAllowFilters(ps.partitionByFields)
 }
 
 func (ps *pipeSort) hasFilterInWithQuery() bool {

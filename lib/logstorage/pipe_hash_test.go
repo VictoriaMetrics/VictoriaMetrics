@@ -24,6 +24,11 @@ func TestParsePipeHashFailure(t *testing.T) {
 	f(`hash(`)
 	f(`hash()`)
 	f(`hash(x) y z`)
+	f(`hash(foo,bar)`)
+	f(`hash(*)`)
+	f(`hash(foo*)`)
+	f(`hash(a) as *`)
+	f(`hash(a) as foo*`)
 }
 
 func TestPipeHash(t *testing.T) {
@@ -63,9 +68,9 @@ func TestPipeHash(t *testing.T) {
 }
 
 func TestPipeHashUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

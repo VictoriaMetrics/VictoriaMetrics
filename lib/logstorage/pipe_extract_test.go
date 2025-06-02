@@ -11,6 +11,7 @@ func TestParsePipeExtractSuccess(t *testing.T) {
 	}
 
 	f(`extract "foo<bar>"`)
+	f(`extract "foo<bar> <*>baz"`)
 	f(`extract "foo<bar>" skip_empty_results`)
 	f(`extract "foo<bar>" keep_original_fields`)
 	f(`extract "foo<bar>" from x`)
@@ -38,6 +39,10 @@ func TestParsePipeExtractFailure(t *testing.T) {
 	f(`extract "a"`)
 	f(`extract "<a><b>"`)
 	f(`extract "<*>foo<_>bar"`)
+	f(`extract "foo<a>" from *`)
+	f(`extract "foo<a>" from x*`)
+	f(`extract "foo<*>" from x`)
+	f(`extract "foo<a*>" from x`)
 }
 
 func TestPipeExtract(t *testing.T) {
@@ -294,9 +299,9 @@ func TestPipeExtract(t *testing.T) {
 }
 
 func TestPipeExtractUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -323,6 +328,7 @@ func TestPipeExtractUpdateNeededFields(t *testing.T) {
 
 	// unneeded fields intersect with output fields
 	f("extract '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar,f2,foo")
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo,x", "*", "bar,f2,foo")
 	f("extract '<foo>x<bar>' from x keep_original_fields", "*", "f2,foo", "*", "f2,foo")
 	f("extract '<foo>x<bar>' from x skip_empty_results", "*", "f2,foo", "*", "f2,foo")
 	f("extract if (f1:abc) '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar,f2,foo")
@@ -331,10 +337,12 @@ func TestPipeExtractUpdateNeededFields(t *testing.T) {
 	f("extract if (f2:abc foo:w) '<foo>x<bar>' from x skip_empty_results", "*", "f2,foo", "*", "")
 
 	// unneeded fields intersect with all the output fields
-	f("extract '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x keep_original_fields", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x skip_empty_results", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo")
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo,bar,x", "*", "bar,f2,foo,x")
+	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo")
+	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x", "*", "f2,foo,bar,x", "*", "bar,f2,foo,x")
+	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x keep_original_fields", "*", "f2,foo,bar", "*", "bar,f2,foo")
+	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x skip_empty_results", "*", "f2,foo,bar", "*", "bar,f2,foo")
 
 	// needed fields do not intersect with pattern and output fields
 	f("extract '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")

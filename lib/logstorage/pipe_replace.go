@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeReplace processes '| replace ...' pipe.
@@ -45,8 +46,8 @@ func (pr *pipeReplace) canLiveTail() bool {
 	return true
 }
 
-func (pr *pipeReplace) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
+func (pr *pipeReplace) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUpdatePipe(pf, pr.field, pr.iff)
 }
 
 func (pr *pipeReplace) hasFilterInWithQuery() bool {

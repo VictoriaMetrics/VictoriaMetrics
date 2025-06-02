@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterRange matches the given range [minValue..maxValue].
@@ -22,8 +23,8 @@ func (fr *filterRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
 }
 
-func (fr *filterRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {

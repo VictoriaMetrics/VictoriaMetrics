@@ -15,6 +15,8 @@ func TestParsePipeFormatSuccess(t *testing.T) {
 	f(`format "foo<bar>" keep_original_fields`)
 	f(`format "" as x`)
 	f(`format "<>" as x`)
+	f(`format "<_>"`)
+	f(`format "<*>"`)
 	f(`format foo as x`)
 	f(`format foo as x skip_empty_results`)
 	f(`format foo as x keep_original_fields`)
@@ -39,6 +41,9 @@ func TestParsePipeFormatFailure(t *testing.T) {
 	f(`format foo bar`)
 	f(`format foo if`)
 	f(`format foo as x if (x:y)`)
+	f(`format "foo<bar*>"`)
+	f(`format "foo<bar>" as *`)
+	f(`format "foo<bar>" as x*`)
 }
 
 func TestPipeFormat(t *testing.T) {
@@ -328,9 +333,9 @@ func TestPipeFormat(t *testing.T) {
 }
 
 func TestPipeFormatUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

@@ -21,6 +21,8 @@ func TestParseStatsRateFailure(t *testing.T) {
 	}
 
 	f(`rate`)
+	f(`rate(*)`)
+	f(`rate(x*)`)
 	f(`rate(x)`)
 	f(`rate() y`)
 }

@@ -14,6 +14,7 @@ func TestParseStatsRateSumSuccess(t *testing.T) {
 	f(`rate_sum(*)`)
 	f(`rate_sum(a)`)
 	f(`rate_sum(a, b)`)
+	f(`rate_sum(a*, b)`)
 }
 
 func TestParseStatsRateSumFailure(t *testing.T) {

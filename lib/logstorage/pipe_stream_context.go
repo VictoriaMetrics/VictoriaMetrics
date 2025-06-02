@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/contextutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeStreamContextDefaultTimeWindow is the default time window to search for surrounding logs in `stream_context` pipe.
@@ -32,10 +33,9 @@ type pipeStreamContext struct {
 	// timeWindow is the time window in nanoseconds for searching for surrounding logs
 	timeWindow int64
 
-	// runQuery, neededColumnNames and unneededColumnNames must be initialized via withRunQuery().
-	runQuery            runQueryFunc
-	neededColumnNames   []string
-	unneededColumnNames []string
+	// runQuery and fieldsFilter must be initialized via withRunQuery().
+	runQuery     runQueryFunc
+	fieldsFilter *prefixfilter.Filter
 }
 
 func (pc *pipeStreamContext) String() string {
@@ -63,22 +63,16 @@ func (pc *pipeStreamContext) canLiveTail() bool {
 	return false
 }
 
-var neededFieldsForStreamContext = []string{
-	"_time",
-	"_stream_id",
-}
-
-func (pc *pipeStreamContext) withRunQuery(runQuery runQueryFunc, neededColumnNames, unneededColumnNames []string) pipe {
+func (pc *pipeStreamContext) withRunQuery(runQuery runQueryFunc, fieldsFilter *prefixfilter.Filter) pipe {
 	pcNew := *pc
 	pcNew.runQuery = runQuery
-	pcNew.neededColumnNames = neededColumnNames
-	pcNew.unneededColumnNames = unneededColumnNames
+	pcNew.fieldsFilter = fieldsFilter
 	return &pcNew
 }
 
-func (pc *pipeStreamContext) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.addFields(neededFieldsForStreamContext)
-	unneededFields.removeFields(neededFieldsForStreamContext)
+func (pc *pipeStreamContext) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_time")
+	pf.AddAllowFilter("_stream_id")
 }
 
 func (pc *pipeStreamContext) hasFilterInWithQuery() bool {
@@ -246,7 +240,7 @@ func (pcp *pipeStreamContextProcessor) getStreamRowssByTimeRanges(streamID strin
 	if len(timeFilters) > 1 {
 		qStr += " (" + strings.Join(timeFilters, " OR ") + ")"
 	}
-	qStr += toFieldsFilters(pcp.pc.neededColumnNames, pcp.pc.unneededColumnNames)
+	qStr += toFieldsFilters(pcp.pc.fieldsFilter)
 
 	rowss, _, err := pcp.executeQuery(streamID, qStr, neededTimestamps, stateSizeBudget)
 	if err != nil {

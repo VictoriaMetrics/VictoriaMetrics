@@ -40,6 +40,10 @@ func TestParsePipeSortFailure(t *testing.T) {
 	f(`sort by (x) limit 2 partition (`)
 	f(`sort by (x) limit 4 partition (abc`)
 	f(`sort by (x) limit 3 partition (abc,`)
+	f(`sort by (*)`)
+	f(`sort by (x*)`)
+	f(`sort by (x) partition by (*)`)
+	f(`sort by (x) partition by (y*)`)
 }
 
 func TestPipeSort(t *testing.T) {
@@ -364,9 +368,9 @@ func TestPipeSort(t *testing.T) {
 }
 
 func TestPipeSortUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

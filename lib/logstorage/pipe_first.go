@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFirst processes '| first ...' queries.
@@ -23,8 +25,8 @@ func (pf *pipeFirst) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFirst) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	pf.ps.updateNeededFields(neededFields, unneededFields)
+func (pf *pipeFirst) updateNeededFields(f *prefixfilter.Filter) {
+	pf.ps.updateNeededFields(f)
 }
 
 func (pf *pipeFirst) hasFilterInWithQuery() bool {

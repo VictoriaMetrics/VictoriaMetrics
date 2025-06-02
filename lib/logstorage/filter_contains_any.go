@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterContainsAny matches any value from the values.
@@ -21,8 +22,8 @@ func (fi *filterContainsAny) String() string {
 	return fmt.Sprintf("%scontains_any(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
 }
 
-func (fi *filterContainsAny) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fi.fieldName)
+func (fi *filterContainsAny) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fi.fieldName)
 }
 
 func (fi *filterContainsAny) applyToBlockResult(br *blockResult, bm *bitmap) {
