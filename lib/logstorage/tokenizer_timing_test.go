@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+// go test -benchmem -v -run=^$ -benchmem -bench ^BenchmarkTokenizeStrings$ github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage
+/*
+BenchmarkTokenizeStrings-8        285720              4444 ns/op         753.30 MB/s           0 B/op          0 allocs/op
+*/
 func BenchmarkTokenizeStrings(b *testing.B) {
 	a := strings.Split(benchLogs, "\n")
 
