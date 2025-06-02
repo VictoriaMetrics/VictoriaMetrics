@@ -43,7 +43,7 @@ Released at 2025-05-28
 * FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): add `now()` function, which returns the current [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
 
 * BUGFIX: [OpenTelemetry](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly handle nested attributes by expanding them into separate top-level fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8862).
-* BUGFIX: [Datadog](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog/): respond HTTP 202 instead of HTTP 200 on successful Datadog endpoint ingestion as it's strictly required by Datadog agent. See [#8956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8956).
+* BUGFIX: [Datadog](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): respond HTTP 202 instead of HTTP 200 on successful Datadog endpoint ingestion as it's strictly required by Datadog agent. See [#8956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8956).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly escape special characters in field values shown in autocomplete suggestions. See [#8925](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8925).
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): Properly handle time filters when querying vlstorage directly or through vlselect. See [#8985](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8985).
 * BUGFIX: Self-healing from OOM interruption during the creation of a daily partition. See [#8873](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8873).
