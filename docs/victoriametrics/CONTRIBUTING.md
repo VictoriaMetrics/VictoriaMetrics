@@ -76,7 +76,7 @@ Pull requests requirements are the following:
 
 See good example of pull request [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
 
-## Merging pull request
+## Merging Pull request
 
 1. Make sure that PR satisfies [Pull Request checklist](https://docs.victoriametrics.com/victoriametrics/contributing/#pull-request-checklist),
    it is approved by at least one reviewer, all CI checks are green.
