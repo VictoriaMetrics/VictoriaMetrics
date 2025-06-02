@@ -89,8 +89,6 @@ See good example of pull request [here](https://github.com/VictoriaMetrics/Victo
 1. Add label `waiting for release` to related issues.
 1. Do not close related tickets until release is made. If ticket was auto-closed by GitHub or user - re-open it.
 
-To merge the PR it should be approved by at least one reviewer, all CI checks should be green.
-
 ## KISS principle
 
 We are open to third-party pull requests provided they follow [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle).
