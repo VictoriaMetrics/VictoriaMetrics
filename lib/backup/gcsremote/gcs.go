@@ -164,15 +164,15 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	dstObj := fs.object(p)
 
 	copier := dstObj.CopierFrom(srcObj)
+	if len(fs.Metadata) > 0 {
+		copier.Metadata = fs.Metadata
+	}
 	attr, err := copier.Run(fs.ctx)
 	if err != nil {
 		return fmt.Errorf("cannot copy %q from %s to %s: %w", p.Path, src, fs, err)
 	}
 	if uint64(attr.Size) != p.Size {
 		return fmt.Errorf("unexpected %q size after copying from %s to %s; got %d bytes; want %d bytes", p.Path, src, fs, attr.Size, p.Size)
-	}
-	if err := fs.maybeSetMetadata(dstObj); err != nil {
-		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", p.Path, fs, dstObj.ObjectName(), err)
 	}
 	return nil
 }
@@ -201,6 +201,9 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	o := fs.object(p)
 	w := o.NewWriter(fs.ctx)
+	if len(fs.Metadata) > 0 {
+		w.Metadata = fs.Metadata
+	}
 	n, err := io.Copy(w, r)
 	if err1 := w.Close(); err1 != nil && err == nil {
 		err = err1
@@ -210,9 +213,6 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	}
 	if uint64(n) != p.Size {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
-	}
-	if err := fs.maybeSetMetadata(o); err != nil {
-		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
 	return nil
 }
@@ -281,6 +281,9 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
 	w := o.NewWriter(fs.ctx)
+	if len(fs.Metadata) > 0 {
+		w.Metadata = fs.Metadata
+	}
 	n, err := w.Write(data)
 	if err != nil {
 		_ = w.Close()
@@ -289,9 +292,6 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	if n != len(data) {
 		_ = w.Close()
 		return fmt.Errorf("wrong data size uploaded to %q at %s (remote path %q); got %d bytes; want %d bytes", filePath, fs, o.ObjectName(), n, len(data))
-	}
-	if err := fs.maybeSetMetadata(o); err != nil {
-		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("cannot close %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
@@ -323,18 +323,4 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	}
 	defer r.Close()
 	return io.ReadAll(r)
-}
-
-// maybeSetMetadata sets metadata for the object o if fs.Metadata is not empty.
-func (fs *FS) maybeSetMetadata(o *storage.ObjectHandle) error {
-	if len(fs.Metadata) == 0 {
-		return nil
-	}
-	_, err := o.Update(fs.ctx, storage.ObjectAttrsToUpdate{
-		Metadata: fs.Metadata,
-	})
-	if err != nil {
-		return fmt.Errorf("cannot set metadata for %q at %s (remote path %q): %w", o.ObjectName(), fs, o.ObjectName(), err)
-	}
-	return nil
 }
