@@ -5,7 +5,7 @@ for further details about importing time series data into VictoriaMetrics.
 
 <br>
 
-![](get-started/get_started_preview.webp)
+![](/victoriametrics-cloud/get-started/get_started_preview.webp)
 <br>
 
 ## Get Started
