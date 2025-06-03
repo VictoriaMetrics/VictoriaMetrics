@@ -2,6 +2,7 @@ package insertutil
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -46,15 +47,13 @@ func NewLineReader(name string, r io.Reader) *LineReader {
 	}
 }
 
-// NextLine reads the next line from the underlying reader.
-//
-// It returns true if the next line is successfully read into Line.
-// If the line length exceeds MaxLineSizeBytes, then this line is skipped
-// and an empty line is returned instead.
-//
-// If false is returned, then no more lines left to read from r.
-// Check for Err in this case.
-func (lr *LineReader) NextLine() bool {
+// NextLineWithSize reads line that has size encoded into a line prefix
+// Required for cases, when single message can contains new line characters
+func (lr *LineReader) NextLineWithSize() bool {
+	return lr.nextLine(true)
+}
+
+func (lr *LineReader) nextLine(readSize bool) bool {
 	for {
 		if lr.bufOffset >= len(lr.buf) {
 			if lr.err != nil || lr.eofReached {
@@ -69,9 +68,36 @@ func (lr *LineReader) NextLine() bool {
 		}
 
 		buf := lr.buf[lr.bufOffset:]
-		if n := bytes.IndexByte(buf, '\n'); n >= 0 {
-			lr.Line = buf[:n]
-			lr.bufOffset += n + 1
+		var size uint64
+		if readSize {
+			idx, err := binary.Decode(buf, binary.LittleEndian, &size)
+			if err != nil {
+				lr.err = fmt.Errorf("failed to extract binary size: %w", err)
+				return false
+			}
+			lr.bufOffset += idx
+			buf = buf[idx:]
+			if size == 0 {
+				lr.err = fmt.Errorf("unexpected zero binary data size decoded %d", size)
+				return false
+			}
+			if int(size) > len(buf) {
+				lr.err = fmt.Errorf("binary data size=%d cannot exceed size of the data at buffer=%d", size, len(lr.buf))
+				return false
+			}
+			if len(buf) == int(size) {
+				lr.err = fmt.Errorf("unexpected empty buffer after binary read")
+				return false
+			}
+			lastB := buf[size]
+			if lastB != '\n' {
+				lr.err = fmt.Errorf("expected new line separator after binary field read, got=%s", string(lastB))
+				return false
+			}
+		}
+		if n := bytes.IndexByte(buf[size:], '\n'); n >= 0 {
+			lr.Line = buf[:n+int(size)]
+			lr.bufOffset += n + int(size) + 1
 			return true
 		}
 		if lr.eofReached {
@@ -83,6 +109,18 @@ func (lr *LineReader) NextLine() bool {
 			return false
 		}
 	}
+}
+
+// NextLine reads the next line from the underlying reader.
+//
+// It returns true if the next line is successfully read into Line.
+// If the line length exceeds MaxLineSizeBytes, then this line is skipped
+// and an empty line is returned instead.
+//
+// If false is returned, then no more lines left to read from r.
+// Check for Err in this case.
+func (lr *LineReader) NextLine() bool {
+	return lr.nextLine(false)
 }
 
 // Err returns the last error after NextLine call.
