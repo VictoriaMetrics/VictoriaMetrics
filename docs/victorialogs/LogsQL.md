@@ -143,7 +143,7 @@ _time:5m error -(buggy_app OR foobar)
 ```
 
 The parentheses are **required** here, since otherwise the query won't return the expected results.
-The query `error -buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
+The query `error -buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filter).
 This query returns logs with `foobar` [word](#word), even if they do not contain `error` word or contain `buggy_app` word.
 So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
