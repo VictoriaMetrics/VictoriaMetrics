@@ -1814,6 +1814,11 @@ During querying, VictoriaMetrics tracks how many times the requested metric name
 when was the last time it happened. In this way, it is possible to identify metric names that were never queried. 
 Or if metric was queried occasionally - when the last time it happened. 
 
+The usage stats for a metric won't update in these two cases:
+* Querying a metric with non-matching filters. For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter 
+  for `vm_log_messages_total` if there are no `{level!="info"}` series yet.
+* The query responses is fully cached in the [rollup result cache](https://docs.victoriametrics.com/#rollup-result-cache).
+
 To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for 
 a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)). 
 It accepts the following query parameters:
@@ -1850,9 +1855,7 @@ The API endpoint returns the following `JSON` response:
 * `records`:
   * `metricName` a metric name; 
   * `queryRequests` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
-    then one read query `foo` will increment counter by 10. Querying a metric with non-matching filters doesn't increase
-    the counter for this particular metric name. For example, querying for `vm_log_messages_total{level!="info"}` won't 
-    increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
+    then one read query `foo` will increment counter by 10.
   * `lastRequestTimestamp` a timestamp when last time this statistic was updated.
 
 _VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls._
