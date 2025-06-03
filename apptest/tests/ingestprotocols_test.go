@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -492,4 +493,66 @@ func TestClusterIngestionProtocols(t *testing.T) {
 			{Timestamp: 1707123456800, Value: 20}, // 2024-02-05T08:57:36.700Z
 		},
 	})
+}
+
+func TestVlsingleIngestionProtocols(t *testing.T) {
+	os.RemoveAll(t.Name())
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+	sut := tc.MustStartDefaultVlsingle()
+	type opts struct {
+		query        string
+		wantLogLines []string
+	}
+
+	f := func(opts *opts) {
+		t.Helper()
+		sut.ForceFlush(t)
+		got := sut.LogsQLQuery(t, opts.query, at.QueryOpts{})
+		assertLogsQLResponseEqual(t, got, &at.LogsQLQueryResponse{LogLines: opts.wantLogLines})
+	}
+	// json line ingest
+	sut.JSONLineWrite(t, []string{
+		`{"_msg":"ingest jsonline","_time": "2025-06-05T14:30:19.088007Z", "foo":"bar"}`,
+		`{"_msg":"ingest jsonline","_time": "2025-06-05T14:30:19.088007Z", "bar":"foo"}`,
+	}, at.QueryOpts{})
+	f(&opts{
+		query: "ingest jsonline",
+		wantLogLines: []string{
+			`{"_msg":"ingest jsonline","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","bar":"foo"}`,
+			`{"_msg":"ingest jsonline","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","foo":"bar"}`,
+		},
+	})
+	// native format ingest
+	sut.NativeWrite(t, []logstorage.InsertRow{
+		{
+			StreamTagsCanonical: canonicalStreamTagsFromSet(map[string]string{"foo": "bar"}),
+			Timestamp:           1749141697409000000, // 2025-06-05T:18:41:37.000000Z
+			Fields: []logstorage.Field{
+				{
+					Name:  "_msg",
+					Value: "ingest native",
+				},
+				{
+					Name:  "qwe",
+					Value: "rty",
+				},
+			},
+		},
+	}, at.QueryOpts{})
+	f(&opts{
+		query: "ingest native",
+		wantLogLines: []string{
+			`{"_msg":"ingest native","_time":"2025-06-05T16:41:37.409Z", "_stream":"{foo=\"bar\"}", "qwe": "rty"}`,
+		},
+	})
+
+}
+
+func canonicalStreamTagsFromSet(set map[string]string) string {
+	var st logstorage.StreamTags
+	for key, value := range set {
+		st.Add(key, value)
+	}
+	return string(st.MarshalCanonical(nil))
 }

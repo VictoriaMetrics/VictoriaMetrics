@@ -1,6 +1,10 @@
 package tests
 
 import (
+	"encoding/json"
+	"os"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -366,4 +370,133 @@ func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.Prometheus
 		wantMetric: map[string]string{"label": "foo"},
 		wantSample: &at.Sample{Timestamp: 1642801537346, Value: 2},
 	})
+}
+
+// TestVLSingleKeyConcepts verifies cases from https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
+// for vl-single.
+func TestVLSingleKeyConcepts(t *testing.T) {
+	os.RemoveAll(t.Name())
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+	sut := tc.MustStartDefaultVlsingle()
+
+	type opts struct {
+		ingestRecords   []string
+		wantResponse    *at.LogsQLQueryResponse
+		query           string
+		qtime           string
+		ingestQueryArgs at.QueryOpts
+		selectQueryArgs at.QueryOpts
+	}
+
+	f := func(opts *opts) {
+		t.Helper()
+		sut.JSONLineWrite(t, opts.ingestRecords, opts.ingestQueryArgs)
+		sut.ForceFlush(t)
+		got := sut.LogsQLQuery(t, opts.query, opts.selectQueryArgs)
+		assertLogsQLResponseEqual(t, got, opts.wantResponse)
+	}
+
+	// nested objects flatten
+	f(&opts{
+		ingestRecords: []string{
+			`{"_msg":"case 1","_time": "2025-06-05T14:30:19.088007Z", "host": {"name": "foobar","os": {"version": "1.2.3"}}}`,
+			`{"_msg":"case 1","_time": "2025-06-05T14:30:19.088007Z", "tags": ["foo", "bar"], "offset": 12345, "is_error": false}`,
+		},
+		wantResponse: &at.LogsQLQueryResponse{
+			LogLines: []string{
+				`{"_msg":"case 1","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","host.name":"foobar","host.os.version":"1.2.3"}`,
+				`{"_msg":"case 1","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","is_error":"false","offset":"12345","tags":"[\"foo\",\"bar\"]"}`,
+			},
+		},
+		query: "case 1",
+	})
+
+	// obtain _msg value from non-default field
+	f(&opts{
+		ingestRecords: []string{
+			`{"my_msg":"case 2","_time": "2025-06-05T14:30:19.088007Z", "foo":"bar"}`,
+			`{"my_msg_other":"case 2","_time": "2025-06-05T14:30:19.088007Z", "bar":"foo"}`,
+		},
+		ingestQueryArgs: at.QueryOpts{
+			MessageField: "my_msg,my_msg_other",
+		},
+		query: "case 2",
+		wantResponse: &at.LogsQLQueryResponse{
+			LogLines: []string{
+				`{"_msg":"case 2","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","foo":"bar"}`,
+				`{"_msg":"case 2","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","bar":"foo"}`,
+			},
+		},
+	})
+
+	// populate stream fields
+	f(&opts{
+		ingestRecords: []string{
+			`{"my_msg":"case 3","_time": "2025-06-05T14:30:19.088007Z", "foo":"bar"}`,
+			`{"my_msg":"case 3","_time": "2025-06-05T14:30:19.088007Z", "bar":"foo"}`,
+			`{"my_msg":"case 3","_time": "2025-06-05T14:30:19.088007Z", "bar":"foo","foo":"bar","baz":"bar"}`,
+		},
+		ingestQueryArgs: at.QueryOpts{
+			MessageField: "my_msg",
+			StreamFields: "foo,bar,baz",
+		},
+		wantResponse: &at.LogsQLQueryResponse{
+			LogLines: []string{
+				`{"_msg":"case 3","_stream":"{foo=\"bar\"}","_time":"2025-06-05T14:30:19.088007Z","foo":"bar"}`,
+				`{"_msg":"case 3","_stream":"{bar=\"foo\"}","_time":"2025-06-05T14:30:19.088007Z","bar":"foo"}`,
+				`{"_msg":"case 3","_stream":"{bar=\"foo\",baz=\"bar\",foo=\"bar\"}","_time":"2025-06-05T14:30:19.088007Z","bar":"foo","foo":"bar","baz":"bar"}`,
+			},
+		},
+		query: "case 3",
+	})
+
+	// obtain _time value from non-default field
+	f(&opts{
+		ingestRecords: []string{
+			`{"_msg":"case 4","my_time_field": "2025-06-05T14:30:19.088007Z", "foo":"bar"}`,
+			`{"_msg":"case 4","my_other_time_field": "2025-06-05T14:30:19.088007Z", "bar":"foo"}`,
+		},
+		ingestQueryArgs: at.QueryOpts{
+			TimeField: "my_time_field,my_other_time_field",
+		},
+		wantResponse: &at.LogsQLQueryResponse{
+			LogLines: []string{
+				`{"_msg":"case 4","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","foo":"bar"}`,
+				`{"_msg":"case 4","_stream":"{}","_time":"2025-06-05T14:30:19.088007Z","bar":"foo"}`,
+			},
+		},
+		query: "case 4",
+	})
+
+}
+
+func assertLogsQLResponseEqual(t *testing.T, got, want *at.LogsQLQueryResponse) {
+	t.Helper()
+	sort.Strings(got.LogLines)
+	sort.Strings(want.LogLines)
+	if len(got.LogLines) != len(want.LogLines) {
+		t.Errorf("unexpected response len: -%d: +%d\n%s", len(want.LogLines), len(got.LogLines), strings.Join(got.LogLines, "\n"))
+		return
+	}
+	for i := range len(want.LogLines) {
+		gotLine, wantLine := got.LogLines[i], want.LogLines[i]
+		var gotLineJSON map[string]any
+		var wantLineJSON map[string]any
+		if err := json.Unmarshal([]byte(gotLine), &gotLineJSON); err != nil {
+			t.Errorf("cannot parse got line=%q: %s", gotLine, err)
+			return
+		}
+		if err := json.Unmarshal([]byte(wantLine), &wantLineJSON); err != nil {
+			t.Errorf("cannot parse want line=%q: %s", wantLine, err)
+			return
+		}
+		// stream_id is always unique, remove it from comparison
+		delete(gotLineJSON, "_stream_id")
+		delete(wantLineJSON, "stream_id")
+		if diff := cmp.Diff(gotLineJSON, wantLineJSON); diff != "" {
+			t.Errorf("unexpected response (-want, +got):\n%s\n%s\n%s", diff, wantLine, gotLine)
+			return
+		}
+	}
 }
