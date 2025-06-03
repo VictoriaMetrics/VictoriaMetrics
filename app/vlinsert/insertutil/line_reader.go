@@ -122,20 +122,30 @@ func (lr *LineReader) readMoreData() bool {
 var tooLongLinesSkipped = metrics.NewCounter("vl_too_long_lines_skipped_total")
 
 func (lr *LineReader) skipUntilNextLine() bool {
+
+	// Initialize skipped bytes count with MaxLineSizeBytes because
+	// we've already read that many bytes without encountering a newline,
+	// indicating the line size exceeds the maximum allowed limit.
+	skipSizeBytes := MaxLineSizeBytes.IntN()
+
 	for {
 		lr.buf = slicesutil.SetLength(lr.buf, MaxLineSizeBytes.IntN())
 		n, err := lr.r.Read(lr.buf)
+		skipSizeBytes += n
 		lr.buf = lr.buf[:n]
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				lr.eofReached = true
 				lr.buf = lr.buf[:0]
+				logger.Warnf("%s: reached EOF while skipping oversized line; total skipped bytes=%d", lr.name, skipSizeBytes)
 				return true
 			}
 			lr.err = fmt.Errorf("cannot skip the current line: %s", err)
 			return false
 		}
 		if n := bytes.IndexByte(lr.buf, '\n'); n >= 0 {
+			skipSizeBytes += n + 1 - len(lr.buf)
+			logger.Warnf("%s: skipped oversized line of total length=%d bytes", lr.name, skipSizeBytes)
 			// Include \n in the buf, so too long line is replaced with an empty line.
 			// This is needed for maintaining synchorinzation consistency between lines
 			// in protocols such as Elasticsearch bulk import.
