@@ -78,6 +78,7 @@ See good example of pull request [here](https://github.com/VictoriaMetrics/Victo
 
 ## Merging Pull Request
 
+The person who merges the Pull Request is responsible for satisfying requirements below:
 1. Make sure that PR satisfies [Pull Request checklist](https://docs.victoriametrics.com/victoriametrics/contributing/#pull-request-checklist),
    it is approved by at least one reviewer, all CI checks are green.
 1. Try doing your best at assessing the changes. If possible, test them locally.
