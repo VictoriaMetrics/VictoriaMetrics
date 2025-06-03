@@ -87,15 +87,15 @@ Both [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [P
 * vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 * vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#loading-scrape-configs-from-multiple-files).
 * vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
-* vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can read them only from the local file system.
-* vmagent supports [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) feature for performing aggregates on collected or received samples before sending them to remote storage.
+* vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can only read them from the local file system.
+* vmagent supports [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) for performing aggregates on collected or received samples before sending them to remote storage.
 
 ## Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 
 Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data
 and new data is available for querying via Prometheus as usual.
 
-It is recommended using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for scraping Prometheus targets
+Remote write is recommended when using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
 
 ## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
@@ -103,11 +103,11 @@ and writing data to VictoriaMetrics.
 * VictoriaMetrics is easier to configure and operate than competing solutions.
 * VictoriaMetrics is more cost-efficient, since it requires less RAM, disk space, disk IO and network IO than competing solutions.
 * VictoriaMetrics performs typical queries faster than competing solutions.
-* VictoriaMetrics has a simpler architecture, which translates into fewer bugs and more useful features compared to competing TSDBs.
+* VictoriaMetrics has a simpler architecture, which translates into fewer bugs and more useful features compared to competing time series databases.
 
-See the following articles and talks for details:
+The following articles and talks provide additional details:
 
-* [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
+* [Comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk
   from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/)
 * [Grafana Mimir and VictoriaMetrics: performance tests](https://victoriametrics.com/blog/mimir-benchmark/)
@@ -117,12 +117,12 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 
 ## What is the difference between VictoriaMetrics and [QuestDB](https://questdb.io/)?
 
-* QuestDB needs more than 20x storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
-* QuestDB is much harder to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
+* QuestDB needs 20x more storage space than VictoriaMetrics. This translates to higher storage costs and slower queries over historical data, which must be read from the disk.
+* QuestDB is significantly more difficult to set up and operate than VictoriaMetrics. Compare [setup instructions for QuestDB](https://questdb.io/docs/get-started/binaries) to [setup instructions for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics).
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage).
 * Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/), while QuestDB needs a full rewrite of existing dashboards in Grafana.
-* Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), while QuestDB has no integration with Prometheus.
+* Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as long-term storage for Prometheus or [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), while QuestDB does not integrate with Prometheus.
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)).
 * [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
 
@@ -138,12 +138,12 @@ See also [Grafana Mimir vs VictoriaMetrics benchmark](https://victoriametrics.co
 VictoriaMetrics is similar to Cortex in the following aspects:
 
 * Both systems accept data from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or Prometheus
-  via the standard [remote_write API](https://prometheus.io/docs/practices/remote_write/), so there is no need for running sidecars
+  via the standard [remote_write API](https://prometheus.io/docs/practices/remote_write/), so there is no need to run sidecars,
   unlike in [Thanos](https://github.com/thanos-io/thanos)' case.
 * Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 * Both systems support data replication. See [replication in Cortex](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#hashing) and [replication in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 * Both systems scale horizontally to multiple nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability) for details.
-* Both systems support alerting and recording rules via the corresponding tools such as [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
+* Both systems support alerting and recording rules via corresponding tools such as [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
 * Both systems can be queried via the [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/) and integrate perfectly with Grafana.
 
 The main differences between Cortex and VictoriaMetrics:
@@ -159,7 +159,7 @@ The main differences between Cortex and VictoriaMetrics:
   VictoriaMetrics may lose only a few seconds of recent data, which isn't synced to persistent storage yet.
   See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 * Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
-* VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
+* VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query language, while Cortex provides the [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) query language.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage).
