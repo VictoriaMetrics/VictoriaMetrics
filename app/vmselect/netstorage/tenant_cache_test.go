@@ -12,7 +12,7 @@ import (
 func TestFetchingTenants(t *testing.T) {
 	tc := newTenantsCache(5 * time.Second)
 
-	dayMs := (time.Hour * 24 * 1000).Milliseconds()
+	dayMs := (time.Hour * 24).Milliseconds()
 
 	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []storage.TenantToken{
 		{AccountID: 1, ProjectID: 1},
@@ -33,7 +33,7 @@ func TestFetchingTenants(t *testing.T) {
 
 	f := func(tr storage.TimeRange, expectedTenants []storage.TenantToken) {
 		t.Helper()
-		tenants := tc.get(tr)
+		tenants, _ := tc.get(tr)
 
 		if len(tenants) == 0 && len(tenants) == len(expectedTenants) {
 			return
@@ -71,6 +71,64 @@ func TestFetchingTenants(t *testing.T) {
 	// Overlapping time ranges
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 2*dayMs - 1}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
 	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs + dayMs/2}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
+
+}
+
+func TestFetchingTenantsConsistency(t *testing.T) {
+	tc := newTenantsCache(5 * time.Second)
+
+	dayMs := (time.Hour * 24).Milliseconds()
+
+	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs - 1}, []storage.TenantToken{
+		{AccountID: 1, ProjectID: 1},
+		{AccountID: 1, ProjectID: 0},
+	})
+	tc.put(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: 2*dayMs - 1}, []storage.TenantToken{
+		{AccountID: 2, ProjectID: 1},
+		{AccountID: 2, ProjectID: 0},
+	})
+	tc.put(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 3*dayMs - 1}, []storage.TenantToken{
+		{AccountID: 3, ProjectID: 1},
+		{AccountID: 3, ProjectID: 0},
+	})
+	tc.put(storage.TimeRange{MinTimestamp: 5 * dayMs, MaxTimestamp: 7*dayMs - 1}, []storage.TenantToken{
+		{AccountID: 3, ProjectID: 1},
+		{AccountID: 3, ProjectID: 0},
+	})
+
+	f := func(tr storage.TimeRange, expectedTenants []storage.TenantToken, fullExpected bool) {
+		t.Helper()
+		tenants, fullCoverage := tc.get(tr)
+
+		if fullExpected != fullCoverage {
+			t.Fatalf("unexpected full coverage; got %v; want %v", fullCoverage, fullExpected)
+		}
+
+		if len(tenants) == 0 && len(tenants) == len(expectedTenants) {
+			return
+		}
+
+		sortTenants := func(t []storage.TenantToken) func(i, j int) bool {
+			return func(i, j int) bool {
+				if t[i].AccountID == t[j].AccountID {
+					return t[i].ProjectID < t[j].ProjectID
+				}
+				return t[i].AccountID < t[j].AccountID
+			}
+		}
+		sort.Slice(tenants, sortTenants(tenants))
+		sort.Slice(expectedTenants, sortTenants(expectedTenants))
+
+		if !reflect.DeepEqual(tenants, expectedTenants) {
+			t.Fatalf("unexpected tenants; got %v; want %v", tenants, expectedTenants)
+		}
+	}
+	// Part of request is outside of cached data
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 4 * dayMs}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}, {AccountID: 3, ProjectID: 1}, {AccountID: 3, ProjectID: 0}}, false)
+	f(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 4 * dayMs}, []storage.TenantToken{{AccountID: 3, ProjectID: 1}, {AccountID: 3, ProjectID: 0}}, false)
+
+	// Data with gaps inside the requested range
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 6 * dayMs}, []storage.TenantToken{{AccountID: 3, ProjectID: 1}, {AccountID: 3, ProjectID: 0}, {AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}}, false)
 }
 
 func TestHasIntersection(t *testing.T) {
