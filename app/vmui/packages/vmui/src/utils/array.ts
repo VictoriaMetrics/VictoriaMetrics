@@ -1,4 +1,4 @@
-export const arrayEquals = (a: (string|number)[], b: (string|number)[]) => {
+export const arrayEquals = (a: (string | number)[], b: (string | number)[]) => {
   return a.length === b.length && a.every((val, index) => val === b[index]);
 };
 
@@ -17,3 +17,13 @@ export function groupByMultipleKeys<T>(items: T[], keys: (keyof T)[]): { keys: s
   }));
 }
 
+export const isDecreasing = (arr: number[]): boolean => {
+  if (arr.length < 2) return false;
+
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] >= arr[i - 1]) {
+      return false;
+    }
+  }
+  return true;
+};
