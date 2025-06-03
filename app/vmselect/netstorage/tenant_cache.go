@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	tenantsCacheDuration = flag.Duration("search.tenantCacheExpireDuration", 5*time.Minute, "The expiry duration for list of tenants for multi-tenant queries. 0 value disables caching of tenants.")
+	tenantsCacheDuration = flag.Duration("search.tenantCacheExpireDuration", 5*time.Minute, "Expiry duration for caching tenants in memory. A zero value disables caching, causing tenants to be fetched from storage nodes on every query.")
 )
 
 // TenantsCached returns the list of tenants available in the storage.
@@ -38,7 +38,7 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 			return cached, nil
 		}
 	} else {
-		qtL.Printf("skipping cache for tenants")
+		qtL.Printf("do not fetch list of tenants from cache")
 	}
 
 	tenants, err := Tenants(qtL, tr, deadline)
@@ -62,7 +62,7 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 		tenantsCacheV.put(tr, tt)
 		qtL.Printf("put %d tenants into cache", len(tenants))
 	} else {
-		qtL.Printf("skip putting tenants into cache")
+		qtL.Printf("do not put list of tenants into cache")
 	}
 
 	return tt, nil
