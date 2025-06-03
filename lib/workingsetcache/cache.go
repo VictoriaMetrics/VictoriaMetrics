@@ -72,7 +72,7 @@ func Load(filePath string, maxBytes int) *Cache {
 // If loading fails due to an error (e.g. corrupted or unreadable file), the error is logged
 // and a new cache is created with the specified maxBytes size.
 func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
-	cache, err := fastcache.LoadFromFile(filePath, maxBytes)
+	cache, err := fastcache.LoadFromFileMaxBytes(filePath, maxBytes)
 	if err == nil {
 		return cache
 	}

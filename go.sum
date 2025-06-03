@@ -38,8 +38,8 @@ github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migc
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
 github.com/VictoriaMetrics/easyproto v0.1.4 h1:r8cNvo8o6sR4QShBXQd1bKw/VVLSQma/V2KhTBPf+Sc=
 github.com/VictoriaMetrics/easyproto v0.1.4/go.mod h1:QlGlzaJnDfFd8Lk6Ci/fuLxfTo3/GThPs2KH23mv710=
-github.com/VictoriaMetrics/fastcache v1.12.4 h1:2xvmwZBW+9QtHsXggfzAZRs1FZWCsBs8QDg22bMidf0=
-github.com/VictoriaMetrics/fastcache v1.12.4/go.mod h1:K+JGPBn0sueFlLjZ8rcVM0cKkWKNElKyQXmw57QOoYI=
+github.com/VictoriaMetrics/fastcache v1.12.5-0.20250603074328-49a009e6aa7e h1:/bKjVzePOGQFGlG4QtyK0lMXqtfysR4dtvCRgcIi7vo=
+github.com/VictoriaMetrics/fastcache v1.12.5-0.20250603074328-49a009e6aa7e/go.mod h1:K+JGPBn0sueFlLjZ8rcVM0cKkWKNElKyQXmw57QOoYI=
 github.com/VictoriaMetrics/metrics v1.36.0 h1:f3SZMpLgIG4hJm2zfDs6wicxQ/QNWBZekY5rEGgbHKs=
 github.com/VictoriaMetrics/metrics v1.36.0/go.mod h1:r7hveu6xMdUACXvB8TYdAj8WEsKzWB0EkpJN+RDtOf8=
 github.com/VictoriaMetrics/metricsql v0.84.5 h1:3JeIKpEh9yCNBVoeKJovICRvNea6h6m50h/RGW36P2g=
