@@ -28,3 +28,16 @@ func IsConst(a []int64) bool {
 	}
 	return true
 }
+
+func AreConstUint64s(a []uint64) bool {
+	if len(a) == 0 {
+		return false
+	}
+	v := a[0]
+	for i := 1; i < len(a); i++ {
+		if v != a[i] {
+			return false
+		}
+	}
+	return true
+}
