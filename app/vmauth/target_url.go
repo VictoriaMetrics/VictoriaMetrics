@@ -11,10 +11,12 @@ import (
 func mergeURLs(uiURL, requestURI *url.URL, dropSrcPathPrefixParts int) *url.URL {
 	targetURL := *uiURL
 	srcPath := dropPrefixParts(requestURI.Path, dropSrcPathPrefixParts)
-	if strings.HasPrefix(srcPath, "/") {
-		targetURL.Path = strings.TrimSuffix(targetURL.Path, "/")
+	// Collapse duplicate slashes at the boundary between targetURL.Path and srcPath
+	if targetURL.Path == "" {
+		targetURL.Path = srcPath
+	} else if srcPath != "" {
+		targetURL.Path = strings.TrimRight(targetURL.Path, "/") + "/" + strings.TrimLeft(srcPath, "/")
 	}
-	targetURL.Path += srcPath
 	requestParams := requestURI.Query()
 	// fast path
 	if len(requestParams) == 0 {
