@@ -129,13 +129,10 @@ publish-via-docker:
 		$(APP_NAME)-linux-ppc64le-prod \
 		$(APP_NAME)-linux-386-prod
 
-publish-via-docker-latest:
+publish-via-docker-latest: install-skopeo
 	$(foreach registry,$(DOCKER_REGISTRIES),\
-	        docker pull $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) && \
-	        docker tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest && \
-	        docker tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):stable && \
-	        docker push $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest && \
-	        docker push $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):stable; \
+		skopeo copy --all docker://$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) docker://$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest && \
+		skopeo copy --all docker://$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) docker://$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):stable; \
 	)
 
 run-via-docker: package-via-docker
@@ -254,3 +251,6 @@ docker-cluster-down: docker-vm-cluster-down
 
 docker-victorialogs-up: docker-vl-single-up
 docker-victorialogs-down: docker-vl-single-down
+
+install-skopeo:
+	which skopeo || (echo "skopeo is not installed. Please install it to use this target. See: https://github.com/containers/skopeo/blob/main/install.md" && exit 1);
