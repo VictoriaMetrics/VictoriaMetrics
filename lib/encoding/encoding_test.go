@@ -6,22 +6,6 @@ import (
 	"testing"
 )
 
-func TestIsConst(t *testing.T) {
-	f := func(a []int64, okExpected bool) {
-		t.Helper()
-		ok := isConst(a)
-		if ok != okExpected {
-			t.Fatalf("unexpected isConst for a=%d; got %v; want %v", a, ok, okExpected)
-		}
-	}
-	f([]int64{}, false)
-	f([]int64{1}, true)
-	f([]int64{1, 2}, false)
-	f([]int64{1, 1}, true)
-	f([]int64{1, 1, 1}, true)
-	f([]int64{1, 1, 2}, false)
-}
-
 func TestIsDeltaConst(t *testing.T) {
 	f := func(a []int64, okExpected bool) {
 		t.Helper()

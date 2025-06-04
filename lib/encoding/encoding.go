@@ -120,7 +120,7 @@ func marshalInt64Array(dst []byte, a []int64, precisionBits uint8) (result []byt
 	if len(a) == 0 {
 		logger.Panicf("BUG: a must contain at least one item")
 	}
-	if isConst(a) {
+	if IsConst(a) {
 		firstValue = a[0]
 		return dst, MarshalTypeConst, firstValue
 	}
@@ -283,28 +283,6 @@ func EnsureNonDecreasingSequence(a []int64, vMin, vMax int64) {
 			i--
 		}
 	}
-}
-
-// isConst returns true if a contains only equal values.
-func isConst(a []int64) bool {
-	if len(a) == 0 {
-		return false
-	}
-	if fastnum.IsInt64Zeros(a) {
-		// Fast path for array containing only zeros.
-		return true
-	}
-	if fastnum.IsInt64Ones(a) {
-		// Fast path for array containing only ones.
-		return true
-	}
-	v1 := a[0]
-	for _, v := range a {
-		if v != v1 {
-			return false
-		}
-	}
-	return true
 }
 
 // isDeltaConst returns true if a contains counter with constant delta.
