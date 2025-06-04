@@ -76,11 +76,21 @@ func (c *Cache) SaveToFileConcurrent(filePath string, concurrency int) error {
 	return nil
 }
 
+// LoadFromFileMaxBytes loads cache data from the specified filePath,
+// enforcing that the cache capacity matches the provided maxBytes value.
+//
+// Returns an error if the stored cache's capacity differs from maxBytes.
+//
+// See SaveToFile* for functions that persist cache data to a file.
+func LoadFromFileMaxBytes(filePath string, maxBytes int) (*Cache, error) {
+	return load(filePath, maxBytes)
+}
+
 // LoadFromFile loads cache data from the given filePath.
 //
 // See SaveToFile* for saving cache data to file.
-func LoadFromFile(filePath string, maxBytes int) (*Cache, error) {
-	return load(filePath, maxBytes)
+func LoadFromFile(filePath string) (*Cache, error) {
+	return load(filePath, 0)
 }
 
 // LoadFromFileOrNew tries loading cache data from the given filePath.
