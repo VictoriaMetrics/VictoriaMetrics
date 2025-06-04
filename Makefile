@@ -236,7 +236,7 @@ test-full:
 test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: all
+integration-test: all vmctl
 	go test ./apptest/... -skip="^TestSingle.*"
 
 benchmark:
