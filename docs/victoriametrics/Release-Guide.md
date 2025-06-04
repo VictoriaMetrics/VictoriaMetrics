@@ -75,7 +75,7 @@ Bumping the limits may significantly improve build speed.
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
 
-1. Run `TAG=v1.xx.y make publish-latest`. This command publishes the `latest` and `stable` Docker image tags for the given `TAG`.
+1. Run `TAG=v1.xx.y make publish-latest`. This command publishes the `latest` Docker image tag for the given `TAG`.
    This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
    [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
