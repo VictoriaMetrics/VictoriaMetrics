@@ -32,13 +32,10 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 	useCache := mayCache && tenantsCacheDuration.Seconds() > 0
 
 	if useCache {
-		cached, fullResult := tenantsCacheV.get(tr)
-		qtL.Printf("fetched %d tenants from cache, isComplete=%v", len(cached), fullResult)
-		if len(cached) > 0 && fullResult {
+		cached := tenantsCacheV.get(tr)
+		qtL.Printf("fetched %d tenants from cache", len(cached))
+		if len(cached) > 0 {
 			return cached, nil
-		}
-		if qtL.Enabled() {
-			qtL.Printf("cache contains %d tenants, but not fully covering the time range %s", len(cached), tr.String())
 		}
 	} else {
 		qtL.Printf("do not fetch list of tenants from cache")
@@ -155,19 +152,19 @@ func (tc *tenantsCache) Len() uint64 {
 	return uint64(n)
 }
 
-func (tc *tenantsCache) get(tr storage.TimeRange) ([]storage.TenantToken, bool) {
+func (tc *tenantsCache) get(tr storage.TimeRange) []storage.TenantToken {
 	tc.requests.Add(1)
 
 	alignTrToDay(&tr)
 	return tc.getInternal(tr)
 }
 
-func (tc *tenantsCache) getInternal(tr storage.TimeRange) ([]storage.TenantToken, bool) {
+func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	if len(tc.items) == 0 {
 		tc.misses.Add(1)
-		return nil, false
+		return nil
 	}
 	ct := time.Now()
 
@@ -181,7 +178,7 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) ([]storage.TenantToken
 			continue
 		}
 
-		if hasIntersection(tr, ci.tr) {
+		if isWithin(tr, ci.tr) {
 			coveredTRs = append(coveredTRs, ci.tr)
 			for _, t := range ci.tenants {
 				result[t] = struct{}{}
@@ -200,7 +197,7 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) ([]storage.TenantToken
 	if len(tenants) == 0 {
 		tc.misses.Add(1)
 	}
-	return tenants, isFullyCovered(tr, coveredTRs)
+	return tenants
 }
 
 // alignTrToDay aligns the given time range to the day boundaries
@@ -211,41 +208,7 @@ func alignTrToDay(tr *storage.TimeRange) {
 	tr.MaxTimestamp = timeutil.EndOfDay(tr.MaxTimestamp)
 }
 
-// hasIntersection checks if there is any intersection of the given time ranges
-func hasIntersection(a, b storage.TimeRange) bool {
-	return a.MinTimestamp <= b.MaxTimestamp && a.MaxTimestamp >= b.MinTimestamp
-}
-
-// isFullyCovered checks if the tr is fully covered by entries
-// Expects that tr is aligned to the day boundaries
-func isFullyCovered(tr storage.TimeRange, entries []storage.TimeRange) bool {
-	if len(entries) == 0 {
-		return false
-	}
-
-	dayDuration := (24 * time.Hour).Milliseconds()
-	days := make([]storage.TimeRange, 0, (tr.MaxTimestamp-tr.MinTimestamp)/dayDuration+1)
-	for t := tr.MinTimestamp; t <= tr.MaxTimestamp; {
-		tEnd := t + dayDuration
-		days = append(days, storage.TimeRange{
-			MinTimestamp: t,
-			MaxTimestamp: tEnd,
-		})
-		t = tEnd
-	}
-
-	for _, day := range days {
-		covered := false
-		for _, entry := range entries {
-			if hasIntersection(day, entry) {
-				covered = true
-				break
-			}
-		}
-		if !covered {
-			return false
-		}
-	}
-
-	return true
+// isWithin Check if range inner is fully within range outer
+func isWithin(inner, outer storage.TimeRange) bool {
+	return inner.MinTimestamp >= outer.MinTimestamp && inner.MaxTimestamp <= outer.MaxTimestamp
 }
