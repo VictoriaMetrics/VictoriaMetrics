@@ -786,7 +786,7 @@ To run vmalert in `replay` mode:
     -datasource.url=http://localhost:8428 \     # Prometheus HTTP API compatible datasource
     -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
     -replay.timeFrom=2021-05-11T07:21:43Z \     # to start replay from
-    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, is optional
+    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, optional. By default, set to the current time
 ```
 
 The output of the command will look like the following:
