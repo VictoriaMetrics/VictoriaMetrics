@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"io"
 	"net"
 	"net/http"
@@ -220,6 +222,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {
 		httpserver.Errorf(w, r, "auth error: %s", err)
+		return true
+	}
+
+	availableMemory := memory.Allowed() + memory.Remaining()
+	currentMemory := cgroup.GetMemoryUsage()
+	if currentMemory*100/int64(availableMemory) > 95 {
+		httpserver.Errorf(w, r, "out of memory error")
 		return true
 	}
 

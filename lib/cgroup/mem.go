@@ -48,6 +48,18 @@ func GetMemoryLimit() int64 {
 	return n
 }
 
+func GetMemoryUsage() int64 {
+	n, err := getMemStat("memory.usage_in_bytes")
+	if err == nil {
+		return n
+	}
+	n, err = getMemStatV2("memory.current")
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 func getMemStatV2(statName string) (int64, error) {
 	// See https: //www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
 	return getStatGeneric(statName, "/sys/fs/cgroup", "/proc/self/cgroup", "")
