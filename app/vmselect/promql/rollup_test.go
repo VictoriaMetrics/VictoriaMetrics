@@ -156,6 +156,14 @@ func TestRemoveCounterResets(t *testing.T) {
 	removeCounterResets(values, timestamps, 10)
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 
+	// verify that staleNaNs are respected
+	// it is important to have counter reset in values below to trigger correction logic
+	values = []float64{2, 4, 2, decimal.StaleNaN}
+	timestamps = []int64{10, 20, 30, 40}
+	valuesExpected = []float64{2, 4, 6, decimal.StaleNaN}
+	removeCounterResets(values, timestamps, 10)
+	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
+
 	// verify results always increase monotonically with possible float operations precision error
 	values = []float64{34.094223, 2.7518, 2.140669, 0.044878, 1.887095, 2.546569, 2.490149, 0.045, 0.035684, 0.062454, 0.058296}
 	timestampsExpected = []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
@@ -1525,16 +1533,29 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 				i, ts, tsExpected, timestamps, timestampsExpected)
 		}
 		vExpected := valuesExpected[i]
+		if decimal.IsStaleNaN(v) {
+			if !decimal.IsStaleNaN(vExpected) {
+				t.Fatalf("unexpected stale NaN value at values[%d]; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
+					i, vExpected, values, valuesExpected)
+			}
+			continue
+		}
+		if decimal.IsStaleNaN(vExpected) {
+			if !decimal.IsStaleNaN(v) {
+				t.Fatalf("unexpected value at values[%d]; got %f; want stale NaN\nvalues=\n%v\nvaluesExpected=\n%v",
+					i, v, values, valuesExpected)
+			}
+		}
 		if math.IsNaN(v) {
 			if !math.IsNaN(vExpected) {
-				t.Fatalf("unexpected nan value at values[%d]; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
+				t.Fatalf("unexpected NaN value at values[%d]; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
 					i, vExpected, values, valuesExpected)
 			}
 			continue
 		}
 		if math.IsNaN(vExpected) {
 			if !math.IsNaN(v) {
-				t.Fatalf("unexpected value at values[%d]; got %f; want nan\nvalues=\n%v\nvaluesExpected=\n%v",
+				t.Fatalf("unexpected value at values[%d]; got %f; want NaN\nvalues=\n%v\nvaluesExpected=\n%v",
 					i, v, values, valuesExpected)
 			}
 			continue

@@ -913,15 +913,21 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
+// removeCounterResets removes resets for rollup functions over counters - see rollupFuncsRemoveCounterResets
+// it doesn't remove resets between samples with staleNaNs, or samples that exceed maxStalenessInterval
 func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
-	// There is no need in handling NaNs here, since they are impossible
-	// on values from vmstorage.
 	if len(values) == 0 {
 		return
 	}
 	var correction float64
 	prevValue := values[0]
 	for i, v := range values {
+		if decimal.IsStaleNaN(v) {
+			// reset correction if series marked as stale
+			// see https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers
+			correction = 0
+			continue
+		}
 		d := v - prevValue
 		if d < 0 {
 			if (-d * 8) < prevValue {
