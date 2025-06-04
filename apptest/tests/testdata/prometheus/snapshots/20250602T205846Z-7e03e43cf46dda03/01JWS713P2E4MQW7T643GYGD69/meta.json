@@ -1,0 +1,17 @@
+{
+	"ulid": "01JWS713P2E4MQW7T643GYGD69",
+	"minTime": 1748897918112,
+	"maxTime": 1748897922411,
+	"stats": {
+		"numSamples": 2434,
+		"numSeries": 2434,
+		"numChunks": 2434
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01JWS713P2E4MQW7T643GYGD69"
+		]
+	},
+	"version": 1
+}
