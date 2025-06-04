@@ -168,7 +168,6 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 	}
 	ct := time.Now()
 
-	coveredTRs := make([]storage.TimeRange, 0)
 	result := make(map[storage.TenantToken]struct{})
 	cleanupNeeded := false
 	for idx := range tc.items {
@@ -179,7 +178,6 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 		}
 
 		if isWithin(tr, ci.tr) {
-			coveredTRs = append(coveredTRs, ci.tr)
 			for _, t := range ci.tenants {
 				result[t] = struct{}{}
 			}
