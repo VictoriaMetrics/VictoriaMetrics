@@ -131,11 +131,8 @@ publish-via-docker:
 
 publish-via-docker-latest:
 	$(foreach registry,$(DOCKER_REGISTRIES),\
-	        docker pull $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) && \
-	        docker tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest && \
-	        docker tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):stable && \
-	        docker push $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest && \
-	        docker push $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):stable; \
+		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) && \
+		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):stable $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG); \
 	)
 
 run-via-docker: package-via-docker
