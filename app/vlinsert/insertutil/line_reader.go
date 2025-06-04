@@ -101,9 +101,10 @@ func (lr *LineReader) readMoreData() bool {
 
 	bufLen := len(lr.buf)
 	if bufLen >= MaxLineSizeBytes.IntN() {
+		line := append([]byte(nil), lr.buf...)
 		ok, skippedBytes := lr.skipUntilNextLine()
 		logger.Warnf("%s: the line length exceeds -insert.maxLineSizeBytes=%d; skipping it; total skipped bytes=%d; line contents=%q",
-			lr.name, MaxLineSizeBytes.IntN(), skippedBytes, lr.buf)
+			lr.name, MaxLineSizeBytes.IntN(), skippedBytes, line)
 		tooLongLinesSkipped.Inc()
 		return ok
 	}
