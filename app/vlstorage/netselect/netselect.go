@@ -248,6 +248,9 @@ func (sn *storageNode) executeRequestAt(ctx context.Context, path string, args u
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when creating a request: %s", err)
 	}
+	if err := sn.ac.SetHeaders(req, true); err != nil {
+		return nil, fmt.Errorf("cannot set auth headers for %q: %w", reqURL, err)
+	}
 
 	// send the request to the storage node
 	resp, err := sn.c.Do(req)
