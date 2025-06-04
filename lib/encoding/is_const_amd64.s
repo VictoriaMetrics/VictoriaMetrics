@@ -14,6 +14,8 @@ TEXT ·IsConst(SB), NOSPLIT | NOFRAME, $0-25
     ANDQ $-4, R10  // align_len = count & -4
     LEAQ (R8)(R10*8), R11  // align_4_end = in + align_len*8
     MOVQ (R8), R12  // first_value = *current
+    CMPQ R9, $4
+    JLT align_4_end
     VPBROADCASTQ R12, Y1  // Y1 = [first_value,first_value,first_value,first_value]
 align_4:
     CMPQ R8, R11  // if current==align_4_end then goto label_align_4_end

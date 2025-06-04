@@ -13,7 +13,7 @@ pkg: github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding
 cpu: Intel(R) Xeon(R) Platinum 8260 CPU @ 2.40GHz
 Benchmark_is_const-8        3028            420935 ns/op        19928.63 MB/s          0 B/op          0 allocs/op
 
-47.9% fast then old version
+47.9% faster then old version.
 */
 func Benchmark_is_const(b *testing.B) {
 	cnt := 1024*1024 + 7
