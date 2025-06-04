@@ -46,7 +46,7 @@ func TestRollupResultCache(t *testing.T) {
 			ProjectID: 843,
 		}},
 
-		MayCache: true,
+		NoCache: false,
 	}
 	me := &metricsql.MetricExpr{
 		LabelFilterss: [][]metricsql.LabelFilter{

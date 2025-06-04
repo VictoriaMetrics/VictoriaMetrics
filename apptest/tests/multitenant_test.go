@@ -216,4 +216,15 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
+	if got := vmselect.GetIntMetric(t, `vm_cache_requests_total{type="multitenancy/tenants"}`); got != 0 {
+		t.Errorf("unexpected multitenancy tenants cache requests; got %d; want 0", got)
+	}
+
+	if got := vmselect.GetIntMetric(t, `vm_cache_misses_total{type="multitenancy/tenants"}`); got != 0 {
+		t.Errorf("unexpected multitenancy tenants cache misses; got %d; want 0", got)
+	}
+
+	if got := vmselect.GetIntMetric(t, `vm_cache_entries{type="multitenancy/tenants"}`); got != 0 {
+		t.Errorf("unexpected multitenancy tenants cache entries; got %d; want 0", got)
+	}
 }
