@@ -24,10 +24,7 @@ func TestSingleVmctlPrometheusProtocol(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	vmsingleDst := tc.MustStartVmsingle("vmsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmsingle",
-		"-retentionPeriod=100y",
-	})
+	vmsingleDst := tc.MustStartDefaultVmsingle()
 	vmAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
 	vmctlFlags := []string{
 		`prometheus`,
@@ -45,23 +42,8 @@ func TestClusterVmctlPrometheusProtocol(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage",
-		"-retentionPeriod=100y",
-	})
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		"-storageNode=" + vmstorage.VminsertAddr(),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
-		"-storageNode=" + vmstorage.VmselectAddr(),
-	})
-
-	cluster := &apptest.Vmcluster{
-		Vminsert:   vminsert,
-		Vmselect:   vmselect,
-		Vmstorages: []*apptest.Vmstorage{vmstorage},
-	}
-	vmAddr := fmt.Sprintf("http://%s/", vminsert.HTTPAddr())
+	cluster := tc.MustStartDefaultCluster()
+	vmAddr := fmt.Sprintf("http://%s/", cluster.Vminsert.HTTPAddr())
 	vmctlFlags := []string{
 		`prometheus`,
 		`--prom-snapshot=` + testSnapshot,
