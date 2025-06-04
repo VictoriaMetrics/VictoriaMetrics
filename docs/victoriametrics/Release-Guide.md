@@ -75,9 +75,6 @@ Bumping the limits may significantly improve build speed.
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
 
-1. Run `TAG=v1.xx.y make publish-latest`. This command publishes the `latest` and `stable` Docker image tags for the given `TAG`.
-   This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
-   [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
 
    - a) Create draft GitHub release with the name `TAG`. This step can be run manually
@@ -119,6 +116,9 @@ Bumping the limits may significantly improve build speed.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
+1. Run `TAG=v1.xx.y make publish-latest`. This command publishes the `latest` Docker image tag for the given `TAG`.
+   This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
+   [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
 1. Bump VictoriaMetrics version at `deployment/docker/*.yml`. For example:
 
