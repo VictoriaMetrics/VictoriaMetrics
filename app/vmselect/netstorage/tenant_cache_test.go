@@ -12,7 +12,7 @@ import (
 func TestFetchingTenants(t *testing.T) {
 	tc := newTenantsCache(5 * time.Second)
 
-	dayMs := (time.Hour * 24 * 1000).Milliseconds()
+	dayMs := (time.Hour * 24).Milliseconds()
 
 	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []storage.TenantToken{
 		{AccountID: 1, ProjectID: 1},
@@ -68,23 +68,22 @@ func TestFetchingTenants(t *testing.T) {
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs / 2}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
 	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs - 1}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
 
-	// Overlapping time ranges
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 2*dayMs - 1}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
-	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs + dayMs/2}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
+	// No single item to cover full range
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 2*dayMs - 1}, []storage.TenantToken{})
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs + dayMs/2}, []storage.TenantToken{})
 }
 
-func TestHasIntersection(t *testing.T) {
+func TestIsWithin(t *testing.T) {
 	f := func(inner, outer storage.TimeRange, expected bool) {
 		t.Helper()
-		if hasIntersection(inner, outer) != expected {
+		if isWithin(inner, outer) != expected {
 			t.Fatalf("unexpected result for inner=%+v, outer=%+v", inner, outer)
 		}
 	}
 
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, true)
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, true)
-	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, true)
-	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 10, MaxTimestamp: 80}, true)
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 150}, true)
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 150}, true)
+	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 80}, storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 150}, true)
 
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 50}, storage.TimeRange{MinTimestamp: 60, MaxTimestamp: 100}, false)
 	f(storage.TimeRange{MinTimestamp: 100, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 60, MaxTimestamp: 80}, false)

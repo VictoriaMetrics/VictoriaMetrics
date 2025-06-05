@@ -177,7 +177,7 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 			continue
 		}
 
-		if hasIntersection(tr, ci.tr) {
+		if isWithin(tr, ci.tr) {
 			for _, t := range ci.tenants {
 				result[t] = struct{}{}
 			}
@@ -195,7 +195,6 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 	if len(tenants) == 0 {
 		tc.misses.Add(1)
 	}
-
 	return tenants
 }
 
@@ -207,7 +206,7 @@ func alignTrToDay(tr *storage.TimeRange) {
 	tr.MaxTimestamp = timeutil.EndOfDay(tr.MaxTimestamp)
 }
 
-// hasIntersection checks if there is any intersection of the given time ranges
-func hasIntersection(a, b storage.TimeRange) bool {
-	return a.MinTimestamp <= b.MaxTimestamp && a.MaxTimestamp >= b.MinTimestamp
+// isWithin Check if range inner is fully within range outer
+func isWithin(inner, outer storage.TimeRange) bool {
+	return inner.MinTimestamp >= outer.MinTimestamp && inner.MaxTimestamp <= outer.MaxTimestamp
 }
