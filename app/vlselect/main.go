@@ -74,7 +74,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles select requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
 	if strings.HasPrefix(path, "/select/") {
 		if *disableSelect {
@@ -100,7 +100,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	ctx := r.Context()
 
-	path = strings.ReplaceAll(path, "//", "/")
 	if path == "/select/vmui" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics

@@ -34,7 +34,7 @@ func Stop() {
 
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
 	if strings.HasPrefix(path, "/insert/") {
 		if *disableInsert {
@@ -59,7 +59,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	path = strings.TrimPrefix(path, "/insert")
-	path = strings.ReplaceAll(path, "//", "/")
 
 	switch path {
 	case "/jsonline":
