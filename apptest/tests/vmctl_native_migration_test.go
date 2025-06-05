@@ -116,6 +116,36 @@ func TestClusterToClusterVmctlNativeProtocol(t *testing.T) {
 	testNativeProtocol(tc, clusterSrc, clusterDst, flags)
 }
 
+func TestClusterTenantsToTenantsvmctlNativeProtocol(t *testing.T) {
+	os.RemoveAll(t.Name())
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	clusterSrc := tc.MustStartDefaultCluster()
+	clusterDst := tc.MustStartCluster(&apptest.ClusterOptions{
+		Vmstorage1Instance: "vmstorageDst1",
+		Vmstorage2Instance: "vmstorageDst2",
+		VminsertInstance:   "vminsertDst",
+		VmselectInstance:   "vmselectDst",
+	})
+
+	vmSrcAddr := fmt.Sprintf("http://%s/", clusterSrc.SelectHTTPAddr())
+	vmDstAddr := fmt.Sprintf("http://%s/", clusterDst.InsertHTTPAddr())
+
+	flags := []string{
+		`vm-native`,
+		`--vm-native-src-addr=` + vmSrcAddr,
+		`--vm-native-dst-addr=` + vmDstAddr,
+		`--vm-native-filter-match={__name__=~".*"}`,
+		`--vm-native-filter-time-start=2025-05-30T16:39:00Z`,
+		`--disable-progress-bar=true`,
+		`--vm-intercluster`,
+	}
+
+	testNativeProtocol(tc, clusterSrc, clusterDst, flags)
+}
+
 func testNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuerier, dstSut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
 	t := tc.T()
 	t.Helper()

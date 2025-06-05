@@ -227,6 +227,23 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	return status
 }
 
+func (app *Vmselect) APIV1AdminTenants(t *testing.T) AdminTenantsResponse {
+	t.Helper()
+
+	tenantsURL := fmt.Sprintf("http://%s/admin/api/v1/tenants", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, tenantsURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var tenants AdminTenantsResponse
+	if err := json.Unmarshal([]byte(res), &tenants); err != nil {
+		t.Fatalf("could not unmarshal tenants response data:\n%s\n err: %v", res, err)
+	}
+
+	return tenants
+}
+
 // String returns the string representation of the vmselect app state.
 func (app *Vmselect) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
