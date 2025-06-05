@@ -196,10 +196,12 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 func (b *block) assertValid() {
 	// Check that timestamps are in ascending order
 	timestamps := b.timestamps
-	for i := 1; i < len(timestamps); i++ {
-		if timestamps[i-1] > timestamps[i] {
-			logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
-				timestamps[i-1], timestamps[i])
+	if !encoding.IsInt64ArraySorted(timestamps) {
+		for i := 1; i < len(timestamps); i++ {
+			if timestamps[i-1] > timestamps[i] {
+				logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
+					timestamps[i-1], timestamps[i])
+			}
 		}
 	}
 
@@ -360,10 +362,12 @@ func canStoreInConstColumn(rows [][]Field, colIdx int) bool {
 }
 
 func assertTimestampsSorted(timestamps []int64) {
-	for i := range timestamps {
-		if i > 0 && timestamps[i-1] > timestamps[i] {
-			logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
-				timestamps[i-1], timestamps[i])
+	if !encoding.IsInt64ArraySorted(timestamps) {
+		for i := range timestamps {
+			if i > 0 && timestamps[i-1] > timestamps[i] {
+				logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
+					timestamps[i-1], timestamps[i])
+			}
 		}
 	}
 }
