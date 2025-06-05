@@ -80,7 +80,7 @@ func IsErrMissingPort(err error) bool {
 // It returns the normalized address in the form "host:port".
 // It is expected that addr is in the form "host" or "host:port".
 func NormalizeAddr(addr string, defaultPort int) (string, error) {
-	if strings.Index(addr, "/") > 0 {
+	if strings.Index(addr, "/") > -1 {
 		return "", fmt.Errorf("invalid address %q; expected format: host:port", addr)
 	}
 
