@@ -88,9 +88,9 @@ func (app *Vminsert) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
-// HTTPAddr returns the address at which the vminsert process is
+// InsertHTTPAddr returns the address at which the vminsert process is
 // listening for incoming HTTP requests.
-func (app *Vminsert) HTTPAddr() string {
+func (app *Vminsert) InsertHTTPAddr() string {
 	return app.httpListenAddr
 }
 

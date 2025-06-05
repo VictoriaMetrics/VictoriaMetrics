@@ -55,6 +55,12 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// SelectHTTPAddr returns the address at which the vmselect process is
+// listening for incoming HTTP requests.
+func (app *Vmselect) SelectHTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // PrometheusAPIV1Export is a test helper function that performs the export of
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmselect endpoint.
