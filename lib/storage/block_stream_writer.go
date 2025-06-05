@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -132,8 +131,8 @@ func (bsw *blockStreamWriter) MustClose() {
 }
 
 // WriteExternalBlock writes b to bsw and updates ph and rowsMerged.
-func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsMerged *atomic.Uint64) {
-	rowsMerged.Add(uint64(b.rowsCount()))
+func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsMerged *uint64) {
+	*rowsMerged += uint64(b.rowsCount())
 	b.deduplicateSamplesDuringMerge()
 	headerData, timestampsData, valuesData := b.MarshalData(bsw.timestampsBlockOffset, bsw.valuesBlockOffset)
 
