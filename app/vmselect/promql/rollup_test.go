@@ -1540,6 +1540,8 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 			}
 			continue
 		}
+		// staleNaNBits == math.NaN(), but decimal.IsStaleNaN(math.NaN()) == false
+		// so we check for decimal.IsStaleNaN first.
 		if decimal.IsStaleNaN(vExpected) {
 			if !decimal.IsStaleNaN(v) {
 				t.Fatalf("unexpected value at values[%d]; got %f; want stale NaN\nvalues=\n%v\nvaluesExpected=\n%v",
