@@ -39,7 +39,7 @@ func TestSingleToSingleVmctlNativeProtocol(t *testing.T) {
 	testNativeProtocol(tc, vmsingleSrc, vmsingleDst, flags)
 }
 
-func TestSingleToClusterVmctlNativeProtocol(t *testing.T) {
+func TestClusterSingleToClusterVmctlNativeProtocol(t *testing.T) {
 	os.RemoveAll(t.Name())
 
 	tc := apptest.NewTestCase(t)
