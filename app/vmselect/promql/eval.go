@@ -144,6 +144,13 @@ type EvalConfig struct {
 	// EnforcedTagFilterss may contain additional label filters to use in the query.
 	EnforcedTagFilterss [][]storage.TagFilter
 
+	// CacheTagFilters stores the original tag-filter sets from the request.
+	// The slice is never modified after creation and is used only to build
+	// the query-cache key.
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9001
+	CacheTagFilters [][]storage.TagFilter
+
 	// The callback, which returns the request URI during logging.
 	// The request URI isn't stored here because its' construction may take non-trivial amounts of CPU.
 	GetRequestURI func() string
@@ -178,6 +185,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
+	ec.CacheTagFilters = src.CacheTagFilters
 	ec.GetRequestURI = src.GetRequestURI
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse.Store(src.IsPartialResponse.Load())

@@ -952,6 +952,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		CacheTagFilters:     etfs,
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
@@ -1067,6 +1068,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		CacheTagFilters:     etfs,
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
