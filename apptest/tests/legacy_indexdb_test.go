@@ -114,7 +114,8 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 	// Use the same number of metrics and time range for all the data ingestions
 	// below.
 	const numMetrics = 1000
-	end := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	// With 1000 metrics (one per minute), the time range spans 2 months.
+	end := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).UnixMilli()
 	start := end - numMetrics*msecPerMinute
 
 	// Verify backup/restore with legacy vmsingle:
