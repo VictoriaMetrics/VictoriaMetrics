@@ -485,6 +485,16 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -ratelimit.refreshInterval duration
       (default 5s)
+  -read.tlsCAFile string
+     Path to TLS CA file to verify the server certificate when connecting to -read.url
+  -read.tlsCertFile string
+     Path to client-side TLS certificate file to use when connecting to -read.url
+  -read.tlsInsecureSkipVerify
+     Whether to skip verification of the server certificate when connecting to -read.url
+  -read.tlsKeyFile string
+     Path to client-side TLS key file to use when connecting to -read.url
+  -read.tlsServerName string
+     TLS server name to use for server certificate verification when connecting to -read.url
   -read.url string
      read access url address, example: http://vmselect:8481
   -remoteRead.disablePathAppend
@@ -519,6 +529,16 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
+  -write.tlsCAFile string
+     Path to TLS CA file to verify the server certificate when connecting to -write.url
+  -write.tlsCertFile string
+     Path to client-side TLS certificate file to use when connecting to -write.url
+  -write.tlsInsecureSkipVerify
+     Whether to skip verification of the server certificate when connecting to -write.url
+  -write.tlsKeyFile string
+     Path to client-side TLS key file to use when connecting to -write.url
+  -write.tlsServerName string
+     TLS server name to use for server certificate verification when connecting to -write.url
   -write.url string
      write access url address, example: http://vminsert:8480
 ```

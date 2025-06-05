@@ -38,9 +38,10 @@ type table struct {
 
 	stopCh chan struct{}
 
-	retentionWatcherWG  sync.WaitGroup
-	finalDedupWatcherWG sync.WaitGroup
-	forceMergeWG        sync.WaitGroup
+	retentionWatcherWG sync.WaitGroup
+	forceMergeWG       sync.WaitGroup
+
+	historicalMergeWatcherWG sync.WaitGroup
 }
 
 // partitionWrapper provides refcounting mechanism for the partition.
@@ -130,7 +131,7 @@ func mustOpenTable(path string, s *Storage) *table {
 		tb.addPartitionNolock(pt)
 	}
 	tb.startRetentionWatcher()
-	tb.startFinalDedupWatcher()
+	tb.startHistoricalMergeWatcher()
 	return tb
 }
 
@@ -201,7 +202,7 @@ func (tb *table) addPartitionNolock(pt *partition) {
 func (tb *table) MustClose() {
 	close(tb.stopCh)
 	tb.retentionWatcherWG.Wait()
-	tb.finalDedupWatcherWG.Wait()
+	tb.historicalMergeWatcherWG.Wait()
 	tb.forceMergeWG.Wait()
 
 	tb.ptwsLock.Lock()
@@ -542,48 +543,65 @@ func (tb *table) retentionWatcher() {
 	}
 }
 
-func (tb *table) startFinalDedupWatcher() {
-	tb.finalDedupWatcherWG.Add(1)
+func (tb *table) startHistoricalMergeWatcher() {
+	tb.historicalMergeWatcherWG.Add(1)
 	go func() {
-		tb.finalDedupWatcher()
-		tb.finalDedupWatcherWG.Done()
+		tb.historicalMergeWatcher()
+		tb.historicalMergeWatcherWG.Done()
 	}()
 }
 
-func (tb *table) finalDedupWatcher() {
+func (tb *table) historicalMergeWatcher() {
 	if !isDedupEnabled() {
-		// Deduplication is disabled.
+		// Deduplication and retentionFilters are disabled.
 		return
 	}
+
 	f := func() {
 		ptws := tb.GetPartitions(nil)
 		defer tb.PutPartitions(ptws)
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
-		var ptwsToDedup []*partitionWrapper
+
+		var ptwsToMerge []*partitionWrapper
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
-				// Do not run final dedup for the current month.
+				// Do not run force merge for the current month.
 				// For the current month, the samples are countinously
-				// deduplicated by the background in-memory, small, and big part
+				// deduplicated and retention fileters applied by the background in-memory, small, and big part
 				// merge tasks. See:
 				// - partition.mergeParts() in paritiont.go and
 				// - Block.deduplicateSamplesDuringMerge() in block.go.
+				// - blockStreamMerger.getRetentionDeadline() in block_stream_merger.go
 				continue
 			}
-			if !ptw.pt.isFinalDedupNeeded() {
-				// There is no need to run final dedup for the given partition.
-				continue
+			mergeScheduled := false
+			if ptw.pt.isFinalDedupNeeded() {
+				// mark partition with final deduplication marker
+				ptw.pt.isDedupScheduled.Store(true)
+				mergeScheduled = true
 			}
-			// mark partition with final deduplication marker
-			ptw.pt.isDedupScheduled.Store(true)
-			ptwsToDedup = append(ptwsToDedup, ptw)
+			if mergeScheduled {
+				ptwsToMerge = append(ptwsToMerge, ptw)
+			}
 		}
-		for _, ptw := range ptwsToDedup {
-			if err := ptw.pt.runFinalDedup(tb.stopCh); err != nil {
-				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
+		for _, ptw := range ptwsToMerge {
+			t := time.Now()
+			pt := ptw.pt
+			var logContext []string
+			var logErrContext []string
+			if pt.isDedupScheduled.Load() {
+				logContext = append(logContext, "removing duplicate samples")
+				logErrContext = append(logErrContext, "remove duplicate samples")
 			}
-			ptw.pt.isDedupScheduled.Store(false)
+
+			logger.Infof("start %s for partition (%s, %s)", strings.Join(logContext, " and "), pt.bigPartsPath, pt.smallPartsPath)
+			if err := pt.ForceMergeAllParts(tb.stopCh); err != nil {
+				logger.Errorf("cannot %s for partition (%s, %s): %w", strings.Join(logErrContext, " and "), pt.bigPartsPath, pt.smallPartsPath, err)
+			}
+			logger.Infof("finished %s for partition (%s, %s) in %.3f seconds", strings.Join(logContext, " and "), pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
+
+			pt.isDedupScheduled.Store(false)
 		}
 	}
 

@@ -4,7 +4,8 @@ from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 VictoriaLogs provides the following features:
 
 - It is resource-efficient and fast. It uses up to 30x less RAM and up to 15x less disk space than other solutions such as Elasticsearch and Grafana Loki.
-  See [benchmarks](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
+  See [these benchmarks](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
+  See also [the post from a happy user, who replaced 27-node Elasticsearch with a single-node VictoriaLogs](https://aus.social/@phs/114583927679254536).
 - VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
   It can scale horizontally to many nodes in [cluster mode](https://docs.victoriametrics.com/victorialogs/cluster/).
@@ -397,6 +398,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
   -http.connTimeout duration
     	Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+    	Disable CORS for all origins (*)
   -http.disableResponseCompression
     	Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -430,6 +433,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The interval for guaranteed saving of in-memory data to disk. The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). Smaller intervals increase disk IO load. Minimum supported value is 1s (default 5s)
   -insert.concurrency int
     	The average number of concurrent data ingestion requests, which can be sent to every -storageNode (default 2)
+  -insert.disable
+    	Whether to disable /insert/* HTTP endpoints
   -insert.disableCompression
     	Whether to disable compression when sending the ingested data to -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
   -insert.maxFieldsPerLine int
@@ -497,7 +502,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The maximum size in bytes of a single Loki request
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -maxConcurrentInserts int
-    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 28)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -545,11 +550,13 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.maxConcurrentRequests int
-    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
+    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 14)
   -search.maxQueryDuration duration
     	The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -select.disable
+    	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
     	Whether to disable compression for select query responses received from -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
   -storage.minFreeDiskSpaceBytes size
@@ -611,6 +618,14 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.compressMethod.udp array
     	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.decolorizeFields.tcp array
+    	Fields to remove ANSI color codes across logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#decolorizing-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.decolorizeFields.udp array
+    	Fields to remove ANSI color codes across logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#decolorizing-fields
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.extraFields.tcp array

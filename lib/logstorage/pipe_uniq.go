@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUniq processes '| uniq ...' queries.
@@ -29,10 +30,7 @@ type pipeUniq struct {
 }
 
 func (pu *pipeUniq) String() string {
-	s := "uniq"
-	if len(pu.byFields) > 0 {
-		s += " by (" + fieldNamesString(pu.byFields) + ")"
-	}
+	s := "uniq by (" + fieldNamesString(pu.byFields) + ")"
 	if pu.hitsFieldName != "" {
 		s += " with hits"
 	}
@@ -57,15 +55,9 @@ func (pu *pipeUniq) canLiveTail() bool {
 	return false
 }
 
-func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
-
-	if len(pu.byFields) == 0 {
-		neededFields.add("*")
-	} else {
-		neededFields.addFields(pu.byFields)
-	}
+func (pu *pipeUniq) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.Reset()
+	pf.AddAllowFilters(pu.byFields)
 }
 
 func (pu *pipeUniq) hasFilterInWithQuery() bool {
@@ -140,22 +132,6 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 
 	needHits := shard.pu.hitsFieldName != ""
 	byFields := shard.pu.byFields
-	if len(byFields) == 0 {
-		// Take into account all the columns in br.
-		keyBuf := shard.keyBuf
-		cs := br.getColumns()
-		for i := 0; i < br.rowsLen; i++ {
-			keyBuf = keyBuf[:0]
-			for _, c := range cs {
-				v := c.getValueAtRow(br, i)
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
-			}
-			shard.m.updateStateString(keyBuf, 1)
-		}
-		shard.keyBuf = keyBuf
-		return true
-	}
 	if len(byFields) == 1 {
 		// Fast path for a single field.
 		shard.updateStatsSingleColumn(br, byFields[0], needHits)
@@ -365,36 +341,7 @@ func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHi
 		return dst
 	}
 
-	if len(byFields) == 0 {
-		for k, pHits := range hm.strings {
-			if needStop(pup.stopCh) {
-				return
-			}
-
-			rowFields = rowFields[:0]
-			keyBuf := bytesutil.ToUnsafeBytes(k)
-			for len(keyBuf) > 0 {
-				name, nSize := encoding.UnmarshalBytes(keyBuf)
-				if nSize <= 0 {
-					logger.Panicf("BUG: cannot unmarshal field name")
-				}
-				keyBuf = keyBuf[nSize:]
-
-				value, nSize := encoding.UnmarshalBytes(keyBuf)
-				if nSize <= 0 {
-					logger.Panicf("BUG: cannot unmarshal field value")
-				}
-				keyBuf = keyBuf[nSize:]
-
-				rowFields = append(rowFields, Field{
-					Name:  bytesutil.ToUnsafeString(name),
-					Value: bytesutil.ToUnsafeString(value),
-				})
-			}
-			rowFields = addHitsFieldIfNeeded(rowFields, pHits)
-			wctx.writeRow(rowFields)
-		}
-	} else if len(byFields) == 1 {
+	if len(byFields) == 1 {
 		fieldName := byFields[0]
 		for n, pHits := range hm.u64 {
 			if needStop(pup.stopCh) {
@@ -598,8 +545,8 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 	} else if needFields {
 		return nil, fmt.Errorf("missing fields after 'by'")
 	}
-	if slices.Contains(byFields, "*") {
-		byFields = nil
+	if len(byFields) == 0 {
+		return nil, fmt.Errorf("missing fields inside 'by(...)'")
 	}
 
 	pu := &pipeUniq{

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterSequence matches an ordered sequence of phrases
@@ -32,8 +33,8 @@ func (fs *filterSequence) String() string {
 	return fmt.Sprintf("%sseq(%s)", quoteFieldNameIfNeeded(fs.fieldName), strings.Join(a, ","))
 }
 
-func (fs *filterSequence) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fs.fieldName)
+func (fs *filterSequence) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fs.fieldName)
 }
 
 func (fs *filterSequence) getTokens() []string {

@@ -7,23 +7,24 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsValues struct {
-	fields []string
-	limit  uint64
+	fieldFilters []string
+	limit        uint64
 }
 
 func (sv *statsValues) String() string {
-	s := "values(" + statsFuncFieldsToString(sv.fields) + ")"
+	s := "values(" + fieldNamesString(sv.fieldFilters) + ")"
 	if sv.limit > 0 {
 		s += fmt.Sprintf(" limit %d", sv.limit)
 	}
 	return s
 }
 
-func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
+func (sv *statsValues) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sv.fieldFilters)
 }
 
 func (sv *statsValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -42,17 +43,13 @@ func (svp *statsValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blockRe
 	}
 
 	stateSizeIncrease := 0
-	fields := sv.fields
-	if len(fields) == 0 {
-		for _, c := range br.getColumns() {
-			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
-		}
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
-		}
+
+	mc := getMatchingColumns(br, sv.fieldFilters)
+	for _, c := range mc.cs {
+		stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
 	}
+	putMatchingColumns(mc)
+
 	return stateSizeIncrease
 }
 
@@ -112,17 +109,13 @@ func (svp *statsValuesProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	}
 
 	stateSizeIncrease := 0
-	fields := sv.fields
-	if len(fields) == 0 {
-		for _, c := range br.getColumns() {
-			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
-		}
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
-		}
+
+	mc := getMatchingColumns(br, sv.fieldFilters)
+	for _, c := range mc.cs {
+		stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
 	}
+	putMatchingColumns(mc)
+
 	return stateSizeIncrease
 }
 
@@ -230,12 +223,12 @@ func (svp *statsValuesProcessor) limitReached(sv *statsValues) bool {
 }
 
 func parseStatsValues(lex *lexer) (*statsValues, error) {
-	fields, err := parseStatsFuncFields(lex, "values")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "values")
 	if err != nil {
 		return nil, err
 	}
 	sv := &statsValues{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	if lex.isKeyword("limit") {
 		lex.nextToken()

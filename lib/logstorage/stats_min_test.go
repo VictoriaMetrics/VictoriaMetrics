@@ -14,6 +14,7 @@ func TestParseStatsMinSuccess(t *testing.T) {
 	f(`min(*)`)
 	f(`min(a)`)
 	f(`min(a, b)`)
+	f(`min(a*, b)`)
 }
 
 func TestParseStatsMinFailure(t *testing.T) {

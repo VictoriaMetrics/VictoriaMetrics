@@ -2,24 +2,12 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
-func updateNeededFieldsForUpdatePipe(neededFields, unneededFields fieldsSet, field string, iff *ifFilter) {
-	if neededFields.isEmpty() {
-		if iff != nil {
-			neededFields.addFields(iff.neededFields)
-		}
-		return
-	}
-
-	if neededFields.contains("*") {
-		if !unneededFields.contains(field) && iff != nil {
-			unneededFields.removeFields(iff.neededFields)
-		}
-	} else {
-		if neededFields.contains(field) && iff != nil {
-			neededFields.addFields(iff.neededFields)
-		}
+func updateNeededFieldsForUpdatePipe(pf *prefixfilter.Filter, field string, iff *ifFilter) {
+	if iff != nil && (pf.MatchString(field) || pf.MatchNothing()) {
+		pf.AddAllowFilters(iff.allowFilters)
 	}
 }
 

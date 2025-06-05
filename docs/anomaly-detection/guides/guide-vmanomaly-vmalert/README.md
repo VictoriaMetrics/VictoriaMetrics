@@ -40,7 +40,7 @@ The value is designed to:
 - *fall between 0 and 1* if model consider that datapoint is following usual pattern
 - *exceed 1* if the datapoint is abnormal
 
-Then, users can enable alerting rules based on the **anomaly score** with [vmalert](#what-is-vmalert).
+Then, users can enable alerting rules based on the **anomaly score** with [vmalert](#id-2-what-is-vmalert).
 
 ## 2. What is vmalert?
 
@@ -387,7 +387,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.21.0
+    image: victoriametrics/vmanomaly:v1.23.0
     depends_on:
       - "victoriametrics"
     ports:

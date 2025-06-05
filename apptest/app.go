@@ -31,6 +31,7 @@ type app struct {
 	binary   string
 	flags    []string
 	process  *os.Process
+	wait     bool
 }
 
 // appOptions holds the optional configuration of an app, such as default flags
@@ -76,6 +77,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		binary:   binary,
 		flags:    flags,
 		process:  cmd.Process,
+		wait:     opts.wait,
 	}
 
 	go app.processOutput("stdout", stdout, app.writeToStderr)
@@ -95,7 +97,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
-	if opts.wait {
+	if app.wait {
 		err = cmd.Wait()
 	}
 
@@ -119,9 +121,12 @@ func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
 	return flags
 }
 
-// stop sends the app process a SIGINT signal and waits until it terminates
+// Stop sends the app process a SIGINT signal and waits until it terminates
 // gracefully.
 func (app *app) Stop() {
+	if app.wait {
+		return
+	}
 	if err := app.process.Signal(os.Interrupt); err != nil {
 		log.Fatalf("Could not send SIGINT signal to %s process: %v", app.instance, err)
 	}

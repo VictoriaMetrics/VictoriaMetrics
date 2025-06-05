@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeBlocksCount processes '| blocks_count' pipe.
@@ -36,9 +37,8 @@ func (pc *pipeBlocksCount) canLiveTail() bool {
 	return false
 }
 
-func (pc *pipeBlocksCount) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (pc *pipeBlocksCount) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.Reset()
 }
 
 func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {

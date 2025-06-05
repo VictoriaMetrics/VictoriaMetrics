@@ -143,7 +143,7 @@ _time:5m error -(buggy_app OR foobar)
 ```
 
 The parentheses are **required** here, since otherwise the query won't return the expected results.
-The query `error -buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
+The query `error -buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filter).
 This query returns logs with `foobar` [word](#word), even if they do not contain `error` word or contain `buggy_app` word.
 So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
@@ -1651,6 +1651,13 @@ The `as` keyword is optional.
 
 `cp` keyword can be used instead of `copy` for convenience. For example, `_time:5m | cp foo bar` is equivalent to `_time:5m | copy foo as bar`.
 
+It is possible to copy multiple fields with identical prefix to fields with another prefix. For example, the following query copies
+all the fields with the prefix `foo` to fields with the prefix `bar`:
+
+```logsql
+_time:5m | copy foo* as bar*
+```
+
 See also:
 
 - [`rename` pipe](#rename-pipe)
@@ -1693,6 +1700,12 @@ _time:5m | delete host, app
 ```
 
 `drop`, `del` and `rm` keywords can be used instead of `delete` for convenience. For example, `_time:5m | drop host` is equivalent to `_time:5m | delete host`.
+
+It is possible to delete fields with common prefix. For example, the following query deletes all the fields with `foo` prefix:
+
+```logsql
+_time:5m | delete foo*
+```
 
 See also:
 
@@ -2026,6 +2039,13 @@ _time:5m | fields host, _msg
 
 ```logsql
 _time:5m | keep host, _msg
+```
+
+It is possible to use wildcard prefixes in the list of fields to keep. For example, the following query keeps all the fields with names starting with `foo` prefix,
+while drops the rest of the fields:
+
+```logsql
+_time:5m | fields foo*
 ```
 
 See also:
@@ -2567,6 +2587,25 @@ The `as` keyword is optional.
 
 `mv` keyword can be used instead of `rename` keyword for convenience. For example, `_time:5m | mv foo bar` is equivalent to `_time:5m | rename foo as bar`.
 
+It is possible to rename multiple fields with the given prefix to fields with another prefix. For example, the following query renames all the fields
+starting with `foo` prefix to fields starting with `bar` prefix:
+
+```logsql
+_time:5m | rename foo* as bar*
+```
+
+It is also possible removing common prefix from some fields. For example, the following query removes `foo` prefix from all the fields, which start with `foo`:
+
+```logsql
+_time:5m | rename foo* as *
+```
+
+It is also possible adding common prefix to all the fields. For example, the following query adds `foo` prefix to all the fields:
+
+```logsql
+_time:5m | rename * as foo*
+```
+
 See also:
 
 - [`copy` pipe](#copy-pipe)
@@ -3047,14 +3086,6 @@ for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data
 _time:5m | top by (ip)
 ```
 
-The `by (...)` part in the `top` [pipe](#pipes) is optional. If it is skipped, then all the log fields are taken into account
-when determining top field sets. This is useful when the field sets are already limited by other pipes such as [`fields` pipe](#fields-pipe).
-For example, the following query is equivalent to the previous one:
-
-```logsql
-_time:5m | fields ip | top
-```
-
 It is possible to give another name for the `hits` field via `hits as <new_name>` syntax. For example, the following query returns top per-`path` hits in the `visits` field:
 
 ```logsql
@@ -3174,6 +3205,8 @@ fields from JSON value stored in `my_json` [log field](https://docs.victoriametr
 _time:5m | unpack_json from my_json fields (foo, bar)
 ```
 
+If it is needed to extract all the fields with some common prefix, then this can be done via `fields(prefix*)` syntax.
+
 If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_json ...`. For example,
 the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting them with the unpacked values:
 
@@ -3258,6 +3291,8 @@ from logfmt stored in the `my_logfmt` field:
 ```logsql
 _time:5m | unpack_logfmt from my_logfmt fields (foo, bar)
 ```
+
+If it is needed to extract all the fields with some common prefix, then this can be done via `fields(prefix*)` syntax.
 
 If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_logfmt ...`. For example,
 the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting them with the unpacked values:
@@ -3506,6 +3541,13 @@ over logs for the last 5 minutes:
 _time:5m | stats avg(duration) avg_duration
 ```
 
+It is possible to calculate the average over fields with common prefix via `avg(prefix*)` syntax. For example, the following query calculates the average
+over all the log fields with `foo` prefix:
+
+```logsql
+_time:5m | stats avg(foo*)
+```
+
 See also:
 
 - [`median`](#median-stats)
@@ -3540,6 +3582,13 @@ over the last 5 minutes:
 _time:5m | stats count(username, password) logs_with_username_or_password
 ```
 
+It is possible to caclulate the number of logs with at least a single non-empty field with common prefix with `count(prefix*)` syntax.
+For example, the following query returns the number of logs with at least a single non-empty field with `foo` prefix over the last 5 minutes:
+
+```logsql
+_time:5m | stats count(foo*)
+```
+
 See also:
 
 - [`rate`](#rate-stats)
@@ -3558,6 +3607,13 @@ during the last 5 minutes:
 
 ```logsql
 _time:5m | stats count_empty(username) logs_with_missing_username
+```
+
+It is possible to calculate the number of logs with empty fields with common prefix via `count_empty(prefix*)` syntax. For example, the following query
+calculates the number of logs with empty fields with `foo` prefix during the last 5 minutes:
+
+```logsql
+_time:5m | stats count_empty(foo*)
 ```
 
 See also:
@@ -3685,6 +3741,8 @@ If the list of fields is empty, then all the log fields are encoded into JSON ar
 _time:5m | stats json_values() as json_logs
 ```
 
+It is possible to select values with the given prefix via `json_values(prefix*)` syntax.
+
 It is possible to set the upper limit on the number of JSON-encoded logs with the `limit N` suffix. For example, the following query
 returns up to 3 JSON-encoded logs per every `host`:
 
@@ -3709,6 +3767,8 @@ over logs for the last 5 minutes:
 _time:5m | stats max(duration) max_duration
 ```
 
+It is possible to calculate the maximum value across all the fields with common prefix via `max(prefix*)` syntax.
+
 [`row_max`](#row_max-stats) function can be used for obtaining other fields with the maximum duration.
 
 See also:
@@ -3730,6 +3790,8 @@ over logs for the last 5 minutes:
 _time:5m | stats median(duration) median_duration
 ```
 
+It is possible to calculate the median across all the fields with common prefix via `median(prefix*)` syntax.
+
 See also:
 
 - [`quantile`](#quantile-stats)
@@ -3746,6 +3808,8 @@ over logs for the last 5 minutes:
 ```logsql
 _time:5m | stats min(duration) min_duration
 ```
+
+It is possible to find the minimum across all the fields with common prefix via `min(prefix*)` syntax.
 
 [`row_min`](#row_min-stats) function can be used for obtaining other fields with the minimum duration.
 
@@ -3771,6 +3835,8 @@ _time:5m | stats
   quantile(0.9, request_duration_seconds) p90,
   quantile(0.99, request_duration_seconds) p99
 ```
+
+It is possible to calculate the quantile across all the fields with common prefix via `quantile(phi, prefix*)` syntax.
 
 See also:
 
@@ -3807,6 +3873,8 @@ over the last 5 minutes:
 _time:5m | stats rate_sum(bytes_sent)
 ```
 
+It is possible to calculate the average per-second rate of the sum over all the fields starting with particular prefix by using `rate_sum(prefix*)` syntax.
+
 See also:
 
 - [`sum`](#sum-stats)
@@ -3833,6 +3901,8 @@ For example, the following query returns only `_time` and `path` fields from a s
 _time:5m | stats row_any(_time, path) as time_and_path_sample
 ```
 
+It is possible to return all the fields starting with particular prefix by using `row_any(prefix*)` syntax.
+
 See also:
 
 - [`row_max`](#row_max-stats)
@@ -3858,6 +3928,8 @@ For example, the following query returns only `_time`, `path` and `duration` fie
 ```logsql
 _time:5m | stats row_max(duration, _time, path, duration) as time_and_path_with_max_duration
 ```
+
+It is possible to return all the fields starting with particular prefix by using `row_max(field, prefix*)` syntax.
 
 See also:
 
@@ -3886,6 +3958,8 @@ For example, the following query returns only `_time`, `path` and `duration` fie
 _time:5m | stats row_min(duration, _time, path, duration) as time_and_path_with_min_duration
 ```
 
+It is possible to return all the fields starting with particular prefix by using `row_min(field, prefix*)` syntax.
+
 See also:
 
 - [`min`](#min-stats)
@@ -3903,6 +3977,8 @@ over logs for the last 5 minutes:
 ```logsql
 _time:5m | stats sum(duration) sum_duration
 ```
+
+It is possible to find the sum for all the fields with common prefix via `sum(prefix*)` syntax.
 
 See also:
 
@@ -3922,6 +3998,8 @@ across all the logs for the last 5 minutes:
 ```logsql
 _time:5m | stats sum_len(_msg) messages_len
 ```
+
+It is possible to find the sum of byte lengths for all the fields with common prefix via `sum_len(prefix*)` syntax.
 
 See also:
 
@@ -3955,6 +4033,8 @@ _time:5m | stats uniq_values(ip) limit 100 as unique_ips_100
 
 Arbitrary subset of unique `ip` values is returned every time if the `limit` is reached.
 
+It is possible to find unique values for all the fields with common prefix via `uniq_values(prefix*)` syntax.
+
 See also:
 
 - [`uniq` pipe](#uniq-pipe)
@@ -3977,6 +4057,8 @@ _time:5m | stats values(ip) ips
 ```
 
 The returned ip addresses can be unrolled into distinct log entries with [`unroll` pipe](#unroll-pipe).
+
+It is possible to get values for all the fields with common prefix via `values(prefix*)` syntax.
 
 See also:
 

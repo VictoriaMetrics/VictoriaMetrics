@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -85,6 +86,18 @@ type FS struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Metadata to be set for uploaded objects.
+	Metadata map[string]string
+
+	// S3 tags to be set for uploaded objects.
+	Tags map[string]string
+
+	// parsed Metadata to be used with aws-sdk-go-v2
+	metadata map[string]*string
+
+	// parsed Tags to be used with aws-sdk-go-v2
+	tags *string
 }
 
 // Init initializes fs.
@@ -178,6 +191,23 @@ func (fs *FS) Init(ctx context.Context) error {
 		// We manage upload concurrency by ourselves.
 		u.Concurrency = 1
 	})
+
+	m := make(map[string]*string)
+	for k, v := range fs.Metadata {
+		m[k] = &v
+	}
+	fs.metadata = m
+
+	if len(fs.Tags) > 0 {
+		tags := make([]string, 0, len(fs.Tags))
+		for k, v := range fs.Tags {
+			tags = append(tags, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(tags)
+		tagsString := strings.Join(tags, "&")
+		fs.tags = &tagsString
+	}
+
 	return nil
 }
 
@@ -258,10 +288,13 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	copySource := fmt.Sprintf("/%s/%s", src.Bucket, srcPath)
 
 	input := &s3.CopyObjectInput{
-		Bucket:       aws.String(fs.Bucket),
-		CopySource:   aws.String(copySource),
-		Key:          aws.String(dstPath),
-		StorageClass: fs.StorageClass,
+		Bucket:            aws.String(fs.Bucket),
+		CopySource:        aws.String(copySource),
+		Key:               aws.String(dstPath),
+		StorageClass:      fs.StorageClass,
+		Metadata:          fs.Metadata,
+		MetadataDirective: s3types.MetadataDirectiveReplace,
+		Tagging:           fs.tags,
 	}
 
 	_, err := fs.s3.CopyObject(fs.ctx, input)
@@ -307,6 +340,8 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		Key:          aws.String(path),
 		Body:         sr,
 		StorageClass: fs.StorageClass,
+		Metadata:     fs.Metadata,
+		Tagging:      fs.tags,
 	}
 
 	_, err := fs.uploader.Upload(fs.ctx, input)
@@ -397,6 +432,8 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		Key:          aws.String(path),
 		Body:         sr,
 		StorageClass: fs.StorageClass,
+		Metadata:     fs.Metadata,
+		Tagging:      fs.tags,
 	}
 	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {

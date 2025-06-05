@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -69,55 +70,31 @@ func (pe *pipeExtractRegexp) visitSubqueries(visitFunc func(q *Query)) {
 	pe.iff.visitSubqueries(visitFunc)
 }
 
-func (pe *pipeExtractRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (pe *pipeExtractRegexp) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		if pe.iff != nil {
-			neededFields.addFields(pe.iff.neededFields)
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		needFromField := false
-		for _, f := range pe.reFields {
-			if f == "" {
-				continue
-			}
-			if !unneededFieldsOrig.contains(f) {
-				needFromField = true
-			}
+	pfOrig := pf.Clone()
+	needFromField := false
+	for _, f := range pe.reFields {
+		if f == "" {
+			continue
+		}
+		if pfOrig.MatchString(f) {
+			needFromField = true
 			if !pe.keepOriginalFields && !pe.skipEmptyResults {
-				unneededFields.add(f)
+				pf.AddDenyFilter(f)
 			}
 		}
-		if needFromField {
-			unneededFields.remove(pe.fromField)
-			if pe.iff != nil {
-				unneededFields.removeFields(pe.iff.neededFields)
-			}
-		} else {
-			unneededFields.add(pe.fromField)
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := false
-		for _, f := range pe.reFields {
-			if f == "" {
-				continue
-			}
-			if neededFieldsOrig.contains(f) {
-				needFromField = true
-				if !pe.keepOriginalFields && !pe.skipEmptyResults {
-					neededFields.remove(f)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(pe.fromField)
-			if pe.iff != nil {
-				neededFields.addFields(pe.iff.neededFields)
-			}
+	}
+	if needFromField {
+		pf.AddAllowFilter(pe.fromField)
+		if pe.iff != nil {
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 	}
 }

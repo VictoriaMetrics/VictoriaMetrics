@@ -6,7 +6,14 @@ import (
 	"strings"
 )
 
-func validateMetric(s string) error {
+// ValidateMetric validates provided string
+// to be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
+func ValidateMetric(s string) error {
 	if len(s) == 0 {
 		return fmt.Errorf("metric cannot be empty")
 	}

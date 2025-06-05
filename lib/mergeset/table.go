@@ -14,6 +14,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -279,7 +280,7 @@ func (ris *rawItemsShard) updateFlushDeadline() {
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
 
-var tooLongItemsTotal atomic.Uint64
+var tooLongItemsTotal atomicutil.Uint64
 
 type partWrapper struct {
 	// refCount is the number of references to partWrapper

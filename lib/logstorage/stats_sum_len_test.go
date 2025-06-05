@@ -14,6 +14,7 @@ func TestParseStatsSumLenSuccess(t *testing.T) {
 	f(`sum_len(*)`)
 	f(`sum_len(a)`)
 	f(`sum_len(a, b)`)
+	f(`sum_len(a*, b)`)
 }
 
 func TestParseStatsSumLenFailure(t *testing.T) {

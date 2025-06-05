@@ -11,10 +11,8 @@ func TestParseStatsCountUniqSuccess(t *testing.T) {
 		expectParseStatsFuncSuccess(t, pipeStr)
 	}
 
-	f(`count_uniq(*)`)
 	f(`count_uniq(a)`)
 	f(`count_uniq(a, b)`)
-	f(`count_uniq(*) limit 10`)
 	f(`count_uniq(a) limit 20`)
 	f(`count_uniq(a, b) limit 5`)
 }
@@ -26,6 +24,9 @@ func TestParseStatsCountUniqFailure(t *testing.T) {
 	}
 
 	f(`count_uniq`)
+	f(`count_uniq()`)
+	f(`count_uniq(*)`)
+	f(`count_uniq(a*, b)`)
 	f(`count_uniq(a b)`)
 	f(`count_uniq(x) y`)
 	f(`count_uniq(x) limit`)
@@ -38,28 +39,7 @@ func TestStatsCountUniq(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	f("stats count_uniq(*) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "3"},
-		},
-	})
-
-	f("stats count_uniq(*) limit 2 as x", [][]Field{
+	f("stats count_uniq(a,b) limit 2 as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -80,7 +60,7 @@ func TestStatsCountUniq(t *testing.T) {
 		},
 	})
 
-	f("stats count_uniq(*) limit 10 as x", [][]Field{
+	f("stats count_uniq(a,b) limit 10 as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -242,7 +222,7 @@ func TestStatsCountUniq(t *testing.T) {
 		},
 	})
 
-	f("stats by (a) count_uniq(*) as x", [][]Field{
+	f("stats by (a) count_uniq(b,_msg) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},

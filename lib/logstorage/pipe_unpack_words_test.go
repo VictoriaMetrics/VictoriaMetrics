@@ -26,9 +26,13 @@ func TestParsePipeUnpackWordsFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
+	f(`unpack_words as x*`)
+	f(`unpack_words as *`)
 	f(`unpack_words as`)
 	f(`unpack_words drop_duplicates x`)
 	f(`unpack_words from`)
+	f(`unpack_words from *`)
+	f(`unpack_words from x*`)
 	f(`unpack_words foo bar baz`)
 	f(`unpack_words foo, bar`)
 }
@@ -179,9 +183,9 @@ func TestPipeUnpackWords(t *testing.T) {
 }
 
 func TestPipeUnpackWordsUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

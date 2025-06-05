@@ -1,7 +1,6 @@
 package internalinsert
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"time"
@@ -18,17 +17,11 @@ import (
 )
 
 var (
-	disableInsert  = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint")
 	maxRequestSize = flagutil.NewBytes("internalinsert.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single request, which can be accepted at /internal/insert HTTP endpoint")
 )
 
 // RequestHandler processes /internal/insert requests.
 func RequestHandler(w http.ResponseWriter, r *http.Request) {
-	if *disableInsert {
-		httpserver.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable command-line flag")
-		return
-	}
-
 	startTime := time.Now()
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)

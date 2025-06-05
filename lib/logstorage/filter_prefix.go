@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterPrefix matches the given prefix.
@@ -31,8 +32,8 @@ func (fp *filterPrefix) String() string {
 	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
 }
 
-func (fp *filterPrefix) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fp.fieldName)
+func (fp *filterPrefix) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fp.fieldName)
 }
 
 func (fp *filterPrefix) getTokens() []string {
