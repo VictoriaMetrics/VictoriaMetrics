@@ -923,9 +923,6 @@ func removeCounterResets(values []float64, timestamps []int64, maxStalenessInter
 	prevValue := values[0]
 	for i, v := range values {
 		if decimal.IsStaleNaN(v) {
-			// reset correction if series marked as stale
-			// see https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers
-			correction = 0
 			continue
 		}
 		d := v - prevValue
