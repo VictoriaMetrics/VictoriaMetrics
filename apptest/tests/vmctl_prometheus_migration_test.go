@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 
@@ -11,23 +13,58 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-func TestVmctlPrometheusProtocolToVMSingle(t *testing.T) {
+const (
+	testSnapshot         = "./testdata/prometheus/snapshots/20250602T205846Z-7e03e43cf46dda03"
+	expectedResponseFile = "./testdata/prometheus/expected_response.json"
+)
+
+func TestSingleVmctlPrometheusProtocol(t *testing.T) {
 	os.RemoveAll(t.Name())
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
+	vmsingleDst := tc.MustStartDefaultVmsingle()
+	vmAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
+	vmctlFlags := []string{
+		`prometheus`,
+		`--prom-snapshot=` + testSnapshot,
+		`--vm-addr=` + vmAddr,
+		`--disable-progress-bar=true`,
+	}
+
+	testPrometheusProtocol(tc, vmsingleDst, vmctlFlags)
+}
+
+func TestClusterVmctlPrometheusProtocol(t *testing.T) {
+	os.RemoveAll(t.Name())
+
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	cluster := tc.MustStartDefaultCluster()
+	vmAddr := fmt.Sprintf("http://%s/", cluster.Vminsert.HTTPAddr())
+	vmctlFlags := []string{
+		`prometheus`,
+		`--prom-snapshot=` + testSnapshot,
+		`--vm-addr=` + vmAddr,
+		`--disable-progress-bar=true`,
+		`--vm-account-id=0`,
+	}
+
+	testPrometheusProtocol(tc, cluster, vmctlFlags)
+}
+
+func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
+	t := tc.T()
+	t.Helper()
+
 	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 
-	vmsingleDst := tc.MustStartVmsingle("vmsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmsingle",
-		"-retentionPeriod=100y",
-	})
-
 	// test for empty data request
-	got := vmsingleDst.PrometheusAPIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
+	got := sut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
 		Step: "5m",
-		Time: "2025-01-18T12:45:00Z",
+		Time: "2025-06-02T17:14:00Z",
 	})
 
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
@@ -35,28 +72,43 @@ func TestVmctlPrometheusProtocolToVMSingle(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	vmAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
-	testSnapshot := "./testdata/snapshots/20250118T124506Z-59d1b952d7eaf547"
-	_ = tc.MustStartVmctl("vmctl", []string{
-		`prometheus`,
-		`--prom-snapshot=` + testSnapshot,
-		`--vm-addr=` + vmAddr,
-		`--disable-progress-bar=true`,
-	})
+	_ = tc.MustStartVmctl("vmctl", vmctlFlags)
 
-	vmsingleDst.ForceFlush(t)
+	sut.ForceFlush(t)
+
+	// open the expected series response file
+	file, err := os.Open(expectedResponseFile)
+	if err != nil {
+		t.Fatalf("cannot open expected series response file: %s", err)
+	}
+	defer file.Close()
+
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		t.Fatalf("cannot read expected series response file: %s", err)
+	}
+
+	var wantResponse apptest.PrometheusAPIV1QueryResponse
+	if err := json.Unmarshal(bytes, &wantResponse); err != nil {
+		t.Fatalf("cannot unmarshal expected series response file: %s", err)
+	}
+	wantResponse.Sort()
 
 	tc.Assert(&apptest.AssertOptions{
-		Msg: `unexpected metrics stored on vmsingle via the prometheus protocol`,
+		// For cluster version, we need to wait longer for the metrics to be stored
+		Retries: 300,
+		Msg:     `unexpected metrics stored on vmsingle via the prometheus protocol`,
 		Got: func() any {
-			exported := vmsingleDst.PrometheusAPIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
-				Start: "2025-01-18T00:45:00Z",
-				End:   "2025-01-18T23:46:00Z",
+			expected := sut.PrometheusAPIV1Export(t, `{__name__="vm_log_messages_total", location=~"VictoriaMetrics/lib/ingestserver/opentsdb/server.go:(48|59)"}`, apptest.QueryOpts{
+				Start: "2025-06-02T00:00:00Z",
+				End:   "2025-06-02T23:59:59Z",
 			})
-			return len(exported.Data.Result)
+			expected.Sort()
+			return expected.Data.Result
 		},
-		// Expecting 2792 series to be imported
-		// this value is stored in the apptest/tests/testdata/snapshots/20250118T124506Z-59d1b952d7eaf547/01JHWQ445Y2P1TDYB05AEKD6MC/meta.json
-		Want: 2792,
+		Want: wantResponse.Data.Result,
+		CmpOpts: []cmp.Option{
+			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+		},
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterIPv4Range matches the given ipv4 range [minValue..maxValue].
@@ -21,8 +22,8 @@ func (fr *filterIPv4Range) String() string {
 	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), minValue, maxValue)
 }
 
-func (fr *filterIPv4Range) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterIPv4Range) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {

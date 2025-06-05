@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -67,55 +68,31 @@ func (pe *pipeExtract) visitSubqueries(visitFunc func(q *Query)) {
 	pe.iff.visitSubqueries(visitFunc)
 }
 
-func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (pe *pipeExtract) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		if pe.iff != nil {
-			neededFields.addFields(pe.iff.neededFields)
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		needFromField := false
-		for _, step := range pe.ptn.steps {
-			if step.field == "" {
-				continue
-			}
-			if !unneededFieldsOrig.contains(step.field) {
-				needFromField = true
-			}
+	pfOrig := pf.Clone()
+	needFromField := false
+	for _, step := range pe.ptn.steps {
+		if step.field == "" {
+			continue
+		}
+		if pfOrig.MatchString(step.field) {
+			needFromField = true
 			if !pe.keepOriginalFields && !pe.skipEmptyResults {
-				unneededFields.add(step.field)
+				pf.AddDenyFilter(step.field)
 			}
 		}
-		if needFromField {
-			unneededFields.remove(pe.fromField)
-			if pe.iff != nil {
-				unneededFields.removeFields(pe.iff.neededFields)
-			}
-		} else {
-			unneededFields.add(pe.fromField)
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := false
-		for _, step := range pe.ptn.steps {
-			if step.field == "" {
-				continue
-			}
-			if neededFieldsOrig.contains(step.field) {
-				needFromField = true
-				if !pe.keepOriginalFields && !pe.skipEmptyResults {
-					neededFields.remove(step.field)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(pe.fromField)
-			if pe.iff != nil {
-				neededFields.addFields(pe.iff.neededFields)
-			}
+	}
+	if needFromField {
+		pf.AddAllowFilter(pe.fromField)
+		if pe.iff != nil {
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 	}
 }

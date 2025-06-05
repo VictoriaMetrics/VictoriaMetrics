@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterContainsAll matches logs containing all the given values.
@@ -21,8 +22,8 @@ func (fi *filterContainsAll) String() string {
 	return fmt.Sprintf("%scontains_all(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
 }
 
-func (fi *filterContainsAll) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fi.fieldName)
+func (fi *filterContainsAll) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fi.fieldName)
 }
 
 func (fi *filterContainsAll) applyToBlockResult(br *blockResult, bm *bitmap) {

@@ -92,15 +92,15 @@ Many integrations are supported. Comprehensive examples and guides may be found 
 > To read or write data into VictoriaMetrics Cloud, you just need to point your application to your deployment's `Access endpoint` and authorize with an `Access token`.
 
 In brief, you will **only need to perform 2 steps**:
-1. Obtain the [**`Access endpoint`**](../deployments/access-tokens.md#access-endpoint) for your deployment, which can be found in the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) overview. Typically, it looks like: `https://<xxxx>.cloud.victoriametrics.com`.
-2. Create or reuse an [**`Access token`**](../deployments/access-tokens.md) to allow any application to read or write data into VictoriaMetrics Cloud. Just pick a `Name`, select read and/or write `Permission` and `Generate` it. For every deployment, you can `Generate tokens` in the `Access tokens` tab.
+1. Obtain the [**`Access endpoint`**](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/#access-endpoint) for your deployment, which can be found in the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) overview. Typically, it looks like: `https://<xxxx>.cloud.victoriametrics.com`.
+2. Create or reuse an [**`Access token`**](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/) to allow any application to read or write data into VictoriaMetrics Cloud. Just pick a `Name`, select read and/or write `Permission` and `Generate` it. For every deployment, you can `Generate tokens` in the `Access tokens` tab.
 
 {{% collapse name="Expand to discover examples for vmagent, Prometheus, Grafana or any other software" %}}
 
 ### Examples for Reading and Writing data into VictoriaMetrics Cloud
 
 Apart from the mentioned [integrations](https://cloud.victoriametrics.com/integrations?utm_source=website&utm_campaign=docs_quickstart) section,
-you can always check for quick and easy Copy-paste examples by clicking on the three dots of the desired [Access Token](../deployments/access-tokens.md) and select `Show examples`.
+you can always check for quick and easy Copy-paste examples by clicking on the three dots of the desired [Access Token](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/) and select `Show examples`.
 
 It will provide snippets like:
 
@@ -150,7 +150,7 @@ Additional configuration options may be found under `Advanced Settings`  where t
 
 ## Adding a payment method
 
-VictoriaMetrics Cloud supports different payment options. You can found more information under the [Billing](/victoriametrics-cloud/billing/) section.
+VictoriaMetrics Cloud supports different payment options. You can found more information under the [Billing](https://docs.victoriametrics.com/victoriametrics-cloud/billing/) section.
 
 To add your payment method, navigate to the VictoriaMetrics Cloud [Billing](https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart)
 page, and go to the `Payment methods` tab. There, you'll be able to add a payment method by:

@@ -200,9 +200,8 @@ func defaultReplaceAttr(_ []string, a slog.Attr) slog.Attr {
 	key := a.Key
 	switch key {
 	case slog.TimeKey:
-		if t, ok := a.Value.Any().(time.Time); ok {
-			a.Value = slog.TimeValue(t.UTC())
-		} else {
+		// Note that we do not change the timezone to UTC anymore.
+		if _, ok := a.Value.Any().(time.Time); !ok {
 			// If we can't cast the any from the value to a
 			// time.Time, it means the caller logged
 			// another attribute with a key of `time`.
@@ -267,5 +266,5 @@ func New(config *Config) *slog.Logger {
 // NewNopLogger is a convenience function to return an slog.Logger that writes
 // to io.Discard.
 func NewNopLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return New(&Config{Writer: io.Discard})
 }

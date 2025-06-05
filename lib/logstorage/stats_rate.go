@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsRate struct {
@@ -16,7 +17,7 @@ func (sr *statsRate) String() string {
 	return "rate()"
 }
 
-func (sr *statsRate) updateNeededFields(_ fieldsSet) {
+func (sr *statsRate) updateNeededFields(_ *prefixfilter.Filter) {
 	// There is no need in fetching any columns for rate() - the number of matching rows can be calculated as blockResult.rowsLen
 }
 

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterWeekRange filters by week range.
@@ -27,8 +28,8 @@ func (fr *filterWeekRange) String() string {
 	return "_time:week_range" + fr.stringRepr
 }
 
-func (fr *filterWeekRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add("_time")
+func (fr *filterWeekRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_time")
 }
 
 func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {

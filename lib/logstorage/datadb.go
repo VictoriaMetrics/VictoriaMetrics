@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -1083,7 +1084,7 @@ func releaseDiskSpace(n uint64) {
 // background merges across all the partitions.
 //
 // It should allow avoiding background merges when there is no free disk space.
-var reservedDiskSpace atomic.Uint64
+var reservedDiskSpace atomicutil.Uint64
 
 func needStop(stopCh <-chan struct{}) bool {
 	select {
@@ -1167,6 +1168,31 @@ func mustReadPartNames(path string) []string {
 	partNamesPath := filepath.Join(path, partsFilename)
 	data, err := os.ReadFile(partNamesPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// The parts.json file is missing. This can happen if VictoriaLogs shuts down uncleanly
+			// (via OOM crash, a panic, SIGKILL or hardware shutdown) in the middle of creating
+			// new per-day partition inside the mustCreatePartition() function.
+			// Check if there are any part directories in the datadb directory.
+			des := fs.MustReadDir(path)
+			var partDirs []string
+			for _, de := range des {
+				if !fs.IsDirOrSymlink(de) {
+					continue
+				}
+				partDirs = append(partDirs, de.Name())
+			}
+
+			if len(partDirs) == 0 {
+				logger.Warnf("creating missing %s with empty parts list, since no part directories found in %s", partNamesPath, path)
+				mustWritePartNames(path, nil, nil)
+				return []string{}
+			}
+
+			// Parts exist but parts.json is missing - this is an unexpected state that requires manual intervention
+			logger.Panicf("FATAL: cannot read %s: %s; found part directories %v in %s. "+
+				"This indicates corruption. Manually remove the %s partition directory to resolve the corruption (the partition data will be lost)",
+				partNamesPath, err, partDirs, path, path)
+		}
 		logger.Panicf("FATAL: cannot read %s: %s", partNamesPath, err)
 	}
 	var partNames []string

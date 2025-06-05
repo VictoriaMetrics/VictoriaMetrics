@@ -28,6 +28,7 @@ type Stopper interface {
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
+	t.Parallel()
 	return &TestCase{t, NewClient(), make(map[string]Stopper)}
 }
 
@@ -190,7 +191,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 
 // MustStartDefaultCluster starts a typical cluster configuration with default
 // flags.
-func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 	tc.t.Helper()
 
 	return tc.MustStartCluster(&ClusterOptions{
@@ -224,7 +225,7 @@ type ClusterOptions struct {
 }
 
 // MustStartCluster starts a typical cluster configuration with custom flags.
-func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerier {
+func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
 	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{

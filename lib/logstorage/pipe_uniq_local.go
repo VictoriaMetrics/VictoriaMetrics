@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUniqLocal processes local part of the pipeUniq in cluster if hits are requested with unique values.
@@ -33,15 +34,14 @@ func (pu *pipeUniqLocal) canLiveTail() bool {
 	return false
 }
 
-func (pu *pipeUniqLocal) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (pu *pipeUniqLocal) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.Reset()
 
 	if len(pu.pu.byFields) == 0 {
-		neededFields.add("*")
+		pf.AddAllowFilter("*")
 	} else {
-		neededFields.addFields(pu.pu.byFields)
-		neededFields.add(pu.pu.hitsFieldName)
+		pf.AddAllowFilters(pu.pu.byFields)
+		pf.AddAllowFilter(pu.pu.hitsFieldName)
 	}
 }
 

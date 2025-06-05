@@ -14,6 +14,7 @@ func TestParseStatsSumSuccess(t *testing.T) {
 	f(`sum(*)`)
 	f(`sum(a)`)
 	f(`sum(a, b)`)
+	f(`sum(a*, b)`)
 }
 
 func TestParseStatsSumFailure(t *testing.T) {

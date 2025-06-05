@@ -14,6 +14,7 @@ func TestParseStatsAvgSuccess(t *testing.T) {
 	f(`avg(*)`)
 	f(`avg(a)`)
 	f(`avg(a, b)`)
+	f(`avg(a*, b)`)
 }
 
 func TestParseStatsAvgFailure(t *testing.T) {

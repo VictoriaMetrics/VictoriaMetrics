@@ -21,6 +21,8 @@ func TestParsePipeFieldValuesFailure(t *testing.T) {
 	}
 
 	f(`field_values`)
+	f(`field_values *`)
+	f(`field_values x*`)
 	f(`field_values a b`)
 	f(`field_values a limit`)
 	f(`field_values limit N`)
@@ -126,9 +128,9 @@ func TestPipeFieldValues(t *testing.T) {
 }
 
 func TestPipeFieldValuesUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

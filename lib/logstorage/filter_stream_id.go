@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterStreamID is the filter for `_stream_id:id`
@@ -38,8 +39,8 @@ func (fs *filterStreamID) String() string {
 	return "_stream_id:in(" + strings.Join(a, ",") + ")"
 }
 
-func (fs *filterStreamID) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add("_stream_id")
+func (fs *filterStreamID) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_stream_id")
 }
 
 func (fs *filterStreamID) getStreamIDsMap() map[string]struct{} {

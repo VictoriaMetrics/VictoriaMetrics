@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type pipe interface {
@@ -24,8 +25,8 @@ type pipe interface {
 	// See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
 	canLiveTail() bool
 
-	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
-	updateNeededFields(neededFields, unneededFields fieldsSet)
+	// updateNeededFields must update pf with fields it needs and not needs at the input.
+	updateNeededFields(pf *prefixfilter.Filter)
 
 	// newPipeProcessor must return new pipeProcessor, which writes data to the given ppNext.
 	//

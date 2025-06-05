@@ -30,6 +30,8 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math (x / 1d * 1s) as x`)
 	f(`math (x - y + z) as x`)
 	f(`math (x - (y + z)) as x`)
+	f(`math now() as current_time`)
+	f(`math round((now() - max_time) / 1s) as duration_seconds`)
 }
 
 func TestParsePipeMathFailure(t *testing.T) {
@@ -39,6 +41,10 @@ func TestParsePipeMathFailure(t *testing.T) {
 	}
 
 	f(`math`)
+	f(`math * as y`)
+	f(`math (foo*) as y`)
+	f(`math foo as *`)
+	f(`math foo as y*`)
 	f(`math x as`)
 	f(`math abs() as x`)
 	f(`math abs(a, b) as x`)
@@ -49,6 +55,7 @@ func TestParsePipeMathFailure(t *testing.T) {
 	f(`math round() as x`)
 	f(`math round(a, b, c) as x`)
 	f(`math rand(123) as x`)
+	f(`math now(123) as x`)
 }
 
 func TestPipeMath(t *testing.T) {
@@ -332,9 +339,9 @@ func TestPipeMath(t *testing.T) {
 }
 
 func TestPipeMathUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
