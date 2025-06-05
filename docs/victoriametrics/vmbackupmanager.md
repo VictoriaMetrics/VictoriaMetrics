@@ -53,8 +53,15 @@ The backup manager creates the following directory hierarchy at `-dst`:
 * `/monthly/` - contains monthly backups. Each backup is named as `YYYY-MM`
 
 The `vmbackupmanager` takes backups every hour if hourly backups are not disabled; otherwise, 
-it defaults to taking backups every 24 hours. You can control the schedule using the `-backupInterval` flag. 
-For example, if you want to take backups three times per day, set `-backupInterval=8h`.
+it defaults to taking backups every 24 hours at 00:00 in UTC timezone. 
+You can control the schedule using the `-backupInterval` and `-backupScheduleTimezone` command-line flags. 
+The `-backupScheduleTimezone` flag specifies the timezone to use for scheduling daily, weekly, and monthly backups. 
+Note that overriding `-backupInterval` means daily, weekly, and monthly backups will be taken at specified intervals
+and not daily at midnight.
+
+For example:
+- if you want to take backups three times per day, set `-backupInterval=8h`
+- if you want to take backups daily at midnight in `Europe/Paris` timezone, set `-backupScheduleTimezone="Europe/Paris"`
 
 To get the full list of supported flags please run the following command:
 
@@ -441,6 +448,8 @@ command-line flags:
      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
   -backupInterval duration
      Interval between backups. If set to 0 interval is set to 1h if hourly backups are enabled and 24h otherwise
+  -backupScheduleTimezone string
+     Timezone to use for scheduling daily, weekly and monthly backups. Example: 'America/New_York', 'Europe/London', 'Asia/Tokyo' (default "UTC")
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -559,6 +568,8 @@ command-line flags:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -objectMetadata string
+     Metadata to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}. Note that it is is not supported for local filesystem destinations.
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
@@ -586,10 +597,14 @@ command-line flags:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -restore.disableSourceBackupValidation
+     Disable validation of source backup presence and completeness when creating a restore mark.
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3ObjectTags string
+     S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html

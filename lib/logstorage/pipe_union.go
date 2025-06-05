@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/contextutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnion processes '| union ...' pipe.
@@ -49,7 +50,7 @@ func (pu *pipeUnion) visitSubqueries(visitFunc func(q *Query)) {
 	pu.q.visitSubqueries(visitFunc)
 }
 
-func (pu *pipeUnion) updateNeededFields(_, _ fieldsSet) {
+func (pu *pipeUnion) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 

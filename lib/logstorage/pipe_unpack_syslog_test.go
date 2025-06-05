@@ -40,6 +40,8 @@ func TestParsePipeUnpackSyslogFailure(t *testing.T) {
 	f(`unpack_syslog offset`)
 	f(`unpack_syslog if (x:y) foobar,`)
 	f(`unpack_syslog from`)
+	f(`unpack_syslog from *`)
+	f(`unpack_syslog from x*`)
 	f(`unpack_syslog from x y`)
 	f(`unpack_syslog from x if`)
 	f(`unpack_syslog from x result_prefix`)
@@ -243,9 +245,9 @@ func TestPipeUnpackSyslog(t *testing.T) {
 }
 
 func TestPipeUnpackSyslogUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

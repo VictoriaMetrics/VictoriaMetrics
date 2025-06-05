@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterDayRange filters by day range.
@@ -25,8 +26,8 @@ func (fr *filterDayRange) String() string {
 	return "_time:day_range" + fr.stringRepr
 }
 
-func (fr *filterDayRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add("_time")
+func (fr *filterDayRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_time")
 }
 
 func (fr *filterDayRange) applyToBlockResult(br *blockResult, bm *bitmap) {

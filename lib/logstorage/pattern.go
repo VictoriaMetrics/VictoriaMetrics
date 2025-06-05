@@ -5,6 +5,8 @@ import (
 	"html"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pattern represents text pattern in the form 'some_text<some_field>other_text...'
@@ -60,6 +62,13 @@ func parsePattern(s string) (*pattern, error) {
 	for i := 1; i < len(steps); i++ {
 		if steps[i].prefix == "" {
 			return nil, fmt.Errorf("missing delimiter between <%s> and <%s>", steps[i-1].field, steps[i].field)
+		}
+	}
+
+	// Verify that fields do not end with '*'
+	for _, step := range steps {
+		if prefixfilter.IsWildcardFilter(step.field) {
+			return nil, fmt.Errorf("wildcard field %q isn't supported", step.field)
 		}
 	}
 

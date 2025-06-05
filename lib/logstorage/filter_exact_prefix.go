@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterExactPrefix matches the exact prefix.
@@ -24,8 +25,8 @@ func (fep *filterExactPrefix) String() string {
 	return fmt.Sprintf("%s=%s*", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
 }
 
-func (fep *filterExactPrefix) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fep.fieldName)
+func (fep *filterExactPrefix) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fep.fieldName)
 }
 
 func (fep *filterExactPrefix) getTokens() []string {

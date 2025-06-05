@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterTime filters by time.
@@ -22,8 +23,8 @@ func (ft *filterTime) String() string {
 	return "_time:" + ft.stringRepr
 }
 
-func (ft *filterTime) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add("_time")
+func (ft *filterTime) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_time")
 }
 
 func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {

@@ -28,6 +28,7 @@ type Stopper interface {
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
+	t.Parallel()
 	return &TestCase{t, NewClient(), make(map[string]Stopper)}
 }
 

@@ -24,8 +24,8 @@ _Note: This page provides only integration instructions for vmalert and Victoria
 
 Run vmalert with the following settings:
 ```sh
-./bin/vmalert -rule=alert.rules                  \  # Path to the files or http url with alerting and/or recording rules in YAML format.
-    -datasource.url=http://victorialogs:9428     \  # VictoriaLogs address.
+./bin/vmalert -rule=alert.rules                  \  # Path to the files or http url with alerting and/or recording rules in YAML format
+    -datasource.url=http://victorialogs:9428     \  # VictoriaLogs address
     -notifier.url=http://alertmanager:9093       \  # AlertManager URL (required if alerting rules are used)
     -remoteWrite.url=http://victoriametrics:8428 \  # Remote write compatible storage to persist recording rules and alerts state info
     -remoteRead.url=http://victoriametrics:8428  \  # Prometheus HTTP API compatible datasource to restore alerts state from
@@ -33,7 +33,7 @@ Run vmalert with the following settings:
 
 > Note: By default, vmalert assumes all configured rules have `prometheus` type and will validate them accordingly. 
 > For rules in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) specify `type: vlogs` on [Group level](#groups). 
-> Or set `-rule.defaultRuleType=vlogs` cmd-line flag to apply `type: vlogs` to all configured groups.
+> Or set `-rule.defaultRuleType=vlogs` cmd-line flag to change the default rule type.
 
 Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups). 
 See examples in [Groups](#groups) section. See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
@@ -42,10 +42,10 @@ With configuration example above, vmalert will perform the following interaction
 ![vmalert](vmalert_victorialogs.webp)
 
 1. Rules listed in `-rule` file are executed against VictoriaLogs service configured via `-datasource.url`;
-1. Triggered alerting notifications are sent to [Alertmanager](https://github.com/prometheus/alertmanager) service configured via `-notifier.url`;
-1. Results of recording rules expressions and alerts state are persisted to Prometheus-compatible remote-write endpoint
+2. Triggered alerting notifications are sent to [Alertmanager](https://github.com/prometheus/alertmanager) service configured via `-notifier.url`;
+3. Results of recording rules expressions and alerts state are persisted to Prometheus-compatible remote-write endpoint
    (i.e. VictoriaMetrics) configured via `-remoteWrite.url`;
-1. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts)
+4. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts)
    by querying Prometheus-compatible HTTP API endpoint (i.e. VictoriaMetrics) configured via `-remoteRead.url`.
 
 ## Configuration
@@ -130,12 +130,8 @@ groups:
     rules:
       - record: nginxRequestCount
         expr: 'env: "test" AND service: "nginx" | stats count(*) as requests'
-        annotations:
-          description: "Service nginx on env test accepted {{$labels.requests}} requests in the last 5 minutes"
       - record: prodRequestCount
         expr: 'env: "prod" | stats by (service) count(*) as requests'
-        annotations:
-          description: "Service {{$labels.service}} on env prod accepted {{$labels.requests}} requests in the last 5 minutes"
 ```
 
 ## Time filter
@@ -176,11 +172,11 @@ _Please note, vmalert doesn't support [backfilling](#rules-backfilling) for rule
 vmalert supports alerting and recording rules backfilling (aka replay) against VictoriaLogs as the datasource. 
 ```sh
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
-    -datasource.url=http://localhost:9428 \     # VictoriaLogs address.
-    -rule.defaultRuleType=vlogs \               # Set default rule type to VictoriaLogs.
+    -datasource.url=http://localhost:9428 \     # VictoriaLogs address
+    -rule.defaultRuleType=vlogs \               # Set default rule type to VictoriaLogs
     -remoteWrite.url=http://localhost:8428 \    # Remote write compatible storage to persist rules and alerts state info
     -replay.timeFrom=2021-05-11T07:21:43Z \     # to start replay from
-    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, is optional
+    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, optional. By default, set to the current time
 ```
 
 See more details about backfilling [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
@@ -208,7 +204,7 @@ groups:
         expr: '* | stats by (service) quantile(0.5, request_duration_seconds) p50, quantile(0.9, request_duration_seconds) p90, quantile(0.99, request_duration_seconds) p99'
 ```
 
-This creates three metrics for each service:
+This rule generates three metrics per service in each evaluation:
 ```
 requestDurationQuantile{stats_result="p50", service="service-1"}
 requestDurationQuantile{stats_result="p90", service="service-1"}
