@@ -137,7 +137,7 @@ By default, all the logs component (vlinsert, vlselect, vlstorage) support all t
 ./victoria-logs-prod -storageNode=... -select.disable
 
 # Disable insert endpoints on vlselect
-./victoria-logs-prod -insert.disable
+./victoria-logs-prod -storageNode=... -insert.disable
 ```
 
 This helps prevent sending select requests to `vlinsert` nodes or insert requests to `vlselect` nodes in case of misconfiguration in the authorization proxy in front of the `vlinsert` and `vlselect` nodes.
