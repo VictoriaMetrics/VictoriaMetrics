@@ -1335,7 +1335,6 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		s.resetAndSaveTSIDCache()
 		qt.Printf("reset and save tsidCache")
 	}
-
 	qt.Donef("deleted %d metricIDs", n)
 	return n, nil
 }
@@ -1684,6 +1683,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 	var idb *indexDB
 	var is *indexSearch
+	var deletedMetricIds *uint64set.Set
 
 	var firstWarn error
 	for i := range mrs {
@@ -1699,11 +1699,13 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			}
 			idb = s.tb.MustGetIndexDB(mr.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
+			deletedMetricIds = idb.getDeletedMetricIDs()
 		}
 
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
-			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
-
+		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIds.Has(lTSID.TSID.MetricID) {
+			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
+			// If the TSID is deleted, we re-register time series.
+			// Eventually, the deleted TSID will be removed from the cache.{
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip row, since it exceeds cardinality limit
 				continue
@@ -1820,6 +1822,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var lTSID legacyTSID
 	var idb *indexDB
 	var is *indexSearch
+	var deletedMetricIds *uint64set.Set
 
 	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
@@ -1873,6 +1876,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 			idb = s.tb.MustGetIndexDB(r.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
+			deletedMetricIds = idb.getDeletedMetricIDs()
 		}
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
@@ -1900,12 +1904,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
+		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIds.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
-			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
-			// contain MetricName->TSID entries for deleted time series.
-			// See Storage.DeleteSeries code for details.
-
+			// If the TSID is deleted, we re-register time series.
+			// Eventually, the deleted TSID will be removed from the cache.
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip row, since it exceeds cardinality limit
 				j--

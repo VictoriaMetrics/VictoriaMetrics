@@ -1751,6 +1751,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 }
 
 func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
+	logger.Infof("deleting %v metricIDs from indexDB %q", metricIDs, db.name)
 	// atomically add deleted metricIDs to an inmemory map.
 	db.updateDeletedMetricIDs(metricIDs)
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
