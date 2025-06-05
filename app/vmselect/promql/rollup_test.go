@@ -648,6 +648,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("irate", 0)
 	f("outlier_iqr_over_time", nan)
 	f("rate", 2200)
+	f("rate_prometheus", 2200)
 	f("resets", 5)
 	f("range_over_time", 111)
 	f("avg_over_time", 47.083333333333336)
@@ -1606,6 +1607,33 @@ func TestRollupDelta(t *testing.T) {
 	// Empty values
 	f(1, nan, nan, nil, 0)
 	f(100, nan, nan, nil, 0)
+}
+
+func TestRollupDerivFastPrometheus(t *testing.T) {
+	f := func(values []float64, window int64, resultExpected float64) {
+		t.Helper()
+		rfa := &rollupFuncArg{
+			values: values,
+			window: window,
+		}
+		result := rollupDerivFastPrometheus(rfa)
+		if math.IsNaN(result) {
+			if !math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+			}
+			return
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+	f(nil, 0, nan)
+	f(nil, 10, nan)
+	f([]float64{0, 10}, 0, nan)
+	f([]float64{10}, 10, nan)
+
+	f([]float64{0, 20}, 10e3, 2)
+	f([]float64{0, 10, 20}, 10e3, 2)
 }
 
 func TestRollupDeltaWithStaleness(t *testing.T) {
