@@ -946,7 +946,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 
 	// All indested samples belong to a single month. In this case,
 	// DeleteSeries() is expected to return an error because the number of
-	// metrics registered within a single paritition index is 1000 while the the
+	// metrics registered within a single partition index is 1000 while the the
 	// number of metrics to delete at once is 999.
 	t.Run("1m", func(t *testing.T) {
 		f(t, &options{
@@ -968,7 +968,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 	// index, the DeleteSeries() must succeed.
 	//
 	// TODO(@rtm0): This is not the behavior that we want. The maxMetrics limit
-	// must work across all paritition indexes involved and thus this sub-test
+	// must work across all partition indexes involved and thus this sub-test
 	// must fail.
 	t.Run("2m", func(t *testing.T) {
 		f(t, &options{

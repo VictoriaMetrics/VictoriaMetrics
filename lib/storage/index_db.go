@@ -212,7 +212,7 @@ type indexDB struct {
 	s *Storage
 
 	// The wrapper of the parent partition
-	// This is needed for decrementing paritition ref counter.
+	// This is needed for decrementing partition ref counter.
 	// See Table.PutIndexDBs().
 	//
 	// TODO(@rtm0): Ideally, indexDB must not know about its parents. Figure out
