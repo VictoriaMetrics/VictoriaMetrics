@@ -5,6 +5,7 @@ This chapter describes different components, that correspond to respective secti
 - [Scheduler(s) section](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) - Required
 - [Writer section](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - Required
 - [Monitoring section](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) -  Optional
+- [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/) - Optional
 
 > Once the service starts, automated config validation is performed{{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
 
@@ -21,6 +22,10 @@ Below, you will find an example illustrating how the components of `vmanomaly` i
 Here's a minimalistic full config example, demonstrating many-to-many configuration (actual for [latest version](https://docs.victoriametrics.com/anomaly-detection/changelog/)):
 
 ```yaml
+settings:
+  n_workers: 4  # number of workers to run models in parallel
+  anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
+
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
 schedulers:

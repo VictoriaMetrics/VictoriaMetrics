@@ -14,6 +14,21 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.23.0
+Released: 2025-06-05
+
+- FEATURE: Added `decay` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) to [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models). This parameters allows for newer data to be weighted more heavily in online models. By default this is set to 1 which means all data points are weighted the same to maintain backward compatibility with existing configs. The closer this value is to 0 the more important new data is.
+
+- IMPROVEMENT: **Restored back parallelization** in the read/fit/infer pipeline, previously disabled in [v1.22.0](#v1220-experimental) due to deadlock issues. The new implementation prevents deadlocks, allowing to control the parallelization level via `n_workers` in [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/). It's suggested to upgrade from [v1.22.0](#v1220) - [v1.22.1](#v1221) to this version to regain the performance benefits of parallel processing.
+
+- IMPROVEMENT: Added `--dryRun` [argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to `vmanomaly` to enable dry run mode. This mode allows to validate configuration without executing any actual operations and doesn't require a license. It is particularly useful to test the configurations before deploying them in a production environment.
+
+- IMPROVEMENT: Enhanced task scheduling to reduce locks between anomaly detection models' fit and inference calls, improving their concurrent performance.
+
+- IMPROVEMENT: `min_dev_from_expected` model [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) is now bi-directional, allowing you to set *different* thresholds for peaks and drops.
+
+- BUGFIX: Now `clip_predictions` [model common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) is properly used with [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), ensuring that the predictions are clipped to the respective query's `data_range` values even if the model saw *less datapoints* than required `min_n_samples_seen_` to produce anomaly scores (e.g., when a new model instance was created during `infer` call for new timeseries not seen at training time).
+
 ## v1.22.1
 Released: 2025-05-11
 
@@ -28,7 +43,7 @@ Released: 2025-04-11
 
 **(Experimental Patch Release)**
 
-> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Future releases will reintroduce optimized parallelization.
+> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Please upgrade to [v1.23.0](#v1230) or newer for restored parallelization.
 
 - BUGFIX: Resolved an intermittent deadlock in the fit/infer process that previously caused the service to freeze indefinitely, thereby preventing anomaly score production and model refits on multicore systems.
 
