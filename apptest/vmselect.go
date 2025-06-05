@@ -227,10 +227,12 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	return status
 }
 
+// APIV1AdminTenants sends a query to a /admin/tenants endpoint
+// //
 func (app *Vmselect) APIV1AdminTenants(t *testing.T) AdminTenantsResponse {
 	t.Helper()
 
-	tenantsURL := fmt.Sprintf("http://%s/admin/api/v1/tenants", app.httpListenAddr)
+	tenantsURL := fmt.Sprintf("http://%s/admin/tenants", app.httpListenAddr)
 	res, statusCode := app.cli.Get(t, tenantsURL)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
