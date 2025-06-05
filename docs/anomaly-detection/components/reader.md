@@ -65,8 +65,10 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
     > Having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
 
 - `data_range`{{% available_from "v1.15.1" anomaly %}} (list[float | string]): It allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
-  - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
-  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
+  - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data range constraint violation (e.g. improperly configured metricsQL query, sensor malfunction, overflows in underlying metrics, etc.)
+  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions that does not really aligh with the data.
+
+  Works together with `anomaly_score_outside_data_range` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) of a model to determine the anomaly score for such cases as well as with `clip_predictions` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) of a model to clip the predictions to the expected range.
 
   > If not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg{{% available_from "v1.18.1" anomaly %}}
 

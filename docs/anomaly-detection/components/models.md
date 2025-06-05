@@ -360,7 +360,7 @@ The `anomaly_score_outside_data_range` {{% available_from "v1.20.0" anomaly %}} 
 
 **How it works**
 - If **not set**, the **default value (`1.01`)** is used for backward compatibility.
-- If defined at the **service level** (`settings`), it applies to all models **unless overridden at the model level**.
+- If defined at the **service level** (`settings` [section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#anomaly-score-outside-data-range)), it applies to all models **unless overridden at the model level**.
 - If set **per model**, it takes **priority over the global setting**.
 
 **Example (override)**
@@ -394,6 +394,38 @@ models:
     class: 'zscore_online'
     # explicitly set, takes priority over `settings`'s value
     anomaly_score_outside_data_range: 3.0  
+```
+
+### Decay
+
+> The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
+
+The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a float value between `0.0` and `1.0`, where:
+- `1.0` means no decay (the model treats all data equally, without giving more weight to recent data). This is the default value for backward compatibility.
+- Less than `1.0` means that the model will give more weight to recent data, effectively "forgetting" older data over time.
+
+Roughly speaking, for the recent N datapoints model processes `decay` = `d` means that these datapoints will contribute to the model as [1 - d^X] percent of total importance, for example decay of
+- `0.99` means that 100 recent datapoints will contribute as [1 - 0.99^100] = 63.23% of total importance
+- `0.999` means that 1000 recent datapoints will contribute as [1 - 0.999^1000] = 63.23% of total importance
+
+For example, if the model is updated every 5 minutes (`scheduler.infer_every`), on five 1-minute datapoints and there is a need to keep the last 1 day of data as the most impactful, setting `decay: 0.996` will ensure that the model has the last (86400/60) = 1440 datapoints contributing as [1 - 0.996^1440] = 99.6% of total importance, without the need to re-train the model on all 1440 datapoints every day with `fit_every: 1d` (which would be the limitation for [offline models](#offline-models)).
+
+Example config:
+
+```yaml
+# other components like writer, schedulers, monitoring ...
+reader:
+  # ...
+  queries:
+    q1: metricsql_expression1
+    # ...
+
+models:
+  online_zscore:
+    class: 'zscore_online'
+    z_threshold: 3.0
+    decay: 0.996  # decay factor for online model, default is 1.0
+    queries: ['q1']
 ```
 
 
@@ -1241,7 +1273,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.21.0
+docker pull victoriametrics/vmanomaly:v1.23.0
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1255,7 +1287,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.21.0 /config.yaml \
+victoriametrics/vmanomaly:v1.23.0 /config.yaml \
 --licenseFile=/license
 ```
 
