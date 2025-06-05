@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -163,8 +164,8 @@ func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsM
 }
 
 var (
-	timestampsBlocksMerged atomic.Uint64
-	timestampsBytesSaved   atomic.Uint64
+	timestampsBlocksMerged atomicutil.Uint64
+	timestampsBytesSaved   atomicutil.Uint64
 )
 
 func updatePartHeader(b *Block, ph *partHeader) {

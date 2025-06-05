@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -153,8 +153,8 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 }
 
 var (
-	compositeFilterSuccessConversions atomic.Uint64
-	compositeFilterMissingConversions atomic.Uint64
+	compositeFilterSuccessConversions atomicutil.Uint64
+	compositeFilterMissingConversions atomicutil.Uint64
 )
 
 // TagFilters represents filters used for filtering tags.
