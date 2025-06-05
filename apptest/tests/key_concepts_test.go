@@ -382,10 +382,9 @@ func TestVLSingleKeyConcepts(t *testing.T) {
 
 	type opts struct {
 		ingestRecords   []string
+		ingestQueryArgs at.QueryOpts
 		wantResponse    *at.LogsQLQueryResponse
 		query           string
-		qtime           string
-		ingestQueryArgs at.QueryOpts
 		selectQueryArgs at.QueryOpts
 	}
 
