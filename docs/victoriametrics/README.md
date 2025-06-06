@@ -1768,8 +1768,6 @@ _Please note, never use loadbalancer address for scraping metrics. All the monit
 
 Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229)
 and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics.
-See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831)
-created by community.
 
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
