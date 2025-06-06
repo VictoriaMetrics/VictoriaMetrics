@@ -331,14 +331,15 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		return sw.maybeFlushBuffer(bb)
 	}
 	contentType := "application/stream+json; charset=utf-8"
-	if format == "prometheus" {
+	switch format {
+	case "prometheus":
 		contentType = "text/plain; charset=utf-8"
 		writeLineFunc = func(xb *exportBlock, workerID uint) error {
 			bb := sw.getBuffer(workerID)
 			WriteExportPrometheusLine(bb, xb)
 			return sw.maybeFlushBuffer(bb)
 		}
-	} else if format == "promapi" {
+	case "promapi":
 		WriteExportPromAPIHeader(bw)
 		var firstLineOnce atomic.Bool
 		var firstLineSent atomic.Bool

@@ -132,7 +132,7 @@ func (op *otsdbProcessor) run() error {
 		close(errCh)
 		// check for any lingering errors on the query side
 		for otsdbErr := range errCh {
-			return fmt.Errorf("Import process failed: \n%s", otsdbErr)
+			return fmt.Errorf("import process failed: \n%s", otsdbErr)
 		}
 		bar.Finish()
 		log.Print(op.im.Stats())

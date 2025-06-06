@@ -131,7 +131,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 	if strings.HasPrefix(path, "/static") {
 		staticServer.ServeHTTP(w, r)
 		return true

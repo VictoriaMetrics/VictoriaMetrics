@@ -29,7 +29,7 @@ var (
 func Parse(r io.Reader, encoding string, callback func(rows []graphite.Row) error) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
-		return fmt.Errorf("Cannot decode graphite data: %w", err)
+		return fmt.Errorf("cannot decode graphite data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
 

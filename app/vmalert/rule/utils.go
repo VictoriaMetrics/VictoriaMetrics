@@ -39,7 +39,7 @@ func (cw *curlWriter) string() string {
 }
 
 func (cw *curlWriter) addWithEsc(str string) {
-	escStr := `'` + strings.Replace(str, `'`, `'\''`, -1) + `'`
+	escStr := `'` + strings.ReplaceAll(str, `'`, `'\''`) + `'`
 	cw.add(escStr)
 }
 
