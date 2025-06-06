@@ -17,6 +17,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -1885,9 +1886,8 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 type timeseriesWithPadding struct {
 	tss []*timeseries
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof([]*timeseries{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof([]*timeseries{})%atomicutil.CacheLineSize]byte
 }
 
 type timeseriesByWorkerID struct {
