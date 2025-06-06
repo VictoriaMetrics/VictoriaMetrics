@@ -38,6 +38,15 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 				},
 			},
 		},
+		Metadata: []prompbmarshal.MetricMetadata{
+			{
+				// COUNTER = 1
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
+			},
+		},
 	}
 	data := wrm.MarshalProtobuf(nil)
 
@@ -69,6 +78,15 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 			Samples: samples,
 		})
 	}
+	for _, mm := range wr.MetricMetadata {
+		wrm.Metadata = append(wrm.Metadata, prompbmarshal.MetricMetadata{
+			Type:             mm.Type,
+			MetricFamilyName: mm.MetricFamilyName,
+			Help:             mm.Help,
+			Unit:             mm.Unit,
+		})
+	}
+
 	dataResult := wrm.MarshalProtobuf(nil)
 
 	if !bytes.Equal(dataResult, data) {
