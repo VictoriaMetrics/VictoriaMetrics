@@ -156,13 +156,17 @@ func newTestPartWrappersForSizes(sizes []uint64) []*partWrapper {
 }
 
 func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
-	pt := &partition{}
+	defer testRemoveAll(t)
+
 	s := newTestStorage()
 	s.retentionMsecs = 1000
 	defer stopTestStorage(s)
-	pt.s = s
-	var pws []*partWrapper
 
+	timestamp := int64(0)
+	pt := testCreatePartition(t, timestamp, s)
+	defer pt.MustClose()
+
+	var pws []*partWrapper
 	const (
 		inMemoryPartsCount = 5
 		rowsCount          = 10
@@ -175,7 +179,7 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 				MetricID: uint64(i),
 			}
 			rows[i].Value = float64(i)
-			rows[i].Timestamp = int64(i)
+			rows[i].Timestamp = timestamp + int64(i)
 			rows[i].PrecisionBits = 64
 		}
 
@@ -191,6 +195,14 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 	}
 }
 
+func testCreatePartition(t *testing.T, timestamp int64, s *Storage) *partition {
+	t.Helper()
+	small := filepath.Join(t.Name(), smallDirname)
+	big := filepath.Join(t.Name(), bigDirname)
+	indexdb := filepath.Join(t.Name(), indexdbDirname)
+	return mustCreatePartition(timestamp, small, big, indexdb, s)
+}
+
 func TestMustCreatePartition(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -203,9 +215,13 @@ func TestMustCreatePartition(t *testing.T) {
 	if fs.IsPathExist(bigPath) {
 		t.Errorf("big partition directory must not exist: %s", bigPath)
 	}
+	indexDBPath := filepath.Join(t.Name(), "indexdb")
+	if fs.IsPathExist(indexDBPath) {
+		t.Errorf("indexdb parition directory must not exist: %s", indexDBPath)
+	}
 	s := &Storage{}
 
-	got := mustCreatePartition(ts, smallPath, bigPath, s)
+	got := mustCreatePartition(ts, smallPath, bigPath, indexDBPath, s)
 	defer got.MustClose()
 
 	wantSmallPartsPath := filepath.Join(smallPath, "2025_03")
@@ -222,6 +238,14 @@ func TestMustCreatePartition(t *testing.T) {
 	if !fs.IsPathExist(wantBigPartsPath) {
 		t.Errorf("big parts directory hasn't been created: %s", wantBigPartsPath)
 	}
+	wantIndexDBPartsPath := filepath.Join(indexDBPath, "2025_03")
+	if got.indexDBPartsPath != wantIndexDBPartsPath {
+		t.Errorf("unexpected indexDB parts path: got %s, want %s", got.indexDBPartsPath, wantIndexDBPartsPath)
+	}
+	if !fs.IsPathExist(wantIndexDBPartsPath) {
+		t.Errorf("indexDB parts directory hasn't been created: %s", wantIndexDBPartsPath)
+	}
+
 	wantStorage := s
 	if got.s != wantStorage {
 		t.Errorf("unexpected storage: got %v, want %v", got.s, wantStorage)
@@ -237,7 +261,6 @@ func TestMustCreatePartition(t *testing.T) {
 	if got.tr != wantTR {
 		t.Errorf("unexpected time range: got %v, want %v", &got.tr, &wantTR)
 	}
-
 }
 
 func TestMustOpenPartition(t *testing.T) {
@@ -245,10 +268,11 @@ func TestMustOpenPartition(t *testing.T) {
 
 	smallPartsPath := filepath.Join(t.Name(), "small", "2025_03")
 	bigPartsPath := filepath.Join(t.Name(), "big", "2025_03")
+	indexDBPartsPath := filepath.Join(t.Name(), "indexdb", "2025_03")
 
 	s := &Storage{}
 
-	got := mustOpenPartition(smallPartsPath, bigPartsPath, s)
+	got := mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 	defer got.MustClose()
 
 	if got.smallPartsPath != smallPartsPath {
@@ -262,6 +286,12 @@ func TestMustOpenPartition(t *testing.T) {
 	}
 	if !fs.IsPathExist(bigPartsPath) {
 		t.Errorf("big parts directory hasn't been created: %s", bigPartsPath)
+	}
+	if got.indexDBPartsPath != indexDBPartsPath {
+		t.Errorf("unexpected indexDB parts path: got %s, want %s", got.indexDBPartsPath, indexDBPartsPath)
+	}
+	if !fs.IsPathExist(indexDBPartsPath) {
+		t.Errorf("indexDB parts directory hasn't been created: %s", indexDBPartsPath)
 	}
 	if got.s != s {
 		t.Errorf("unexpected storage: got %v, want %v", got.s, s)
@@ -285,15 +315,16 @@ func TestMustOpenPartition_invalidPartitionName(t *testing.T) {
 
 	smallPartsPath := filepath.Join(t.Name(), "small", "2025_03_invalid")
 	bigPartsPath := filepath.Join(t.Name(), "big", "2025_03_invalid")
+	indexDBPartsPath := filepath.Join(t.Name(), "indexdb", "2025_03_invalid")
 
 	defer func() {
 		if err := recover(); err == nil {
-			t.Fatalf("expected panic on invalid partition name in smallPartsPath but it did not happen: %v", smallPartsPath)
+			t.Fatalf("expected panic on invalid partition name in smallPartsPath but it did not happen: %q", smallPartsPath)
 		}
 	}()
 
 	s := &Storage{}
-	_ = mustOpenPartition(smallPartsPath, bigPartsPath, s)
+	_ = mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 
 }
 
@@ -302,13 +333,14 @@ func TestMustOpenPartition_smallAndBigPartsPathsAreNotTheSame(t *testing.T) {
 
 	smallPartsPath := filepath.Join(t.Name(), "small", "2025_03")
 	bigPartsPath := filepath.Join(t.Name(), "big", "2025_04")
+	indexDBPartsPath := filepath.Join(t.Name(), "indexDB", "2025_04")
+
 	defer func() {
 		if err := recover(); err == nil {
-			t.Fatalf("expected panic on different partition name in smallPartsPath=%v and bigPartsPath=%v but it did not happen", smallPartsPath, bigPartsPath)
+			t.Fatalf("expected panic on different partition name in smallPartsPath=%q and bigPartsPath=%q indexDBPartsPath=%q but it did not happen", smallPartsPath, bigPartsPath, indexDBPartsPath)
 		}
 	}()
 
 	s := &Storage{}
-	_ = mustOpenPartition(smallPartsPath, bigPartsPath, s)
-
+	_ = mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 }

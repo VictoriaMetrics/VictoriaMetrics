@@ -42,11 +42,11 @@ type Vmsingle struct {
 	prometheusAPIV1SeriesURL       string
 }
 
-// StartVmsingle starts an instance of vmsingle with the given flags. It also
+// StartVmsingleAt starts an instance of vmsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
-func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-metrics", flags, &appOptions{
+func StartVmsingleAt(instance, binary string, flags []string, cli *Client) (*Vmsingle, error) {
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":     "127.0.0.1:0",
@@ -463,6 +463,11 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 	}
 
 	return &res
+}
+
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (app *Vmsingle) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
