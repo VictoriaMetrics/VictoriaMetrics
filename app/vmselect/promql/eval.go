@@ -144,7 +144,7 @@ type EvalConfig struct {
 	// EnforcedTagFilterss may contain additional label filters to use in the query.
 	EnforcedTagFilterss [][]storage.TagFilter
 
-	// CacheTagFilters stores the original tag-filter sets from the request.
+	// CacheTagFilters stores the original tag-filter sets and extra_label from the request.
 	// The slice is never modified after creation and is used only to build
 	// the query-cache key.
 	//
