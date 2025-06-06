@@ -1,0 +1,26 @@
+project_name: tenv
+
+env:
+  - GO111MODULE=on
+
+builds:
+  - id: tenv
+    main: ./cmd/tenv/main.go
+    binary: tenv
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: tenv
+    builds:
+      - tenv
+    name_template: '{{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    format_overrides:
+      - goos: windows
+        format: zip

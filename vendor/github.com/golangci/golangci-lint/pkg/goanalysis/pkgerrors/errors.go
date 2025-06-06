@@ -1,0 +1,56 @@
+package pkgerrors
+
+import (
+	"errors"
+	"fmt"
+
+	"golang.org/x/tools/go/packages"
+
+	"github.com/golangci/golangci-lint/pkg/lint/linter"
+	"github.com/golangci/golangci-lint/pkg/result"
+)
+
+type IllTypedError struct {
+	Pkg *packages.Package
+}
+
+func (e *IllTypedError) Error() string {
+	return fmt.Sprintf("errors in package: %v", e.Pkg.Errors)
+}
+
+func BuildIssuesFromIllTypedError(errs []error, lintCtx *linter.Context) ([]result.Issue, error) {
+	var issues []result.Issue
+	uniqReportedIssues := map[string]bool{}
+
+	var other error
+
+	for _, err := range errs {
+		var ill *IllTypedError
+		if !errors.As(err, &ill) {
+			if other == nil {
+				other = err
+			}
+			continue
+		}
+
+		for _, err := range extractErrors(ill.Pkg) {
+			issue, perr := parseError(err)
+			if perr != nil { // failed to parse
+				if uniqReportedIssues[err.Msg] {
+					continue
+				}
+				uniqReportedIssues[err.Msg] = true
+				lintCtx.Log.Errorf("typechecking error: %s", err.Msg)
+			} else {
+				issue.Pkg = ill.Pkg // to save to cache later
+				issues = append(issues, *issue)
+			}
+		}
+	}
+
+	if len(issues) == 0 && other != nil {
+		return nil, other
+	}
+
+	return issues, nil
+}

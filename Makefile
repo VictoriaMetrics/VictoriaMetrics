@@ -528,8 +528,6 @@ vet:
 
 check-all: fmt vet golangci-lint govulncheck
 
-clean-checkers: remove-golangci-lint remove-govulncheck
-
 test:
 	GOEXPERIMENT=synctest go test ./lib/... ./app/...
 
@@ -574,33 +572,14 @@ app-local-goos-goarch:
 app-local-windows-goarch:
 	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
 
-quicktemplate-gen: install-qtc
-	qtc
+quicktemplate-gen:
+	go tool qtc
 
-install-qtc:
-	which qtc || go install github.com/valyala/quicktemplate/qtc@latest
+golangci-lint:
+	GOEXPERIMENT=synctest go tool golangci-lint run
 
+govulncheck:
+	go tool govulncheck ./...
 
-golangci-lint: install-golangci-lint
-	GOEXPERIMENT=synctest golangci-lint run
-
-install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.7
-
-remove-golangci-lint:
-	rm -rf `which golangci-lint`
-
-govulncheck: install-govulncheck
-	govulncheck ./...
-
-install-govulncheck:
-	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
-
-remove-govulncheck:
-	rm -rf `which govulncheck`
-
-install-wwhrd:
-	which wwhrd || go install github.com/frapposelli/wwhrd@latest
-
-check-licenses: install-wwhrd
-	wwhrd check -f .wwhrd.yml
+check-licenses:
+	go tool wwhrd check -f .wwhrd.yml

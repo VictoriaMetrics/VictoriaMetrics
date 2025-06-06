@@ -1,0 +1,5 @@
+// Used as a temporary data.gen.go by go generate.
+
+package licensecheck
+
+var builtinLREs []License

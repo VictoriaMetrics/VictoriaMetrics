@@ -1,0 +1,79 @@
+run:
+  concurrency: 2
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    - cyclop
+    - dogsled
+    - durationcheck
+    - err113
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - exportloopref
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gofmt
+    - gofumpt
+    - goimports
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - nestif
+    - noctx
+    - nolintlint
+    - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - sqlclosecheck
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+    - whitespace
+    - wrapcheck
+
+linters-settings:
+  godot:
+    scope: toplevel
+
+issues:
+  exclude-use-default: false
+  exclude:
+    - "do not define dynamic errors, use wrapped static errors instead"
+  exclude-files:
+    - ./testdata/
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - errcheck
+        - funlen
+        - gocognit
+        - cyclop
+        - gosec
+        - noctx
+    - path: main\.go
+      linters:
+        - cyclop
+        - gomnd

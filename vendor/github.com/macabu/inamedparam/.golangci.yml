@@ -1,0 +1,33 @@
+run:
+  deadline: 30s 
+
+linters:
+  enable-all: true
+  disable:
+    - cyclop
+    - deadcode
+    - depguard
+    - exhaustivestruct
+    - exhaustruct
+    - forcetypeassert
+    - gochecknoglobals
+    - gocognit
+    - golint
+    - ifshort
+    - interfacer
+    - maligned
+    - nilnil
+    - nosnakecase
+    - paralleltest
+    - scopelint
+    - structcheck
+    - varcheck
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/macabu/inamedparam)
+    section-separators:
+      - newLine

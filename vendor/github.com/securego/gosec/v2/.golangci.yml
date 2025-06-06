@@ -1,0 +1,54 @@
+linters:
+  enable:
+    - asciicheck
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errorlint
+    - gci
+    - ginkgolinter
+    - gochecknoinits
+    - gofmt
+    - gofumpt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - misspell
+    - nakedret
+    - nolintlint
+    - revive
+    - staticcheck
+    - testifylint
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/securego)
+  staticcheck:
+    checks:
+     - all
+     - '-SA1019'
+
+  testifylint:
+    enable-all: true
+
+  revive:
+    rules:
+      - name: dot-imports
+        disabled: true
+      - name: redefines-builtin-id
+
+run:
+  timeout: 5m

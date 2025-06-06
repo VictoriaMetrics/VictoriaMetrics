@@ -1,0 +1,42 @@
+---
+project_name: wwhrd
+builds:
+- goos:
+  - linux
+  - darwin
+  - windows
+  goarch:
+  - amd64
+  env:
+  - CGO_ENABLED=0
+archives:
+  - id: github
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    format: tar.gz
+    files:
+    - LICENSE*
+    - README*
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+dockers:
+  - image_templates: 
+    - "frapposelli/wwhrd:latest"
+    - "frapposelli/wwhrd:{{ .Tag }}"
+    - "frapposelli/wwhrd:v{{ .Major }}"
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile
+brews:
+  - folder: Formula
+    tap:
+      owner: frapposelli
+      name: homebrew-tap
+    commit_author:
+      name: Fabio Rapposelli
+      email: fabio@rapposelli.org
+    homepage: "https://github.com/frapposelli/wwhrd/blob/master/README.md"
+    description: "Have Henry Rollins check vendor licenses in your Go project"
+    test: |
+      system "#{bin}/wwhrd -v"
+    install: |
+      bin.install "wwhrd"
