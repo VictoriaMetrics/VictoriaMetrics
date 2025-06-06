@@ -22,6 +22,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -1476,9 +1477,8 @@ func (tbfwLocal *tmpBlocksFileWrapperShard) init() {
 type tmpBlocksFileWrapperShardWithPadding struct {
 	tmpBlocksFileWrapperShard
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(tmpBlocksFileWrapperShard{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(tmpBlocksFileWrapperShard{})%atomicutil.CacheLineSize]byte
 }
 
 type blockAddrs struct {
@@ -1888,9 +1888,9 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	}
 	type wgWithPadding struct {
 		wgStruct
-		// The padding prevents false sharing on widespread platforms with
-		// 128 mod (cache line size) = 0 .
-		_ [128 - unsafe.Sizeof(wgStruct{})%128]byte
+
+		// The padding prevents false sharing
+		_ [atomicutil.CacheLineSize - unsafe.Sizeof(wgStruct{})%atomicutil.CacheLineSize]byte
 	}
 	wgs := make([]wgWithPadding, len(sns))
 	f := func(mb *storage.MetricBlock, workerID uint) error {
@@ -3270,9 +3270,9 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 
 type uint64WithPadding struct {
 	n uint64
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(uint64(0))%128]byte
+
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(uint64(0))%atomicutil.CacheLineSize]byte
 }
 
 type perNodeCounter struct {
