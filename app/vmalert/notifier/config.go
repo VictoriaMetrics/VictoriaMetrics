@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -49,9 +49,6 @@ type Config struct {
 	// Checksum stores the hash of yaml definition for the config.
 	// May be used to detect any changes to the config file.
 	Checksum string
-
-	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]any `yaml:",inline"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
@@ -110,24 +107,16 @@ func parseConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
-	var cfg *Config
-	err = yaml.Unmarshal(data, &cfg)
-	if err != nil {
+	var cfg Config
+	if err = yaml.UnmarshalWithOptions(data, &cfg, yaml.Strict()); err != nil {
 		return nil, err
-	}
-	if len(cfg.XXX) > 0 {
-		var keys []string
-		for k := range cfg.XXX {
-			keys = append(keys, k)
-		}
-		return nil, fmt.Errorf("unknown fields in %s", strings.Join(keys, ", "))
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
 	}
 	cfg.baseDir = filepath.Dir(absPath)
-	return cfg, nil
+	return &cfg, nil
 }
 
 func parseLabels(target string, metaLabels *promutil.Labels, cfg *Config) (string, *promutil.Labels, error) {

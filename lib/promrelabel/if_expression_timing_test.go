@@ -2,8 +2,9 @@ package promrelabel
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"testing"
+
+	"github.com/goccy/go-yaml"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -65,7 +66,7 @@ func BenchmarkIfExpression(b *testing.B) {
 func benchIfExpr(b *testing.B, expr string, labels []prompbmarshal.Label) {
 	b.Helper()
 	var ie IfExpression
-	if err := yaml.UnmarshalStrict([]byte(expr), &ie); err != nil {
+	if err := yaml.UnmarshalWithOptions([]byte(expr), &ie, yaml.Strict()); err != nil {
 		b.Fatalf("unexpected error during unmarshal: %s", err)
 	}
 	b.RunParallel(func(pb *testing.PB) {

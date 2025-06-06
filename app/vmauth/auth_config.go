@@ -21,7 +21,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -54,7 +54,7 @@ type AuthConfig struct {
 	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
 
 	// ms holds all the metrics for the given AuthConfig
-	ms *metrics.Set
+	ms *metrics.Set `yaml:"-"`
 }
 
 // UserInfo is user information read from authConfigPath
@@ -727,13 +727,12 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	ac := &AuthConfig{
-		ms: metrics.NewSet(),
-	}
-	if err = yaml.UnmarshalStrict(data, ac); err != nil {
+	ac := &AuthConfig{}
+	if err = yaml.UnmarshalWithOptions(data, ac, yaml.Strict()); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 
+	ac.ms = metrics.NewSet()
 	ui := ac.UnauthorizedUser
 	if ui != nil {
 		if ui.Username != "" {

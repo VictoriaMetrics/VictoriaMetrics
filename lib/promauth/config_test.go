@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
@@ -27,7 +27,7 @@ func TestOptionsNewConfigFailure(t *testing.T) {
 		t.Helper()
 
 		var hcc HTTPClientConfig
-		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &hcc); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(yamlConfig), &hcc, yaml.Strict()); err != nil {
 			t.Fatalf("cannot parse: %s", err)
 		}
 		cfg, err := hcc.NewConfig("")
@@ -217,7 +217,7 @@ func TestOauth2ConfigParseFailure(t *testing.T) {
 		t.Helper()
 
 		var cfg OAuth2Config
-		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &cfg); err == nil {
+		if err := yaml.UnmarshalWithOptions([]byte(yamlConfig), &cfg, yaml.Strict()); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
@@ -234,7 +234,7 @@ func TestOauth2ConfigValidateFailure(t *testing.T) {
 		t.Helper()
 
 		var cfg OAuth2Config
-		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &cfg); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(yamlConfig), &cfg, yaml.Strict()); err != nil {
 			t.Fatalf("cannot unmarshal config: %s", err)
 		}
 		if err := cfg.validate(); err == nil {
@@ -274,7 +274,7 @@ func TestOauth2ConfigValidateSuccess(t *testing.T) {
 		t.Helper()
 
 		var cfg OAuth2Config
-		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &cfg); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(yamlConfig), &cfg, yaml.Strict()); err != nil {
 			t.Fatalf("cannot parse: %s", err)
 		}
 		if err := cfg.validate(); err != nil {
@@ -301,7 +301,7 @@ func TestConfigGetAuthHeaderFailure(t *testing.T) {
 		t.Helper()
 
 		var hcc HTTPClientConfig
-		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &hcc); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(yamlConfig), &hcc); err != nil {
 			t.Fatalf("cannot parse: %s", err)
 		}
 		cfg, err := hcc.NewConfig("")
@@ -398,7 +398,7 @@ func TestConfigGetAuthHeaderSuccess(t *testing.T) {
 		t.Helper()
 
 		var hcc HTTPClientConfig
-		if err := yaml.UnmarshalStrict([]byte(yamlConfig), &hcc); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(yamlConfig), &hcc, yaml.Strict()); err != nil {
 			t.Fatalf("cannot unmarshal config: %s", err)
 		}
 		if hcc.OAuth2 != nil {

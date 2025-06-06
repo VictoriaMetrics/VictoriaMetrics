@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
-	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
@@ -124,7 +125,7 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
 	f([]string{"testdata/rules/vlog-rules0-bad.rules"}, "bad LogsQL expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
-	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields")
+	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown field")
 	f([]string{"testdata/rules/rules-multi-doc-duplicates-bad.rules"}, "duplicate")
 	f([]string{"http://unreachable-url"}, "failed to")
 }

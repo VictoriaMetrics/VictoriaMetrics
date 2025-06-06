@@ -14,7 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -127,7 +127,7 @@ func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
 		return fmt.Errorf("cannot expand environment variables: %w", err)
 	}
 	if isStrict {
-		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
+		if err = yaml.UnmarshalWithOptions(data, cfg, yaml.Strict()); err != nil {
 			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
 		}
 	} else {
@@ -444,7 +444,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
 	}
 	var stcs []StaticConfig
-	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
+	if err := yaml.UnmarshalWithOptions(data, &stcs, yaml.Strict()); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
 	}
 	return stcs, nil
@@ -490,7 +490,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict 
 			}
 			var scs []*ScrapeConfig
 			if isStrict {
-				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
+				if err = yaml.UnmarshalWithOptions(data, &scs, yaml.Strict()); err != nil {
 					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; "+
 						"pass -promscrape.config.strictParse=false command-line flag for ignoring invalid scrape_config_files", path, err)
 				}

@@ -3,7 +3,7 @@ package proxy
 import (
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 func TestURLParseSuccess(t *testing.T) {

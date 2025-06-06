@@ -12,6 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/goccy/go-yaml"
+	"github.com/valyala/histogram"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -22,9 +26,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/histogram"
-	"gopkg.in/yaml.v2"
 )
 
 // defines ingested samples lag quantile to determine a time to wait before flush.
@@ -289,7 +290,7 @@ func LoadFromData(data []byte, pushFunc PushFunc, opts *Options, alias string) (
 
 func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
 	var cfgs []*Config
-	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
+	if err := yaml.UnmarshalWithOptions(data, &cfgs, yaml.Strict()); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
 	}
 
