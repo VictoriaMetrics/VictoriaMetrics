@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 func TestMultiLineRegexUnmarshalMarshal(t *testing.T) {
 	f := func(data, resultExpected string) {
 		t.Helper()
 		var mlr MultiLineRegex
-		if err := yaml.UnmarshalStrict([]byte(data), &mlr); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(data), &mlr, yaml.Strict()); err != nil {
 			t.Fatalf("cannot unmarshal %q: %s", data, err)
 		}
 		result, err := yaml.Marshal(&mlr)
@@ -35,7 +35,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f := func(data, resultExpected string) {
 		t.Helper()
 		var rcs []RelabelConfig
-		if err := yaml.UnmarshalStrict([]byte(data), &rcs); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(data), &rcs, yaml.Strict()); err != nil {
 			t.Fatalf("cannot unmarshal %q: %s", data, err)
 		}
 		result, err := yaml.Marshal(&rcs)
@@ -59,7 +59,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
 	f(`- regex: True`, `- regex: "true"`+"\n")
 	f(`- regex: true`, `- regex: "true"`+"\n")
-	f(`- regex: 123`, `- regex: "123"`+"\n")
+	f(`- regex: "123"`, `- regex: "123"`+"\n")
 	f(`- regex: 1.23`, `- regex: "1.23"`+"\n")
 	f(`- regex: [null]`, `- regex: "null"`+"\n")
 	f(`
@@ -140,7 +140,7 @@ func TestParsedConfigsString(t *testing.T) {
 			},
 			If: &ie,
 		},
-	}, "- if: '{foo=~''bar''}'\n  action: graphite\n  match: foo.*.bar\n  labels:\n    job: $1-zz\n")
+	}, "- if: \"{foo=~'bar'}\"\n  action: graphite\n  match: foo.*.bar\n  labels:\n    job: $1-zz\n")
 	replacement := "foo"
 	f([]RelabelConfig{
 		{
@@ -153,7 +153,7 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel: "x",
 			Replacement: &replacement,
 		},
-	}, "- if: '{foo=~''bar''}'\n  action: replace\n  source_labels: [foo, bar]\n  target_label: x\n- target_label: x\n  replacement: foo\n")
+	}, "- if: \"{foo=~'bar'}\"\n  action: replace\n  source_labels: [foo, bar]\n  target_label: x\n- target_label: x\n  replacement: foo\n")
 }
 
 func TestParseRelabelConfigsSuccess(t *testing.T) {

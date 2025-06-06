@@ -3,7 +3,7 @@ package gce
 import (
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 func TestMarshallingSDConfigWithZoneYAML(t *testing.T) {

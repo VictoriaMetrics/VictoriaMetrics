@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
-	"gopkg.in/yaml.v2"
 )
 
 func TestIfExpressionParseFailure(t *testing.T) {
@@ -84,7 +85,7 @@ func TestIfExpressionUnmarshalFailure(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		err := yaml.UnmarshalStrict([]byte(s), &ie)
+		err := yaml.UnmarshalWithOptions([]byte(s), &ie, yaml.Strict())
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -113,7 +114,7 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(s), &ie); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(s), &ie, yaml.Strict()); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		b, err := yaml.Marshal(&ie)
@@ -126,10 +127,10 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 		}
 	}
 
-	f(`'{}'`)
+	f(`"{}"`)
 	f(`foo`)
 	f(`foo{bar="baz"}`)
-	f(`'{a="b", c!="d", e=~"g", h!~"d"}'`)
+	f(`"{a=\"b\", c!=\"d\", e=~\"g\", h!~\"d\"}"`)
 	f(`foo{bar="zs",a=~"b|c"}`)
 	f(`foo{z="y" or bar="zs",a=~"b|c"}`)
 	f(`- foo
@@ -141,7 +142,7 @@ func TestIfExpressionString(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(s), &ie); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(s), &ie, yaml.Strict()); err != nil {
 			t.Fatalf("cannot unmarshal if expression: %s", err)
 		}
 		result := ie.String()
@@ -166,7 +167,7 @@ func TestIfExpressionMatch(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(ifExpr), &ie, yaml.Strict()); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		labels := promutil.MustNewLabelsFromString(metricWithLabels)
@@ -204,7 +205,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
+		if err := yaml.UnmarshalWithOptions([]byte(ifExpr), &ie, yaml.Strict()); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		labels := promutil.MustNewLabelsFromString(metricWithLabels)

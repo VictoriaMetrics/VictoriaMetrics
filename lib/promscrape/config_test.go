@@ -96,8 +96,8 @@ scrape_configs:
   authorization:
     type: foobar
   headers:
-  - 'TenantID: fooBar'
-  - 'X: y:z'
+  - "TenantID: fooBar"
+  - "X: y:z"
   relabel_configs:
   - source_labels: [abc]
   static_configs:
@@ -106,7 +106,7 @@ scrape_configs:
   scrape_align_interval: 1h30m0s
   proxy_bearer_token_file: file.txt
   proxy_headers:
-  - 'My-Auth-Header: top-secret'
+  - "My-Auth-Header: top-secret"
 `)
 	f(`
 global:
@@ -435,10 +435,10 @@ scrape_config_files:
 scrape_configs:
 - job_name: foo
   static_configs:
-    targets: ["foo"]
+  - targets: ["foo"]
 - job_name: foo
   static_configs:
-    targets: ["bar"]
+  - targets: ["bar"]
 `)
 }
 

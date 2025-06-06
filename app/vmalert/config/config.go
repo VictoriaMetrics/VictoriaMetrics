@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
@@ -52,8 +52,6 @@ type Group struct {
 	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
 	// Debug enables debug logs for the group
 	Debug bool `yaml:"debug,omitempty"`
-	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]any `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -130,7 +128,7 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			}
 		}
 	}
-	return checkOverflow(g.XXX, fmt.Sprintf("group %q", g.Name))
+	return nil
 }
 
 // Rule describes entity that represent either
@@ -149,9 +147,6 @@ type Rule struct {
 	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
 	// Overrides `-rule.updateEntriesLimit`.
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
-
-	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]any `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -227,7 +222,7 @@ func (r *Rule) Validate() error {
 	if r.Expr == "" {
 		return fmt.Errorf("expression can't be empty")
 	}
-	return checkOverflow(r.XXX, "rule")
+	return nil
 }
 
 // ValidateTplFn must validate the given annotations
@@ -311,11 +306,9 @@ func parseConfig(data []byte) ([]Group, error) {
 	var result []Group
 	type cfgFile struct {
 		Groups []Group `yaml:"groups"`
-		// Catches all undefined fields and must be empty after parsing.
-		XXX map[string]any `yaml:",inline"`
 	}
 
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder := yaml.NewDecoder(bytes.NewReader(data), yaml.Strict())
 	for {
 		var cf cfgFile
 		if err = decoder.Decode(&cf); err != nil {
@@ -324,24 +317,10 @@ func parseConfig(data []byte) ([]Group, error) {
 			}
 			return nil, err
 		}
-		if err = checkOverflow(cf.XXX, "config"); err != nil {
-			return nil, err
-		}
 		result = append(result, cf.Groups...)
 	}
 
 	return result, nil
-}
-
-func checkOverflow(m map[string]any, ctx string) error {
-	if len(m) > 0 {
-		var keys []string
-		for k := range m {
-			keys = append(keys, k)
-		}
-		return fmt.Errorf("unknown fields in %s: %s", ctx, strings.Join(keys, ", "))
-	}
-	return nil
 }
 
 type item struct {

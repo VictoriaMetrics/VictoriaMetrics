@@ -6,12 +6,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
-	"gopkg.in/yaml.v2"
 )
 
 // RelabelConfig represents relabel config.
@@ -174,7 +175,7 @@ func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
 // ParseRelabelConfigsData parses relabel configs from the given data.
 func ParseRelabelConfigsData(data []byte) (*ParsedConfigs, error) {
 	var rcs []RelabelConfig
-	if err := yaml.UnmarshalStrict(data, &rcs); err != nil {
+	if err := yaml.UnmarshalWithOptions(data, &rcs, yaml.Strict()); err != nil {
 		return nil, err
 	}
 	return ParseRelabelConfigs(rcs)

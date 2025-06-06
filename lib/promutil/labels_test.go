@@ -34,7 +34,7 @@ func TestLabels(t *testing.T) {
 		t.Fatalf("unexpected marshaled value;\ngot\n%s\nwant\n%q", s, sExpected)
 	}
 	x1 := GetLabels()
-	if err := yaml.Unmarshal(s, &x1); err != nil {
+	if err := yaml.Unmarshal(s, x1); err != nil {
 		t.Fatalf("unexpected error in yaml.Unmarshal: %s", err)
 	}
 	x1.InternStrings()
