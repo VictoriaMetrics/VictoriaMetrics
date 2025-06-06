@@ -10,7 +10,7 @@ func TestSyslogParser(t *testing.T) {
 		t.Helper()
 
 		const currentYear = 2024
-		p := GetSyslogParser(currentYear, timezone)
+		p := GetSyslogParser(currentYear, timezone, false)
 		defer PutSyslogParser(p)
 
 		p.Parse(s)
