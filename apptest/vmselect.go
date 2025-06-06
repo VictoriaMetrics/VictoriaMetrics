@@ -55,9 +55,9 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
-// SelectHTTPAddr returns the address at which the vmselect process is
+// HTTPAddr returns the address at which the vmselect process is
 // listening for incoming HTTP requests.
-func (app *Vmselect) SelectHTTPAddr() string {
+func (app *Vmselect) HTTPAddr() string {
 	return app.httpListenAddr
 }
 

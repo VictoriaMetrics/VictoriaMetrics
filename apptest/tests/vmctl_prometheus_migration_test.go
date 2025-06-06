@@ -43,7 +43,7 @@ func TestClusterVmctlPrometheusProtocol(t *testing.T) {
 	defer tc.Stop()
 
 	cluster := tc.MustStartDefaultCluster()
-	vmAddr := fmt.Sprintf("http://%s/", cluster.Vminsert.InsertHTTPAddr())
+	vmAddr := fmt.Sprintf("http://%s/", cluster.Vminsert.HTTPAddr())
 	vmctlFlags := []string{
 		`prometheus`,
 		`--prom-snapshot=` + testSnapshot,
