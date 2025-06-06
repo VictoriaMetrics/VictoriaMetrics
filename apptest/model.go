@@ -368,6 +368,13 @@ type TSDBStatusResponse struct {
 	Data      TSDBStatusResponseData
 }
 
+// AdminTenantsResponse is an in-memory representation of the json response
+// returned by the /api/v1/admin/tenants endpoint.
+type AdminTenantsResponse struct {
+	Status string
+	Data   []string
+}
+
 // Sort performs sorting of stats entries
 func (tsr *TSDBStatusResponse) Sort() {
 	sortTSDBStatusResponseEntries(tsr.Data.SeriesCountByLabelName)
