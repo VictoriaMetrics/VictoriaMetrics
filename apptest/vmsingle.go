@@ -363,8 +363,7 @@ func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts Qu
 func (app *Vmsingle) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -375,6 +374,11 @@ func (app *Vmsingle) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	}
 
 	return &res
+}
+
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (app *Vmsingle) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
 // APIV1AdminTSDBSnapshot creates a database snapshot by sending a query to the
@@ -463,11 +467,6 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 	}
 
 	return &res
-}
-
-// SnapshotCreateURL returns the URL for creating snapshots.
-func (app *Vmsingle) SnapshotCreateURL() string {
-	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb

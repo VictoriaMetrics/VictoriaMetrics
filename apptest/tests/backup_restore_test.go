@@ -47,6 +47,56 @@ func TestSingleBackupRestore(t *testing.T) {
 	testBackupRestore(tc, opts)
 }
 
+func TestClusterBackupRestore(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	storage1DataPath := filepath.Join(tc.Dir(), "vmstorage1")
+	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
+
+	opts := testBackupRestoreOpts{
+		start: func() at.PrometheusWriteQuerier {
+			return tc.MustStartCluster(&at.ClusterOptions{
+				Vmstorage1Instance: "vmstorage1",
+				Vmstorage1Flags: []string{
+					"-storageDataPath=" + storage1DataPath,
+					"-retentionPeriod=100y",
+				},
+				Vmstorage2Instance: "vmstorage2",
+				Vmstorage2Flags: []string{
+					"-storageDataPath=" + storage2DataPath,
+					"-retentionPeriod=100y",
+				},
+				VminsertInstance: "vminsert",
+				VminsertFlags:    []string{},
+				VmselectInstance: "vmselect",
+				VmselectFlags: []string{
+					"-search.maxStalenessInterval=1m",
+				},
+			})
+		},
+		stop: func() {
+			tc.StopApp("vminsert")
+			tc.StopApp("vmselect")
+			tc.StopApp("vmstorage1")
+			tc.StopApp("vmstorage2")
+		},
+		storageDataPaths: []string{
+			storage1DataPath,
+			storage2DataPath,
+		},
+		snapshotCreateURLs: func(sut at.PrometheusWriteQuerier) []string {
+			c := sut.(*at.Vmcluster)
+			return []string{
+				c.Vmstorages[0].SnapshotCreateURL(),
+				c.Vmstorages[1].SnapshotCreateURL(),
+			}
+		},
+	}
+
+	testBackupRestore(tc, opts)
+}
+
 func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 	t := tc.T()
 
