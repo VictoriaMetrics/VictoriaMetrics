@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import "./style.scss";
@@ -14,6 +14,7 @@ interface ButtonProps {
   disabled?: boolean
   children?: ReactNode
   className?: string
+  "data-id"?: string
   onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void
   onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement>) => void
 }
@@ -31,6 +32,7 @@ const Button: FC<ButtonProps> = ({
   disabled,
   onClick,
   onMouseDown,
+  "data-id": dataId
 }) => {
 
   const classesButton = classNames({
@@ -50,6 +52,7 @@ const Button: FC<ButtonProps> = ({
       aria-label={ariaLabel}
       onClick={onClick}
       onMouseDown={onMouseDown}
+      data-id={dataId}
     >
       {startIcon}{children}{endIcon}
     </button>

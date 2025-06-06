@@ -7,7 +7,7 @@ import { useLiveTailingLogs } from "./useLiveTailingLogs";
 import { LOGS_DISPLAY_FIELDS, LOGS_URL_PARAMS } from "../../../../../constants/logs";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import throttle from "lodash/throttle";
+import throttle from "lodash.throttle";
 import GroupLogsItem from "../../../GroupLogs/GroupLogsItem";
 import LiveTailingSettings from "./LiveTailingSettings";
 import Alert from "../../../../../components/Main/Alert/Alert";
