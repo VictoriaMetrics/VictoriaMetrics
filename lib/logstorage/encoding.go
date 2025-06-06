@@ -110,7 +110,7 @@ func (sbu *stringsBlockUnmarshaler) unmarshal(dst []string, src []byte, itemsCou
 	dst = slicesutil.SetLength(dst, len(dst)+len(aLens))
 	dstA := dst[len(dst)-len(aLens):]
 
-	if len(aLens) >= 2 && areConstUint64s(aLens) && uint64(len(data)) == aLens[0] {
+	if len(aLens) >= 2 && encoding.AreConstUint64s(aLens) && uint64(len(data)) == aLens[0] {
 		// Special case - decode a constant string
 		s := bytesutil.ToUnsafeString(data)
 		for i := range dstA {
@@ -130,19 +130,6 @@ func (sbu *stringsBlockUnmarshaler) unmarshal(dst []string, src []byte, itemsCou
 	}
 
 	return dst, nil
-}
-
-func areConstUint64s(a []uint64) bool {
-	if len(a) == 0 {
-		return false
-	}
-	v := a[0]
-	for i := 1; i < len(a); i++ {
-		if v != a[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // marshalUint64Block appends marshaled a to dst and returns the result.
@@ -196,7 +183,7 @@ func marshalUint64Items(dst []byte, a []uint64) []byte {
 			nMax = n
 		}
 	}
-	areConsts := len(a) >= 2 && areConstUint64s(a)
+	areConsts := len(a) >= 2 && encoding.AreConstUint64s(a)
 	switch {
 	case nMax < (1 << 8):
 		if areConsts {
