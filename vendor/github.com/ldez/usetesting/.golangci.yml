@@ -1,0 +1,83 @@
+linters:
+  enable-all: true
+  disable:
+    - exportloopref # deprecated
+    - sqlclosecheck # not relevant (SQL)
+    - rowserrcheck # not relevant (SQL)
+    - cyclop # duplicate of gocyclo
+    - lll
+    - dupl
+    - nlreturn
+    - exhaustive
+    - exhaustruct
+    - testpackage
+    - tparallel
+    - paralleltest
+    - prealloc
+    - varnamelen
+    - nilnil
+    - errchkjson
+    - nonamedreturns
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+  mnd:
+    ignored-numbers:
+      - "124"
+  gocyclo:
+    min-complexity: 20
+  goconst:
+    min-len: 5
+    min-occurrences: 3
+  misspell:
+    locale: US
+  funlen:
+    lines: -1
+    statements: 40
+  godox:
+    keywords:
+      - FIXME
+  gofumpt:
+    extra-rules: true
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/instana/testify"
+            desc: not allowed
+          - pkg: "github.com/pkg/errors"
+            desc: Should be replaced by standard lib errors package
+  wsl:
+    force-case-trailing-whitespace: 1
+    allow-trailing-comment: true
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - sloppyReassign
+      - rangeValCopy
+      - octalLiteral
+      - paramTypeCombine # already handle by gofumpt.extra-rules
+    settings:
+      hugeParam:
+        sizeThreshold: 100
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  show-stats: true
+  sort-results: true
+  sort-order:
+    - linter
+    - file
+
+run:
+  timeout: 5m

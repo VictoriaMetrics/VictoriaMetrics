@@ -1,0 +1,31 @@
+run:
+  go: '1.19'
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - goheader
+    - goimports
+    - gosec
+    - gosimple
+    - lll
+    - nakedret
+    - revive
+    - stylecheck
+    - unused
+
+linters-settings:
+  goheader:
+    template: |-
+      SPDX-License-Identifier: GPL-3.0-or-later
+  goimports:
+    local-prefixes: github.com/xen0n/gosmopolitan
+  gosimple:
+    go: '1.19'
+  lll:
+    line-length: 120
+    tab-width: 4
+  nakedret:
+    max-func-lines: 1
+  stylecheck:
+    go: '1.19'

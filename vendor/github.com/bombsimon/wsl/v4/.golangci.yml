@@ -1,0 +1,71 @@
+---
+run:
+  timeout: 1m
+  issues-exit-code: 1
+  tests: true
+
+output:
+  print-issued-lines: false
+  sort-results: true
+  formats:
+    - format: colored-line-number
+
+linters-settings:
+  gocognit:
+    min-complexity: 10
+
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/davecgh/go-spew/spew"
+            desc: not allowed
+
+  misspell:
+    locale: US
+
+  gocritic:
+    # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint run`
+    # to see all tags and checks. Empty list by default. See
+    # https://github.com/go-critic/go-critic#usage -> section "Tags".
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+
+linters:
+  enable-all: true
+  disable:
+    - cyclop
+    - depguard
+    - dupl
+    - dupword
+    - exhaustruct
+    - exportloopref
+    - forbidigo
+    - funlen
+    - gci
+    - gocognit
+    - gocyclo
+    - godox
+    - mnd
+    - lll
+    - maintidx
+    - nakedret
+    - nestif
+    - nlreturn
+    - paralleltest
+    - prealloc
+    - rowserrcheck
+    - testpackage
+    - tparallel
+    - varnamelen
+    - wastedassign
+
+issues:
+  exclude-use-default: true
+  max-issues-per-linter: 0
+  max-same-issues: 0
+# vim: set sw=2 ts=2 et:

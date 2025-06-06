@@ -1,0 +1,23 @@
+linters:
+  disable-all: true
+  enable:
+    # enabled by default:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    # disabled by default:
+    - gocritic
+    - gofumpt
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - experimental
+      - opinionated

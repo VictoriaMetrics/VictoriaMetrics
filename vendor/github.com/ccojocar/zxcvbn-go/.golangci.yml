@@ -1,0 +1,39 @@
+linters:
+  enable:
+    - asciicheck
+    - bodyclose
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exportloopref
+    - gci
+    - ginkgolinter
+    - gofmt
+    - gofumpt
+    - goimports
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - megacheck
+    - misspell
+    - nakedret
+    - nolintlint
+    - revive
+    - staticcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/ccojocar)
+
+run:
+  timeout: 5m

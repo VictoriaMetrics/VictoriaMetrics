@@ -1,0 +1,107 @@
+run:
+  timeout: 2m
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+  gocyclo:
+    min-complexity: 16
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  misspell:
+    locale: US
+  funlen:
+    lines: -1
+    statements: 40
+  gofumpt:
+    extra-rules: true
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/instana/testify"
+            desc: not allowed
+          - pkg: "github.com/pkg/errors"
+            desc: Should be replaced by standard lib errors package
+  godox:
+    keywords:
+      - FIXME
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - sloppyReassign
+      - rangeValCopy
+      - octalLiteral
+      - paramTypeCombine # already handle by gofumpt.extra-rules
+      - exitAfterDefer # FIXME(ldez) must be fixed
+      - ifElseChain # FIXME(ldez) must be fixed
+    settings:
+      hugeParam:
+        sizeThreshold: 100
+  forbidigo:
+    forbid:
+      - '^print(ln)?$'
+      - '^panic$'
+      - '^spew\.Print(f|ln)?$'
+      - '^spew\.Dump$'
+
+linters:
+  enable-all: true
+  disable:
+    - deadcode # deprecated
+    - exhaustivestruct # deprecated
+    - golint # deprecated
+    - ifshort # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
+    - scopelint # deprecated
+    - scopelint # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
+    - execinquery # not relevant (SQL)
+    - rowserrcheck # not relevant (SQL)
+    - sqlclosecheck # not relevant (SQL)
+    - cyclop # duplicate of gocyclo
+    - dupl
+    - exhaustive
+    - exhaustruct
+    - forbidigo
+    - gochecknoglobals
+    - gochecknoinits
+    - goerr113
+    - gomnd
+    - lll
+    - nilnil
+    - nlreturn
+    - paralleltest
+    - prealloc
+    - testpackage
+    - tparallel
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - misspell
+    - gosec # FIXME(ldez) must be fixed
+    - errcheck # FIXME(ldez) must be fixed
+    - nonamedreturns # FIXME(ldez) must be fixed
+    - nakedret # FIXME(ldez) must be fixed
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude:
+    - 'ST1000: at least one file in a package should have a package comment'
+    - 'package-comments: should have a package comment'
+  exclude-rules:
+    - path: .*_test.go
+      linters:
+        - funlen
+        - goconst
