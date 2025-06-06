@@ -125,11 +125,29 @@ func isASCII(s string) bool {
 	return true
 }
 
+var isTokenASCIIMap = func() [256]bool {
+	m := [256]bool{}
+	for i := 0; i < utf8.RuneSelf; i++ {
+		c := byte(i)
+		m[i] = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'
+	}
+	return m
+}()
+
 func isTokenChar(c byte) bool {
-	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'
+	return isTokenASCIIMap[c]
 }
 
 func isTokenRune(c rune) bool {
+	if c < utf8.RuneSelf {
+		// Fast path: c is ASCII
+		return isTokenChar(byte(c))
+	}
+	// Slow path: c is Unicode
+	return isTokenRuneUnicode(c)
+}
+
+func isTokenRuneUnicode(c rune) bool {
 	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
 }
 

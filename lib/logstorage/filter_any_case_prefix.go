@@ -165,14 +165,16 @@ func matchAnyCasePrefix(s, prefixLowercase string) bool {
 		return false
 	}
 
-	if isASCIILowercase(s) {
+	n := firstNonASCIILowercaseIndex(s)
+	if n < 0 {
 		// Fast path - s is in lowercase
 		return matchPrefix(s, prefixLowercase)
 	}
 
 	// Slow path - convert s to lowercase before matching
 	bb := bbPool.Get()
-	bb.B = stringsutil.AppendLowercase(bb.B, s)
+	bb.B = append(bb.B, s[:n]...)
+	bb.B = stringsutil.AppendLowercase(bb.B, s[n:])
 	sLowercase := bytesutil.ToUnsafeString(bb.B)
 	ok := matchPrefix(sLowercase, prefixLowercase)
 	bbPool.Put(bb)
