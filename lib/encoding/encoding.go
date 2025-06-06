@@ -124,7 +124,7 @@ func marshalInt64Array(dst []byte, a []int64, precisionBits uint8) (result []byt
 		firstValue = a[0]
 		return dst, MarshalTypeConst, firstValue
 	}
-	if isDeltaConst(a) {
+	if IsDeltaConst(a) {
 		firstValue = a[0]
 		dst = MarshalVarInt64(dst, a[1]-a[0])
 		return dst, MarshalTypeDeltaConst, firstValue
@@ -303,22 +303,6 @@ func isConst(a []int64) bool {
 		if v != v1 {
 			return false
 		}
-	}
-	return true
-}
-
-// isDeltaConst returns true if a contains counter with constant delta.
-func isDeltaConst(a []int64) bool {
-	if len(a) < 2 {
-		return false
-	}
-	d1 := a[1] - a[0]
-	prev := a[1]
-	for _, next := range a[2:] {
-		if next-prev != d1 {
-			return false
-		}
-		prev = next
 	}
 	return true
 }

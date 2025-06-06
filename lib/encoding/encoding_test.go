@@ -22,26 +22,6 @@ func TestIsConst(t *testing.T) {
 	f([]int64{1, 1, 2}, false)
 }
 
-func TestIsDeltaConst(t *testing.T) {
-	f := func(a []int64, okExpected bool) {
-		t.Helper()
-		ok := isDeltaConst(a)
-		if ok != okExpected {
-			t.Fatalf("unexpected isDeltaConst for a=%d; got %v; want %v", a, ok, okExpected)
-		}
-	}
-	f([]int64{}, false)
-	f([]int64{1}, false)
-	f([]int64{1, 2}, true)
-	f([]int64{1, 2, 3}, true)
-	f([]int64{3, 2, 1}, true)
-	f([]int64{3, 2, 1, 0, -1, -2}, true)
-	f([]int64{3, 2, 1, 0, -1, -2, 2}, false)
-	f([]int64{1, 1}, true)
-	f([]int64{1, 2, 1}, false)
-	f([]int64{1, 2, 4}, false)
-}
-
 func TestIsGauge(t *testing.T) {
 	f := func(a []int64, okExpected bool) {
 		t.Helper()
