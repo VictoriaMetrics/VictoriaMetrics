@@ -71,7 +71,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"quantile_over_time":      newRollupQuantile,
 	"quantiles_over_time":     newRollupQuantiles,
 	"range_over_time":         newRollupFuncOneArg(rollupRange),
-	"rate":                    newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
+	"rate":                    newRollupFuncOneArg(rollupDerivFast),           // + rollupFuncsRemoveCounterResets
+	"rate_prometheus":         newRollupFuncOneArg(rollupDerivFastPrometheus), // + rollupFuncsRemoveCounterResets
 	"rate_over_sum":           newRollupFuncOneArg(rollupRateOverSum),
 	"resets":                  newRollupFuncOneArg(rollupResets),
 	"rollup":                  newRollupFuncOneOrTwoArgs(rollupFake),
@@ -195,7 +196,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"zscore_over_time":        rollupZScoreOverTime,
 }
 
-// VictoriaMetrics can extends lookbehind window for these functions
+// VictoriaMetrics can extend lookbehind window for these functions
 // in order to make sure it contains enough points for returning non-empty results.
 //
 // This is needed for returning the expected non-empty graphs when zooming in the graph in Grafana,
@@ -225,6 +226,7 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 	"increase_pure":       true,
 	"irate":               true,
 	"rate":                true,
+	"rate_prometheus":     true,
 	"rollup_increase":     true,
 	"rollup_rate":         true,
 }
@@ -252,6 +254,7 @@ var rollupFuncsSamplesScannedPerCall = map[string]int{
 	"lifetime":            2,
 	"present_over_time":   1,
 	"rate":                2,
+	"rate_prometheus":     2,
 	"scrape_interval":     2,
 	"tfirst_over_time":    1,
 	"timestamp":           1,
@@ -1936,6 +1939,14 @@ func rollupDerivSlow(rfa *rollupFuncArg) float64 {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/73
 	_, k := linearRegression(rfa.values, rfa.timestamps, rfa.currTimestamp)
 	return k
+}
+
+func rollupDerivFastPrometheus(rfa *rollupFuncArg) float64 {
+	delta := rollupDeltaPrometheus(rfa)
+	if math.IsNaN(delta) || rfa.window == 0 {
+		return nan
+	}
+	return delta / (float64(rfa.window) / 1e3)
 }
 
 func rollupDerivFast(rfa *rollupFuncArg) float64 {
