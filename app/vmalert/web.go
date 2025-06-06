@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -90,8 +91,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/vmalert/groups":
 		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
-		data := rh.groups(rf)
+		rf, err := extractRulesFilter(r, filter)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, _ := rh.groups(rf)
 		WriteListGroups(w, r, data, filter)
 		return true
 	case "/vmalert/notifiers":
@@ -105,8 +110,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
 		var data []apiGroup
 		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
-		data = rh.groups(rf)
+		rf, err := extractRulesFilter(r, filter)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, _ = rh.groups(rf)
 		WriteListGroups(w, r, data, filter)
 		return true
 
@@ -116,9 +125,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		var err error
 
 		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
+		rf, err := extractRulesFilter(r, filter)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		data, err = rh.listGroups(rf)
-
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -218,7 +230,8 @@ func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []apiGroup `json:"groups"`
+		Groups         []apiGroup `json:"groups"`
+		GroupNextToken string     `json:"groupNextToken,omitempty"`
 	} `json:"data"`
 }
 
@@ -231,9 +244,11 @@ type rulesFilter struct {
 	excludeAlerts bool
 	onlyUnhealthy bool
 	onlyNoMatch   bool
+	maxGroups     int
+	nextToken     string
 }
 
-func extractRulesFilter(r *http.Request, filter string) rulesFilter {
+func extractRulesFilter(r *http.Request, filter string) (rulesFilter, error) {
 	rf := rulesFilter{}
 
 	var ruleType string
@@ -257,15 +272,41 @@ func extractRulesFilter(r *http.Request, filter string) rulesFilter {
 	case "noMatch":
 		rf.onlyNoMatch = true
 	}
-	return rf
+
+	rf.nextToken = r.URL.Query().Get("group_next_token")
+	maxGroups := r.URL.Query().Get("group_limit")
+	if rf.nextToken != "" && maxGroups == "" {
+		return rulesFilter{}, errors.New("group_limit needs to be present in order to paginate over the groups")
+	}
+	if maxGroups != "" {
+		mgs, err := strconv.ParseInt(maxGroups, 10, 32)
+		if err != nil {
+			return rulesFilter{}, fmt.Errorf("group_limit needs to be a valid number: %w", err)
+		}
+		if mgs <= 0 {
+			return rulesFilter{}, errors.New("group_limit needs to be greater than 0")
+		}
+		rf.maxGroups = int(mgs)
+	}
+	return rf, nil
 }
 
-func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
+func (rh *requestHandler) groups(rf rulesFilter) ([]apiGroup, string) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
+	var (
+		foundToken   bool
+		grpNextToken string
+	)
 	groups := make([]apiGroup, 0)
 	for _, group := range rh.m.groups {
+		if rf.maxGroups > 0 && rf.nextToken != "" && !foundToken {
+			if rf.nextToken != strconv.Itoa(int(group.GetID())) {
+				continue
+			}
+			foundToken = true
+		}
 		if len(rf.groupNames) > 0 && !slices.Contains(rf.groupNames, group.Name) {
 			continue
 		}
@@ -300,6 +341,14 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 			}
 			filteredRules = append(filteredRules, r)
 		}
+		if len(groups) > 0 {
+			if len(groups) == rf.maxGroups {
+				// We've reached the capacity of our page plus one. That means that for sure there will be at least one
+				// rule group in a subsequent request. Therefore, a next token is required.
+				grpNextToken = strconv.Itoa(int(group.GetID()))
+				break
+			}
+		}
 		g.Rules = filteredRules
 		groups = append(groups, g)
 	}
@@ -310,12 +359,12 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 		}
 		return strings.Compare(a.File, b.File)
 	})
-	return groups
+	return groups, grpNextToken
 }
 
 func (rh *requestHandler) listGroups(rf rulesFilter) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups(rf)
+	lr.Data.Groups, lr.Data.GroupNextToken = rh.groups(rf)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
