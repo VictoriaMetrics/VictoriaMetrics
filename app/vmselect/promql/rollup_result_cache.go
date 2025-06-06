@@ -291,7 +291,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		qt.Printf("nothing found")
@@ -313,7 +313,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -419,7 +419,7 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
-	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf.B) > 0 {
