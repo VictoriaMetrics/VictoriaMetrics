@@ -1,6 +1,7 @@
 package elasticsearch
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -102,17 +103,21 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk", true)
 		encoding := r.Header.Get("Content-Encoding")
 		streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
-		n, err := readBulkRequest(streamName, r.Body, encoding, cp.TimeFields, cp.MsgFields, lmp)
+		n, parseErrors, err := readBulkRequest(streamName, r.Body, encoding, cp.TimeFields, cp.MsgFields, lmp)
 		lmp.MustClose()
 		if err != nil {
-			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
+			logger.Errorf("cannot read /_bulk request: %s, stream fields: %s", err, cp.StreamFields)
+			httpserver.Errorf(w, r, "cannot read /_bulk request: %s", err)
 			return true
 		}
+		logParseErrors(parseErrors, cp.StreamFields)
 
 		tookMs := time.Since(startTime).Milliseconds()
 		bw := bufferedwriter.Get(w)
 		defer bufferedwriter.Put(bw)
-		WriteBulkResponse(bw, n, tookMs)
+		// Even if there were parsing errors and not a single document could be parsed,
+		// we must still return a 200 OK status to match Elasticsearch's behavior.
+		WriteBulkResponse(bw, n, parseErrors, tookMs)
 		_ = bw.Flush()
 
 		// update bulkRequestDuration only for successfully parsed requests
@@ -126,17 +131,39 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+func logParseErrors(errs []parseError, streamFields []string) {
+	if len(errs) == 0 {
+		return
+	}
+	errorsToLog := 5
+	if errorsToLog > len(errs) {
+		errorsToLog = len(errs)
+	}
+	for _, parseErr := range errs[:errorsToLog] {
+		logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", parseErr.pos, parseErr.err, streamFields)
+	}
+	skipped := len(errs[errorsToLog:])
+	if skipped > 0 {
+		logger.Warnf("skipped %d more parse errors in /_bulk request; stream fields: %s", skipped, streamFields)
+	}
+}
+
 var (
 	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(streamName string, r io.Reader, encoding string, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (int, error) {
+type parseError struct {
+	pos int
+	err error
+}
+
+func readBulkRequest(streamName string, r io.Reader, encoding string, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (int, []parseError, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
-		return 0, fmt.Errorf("cannot decode Elasticsearch protocol data: %w", err)
+		return 0, nil, fmt.Errorf("cannot decode Elasticsearch protocol data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
 
@@ -146,15 +173,24 @@ func readBulkRequest(streamName string, r io.Reader, encoding string, timeFields
 	lr := insertutil.NewLineReader(streamName, wcr)
 
 	n := 0
-	for {
-		ok, err := readBulkLine(lr, timeFields, msgFields, lmp)
+	var parseErrors []parseError
+	for ; ; n++ {
+		hasMore, err := readBulkLine(lr, timeFields, msgFields, lmp)
 		wcr.DecConcurrency()
-		if err != nil || !ok {
-			return n, err
+		if err != nil {
+			if errors.Is(err, errParseLogEntry) {
+				parseErrors = append(parseErrors, parseError{pos: n, err: err})
+				continue
+			}
+			return n, nil, err
 		}
-		n++
+		if !hasMore {
+			return n, parseErrors, nil
+		}
 	}
 }
+
+var errParseLogEntry = errors.New("cannot parse json-encoded log entry")
 
 func readBulkLine(lr *insertutil.LineReader, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (bool, error) {
 	var line []byte
@@ -187,12 +223,12 @@ func readBulkLine(lr *insertutil.LineReader, timeFields, msgFields []string, lmp
 	}
 	p := logstorage.GetJSONParser()
 	if err := p.ParseLogMessage(line); err != nil {
-		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
+		return true, fmt.Errorf("%w: %s", errParseLogEntry, err)
 	}
 
 	ts, err := extractTimestampFromFields(timeFields, p.Fields)
 	if err != nil {
-		return false, fmt.Errorf("cannot parse timestamp: %w", err)
+		return true, fmt.Errorf("%w: %s", errParseLogEntry, err)
 	}
 	if ts == 0 {
 		ts = time.Now().UnixNano()
