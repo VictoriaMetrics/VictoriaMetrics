@@ -956,6 +956,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
+		GetRequestHeader: func() string {
+			return httpserver.GetRequestHeader(r)
+		},
 
 		DenyPartialResponse: httputil.GetDenyPartialResponse(r),
 	}
@@ -1071,6 +1074,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		CacheTagFilters:     etfs,
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
+		},
+		GetRequestHeader: func() string {
+			return httpserver.GetRequestHeader(r)
 		},
 
 		DenyPartialResponse: httputil.GetDenyPartialResponse(r),
