@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
-	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect."+
+	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect."+
 		"Remote read is used to restore alerts state."+
 		"This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
 		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
@@ -66,25 +66,27 @@ func Init() (datasource.QuerierBuilder, error) {
 	if *addr == "" {
 		return nil, nil
 	}
-	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	if err := httputil.CheckURL(*addr); err != nil {
+		return nil, fmt.Errorf("invalid -remoteRead.url: %w", err)
+	}
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vmalert_remoteread")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -remoteRead.url=%q: %w", *addr, err)
 	}
 	tr.IdleConnTimeout = *idleConnectionTimeout
-	tr.DialContext = netutil.NewStatDialFunc("vmalert_remoteread")
 
 	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse JSON for -remoteRead.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
 	}
-	authCfg, err := utils.AuthConfig(
-		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
-		utils.WithBearer(*bearerToken, *bearerTokenFile),
-		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
-		utils.WithHeaders(*headers))
+	authCfg, err := vmalertutil.AuthConfig(
+		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		vmalertutil.WithBearer(*bearerToken, *bearerTokenFile),
+		vmalertutil.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
+		vmalertutil.WithHeaders(*headers))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, authCfg, 0, false, c), nil
+	return datasource.NewPrometheusClient(*addr, authCfg, false, c), nil
 }

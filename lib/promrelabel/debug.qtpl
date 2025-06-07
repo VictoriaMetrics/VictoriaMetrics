@@ -1,7 +1,7 @@
 {% import (
         "fmt"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
-        "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+        "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 ) %}
 
 {% stripspace %}
@@ -34,7 +34,7 @@ function submitRelabelDebugForm(e) {
 <body>
     {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/relabeling/" target="_blank">Relabeling docs</a>{% space %}
+        <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/" target="_blank">Relabeling docs</a>{% space %}
 
         {% if targetURL != "" %}
           <a href="metric-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Metric relabel debug</a>
@@ -100,22 +100,36 @@ function submitRelabelDebugForm(e) {
   <tbody>
         {% for i, ds := range dss %}
         {% code
-                inLabels := promutils.MustNewLabelsFromString(ds.In)
-                outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                inLabels, inErr := promutil.NewLabelsFromString(ds.In)
+                outLabels, outErr := promutil.NewLabelsFromString(ds.Out)
                 changedLabels := getChangedLabelNames(inLabels, outLabels)
         %}
         <tr>
                 <td>{%d i %}</td>
                 <td><b><pre class="m-2">{%s ds.Rule %}</pre></b></td>
                 <td>
-                    <div class="m-2" style="font-size: 0.9em" title="deleted and updated labels highlighted in red">
-                        {%= labelsWithHighlight(inLabels, changedLabels, "red") %}
-                    </div>
+                    {% if inErr == nil %}
+                        <div class="m-2" style="font-size: 0.9em" title="deleted and updated labels highlighted in red">
+                            {%= labelsWithHighlight(inLabels, changedLabels, "#D15757") %}
+                        </div>
+                    {% else %}
+                        <div class="m-2" style="font-size: 0.9em; color: red" title="error parsing input labels">
+                            <pre>{%s inErr.Error() %}</pre>
+                        </div>
+                        {% break %}
+                    {% endif %}
                 </td>
                 <td>
-                    <div class="m-2" style="font-size: 0.9em" title="added and updated labels highlighted in blue">
-                        {%= labelsWithHighlight(outLabels, changedLabels, "blue") %}
-                    </div>
+                    {% if outErr == nil %}
+                        <div class="m-2" style="font-size: 0.9em" title="added and updated labels highlighted in blue">
+                            {%= labelsWithHighlight(outLabels, changedLabels, "#4495e0") %}
+                        </div>
+                    {% else %}
+                        <div class="m-2" style="font-size: 0.9em; color: red" title="error parsing output labels">
+                            <pre>{%s outErr.Error() %}</pre>
+                        </div>
+                        {% break %}
+                    {% endif %}
                 </td>
         </tr>
         {% endfor %}
@@ -143,31 +157,44 @@ function submitRelabelDebugForm(e) {
         "status": "error",
         "error": {%q= fmt.Sprintf("Error: %s", err) %}
     {% else %}
+        {% code var hasError bool %}
         "status": "success",
-        {% if len(dss) > 0 %}
-            "originalLabels": {%q= mustFormatLabels(dss[0].In) %},
-            "resultingLabels": {%q= mustFormatLabels(dss[len(dss)-1].Out) %},
-        {% endif %}
         "steps": [
             {% for i, ds := range dss %}
                 {% code
-                    inLabels := promutils.MustNewLabelsFromString(ds.In)
-                    outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                    inLabels, inErr := promutil.NewLabelsFromString(ds.In)
+                    outLabels, outErr := promutil.NewLabelsFromString(ds.Out)
                     changedLabels := getChangedLabelNames(inLabels, outLabels)
                 %}
                 {
-                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "red") %},
-                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "blue") %},
-                    "rule": {%q= ds.Rule %}
+                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "#D15757") %},
+                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "#4495e0") %},
+                    "rule": {%q= ds.Rule %},
+                    "errors": {
+                        {% if inErr != nil %}
+                        "inLabels": {%q= `<span style="color: #D15757">`+inErr.Error()+`</span>` %}{% if outErr != nil %},{% endif %}
+                        {%code hasError = true %}
+                        {% else %}
+                        {% endif %}
+                        {% if outErr != nil %}
+                        "outLabels": {%q= `<span style="color: #D15757">`+outErr.Error()+`</span>` %}
+                        {%code hasError = true %}
+                        {% endif %}
+                    }
                 }
                 {% if i != len(dss)-1 %},{% endif %}
             {% endfor %}
         ]
+        {% if len(dss) > 0 && !hasError %}
+        ,
+          "originalLabels": {%q= mustFormatLabels(dss[0].In) %},
+          "resultingLabels": {%q= mustFormatLabels(dss[len(dss)-1].Out) %}
+        {% endif %}
     {% endif %}
 }
 {% endfunc %}
 
-{% func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}, color string) %}
+{% func labelsWithHighlight(labels *promutil.Labels, highlight map[string]struct{}, color string) %}
         {% code
                 labelsList := labels.GetLabels()
                 metricName := ""
@@ -200,8 +227,12 @@ function submitRelabelDebugForm(e) {
 {% endfunc %}
 
 {% func mustFormatLabels(s string) %}
-        {% code labels := promutils.MustNewLabelsFromString(s) %}
-        {%= labelsWithHighlight(labels, nil, "") %}
+        {% code labels, err := promutil.NewLabelsFromString(s) %}
+        {% if err != nil %}
+            <span style="color: red" title="error parsing labels: {%s err.Error() %}">{%s "error parsing labels: " + err.Error() %}</span>
+        {% else %}
+            {%= labelsWithHighlight(labels, nil, "") %}
+        {% endif %}
 {% endfunc %}
 
 {% endstripspace %}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterWeekRange filters by week range.
@@ -27,8 +28,8 @@ func (fr *filterWeekRange) String() string {
 	return "_time:week_range" + fr.stringRepr
 }
 
-func (fr *filterWeekRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add("_time")
+func (fr *filterWeekRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_time")
 }
 
 func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -49,7 +50,7 @@ func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
-		timestamps := br.timestamps
+		timestamps := br.getTimestamps()
 		bm.forEachSetBit(func(idx int) bool {
 			timestamp := timestamps[idx]
 			return fr.matchTimestampValue(timestamp)
@@ -86,6 +87,8 @@ func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

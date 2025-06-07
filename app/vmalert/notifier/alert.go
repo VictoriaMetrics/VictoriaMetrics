@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -21,6 +21,8 @@ type Alert struct {
 	GroupID uint64
 	// Name represents Alert name
 	Name string
+	// Type defines the datasource type of the Alert
+	Type string
 	// Labels is the list of label-value pairs attached to the Alert
 	Labels map[string]string
 	// Annotations is the list of annotations generated on Alert evaluation
@@ -78,6 +80,7 @@ func (as AlertState) String() string {
 
 // AlertTplData is used to execute templating
 type AlertTplData struct {
+	Type     string
 	Labels   map[string]string
 	Value    float64
 	Expr     string
@@ -89,6 +92,7 @@ type AlertTplData struct {
 
 var tplHeaders = []string{
 	"{{ $value := .Value }}",
+	"{{ $type := .Type }}",
 	"{{ $labels := .Labels }}",
 	"{{ $expr := .Expr }}",
 	"{{ $externalLabels := .ExternalLabels }}",
@@ -106,6 +110,7 @@ var tplHeaders = []string{
 func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string]string) (map[string]string, error) {
 	tplData := AlertTplData{
 		Value:    a.Value,
+		Type:     a.Type,
 		Labels:   labels,
 		Expr:     a.Expr,
 		AlertID:  a.ID,
@@ -127,7 +132,7 @@ func ExecTemplate(q templates.QueryFn, annotations map[string]string, tplData Al
 
 // ValidateTemplates validate annotations for possible template error, uses empty data for template population
 func ValidateTemplates(annotations map[string]string) error {
-	tmpl, err := templates.Get()
+	tmpl, err := templates.GetWithFuncs(nil)
 	if err != nil {
 		return err
 	}
@@ -141,17 +146,26 @@ func ValidateTemplates(annotations map[string]string) error {
 func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
-	eg := new(utils.ErrGroup)
+	eg := new(vmalertutil.ErrGroup)
 	r := make(map[string]string, len(annotations))
 	tData := tplData{data, externalLabels, externalURL}
 	header := strings.Join(tplHeaders, "")
 	for key, text := range annotations {
+		// simple check to skip text without template
+		if !strings.Contains(text, "{{") || !strings.Contains(text, "}}") {
+			r[key] = text
+			continue
+		}
+
 		buf.Reset()
 		builder.Reset()
 		builder.Grow(len(header) + len(text))
 		builder.WriteString(header)
 		builder.WriteString(text)
-		if err := templateAnnotation(&buf, builder.String(), tData, tmpl, execute); err != nil {
+		// clone a new template for each parse to avoid collision
+		ctmpl, _ := tmpl.Clone()
+		ctmpl = ctmpl.Option("missingkey=zero")
+		if err := templateAnnotation(&buf, builder.String(), tData, ctmpl, execute); err != nil {
 			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
@@ -167,14 +181,8 @@ type tplData struct {
 	ExternalURL    string
 }
 
-func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.Template, execute bool) error {
-	tpl, err := tmpl.Clone()
-	if err != nil {
-		return fmt.Errorf("error cloning template before parse annotation: %w", err)
-	}
-	// Clone() doesn't copy tpl Options, so we set them manually
-	tpl = tpl.Option("missingkey=zero")
-	tpl, err = tpl.Parse(text)
+func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.Template, execute bool) error {
+	tpl, err := tpl.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation template: %w", err)
 	}

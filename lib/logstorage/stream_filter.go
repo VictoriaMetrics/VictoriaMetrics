@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -86,12 +87,14 @@ func (af *andStreamFilter) String() string {
 type streamTagFilter struct {
 	// tagName is the name for the tag to filter
 	tagName string
-	// op is operation such as `=`, `!=`, `=~` or `!~`
+
+	// op is operation such as `=`, `!=`, `=~`, `!~` or `:`
 	op string
 
 	// value is the value
 	value string
 
+	// regexp is initialized for `=~` and `!~` op.
 	regexp *regexutil.PromRegex
 }
 
@@ -164,21 +167,48 @@ func parseAndStreamFilter(lex *lexer) (*andStreamFilter, error) {
 }
 
 func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
-	tagName := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing operation in _stream filter for %q field", tagName)
+	// parse tagName
+	tagName, err := parseStreamTagName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse stream tag name inside {...}: %w", err)
 	}
-	if !lex.isKeyword("=", "!=", "=~", "!~") {
-		return nil, fmt.Errorf("unsupported operation %q in _steam filter for %q field; supported operations: =, !=, =~, !~", lex.token, tagName)
+	if !lex.isKeyword("=", "!=", "=~", "!~", "in", "not_in") {
+		return nil, fmt.Errorf("unsupported operation %q inside {...} for %q field; supported operations: =, !=, =~, !~, in, not_in", lex.token, tagName)
 	}
+
+	// parse op
 	op := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing _stream filter value for %q field", tagName)
+	lex.nextToken()
+
+	// parse tag value
+	value := ""
+	if op == "in" || op == "not_in" {
+		args, err := parseArgsInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read %s() args inside {...}: %w", op, err)
+		}
+		if op == "in" {
+			op = "=~"
+		} else {
+			op = "!~"
+		}
+		if len(args) == 1 && args[0] == "*" {
+			value = ".*"
+		} else {
+			argsEscaped := make([]string, len(args))
+			for i := range args {
+				argsEscaped[i] = regexp.QuoteMeta(args[i])
+			}
+			value = strings.Join(argsEscaped, "|")
+		}
+	} else {
+		v, err := parseStreamTagValue(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse value for tag %q inside {...}: %w", tagName, err)
+		}
+		value = v
 	}
-	value := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing token after %q%s%q filter", tagName, op, value)
-	}
+
 	stf := &streamTagFilter{
 		tagName: tagName,
 		op:      op,
@@ -187,11 +217,21 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	if op == "=~" || op == "!~" {
 		re, err := regexutil.NewPromRegex(value)
 		if err != nil {
-			return nil, fmt.Errorf("invalid regexp %q for stream filter: %w", value, err)
+			return nil, fmt.Errorf("invalid regexp %q for %q inside {...}: %w", value, tagName, err)
 		}
 		stf.regexp = re
 	}
 	return stf, nil
+}
+
+func parseStreamTagName(lex *lexer) (string, error) {
+	stopTokens := []string{"=", "!=", "=~", "!~", ",", "{", "}", "'", `"`, "`", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func parseStreamTagValue(lex *lexer) (string, error) {
+	stopTokens := []string{",", "{", "}", "(", "'", `"`, "`", ""}
+	return getCompoundTokenExt(lex, stopTokens)
 }
 
 func getStreamName() *streamName {

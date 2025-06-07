@@ -2,12 +2,15 @@ package stream
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
+	"io"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -93,7 +96,8 @@ func TestParseStream(t *testing.T) {
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge", ""),
-			generateHistogram("my-histogram", ""),
+			generateHistogram("my-histogram", "", true),
+			generateHistogram("my-sumless-histogram", "", false),
 			generateSum("my-sum", "", false),
 			generateSummary("my-summary", ""),
 		},
@@ -106,6 +110,12 @@ func TestParseStream(t *testing.T) {
 			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
 			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
 			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
+			newPromPBTs("my-sumless-histogram_count", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 0.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.1")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 5.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.5")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
 			newPromPBTs("my-sum", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
 			newPromPBTs("my-summary_sum", 35000, 32.5, jobLabelValue, kvLabel("label6", "value6")),
 			newPromPBTs("my-summary_count", 35000, 5.0, jobLabelValue, kvLabel("label6", "value6")),
@@ -192,24 +202,150 @@ func TestParseStream(t *testing.T) {
 		},
 		true,
 	)
+
+	// Test exponential histograms
+	f(
+		[]*pb.Metric{
+			generateExpHistogram("test-histogram", "m/s"),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.061e+00...1.067e+00")),
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.067e+00...1.073e+00")),
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.085e+00...1.091e+00")),
+			newPromPBTs("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
+			newPromPBTs("test_histogram_meters_per_second_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		true,
+	)
+
+	// Test gauge with deeply nested attributes
+	f(
+		[]*pb.Metric{
+			{
+				Name: "my-gauge",
+				Unit: "",
+				Gauge: &pb.Gauge{
+					DataPoints: []*pb.NumberDataPoint{
+						{
+							Attributes: []*pb.KeyValue{
+								{
+									Key: "label1",
+									Value: &pb.AnyValue{
+										StringValue: ptrTo("value1"),
+									},
+								},
+								{
+									Key:   "emptylabelvalue",
+									Value: &pb.AnyValue{},
+								},
+								{
+									Key: "emptylabel",
+								},
+								{
+									Key: "label_array",
+									Value: &pb.AnyValue{
+										ArrayValue: &pb.ArrayValue{
+											Values: []*pb.AnyValue{
+												{
+													StringValue: ptrTo("value5"),
+												},
+												{
+													KeyValueList: &pb.KeyValueList{},
+												},
+											},
+										},
+									},
+								},
+								{
+									Key: "nested_label",
+									Value: &pb.AnyValue{
+										KeyValueList: &pb.KeyValueList{
+											Values: []*pb.KeyValue{
+												{
+													Key: "empty_value",
+												},
+												{
+													Key: "value_top_2",
+													Value: &pb.AnyValue{
+														StringValue: ptrTo("valuetop"),
+													},
+												},
+												{
+													Key: "nested_kv_list",
+													Value: &pb.AnyValue{
+														KeyValueList: &pb.KeyValueList{
+															Values: []*pb.KeyValue{
+																{
+																	Key:   "integer",
+																	Value: &pb.AnyValue{IntValue: ptrTo(int64(15))},
+																},
+																{
+																	Key:   "doable",
+																	Value: &pb.AnyValue{DoubleValue: ptrTo(5.1)},
+																},
+																{
+																	Key:   "string",
+																	Value: &pb.AnyValue{StringValue: ptrTo("value2")},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+							IntValue:     ptrTo(int64(15)),
+							TimeUnixNano: uint64(15 * time.Second),
+						},
+					},
+				},
+			},
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my-gauge",
+				15000,
+				15.0,
+				jobLabelValue,
+				kvLabel("label1", "value1"),
+				kvLabel("emptylabelvalue", ""),
+				kvLabel("emptylabel", ""),
+				kvLabel("label_array", `["value5",{}]`),
+				kvLabel("nested_label", `{"empty_value":null,"value_top_2":"valuetop","nested_kv_list":{"integer":15,"doable":5.1,"string":"value2"}}`)),
+		},
+		false,
+	)
 }
 
 func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
 	// Verify parsing without compression
-	if err := ParseStream(bytes.NewBuffer(data), false, nil, checkSeries); err != nil {
+	if err := ParseStream(bytes.NewBuffer(data), "", nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing data: %w", err)
 	}
 
-	// Verify parsing with compression
+	// Verify parsing with gzip compression
 	var bb bytes.Buffer
-	zw := gzip.NewWriter(&bb)
+	var zw io.WriteCloser = gzip.NewWriter(&bb)
 	if _, err := zw.Write(data); err != nil {
 		return fmt.Errorf("cannot compress data: %w", err)
 	}
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
-	if err := ParseStream(&bb, true, nil, checkSeries); err != nil {
+	if err := ParseStream(&bb, "gzip", nil, checkSeries); err != nil {
+		return fmt.Errorf("error when parsing compressed data: %w", err)
+	}
+
+	// Verify parsing with zstd  compression
+	zw, _ = zstd.NewWriter(&bb)
+	if _, err := zw.Write(data); err != nil {
+		return fmt.Errorf("cannot compress data: %w", err)
+	}
+	if err := zw.Close(); err != nil {
+		return fmt.Errorf("cannot close zstd writer: %w", err)
+	}
+	if err := ParseStream(&bb, "zstd", nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
@@ -222,6 +358,30 @@ func attributesFromKV(k, v string) []*pb.KeyValue {
 			Key: k,
 			Value: &pb.AnyValue{
 				StringValue: &v,
+			},
+		},
+	}
+}
+
+func generateExpHistogram(name, unit string) *pb.Metric {
+	sum := float64(4578)
+	return &pb.Metric{
+		Name: name,
+		Unit: unit,
+		ExponentialHistogram: &pb.ExponentialHistogram{
+			AggregationTemporality: pb.AggregationTemporalityCumulative,
+			DataPoints: []*pb.ExponentialHistogramDataPoint{
+				{
+					Attributes:   attributesFromKV("label1", "value1"),
+					TimeUnixNano: uint64(15 * time.Second),
+					Count:        20,
+					Sum:          &sum,
+					Scale:        7,
+					Positive: &pb.Buckets{
+						Offset:       7,
+						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
+					},
+				},
 			},
 		},
 	}
@@ -245,23 +405,23 @@ func generateGauge(name, unit string) *pb.Metric {
 	}
 }
 
-func generateHistogram(name, unit string) *pb.Metric {
-	points := []*pb.HistogramDataPoint{
-		{
-			Attributes:     attributesFromKV("label2", "value2"),
-			Count:          15,
-			Sum:            func() *float64 { v := 30.0; return &v }(),
-			ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
-			BucketCounts:   []uint64{0, 5, 10, 0, 0},
-			TimeUnixNano:   uint64(30 * time.Second),
-		},
+func generateHistogram(name, unit string, hasSum bool) *pb.Metric {
+	point := &pb.HistogramDataPoint{
+		Attributes:     attributesFromKV("label2", "value2"),
+		Count:          15,
+		ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
+		BucketCounts:   []uint64{0, 5, 10, 0, 0},
+		TimeUnixNano:   uint64(30 * time.Second),
+	}
+	if hasSum {
+		point.Sum = func() *float64 { v := 30.0; return &v }()
 	}
 	return &pb.Metric{
 		Name: name,
 		Unit: unit,
 		Histogram: &pb.Histogram{
 			AggregationTemporality: pb.AggregationTemporalityCumulative,
-			DataPoints:             points,
+			DataPoints:             []*pb.HistogramDataPoint{point},
 		},
 	}
 }
@@ -382,4 +542,8 @@ func sortLabels(labels []prompbmarshal.Label) {
 	sort.Slice(labels, func(i, j int) bool {
 		return labels[i].Name < labels[j].Name
 	})
+}
+
+func ptrTo[T any](v T) *T {
+	return &v
 }

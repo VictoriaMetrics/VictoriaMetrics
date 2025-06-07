@@ -33,7 +33,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // go template execution fails when it's tree is empty
@@ -54,10 +54,9 @@ func newTemplate() *textTpl.Template {
 }
 
 // Load func loads templates from multiple globs specified in pathPatterns and either
-// sets them directly to current template if it's undefined or with overwrite=true
-// or sets replacement templates and adds templates with new names to a current
-func Load(pathPatterns []string, overwrite bool) error {
-	var err error
+// sets them directly to current template if it's the first init;
+// or sets replacement templates and wait for Reload() to replace current template with replacement.
+func Load(pathPatterns []string, externalURL url.URL) error {
 	tmpl := newTemplate()
 	for _, tp := range pathPatterns {
 		p, err := doublestar.FilepathGlob(tp)
@@ -79,36 +78,12 @@ func Load(pathPatterns []string, overwrite bool) error {
 	}
 	tplMu.Lock()
 	defer tplMu.Unlock()
-	if masterTmpl.current == nil || overwrite {
-		masterTmpl.replacement = nil
-		masterTmpl.current = newTemplate()
-	} else {
-		masterTmpl.replacement = newTemplate()
-		if err = copyTemplates(tmpl, masterTmpl.replacement, overwrite); err != nil {
-			return err
-		}
-	}
-	return copyTemplates(tmpl, masterTmpl.current, overwrite)
-}
+	tmpl = tmpl.Funcs(funcsWithExternalURL(externalURL))
 
-func copyTemplates(from *textTpl.Template, to *textTpl.Template, overwrite bool) error {
-	if from == nil {
-		return nil
-	}
-	if to == nil {
-		to = newTemplate()
-	}
-	tmpl, err := from.Clone()
-	if err != nil {
-		return err
-	}
-	for _, t := range tmpl.Templates() {
-		if to.Lookup(t.Name()) == nil || overwrite {
-			to, err = to.AddParseTree(t.Name(), t.Tree)
-			if err != nil {
-				return fmt.Errorf("failed to add template %q: %w", t.Name(), err)
-			}
-		}
+	if masterTmpl.current == nil {
+		masterTmpl.current = tmpl
+	} else {
+		masterTmpl.replacement = tmpl
 	}
 	return nil
 }
@@ -153,13 +128,6 @@ func datasourceMetricsToTemplateMetrics(ms []datasource.Metric) []metric {
 // for templating functions.
 type QueryFn func(query string) ([]datasource.Metric, error)
 
-// UpdateWithFuncs updates existing or sets a new function map for a template
-func UpdateWithFuncs(funcs textTpl.FuncMap) {
-	tplMu.Lock()
-	defer tplMu.Unlock()
-	masterTmpl.current = masterTmpl.current.Funcs(funcs)
-}
-
 // GetWithFuncs returns a copy of current template with additional FuncMap
 // provided with funcs argument
 func GetWithFuncs(funcs textTpl.FuncMap) (*textTpl.Template, error) {
@@ -169,14 +137,9 @@ func GetWithFuncs(funcs textTpl.FuncMap) (*textTpl.Template, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Clone() doesn't copy tpl Options, so we set them manually
+	tmpl = tmpl.Option("missingkey=zero")
 	return tmpl.Funcs(funcs), nil
-}
-
-// Get returns a copy of a template
-func Get() (*textTpl.Template, error) {
-	tplMu.RLock()
-	defer tplMu.RUnlock()
-	return masterTmpl.current.Clone()
 }
 
 // FuncsWithQuery returns a function map that depends on metric data
@@ -196,8 +159,8 @@ func FuncsWithQuery(query QueryFn) textTpl.FuncMap {
 	}
 }
 
-// FuncsWithExternalURL returns a function map that depends on externalURL value
-func FuncsWithExternalURL(externalURL *url.URL) textTpl.FuncMap {
+// funcsWithExternalURL returns a function map that depends on externalURL value
+func funcsWithExternalURL(externalURL url.URL) textTpl.FuncMap {
 	return textTpl.FuncMap{
 		"externalURL": func() string {
 			return externalURL.String()
@@ -296,7 +259,7 @@ func templateFuncs() textTpl.FuncMap {
 
 		// parseDuration parses a duration string such as "1h" into the number of seconds it represents
 		"parseDuration": func(s string) (float64, error) {
-			d, err := promutils.ParseDuration(s)
+			d, err := timeutil.ParseDuration(s)
 			if err != nil {
 				return 0, err
 			}
@@ -305,7 +268,7 @@ func templateFuncs() textTpl.FuncMap {
 
 		// same with parseDuration but returns a time.Duration
 		"parseDurationTime": func(s string) (time.Duration, error) {
-			d, err := promutils.ParseDuration(s)
+			d, err := timeutil.ParseDuration(s)
 			if err != nil {
 				return 0, err
 			}

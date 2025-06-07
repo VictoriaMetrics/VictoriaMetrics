@@ -10,8 +10,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -26,21 +26,18 @@ var (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func Parse(r io.Reader, isGzipped bool, callback func(rows []graphite.Row) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
-
-	if isGzipped {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped graphite data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+func Parse(r io.Reader, encoding string, callback func(rows []graphite.Row) error) error {
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("Cannot decode graphite data: %w", err)
 	}
+	defer protoparserutil.PutUncompressedReader(reader)
 
-	ctx := getStreamContext(r)
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
 
 	for ctx.Read() {
@@ -49,7 +46,7 @@ func Parse(r io.Reader, isGzipped bool, callback func(rows []graphite.Row) error
 		uw.callback = callback
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
-		common.ScheduleUnmarshalWork(uw)
+		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
@@ -64,7 +61,7 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = protoparserutil.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -158,7 +155,7 @@ func (uw *unmarshalWork) runCallback(rows []graphite.Row) {
 	ctx.wg.Done()
 }
 
-// Unmarshal implements common.UnmarshalWork
+// Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
 	rows := uw.rows.Rows

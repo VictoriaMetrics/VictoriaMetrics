@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Querier interface wraps Query and QueryRange methods
@@ -32,6 +34,9 @@ type Result struct {
 	// If nil, then this feature is not supported by the datasource.
 	// SeriesFetched is supported by VictoriaMetrics since v1.90.
 	SeriesFetched *int
+	// IsPartial is used by VictoriaMetrics to indicate
+	// whether response data is partial.
+	IsPartial *bool
 }
 
 // QuerierBuilder builds Querier with given params.
@@ -42,16 +47,20 @@ type QuerierBuilder interface {
 
 // QuerierParams params for Querier.
 type QuerierParams struct {
-	DataSourceType     string
-	EvaluationInterval time.Duration
-	QueryParams        url.Values
-	Headers            map[string]string
-	Debug              bool
+	DataSourceType string
+	// ApplyIntervalAsTimeFilter is only valid for vlogs datasource.
+	// Set to true if there is no [timeFilter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in the rule expression,
+	// and we will add evaluation interval as an additional timeFilter when querying.
+	ApplyIntervalAsTimeFilter bool
+	EvaluationInterval        time.Duration
+	QueryParams               url.Values
+	Headers                   map[string]string
+	Debug                     bool
 }
 
 // Metric is the basic entity which should be return by datasource
 type Metric struct {
-	Labels     []Label
+	Labels     []prompbmarshal.Label
 	Timestamps []int64
 	Values     []float64
 }
@@ -68,22 +77,9 @@ func (m *Metric) SetLabel(key, value string) {
 	m.AddLabel(key, value)
 }
 
-// SetLabels sets the given map as Metric labels
-func (m *Metric) SetLabels(ls map[string]string) {
-	var i int
-	m.Labels = make([]Label, len(ls))
-	for k, v := range ls {
-		m.Labels[i] = Label{
-			Name:  k,
-			Value: v,
-		}
-		i++
-	}
-}
-
 // AddLabel appends the given label to the label set
 func (m *Metric) AddLabel(key, value string) {
-	m.Labels = append(m.Labels, Label{Name: key, Value: value})
+	m.Labels = append(m.Labels, prompbmarshal.Label{Name: key, Value: value})
 }
 
 // DelLabel deletes the given label from the label set
@@ -106,14 +102,8 @@ func (m *Metric) Label(key string) string {
 	return ""
 }
 
-// Label represents metric's label
-type Label struct {
-	Name  string
-	Value string
-}
-
 // Labels is collection of Label
-type Labels []Label
+type Labels []prompbmarshal.Label
 
 func (ls Labels) Len() int           { return len(ls) }
 func (ls Labels) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
@@ -168,7 +158,7 @@ func LabelCompare(a, b Labels) int {
 // ConvertToLabels convert map to Labels
 func ConvertToLabels(m map[string]string) (labelset Labels) {
 	for k, v := range m {
-		labelset = append(labelset, Label{
+		labelset = append(labelset, prompbmarshal.Label{
 			Name:  k,
 			Value: v,
 		})

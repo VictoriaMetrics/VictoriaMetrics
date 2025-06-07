@@ -1,10 +1,9 @@
-import React, { FC, useCallback, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
 import { useFetchLogs } from "./hooks/useFetchLogs";
 import { useAppState } from "../../state/common/StateContext";
-import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import ExploreLogsHeader from "./ExploreLogsHeader/ExploreLogsHeader";
 import "./style.scss";
@@ -15,30 +14,60 @@ import ExploreLogsBarChart from "./ExploreLogsBarChart/ExploreLogsBarChart";
 import { useFetchLogHits } from "./hooks/useFetchLogHits";
 import { LOGS_ENTRIES_LIMIT } from "../../constants/logs";
 import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time";
+import { useSearchParams } from "react-router-dom";
+import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
+import { getUpdatedHistory } from "../../components/QueryHistory/utils";
+import { useDebounceCallback } from "../../hooks/useDebounceCallback";
+import usePrevious from "../../hooks/usePrevious";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
+  const { queryHistory } = useQueryState();
+  const queryDispatch = useQueryDispatch();
   const { duration, relativeTime, period: periodState } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+  const [searchParams] = useSearchParams();
+  const hideChart = useMemo(() => searchParams.get("hide_chart"), [searchParams]);
+  const prevHideChart = usePrevious(hideChart);
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
-  const [tmpQuery, setTmpQuery] = useState("");
+
+  const updateHistory = () => {
+    const history = getUpdatedHistory(query, queryHistory[0]);
+    queryDispatch({
+      type: "SET_QUERY_HISTORY",
+      payload: {
+        key: "LOGS_QUERY_HISTORY",
+        history: [history],
+      }
+    });
+  };
+
+  const [isUpdatingQuery, setIsUpdatingQuery] = useState(false);
   const [period, setPeriod] = useState<TimeParams>(periodState);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
 
-  const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
+  const { logs, isLoading, error, fetchLogs, abortController } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
 
-  const getPeriod = useCallback(() => {
+  const fetchData = (p: TimeParams, hits: boolean) => {
+    fetchLogs(p).then((isSuccess) => {
+      if (isSuccess && hits) fetchLogHits(p);
+    }).catch(() => {/* error handled elsewhere */});
+  };
+
+  const debouncedFetchLogs = useDebounceCallback(fetchData, 300);
+
+  const getPeriod = () => {
     const relativeTimeOpts = relativeTimeOptions.find(d => d.id === relativeTime);
     if (!relativeTimeOpts) return periodState;
     const { duration, until } = relativeTimeOpts;
     return getTimeperiodForDuration(duration, until());
-  }, [periodState, relativeTime]);
+  };
 
   const handleRunQuery = () => {
     if (!query) {
@@ -49,15 +78,14 @@ const ExploreLogs: FC = () => {
 
     const newPeriod = getPeriod();
     setPeriod(newPeriod);
-    fetchLogs(newPeriod).then((isSuccess) => {
-      isSuccess && fetchLogHits(newPeriod);
-    }).catch(e => e);
-    setSearchParamsFromKeys( {
+    debouncedFetchLogs(newPeriod, !hideChart);
+    setSearchParamsFromKeys({
       query,
       "g0.range_input": duration,
       "g0.end_input": newPeriod.date,
       "g0.relative_time": relativeTime || "none",
     });
+    updateHistory();
   };
 
   const handleChangeLimit = (limit: number) => {
@@ -67,34 +95,47 @@ const ExploreLogs: FC = () => {
   };
 
   const handleApplyFilter = (val: string) => {
-    setQuery(prev => `_stream: ${val === "other" ? "{}" : val} AND (${prev})`);
+    setQuery(prev => `${val} AND (${prev})`);
+    setIsUpdatingQuery(true);
   };
 
   const handleUpdateQuery = () => {
-    setQuery(tmpQuery);
-    handleRunQuery();
+    if (isLoading || dataLogHits.isLoading) {
+      abortController.abort?.();
+      dataLogHits.abortController.abort?.();
+    } else {
+      handleRunQuery();
+    }
   };
 
   useEffect(() => {
-    if (query) handleRunQuery();
+    if (!query) return;
+    handleRunQuery();
   }, [periodState]);
 
   useEffect(() => {
+    if (!isUpdatingQuery) return;
     handleRunQuery();
-    setTmpQuery(query);
-  }, [query]);
+    setIsUpdatingQuery(false);
+  }, [query, isUpdatingQuery]);
+
+  useEffect(() => {
+    if (!hideChart && prevHideChart) {
+      fetchLogHits(period);
+    }
+  }, [hideChart, prevHideChart, period]);
 
   return (
     <div className="vm-explore-logs">
       <ExploreLogsHeader
-        query={tmpQuery}
+        query={query}
         error={queryError}
         limit={limit}
-        onChange={setTmpQuery}
+        onChange={setQuery}
         onChangeLimit={handleChangeLimit}
         onRun={handleUpdateQuery}
+        isLoading={isLoading || dataLogHits.isLoading}
       />
-      {isLoading && <Spinner message={"Loading logs..."}/>}
       {error && <Alert variant="error">{error}</Alert>}
       {!error && (
         <ExploreLogsBarChart
@@ -102,10 +143,12 @@ const ExploreLogs: FC = () => {
           query={query}
           period={period}
           onApplyFilter={handleApplyFilter}
-          isLoading={isLoading ? false : dataLogHits.isLoading}
         />
       )}
-      <ExploreLogsBody data={logs}/>
+      <ExploreLogsBody
+        data={logs}
+        isLoading={isLoading}
+      />
     </div>
   );
 };

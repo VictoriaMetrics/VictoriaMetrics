@@ -8,11 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
@@ -48,22 +47,15 @@ var (
 	oauth2TokenURL = flag.String("datasource.oauth2.tokenUrl", "", "Optional OAuth2 tokenURL to use for -datasource.url")
 	oauth2Scopes   = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'")
 
-	lookBack = flag.Duration("datasource.lookback", 0, `Deprecated: please adjust "-search.latencyOffset" at datasource side `+
-		`or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. `+
-		`For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
-	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries. "+
+	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries to the configured -datasource.url and -remoteRead.url. Only valid for prometheus datasource. "+
 		"For example, if -datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query. "+
 		"If set to 0, rule's evaluation interval will be used instead.")
-	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Deprecated: please use "eval_alignment" in rule group instead. `+
-		`Whether to align "time" parameter with evaluation interval. `+
-		"Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. "+
-		"See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
 	maxIdleConnections    = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
 	idleConnectionTimeout = flag.Duration("datasource.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 	disableKeepAlive      = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
 		`If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.`)
-	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
-		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
+	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests which limits the number of digits after the decimal point in response values. `+
+		`Only valid for VictoriaMetrics as the datasource.`)
 )
 
 // InitSecretFlags must be called after flag.Parse and before any logging
@@ -87,21 +79,13 @@ type Param struct {
 // Provided extraParams will be added as GET params for
 // each request.
 func Init(extraParams url.Values) (QuerierBuilder, error) {
-	if *addr == "" {
-		return nil, fmt.Errorf("datasource.url is empty")
+	if err := httputil.CheckURL(*addr); err != nil {
+		return nil, fmt.Errorf("invalid -datasource.url: %w", err)
 	}
-	if !*queryTimeAlignment {
-		logger.Warnf("flag `-datasource.queryTimeAlignment` is deprecated and will be removed in next releases. Please use `eval_alignment` in rule group instead.")
-	}
-	if *lookBack != 0 {
-		logger.Warnf("flag `-datasource.lookback` is deprecated and will be removed in next releases. Please adjust `-search.latencyOffset` at datasource side or specify `latency_offset` in rule group's params. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155 for details.")
-	}
-
-	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vmalert_datasource")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport for -datasource.url=%q: %w", *addr, err)
 	}
-	tr.DialContext = netutil.NewStatDialFunc("vmalert_datasource")
 	tr.DisableKeepAlives = *disableKeepAlive
 	tr.MaxIdleConnsPerHost = *maxIdleConnections
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
@@ -120,11 +104,11 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse JSON for -datasource.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
 	}
-	authCfg, err := utils.AuthConfig(
-		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
-		utils.WithBearer(*bearerToken, *bearerTokenFile),
-		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
-		utils.WithHeaders(*headers))
+	authCfg, err := vmalertutil.AuthConfig(
+		vmalertutil.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		vmalertutil.WithBearer(*bearerToken, *bearerTokenFile),
+		vmalertutil.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
+		vmalertutil.WithHeaders(*headers))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
@@ -133,13 +117,12 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %w", *addr, err)
 	}
 
-	return &VMStorage{
+	return &Client{
 		c:                &http.Client{Transport: tr},
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(*addr, "/"),
 		appendTypePrefix: *appendTypePrefix,
 		queryStep:        *queryStep,
-		dataSourceType:   datasourcePrometheus,
 		extraParams:      extraParams,
 	}, nil
 }

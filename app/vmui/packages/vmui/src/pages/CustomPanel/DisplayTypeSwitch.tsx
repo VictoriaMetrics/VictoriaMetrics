@@ -3,10 +3,11 @@ import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customP
 import { ChartIcon, CodeIcon, TableIcon } from "../../components/Main/Icons";
 import Tabs from "../../components/Main/Tabs/Tabs";
 import { DisplayType } from "../../types";
+import { ReactNode } from "react";
 
 type DisplayTab = {
   value: DisplayType
-  icon: JSX.Element
+  icon: ReactNode
   label: string
   prometheusCode: number
 }
@@ -17,7 +18,11 @@ export const displayTypeTabs: DisplayTab[] = [
   { value: DisplayType.table, icon: <TableIcon/>, label: "Table", prometheusCode: 1 }
 ];
 
-export const DisplayTypeSwitch: FC = () => {
+interface Props {
+  tabFilter?: (tab: DisplayTab) => boolean
+}
+
+export const DisplayTypeSwitch: FC<Props> = ({ tabFilter }) => {
 
   const { displayType } = useCustomPanelState();
   const dispatch = useCustomPanelDispatch();
@@ -26,10 +31,12 @@ export const DisplayTypeSwitch: FC = () => {
     dispatch({ type: "SET_DISPLAY_TYPE", payload: newValue as DisplayType ?? displayType });
   };
 
+  const items = displayTypeTabs.filter(tabFilter ?? (() => true));
+
   return (
     <Tabs
       activeItem={displayType}
-      items={displayTypeTabs}
+      items={items}
       onChange={handleChange}
     />
   );

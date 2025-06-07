@@ -2,21 +2,20 @@ package logstorage
 
 import (
 	"fmt"
-	"strings"
-	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFieldNames processes '| field_names' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#field-names-pipe
+// See https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe
 type pipeFieldNames struct {
 	// resultName is an optional name of the column to write results to.
 	// By default results are written into 'name' column.
 	resultName string
 
-	// isFirstPipe is set to true if '| field_names' pipe is the first in the query.
-	//
-	// This allows skipping loading of _time column.
+	// if isFirstPipe is set, then there is no need in loading columnsHeader in writeBlock().
 	isFirstPipe bool
 }
 
@@ -28,40 +27,42 @@ func (pf *pipeFieldNames) String() string {
 	return s
 }
 
+func (pf *pipeFieldNames) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
+	pStr := fmt.Sprintf("stats by (%s) sum(hits) hits", quoteTokenIfNeeded(pf.resultName))
+	pLocal := mustParsePipe(pStr, timestamp)
+
+	return pf, []pipe{pLocal}
+}
+
 func (pf *pipeFieldNames) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.add("*")
-	unneededFields.reset()
-
+func (pf *pipeFieldNames) updateNeededFields(f *prefixfilter.Filter) {
 	if pf.isFirstPipe {
-		unneededFields.add("_time")
+		f.Reset()
+	} else {
+		f.AddAllowFilter("*")
 	}
-}
-
-func (pf *pipeFieldNames) optimize() {
-	// nothing to do
 }
 
 func (pf *pipeFieldNames) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFieldNames) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFieldNames) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pf, nil
 }
 
-func (pf *pipeFieldNames) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	shards := make([]pipeFieldNamesProcessorShard, workersCount)
+func (pf *pipeFieldNames) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
 
+func (pf *pipeFieldNames) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	pfp := &pipeFieldNamesProcessor{
 		pf:     pf,
 		stopCh: stopCh,
 		ppNext: ppNext,
-
-		shards: shards,
 	}
 	return pfp
 }
@@ -71,19 +72,15 @@ type pipeFieldNamesProcessor struct {
 	stopCh <-chan struct{}
 	ppNext pipeProcessor
 
-	shards []pipeFieldNamesProcessorShard
+	shards atomicutil.Slice[pipeFieldNamesProcessorShard]
 }
 
 type pipeFieldNamesProcessorShard struct {
-	pipeFieldNamesProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeFieldNamesProcessorShardNopad{})%128]byte
-}
-
-type pipeFieldNamesProcessorShardNopad struct {
 	// m holds hits per each field name
 	m map[string]*uint64
+
+	// a is used for reducing memory allocations when collecting the stats over big number of log fields
+	a chunkedAllocator
 }
 
 func (shard *pipeFieldNamesProcessorShard) getM() map[string]*uint64 {
@@ -94,27 +91,49 @@ func (shard *pipeFieldNamesProcessorShard) getM() map[string]*uint64 {
 }
 
 func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &pfp.shards[workerID]
-	m := shard.getM()
+	// Assume that the column is set for all the rows in the block.
+	// This is much faster than reading all the column values and counting non-empty rows.
+	hits := uint64(br.rowsLen)
 
-	cs := br.getColumns()
-	for _, c := range cs {
-		pHits, ok := m[c.name]
-		if !ok {
-			nameCopy := strings.Clone(c.name)
-			hits := uint64(0)
-			pHits = &hits
-			m[nameCopy] = pHits
+	shard := pfp.shards.Get(workerID)
+	if !pfp.pf.isFirstPipe || br.bs == nil || br.bs.partFormatVersion() < 1 {
+		cs := br.getColumns()
+		for _, c := range cs {
+			shard.updateColumnHits(c.name, hits)
 		}
-
-		// Assume that the column is set for all the rows in the block.
-		// This is much faster than reading all the column values and counting non-empty rows.
-		*pHits += uint64(len(br.timestamps))
+	} else {
+		cshIndex := br.bs.getColumnsHeaderIndex()
+		shard.updateHits(cshIndex.columnHeadersRefs, br, hits)
+		shard.updateHits(cshIndex.constColumnsRefs, br, hits)
+		shard.updateColumnHits("_time", hits)
+		shard.updateColumnHits("_stream", hits)
+		shard.updateColumnHits("_stream_id", hits)
 	}
+}
+
+func (shard *pipeFieldNamesProcessorShard) updateHits(refs []columnHeaderRef, br *blockResult, hits uint64) {
+	for _, cr := range refs {
+		columnName := br.bs.getColumnNameByID(cr.columnNameID)
+		shard.updateColumnHits(columnName, hits)
+	}
+}
+
+func (shard *pipeFieldNamesProcessorShard) updateColumnHits(columnName string, hits uint64) {
+	if columnName == "" {
+		columnName = "_msg"
+	}
+	m := shard.getM()
+	pHits := m[columnName]
+	if pHits == nil {
+		nameCopy := shard.a.cloneString(columnName)
+		pHits = shard.a.newUint64()
+		m[nameCopy] = pHits
+	}
+	*pHits += hits
 }
 
 func (pfp *pipeFieldNamesProcessor) flush() error {
@@ -123,26 +142,22 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 	}
 
 	// merge state across shards
-	shards := pfp.shards
+	shards := pfp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	m := shards[0].getM()
 	shards = shards[1:]
-	for i := range shards {
-		for name, pHitsSrc := range shards[i].getM() {
-			pHits, ok := m[name]
-			if !ok {
+	for _, shard := range shards {
+		for name, pHitsSrc := range shard.getM() {
+			pHits := m[name]
+			if pHits == nil {
 				m[name] = pHitsSrc
 			} else {
 				*pHits += *pHitsSrc
 			}
 		}
-	}
-	if pfp.pf.isFirstPipe {
-		pHits := m["_stream"]
-		if pHits == nil {
-			hits := uint64(0)
-			pHits = &hits
-		}
-		m["_time"] = pHits
 	}
 
 	// write result
@@ -197,7 +212,7 @@ func (wctx *pipeFieldNamesWriteContext) flush() {
 	wctx.rcs[1].resetValues()
 }
 
-func parsePipeFieldNames(lex *lexer) (*pipeFieldNames, error) {
+func parsePipeFieldNames(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("field_names") {
 		return nil, fmt.Errorf("expecting 'field_names'; got %q", lex.token)
 	}

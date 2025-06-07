@@ -20,9 +20,11 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
@@ -30,7 +32,9 @@ import (
 var (
 	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
-		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs")
+		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs")
+	useHTTP2Client = flag.Bool("promscrape.kubernetes.useHTTP2Client", false, "Whether to use HTTP/2 client for connection to Kubernetes API server."+
+		" This may reduce amount of concurrent connections to API server when watching for a big number of Kubernetes objects.")
 )
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
@@ -46,7 +50,7 @@ type object interface {
 	key() string
 
 	// getTargetLabels must be called under gw.mu lock.
-	getTargetLabels(gw *groupWatcher) []*promutils.Labels
+	getTargetLabels(gw *groupWatcher) []*promutil.Labels
 }
 
 // parseObjectFunc must parse object from the given data.
@@ -151,7 +155,7 @@ func (aw *apiWatcher) updateScrapeWorks(uw *urlWatcher, swosByKey map[string][]a
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labelss []*promutils.Labels) {
+func (aw *apiWatcher) setScrapeWorks(uw *urlWatcher, key string, labelss []*promutil.Labels) {
 	swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 	aw.swosByURLWatcherLock.Lock()
 	swosByKey := aw.swosByURLWatcher[uw]
@@ -178,7 +182,7 @@ func (aw *apiWatcher) removeScrapeWorks(uw *urlWatcher, key string) {
 	aw.swosByURLWatcherLock.Unlock()
 }
 
-func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []*promutils.Labels) []any {
+func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []*promutil.Labels) []any {
 	// Do not pre-allocate swos, since it is likely the swos will be empty because of relabeling
 	var swos []any
 	for _, labels := range labelss {
@@ -243,20 +247,49 @@ type groupWatcher struct {
 	noAPIWatchers bool
 }
 
+var (
+	httpClientsCache = make(map[string]*http.Client)
+	httpClientsLock  sync.Mutex
+)
+
+func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
+	key := fmt.Sprintf("authConfig=%s, proxyURL=%s", ac.String(), proxyURL)
+	httpClientsLock.Lock()
+	if c, ok := httpClientsCache[key]; ok {
+		httpClientsLock.Unlock()
+		return c
+	}
+
+	tr := newHTTPTransport(*useHTTP2Client)
+	if !*useHTTP2Client {
+		// Proxy is not supported for http2 client.
+		// See https://github.com/golang/go/issues/26479
+		var proxy func(*http.Request) (*url.URL, error)
+		if proxyURL != nil {
+			proxy = http.ProxyURL(proxyURL)
+		}
+		tr.Proxy = proxy
+	}
+	c := &http.Client{
+		Transport: ac.NewRoundTripper(tr),
+		Timeout:   *apiServerTimeout,
+	}
+	httpClientsCache[key] = c
+	httpClientsLock.Unlock()
+	return c
+}
+
+func newHTTPTransport(enableHTTP2 bool) *http.Transport {
+	tr := httputil.NewTransport(enableHTTP2, "vm_promscrape_discovery_kubernetes")
+	tr.DialContext = netutil.Dialer.DialContext
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.IdleConnTimeout = *apiServerTimeout
+	tr.MaxIdleConnsPerHost = 100
+	return tr
+}
+
 func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
-	var proxy func(*http.Request) (*url.URL, error)
-	if proxyURL != nil {
-		proxy = http.ProxyURL(proxyURL)
-	}
-	client := &http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{
-			Proxy:               proxy,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     *apiServerTimeout,
-			MaxIdleConnsPerHost: 100,
-		}),
-		Timeout: *apiServerTimeout,
-	}
+	client := getHTTPClient(ac, proxyURL)
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
 		apiServer:          apiServer,
@@ -374,7 +407,7 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 		labelss := o.getTargetLabels(gw)
 		wg.Add(1)
 		limiterCh <- struct{}{}
-		go func(key string, labelss []*promutils.Labels) {
+		go func(key string, labelss []*promutil.Labels) {
 			for aw, e := range swosByAPIWatcher {
 				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 				e.mu.Lock()
@@ -390,9 +423,9 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 	return swosByAPIWatcher
 }
 
-func putLabelssToPool(labelss []*promutils.Labels) {
+func putLabelssToPool(labelss []*promutil.Labels) {
 	for _, labels := range labelss {
-		promutils.PutLabels(labels)
+		promutil.PutLabels(labels)
 	}
 }
 
@@ -1035,7 +1068,7 @@ func getObjectTypeByRole(role string) string {
 	case "ingress":
 		return "ingresses"
 	default:
-		logger.Panicf("BUG: unknonw role=%q", role)
+		logger.Panicf("BUG: unknown role=%q", role)
 		return ""
 	}
 }

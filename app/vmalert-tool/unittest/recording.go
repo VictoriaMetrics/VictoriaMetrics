@@ -9,15 +9,16 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
 // metricsqlTestCase holds metricsql_expr_test cases defined in test file
 type metricsqlTestCase struct {
-	Expr       string              `yaml:"expr"`
-	EvalTime   *promutils.Duration `yaml:"eval_time"`
-	ExpSamples []expSample         `yaml:"exp_samples"`
+	Expr       string             `yaml:"expr"`
+	EvalTime   *promutil.Duration `yaml:"eval_time"`
+	ExpSamples []expSample        `yaml:"exp_samples"`
 }
 
 type expSample struct {
@@ -48,7 +49,7 @@ Outer:
 		}
 		var expSamples []parsedSample
 		for _, s := range mt.ExpSamples {
-			expLb := datasource.Labels{}
+			expLb := []prompbmarshal.Label{}
 			if s.Labels != "" {
 				metricsqlExpr, err := metricsql.Parse(s.Labels)
 				if err != nil {
@@ -57,16 +58,18 @@ Outer:
 					continue Outer
 				}
 				metricsqlMetricExpr, ok := metricsqlExpr.(*metricsql.MetricExpr)
-				if !ok {
+				if !ok || len(metricsqlMetricExpr.LabelFilterss) > 1 {
 					checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s, err: %v", mt.Expr,
-						mt.EvalTime.Duration().String(), fmt.Errorf("got unsupported metricsql type")))
+						mt.EvalTime.Duration().String(), fmt.Errorf("got invalid exp_samples: %q", s.Labels)))
 					continue Outer
 				}
-				for _, l := range metricsqlMetricExpr.LabelFilterss[0] {
-					expLb = append(expLb, datasource.Label{
-						Name:  l.Label,
-						Value: l.Value,
-					})
+				if len(metricsqlMetricExpr.LabelFilterss) > 0 {
+					for _, l := range metricsqlMetricExpr.LabelFilterss[0] {
+						expLb = append(expLb, prompbmarshal.Label{
+							Name:  l.Label,
+							Value: l.Value,
+						})
+					}
 				}
 			}
 			sort.Slice(expLb, func(i, j int) bool {
@@ -92,7 +95,7 @@ Outer:
 	return
 }
 
-func durationToTime(pd *promutils.Duration) time.Time {
+func durationToTime(pd *promutil.Duration) time.Time {
 	if pd == nil {
 		return time.Time{}
 	}

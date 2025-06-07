@@ -2,12 +2,12 @@ import { MouseEvent } from "react";
 import React from "preact/compat";
 import { Data, EnhancedHeaderTableProps } from "./types";
 import classNames from "classnames";
-import { ArrowDropDownIcon, InfoIcon } from "../../../components/Main/Icons";
+import { ArrowDropDownIcon, InfoOutlinedIcon } from "../../../components/Main/Icons";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
   const { order, orderBy, onRequestSort, headerCells } = props;
-  const createSortHandler = (property: keyof Data) => (event: MouseEvent<unknown>) => {
+  const createSortHandler = (property: keyof Data) => (event: MouseEvent<HTMLTableCellElement>) => {
     onRequestSort(event, property);
   };
 
@@ -18,21 +18,22 @@ export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
           <th
             className={classNames({
               "vm-table-cell vm-table-cell_header": true,
-              "vm-table-cell_sort": headCell.id !== "action" && headCell.id !== "percentage",
+              "vm-table-cell_sort": headCell.sortable,
               "vm-table-cell_right": headCell.id === "action",
             })}
             key={headCell.id}
-            onClick={createSortHandler(headCell.id as keyof Data)}
+            onClick={headCell.sortable ? createSortHandler(headCell.id as keyof Data) : undefined}
           >
             <div className="vm-table-cell__content">
-              {
-                headCell.info ?
-                  <Tooltip title={headCell.info}>
-                    <div className="vm-metrics-content-header__tip-icon"><InfoIcon /></div>
-                    {headCell.label}
-                  </Tooltip>: <>{headCell.label}</>
-              }
-              {headCell.id !== "action" && headCell.id !== "percentage" && (
+              {headCell.info && (
+                <Tooltip title={headCell.info}>
+                  <div className="vm-metrics-content-header__tip-icon">
+                    <InfoOutlinedIcon/>
+                  </div>
+                </Tooltip>
+              )}
+              {headCell.label}
+              {headCell.sortable && (
                 <div
                   className={classNames({
                     "vm-table__sort-icon": true,

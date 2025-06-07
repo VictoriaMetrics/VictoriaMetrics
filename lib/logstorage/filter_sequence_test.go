@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestMatchSequence(t *testing.T) {
@@ -33,8 +35,6 @@ func TestFilterSequence(t *testing.T) {
 	t.Parallel()
 
 	t.Run("single-row", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -108,8 +108,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("const-column", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -161,8 +159,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("dict", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -218,8 +214,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("strings", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -290,8 +284,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("uint8", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -363,8 +355,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("uint16", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -436,8 +426,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -509,8 +497,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("uint64", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -581,9 +567,84 @@ func TestFilterSequence(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fs, "foo", nil)
 	})
 
-	t.Run("float64", func(t *testing.T) {
-		t.Parallel()
+	t.Run("int64", func(t *testing.T) {
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"123",
+					"12",
+					"-32",
+					"0",
+					"0",
+					"12",
+					"12345678901",
+					"2",
+					"3",
+					"4",
+					"5",
+				},
+			},
+		}
 
+		// match
+		fs := &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{"12"},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", []int{1, 5})
+
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{"-32"},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", []int{2})
+
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{""},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		fs = &filterSequence{
+			fieldName: "non-existing-column",
+			phrases:   []string{""},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		// mismatch
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{"bar"},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", nil)
+
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{"", "bar"},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", nil)
+
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{"1234"},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", nil)
+
+		fs = &filterSequence{
+			fieldName: "foo",
+			phrases:   []string{"1234", "567"},
+		}
+		testFilterMatchForColumns(t, columns, fs, "foo", nil)
+	})
+
+	t.Run("float64", func(t *testing.T) {
 		columns := []column{
 			{
 				name: "foo",
@@ -665,8 +726,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -763,8 +822,6 @@ func TestFilterSequence(t *testing.T) {
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "_msg",
@@ -819,7 +876,7 @@ func TestFilterSequence(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, fs, "_msg", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 
-		// mimatch
+		// mismatch
 		fs = &filterSequence{
 			fieldName: "_msg",
 			phrases:   []string{"bar"},
@@ -844,4 +901,7 @@ func TestFilterSequence(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, fs, "_msg", nil)
 	})
+
+	// Remove the remaining data files for the test
+	fs.MustRemoveAll(t.Name())
 }

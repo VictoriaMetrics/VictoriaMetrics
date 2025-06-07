@@ -1,17 +1,21 @@
 package logstorage
 
 import (
+	"container/heap"
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeTopDefaultLimit is the default number of entries pipeTop returns.
@@ -30,8 +34,11 @@ type pipeTop struct {
 	// limitStr is string representation of the limit.
 	limitStr string
 
-	// if hitsFieldName isn't empty, then the number of hits per each unique value is returned in this field.
+	// the number of hits per each unique value is returned in this field.
 	hitsFieldName string
+
+	// if rankFieldName isn't empty, then the rank per each unique value is returned in this field.
+	rankFieldName string
 }
 
 func (pt *pipeTop) String() string {
@@ -39,52 +46,56 @@ func (pt *pipeTop) String() string {
 	if pt.limit != pipeTopDefaultLimit {
 		s += " " + pt.limitStr
 	}
-	if len(pt.byFields) > 0 {
-		s += " by (" + fieldNamesString(pt.byFields) + ")"
+	s += " by (" + fieldNamesString(pt.byFields) + ")"
+	if pt.hitsFieldName != "hits" {
+		s += " hits as " + quoteTokenIfNeeded(pt.hitsFieldName)
+	}
+	if pt.rankFieldName != "" {
+		s += rankFieldNameString(pt.rankFieldName)
 	}
 	return s
+}
+
+func (pt *pipeTop) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
+	hitsQuoted := quoteTokenIfNeeded(pt.hitsFieldName)
+	fieldsQuoted := fieldNamesString(pt.byFields)
+
+	pLocalStr := fmt.Sprintf(`stats by (%s) sum(%s) as %s | first %d by (%s desc, %s)`, fieldsQuoted, hitsQuoted, hitsQuoted, pt.limit, hitsQuoted, fieldsQuoted)
+	if pt.rankFieldName != "" {
+		pLocalStr += rankFieldNameString(pt.rankFieldName)
+	}
+
+	psLocal := mustParsePipes(pLocalStr, timestamp)
+
+	pRemoteStr := fmt.Sprintf("stats by (%s) count() as %s", fieldsQuoted, hitsQuoted)
+	pRemote := mustParsePipe(pRemoteStr, timestamp)
+
+	return pRemote, psLocal
 }
 
 func (pt *pipeTop) canLiveTail() bool {
 	return false
 }
 
-func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
-
-	if len(pt.byFields) == 0 {
-		neededFields.add("*")
-	} else {
-		neededFields.addFields(pt.byFields)
-	}
-}
-
-func (pt *pipeTop) optimize() {
-	// nothing to do
+func (pt *pipeTop) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.Reset()
+	pf.AddAllowFilters(pt.byFields)
 }
 
 func (pt *pipeTop) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pt *pipeTop) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pt, nil
 }
 
-func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
+func (pt *pipeTop) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
 
-	shards := make([]pipeTopProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeTopProcessorShard{
-			pipeTopProcessorShardNopad: pipeTopProcessorShardNopad{
-				pt:              pt,
-				stateSizeBudget: stateSizeBudgetChunk,
-			},
-		}
-		maxStateSize -= stateSizeBudgetChunk
-	}
+func (pt *pipeTop) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	ptp := &pipeTopProcessor{
 		pt:     pt,
@@ -92,9 +103,11 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	ptp.shards.Init = func(shard *pipeTopProcessorShard) {
+		shard.pt = pt
+		shard.m.init(uint(concurrency), &shard.stateSizeBudget)
 	}
 	ptp.stateSizeBudget.Store(maxStateSize)
 
@@ -107,25 +120,18 @@ type pipeTopProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	shards []pipeTopProcessorShard
+	shards atomicutil.Slice[pipeTopProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeTopProcessorShard struct {
-	pipeTopProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeTopProcessorShardNopad{})%128]byte
-}
-
-type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
 
-	// m holds per-row hits.
-	m map[string]*uint64
+	// m holds per-value hits.
+	m hitsMapAdaptive
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -141,49 +147,9 @@ type pipeTopProcessorShardNopad struct {
 // writeBlock writes br to shard.
 func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	byFields := shard.pt.byFields
-	if len(byFields) == 0 {
-		// Take into account all the columns in br.
-		keyBuf := shard.keyBuf
-		cs := br.getColumns()
-		for i := range br.timestamps {
-			keyBuf = keyBuf[:0]
-			for _, c := range cs {
-				v := c.getValueAtRow(br, i)
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
-			}
-			shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
-		}
-		shard.keyBuf = keyBuf
-		return
-	}
 	if len(byFields) == 1 {
 		// Fast path for a single field.
-		c := br.getColumnByName(byFields[0])
-		if c.isConst {
-			v := c.valuesEncoded[0]
-			shard.updateState(v, uint64(len(br.timestamps)))
-			return
-		}
-		if c.valueType == valueTypeDict {
-			a := encoding.GetUint64s(len(c.dictValues))
-			hits := a.A
-			valuesEncoded := c.getValuesEncoded(br)
-			for _, v := range valuesEncoded {
-				idx := unmarshalUint8(v)
-				hits[idx]++
-			}
-			for i, v := range c.dictValues {
-				shard.updateState(v, hits[i])
-			}
-			encoding.PutUint64s(a)
-			return
-		}
-
-		values := c.getValues(br)
-		for _, v := range values {
-			shard.updateState(v, 1)
-		}
+		shard.updateStatsSingleColumn(br, byFields[0])
 		return
 	}
 
@@ -197,42 +163,108 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := range br.timestamps {
+	hits := uint64(1)
+	for rowIdx := 1; rowIdx < br.rowsLen; rowIdx++ {
+		if isEqualPrevRow(columnValues, rowIdx) {
+			hits++
+			continue
+		}
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx-1]))
 		}
-		shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
+		shard.m.updateStateString(keyBuf, hits)
+		hits = 1
 	}
+	keyBuf = keyBuf[:0]
+	for _, values := range columnValues {
+		keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[len(values)-1]))
+	}
+	shard.m.updateStateString(keyBuf, hits)
 	shard.keyBuf = keyBuf
 }
 
-func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
-	m := shard.getM()
-	pHits, ok := m[v]
-	if !ok {
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
-		m[vCopy] = pHits
-		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
+func isEqualPrevRow(columnValues [][]string, rowIdx int) bool {
+	if rowIdx == 0 {
+		return false
 	}
-	*pHits += hits
+	for _, values := range columnValues {
+		if values[rowIdx-1] != values[rowIdx] {
+			return false
+		}
+	}
+	return true
 }
 
-func (shard *pipeTopProcessorShard) getM() map[string]*uint64 {
-	if shard.m == nil {
-		shard.m = make(map[string]*uint64)
+func (shard *pipeTopProcessorShard) updateStatsSingleColumn(br *blockResult, fieldName string) {
+	c := br.getColumnByName(fieldName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		shard.m.updateStateGeneric(v, uint64(br.rowsLen))
+		return
 	}
-	return shard.m
+	switch c.valueType {
+	case valueTypeDict:
+		c.forEachDictValueWithHits(br, shard.m.updateStateGeneric)
+	case valueTypeUint8:
+		values := c.getValuesEncoded(br)
+		hits := uint64(1)
+		for rowIdx := 1; rowIdx < len(values); rowIdx++ {
+			if values[rowIdx-1] == values[rowIdx] {
+				hits++
+			} else {
+				n := uint64(unmarshalUint8(values[rowIdx-1]))
+				shard.m.updateStateUint64(n, hits)
+				hits = 1
+			}
+		}
+		n := uint64(unmarshalUint8(values[len(values)-1]))
+		shard.m.updateStateUint64(n, hits)
+	case valueTypeUint16:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := uint64(unmarshalUint16(v))
+			shard.m.updateStateUint64(n, 1)
+		}
+	case valueTypeUint32:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := uint64(unmarshalUint32(v))
+			shard.m.updateStateUint64(n, 1)
+		}
+	case valueTypeUint64:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint64(v)
+			shard.m.updateStateUint64(n, 1)
+		}
+	case valueTypeInt64:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalInt64(v)
+			shard.m.updateStateInt64(n, 1)
+		}
+	default:
+		values := c.getValues(br)
+		hits := uint64(1)
+		for rowIdx := 1; rowIdx < len(values); rowIdx++ {
+			if values[rowIdx-1] == values[rowIdx] {
+				hits++
+			} else {
+				shard.m.updateStateGeneric(values[rowIdx-1], hits)
+				hits = 1
+			}
+		}
+		shard.m.updateStateGeneric(values[len(values)-1], hits)
+	}
 }
 
 func (ptp *pipeTopProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &ptp.shards[workerID]
+	shard := ptp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -256,42 +288,10 @@ func (ptp *pipeTopProcessor) flush() error {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
 	}
 
-	// merge state across shards
-	shards := ptp.shards
-	m := shards[0].getM()
-	shards = shards[1:]
-	for i := range shards {
-		if needStop(ptp.stopCh) {
-			return nil
-		}
-
-		for k, pHitsSrc := range shards[i].getM() {
-			pHits, ok := m[k]
-			if !ok {
-				m[k] = pHitsSrc
-			} else {
-				*pHits += *pHitsSrc
-			}
-		}
-	}
-
-	// select top entries with the biggest number of hits
-	entries := make([]pipeTopEntry, 0, len(m))
-	for k, pHits := range m {
-		entries = append(entries, pipeTopEntry{
-			k:    k,
-			hits: *pHits,
-		})
-	}
-	sort.Slice(entries, func(i, j int) bool {
-		a, b := &entries[i], &entries[j]
-		if a.hits == b.hits {
-			return a.k < b.k
-		}
-		return a.hits > b.hits
-	})
-	if uint64(len(entries)) > ptp.pt.limit {
-		entries = entries[:ptp.pt.limit]
+	// merge state across shards in parallel
+	entries := ptp.mergeShardsParallel()
+	if needStop(ptp.stopCh) {
+		return nil
 	}
 
 	// write result
@@ -310,38 +310,21 @@ func (ptp *pipeTopProcessor) flush() error {
 		return dst
 	}
 
-	if len(byFields) == 0 {
-		for _, e := range entries {
-			if needStop(ptp.stopCh) {
-				return nil
-			}
-
-			rowFields = rowFields[:0]
-			keyBuf := bytesutil.ToUnsafeBytes(e.k)
-			for len(keyBuf) > 0 {
-				name, nSize := encoding.UnmarshalBytes(keyBuf)
-				if nSize <= 0 {
-					logger.Panicf("BUG: cannot unmarshal field name")
-				}
-				keyBuf = keyBuf[nSize:]
-
-				value, nSize := encoding.UnmarshalBytes(keyBuf)
-				if nSize <= 0 {
-					logger.Panicf("BUG: cannot unmarshal field value")
-				}
-				keyBuf = keyBuf[nSize:]
-
-				rowFields = append(rowFields, Field{
-					Name:  bytesutil.ToUnsafeString(name),
-					Value: bytesutil.ToUnsafeString(value),
-				})
-			}
-			rowFields = addHitsField(rowFields, e.hits)
-			wctx.writeRow(rowFields)
+	addRankField := func(dst []Field, rank int) []Field {
+		if ptp.pt.rankFieldName == "" {
+			return dst
 		}
-	} else if len(byFields) == 1 {
+		rankStr := strconv.Itoa(rank + 1)
+		dst = append(dst, Field{
+			Name:  ptp.pt.rankFieldName,
+			Value: rankStr,
+		})
+		return dst
+	}
+
+	if len(byFields) == 1 {
 		fieldName := byFields[0]
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -351,10 +334,11 @@ func (ptp *pipeTopProcessor) flush() error {
 				Value: e.k,
 			})
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -376,6 +360,7 @@ func (ptp *pipeTopProcessor) flush() error {
 				fieldIdx++
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	}
@@ -385,9 +370,144 @@ func (ptp *pipeTopProcessor) flush() error {
 	return nil
 }
 
+func (ptp *pipeTopProcessor) mergeShardsParallel() []*pipeTopEntry {
+	limit := ptp.pt.limit
+	if limit == 0 {
+		return nil
+	}
+
+	shards := ptp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
+	hmas := make([]*hitsMapAdaptive, 0, len(shards))
+	for _, shard := range shards {
+		hma := &shard.m
+		if hma.entriesCount() > 0 {
+			hmas = append(hmas, hma)
+		}
+	}
+
+	var entries []*pipeTopEntry
+	var entriesLock sync.Mutex
+	hitsMapMergeParallel(hmas, ptp.stopCh, func(hm *hitsMap) {
+		es := getTopEntries(hm, limit, ptp.stopCh)
+		entriesLock.Lock()
+		entries = append(entries, es...)
+		entriesLock.Unlock()
+	})
+	if needStop(ptp.stopCh) {
+		return nil
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[j].less(entries[i])
+	})
+	if uint64(len(entries)) > limit {
+		entries = entries[:limit]
+	}
+
+	return entries
+}
+
+func getTopEntries(hm *hitsMap, limit uint64, stopCh <-chan struct{}) []*pipeTopEntry {
+	if limit == 0 {
+		return nil
+	}
+
+	var eh topEntriesHeap
+	var e pipeTopEntry
+
+	pushEntry := func(k string, hits uint64, kCopy bool) {
+		e.k = k
+		e.hits = hits
+		if uint64(len(eh)) < limit {
+			eCopy := e
+			if kCopy {
+				eCopy.k = strings.Clone(eCopy.k)
+			}
+			heap.Push(&eh, &eCopy)
+			return
+		}
+
+		if !eh[0].less(&e) {
+			return
+		}
+		eCopy := e
+		if kCopy {
+			eCopy.k = strings.Clone(eCopy.k)
+		}
+		eh[0] = &eCopy
+		heap.Fix(&eh, 0)
+	}
+
+	var b []byte
+	for n, pHits := range hm.u64 {
+		if needStop(stopCh) {
+			return nil
+		}
+		b = marshalUint64String(b[:0], n)
+		pushEntry(bytesutil.ToUnsafeString(b), *pHits, true)
+	}
+	for n, pHits := range hm.negative64 {
+		if needStop(stopCh) {
+			return nil
+		}
+		b = marshalInt64String(b[:0], int64(n))
+		pushEntry(bytesutil.ToUnsafeString(b), *pHits, true)
+	}
+	for k, pHits := range hm.strings {
+		if needStop(stopCh) {
+			return nil
+		}
+		pushEntry(k, *pHits, false)
+	}
+
+	result := ([]*pipeTopEntry)(eh)
+	for len(eh) > 0 {
+		x := heap.Pop(&eh)
+		result[len(eh)] = x.(*pipeTopEntry)
+	}
+
+	return result
+}
+
+type topEntriesHeap []*pipeTopEntry
+
+func (h *topEntriesHeap) Less(i, j int) bool {
+	a := *h
+	return a[i].less(a[j])
+}
+func (h *topEntriesHeap) Swap(i, j int) {
+	a := *h
+	a[i], a[j] = a[j], a[i]
+}
+func (h *topEntriesHeap) Len() int {
+	return len(*h)
+}
+func (h *topEntriesHeap) Push(v any) {
+	x := v.(*pipeTopEntry)
+	*h = append(*h, x)
+}
+func (h *topEntriesHeap) Pop() any {
+	a := *h
+	x := a[len(a)-1]
+	a[len(a)-1] = nil
+	*h = a[:len(a)-1]
+	return x
+}
+
 type pipeTopEntry struct {
 	k    string
 	hits uint64
+}
+
+func (e *pipeTopEntry) less(r *pipeTopEntry) bool {
+	if e.hits == r.hits {
+		return e.k > r.k
+	}
+	return e.hits < r.hits
 }
 
 type pipeTopWriteContext struct {
@@ -432,7 +552,9 @@ func (wctx *pipeTopWriteContext) writeRow(rowFields []Field) {
 	}
 
 	wctx.rowsCount++
-	if wctx.valuesLen >= 1_000_000 {
+
+	// The 64_000 limit provides the best performance results.
+	if wctx.valuesLen >= 64_000 {
 		wctx.flush()
 	}
 }
@@ -453,7 +575,7 @@ func (wctx *pipeTopWriteContext) flush() {
 	}
 }
 
-func parsePipeTop(lex *lexer) (*pipeTop, error) {
+func parsePipeTop(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("top") {
 		return nil, fmt.Errorf("expecting 'top'; got %q", lex.token)
 	}
@@ -473,32 +595,96 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 		limitStr = s
 	}
 
-	var byFields []string
-	if lex.isKeyword("by", "(") {
-		if lex.isKeyword("by") {
-			lex.nextToken()
-		}
-		bfs, err := parseFieldNamesInParens(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'by' clause in 'top': %w", err)
-		}
-		if slices.Contains(bfs, "*") {
-			bfs = nil
-		}
-		byFields = bfs
+	needFields := false
+	if lex.isKeyword("by") {
+		lex.nextToken()
+		needFields = true
 	}
 
-	hitsFieldName := "hits"
-	for slices.Contains(byFields, hitsFieldName) {
-		hitsFieldName += "s"
+	var byFields []string
+	if lex.isKeyword("(") {
+		bfs, err := parseFieldNamesInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
+		}
+		byFields = bfs
+	} else if !lex.isKeyword("hits", "rank", ")", "|", "") {
+		bfs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
+		}
+		byFields = bfs
+	} else if needFields {
+		return nil, fmt.Errorf("missing fields after 'by'")
+	}
+	if len(byFields) == 0 {
+		return nil, fmt.Errorf("expecting at least a single field in 'by(...)'")
 	}
 
 	pt := &pipeTop{
 		byFields:      byFields,
 		limit:         limit,
 		limitStr:      limitStr,
-		hitsFieldName: hitsFieldName,
+		hitsFieldName: "hits",
 	}
 
-	return pt, nil
+	for {
+		switch {
+		case lex.isKeyword("hits"):
+			lex.nextToken()
+			if lex.isKeyword("as") {
+				lex.nextToken()
+			}
+			s, err := getCompoundToken(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
+			}
+			pt.hitsFieldName = s
+		case lex.isKeyword("rank"):
+			rankFieldName, err := parseRankFieldName(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+			}
+			pt.rankFieldName = rankFieldName
+			for slices.Contains(byFields, pt.rankFieldName) {
+				pt.rankFieldName += "s"
+			}
+		default:
+			for slices.Contains(byFields, pt.hitsFieldName) {
+				pt.hitsFieldName += "s"
+			}
+			return pt, nil
+		}
+	}
+}
+
+func parseRankFieldName(lex *lexer) (string, error) {
+	if !lex.isKeyword("rank") {
+		return "", fmt.Errorf("unexpected token: %q; want 'rank'", lex.token)
+	}
+	lex.nextToken()
+
+	rankFieldName := "rank"
+	if lex.isKeyword("as") {
+		lex.nextToken()
+		if lex.isKeyword("", "|", ")", "(") {
+			return "", fmt.Errorf("missing rank name")
+		}
+	}
+	if !lex.isKeyword("", "|", ")", "limit") {
+		s, err := parseFieldName(lex)
+		if err != nil {
+			return "", err
+		}
+		rankFieldName = s
+	}
+	return rankFieldName, nil
+}
+
+func rankFieldNameString(rankFieldName string) string {
+	s := " rank"
+	if rankFieldName != "rank" {
+		s += " as " + quoteTokenIfNeeded(rankFieldName)
+	}
+	return s
 }

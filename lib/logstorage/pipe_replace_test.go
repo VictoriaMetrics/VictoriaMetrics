@@ -24,6 +24,8 @@ func TestParsePipeReplaceFailure(t *testing.T) {
 	}
 
 	f(`replace`)
+	f(`replace ("x", "y") at *`)
+	f(`replace ("x", "y") at a*`)
 	f(`replace if`)
 	f(`replace foo`)
 	f(`replace (`)
@@ -49,12 +51,24 @@ func TestPipeReplace(t *testing.T) {
 			{"bar", `cde`},
 		},
 		{
+			{"_msg", `a_bc_def`},
+		},
+		{
+			{"_msg", `1234`},
+		},
+		{
 			{"_msg", `1234`},
 		},
 	}, [][]Field{
 		{
 			{"_msg", `a-bc-def`},
 			{"bar", `cde`},
+		},
+		{
+			{"_msg", `a-bc-def`},
+		},
+		{
+			{"_msg", `1234`},
 		},
 		{
 			{"_msg", `1234`},
@@ -122,9 +136,9 @@ func TestPipeReplace(t *testing.T) {
 }
 
 func TestPipeReplaceUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

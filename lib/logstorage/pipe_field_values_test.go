@@ -21,6 +21,8 @@ func TestParsePipeFieldValuesFailure(t *testing.T) {
 	}
 
 	f(`field_values`)
+	f(`field_values *`)
+	f(`field_values x*`)
 	f(`field_values a b`)
 	f(`field_values a limit`)
 	f(`field_values limit N`)
@@ -53,7 +55,7 @@ func TestPipeFieldValues(t *testing.T) {
 		},
 	})
 
-	f("field_values b", [][]Field{
+	f("field_values (b)", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},
@@ -126,9 +128,9 @@ func TestPipeFieldValues(t *testing.T) {
 }
 
 func TestPipeFieldValuesUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -138,10 +140,10 @@ func TestPipeFieldValuesUpdateNeededFields(t *testing.T) {
 	f("field_values x", "*", "f1,f2", "x", "")
 
 	// all the needed fields, unneeded fields intersect with src
-	f("field_values x", "*", "f1,x", "", "")
+	f("field_values x", "*", "f1,x", "x", "")
 
 	// needed fields do not intersect with src
-	f("field_values x", "f1,f2", "", "", "")
+	f("field_values x", "f1,f2", "", "x", "")
 
 	// needed fields intersect with src
 	f("field_values x", "f1,x", "", "x", "")

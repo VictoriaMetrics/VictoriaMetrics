@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -37,8 +38,8 @@ func (fp *filterAnyCasePrefix) String() string {
 	return fmt.Sprintf("%si(%s*)", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
 }
 
-func (fp *filterAnyCasePrefix) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fp.fieldName)
+func (fp *filterAnyCasePrefix) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fp.fieldName)
 }
 
 func (fp *filterAnyCasePrefix) getTokensHashes() []uint64 {
@@ -90,7 +91,7 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	prefixLowercase := fp.getPrefixLowercase()
 
 	// Verify whether fp matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchAnyCasePrefix(v, prefixLowercase) {
 			bm.resetBits()
@@ -99,7 +100,7 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()
@@ -121,6 +122,8 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByPrefix(bs, ch, bm, prefixLowercase)
 	case valueTypeUint64:
 		matchUint64ByPrefix(bs, ch, bm, prefixLowercase)
+	case valueTypeInt64:
+		matchInt64ByPrefix(bs, ch, bm, prefixLowercase)
 	case valueTypeFloat64:
 		matchFloat64ByPrefix(bs, ch, bm, prefixLowercase, tokens)
 	case valueTypeIPv4:

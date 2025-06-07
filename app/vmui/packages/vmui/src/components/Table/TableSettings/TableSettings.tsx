@@ -1,23 +1,23 @@
-import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
+import { FC, useEffect, useRef, useMemo } from "preact/compat";
 import Button from "../../Main/Button/Button";
 import { SearchIcon, SettingsIcon } from "../../Main/Icons";
-import Popper from "../../Main/Popper/Popper";
 import "./style.scss";
 import Checkbox from "../../Main/Checkbox/Checkbox";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Switch from "../../Main/Switch/Switch";
 import { arrayEquals } from "../../../utils/array";
 import classNames from "classnames";
-import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
-import TextField from "../../Main/TextField/TextField";
-import { KeyboardEvent, useState } from "react";
+import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
+import { useState } from "react";
+import Modal from "../../Main/Modal/Modal";
+import { useSearchParams } from "react-router-dom";
 
 const title = "Table settings";
 
 interface TableSettingsProps {
   columns: string[];
-  defaultColumns?: string[];
+  selectedColumns?: string[];
   tableCompact: boolean;
   toggleTableCompact: () => void;
   onChangeColumns: (arr: string[]) => void
@@ -25,12 +25,12 @@ interface TableSettingsProps {
 
 const TableSettings: FC<TableSettingsProps> = ({
   columns,
-  defaultColumns = [],
+  selectedColumns = [],
   tableCompact,
   onChangeColumns,
   toggleTableCompact
 }) => {
-  const { isMobile } = useDeviceDetect();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const buttonRef = useRef<HTMLDivElement>(null);
 
@@ -40,34 +40,51 @@ const TableSettings: FC<TableSettingsProps> = ({
     setFalse: handleClose,
   } = useBoolean(false);
 
-  const {
-    value: showSearch,
-    toggle: toggleShowSearch,
-  } = useBoolean(false);
-
   const [searchColumn, setSearchColumn] = useState("");
   const [indexFocusItem, setIndexFocusItem] = useState(-1);
 
+  const customColumns = useMemo(() => {
+    return selectedColumns.filter(col => !columns.includes(col));
+  }, [columns, selectedColumns]);
+
   const filteredColumns = useMemo(() => {
-    if (!searchColumn) return columns;
-    return columns.filter(col => col.includes(searchColumn));
-  }, [columns, searchColumn]);
+    const allColumns = customColumns.concat(columns);
+    const result = searchColumn ? allColumns.filter(col => col.includes(searchColumn)) : allColumns;
+    return result.sort((a, b) => a.localeCompare(b));
+  }, [columns, customColumns, searchColumn]);
 
   const isAllChecked = useMemo(() => {
-    return filteredColumns.every(col => defaultColumns.includes(col));
-  }, [defaultColumns, filteredColumns]);
+    return filteredColumns.every(col => selectedColumns.includes(col));
+  }, [selectedColumns, filteredColumns]);
 
-  const disabledButton = useMemo(() => !columns.length, [columns]);
+  const handleChangeDisplayColumns = (displayColumns: string[]) => {
+    onChangeColumns(displayColumns);
+
+    const updatedParams = new URLSearchParams(searchParams.toString());
+    const isAllCheck = displayColumns.length === columns.length;
+
+    if (isAllCheck) {
+      updatedParams.delete("columns");
+    } else {
+      updatedParams.set("columns", displayColumns.map(encodeURIComponent).join(","));
+    }
+
+    setSearchParams(updatedParams);
+  };
 
   const handleChange = (key: string) => {
-    onChangeColumns(defaultColumns.includes(key) ? defaultColumns.filter(col => col !== key) : [...defaultColumns, key]);
+    const displayColumns = selectedColumns.includes(key)
+      ? selectedColumns.filter(col => col !== key)
+      : [...selectedColumns, key];
+
+    handleChangeDisplayColumns(displayColumns);
   };
 
   const toggleAllColumns = () => {
     if (isAllChecked) {
-      onChangeColumns(defaultColumns.filter(col => !filteredColumns.includes(col)));
+      handleChangeDisplayColumns(selectedColumns.filter(col => !filteredColumns.includes(col)));
     } else {
-      onChangeColumns(filteredColumns);
+      handleChangeDisplayColumns(filteredColumns);
     }
   };
 
@@ -79,7 +96,7 @@ const TableSettings: FC<TableSettingsProps> = ({
     setIndexFocusItem(-1);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = (e: TextFieldKeyboardEvent) => {
     const arrowUp = e.key === "ArrowUp";
     const arrowDown = e.key === "ArrowDown";
     const enter = e.key === "Enter";
@@ -94,9 +111,17 @@ const TableSettings: FC<TableSettingsProps> = ({
   };
 
   useEffect(() => {
-    if (arrayEquals(columns, defaultColumns)) return;
+    if (arrayEquals(columns, selectedColumns) || searchParams.has("columns")) return;
     onChangeColumns(columns);
   }, [columns]);
+
+  useEffect(() => {
+    const hasColumns = searchParams.has("columns");
+    if (!hasColumns) return;
+    const columnsParam = searchParams.get("columns") || "";
+    const columnsArray = columnsParam.split(",").map(decodeURIComponent).filter(Boolean);
+    onChangeColumns(columnsArray);
+  }, []);
 
   return (
     <div className="vm-table-settings">
@@ -106,48 +131,24 @@ const TableSettings: FC<TableSettingsProps> = ({
             variant="text"
             startIcon={<SettingsIcon/>}
             onClick={toggleOpenSettings}
-            disabled={disabledButton}
             ariaLabel={title}
           />
         </div>
       </Tooltip>
-      <Popper
-        open={openSettings}
-        onClose={handleClose}
-        placement="bottom-right"
-        buttonRef={buttonRef}
-        title={title}
-      >
-        <div
-          className={classNames({
-            "vm-table-settings-popper": true,
-            "vm-table-settings-popper_mobile": isMobile
-          })}
+      {openSettings && (
+        <Modal
+          title={title}
+          className="vm-table-settings-modal"
+          onClose={handleClose}
         >
-          <div className="vm-table-settings-popper-list vm-table-settings-popper-list_first">
-            <Switch
-              label={"Compact view"}
-              value={tableCompact}
-              onChange={toggleTableCompact}
-            />
-          </div>
-          <div className="vm-table-settings-popper-list">
-            <div>
-              <div className="vm-table-settings-popper-list-header">
-                <h3 className="vm-table-settings-popper-list-header__title">Display columns</h3>
-                <Tooltip title="search column">
-                  <Button
-                    color="primary"
-                    variant="text"
-                    onClick={toggleShowSearch}
-                    startIcon={<SearchIcon/>}
-                    ariaLabel="reset columns"
-                  />
-                </Tooltip>
-              </div>
-              {showSearch && (
+          <div className="vm-table-settings-modal-section">
+            <div className="vm-table-settings-modal-section__title">
+              Customize columns
+            </div>
+            <div className="vm-table-settings-modal-columns">
+              <div className="vm-table-settings-modal-columns__search">
                 <TextField
-                  placeholder={"search column"}
+                  placeholder={"Search columns"}
                   startIcon={<SearchIcon/>}
                   value={searchColumn}
                   onChange={setSearchColumn}
@@ -155,13 +156,10 @@ const TableSettings: FC<TableSettingsProps> = ({
                   onKeyDown={handleKeyDown}
                   type="search"
                 />
-              )}
-              {!filteredColumns.length && (
-                <p className="vm-table-settings-popper-list__no-found">No columns found</p>
-              )}
-              <div className="vm-table-settings-popper-list-header">
+              </div>
+              <div className="vm-table-settings-modal-columns-list">
                 {!!filteredColumns.length && (
-                  <div className="vm-table-settings-popper-list__item vm-table-settings-popper-list__item_check_all">
+                  <div className="vm-table-settings-modal-columns-list__item vm-table-settings-modal-columns-list__item_all">
                     <Checkbox
                       checked={isAllChecked}
                       onChange={toggleAllColumns}
@@ -170,18 +168,24 @@ const TableSettings: FC<TableSettingsProps> = ({
                     />
                   </div>
                 )}
-              </div>
-              <div className="vm-table-settings-popper-list-columns">
+                {!filteredColumns.length && (
+                  <div className="vm-table-settings-modal-columns-no-found">
+                    <p className="vm-table-settings-modal-columns-no-found__info">
+                      No columns found.
+                    </p>
+                  </div>
+                )}
                 {filteredColumns.map((col, i) => (
                   <div
                     className={classNames({
-                      "vm-table-settings-popper-list__item": true,
-                      "vm-table-settings-popper-list__item_focus": i === indexFocusItem,
+                      "vm-table-settings-modal-columns-list__item": true,
+                      "vm-table-settings-modal-columns-list__item_focus": i === indexFocusItem,
+                      "vm-table-settings-modal-columns-list__item_custom": customColumns.includes(col),
                     })}
                     key={col}
                   >
                     <Checkbox
-                      checked={defaultColumns.includes(col)}
+                      checked={selectedColumns.includes(col)}
                       onChange={createHandlerChange(col)}
                       label={col}
                       disabled={tableCompact}
@@ -191,8 +195,19 @@ const TableSettings: FC<TableSettingsProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </Popper>
+          <div className="vm-table-settings-modal-section">
+            <div className="vm-table-settings-modal-section__title">
+              Table view
+            </div>
+            <div className="vm-table-settings-modal-columns-list__item">
+              <Switch
+                label={"Compact view"}
+                value={tableCompact}
+                onChange={toggleTableCompact}
+              />
+            </div>
+          </div>
+        </Modal>)}
     </div>
   );
 };

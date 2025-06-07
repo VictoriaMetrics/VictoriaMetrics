@@ -7,9 +7,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -20,11 +20,11 @@ var (
 
 // InsertHandler processes opentelemetry metrics.
 func InsertHandler(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	encoding := req.Header.Get("Content-Encoding")
 	var processBody func([]byte) ([]byte, error)
 	if req.Header.Get("Content-Type") == "application/json" {
 		if req.Header.Get("X-Amz-Firehose-Protocol-Version") != "" {
@@ -33,7 +33,7 @@ func InsertHandler(req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, isGzipped, processBody, func(tss []prompbmarshal.TimeSeries) error {
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(tss, extraLabels)
 	})
 }
@@ -59,14 +59,9 @@ func insertRows(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Labe
 		for _, label := range extraLabels {
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		samples := ts.Samples

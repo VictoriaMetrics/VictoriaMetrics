@@ -35,11 +35,13 @@ func TestParsePipeUnpackSyslogFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`unpack_syslog foo`)
+	f(`unpack_syslog foo,`)
 	f(`unpack_syslog if`)
 	f(`unpack_syslog offset`)
-	f(`unpack_syslog if (x:y) foobar`)
+	f(`unpack_syslog if (x:y) foobar,`)
 	f(`unpack_syslog from`)
+	f(`unpack_syslog from *`)
+	f(`unpack_syslog from x*`)
 	f(`unpack_syslog from x y`)
 	f(`unpack_syslog from x if`)
 	f(`unpack_syslog from x result_prefix`)
@@ -126,7 +128,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	})
 
 	// offset should be ignored when parsing non-rfc3164 messages
-	f("unpack_syslog from x offset 2h30m", [][]Field{
+	f("unpack_syslog x offset 2h30m", [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
 		},
@@ -190,7 +192,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	})
 
 	// single row, unpack from non-syslog field
-	f("unpack_syslog from x", [][]Field{
+	f("unpack_syslog x", [][]Field{
 		{
 			{"x", `foobar`},
 		},
@@ -243,9 +245,9 @@ func TestPipeUnpackSyslog(t *testing.T) {
 }
 
 func TestPipeUnpackSyslogUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

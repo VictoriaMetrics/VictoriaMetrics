@@ -15,6 +15,7 @@ func TestParsePipeUnpackJSONSuccess(t *testing.T) {
 	f(`unpack_json keep_original_fields`)
 	f(`unpack_json fields (a)`)
 	f(`unpack_json fields (a, b, c)`)
+	f(`unpack_json fields (a*, b, c)`)
 	f(`unpack_json fields (a, b, c) skip_empty_results`)
 	f(`unpack_json fields (a, b, c) keep_original_fields`)
 	f(`unpack_json if (a:x)`)
@@ -43,12 +44,14 @@ func TestParsePipeUnpackJSONFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`unpack_json foo`)
+	f(`unpack_json foo,`)
 	f(`unpack_json if`)
 	f(`unpack_json fields`)
 	f(`unpack_json fields x`)
-	f(`unpack_json if (x:y) foobar`)
+	f(`unpack_json if (x:y) foobar,`)
 	f(`unpack_json from`)
+	f(`unpack_json from *`)
+	f(`unpack_json from x*`)
 	f(`unpack_json from x y`)
 	f(`unpack_json from x if`)
 	f(`unpack_json from x result_prefix`)
@@ -220,7 +223,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 			{"x", `["foobar"]`},
 		},
 	})
-	f("unpack_json from x", [][]Field{
+	f("unpack_json x", [][]Field{
 		{
 			{"x", `1234`},
 		},
@@ -256,7 +259,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 	})
 
 	// multiple rows with distinct number of fields
-	f("unpack_json from x", [][]Field{
+	f("unpack_json x", [][]Field{
 		{
 			{"x", `{"foo":"bar","baz":"xyz"}`},
 			{"y", `abc`},
@@ -315,9 +318,9 @@ func TestPipeUnpackJSON(t *testing.T) {
 }
 
 func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -326,6 +329,7 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	f("unpack_json from x keep_original_fields", "*", "", "*", "")
 	f("unpack_json if (y:z) from x", "*", "", "*", "")
 	f("unpack_json if (y:z) from x fields (a, b)", "*", "", "*", "a,b")
+	f("unpack_json if (y:z) from x fields (a*, b)", "*", "", "*", "b")
 	f("unpack_json if (y:z) from x fields (a, b) skip_empty_results", "*", "", "*", "")
 	f("unpack_json if (y:z) from x fields (a, b) keep_original_fields", "*", "", "*", "")
 
@@ -337,6 +341,7 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	f("unpack_json if (f1:z) from x", "*", "f1,f2", "*", "f2")
 	f("unpack_json if (y:z) from x fields (f3)", "*", "f1,f2", "*", "f1,f2,f3")
 	f("unpack_json if (y:z) from x fields (f1)", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json if (y:z) from x fields (f*,x)", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_json if (y:z) from x fields (f1) skip_empty_results", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_json if (y:z) from x fields (f1) keep_original_fields", "*", "f1,f2", "*", "f1,f2")
 
@@ -347,6 +352,7 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	f("unpack_json if (y:z) from x", "*", "f2,x", "*", "f2")
 	f("unpack_json if (f2:z) from x", "*", "f1,f2,x", "*", "f1")
 	f("unpack_json if (f2:z) from x fields (f3)", "*", "f1,f2,x", "*", "f1,f3")
+	f("unpack_json if (f2:z) from x fields (f3,y*)", "*", "f1,f2,x", "*", "f1,f3")
 	f("unpack_json if (f2:z) from x fields (f3) skip_empty_results", "*", "f1,f2,x", "*", "f1")
 	f("unpack_json if (f2:z) from x fields (f3) keep_original_fields", "*", "f1,f2,x", "*", "f1")
 
@@ -357,6 +363,7 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	f("unpack_json if (y:z) from x", "f1,f2", "", "f1,f2,x,y", "")
 	f("unpack_json if (f1:z) from x", "f1,f2", "", "f1,f2,x", "")
 	f("unpack_json if (y:z) from x fields (f3)", "f1,f2", "", "f1,f2", "")
+	f("unpack_json if (y:z) from x fields (f3,y*)", "f1,f2", "", "f1,f2", "")
 	f("unpack_json if (y:z) from x fields (f3) skip_empty_results", "f1,f2", "", "f1,f2", "")
 	f("unpack_json if (y:z) from x fields (f3) keep_original_fields", "f1,f2", "", "f1,f2", "")
 	f("unpack_json if (y:z) from x fields (f2)", "f1,f2", "", "f1,x,y", "")
@@ -371,6 +378,7 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	f("unpack_json if (y:z) from x", "f2,x", "", "f2,x,y", "")
 	f("unpack_json if (f2:z y:qwe) from x", "f2,x", "", "f2,x,y", "")
 	f("unpack_json if (y:z) from x fields (f1)", "f2,x", "", "f2,x", "")
+	f("unpack_json if (y:z) from x fields (f3*)", "f2,x", "", "f2,x", "")
 	f("unpack_json if (y:z) from x fields (f1) skip_empty_results", "f2,x", "", "f2,x", "")
 	f("unpack_json if (y:z) from x fields (f1) keep_original_fields", "f2,x", "", "f2,x", "")
 	f("unpack_json if (y:z) from x fields (f2)", "f2,x", "", "x,y", "")

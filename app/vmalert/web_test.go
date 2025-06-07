@@ -21,18 +21,22 @@ func TestHandler(t *testing.T) {
 	fq.Add(datasource.Metric{
 		Values: []float64{1}, Timestamps: []int64{0},
 	})
-	g := &rule.Group{
+	g := rule.NewGroup(config.Group{
 		Name:        "group",
 		File:        "rules.yaml",
 		Concurrency: 1,
-	}
-	ar := rule.NewAlertingRule(fq, g, config.Rule{ID: 0, Alert: "alert"})
-	rr := rule.NewRecordingRule(fq, g, config.Rule{ID: 1, Record: "record"})
-	g.Rules = []rule.Rule{ar, rr}
+		Rules: []config.Rule{
+			{ID: 0, Alert: "alert"},
+			{ID: 1, Record: "record"},
+		},
+	}, fq, 1*time.Minute, nil)
+	ar := g.Rules[0].(*rule.AlertingRule)
+	rr := g.Rules[1].(*rule.RecordingRule)
+
 	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
 
 	m := &manager{groups: map[uint64]*rule.Group{
-		g.ID(): g,
+		g.CreateID(): g,
 	}}
 	rh := &requestHandler{m: m}
 
@@ -162,7 +166,7 @@ func TestHandler(t *testing.T) {
 
 		gotRuleWithUpdates := apiRuleWithUpdates{}
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
-		if gotRuleWithUpdates.StateUpdates == nil || len(gotRuleWithUpdates.StateUpdates) < 1 {
+		if len(gotRuleWithUpdates.StateUpdates) < 1 {
 			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
 		}
 	})

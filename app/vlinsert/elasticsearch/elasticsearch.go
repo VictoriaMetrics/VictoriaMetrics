@@ -1,27 +1,23 @@
 package elasticsearch
 
 import (
-	"bufio"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
@@ -64,7 +60,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	switch path {
-	case "/":
+	case "/", "":
 		switch r.Method {
 		case http.MethodGet:
 			// Return fake response for Elasticsearch ping request.
@@ -94,7 +90,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		startTime := time.Now()
 		bulkRequestsTotal.Inc()
 
-		cp, err := insertutils.GetCommonParams(r)
+		cp, err := insertutil.GetCommonParams(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -103,9 +99,10 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		lmp := cp.NewLogMessageProcessor()
-		isGzip := r.Header.Get("Content-Encoding") == "gzip"
-		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, lmp)
+		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk", true)
+		encoding := r.Header.Get("Content-Encoding")
+		streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
+		n, err := readBulkRequest(streamName, r.Body, encoding, cp.TimeFields, cp.MsgFields, lmp)
 		lmp.MustClose()
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
@@ -131,67 +128,44 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
-	rowsIngestedTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="elasticsearch_bulk"}`)
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string, lmp insertutils.LogMessageProcessor) (int, error) {
+func readBulkRequest(streamName string, r io.Reader, encoding string, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
-	if isGzip {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return 0, fmt.Errorf("cannot read gzipped _bulk request: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return 0, fmt.Errorf("cannot decode Elasticsearch protocol data: %w", err)
 	}
+	defer protoparserutil.PutUncompressedReader(reader)
 
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	lb := lineBufferPool.Get()
-	defer lineBufferPool.Put(lb)
-
-	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, insertutils.MaxLineSizeBytes.IntN())
-	sc := bufio.NewScanner(wcr)
-	sc.Buffer(lb.B, len(lb.B))
+	lr := insertutil.NewLineReader(streamName, wcr)
 
 	n := 0
-	nCheckpoint := 0
 	for {
-		ok, err := readBulkLine(sc, timeField, msgField, lmp)
+		ok, err := readBulkLine(lr, timeFields, msgFields, lmp)
 		wcr.DecConcurrency()
 		if err != nil || !ok {
-			rowsIngestedTotal.Add(n - nCheckpoint)
 			return n, err
 		}
 		n++
-		if batchSize := n - nCheckpoint; n >= 1000 {
-			rowsIngestedTotal.Add(batchSize)
-			nCheckpoint = n
-		}
 	}
 }
 
-var lineBufferPool bytesutil.ByteBufferPool
-
-func readBulkLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils.LogMessageProcessor) (bool, error) {
+func readBulkLine(lr *insertutil.LineReader, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (bool, error) {
 	var line []byte
 
 	// Read the command, must be "create" or "index"
 	for len(line) == 0 {
-		if !sc.Scan() {
-			if err := sc.Err(); err != nil {
-				if errors.Is(err, bufio.ErrTooLong) {
-					return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`,
-						insertutils.MaxLineSizeBytes.IntN())
-				}
-				return false, err
-			}
-			return false, nil
+		if !lr.NextLine() {
+			err := lr.Err()
+			return false, err
 		}
-		line = sc.Bytes()
+		line = lr.Line
 	}
 	lineStr := bytesutil.ToUnsafeString(line)
 	if !strings.Contains(lineStr, `"create"`) && !strings.Contains(lineStr, `"index"`) {
@@ -199,47 +173,51 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils
 	}
 
 	// Decode log message
-	if !sc.Scan() {
-		if err := sc.Err(); err != nil {
-			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", insertutils.MaxLineSizeBytes.IntN())
-			}
+	if !lr.NextLine() {
+		if err := lr.Err(); err != nil {
 			return false, err
 		}
 		return false, fmt.Errorf(`missing log message after the "create" or "index" command`)
 	}
-	line = sc.Bytes()
+	line = lr.Line
+	if len(line) == 0 {
+		// Special case - the line could be too long, so it was skipped.
+		// Continue parsing next lines.
+		return true, nil
+	}
 	p := logstorage.GetJSONParser()
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
 
-	ts, err := extractTimestampFromFields(timeField, p.Fields)
+	ts, err := extractTimestampFromFields(timeFields, p.Fields)
 	if err != nil {
 		return false, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
 	if ts == 0 {
 		ts = time.Now().UnixNano()
 	}
-	logstorage.RenameField(p.Fields, msgField, "_msg")
-	lmp.AddRow(ts, p.Fields)
+	logstorage.RenameField(p.Fields, msgFields, "_msg")
+	lmp.AddRow(ts, p.Fields, nil)
 	logstorage.PutJSONParser(p)
 
 	return true, nil
 }
 
-func extractTimestampFromFields(timeField string, fields []logstorage.Field) (int64, error) {
-	for i := range fields {
-		f := &fields[i]
-		if f.Name != timeField {
-			continue
+func extractTimestampFromFields(timeFields []string, fields []logstorage.Field) (int64, error) {
+	for _, timeField := range timeFields {
+		for i := range fields {
+			f := &fields[i]
+			if f.Name != timeField {
+				continue
+			}
+			timestamp, err := parseElasticsearchTimestamp(f.Value)
+			if err != nil {
+				return 0, err
+			}
+			f.Value = ""
+			return timestamp, nil
 		}
-		timestamp, err := parseElasticsearchTimestamp(f.Value)
-		if err != nil {
-			return 0, err
-		}
-		f.Value = ""
-		return timestamp, nil
 	}
 	return 0, nil
 }
@@ -251,19 +229,8 @@ func parseElasticsearchTimestamp(s string) (int64, error) {
 		return 0, nil
 	}
 	if len(s) < len("YYYY-MM-DD") || s[len("YYYY")] != '-' {
-		// Try parsing timestamp in milliseconds
-		n, err := strconv.ParseInt(s, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("cannot parse timestamp in milliseconds from %q: %w", s, err)
-		}
-		if n > int64(math.MaxInt64)/1e6 {
-			return 0, fmt.Errorf("too big timestamp in milliseconds: %d; mustn't exceed %d", n, int64(math.MaxInt64)/1e6)
-		}
-		if n < int64(math.MinInt64)/1e6 {
-			return 0, fmt.Errorf("too small timestamp in milliseconds: %d; must be bigger than %d", n, int64(math.MinInt64)/1e6)
-		}
-		n *= 1e6
-		return n, nil
+		// Try parsing timestamp in seconds or milliseconds
+		return insertutil.ParseUnixTimestamp(s)
 	}
 	if len(s) == len("YYYY-MM-DD") {
 		t, err := time.Parse("2006-01-02", s)

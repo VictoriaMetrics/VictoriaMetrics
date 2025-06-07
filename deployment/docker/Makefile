@@ -1,12 +1,13 @@
 # All these commands must run from repository root.
 
+DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.20.3
+ROOT_IMAGE ?= alpine:3.21.3
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.20.3
+CERTS_IMAGE := alpine:3.21.3
 
-GO_BUILDER_IMAGE := golang:1.23.1-alpine
+GO_BUILDER_IMAGE := golang:1.24.3-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -42,7 +43,7 @@ app-via-docker: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo nethttpomithttp2 musl' \
+			-tags 'netgo osusergo musl' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-via-docker-windows: package-builder
@@ -57,7 +58,7 @@ app-via-docker-windows: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo nethttpomithttp2' \
+			-tags 'netgo osusergo' \
 			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base
@@ -66,6 +67,12 @@ package-via-docker: package-base
 		$(DOCKER_BUILD) \
 			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
 			--build-arg base_image=$(BASE_IMAGE) \
+			--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
+			--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
+			--label "org.opencontainers.image.title=$(APP_NAME)" \
+			--label "org.opencontainers.image.vendor=VictoriaMetrics" \
+			--label "org.opencontainers.image.version=$(PKG_TAG)" \
+			--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
@@ -80,8 +87,16 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
+		--build-arg BINARY_SUFFIX="" \
+		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
+		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
+		--label "org.opencontainers.image.title=$(APP_NAME)" \
+		--label "org.opencontainers.image.vendor=VictoriaMetrics" \
+		--label "org.opencontainers.image.version=$(PKG_TAG)" \
+		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+		$(foreach registry,$(DOCKER_REGISTRIES),\
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
+		) \
 		-o type=image \
 		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
@@ -92,8 +107,16 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
 		--build-arg APP_NAME=$(APP_NAME) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
+		--build-arg BINARY_SUFFIX="" \
+		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
+		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
+		--label "org.opencontainers.image.title=$(APP_NAME)" \
+		--label "org.opencontainers.image.vendor=VictoriaMetrics" \
+		--label "org.opencontainers.image.version=$(PKG_TAG)" \
+		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+		$(foreach registry,$(DOCKER_REGISTRIES),\
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
+		) \
 		-o type=image \
 		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
@@ -105,6 +128,11 @@ publish-via-docker:
 		$(APP_NAME)-linux-arm64-prod \
 		$(APP_NAME)-linux-ppc64le-prod \
 		$(APP_NAME)-linux-386-prod
+
+publish-via-docker-latest:
+	$(foreach registry,$(DOCKER_REGISTRIES),\
+		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG); \
+	)
 
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \
@@ -185,32 +213,40 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
-docker-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+# VM single
+docker-vm-single-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml up -d
 
-docker-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
+docker-vm-single-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-single.yml down -v
 
-docker-single-vm-datasource-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml up -d
+# VM cluster
+docker-vm-cluster-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml up -d
 
-docker-single-vm-datasource-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml down -v
+docker-vm-cluster-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
 
-docker-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+# VL single
+docker-vl-single-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
 
-docker-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+docker-vl-single-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
 
-docker-cluster-vm-datasource-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml up -d
+# VL cluster
+docker-vl-cluster-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
 
-docker-cluster-vm-datasource-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml down -v
+docker-vl-cluster-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
 
-docker-victorialogs-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml up -d
+# Command aliases to keep backward-compatibility, as they could have been mentioned on the Internet before the rename.
+docker-single-up: docker-vm-single-up
+docker-single-down: docker-vm-single-down
 
-docker-victorialogs-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml down -v
+docker-cluster-up: docker-vm-cluster-up
+docker-cluster-down: docker-vm-cluster-down
+
+docker-victorialogs-up: docker-vl-single-up
+docker-victorialogs-down: docker-vl-single-down

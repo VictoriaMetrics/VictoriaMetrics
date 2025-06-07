@@ -11,6 +11,18 @@ const filename = (
   </>
 );
 
+const title = (
+  <>
+    <p>Title - specify the title that will be displayed on the <Link
+      to={router.queryAnalyzer}
+      target="_blank"
+      rel="noreferrer"
+      className="vm-link vm-link_underlined"
+    >{routerOptions[router.queryAnalyzer].title}</Link> page.</p>
+    <p>This helps identify your report in the interface.</p>
+  </>
+);
+
 const comment = (
   <>
     <p>Comment (optional) - add a comment to your report.</p>
@@ -39,6 +51,7 @@ const generate = (
 
 export default [
   filename,
+  title,
   comment,
   trace,
   generate,

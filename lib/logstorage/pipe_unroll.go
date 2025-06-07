@@ -3,12 +3,13 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"unsafe"
 
 	"github.com/valyala/fastjson"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -32,20 +33,20 @@ func (pu *pipeUnroll) String() string {
 	return s
 }
 
-func (pu *pipeUnroll) canLiveTail() bool {
-	return true
+func (pu *pipeUnroll) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pu, nil
 }
 
-func (pu *pipeUnroll) optimize() {
-	pu.iff.optimizeFilterIn()
+func (pu *pipeUnroll) canLiveTail() bool {
+	return true
 }
 
 func (pu *pipeUnroll) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnroll) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pu *pipeUnroll) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -54,27 +55,22 @@ func (pu *pipeUnroll) initFilterInValues(cache map[string][]string, getFieldValu
 	return &puNew, nil
 }
 
-func (pu *pipeUnroll) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if pu.iff != nil {
-			unneededFields.removeFields(pu.iff.neededFields)
-		}
-		unneededFields.removeFields(pu.fields)
-	} else {
-		if pu.iff != nil {
-			neededFields.addFields(pu.iff.neededFields)
-		}
-		neededFields.addFields(pu.fields)
-	}
+func (pu *pipeUnroll) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
 }
 
-func (pu *pipeUnroll) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnroll) updateNeededFields(pf *prefixfilter.Filter) {
+	if pu.iff != nil {
+		pf.AddAllowFilters(pu.iff.allowFilters)
+	}
+	pf.AddAllowFilters(pu.fields)
+}
+
+func (pu *pipeUnroll) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeUnrollProcessor{
 		pu:     pu,
 		stopCh: stopCh,
 		ppNext: ppNext,
-
-		shards: make([]pipeUnrollProcessorShard, workersCount),
 	}
 }
 
@@ -83,17 +79,10 @@ type pipeUnrollProcessor struct {
 	stopCh <-chan struct{}
 	ppNext pipeProcessor
 
-	shards []pipeUnrollProcessorShard
+	shards atomicutil.Slice[pipeUnrollProcessorShard]
 }
 
 type pipeUnrollProcessorShard struct {
-	pipeUnrollProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUnrollProcessorShardNopad{})%128]byte
-}
-
-type pipeUnrollProcessorShardNopad struct {
 	bm bitmap
 
 	wctx pipeUnpackWriteContext
@@ -106,18 +95,18 @@ type pipeUnrollProcessorShardNopad struct {
 }
 
 func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	pu := pup.pu
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 	shard.wctx.init(workerID, pup.ppNext, false, false, br)
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pu.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -133,11 +122,11 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	fields := shard.fields
-	for rowIdx := range br.timestamps {
-		if bm.isSetBit(rowIdx) {
-			if needStop(pup.stopCh) {
-				return
-			}
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		if needStop(pup.stopCh) {
+			return
+		}
+		if pu.iff == nil || bm.isSetBit(rowIdx) {
 			shard.writeUnrolledFields(pu.fields, columnValues, rowIdx)
 		} else {
 			fields = fields[:0]
@@ -151,6 +140,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 			shard.wctx.writeRow(rowIdx, fields)
 		}
 	}
+	shard.fields = fields
 
 	shard.wctx.flush()
 	shard.wctx.reset()
@@ -207,7 +197,7 @@ func (pup *pipeUnrollProcessor) flush() error {
 	return nil
 }
 
-func parsePipeUnroll(lex *lexer) (*pipeUnroll, error) {
+func parsePipeUnroll(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unroll") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unroll")
 	}
@@ -228,9 +218,19 @@ func parsePipeUnroll(lex *lexer) (*pipeUnroll, error) {
 		lex.nextToken()
 	}
 
-	fields, err := parseFieldNamesInParens(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'by(...)' at 'unroll': %w", err)
+	var fields []string
+	if lex.isKeyword("(") {
+		fs, err := parseFieldNamesInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
+		}
+		fields = fs
+	} else {
+		fs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
+		}
+		fields = fs
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'by(...)' at 'unroll' must contain at least a single field")

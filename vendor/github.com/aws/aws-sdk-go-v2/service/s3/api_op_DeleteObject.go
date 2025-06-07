@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+	"time"
 )
 
 // Removes an object from a bucket. The behavior depends on the bucket's
@@ -40,9 +41,10 @@ import (
 //   - Directory buckets - For directory buckets, you must make requests for this
 //     API operation to the Zonal endpoint. These endpoints support
 //     virtual-hosted-style requests in the format
-//     https://bucket_name.s3express-az_id.region.amazonaws.com/key-name .
-//     Path-style requests are not supported. For more information, see [Regional and Zonal endpoints]in the
-//     Amazon S3 User Guide.
+//     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
+//     Path-style requests are not supported. For more information about endpoints in
+//     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
+//     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // To remove a specific version, you must use the versionId query parameter. Using
 // this query parameter permanently deletes the version. If the object deleted is a
@@ -88,19 +90,20 @@ import (
 //     expires. For more information about authorization, see [CreateSession]CreateSession .
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
-// Bucket_name.s3express-az_id.region.amazonaws.com .
+// Bucket-name.s3express-zone-id.region-code.amazonaws.com .
 //
 // The following action is related to DeleteObject :
 //
 // [PutObject]
 //
 // [Sample Request]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html#ExampleVersionObjectDelete
-// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Deleting objects from versioning-suspended buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjectsfromVersioningSuspendedBuckets.html
 // [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
 // [PutBucketLifecycle]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycle.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [Deleting object versions from a versioning-enabled bucket]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjectVersions.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 // [Using MFA Delete]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMFADelete.html
 func (c *Client) DeleteObject(ctx context.Context, params *DeleteObjectInput, optFns ...func(*Options)) (*DeleteObjectOutput, error) {
 	if params == nil {
@@ -123,11 +126,12 @@ type DeleteObjectInput struct {
 	//
 	// Directory buckets - When you use this operation with a directory bucket, you
 	// must use virtual-hosted-style requests in the format
-	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
-	// supported. Directory bucket names must be unique in the chosen Availability
-	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
-	// naming restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
+	// Bucket-name.s3express-zone-id.region-code.amazonaws.com . Path-style requests
+	// are not supported. Directory bucket names must be unique in the chosen Zone
+	// (Availability Zone or Local Zone). Bucket names must follow the format
+	// bucket-base-name--zone-id--x-s3 (for example,
+	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
 	// the alias of the access point in place of the bucket name or specify the access
@@ -172,6 +176,38 @@ type DeleteObjectInput struct {
 	// does not match the actual owner of the bucket, the request fails with the HTTP
 	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
+
+	// The If-Match header field makes the request method conditional on ETags. If the
+	// ETag value does not match, the operation returns a 412 Precondition Failed
+	// error. If the ETag matches or if the object doesn't exist, the operation will
+	// return a 204 Success (No Content) response .
+	//
+	// For more information about conditional requests, see [RFC 7232].
+	//
+	// This functionality is only supported for directory buckets.
+	//
+	// [RFC 7232]: https://docs.aws.amazon.com/https:/tools.ietf.org/html/rfc7232
+	IfMatch *string
+
+	// If present, the object is deleted only if its modification times matches the
+	// provided Timestamp . If the Timestamp values do not match, the operation
+	// returns a 412 Precondition Failed error. If the Timestamp matches or if the
+	// object doesn’t exist, the operation returns a 204 Success (No Content) response.
+	//
+	// This functionality is only supported for directory buckets.
+	IfMatchLastModifiedTime *time.Time
+
+	// If present, the object is deleted only if its size matches the provided size in
+	// bytes. If the Size value does not match, the operation returns a 412
+	// Precondition Failed error. If the Size matches or if the object doesn’t exist,
+	// the operation returns a 204 Success (No Content) response.
+	//
+	// This functionality is only supported for directory buckets.
+	//
+	// You can use the If-Match , x-amz-if-match-last-modified-time and
+	// x-amz-if-match-size conditional headers in conjunction with each-other or
+	// individually.
+	IfMatchSize *int64
 
 	// The concatenation of the authentication device's serial number, a space, and
 	// the value that is displayed on your authentication device. Required to
@@ -280,6 +316,9 @@ func (c *Client) addOperationDeleteObjectMiddlewares(stack *middleware.Stack, op
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -335,6 +374,18 @@ func (c *Client) addOperationDeleteObjectMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

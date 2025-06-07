@@ -2,8 +2,9 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -41,20 +42,20 @@ func (pe *pipeExtract) String() string {
 	return s
 }
 
-func (pe *pipeExtract) canLiveTail() bool {
-	return true
+func (pe *pipeExtract) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pe, nil
 }
 
-func (pe *pipeExtract) optimize() {
-	pe.iff.optimizeFilterIn()
+func (pe *pipeExtract) canLiveTail() bool {
+	return true
 }
 
 func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -63,65 +64,43 @@ func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldVal
 	return &peNew, nil
 }
 
-func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (pe *pipeExtract) visitSubqueries(visitFunc func(q *Query)) {
+	pe.iff.visitSubqueries(visitFunc)
+}
+
+func (pe *pipeExtract) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		if pe.iff != nil {
-			neededFields.addFields(pe.iff.neededFields)
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		needFromField := false
-		for _, step := range pe.ptn.steps {
-			if step.field == "" {
-				continue
-			}
-			if !unneededFieldsOrig.contains(step.field) {
-				needFromField = true
-			}
+	pfOrig := pf.Clone()
+	needFromField := false
+	for _, step := range pe.ptn.steps {
+		if step.field == "" {
+			continue
+		}
+		if pfOrig.MatchString(step.field) {
+			needFromField = true
 			if !pe.keepOriginalFields && !pe.skipEmptyResults {
-				unneededFields.add(step.field)
+				pf.AddDenyFilter(step.field)
 			}
 		}
-		if needFromField {
-			unneededFields.remove(pe.fromField)
-			if pe.iff != nil {
-				unneededFields.removeFields(pe.iff.neededFields)
-			}
-		} else {
-			unneededFields.add(pe.fromField)
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := false
-		for _, step := range pe.ptn.steps {
-			if step.field == "" {
-				continue
-			}
-			if neededFieldsOrig.contains(step.field) {
-				needFromField = true
-				if !pe.keepOriginalFields && !pe.skipEmptyResults {
-					neededFields.remove(step.field)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(pe.fromField)
-			if pe.iff != nil {
-				neededFields.addFields(pe.iff.neededFields)
-			}
+	}
+	if needFromField {
+		pf.AddAllowFilter(pe.fromField)
+		if pe.iff != nil {
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 	}
 }
 
-func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pe *pipeExtract) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeExtractProcessor{
 		pe:     pe,
 		ppNext: ppNext,
-
-		shards: make([]pipeExtractProcessorShard, workersCount),
 	}
 }
 
@@ -129,17 +108,10 @@ type pipeExtractProcessor struct {
 	pe     *pipeExtract
 	ppNext pipeProcessor
 
-	shards []pipeExtractProcessorShard
+	shards atomicutil.Slice[pipeExtractProcessorShard]
 }
 
 type pipeExtractProcessorShard struct {
-	pipeExtractProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeExtractProcessorShardNopad{})%128]byte
-}
-
-type pipeExtractProcessorShardNopad struct {
 	bm  bitmap
 	ptn *pattern
 
@@ -151,17 +123,17 @@ type pipeExtractProcessorShardNopad struct {
 }
 
 func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	pe := pep.pe
-	shard := &pep.shards[workerID]
+	shard := pep.shards.Get(workerID)
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pe.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pep.ppNext.writeBlock(workerID, br)
@@ -192,13 +164,13 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+		if pe.iff == nil || bm.isSetBit(rowIdx) {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
 				ptn.apply(v)
 
@@ -219,6 +191,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 			for i, c := range resultColumns {
 				resultValues[i] = c.getValueAtRow(br, rowIdx)
 			}
+			needUpdates = true
 		}
 
 		for i, v := range resultValues {
@@ -227,7 +200,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	for i := range rcs {
-		br.addResultColumn(&rcs[i])
+		br.addResultColumn(rcs[i])
 	}
 	pep.ppNext.writeBlock(workerID, br)
 
@@ -241,7 +214,7 @@ func (pep *pipeExtractProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
+func parsePipeExtract(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract")
 	}

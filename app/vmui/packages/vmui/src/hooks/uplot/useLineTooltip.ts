@@ -64,7 +64,7 @@ const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltip
       title: groups.size > 1 && !isAnomalyView ? `Query ${group}` : "",
       dates: [date ? dayjs(date * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT) : "-"],
       value: formatPrettyNumber(value, min, max),
-      info: getMetricName(metricItem),
+      info: getMetricName(metricItem, seriesItem),
       statsFormatted: seriesItem?.statsFormatted,
       marker: `${seriesItem?.stroke}`,
     };

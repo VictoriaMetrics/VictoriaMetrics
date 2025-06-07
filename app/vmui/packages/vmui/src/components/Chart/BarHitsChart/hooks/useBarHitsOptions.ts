@@ -1,5 +1,5 @@
 import { useMemo, useState } from "preact/compat";
-import { getAxes, handleDestroy, setSelect } from "../../../../utils/uplot";
+import { getAxes, getMinMaxBuffer, handleDestroy, setSelect } from "../../../../utils/uplot";
 import dayjs from "dayjs";
 import { dateFromSeconds, formatDateForNativeInput } from "../../../../utils/time";
 import uPlot, { AlignedData, Band, Options, Series } from "uplot";
@@ -9,6 +9,7 @@ import { MinMax, SetMinMax } from "../../../../types";
 import { LogHits } from "../../../../api/types";
 import getSeriesPaths from "../../../../utils/uplot/paths";
 import { GraphOptions, GRAPH_STYLES } from "../types";
+import { getMaxFromArray } from "../../../../utils/math";
 
 const seriesColors = [
   "color-log-hits-bar-1",
@@ -19,8 +20,8 @@ const seriesColors = [
 ];
 
 const strokeWidth = {
-  [GRAPH_STYLES.BAR]: 0.8,
-  [GRAPH_STYLES.LINE_STEPPED]: 1.2,
+  [GRAPH_STYLES.BAR]: 1,
+  [GRAPH_STYLES.LINE_STEPPED]: 2,
   [GRAPH_STYLES.LINE]: 1.2,
   [GRAPH_STYLES.POINTS]: 0,
 };
@@ -35,6 +36,20 @@ interface UseGetBarHitsOptionsArgs {
   onReadyChart: (u: uPlot) => void;
   graphOptions: GraphOptions;
 }
+
+export const OTHER_HITS_LABEL = "other";
+
+export const getLabelFromLogHit = (logHit: LogHits) => {
+  if (logHit?._isOther) return OTHER_HITS_LABEL;
+  const fields = Object.values(logHit?.fields || {});
+  return fields.map((value) => value || "\"\"").join(", ");
+};
+
+const getYRange = (u: uPlot, _initMin = 0, initMax = 1) => {
+  const maxValues = u.series.filter(({ scale }) => scale === "y").map(({ max }) => max || initMax);
+  const max = getMaxFromArray(maxValues);
+  return getMinMaxBuffer(0, max || initMax);
+};
 
 const useBarHitsOptions = ({
   data,
@@ -56,25 +71,34 @@ const useBarHitsOptions = ({
   };
 
   const series: Series[] = useMemo(() => {
-    let colorN = 0;
+    let visibleColorIndex = 0;
+
     return data.map((_d, i) => {
-      if (i === 0) return {}; // 0 index is xAxis(timestamps)
-      const fields = Object.values(logHits?.[i - 1]?.fields || {});
-      const label = fields.map((value) => value || "\"\"").join(", ");
-      const color = getCssVariable(label ? seriesColors[colorN] : "color-log-hits-bar-0");
-      if (label) colorN++;
+      if (i === 0) return {}; // x-axis
+
+      const logHit = logHits?.[i - 1];
+      const label = getLabelFromLogHit(logHit);
+
+      const isOther = logHit?._isOther;
+      const colorVar = isOther
+        ? "color-log-hits-bar-0"
+        : seriesColors[visibleColorIndex++];
+
+      const color = getCssVariable(colorVar);
+
       return {
-        label: label || "other",
+        label,
         width: strokeWidth[graphOptions.graphStyle],
         spanGaps: true,
+        show: true,
         stroke: color,
-        fill: graphOptions.fill ? color + "80" : "",
+        fill: graphOptions.fill && !isOther ? `${color}80` : graphOptions.fill ? color : "",
         paths: getSeriesPaths(graphOptions.graphStyle),
       };
     });
   }, [isDarkTheme, data, graphOptions]);
 
-  const options: Options = useMemo(() => ({
+  const options: Options = {
     series,
     bands,
     width: containerSize.width || (window.innerWidth / 2),
@@ -82,7 +106,7 @@ const useBarHitsOptions = ({
     cursor: {
       points: {
         width: (u, seriesIdx, size) => size / 4,
-        size: (u, seriesIdx) => (u.series?.[seriesIdx]?.points?.size || 1) * 2.5,
+        size: (u, seriesIdx) => (u.series?.[seriesIdx]?.points?.size || 1) * 1.5,
         stroke: (u, seriesIdx) => `${series?.[seriesIdx]?.stroke || "#ffffff"}`,
         fill: () => "#ffffff",
       },
@@ -91,6 +115,9 @@ const useBarHitsOptions = ({
       x: {
         time: true,
         range: () => [xRange.min, xRange.max]
+      },
+      y: {
+        range: getYRange
       }
     },
     hooks: {
@@ -103,7 +130,7 @@ const useBarHitsOptions = ({
     legend: { show: false },
     axes: getAxes([{}, { scale: "y" }]),
     tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
-  }), [isDarkTheme, series, bands]);
+  };
 
   return {
     options,

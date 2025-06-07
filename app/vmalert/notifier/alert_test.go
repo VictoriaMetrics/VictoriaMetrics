@@ -33,7 +33,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		qFn := func(_ string) ([]datasource.Metric, error) {
 			return []datasource.Metric{
 				{
-					Labels: []datasource.Label{
+					Labels: []prompbmarshal.Label{
 						{Name: "foo", Value: "bar"},
 						{Name: "baz", Value: "qux"},
 					},
@@ -41,7 +41,7 @@ func TestAlertExecTemplate(t *testing.T) {
 					Timestamps: []int64{1},
 				},
 				{
-					Labels: []datasource.Label{
+					Labels: []prompbmarshal.Label{
 						{Name: "foo", Value: "garply"},
 						{Name: "baz", Value: "fred"},
 					},
@@ -61,7 +61,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		for k := range tplExpected {
 			got, exp := tpl[k], tplExpected[k]
 			if got != exp {
-				t.Fatalf("unexpected template for key=%q; got %q; want %q", k, got, exp)
+				t.Fatalf("unexpected template for key=%q; \ngot %q; \nwant %q", k, got, exp)
 			}
 		}
 	}
@@ -75,7 +75,13 @@ func TestAlertExecTemplate(t *testing.T) {
 		Labels: map[string]string{
 			"instance": "localhost",
 		},
-	}, map[string]string{}, map[string]string{})
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	})
 
 	// label-template
 	f(&Alert{
@@ -91,6 +97,19 @@ func TestAlertExecTemplate(t *testing.T) {
 	}, map[string]string{
 		"summary":     "Too high connection number for localhost for job staging",
 		"description": "It is 10000 connections for localhost for more than 5m0s",
+	})
+
+	// label template override
+	f(&Alert{
+		Value: 1e4,
+	}, map[string]string{
+		"summary":     `{{- define "default.template" -}} {{ printf "summary" }} {{- end -}} {{ template "default.template" . }}`,
+		"description": `{{ template "default.template" . }}`,
+		"value":       `{{$value }}`,
+	}, map[string]string{
+		"summary":     "summary",
+		"description": "",
+		"value":       "10000",
 	})
 
 	// expression-template
@@ -180,6 +199,16 @@ func TestAlertExecTemplate(t *testing.T) {
 		"grafana_url": `vm-grafana.com?from={{($activeAt.Add (parseDurationTime "1h")).Unix}}&to={{($activeAt.Add (parseDurationTime "-1h")).Unix}}`,
 	}, map[string]string{
 		"grafana_url": "vm-grafana.com?from=1660944898&to=1660937698",
+	})
+
+	// Datasource type
+	f(&Alert{
+		Type: "vlogs",
+		Expr: "up",
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com/explore?left={"datasource":"{{ if eq .Type "vlogs" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}","queries":[{"expr":"{{ .Expr }}"}]}`,
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com/explore?left={"datasource":"VictoriaLogs","queries":[{"expr":"up"}]}`,
 	})
 }
 

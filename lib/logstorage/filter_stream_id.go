@@ -5,14 +5,12 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterStreamID is the filter for `_stream_id:id`
 type filterStreamID struct {
 	streamIDs []streamID
-
-	// needeExecuteQuery is set to true if q must be executed for populating streamIDs before filter execution.
-	needExecuteQuery bool
 
 	// If q is non-nil, then streamIDs must be populated from q before filter execution.
 	q *Query
@@ -41,8 +39,8 @@ func (fs *filterStreamID) String() string {
 	return "_stream_id:in(" + strings.Join(a, ",") + ")"
 }
 
-func (fs *filterStreamID) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add("_stream_id")
+func (fs *filterStreamID) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("_stream_id")
 }
 
 func (fs *filterStreamID) getStreamIDsMap() map[string]struct{} {
@@ -111,6 +109,8 @@ func (fs *filterStreamID) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

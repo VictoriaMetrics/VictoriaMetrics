@@ -3,50 +3,43 @@
   "version": "0.1.0",
   "private": true,
   "homepage": "./",
+  "type": "module",
   "dependencies": {
-    "@types/lodash.debounce": "^4.0.6",
-    "@types/lodash.get": "^4.4.6",
-    "@types/lodash.throttle": "^4.1.6",
-    "@types/node": "^20.4.0",
-    "@types/qs": "^6.9.7",
-    "@types/react-input-mask": "^3.0.2",
+    "@types/lodash.debounce": "^4.0.9",
+    "@types/lodash.get": "^4.4.9",
+    "@types/qs": "^6.9.18",
+    "@types/react": "^19.1.2",
+    "@types/react-input-mask": "^3.0.6",
     "@types/react-router-dom": "^5.3.3",
-    "@types/webpack-env": "^1.16.3",
-    "classnames": "^2.3.2",
-    "dayjs": "^1.11.0",
+    "classnames": "^2.5.1",
+    "dayjs": "^1.11.13",
     "lodash.debounce": "^4.0.8",
     "lodash.get": "^4.4.2",
-    "lodash.throttle": "^4.1.1",
-    "marked": "^12.0.2",
-    "marked-emoji": "^1.4.0",
-    "preact": "^10.7.1",
-    "qs": "^6.10.3",
+    "marked": "^15.0.8",
+    "marked-emoji": "^2.0.0",
+    "preact": "^10.26.5",
+    "qs": "^6.14.0",
     "react-input-mask": "^2.0.4",
-    "react-router-dom": "^6.10.0",
-    "sass": "^1.56.0",
-    "source-map-explorer": "^2.5.3",
-    "typescript": "~4.6.2",
-    "uplot": "^1.6.30",
-    "web-vitals": "^3.3.2"
+    "react-router-dom": "^7.6.0",
+    "uplot": "^1.6.32",
+    "vite": "^6.2.7",
+    "web-vitals": "^4.2.4"
   },
   "scripts": {
     "prestart": "npm run copy-metricsql-docs",
-    "start": "react-app-rewired start",
-    "start:logs": "cross-env REACT_APP_TYPE=logs npm run start",
-    "start:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run start",
-    "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
-    "build:logs": "cross-env REACT_APP_TYPE=logs npm run build",
-    "build:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run build",
-    "lint": "eslint src --ext tsx,ts",
-    "lint:fix": "eslint src --ext tsx,ts --fix",
-    "analyze": "source-map-explorer 'build/static/js/*.js'",
-    "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "start": "vite",
+    "start:playground": "cross-env PLAYGROUND=METRICS npm run start",
+    "start:logs": "vite --mode victorialogs",
+    "start:logs:playground": "cross-env PLAYGROUND=LOGS npm run start:logs",
+    "start:anomaly": "vite --mode vmanomaly",
+    "build": "vite build",
+    "build:logs": "vite build --mode victorialogs",
+    "build:anomaly": "vite build --mode vmanomaly",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
+    "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "browserslist": {
     "production": [
@@ -61,26 +54,29 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.18.6",
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@types/react-dom": "^18.2.6",
-    "@typescript-eslint/eslint-plugin": "^5.15.0",
-    "@typescript-eslint/parser": "^5.15.0",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.24.0",
+    "@preact/preset-vite": "^2.10.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/preact": "^3.2.4",
+    "@types/node": "^22.14.1",
+    "@typescript-eslint/eslint-plugin": "^8.30.1",
+    "@typescript-eslint/parser": "^8.30.1",
     "cross-env": "^7.0.3",
-    "customize-cra": "^1.0.0",
-    "eslint": "^8.44.0",
-    "eslint-config-react-app": "^7.0.1",
-    "eslint-plugin-react": "^7.29.4",
-    "http-proxy-middleware": "^3.0.0",
-    "react-app-rewired": "^2.2.1",
-    "webpack": "^5.88.1"
-  },
-  "overrides": {
-    "react-app-rewired": {
-      "nth-check": "^2.0.1"
-    },
-    "css-select": {
-      "nth-check": "^2.0.1"
-    }
+    "eslint": "^9.24.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "globals": "^16.0.0",
+    "http-proxy-middleware": "^3.0.5",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.3",
+    "rollup-plugin-visualizer": "^5.14.0",
+    "sass": "^1.86.3",
+    "sass-embedded": "^1.86.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1",
+    "webpack": "^5.99.5"
   }
 }

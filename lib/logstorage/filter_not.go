@@ -1,5 +1,9 @@
 package logstorage
 
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
+)
+
 // filterNot negates the filter.
 //
 // It is expressed as `NOT f` or `!f` in LogsQL.
@@ -11,13 +15,14 @@ func (fn *filterNot) String() string {
 	s := fn.f.String()
 	switch fn.f.(type) {
 	case *filterAnd, *filterOr:
-		s = "(" + s + ")"
+		return "!(" + s + ")"
+	default:
+		return "!" + s
 	}
-	return "!" + s
 }
 
-func (fn *filterNot) updateNeededFields(neededFields fieldsSet) {
-	fn.f.updateNeededFields(neededFields)
+func (fn *filterNot) updateNeededFields(pf *prefixfilter.Filter) {
+	fn.f.updateNeededFields(pf)
 }
 
 func (fn *filterNot) applyToBlockResult(br *blockResult, bm *bitmap) {

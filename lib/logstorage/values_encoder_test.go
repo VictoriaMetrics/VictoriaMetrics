@@ -151,6 +151,7 @@ func TestTryParseIPv4_Failure(t *testing.T) {
 func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 	f := func(s, timestampExpected string) {
 		t.Helper()
+
 		nsecs, ok := TryParseTimestampRFC3339Nano(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
@@ -184,6 +185,11 @@ func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 	// timestamp with timezone
 	f("2023-01-16T00:45:51+01:00", "2023-01-15T23:45:51Z")
 	f("2023-01-16T00:45:51.123-01:00", "2023-01-16T01:45:51.123Z")
+
+	// SQL datetime format
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6721
+	f("2023-01-16 00:45:51+01:00", "2023-01-15T23:45:51Z")
+	f("2023-01-16 00:45:51.123-01:00", "2023-01-16T01:45:51.123Z")
 }
 
 func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
@@ -191,17 +197,13 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 		t.Helper()
 		_, ok := TryParseTimestampRFC3339Nano(s)
 		if ok {
-			t.Fatalf("expecting faulure when parsing %q", s)
+			t.Fatalf("expecting failure when parsing %q", s)
 		}
 	}
 
 	// invalid length
 	f("")
 	f("foobar")
-
-	// Missing Z at the end
-	f("2023-01-15T22:15:51")
-	f("2023-01-15T22:15:51.123")
 
 	// missing fractional part after dot
 	f("2023-01-15T22:15:51.Z")
@@ -265,7 +267,7 @@ func TestTryParseTimestampISO8601_Failure(t *testing.T) {
 		t.Helper()
 		_, ok := tryParseTimestampISO8601(s)
 		if ok {
-			t.Fatalf("expecting faulure when parsing %q", s)
+			t.Fatalf("expecting failure when parsing %q", s)
 		}
 	}
 
@@ -327,6 +329,7 @@ func TestTryParseDuration_Success(t *testing.T) {
 	// zero duration
 	f("0s", 0)
 	f("0.0w0d0h0s0.0ms", 0)
+	f("-0.0w0.00d0h0s0.0000ms", 0)
 	f("-0w", 0)
 
 	// positive duration
@@ -335,9 +338,12 @@ func TestTryParseDuration_Success(t *testing.T) {
 	f("1µs", nsecsPerMicrosecond)
 	f("1ns", 1)
 	f("1h", nsecsPerHour)
+	f("0.001h", 0.001*nsecsPerHour)
+	f("0.05h", 0.05*nsecsPerHour)
 	f("1.5d", 1.5*nsecsPerDay)
 	f("1.5w", 1.5*nsecsPerWeek)
 	f("2.5y", 2.5*nsecsPerYear)
+	f("1h5m35s", 1*nsecsPerHour+5*nsecsPerMinute+35*nsecsPerSecond)
 	f("1m5.123456789s", nsecsPerMinute+5.123456789*nsecsPerSecond)
 
 	// composite duration
@@ -346,6 +352,15 @@ func TestTryParseDuration_Success(t *testing.T) {
 
 	// nedgative duration
 	f("-1h5m3s", -(nsecsPerHour + 5*nsecsPerMinute + 3*nsecsPerSecond))
+
+	// max int duration
+	f("9_223_372_036_854_775_807ns", 1<<63-1)
+	f("9223372036854775807ns", 1<<63-1)
+	f("-9223372036854775808ns", -1<<63+1)
+
+	// too big value is clapped to 1<<63-1
+	f("15_223_372_036_854_775_808ns", 1<<63-1)
+	f("-15_223_372_036_854_775_808ns", -1<<63+1)
 }
 
 func TestTryParseDuration_Failure(t *testing.T) {
@@ -372,7 +387,7 @@ func TestTryParseDuration_Failure(t *testing.T) {
 	f("3.43e")
 	f("3.43es")
 
-	// superflouous space
+	// superfluous space
 	f(" 2s")
 	f("2s ")
 	f("2s 3ms")
@@ -436,6 +451,15 @@ func TestTryParseBytes_Success(t *testing.T) {
 	f("1.5TiB", 1.5*(1<<40))
 
 	f("1MiB500KiB200B", (1<<20)+500*(1<<10)+200)
+
+	// The maximum bytes value
+	f("9_223_372_036_854_775_807", 1<<63-1)
+	f("9223372036854775807B", 1<<63-1)
+	f("-9223372036854775808B", -1<<63+1)
+
+	// too big value is clapped to 1<<63-1
+	f("15_223_372_036_854_775_808", 1<<63-1)
+	f("-15_223_372_036_854_775_808", -1<<63+1)
 }
 
 func TestTryParseBytes_Failure(t *testing.T) {
@@ -515,6 +539,18 @@ func TestTryParseFloat64_Success(t *testing.T) {
 
 	f("0.345", 0.345)
 	f("-0.345", -0.345)
+	f("1.0234", 1.0234)
+	f("-12.0098", -12.0098)
+
+	// The maximum integer
+	f("9007199254740991", (1<<53)-1)
+	f("9_007_199_254_740_991", (1<<53)-1)
+	f("-9007199254740991", (-1<<53)+1)
+
+	// Too big integer (exceeds 2^53-1). It leads to precision loss.
+	f("9_007_199_254_740_992", 9007199254740992)
+	f("10_007_199_254_740_992", 10007199254740993)
+	f("-9007199254740992", -9007199254740992)
 }
 
 func float64Equal(a, b float64) bool {
@@ -534,7 +570,7 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 	// Empty value
 	f("")
 
-	// Plus in the value isn't allowed, since it cannot be convered back to the same string representation
+	// Plus in the value isn't allowed, since it cannot be converted back to the same string representation
 	f("+123")
 
 	// Dot at the beginning and the end of value isn't allowed, since it cannot converted back to the same string representation
@@ -553,6 +589,76 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 
 	// Minus in the middle of string isn't allowed
 	f("12-5")
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+	f("01")
+}
+
+func TestTryParseFloat64Exact_Success(t *testing.T) {
+	f := func(s string, resultExpected float64) {
+		t.Helper()
+
+		result, ok := tryParseFloat64Exact(s)
+		if !ok {
+			t.Fatalf("cannot parse %q", s)
+		}
+		if !float64Equal(result, resultExpected) {
+			t.Fatalf("unexpected value; got %f; want %f", result, resultExpected)
+		}
+	}
+
+	f("0", 0)
+	f("1", 1)
+	f("-1", -1)
+	f("1234567890", 1234567890)
+	f("1_234_567_890", 1234567890)
+	f("-1.234_567", -1.234567)
+
+	f("0.345", 0.345)
+	f("-0.345", -0.345)
+
+	// The maximum integer
+	f("9007199254740991", (1<<53)-1)
+	f("9_007_199_254_740_991", (1<<53)-1)
+	f("-9007199254740991", (-1<<53)+1)
+}
+
+func TestTryParseFloat64Exact_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		_, ok := tryParseFloat64Exact(s)
+		if ok {
+			t.Fatalf("expecting error when parsing %q", s)
+		}
+	}
+
+	// Empty value
+	f("")
+
+	// Plus in the value isn't allowed, since it cannot be converted back to the same string representation
+	f("+123")
+
+	// Dot at the beginning and the end of value isn't allowed, since it cannot converted back to the same string representation
+	f(".123")
+	f("123.")
+
+	// Multiple dots aren't allowed
+	f("123.434.55")
+
+	// Invalid dots
+	f("-.123")
+	f(".")
+
+	// Scientific notation isn't allowed, since it cannot be converted back to the same string representation
+	f("12e5")
+
+	// Minus in the middle of string isn't allowed
+	f("12-5")
+
+	// Too big integer (exceeds 2^53-1)
+	f("9_007_199_254_740_992")
+	f("-9007199254740992")
 }
 
 func TestMarshalFloat64String(t *testing.T) {
@@ -617,6 +723,68 @@ func TestTryParseUint64_Failure(t *testing.T) {
 
 	// invalid value
 	f("foo")
+	f("1.2")
+	f("1e3")
+
+	// uint with leading zeros shouldn't be parsed as uint
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+	f("0123")
+}
+
+func TestTryParseInt64_Success(t *testing.T) {
+	f := func(s string, resultExpected int64) {
+		t.Helper()
+
+		result, ok := tryParseInt64(s)
+		if !ok {
+			t.Fatalf("cannot parse %q", s)
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected value; got %d; want %d", result, resultExpected)
+		}
+	}
+
+	f("0", 0)
+	f("-0", 0)
+	f("123", 123)
+	f("-123", -123)
+	f("1345678901234567890", 1345678901234567890)
+	f("-1_345_678_901_234_567_890", -1345678901234567890)
+
+	// the maximum possible value
+	f("9223372036854775807", 9223372036854775807)
+
+	// the minimum possible value
+	f("-9223372036854775808", -9223372036854775808)
+}
+
+func TestTryParseInt64_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		_, ok := tryParseInt64(s)
+		if ok {
+			t.Fatalf("expecting error when parsing %q", s)
+		}
+	}
+
+	// empty value
+	f("")
+
+	// too big value
+	f("9223372036854775808")
+
+	// too small value
+	f("-9223372036854775809")
+
+	// invalid value
+	f("foo")
+	f("1.2")
+	f("1e3")
+
+	// int with leading zeros shouldn't be parsed as uint
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+	f("-0123")
 }
 
 func TestMarshalUint8String(t *testing.T) {

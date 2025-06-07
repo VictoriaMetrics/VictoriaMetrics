@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"sync/atomic"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeOffset implements '| offset ...' pipe.
@@ -16,15 +18,15 @@ func (po *pipeOffset) String() string {
 	return fmt.Sprintf("offset %d", po.offset)
 }
 
+func (po *pipeOffset) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return nil, []pipe{po}
+}
+
 func (po *pipeOffset) canLiveTail() bool {
 	return false
 }
 
-func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
-	// nothing to do
-}
-
-func (po *pipeOffset) optimize() {
+func (po *pipeOffset) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 
@@ -32,8 +34,12 @@ func (po *pipeOffset) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (po *pipeOffset) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (po *pipeOffset) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return po, nil
+}
+
+func (po *pipeOffset) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -51,16 +57,16 @@ type pipeOffsetProcessor struct {
 }
 
 func (pop *pipeOffsetProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	rowsProcessed := pop.rowsProcessed.Add(uint64(len(br.timestamps)))
+	rowsProcessed := pop.rowsProcessed.Add(uint64(br.rowsLen))
 	if rowsProcessed <= pop.po.offset {
 		return
 	}
 
-	rowsProcessed -= uint64(len(br.timestamps))
+	rowsProcessed -= uint64(br.rowsLen)
 	if rowsProcessed >= pop.po.offset {
 		pop.ppNext.writeBlock(workerID, br)
 		return
@@ -75,7 +81,7 @@ func (pop *pipeOffsetProcessor) flush() error {
 	return nil
 }
 
-func parsePipeOffset(lex *lexer) (*pipeOffset, error) {
+func parsePipeOffset(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("offset", "skip") {
 		return nil, fmt.Errorf("expecting 'offset' or 'skip'; got %q", lex.token)
 	}

@@ -1,15 +1,12 @@
-import React, { FC, useMemo, useState } from "preact/compat";
-import router, { routerOptions } from "../../../router";
-import { getAppModeEnable } from "../../../utils/app-mode";
+import React, { FC, useState } from "preact/compat";
 import { useLocation } from "react-router-dom";
-import { useDashboardsState } from "../../../state/dashboards/DashboardsStateContext";
 import { useEffect } from "react";
 import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";
 import classNames from "classnames";
-import { anomalyNavigation, defaultNavigation, logsNavigation } from "../../../constants/navigation";
-import { AppType } from "../../../types/appType";
+import useNavigationMenu from "../../../router/useNavigationMenu";
+import { NavigationItemType } from "../../../router/navigation";
 
 interface HeaderNavProps {
   color: string
@@ -18,34 +15,13 @@ interface HeaderNavProps {
 }
 
 const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
-  const appModeEnable = getAppModeEnable();
-  const { dashboardsSettings } = useDashboardsState();
   const { pathname } = useLocation();
-
   const [activeMenu, setActiveMenu] = useState(pathname);
-
-  const menu = useMemo(() => {
-    switch (process.env.REACT_APP_TYPE) {
-      case AppType.logs:
-        return logsNavigation;
-      case AppType.anomaly:
-        return anomalyNavigation;
-      default:
-        return ([
-          ...defaultNavigation,
-          {
-            label: routerOptions[router.dashboards].title,
-            value: router.dashboards,
-            hide: appModeEnable || !dashboardsSettings.length,
-          }
-        ].filter(r => !r.hide));
-    }
-  }, [appModeEnable, dashboardsSettings]);
+  const menu = useNavigationMenu();
 
   useEffect(() => {
     setActiveMenu(pathname);
   }, [pathname]);
-
 
   return (
     <nav
@@ -74,6 +50,7 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
               value={m.value || ""}
               label={m.label || ""}
               color={color}
+              type={m.type || NavigationItemType.internalLink}
             />
           )
       ))}

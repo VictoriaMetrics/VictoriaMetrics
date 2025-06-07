@@ -1,0 +1,20 @@
+include:
+ - ../compose-base.yml
+services:
+  telegraf:
+    image: bitnami/telegraf:1.31.3
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /var/lib/docker
+        target: /var/lib/docker
+      - ${PWD}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    command: --config /etc/telegraf/telegraf.conf
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy

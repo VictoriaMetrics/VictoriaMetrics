@@ -1,3 +1,82 @@
+# v1.33.7 (2025-01-14)
+
+* No change notes available for this release.
+
+# v1.33.6 (2025-01-10)
+
+* **Documentation**: Fixed typos in the descriptions.
+
+# v1.33.5 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.33.4 (2025-01-08)
+
+* No change notes available for this release.
+
+# v1.33.3 (2024-12-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.33.2 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.33.1 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.33.0 (2024-11-14)
+
+* **Feature**: This release introduces the new API 'AssumeRoot', which returns short-term credentials that you can use to perform privileged tasks.
+
+# v1.32.4 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.3 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.2 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.1 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.0 (2024-10-04)
+
+* **Feature**: Add support for HTTP client metrics.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.4 (2024-10-03)
+
+* No change notes available for this release.
+
+# v1.31.3 (2024-09-27)
+
+* No change notes available for this release.
+
+# v1.31.2 (2024-09-25)
+
+* No change notes available for this release.
+
+# v1.31.1 (2024-09-23)
+
+* No change notes available for this release.
+
+# v1.31.0 (2024-09-20)
+
+* **Feature**: Add tracing and metrics support to service clients.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.30.8 (2024-09-17)
+
+* **Bug Fix**: **BREAKFIX**: Only generate AccountIDEndpointMode config for services that use it. This is a compiler break, but removes no actual functionality, as no services currently use the account ID in endpoint resolution.
+
 # v1.30.7 (2024-09-04)
 
 * No change notes available for this release.

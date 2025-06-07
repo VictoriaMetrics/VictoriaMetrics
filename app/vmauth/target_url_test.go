@@ -95,9 +95,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, nil)
+		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
+			return
 		}
 		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
@@ -127,7 +128,40 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "", "http://foo.bar/.", "", "", nil, "least_loaded", 0)
+	}, "", "http://foo.bar", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar"),
+	}, "/", "http://foo.bar", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar"),
+	}, "http://aaa///", "http://foo.bar", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/", "http://foo.bar/", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/x", "http://foo.bar/x", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/x/", "http://foo.bar/x/", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "http://abc///x/", "http://foo.bar/x/", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "http://foo//x", "http://foo.bar/x", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/baz"),
+	}, "", "http://foo.bar/baz", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/baz"),
+	}, "/", "http://foo.bar/baz", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/x/"),
+	}, "/abc", "http://foo.bar/x/abc", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/x/"),
+	}, "/abc/", "http://foo.bar/x/abc/", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 		HeadersConf: HeadersConf{
@@ -148,6 +182,12 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar"),
+	}, "/a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
 	}, "/z", "https://sss:3894/x/y/z", "", "", nil, "least_loaded", 0)
@@ -187,6 +227,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				RetryStatusCodes:       []int{},
 				DropSrcPathPrefixParts: intp(0),
 			},
+			{
+				SrcPaths:  getRegexs([]string{"/metrics"}),
+				URLPrefix: mustParseURL("http://metrics-server"),
+			},
 		},
 		URLPrefix: mustParseURL("http://default-server"),
 		HeadersConf: HeadersConf{
@@ -206,6 +250,35 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		"bb: aaa", "x: y", []int{502}, "least_loaded", 2)
 	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
 	f(ui, "https://foo-host/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", "bb: aaa", "x: y", []int{502}, "least_loaded", 2)
+	f(ui, "https://foo-host/metrics", "http://metrics-server", "", "", []int{502}, "least_loaded", 2)
+
+	// Complex routing with `url_map` without global url_prefix
+	ui = &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:               getRegexs([]string{"/api/v1/write"}),
+				URLPrefix:              mustParseURL("http://vminsert/0/prometheus"),
+				RetryStatusCodes:       []int{},
+				DropSrcPathPrefixParts: intp(0),
+			},
+			{
+				SrcPaths:  getRegexs([]string{"/metrics/a/b"}),
+				URLPrefix: mustParseURL("http://metrics-server"),
+			},
+		},
+		HeadersConf: HeadersConf{
+			RequestHeaders: []*Header{
+				mustNewHeader("'bb: aaa'"),
+			},
+			ResponseHeaders: []*Header{
+				mustNewHeader("'x: y'"),
+			},
+		},
+		RetryStatusCodes:       []int{502},
+		DropSrcPathPrefixParts: intp(2),
+	}
+	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
+	f(ui, "https://foo-host/metrics/a/b", "http://metrics-server/b", "", "", []int{502}, "least_loaded", 2)
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
@@ -273,9 +346,10 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
+			return
 		}
 		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
@@ -351,7 +425,7 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -399,7 +473,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, nil)
+		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}

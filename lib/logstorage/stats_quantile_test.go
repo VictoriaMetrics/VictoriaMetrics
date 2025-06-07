@@ -1,7 +1,7 @@
 package logstorage
 
 import (
-	"math"
+	"reflect"
 	"testing"
 )
 
@@ -14,6 +14,7 @@ func TestParseStatsQuantileSuccess(t *testing.T) {
 	f(`quantile(0.3)`)
 	f(`quantile(1, a)`)
 	f(`quantile(0.99, a, b)`)
+	f(`quantile(0.99, a*, b)`)
 }
 
 func TestParseStatsQuantileFailure(t *testing.T) {
@@ -52,7 +53,7 @@ func TestStatsQuantile(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "54"},
+			{"x", "def"},
 		},
 	})
 
@@ -132,7 +133,7 @@ func TestStatsQuantile(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "NaN"},
+			{"x", ""},
 		},
 	})
 
@@ -178,7 +179,7 @@ func TestStatsQuantile(t *testing.T) {
 		},
 		{
 			{"b", ""},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 	})
 
@@ -233,7 +234,7 @@ func TestStatsQuantile(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", "def"},
 		},
 		{
 			{"a", "3"},
@@ -262,7 +263,7 @@ func TestStatsQuantile(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 		{
 			{"a", "3"},
@@ -352,7 +353,7 @@ func TestStatsQuantile(t *testing.T) {
 		{
 			{"a", "1"},
 			{"b", "3"},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 		{
 			{"a", "1"},
@@ -362,56 +363,86 @@ func TestStatsQuantile(t *testing.T) {
 		{
 			{"a", "3"},
 			{"b", "5"},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 	})
 }
 
 func TestHistogramQuantile(t *testing.T) {
-	f := func(a []float64, phi, qExpected float64) {
+	f := func(a []string, phi float64, qExpected string) {
 		t.Helper()
 
 		var h histogram
-		for _, f := range a {
-			h.update(f)
+		for _, v := range a {
+			h.update(v)
 		}
 		q := h.quantile(phi)
 
-		if math.IsNaN(qExpected) {
-			if !math.IsNaN(q) {
-				t.Fatalf("unexpected result for q=%v, phi=%v; got %v; want %v", a, phi, q, qExpected)
-			}
-		} else if q != qExpected {
-			t.Fatalf("unexpected result for q=%v, phi=%v; got %v; want %v", a, phi, q, qExpected)
+		if q != qExpected {
+			t.Fatalf("unexpected result for q=%v, phi=%v; got %q; want %q", a, phi, q, qExpected)
 		}
 	}
 
-	f(nil, -1, nan)
-	f(nil, 0, nan)
-	f(nil, 0.5, nan)
-	f(nil, 1, nan)
-	f(nil, 10, nan)
+	f(nil, -1, "")
+	f(nil, 0, "")
+	f(nil, 0.5, "")
+	f(nil, 1, "")
+	f(nil, 10, "")
 
-	f([]float64{123}, -1, 123)
-	f([]float64{123}, 0, 123)
-	f([]float64{123}, 0.5, 123)
-	f([]float64{123}, 1, 123)
-	f([]float64{123}, 10, 123)
+	f([]string{"123"}, -1, "123")
+	f([]string{"123"}, 0, "123")
+	f([]string{"123"}, 0.5, "123")
+	f([]string{"123"}, 1, "123")
+	f([]string{"123"}, 10, "123")
 
-	f([]float64{5, 1}, -1, 1)
-	f([]float64{5, 1}, 0, 1)
-	f([]float64{5, 1}, 0.5-1e-5, 1)
-	f([]float64{5, 1}, 0.5, 5)
-	f([]float64{5, 1}, 1, 5)
-	f([]float64{5, 1}, 10, 5)
+	f([]string{"5", "1"}, -1, "1")
+	f([]string{"5", "10"}, 0, "5")
+	f([]string{"5", "1"}, 0.5-1e-5, "1")
+	f([]string{"5", "1"}, 0.5, "5")
+	f([]string{"5", "10"}, 1, "10")
+	f([]string{"5", "1"}, 10, "5")
 
-	f([]float64{5, 1, 3}, -1, 1)
-	f([]float64{5, 1, 3}, 0, 1)
-	f([]float64{5, 1, 3}, 1.0/3-1e-5, 1)
-	f([]float64{5, 1, 3}, 1.0/3, 3)
-	f([]float64{5, 1, 3}, 2.0/3-1e-5, 3)
-	f([]float64{5, 1, 3}, 2.0/3, 5)
-	f([]float64{5, 1, 3}, 1-1e-5, 5)
-	f([]float64{5, 1, 3}, 1, 5)
-	f([]float64{5, 1, 3}, 10, 5)
+	f([]string{"5", "1", "3"}, -1, "1")
+	f([]string{"5", "10", "3"}, 0, "3")
+	f([]string{"5", "10", "3"}, 1.0/3-1e-5, "3")
+	f([]string{"5", "1", "3"}, 1.0/3, "3")
+	f([]string{"5", "1", "3"}, 2.0/3-1e-5, "3")
+	f([]string{"5", "1", "3"}, 2.0/3, "5")
+	f([]string{"5", "1", "3"}, 1-1e-5, "5")
+	f([]string{"5", "1", "3"}, 1, "5")
+	f([]string{"10", "5", "3"}, 10, "10")
+}
+
+func TestStatsQuantile_ExportImportState(t *testing.T) {
+	f := func(sqp *statsQuantileProcessor, dataLenExpected int) {
+		t.Helper()
+
+		data := sqp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var sqp2 statsQuantileProcessor
+		_, err := sqp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if !reflect.DeepEqual(sqp, &sqp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &sqp2, sqp)
+		}
+	}
+
+	var sqp statsQuantileProcessor
+
+	// zero state
+	f(&sqp, 4)
+
+	// non-zero state
+	sqp = statsQuantileProcessor{}
+	sqp.h.update("foo")
+	sqp.h.update("bar")
+	sqp.h.update("baz")
+	f(&sqp, 22)
 }

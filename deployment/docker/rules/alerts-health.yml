@@ -1,0 +1,148 @@
+# File contains default list of alerts for various VM components.
+# The following alerts are recommended for use for any VM installation.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  - name: vm-health
+    # note the `job` filter and update accordingly to your setup
+    rules:
+      - alert: TooManyRestarts
+        expr: changes(process_start_time_seconds{job=~".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth|victorialogs|vlstorage|vlselect|vlinsert).*"}[15m]) > 2
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} too many restarts (instance {{ $labels.instance }})"
+          description: >
+            Job {{ $labels.job }} (instance {{ $labels.instance }}) has restarted more than twice in the last 15 minutes.
+            It might be crashlooping.
+
+      - alert: ServiceDown
+        expr: up{job=~".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth|victorialogs|vlstorage|vlselect|vlinsert).*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minutes."
+
+      - alert: ProcessNearFDLimits
+        expr: (process_max_fds - process_open_fds) < 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Number of free file descriptors is less than 100 for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 5m"
+          description: | 
+            Exhausting OS file descriptors limit can cause severe degradation of the process.
+            Consider to increase the limit as fast as possible.
+
+      - alert: TooHighMemoryUsage
+        expr: (min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) > 0.8
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "It is more than 80% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          description: |
+            Too high memory usage may result into multiple issues such as OOMs or degraded performance.
+            Consider to either increase available memory or decrease the load on the process.
+
+      - alert: TooHighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 90% of CPU is used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          description: >
+            Too high CPU usage may be a sign of insufficient resources and make process unstable.
+            Consider to either increase available CPU resources or decrease the load on the process.
+
+      - alert: TooHighGoroutineSchedulingLatency
+        expr: histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket[5m])) by (le, job, instance)) > 0.1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "\"{{ $labels.job }}\"(\"{{ $labels.instance }}\") has insufficient CPU resources for >15m"
+          description: >
+            Go runtime is unable to schedule goroutines execution in acceptable time. This is usually a sign of
+            insufficient CPU resources or CPU throttling. Verify that service has enough CPU resources. Otherwise,
+            the service could work unreliably with delays in processing.
+
+      - alert: TooManyLogs
+        expr: sum(increase(vm_log_messages_total{level="error"}[5m])) without (app_version, location) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many logs printed for job \"{{ $labels.job }}\" ({{ $labels.instance }})"
+          description: >
+            Logging rate for job \"{{ $labels.job }}\" ({{ $labels.instance }}) is {{ $value }} for last 15m.
+            Worth to check logs for specific error messages.
+
+      - alert: TooManyTSIDMisses
+        expr: rate(vm_missing_tsids_for_metric_id_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Too many TSID misses for job \"{{ $labels.job }}\" ({{ $labels.instance }})"
+          description: | 
+            The rate of TSID misses during query lookups is too high for \"{{ $labels.job }}\" ({{ $labels.instance }}).
+            Make sure you're running VictoriaMetrics of v1.85.3 or higher.
+            Related issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502
+
+      - alert: ConcurrentInsertsHitTheLimit
+        expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} on instance {{ $labels.instance }} is constantly hitting concurrent inserts limit"
+          description: | 
+            The limit of concurrent inserts on instance {{ $labels.instance }} depends on the number of CPUs.
+            Usually, when component constantly hits the limit it is likely the component is overloaded and requires more CPU.
+            In some cases for components like vmagent or vminsert the alert might trigger if there are too many clients
+            making write attempts. If vmagent's or vminsert's CPU usage and network saturation are at normal level, then 
+            it might be worth adjusting `-maxConcurrentInserts` cmd-line flag.
+
+      - alert: IndexDBRecordsDrop
+        expr: increase(vm_indexdb_items_dropped_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "IndexDB skipped registering items during data ingestion with reason={{ $labels.reason }}."
+          description: | 
+            VictoriaMetrics could skip registering new timeseries during ingestion if they fail the validation process. 
+            For example, `reason=too_long_item` means that time series cannot exceed 64KB. Please, reduce the number 
+            of labels or label values for such series. Or enforce these limits via `-maxLabelsPerTimeseries` and 
+            `-maxLabelValueLen` command-line flags.
+
+      - alert: RowsRejectedOnIngestion
+        expr: rate(vm_rows_ignored_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
+          description: "Ingested rows on instance \"{{ $labels.instance }}\" are rejected due to the
+            following reason: \"{{ $labels.reason }}\""
+
+      - alert: TooHighQueryLoad
+        expr: increase(vm_concurrent_select_limit_timeout_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Read queries fail with timeout for {{ $labels.job }} on instance {{ $labels.instance }}"
+          description: |
+            Instance {{ $labels.instance }} ({{ $labels.job }}) is failing to serve read queries during last 15m.
+            Concurrency limit `-search.maxConcurrentRequests` was reached on this instance and extra queries were
+            put into the queue for `-search.maxQueueDuration` interval. But even after waiting in the queue these queries weren't served.
+            This happens if instance is overloaded with the current workload, or datasource is too slow to respond.
+            Possible solutions are the following:
+            * reduce the query load;
+            * increase compute resources or number of replicas;
+            * adjust limits `-search.maxConcurrentRequests` and `-search.maxQueueDuration`.
+            See more at https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries.

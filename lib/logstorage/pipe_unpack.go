@@ -1,57 +1,37 @@
 package logstorage
 
 import (
-	"unsafe"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
-func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func updateNeededFieldsForUnpackPipe(fromField string, outFieldFilters []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		if iff != nil {
-			neededFields.addFields(iff.neededFields)
+			pf.AddAllowFilters(iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		unneededFieldsCount := 0
-		if len(outFields) > 0 {
-			for _, f := range outFields {
-				if unneededFieldsOrig.contains(f) {
-					unneededFieldsCount++
-				}
-				if !keepOriginalFields && !skipEmptyResults {
-					unneededFields.add(f)
-				}
+	needFromField := len(outFieldFilters) == 0
+	for _, f := range outFieldFilters {
+		if pf.MatchStringOrWildcard(f) {
+			needFromField = true
+			break
+		}
+	}
+	if !keepOriginalFields && !skipEmptyResults {
+		for _, f := range outFieldFilters {
+			if !prefixfilter.IsWildcardFilter(f) {
+				pf.AddDenyFilter(f)
 			}
 		}
-		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
-			unneededFields.remove(fromField)
-			if iff != nil {
-				unneededFields.removeFields(iff.neededFields)
-			}
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := len(outFields) == 0
-		if len(outFields) > 0 {
-			needFromField = false
-			for _, f := range outFields {
-				if neededFieldsOrig.contains(f) {
-					needFromField = true
-				}
-				if !keepOriginalFields && !skipEmptyResults {
-					neededFields.remove(f)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(fromField)
-			if iff != nil {
-				neededFields.addFields(iff.neededFields)
-			}
+	}
+	if needFromField {
+		pf.AddAllowFilter(fromField)
+		if iff != nil {
+			pf.AddAllowFilters(iff.allowFilters)
 		}
 	}
 }
@@ -102,14 +82,12 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 	})
 }
 
-func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
+func newPipeUnpackProcessor(unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
 	fromField string, fieldPrefix string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter) *pipeUnpackProcessor {
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
 		ppNext:     ppNext,
-
-		shards: make([]pipeUnpackProcessorShard, workersCount),
 
 		fromField:          fromField,
 		fieldPrefix:        fieldPrefix,
@@ -123,7 +101,7 @@ type pipeUnpackProcessor struct {
 	unpackFunc func(uctx *fieldsUnpackerContext, s string)
 	ppNext     pipeProcessor
 
-	shards []pipeUnpackProcessorShard
+	shards atomicutil.Slice[pipeUnpackProcessorShard]
 
 	fromField          string
 	fieldPrefix        string
@@ -134,13 +112,6 @@ type pipeUnpackProcessor struct {
 }
 
 type pipeUnpackProcessorShard struct {
-	pipeUnpackProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUnpackProcessorShardNopad{})%128]byte
-}
-
-type pipeUnpackProcessorShardNopad struct {
 	bm bitmap
 
 	uctx fieldsUnpackerContext
@@ -148,18 +119,18 @@ type pipeUnpackProcessorShardNopad struct {
 }
 
 func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 	shard.wctx.init(workerID, pup.ppNext, pup.keepOriginalFields, pup.skipEmptyResults, br)
 	shard.uctx.init(pup.fieldPrefix)
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if pup.iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		pup.iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -172,8 +143,8 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		v := c.valuesEncoded[0]
 		shard.uctx.resetFields()
 		pup.unpackFunc(&shard.uctx, v)
-		for rowIdx := range br.timestamps {
-			if bm.isSetBit(rowIdx) {
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+			if pup.iff == nil || bm.isSetBit(rowIdx) {
 				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
 			} else {
 				shard.wctx.writeRow(rowIdx, nil)
@@ -183,8 +154,8 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		values := c.getValues(br)
 		vPrev := ""
 		hadUnpacks := false
-		for i, v := range values {
-			if bm.isSetBit(i) {
+		for rowIdx, v := range values {
+			if pup.iff == nil || bm.isSetBit(rowIdx) {
 				if !hadUnpacks || vPrev != v {
 					vPrev = v
 					hadUnpacks = true
@@ -192,9 +163,9 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 					shard.uctx.resetFields()
 					pup.unpackFunc(&shard.uctx, v)
 				}
-				shard.wctx.writeRow(i, shard.uctx.fields)
+				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
 			} else {
-				shard.wctx.writeRow(i, nil)
+				shard.wctx.writeRow(rowIdx, nil)
 			}
 		}
 	}
@@ -307,7 +278,8 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 	}
 
 	wctx.rowsCount++
-	if wctx.valuesLen >= 1_000_000 {
+	// The 64_000 limit provides the best performance results.
+	if wctx.valuesLen >= 64_000 {
 		wctx.flush()
 	}
 }

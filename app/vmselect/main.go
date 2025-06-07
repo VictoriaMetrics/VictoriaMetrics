@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
+	nethttputil "net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -14,13 +14,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -29,13 +30,16 @@ import (
 )
 
 var (
-	deleteAuthKey         = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It overrides -httpAuth.*")
+	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
+	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
+
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It overrides -httpAuth.*")
+	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
@@ -44,10 +48,7 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	n := cgroup.AvailableCPUs()
-	if n <= 4 {
-		n *= 2
-	}
+	n := cgroup.AvailableCPUs() * 2
 	if n > 16 {
 		// A single request can saturate all the CPU cores, so there is no sense
 		// in allowing higher number of concurrent requests - they will just contend
@@ -63,6 +64,7 @@ func Init() {
 	fs.RemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
@@ -85,6 +87,9 @@ var (
 	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
 		return float64(len(concurrencyLimitCh))
 	})
+	_ = metrics.NewGauge(`vm_search_max_unique_timeseries`, func() float64 {
+		return float64(prometheus.GetMaxUniqueTimeSeries())
+	})
 )
 
 //go:embed vmui
@@ -98,7 +103,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
 	//
-	// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+	// See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
 	switch {
 	case strings.HasPrefix(path, "/prometheus/"):
 		path = path[len("/prometheus"):]
@@ -113,7 +118,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Handle non-trivial dynamic requests, which may take big amounts of time and resources.
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
-	tracerEnabled := httputils.GetBool(r, "trace")
+	tracerEnabled := httputil.GetBool(r, "trace")
 	qt := querytracer.New(tracerEnabled, "%s", r.URL.Path)
 
 	// Limit the number of concurrent queries.
@@ -123,7 +128,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := searchutils.GetMaxQueryDuration(r)
+		d := searchutil.GetMaxQueryDuration(r)
 		if d > *maxQueueDuration {
 			d = *maxQueueDuration
 		}
@@ -177,7 +182,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promql.ResetRollupResultCache()
 		return true
 	}
-
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -393,6 +397,27 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, r); err != nil {
 			deleteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "/api/v1/status/metric_names_stats":
+		metricNamesStatsRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := stats.MetricNamesStatsHandler(qt, w, r); err != nil {
+			metricNamesStatsErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	case "/api/v1/admin/status/metric_names_stats/reset":
+		metricNamesStatsResetRequests.Inc()
+		if !httpserver.CheckAuthFlag(w, r, metricNamesStatsResetAuthKey) {
+			return true
+		}
+		if err := stats.ResetMetricNamesStatsHandler(qt); err != nil {
+			metricNamesStatsResetErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -673,6 +698,12 @@ var (
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
+
+	metricNamesStatsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/metric_names_stats"}`)
+	metricNamesStatsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/metric_names_stats"}`)
+
+	metricNamesStatsResetRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/admin/status/metric_names_stats/reset"}`)
+	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/status/metric_names_stats/reset"}`)
 )
 
 func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
@@ -692,7 +723,7 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
 
 var (
 	vmalertProxyHost string
-	vmalertProxy     *httputil.ReverseProxy
+	vmalertProxy     *nethttputil.ReverseProxy
 )
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
@@ -705,5 +736,5 @@ func initVMAlertProxy() {
 		logger.Fatalf("cannot parse -vmalert.proxyURL=%q: %s", *vmalertProxyURL, err)
 	}
 	vmalertProxyHost = proxyURL.Host
-	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+	vmalertProxy = nethttputil.NewSingleHostReverseProxy(proxyURL)
 }

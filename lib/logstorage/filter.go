@@ -1,12 +1,16 @@
 package logstorage
 
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
+)
+
 // filter must implement filtering for log entries.
 type filter interface {
 	// String returns string representation of the filter
 	String() string
 
-	// udpdateNeededFields must update neededFields with fields needed for the filter
-	updateNeededFields(neededFields fieldsSet)
+	// udpdateNeededFields must update pf with fields needed for the filter
+	updateNeededFields(pf *prefixfilter.Filter)
 
 	// applyToBlockSearch must update bm according to the filter applied to the given bs block
 	applyToBlockSearch(bs *blockSearch, bm *bitmap)
@@ -49,6 +53,17 @@ func visitFilters(filters []filter, visitFunc func(f filter) bool) bool {
 //
 // It doesn't copy other filters by returning them as is.
 func copyFilter(f filter, visitFunc func(f filter) bool, copyFunc func(f filter) (filter, error)) (filter, error) {
+	f, err := copyFilterInternal(f, visitFunc, copyFunc)
+	if err != nil {
+		return nil, err
+	}
+	if !visitFunc(f) {
+		return f, nil
+	}
+	return copyFunc(f)
+}
+
+func copyFilterInternal(f filter, visitFunc func(f filter) bool, copyFunc func(f filter) (filter, error)) (filter, error) {
 	switch t := f.(type) {
 	case *filterAnd:
 		filters, err := copyFilters(t.filters, visitFunc, copyFunc)
@@ -78,11 +93,7 @@ func copyFilter(f filter, visitFunc func(f filter) bool, copyFunc func(f filter)
 		}
 		return fn, nil
 	default:
-		if !visitFunc(t) {
-			// Nothing to copy
-			return t, nil
-		}
-		return copyFunc(t)
+		return f, nil
 	}
 }
 

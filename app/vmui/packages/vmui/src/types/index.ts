@@ -1,4 +1,4 @@
-import { MetricBase } from "../api/types";
+import { Logs, MetricBase } from "../api/types";
 export * from "./uplot";
 
 declare global {
@@ -138,6 +138,10 @@ export interface RelabelStep {
   rule: string;
   inLabels: string;
   outLabels: string;
+  errors: {
+    inLabels: string;
+    outLabels: string;
+  }
 }
 
 export interface RelabelData {
@@ -164,4 +168,18 @@ export enum QueryContextType {
   metricsql = "metricsql",
   label = "label",
   labelValue = "labelValue",
+}
+
+export interface AppConfig {
+  license?: {
+    type?: "enterprise" | "opensource";
+  }
+}
+
+export interface GroupLogsType {
+  keys: string[]
+  keysString: string
+  values: Logs[]
+  pairs: string[]
+  total: number
 }

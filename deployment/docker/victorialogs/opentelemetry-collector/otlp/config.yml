@@ -1,0 +1,24 @@
+exporters:
+  otlphttp:
+    logs_endpoint: http://victorialogs:9428/insert/opentelemetry/v1/logs
+  debug:
+    verbosity: detailed
+receivers:
+  filelog:
+    include: [/var/lib/docker/containers/**/*.log]
+    resource:
+      region: us-east-1
+service:
+  telemetry:
+    metrics:
+      readers:
+        - periodic:
+            interval: 5000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/api/v1/push
+  pipelines:
+    logs:
+      receivers: [filelog]
+      exporters: [otlphttp, debug]

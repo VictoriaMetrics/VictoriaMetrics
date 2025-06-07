@@ -5,7 +5,6 @@ MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
-LATEST_TAG ?= latest
 
 PKG_TAG ?= $(shell git tag -l --points-at HEAD)
 ifeq ($(PKG_TAG),)
@@ -18,7 +17,7 @@ TAR_OWNERSHIP ?= --owner=1000 --group=1000
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
-include cspell/Makefile
+include codespell/Makefile
 include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
@@ -27,6 +26,7 @@ include package/release/Makefile
 all: \
 	victoria-metrics-prod \
 	victoria-logs-prod \
+	vlogscli-prod \
 	vmagent-prod \
 	vmalert-prod \
 	vmalert-tool-prod \
@@ -51,6 +51,7 @@ publish: \
 package: \
 	package-victoria-metrics \
 	package-victoria-logs \
+	package-vlogscli \
 	package-vmagent \
 	package-vmalert \
 	package-vmalert-tool \
@@ -194,12 +195,31 @@ vmutils-crossbuild: \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
 
+publish-latest:
+	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmagent $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert-tool $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmauth $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmbackup $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmrestore $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmctl $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vminsert $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmselect $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmstorage $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmgateway $(MAKE) publish-via-docker-latest
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackupmanager $(MAKE) publish-via-docker-latest
+
+publish-victoria-logs-latest:
+	PKG_TAG=$(TAG) APP_NAME=victoria-logs $(MAKE) publish-via-docker-latest
+	PKG_TAG=$(TAG) APP_NAME=vlogscli $(MAKE) publish-via-docker-latest
+
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
+	git checkout $(TAG) && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && $(MAKE) publish
 
 release:
 	$(MAKE_PARALLEL) \
@@ -263,6 +283,14 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
 
+release-victoria-logs-bundle: \
+	release-victoria-logs \
+	release-vlogscli
+
+publish-victoria-logs-bundle: \
+	publish-victoria-logs \
+	publish-vlogscli
+
 release-victoria-logs:
 	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
 		release-victoria-logs-linux-amd64 \
@@ -319,6 +347,63 @@ release-victoria-logs-windows-goarch: victoria-logs-windows-$(GOARCH)-prod
 			> victoria-logs-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		victoria-logs-windows-$(GOARCH)-prod.exe
+
+release-vlogscli:
+	$(MAKE_PARALLEL) release-vlogscli-linux-386 \
+		release-vlogscli-linux-amd64 \
+		release-vlogscli-linux-arm \
+		release-vlogscli-linux-arm64 \
+		release-vlogscli-darwin-amd64 \
+		release-vlogscli-darwin-arm64 \
+		release-vlogscli-freebsd-amd64 \
+		release-vlogscli-openbsd-amd64 \
+		release-vlogscli-windows-amd64
+
+release-vlogscli-linux-386:
+	GOOS=linux GOARCH=386 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-linux-amd64:
+	GOOS=linux GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-linux-arm:
+	GOOS=linux GOARCH=arm $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-linux-arm64:
+	GOOS=linux GOARCH=arm64 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-darwin-arm64:
+	GOOS=darwin GOARCH=arm64 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-freebsd-amd64:
+	GOOS=freebsd GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-openbsd-amd64:
+	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
+
+release-vlogscli-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-vlogscli-windows-goarch
+
+release-vlogscli-goos-goarch: vlogscli-$(GOOS)-$(GOARCH)-prod
+	cd bin && \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vlogscli-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vlogscli-$(GOOS)-$(GOARCH)-prod \
+		&& sha256sum vlogscli-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vlogscli-$(GOOS)-$(GOARCH)-prod \
+			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > vlogscli-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf vlogscli-$(GOOS)-$(GOARCH)-prod
+
+release-vlogscli-windows-goarch: vlogscli-windows-$(GOARCH)-prod
+	cd bin && \
+		zip vlogscli-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vlogscli-windows-$(GOARCH)-prod.exe \
+		&& sha256sum vlogscli-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vlogscli-windows-$(GOARCH)-prod.exe \
+			> vlogscli-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		vlogscli-windows-$(GOARCH)-prod.exe
 
 release-vmutils: \
 	release-vmutils-linux-386 \
@@ -434,42 +519,47 @@ pprof-cpu:
 fmt:
 	gofmt -l -w -s ./lib
 	gofmt -l -w -s ./app
+	gofmt -l -w -s ./apptest
 
 vet:
-	go vet ./lib/...
+	GOEXPERIMENT=synctest go vet ./lib/...
 	go vet ./app/...
+	go vet ./apptest/...
 
 check-all: fmt vet golangci-lint govulncheck
 
 clean-checkers: remove-golangci-lint remove-govulncheck
 
 test:
-	DISABLE_FSYNC_FOR_TESTING=1 go test ./lib/... ./app/...
+	GOEXPERIMENT=synctest go test ./lib/... ./app/...
 
 test-race:
-	DISABLE_FSYNC_FOR_TESTING=1 go test -race ./lib/... ./app/...
+	GOEXPERIMENT=synctest go test -race ./lib/... ./app/...
 
 test-pure:
-	DISABLE_FSYNC_FOR_TESTING=1 CGO_ENABLED=0 go test ./lib/... ./app/...
+	GOEXPERIMENT=synctest CGO_ENABLED=0 go test ./lib/... ./app/...
 
 test-full:
-	DISABLE_FSYNC_FOR_TESTING=1 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GOEXPERIMENT=synctest go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 test-full-386:
-	DISABLE_FSYNC_FOR_TESTING=1 GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+
+integration-test: victoria-metrics vmagent vmalert vmauth vmctl
+	go test ./apptest/... -skip="^TestCluster.*"
 
 benchmark:
-	go test -bench=. ./lib/...
+	GOEXPERIMENT=synctest go test -bench=. ./lib/...
 	go test -bench=. ./app/...
 
 benchmark-pure:
-	CGO_ENABLED=0 go test -bench=. ./lib/...
+	GOEXPERIMENT=synctest CGO_ENABLED=0 go test -bench=. ./lib/...
 	CGO_ENABLED=0 go test -bench=. ./app/...
 
 vendor-update:
 	go get -u ./lib/...
 	go get -u ./app/...
-	go mod tidy -compat=1.23
+	go mod tidy -compat=1.24
 	go mod vendor
 
 app-local:
@@ -492,10 +582,10 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run
+	GOEXPERIMENT=synctest golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.60.3
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.7
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`

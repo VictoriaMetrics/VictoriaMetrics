@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFieldValues processes '| field_values ...' queries.
@@ -21,63 +23,58 @@ func (pf *pipeFieldValues) String() string {
 	return s
 }
 
+func (pf *pipeFieldValues) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	pLocal := &pipeFieldValuesLocal{
+		pf: pf,
+	}
+	return pf, []pipe{pLocal}
+}
+
 func (pf *pipeFieldValues) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFieldValues) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
-		neededFields.add(pf.field)
-		return
-	}
-
-	if neededFields.contains("*") {
-		neededFields.reset()
-		if !unneededFields.contains(pf.field) {
-			neededFields.add(pf.field)
-		}
-		unneededFields.reset()
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		neededFields.reset()
-		if neededFieldsOrig.contains(pf.field) {
-			neededFields.add(pf.field)
-		}
-	}
-}
-
-func (pf *pipeFieldValues) optimize() {
-	// nothing to do
+func (pf *pipeFieldValues) updateNeededFields(f *prefixfilter.Filter) {
+	f.Reset()
+	f.AddAllowFilter(pf.field)
 }
 
 func (pf *pipeFieldValues) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFieldValues) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFieldValues) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pf, nil
 }
 
-func (pf *pipeFieldValues) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	hitsFieldName := "hits"
-	if hitsFieldName == pf.field {
-		hitsFieldName = "hitss"
-	}
+func (pf *pipeFieldValues) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
+func (pf *pipeFieldValues) newPipeProcessor(concurrency int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+	hitsFieldName := pf.getHitsFieldName()
 	pu := &pipeUniq{
 		byFields:      []string{pf.field},
 		hitsFieldName: hitsFieldName,
 		limit:         pf.limit,
 	}
-	return pu.newPipeProcessor(workersCount, stopCh, cancel, ppNext)
+	return pu.newPipeProcessor(concurrency, stopCh, cancel, ppNext)
 }
 
-func parsePipeFieldValues(lex *lexer) (*pipeFieldValues, error) {
+func (pf *pipeFieldValues) getHitsFieldName() string {
+	if pf.field == "hits" {
+		return "hitss"
+	}
+	return "hits"
+}
+
+func parsePipeFieldValues(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("field_values") {
 		return nil, fmt.Errorf("expecting 'field_values'; got %q", lex.token)
 	}
 	lex.nextToken()
 
-	field, err := parseFieldName(lex)
+	field, err := parseFieldNameWithOptionalParens(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse field name for 'field_values': %w", err)
 	}

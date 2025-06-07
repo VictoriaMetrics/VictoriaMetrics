@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 func TestPartitionLifecycle(t *testing.T) {
@@ -67,11 +66,13 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 		lr := newTestLogRows(1, 1, 0)
 		totalRowsCount += uint64(len(lr.timestamps))
 		pt.mustAddRows(lr)
-		ddbStats.reset()
-		pt.ddb.updateStats(&ddbStats)
-		if n := ddbStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
-		}
+	}
+	pt.debugFlush()
+
+	ddbStats.reset()
+	pt.ddb.updateStats(&ddbStats)
+	if n := ddbStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
 	}
 
 	// Try adding different entry at a time.
@@ -79,11 +80,13 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 		lr := newTestLogRows(1, 1, int64(i))
 		totalRowsCount += uint64(len(lr.timestamps))
 		pt.mustAddRows(lr)
-		ddbStats.reset()
-		pt.ddb.updateStats(&ddbStats)
-		if n := ddbStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
-		}
+	}
+	pt.debugFlush()
+
+	ddbStats.reset()
+	pt.ddb.updateStats(&ddbStats)
+	if n := ddbStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
 	}
 
 	// Re-open the partition and verify the number of entries remains the same
@@ -106,12 +109,14 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 		lr := newTestLogRows(3, 7, 0)
 		totalRowsCount += uint64(len(lr.timestamps))
 		pt.mustAddRows(lr)
-		ddbStats.reset()
-		pt.ddb.updateStats(&ddbStats)
-		if n := ddbStats.RowsCount(); n != totalRowsCount {
-			t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
-		}
 		time.Sleep(time.Millisecond)
+	}
+	pt.debugFlush()
+
+	ddbStats.reset()
+	pt.ddb.updateStats(&ddbStats)
+	if n := ddbStats.RowsCount(); n != totalRowsCount {
+		t.Fatalf("unexpected number of entries in partition; got %d; want %d", n, totalRowsCount)
 	}
 
 	// Re-open the partition and verify the number of entries remains the same
@@ -166,6 +171,7 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 	}
+	pt.debugFlush()
 
 	var ddbStats DatadbStats
 	pt.ddb.updateStats(&ddbStats)
@@ -183,8 +189,8 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 //
 // When the storage is no longer needed, closeTestStorage() must be called.
 func newTestStorage() *Storage {
-	streamIDCache := workingsetcache.New(1024 * 1024)
-	filterStreamCache := workingsetcache.New(1024 * 1024)
+	streamIDCache := newCache()
+	filterStreamCache := newCache()
 	return &Storage{
 		flushInterval:     time.Second,
 		streamIDCache:     streamIDCache,
@@ -194,6 +200,6 @@ func newTestStorage() *Storage {
 
 // closeTestStorage closes storage created via newTestStorage().
 func closeTestStorage(s *Storage) {
-	s.streamIDCache.Stop()
-	s.filterStreamCache.Stop()
+	s.streamIDCache.MustStop()
+	s.filterStreamCache.MustStop()
 }

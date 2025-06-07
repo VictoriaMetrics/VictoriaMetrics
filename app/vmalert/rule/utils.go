@@ -9,10 +9,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
-func newTimeSeries(values []float64, timestamps []int64, labels map[string]string) prompbmarshal.TimeSeries {
+// newTimeSeries first sorts given labels, then returns new time series.
+func newTimeSeries(values []float64, timestamps []int64, labels []prompbmarshal.Label) prompbmarshal.TimeSeries {
+	promrelabel.SortLabels(labels)
 	ts := prompbmarshal.TimeSeries{
+		Labels:  labels,
 		Samples: make([]prompbmarshal.Sample, len(values)),
 	}
 	for i := range values {
@@ -21,34 +25,6 @@ func newTimeSeries(values []float64, timestamps []int64, labels map[string]strin
 			Timestamp: time.Unix(timestamps[i], 0).UnixNano() / 1e6,
 		}
 	}
-	keys := make([]string, 0, len(labels))
-	for k := range labels {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys) // make order deterministic
-	for _, key := range keys {
-		ts.Labels = append(ts.Labels, prompbmarshal.Label{
-			Name:  key,
-			Value: labels[key],
-		})
-	}
-	return ts
-}
-
-// newTimeSeriesPB creates prompbmarshal.TimeSeries with given
-// values, timestamps and labels.
-// It expects that labels are already sorted.
-func newTimeSeriesPB(values []float64, timestamps []int64, labels []prompbmarshal.Label) prompbmarshal.TimeSeries {
-	ts := prompbmarshal.TimeSeries{
-		Samples: make([]prompbmarshal.Sample, len(values)),
-	}
-	for i := range values {
-		ts.Samples[i] = prompbmarshal.Sample{
-			Value:     values[i],
-			Timestamp: time.Unix(timestamps[i], 0).UnixNano() / 1e6,
-		}
-	}
-	ts.Labels = labels
 	return ts
 }
 
@@ -126,6 +102,13 @@ func isSecreteHeader(str string) bool {
 		if strings.Contains(s, secret) {
 			return true
 		}
+	}
+	return false
+}
+
+func isPartialResponse(res datasource.Result) bool {
+	if res.IsPartial != nil && *res.IsPartial {
+		return true
 	}
 	return false
 }

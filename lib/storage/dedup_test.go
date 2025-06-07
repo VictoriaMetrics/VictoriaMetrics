@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"math"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
 func TestNeedsDedup(t *testing.T) {
@@ -35,6 +38,21 @@ func TestNeedsDedup(t *testing.T) {
 	f(10, []int64{0, 31, 49}, false)
 }
 
+func equalWithNans(a, b []float64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if decimal.IsStaleNaN(v) && decimal.IsStaleNaN(b[i]) {
+			continue
+		}
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestDeduplicateSamplesWithIdenticalTimestamps(t *testing.T) {
 	f := func(scrapeInterval time.Duration, timestamps []int64, values []float64, timestampsExpected []int64, valuesExpected []float64) {
 		t.Helper()
@@ -45,7 +63,7 @@ func TestDeduplicateSamplesWithIdenticalTimestamps(t *testing.T) {
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
 			t.Fatalf("invalid DeduplicateSamples(%v) timestamps;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
-		if !reflect.DeepEqual(values, valuesExpected) {
+		if !equalWithNans(values, valuesExpected) {
 			t.Fatalf("invalid DeduplicateSamples(%v) values;\ngot\n%v\nwant\n%v", timestamps, values, valuesExpected)
 		}
 
@@ -55,13 +73,27 @@ func TestDeduplicateSamplesWithIdenticalTimestamps(t *testing.T) {
 		if !reflect.DeepEqual(timestampsCopy, timestampsExpected) {
 			t.Fatalf("invalid DeduplicateSamples(%v) timestamps for the second call;\ngot\n%v\nwant\n%v", timestamps, timestampsCopy, timestampsExpected)
 		}
-		if !reflect.DeepEqual(valuesCopy, values) {
+		if !equalWithNans(valuesCopy, values) {
 			t.Fatalf("invalid DeduplicateSamples(%v) values for the second call;\ngot\n%v\nwant\n%v", timestamps, values, valuesCopy)
 		}
 	}
 	f(time.Second, []int64{1000, 1000}, []float64{2, 1}, []int64{1000}, []float64{2})
 	f(time.Second, []int64{1001, 1001}, []float64{2, 1}, []int64{1001}, []float64{2})
 	f(time.Second, []int64{1000, 1001, 1001, 1001, 2001}, []float64{1, 2, 5, 3, 0}, []int64{1000, 1001, 2001}, []float64{1, 5, 0})
+
+	// position of decimal.StaleNaN shouldn't matter during deduplication
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+	f(time.Second, []int64{1000, 1000}, []float64{2, decimal.StaleNaN}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000}, []float64{decimal.StaleNaN, 2}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []float64{1, decimal.StaleNaN, 2}, []int64{1000}, []float64{decimal.StaleNaN})
+	// compare with Inf values
+	f(time.Second, []int64{1000, 1000}, []float64{math.Inf(1), decimal.StaleNaN}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000}, []float64{decimal.StaleNaN, math.Inf(1)}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []float64{math.Inf(1), decimal.StaleNaN, math.Inf(-1)}, []int64{1000}, []float64{decimal.StaleNaN})
+	// verify decimal.StaleNaN is preferred only on timestamp conflicts
+	f(time.Second, []int64{1000, 1000, 2000}, []float64{1, decimal.StaleNaN, 2}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 2})
+	f(time.Second, []int64{1000, 1000, 2000, 2000}, []float64{1, decimal.StaleNaN, 2, 3}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 3})
+	f(time.Second, []int64{1000, 1000, 1000, 2000, 2000}, []float64{1, decimal.StaleNaN, 6, 2, 3}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 3})
 }
 
 func TestDeduplicateSamplesDuringMergeWithIdenticalTimestamps(t *testing.T) {
@@ -91,6 +123,21 @@ func TestDeduplicateSamplesDuringMergeWithIdenticalTimestamps(t *testing.T) {
 	f(time.Second, []int64{1000, 1000}, []int64{2, 1}, []int64{1000}, []int64{2})
 	f(time.Second, []int64{1001, 1001}, []int64{2, 1}, []int64{1001}, []int64{2})
 	f(time.Second, []int64{1000, 1001, 1001, 1001, 2001}, []int64{1, 2, 5, 3, 0}, []int64{1000, 1001, 2001}, []int64{1, 5, 0})
+
+	staleNaN, _ := decimal.FromFloat(decimal.StaleNaN)
+	// position of decimal.StaleNaN shouldn't matter during deduplication
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+	f(time.Second, []int64{1000, 1000}, []int64{2, staleNaN}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000}, []int64{staleNaN, 2}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []int64{1, staleNaN, 2}, []int64{1000}, []int64{staleNaN})
+	// compare with max values
+	f(time.Second, []int64{1000, 1000}, []int64{math.MaxInt64, staleNaN}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000}, []int64{staleNaN, math.MaxInt64}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []int64{math.MaxInt64, staleNaN, math.MaxInt64}, []int64{1000}, []int64{staleNaN})
+	// verify decimal.StaleNaN is preferred only on timestamp conflicts
+	f(time.Second, []int64{1000, 1000, 2000}, []int64{1, staleNaN, 2}, []int64{1000, 2000}, []int64{staleNaN, 2})
+	f(time.Second, []int64{1000, 1000, 2000, 2000}, []int64{1, staleNaN, 2, 3}, []int64{1000, 2000}, []int64{staleNaN, 3})
+	f(time.Second, []int64{1000, 1000, 1000, 2000, 2000}, []int64{1, staleNaN, math.MaxInt64, 2, 3}, []int64{1000, 2000}, []int64{staleNaN, 3})
 }
 
 func TestDeduplicateSamples(t *testing.T) {

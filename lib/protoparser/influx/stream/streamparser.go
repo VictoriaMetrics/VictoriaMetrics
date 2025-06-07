@@ -10,16 +10,21 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	maxLineSize   = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing")
+	maxLineSize = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. "+
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/")
+	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. "+
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/")
 	trimTimestamp = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
+	forceStreamMode = flag.Bool("influx.forceStreamMode", false, "Force stream mode parsing for ingested data. "+
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/")
 )
 
 // Parse parses r with the given args and calls callback for the parsed rows.
@@ -27,37 +32,46 @@ var (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
+func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
+	tsMultiplier := getTimestampMultiplier(precision)
 
-	if isGzipped {
-		zr, err := common.GetGzipReader(r)
+	if *forceStreamMode || isStreamMode {
+		// Process lines in a streaming fashion. Invalid lines are skipped.
+		return parseStreamMode(r, encoding, tsMultiplier, db, callback)
+	}
+
+	// Process the whole request in one go.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
+	readCalls.Inc()
+	err := protoparserutil.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
+		ctx := getBatchContext()
+		defer putBatchContext(ctx)
+
+		err := unmarshal(&ctx.rows, data, tsMultiplier)
 		if err != nil {
-			return fmt.Errorf("cannot read gzipped influx line protocol data: %w", err)
+			return err
 		}
-		defer common.PutGzipReader(zr)
-		r = zr
+		return callback(db, ctx.rows.Rows)
+	})
+	if err != nil {
+		readErrors.Inc()
+		return fmt.Errorf("cannot process influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/", err)
 	}
+	return nil
+}
 
-	tsMultiplier := int64(0)
-	switch precision {
-	case "ns":
-		tsMultiplier = 1e6
-	case "u", "us", "µ":
-		tsMultiplier = 1e3
-	case "ms":
-		tsMultiplier = 1
-	case "s":
-		tsMultiplier = -1e3
-	case "m":
-		tsMultiplier = -1e3 * 60
-	case "h":
-		tsMultiplier = -1e3 * 3600
+func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string, callback func(db string, rows []influx.Row) error) error {
+	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/", err)
 	}
+	defer protoparserutil.PutUncompressedReader(reader)
 
-	ctx := getStreamContext(r)
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
@@ -67,7 +81,7 @@ func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db s
 		uw.tsMultiplier = tsMultiplier
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
-		common.ScheduleUnmarshalWork(uw)
+		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
@@ -77,20 +91,23 @@ func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db s
 	return ctx.callbackErr
 }
 
-func (ctx *streamContext) Read() bool {
-	readCalls.Inc()
-	if ctx.err != nil || ctx.hasCallbackError() {
-		return false
+func getTimestampMultiplier(precision string) int64 {
+	switch precision {
+	case "ns":
+		return 1e6
+	case "u", "us", "µ":
+		return 1e3
+	case "ms":
+		return 1
+	case "s":
+		return -1e3
+	case "m":
+		return -1e3 * 60
+	case "h":
+		return -1e3 * 3600
+	default:
+		return 0
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
-	if ctx.err != nil {
-		if ctx.err != io.EOF {
-			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read influx line protocol data: %w", ctx.err)
-		}
-		return false
-	}
-	return true
 }
 
 var (
@@ -98,6 +115,29 @@ var (
 	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
 	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="influx"}`)
 )
+
+type batchContext struct {
+	rows influx.Rows
+}
+
+func (ctx *batchContext) reset() {
+	ctx.rows.Reset()
+}
+
+func getBatchContext() *batchContext {
+	if v := batchContextPool.Get(); v != nil {
+		ctx := v.(*batchContext)
+		return ctx
+	}
+	return &batchContext{}
+}
+
+func putBatchContext(ctx *batchContext) {
+	ctx.reset()
+	batchContextPool.Put(ctx)
+}
+
+var batchContextPool sync.Pool
 
 type streamContext struct {
 	br      *bufio.Reader
@@ -108,6 +148,22 @@ type streamContext struct {
 	wg              sync.WaitGroup
 	callbackErrLock sync.Mutex
 	callbackErr     error
+}
+
+func (ctx *streamContext) Read() bool {
+	readCalls.Inc()
+	if ctx.err != nil || ctx.hasCallbackError() {
+		return false
+	}
+	ctx.reqBuf, ctx.tailBuf, ctx.err = protoparserutil.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
+	if ctx.err != nil {
+		if ctx.err != io.EOF {
+			readErrors.Inc()
+			ctx.err = fmt.Errorf("cannot read influx line protocol data: %w", ctx.err)
+		}
+		return false
+	}
+	return true
 }
 
 func (ctx *streamContext) Error() error {
@@ -168,27 +224,72 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []influx.Row) {
+func (uw *unmarshalWork) runCallback() {
 	ctx := uw.ctx
-	if err := uw.callback(uw.db, rows); err != nil {
+	if err := uw.callback(uw.db, uw.rows.Rows); err != nil {
+		err = fmt.Errorf("error when processing imported data: %w", err)
 		ctx.callbackErrLock.Lock()
 		if ctx.callbackErr == nil {
-			ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+			ctx.callbackErr = err
 		}
 		ctx.callbackErrLock.Unlock()
 	}
 	ctx.wg.Done()
 }
 
-// Unmarshal implements common.UnmarshalWork
+// Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
-	rows := uw.rows.Rows
+	_ = unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier)
+	uw.runCallback()
+	putUnmarshalWork(uw)
+}
+
+func getUnmarshalWork() *unmarshalWork {
+	v := unmarshalWorkPool.Get()
+	if v == nil {
+		v = &unmarshalWork{}
+	}
+	uw := v.(*unmarshalWork)
+	uw.rows.IgnoreErrs = true
+	return uw
+}
+
+func putUnmarshalWork(uw *unmarshalWork) {
+	uw.reset()
+	unmarshalWorkPool.Put(uw)
+}
+
+var unmarshalWorkPool sync.Pool
+
+func detectTimestamp(ts, currentTs int64) int64 {
+	if ts == 0 {
+		return currentTs
+	}
+	if ts >= 1e17 {
+		// convert nanoseconds to milliseconds
+		return ts / 1e6
+	}
+	if ts >= 1e14 {
+		// convert microseconds to milliseconds
+		return ts / 1e3
+	}
+	if ts >= 1e11 {
+		// the ts is in milliseconds
+		return ts
+	}
+	// convert seconds to milliseconds
+	return ts * 1e3
+}
+
+func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
+	// do not return error immediately because rs.Rows could contain
+	// successfully parsed rows that needs to be processed below
+	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf))
+	rows := rs.Rows
 	rowsRead.Add(len(rows))
 
 	// Adjust timestamps according to uw.tsMultiplier
 	currentTs := time.Now().UnixNano() / 1e6
-	tsMultiplier := uw.tsMultiplier
 	if tsMultiplier == 0 {
 		// Default precision is 'ns'. See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp
 		// But it can be in ns, us, ms or s depending on the number of digits in practice.
@@ -225,42 +326,5 @@ func (uw *unmarshalWork) Unmarshal() {
 			row.Timestamp -= row.Timestamp % tsTrim
 		}
 	}
-
-	uw.runCallback(rows)
-	putUnmarshalWork(uw)
-}
-
-func getUnmarshalWork() *unmarshalWork {
-	v := unmarshalWorkPool.Get()
-	if v == nil {
-		return &unmarshalWork{}
-	}
-	return v.(*unmarshalWork)
-}
-
-func putUnmarshalWork(uw *unmarshalWork) {
-	uw.reset()
-	unmarshalWorkPool.Put(uw)
-}
-
-var unmarshalWorkPool sync.Pool
-
-func detectTimestamp(ts, currentTs int64) int64 {
-	if ts == 0 {
-		return currentTs
-	}
-	if ts >= 1e17 {
-		// convert nanoseconds to milliseconds
-		return ts / 1e6
-	}
-	if ts >= 1e14 {
-		// convert microseconds to milliseconds
-		return ts / 1e3
-	}
-	if ts >= 1e11 {
-		// the ts is in milliseconds
-		return ts
-	}
-	// convert seconds to milliseconds
-	return ts * 1e3
+	return err
 }

@@ -26,11 +26,30 @@
     }
 
     &-contols {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
       flex-grow: 1;
     }
 
-    &__execute {
+    &-buttons {
       display: grid;
+      grid-template-columns: auto 1fr;
+      gap: $padding-small;
+    }
+
+    &-execute {
+      position: relative;
+      display: grid;
+
+      &__text {
+        position: absolute;
+
+        &_hidden {
+          position: relative;
+          visibility: hidden;
+        }
+      }
     }
 
     &-helpful {

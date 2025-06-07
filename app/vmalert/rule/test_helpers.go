@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -37,6 +38,9 @@ func compareRecordingRules(t *testing.T, a, b *RecordingRule) error {
 	if a.Expr != b.Expr {
 		return fmt.Errorf("expected to have expression %q; got %q", a.Expr, b.Expr)
 	}
+	if a.Debug != b.Debug {
+		return fmt.Errorf("expected to have debug=%t; got %t", a.Debug, b.Debug)
+	}
 	if !reflect.DeepEqual(a.Labels, b.Labels) {
 		return fmt.Errorf("expected to have labels %#v; got %#v", a.Labels, b.Labels)
 	}
@@ -63,6 +67,9 @@ func compareAlertingRules(t *testing.T, a, b *AlertingRule) error {
 	if a.Type.String() != b.Type.String() {
 		return fmt.Errorf("expected to have Type %#v; got %#v", a.Type.String(), b.Type.String())
 	}
+	if a.Debug != b.Debug {
+		return fmt.Errorf("expected to have debug=%t; got %t", a.Debug, b.Debug)
+	}
 	return nil
 }
 
@@ -87,27 +94,12 @@ func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
 	}
 	m := datasource.Metric{Values: []float64{1}, Timestamps: []int64{1}}
 	for i := 0; i < len(labels); i += 2 {
-		m.Labels = append(m.Labels, datasource.Label{
+		m.Labels = append(m.Labels, prompbmarshal.Label{
 			Name:  labels[i],
 			Value: labels[i+1],
 		})
 	}
 	return m
-}
-
-func toPromLabels(t testing.TB, labels ...string) []prompbmarshal.Label {
-	t.Helper()
-	if len(labels) == 0 || len(labels)%2 != 0 {
-		t.Fatalf("expected to get even number of labels")
-	}
-	var ls []prompbmarshal.Label
-	for i := 0; i < len(labels); i += 2 {
-		ls = append(ls, prompbmarshal.Label{
-			Name:  labels[i],
-			Value: labels[i+1],
-		})
-	}
-	return ls
 }
 
 func compareTimeSeries(t *testing.T, a, b []prompbmarshal.TimeSeries) error {
@@ -122,7 +114,7 @@ func compareTimeSeries(t *testing.T, a, b []prompbmarshal.TimeSeries) error {
 		}
 		for i, exp := range expTS.Samples {
 			got := gotTS.Samples[i]
-			if got.Value != exp.Value {
+			if got.Value != exp.Value && (!decimal.IsStaleNaN(got.Value) || !decimal.IsStaleNaN(exp.Value)) {
 				return fmt.Errorf("expected value %.2f; got %.2f", exp.Value, got.Value)
 			}
 			// timestamp validation isn't always correct for now.

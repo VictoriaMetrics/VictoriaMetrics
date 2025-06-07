@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -29,10 +30,6 @@ const maxBigPartSize = 1e12
 // cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryPartsPerPartition = 20
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
-var dataFlushInterval = 5 * time.Second
-
 // Default number of parts to merge at once.
 //
 // This number has been obtained empirically - it gives the lowest possible overhead.
@@ -49,6 +46,11 @@ const minMergeMultiplier = 1.7
 
 // datadb represents a database with log data
 type datadb struct {
+	// rb is an in-memory buffer for the added rows. It is periodically converted to parts.
+	//
+	// This buffer amortizes the overhead needed for converting the ingested logs into searchable parts.
+	rb rowsBuffer
+
 	// mergeIdx is used for generating unique directory names for parts
 	mergeIdx atomic.Uint64
 
@@ -170,7 +172,7 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		if !fs.IsPathExist(partPath) {
 			partsFile := filepath.Join(path, partsFilename)
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 
@@ -191,6 +193,7 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		bigParts:      bigParts,
 		stopCh:        make(chan struct{}),
 	}
+	ddb.rb.init(&ddb.wg, ddb.mustFlushLogRows)
 	ddb.mergeIdx.Store(uint64(time.Now().UnixNano()))
 
 	ddb.startBackgroundWorkers()
@@ -272,7 +275,7 @@ func (ddb *datadb) startInmemoryPartsFlusher() {
 
 func (ddb *datadb) inmemoryPartsFlusher() {
 	// Do not add jitter to d in order to guarantee the flush interval
-	ticker := time.NewTicker(dataFlushInterval)
+	ticker := time.NewTicker(ddb.flushInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -459,6 +462,7 @@ func assertIsInMerge(pws []*partWrapper) {
 // mustMergeParts merges pws to a single resulting part.
 //
 // if isFinal is set, then the resulting part is guaranteed to be saved to disk.
+// if isFinal is set, then the merge process cannot be interrupted.
 // The pws may remain unmerged after returning from the function if there is no enough disk space.
 //
 // All the parts inside pws must have isInMerge field set to true.
@@ -530,9 +534,10 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	srcRowsCount := uint64(0)
 	srcBlocksCount := uint64(0)
 	for _, pw := range pws {
-		srcSize += pw.p.ph.CompressedSizeBytes
-		srcRowsCount += pw.p.ph.RowsCount
-		srcBlocksCount += pw.p.ph.BlocksCount
+		ph := &pw.p.ph
+		srcSize += ph.CompressedSizeBytes
+		srcRowsCount += ph.RowsCount
+		srcBlocksCount += ph.BlocksCount
 	}
 	bsw := getBlockStreamWriter()
 	var mpNew *inmemoryPart
@@ -660,10 +665,92 @@ func (ddb *datadb) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *in
 }
 
 func (ddb *datadb) mustAddRows(lr *LogRows) {
+	ddb.rb.mustAddRows(lr)
+}
+
+type rowsBuffer struct {
+	shards  []rowsBufferShard
+	nextIdx atomic.Uint64
+}
+
+func (rb *rowsBuffer) init(wg *sync.WaitGroup, flushFunc func(lr *logRows)) {
+	shards := make([]rowsBufferShard, cgroup.AvailableCPUs())
+	for i := range shards {
+		shard := &shards[i]
+		shard.wg = wg
+		shard.flushFunc = flushFunc
+	}
+	rb.shards = shards
+}
+
+type rowsBufferShard struct {
+	wg        *sync.WaitGroup
+	flushFunc func(lr *logRows)
+
+	mu         sync.Mutex
+	lr         *logRows
+	flushTimer *time.Timer
+
+	// padding for preventing false sharing
+	_ [atomicutil.CacheLineSize]byte
+}
+
+func (rb *rowsBuffer) flush() {
+	shards := rb.shards
+	for i := range shards {
+		shard := &shards[i]
+		shard.mu.Lock()
+		shard.flushLocked()
+		shard.mu.Unlock()
+	}
+}
+
+func (rb *rowsBuffer) mustAddRows(lr *LogRows) {
 	if len(lr.streamIDs) == 0 {
 		return
 	}
 
+	shards := rb.shards
+	idx := rb.nextIdx.Add(1) % uint64(len(shards))
+	shard := &shards[idx]
+
+	shard.mu.Lock()
+	if shard.flushTimer == nil {
+		shard.wg.Add(1)
+		shard.flushTimer = time.AfterFunc(time.Second, func() {
+			defer shard.wg.Done()
+
+			shard.mu.Lock()
+			shard.flushLocked()
+			shard.mu.Unlock()
+		})
+	}
+	if shard.lr == nil {
+		shard.lr = getLogRows()
+	}
+	shard.lr.mustAddRows(lr)
+	if shard.lr.needFlush() {
+		shard.flushLocked()
+	}
+	shard.mu.Unlock()
+}
+
+func (shard *rowsBufferShard) flushLocked() {
+	if shard.flushTimer != nil {
+		if shard.flushTimer.Stop() {
+			shard.wg.Done()
+		}
+		shard.flushTimer = nil
+	}
+
+	if shard.lr != nil {
+		shard.flushFunc(shard.lr)
+		putLogRows(shard.lr)
+		shard.lr = nil
+	}
+}
+
+func (ddb *datadb) mustFlushLogRows(lr *logRows) {
 	inmemoryPartsConcurrencyCh <- struct{}{}
 	mp := getInmemoryPart()
 	mp.mustInitFromRows(lr)
@@ -788,9 +875,9 @@ func (ddb *datadb) updateStats(s *DatadbStats) {
 	ddb.partsLock.Unlock()
 }
 
-// debugFlush() makes sure that the recently ingested data is availalbe for search.
+// debugFlush() makes sure that the recently ingested data is available for search.
 func (ddb *datadb) debugFlush() {
-	// Nothing to do, since all the ingested data is available for search via ddb.inmemoryParts.
+	ddb.rb.flush()
 }
 
 func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dstPartType partType) {
@@ -997,7 +1084,7 @@ func releaseDiskSpace(n uint64) {
 // background merges across all the partitions.
 //
 // It should allow avoiding background merges when there is no free disk space.
-var reservedDiskSpace atomic.Uint64
+var reservedDiskSpace atomicutil.Uint64
 
 func needStop(stopCh <-chan struct{}) bool {
 	select {
@@ -1010,6 +1097,9 @@ func needStop(stopCh <-chan struct{}) bool {
 
 // mustCloseDatadb can be called only when nobody accesses ddb.
 func mustCloseDatadb(ddb *datadb) {
+	// Flush ddb.rb for the last time
+	ddb.rb.flush()
+
 	// Notify background workers to stop.
 	// Make it under ddb.partsLock in order to prevent from calling ddb.wg.Add()
 	// after ddb.stopCh is closed and ddb.wg.Wait() is called.
@@ -1078,6 +1168,31 @@ func mustReadPartNames(path string) []string {
 	partNamesPath := filepath.Join(path, partsFilename)
 	data, err := os.ReadFile(partNamesPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// The parts.json file is missing. This can happen if VictoriaLogs shuts down uncleanly
+			// (via OOM crash, a panic, SIGKILL or hardware shutdown) in the middle of creating
+			// new per-day partition inside the mustCreatePartition() function.
+			// Check if there are any part directories in the datadb directory.
+			des := fs.MustReadDir(path)
+			var partDirs []string
+			for _, de := range des {
+				if !fs.IsDirOrSymlink(de) {
+					continue
+				}
+				partDirs = append(partDirs, de.Name())
+			}
+
+			if len(partDirs) == 0 {
+				logger.Warnf("creating missing %s with empty parts list, since no part directories found in %s", partNamesPath, path)
+				mustWritePartNames(path, nil, nil)
+				return []string{}
+			}
+
+			// Parts exist but parts.json is missing - this is an unexpected state that requires manual intervention
+			logger.Panicf("FATAL: cannot read %s: %s; found part directories %v in %s. "+
+				"This indicates corruption. Manually remove the %s partition directory to resolve the corruption (the partition data will be lost)",
+				partNamesPath, err, partDirs, path, path)
+		}
 		logger.Panicf("FATAL: cannot read %s: %s", partNamesPath, err)
 	}
 	var partNames []string
@@ -1225,4 +1340,49 @@ func getBlocksCount(pws []*partWrapper) uint64 {
 		n += pw.p.ph.BlocksCount
 	}
 	return n
+}
+
+func (ddb *datadb) mustForceMergeAllParts() {
+	// Flush inmemory parts to files before forced merge
+	ddb.mustFlushInmemoryPartsToFiles(true)
+
+	var pws []*partWrapper
+
+	// Collect all the file parts for forced merge
+	ddb.partsLock.Lock()
+	pws = appendAllPartsForMergeLocked(pws, ddb.smallParts)
+	pws = appendAllPartsForMergeLocked(pws, ddb.bigParts)
+	ddb.partsLock.Unlock()
+
+	// If len(pws) == 1, then the merge must run anyway.
+	// This allows applying the configured retention, removing the deleted data, etc.
+
+	// Merge pws optimally
+	wg := getWaitGroup()
+	for len(pws) > 0 {
+		pwsToMerge, pwsRemaining := getPartsForOptimalMerge(pws)
+		wg.Add(1)
+		bigPartsConcurrencyCh <- struct{}{}
+		go func(pwsChunk []*partWrapper) {
+			defer func() {
+				<-bigPartsConcurrencyCh
+				wg.Done()
+			}()
+
+			ddb.mustMergeParts(pwsChunk, false)
+		}(pwsToMerge)
+		pws = pwsRemaining
+	}
+	wg.Wait()
+	putWaitGroup(wg)
+}
+
+func appendAllPartsForMergeLocked(dst, src []*partWrapper) []*partWrapper {
+	for _, pw := range src {
+		if !pw.isInMerge {
+			pw.isInMerge = true
+			dst = append(dst, pw)
+		}
+	}
+	return dst
 }

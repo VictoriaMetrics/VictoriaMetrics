@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeReplaceRegexp processes '| replace_regexp ...' pipe.
@@ -37,24 +38,24 @@ func (pr *pipeReplaceRegexp) String() string {
 	return s
 }
 
+func (pr *pipeReplaceRegexp) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pr, nil
+}
+
 func (pr *pipeReplaceRegexp) canLiveTail() bool {
 	return true
 }
 
-func (pr *pipeReplaceRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
-}
-
-func (pr *pipeReplaceRegexp) optimize() {
-	pr.iff.optimizeFilterIn()
+func (pr *pipeReplaceRegexp) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUpdatePipe(pf, pr.field, pr.iff)
 }
 
 func (pr *pipeReplaceRegexp) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }
 
-func (pr *pipeReplaceRegexp) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pr *pipeReplaceRegexp) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -63,18 +64,22 @@ func (pr *pipeReplaceRegexp) initFilterInValues(cache map[string][]string, getFi
 	return &peNew, nil
 }
 
-func (pr *pipeReplaceRegexp) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pr *pipeReplaceRegexp) visitSubqueries(visitFunc func(q *Query)) {
+	pr.iff.visitSubqueries(visitFunc)
+}
+
+func (pr *pipeReplaceRegexp) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
 		bLen := len(a.b)
 		a.b = appendReplaceRegexp(a.b, v, pr.re, pr.replacement, pr.limit)
 		return bytesutil.ToUnsafeString(a.b[bLen:])
 	}
 
-	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
+	return newPipeUpdateProcessor(updateFunc, ppNext, pr.field, pr.iff)
 
 }
 
-func parsePipeReplaceRegexp(lex *lexer) (*pipeReplaceRegexp, error) {
+func parsePipeReplaceRegexp(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("replace_regexp") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "replace_regexp")
 	}
@@ -155,20 +160,28 @@ func appendReplaceRegexp(dst []byte, s string, re *regexp.Regexp, replacement st
 		return dst
 	}
 
-	replacements := uint64(0)
-	for {
-		locs := re.FindStringSubmatchIndex(s)
-		if locs == nil {
-			return append(dst, s...)
-		}
-		start := locs[0]
-		dst = append(dst, s[:start]...)
-		end := locs[1]
-		dst = re.ExpandString(dst, replacement, s, locs)
-		s = s[end:]
-		replacements++
-		if limit > 0 && replacements >= limit {
-			return append(dst, s...)
-		}
+	var matches [][]int
+	if limit > 0 {
+		matches = re.FindAllStringSubmatchIndex(s, int(limit))
+	} else {
+		matches = re.FindAllStringSubmatchIndex(s, -1)
 	}
+
+	if len(matches) == 0 {
+		return append(dst, s...)
+	}
+
+	prevEnd := 0
+	for _, locs := range matches {
+		start := locs[0]
+		end := locs[1]
+
+		dst = append(dst, s[prevEnd:start]...)
+		dst = re.ExpandString(dst, replacement, s, locs)
+
+		prevEnd = end
+	}
+
+	// Append the rest of the string after the last match
+	return append(dst, s[prevEnd:]...)
 }

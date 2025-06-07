@@ -12,6 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // valueType is the type of values stored in every column block.
@@ -43,6 +45,9 @@ const (
 	// Every value occupies 8 bytes.
 	valueTypeUint64 = valueType(6)
 
+	// int values in the range [-(2^63) ... 2^63-1] are encoded into valueTypeInt64.
+	valueTypeInt64 = valueType(10)
+
 	// floating-point values are encoded into valueTypeFloat64.
 	valueTypeFloat64 = valueType(7)
 
@@ -53,6 +58,35 @@ const (
 	// These timestamps are commonly used by Logstash.
 	valueTypeTimestampISO8601 = valueType(9)
 )
+
+func (t valueType) String() string {
+	switch t {
+	case valueTypeUnknown:
+		return "unknown"
+	case valueTypeString:
+		return "string"
+	case valueTypeDict:
+		return "dict"
+	case valueTypeUint8:
+		return "uint8"
+	case valueTypeUint16:
+		return "uint16"
+	case valueTypeUint32:
+		return "uint32"
+	case valueTypeUint64:
+		return "uint64"
+	case valueTypeInt64:
+		return "int64"
+	case valueTypeFloat64:
+		return "float64"
+	case valueTypeIPv4:
+		return "ipv4"
+	case valueTypeTimestampISO8601:
+		return "iso8601"
+	default:
+		return fmt.Sprintf("unknown valueType=%d", t)
+	}
+}
 
 type valuesEncoder struct {
 	// buf contains data for values.
@@ -90,6 +124,11 @@ func (ve *valuesEncoder) encode(values []string, dict *valuesDict) (valueType, u
 	}
 
 	ve.buf, ve.values, vt, minValue, maxValue = tryUintEncoding(ve.buf[:0], ve.values[:0], values)
+	if vt != valueTypeUnknown {
+		return vt, minValue, maxValue
+	}
+
+	ve.buf, ve.values, vt, minValue, maxValue = tryIntEncoding(ve.buf[:0], ve.values[:0], values)
 	if vt != valueTypeUnknown {
 		return vt, minValue, maxValue
 	}
@@ -203,6 +242,16 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			dstBuf = marshalUint64String(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
+	case valueTypeInt64:
+		for i, v := range values {
+			if len(v) != 8 {
+				return fmt.Errorf("unexpected value length for int64; got %d; want 8", len(v))
+			}
+			n := unmarshalInt64(v)
+			dstLen := len(dstBuf)
+			dstBuf = marshalInt64String(dstBuf, n)
+			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
+		}
 	case valueTypeFloat64:
 		for i, v := range values {
 			if len(v) != 8 {
@@ -283,11 +332,13 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	return dstBuf, dstValues, valueTypeTimestampISO8601, uint64(minValue), uint64(maxValue)
 }
 
-// TryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and timezone offset and returns unix timestamp in nanoseconds.
+// TryParseTimestampRFC3339Nano parses s as RFC3339 with optional nanoseconds part and timezone offset and returns unix timestamp in nanoseconds.
+//
+// If s doesn't contain timezone offset, then the local timezone is used.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
 func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
-	if len(s) < len("2006-01-02T15:04:05Z") {
+	if len(s) < len("2006-01-02T15:04:05") {
 		return 0, false
 	}
 
@@ -299,30 +350,12 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	nsecs := secs * 1e9
 
 	// Parse timezone offset
-	n := strings.IndexAny(s, "Z+-")
-	if n < 0 {
+	offsetNsecs, prefix, ok := parseTimezoneOffset(s)
+	if !ok {
 		return 0, false
 	}
-	offsetStr := s[n+1:]
-	if s[n] != 'Z' {
-		isMinus := s[n] == '-'
-		if len(offsetStr) == 0 {
-			return 0, false
-		}
-		offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
-		if !ok {
-			return 0, false
-		}
-		if isMinus {
-			offsetNsecs = -offsetNsecs
-		}
-		nsecs -= offsetNsecs
-	} else {
-		if len(offsetStr) != 0 {
-			return 0, false
-		}
-	}
-	s = s[:n]
+	nsecs -= offsetNsecs
+	s = prefix
 
 	// Parse optional fractional part of seconds.
 	if len(s) == 0 {
@@ -335,7 +368,7 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	if digits > 9 {
 		return 0, false
 	}
-	n64, ok := tryParseUint64(s)
+	n64, ok := tryParseDateUint64(s)
 	if !ok {
 		return 0, false
 	}
@@ -347,18 +380,42 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	return nsecs, true
 }
 
-func tryParseTimezoneOffset(offsetStr string) (int64, bool) {
-	n := strings.IndexByte(offsetStr, ':')
+func parseTimezoneOffset(s string) (int64, string, bool) {
+	if strings.HasSuffix(s, "Z") {
+		return 0, s[:len(s)-1], true
+	}
+
+	n := strings.LastIndexAny(s, "+-")
 	if n < 0 {
+		offsetNsecs := timeutil.GetLocalTimezoneOffsetNsecs()
+		return offsetNsecs, s, true
+	}
+	offsetStr := s[n+1:]
+	isMinus := s[n] == '-'
+	if len(offsetStr) == 0 {
+		return 0, s, false
+	}
+	offsetNsecs, ok := tryParseHHMM(offsetStr)
+	if !ok {
+		return 0, s, false
+	}
+	if isMinus {
+		offsetNsecs = -offsetNsecs
+	}
+	return offsetNsecs, s[:n], true
+}
+
+func tryParseHHMM(s string) (int64, bool) {
+	if len(s) != len("hh:mm") || s[2] != ':' {
 		return 0, false
 	}
-	hourStr := offsetStr[:n]
-	minuteStr := offsetStr[n+1:]
-	hours, ok := tryParseUint64(hourStr)
+	hourStr := s[:2]
+	minuteStr := s[3:]
+	hours, ok := tryParseDateUint64(hourStr)
 	if !ok || hours > 24 {
 		return 0, false
 	}
-	minutes, ok := tryParseUint64(minuteStr)
+	minutes, ok := tryParseDateUint64(minuteStr)
 	if !ok || minutes > 60 {
 		return 0, false
 	}
@@ -394,7 +451,7 @@ func tryParseTimestampISO8601(s string) (int64, bool) {
 		return 0, false
 	}
 	millisecondStr := s[:len("000")]
-	msecs, ok := tryParseUint64(millisecondStr)
+	msecs, ok := tryParseDateUint64(millisecondStr)
 	if !ok {
 		return 0, false
 	}
@@ -415,7 +472,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	yearStr := s[:len("YYYY")]
-	n, ok := tryParseUint64(yearStr)
+	n, ok := tryParseDateUint64(yearStr)
 	if !ok || n < 1677 || n > 2262 {
 		return 0, false, s
 	}
@@ -427,19 +484,24 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	monthStr := s[:len("MM")]
-	n, ok = tryParseUint64(monthStr)
+	n, ok = tryParseDateUint64(monthStr)
 	if !ok {
 		return 0, false, s
 	}
 	month := time.Month(n)
 	s = s[len("MM")+1:]
 
-	// Parse day
-	if s[len("DD")] != 'T' {
+	// Parse day.
+	//
+	// Allow whitespace additionally to T as the delimiter after DD,
+	// so SQL datetime format can be parsed additionally to RFC3339.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6721
+	delim := s[len("DD")]
+	if delim != 'T' && delim != ' ' {
 		return 0, false, s
 	}
 	dayStr := s[:len("DD")]
-	n, ok = tryParseUint64(dayStr)
+	n, ok = tryParseDateUint64(dayStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -451,7 +513,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	hourStr := s[:len("HH")]
-	n, ok = tryParseUint64(hourStr)
+	n, ok = tryParseDateUint64(hourStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -463,7 +525,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	minuteStr := s[:len("MM")]
-	n, ok = tryParseUint64(minuteStr)
+	n, ok = tryParseDateUint64(minuteStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -472,7 +534,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 
 	// Parse second
 	secondStr := s[:len("SS")]
-	n, ok = tryParseUint64(secondStr)
+	n, ok = tryParseDateUint64(secondStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -492,6 +554,11 @@ func tryParseUint64(s string) (uint64, bool) {
 	if len(s) == 0 || len(s) > len("18_446_744_073_709_551_615") {
 		return 0, false
 	}
+	if len(s) > 1 && s[0] == '0' {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+		return 0, false
+	}
+
 	n := uint64(0)
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
@@ -512,6 +579,66 @@ func tryParseUint64(s string) (uint64, bool) {
 		n += d
 	}
 	return n, true
+}
+
+// tryParseDateUint64 parses s (which is a part of some timestamp) as uint64 value.
+func tryParseDateUint64(s string) (uint64, bool) {
+	if len(s) == 0 || len(s) > 9 {
+		return 0, false
+	}
+
+	if len(s) == 2 {
+		// fast path for two-digit number, which is used in hours, minutes and seconds
+		if s[0] < '0' || s[0] > '9' {
+			return 0, false
+		}
+		n := 10*uint64(s[0]-'0') + uint64(s[1]-'0')
+		return n, true
+	}
+
+	n := uint64(0)
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch < '0' || ch > '9' {
+			return 0, false
+		}
+		if n > ((1<<64)-1)/10 {
+			return 0, false
+		}
+		n *= 10
+		d := uint64(ch - '0')
+		if n > (1<<64)-1-d {
+			return 0, false
+		}
+		n += d
+	}
+	return n, true
+}
+
+// tryParseInt64 parses s as int64 value.
+func tryParseInt64(s string) (int64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	isMinus := s[0] == '-'
+	if isMinus {
+		s = s[1:]
+	}
+	n, ok := tryParseUint64(s)
+	if !ok {
+		return 0, false
+	}
+	if n >= 1<<63 {
+		if isMinus && n == 1<<63 {
+			return -1 << 63, true
+		}
+		return 0, false
+	}
+	ni := int64(n)
+	if isMinus {
+		ni = -ni
+	}
+	return ni, true
 }
 
 func tryIPv4Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
@@ -557,7 +684,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	if n <= 0 || n > 3 {
 		return 0, false
 	}
-	v, ok = tryParseUint64(s[:n])
+	v, ok = tryParseDateUint64(s[:n])
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -569,7 +696,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	if n <= 0 || n > 3 {
 		return 0, false
 	}
-	v, ok = tryParseUint64(s[:n])
+	v, ok = tryParseDateUint64(s[:n])
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -581,7 +708,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	if n <= 0 || n > 3 {
 		return 0, false
 	}
-	v, ok = tryParseUint64(s[:n])
+	v, ok = tryParseDateUint64(s[:n])
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -589,7 +716,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	s = s[n+1:]
 
 	// Parse octet 4
-	v, ok = tryParseUint64(s)
+	v, ok = tryParseDateUint64(s)
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -605,7 +732,7 @@ func tryFloat64Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, [
 	a := u64s.A
 	var minValue, maxValue float64
 	for i, v := range srcValues {
-		f, ok := tryParseFloat64(v)
+		f, ok := tryParseFloat64Exact(v)
 		if !ok {
 			return dstBuf, dstValues, valueTypeUnknown, 0, 0
 		}
@@ -637,13 +764,26 @@ func tryParseFloat64Prefix(s string) (float64, bool, string) {
 	if i == 0 {
 		return 0, false, s
 	}
+
 	f, ok := tryParseFloat64(s[:i])
 	return f, ok, s[i:]
 }
 
 // tryParseFloat64 tries parsing s as float64.
+//
+// The parsed result may lose precision, e.g. it may not match the original value when converting back to string.
+// Use tryParseFloat64Exact when lossless parsing is needed.
 func tryParseFloat64(s string) (float64, bool) {
-	if len(s) == 0 || len(s) > 20 {
+	return tryParseFloat64Internal(s, false)
+}
+
+// tryParseFloat64Exact tries parsing s as float64.
+func tryParseFloat64Exact(s string) (float64, bool) {
+	return tryParseFloat64Internal(s, true)
+}
+
+func tryParseFloat64Internal(s string, isExact bool) (float64, bool) {
+	if len(s) == 0 || len(s) > len("-18_446_744_073_709_551_615") {
 		return 0, false
 	}
 	// Allow only decimal digits, minus and a dot.
@@ -661,6 +801,10 @@ func tryParseFloat64(s string) (float64, bool) {
 		if !ok {
 			return 0, false
 		}
+		if isExact && n >= (1<<53) {
+			// The integer cannot be represented as float64 without precision loss.
+			return 0, false
+		}
 		f := float64(n)
 		if minus {
 			f = -f
@@ -674,14 +818,24 @@ func tryParseFloat64(s string) (float64, bool) {
 	}
 	sInt := s[:n]
 	sFrac := s[n+1:]
+
 	nInt, ok := tryParseUint64(sInt)
 	if !ok {
 		return 0, false
 	}
-	nFrac, ok := tryParseUint64(sFrac)
+
+	// Skip leading zeroes at sFrac, since tryParseUint64 rejects them.
+	// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8464
+	n = 0
+	for n < len(sFrac)-1 && sFrac[n] == '0' {
+		n++
+	}
+
+	nFrac, ok := tryParseUint64(sFrac[n:])
 	if !ok {
 		return 0, false
 	}
+
 	p10 := math.Pow10(strings.Count(sFrac, "_") - len(sFrac))
 	f := math.FMA(float64(nFrac), p10, float64(nInt))
 	if minus {
@@ -719,25 +873,25 @@ func tryParseBytes(s string) (int64, bool) {
 		}
 		s = tail
 		if len(s) == 0 {
-			n += int64(f)
+			n = addInt64NoOverflow(n, f)
 			continue
 		}
 		if len(s) >= 3 {
 			switch {
 			case strings.HasPrefix(s, "KiB"):
-				n += int64(f * (1 << 10))
+				n = addInt64NoOverflow(n, f*(1<<10))
 				s = s[3:]
 				continue
 			case strings.HasPrefix(s, "MiB"):
-				n += int64(f * (1 << 20))
+				n = addInt64NoOverflow(n, f*(1<<20))
 				s = s[3:]
 				continue
 			case strings.HasPrefix(s, "GiB"):
-				n += int64(f * (1 << 30))
+				n = addInt64NoOverflow(n, f*(1<<30))
 				s = s[3:]
 				continue
 			case strings.HasPrefix(s, "TiB"):
-				n += int64(f * (1 << 40))
+				n = addInt64NoOverflow(n, f*(1<<40))
 				s = s[3:]
 				continue
 			}
@@ -745,58 +899,58 @@ func tryParseBytes(s string) (int64, bool) {
 		if len(s) >= 2 {
 			switch {
 			case strings.HasPrefix(s, "Ki"):
-				n += int64(f * (1 << 10))
+				n = addInt64NoOverflow(n, f*(1<<10))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "Mi"):
-				n += int64(f * (1 << 20))
+				n = addInt64NoOverflow(n, f*(1<<20))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "Gi"):
-				n += int64(f * (1 << 30))
+				n = addInt64NoOverflow(n, f*(1<<30))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "Ti"):
-				n += int64(f * (1 << 40))
+				n = addInt64NoOverflow(n, f*(1<<40))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "KB"):
-				n += int64(f * 1_000)
+				n = addInt64NoOverflow(n, f*1_000)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "MB"):
-				n += int64(f * 1_000_000)
+				n = addInt64NoOverflow(n, f*1_000_000)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "GB"):
-				n += int64(f * 1_000_000_000)
+				n = addInt64NoOverflow(n, f*1_000_000_000)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "TB"):
-				n += int64(f * 1_000_000_000_000)
+				n = addInt64NoOverflow(n, f*1_000_000_000_000)
 				s = s[2:]
 				continue
 			}
 		}
 		switch {
 		case strings.HasPrefix(s, "B"):
-			n += int64(f)
+			n = addInt64NoOverflow(n, f)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "K"):
-			n += int64(f * 1_000)
+			n = addInt64NoOverflow(n, f*1_000)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "M"):
-			n += int64(f * 1_000_000)
+			n = addInt64NoOverflow(n, f*1_000_000)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "G"):
-			n += int64(f * 1_000_000_000)
+			n = addInt64NoOverflow(n, f*1_000_000_000)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "T"):
-			n += int64(f * 1_000_000_000_000)
+			n = addInt64NoOverflow(n, f*1_000_000_000_000)
 			s = s[1:]
 			continue
 		}
@@ -806,6 +960,14 @@ func tryParseBytes(s string) (int64, bool) {
 		n = -n
 	}
 	return n, true
+}
+
+func addInt64NoOverflow(n int64, f float64) int64 {
+	x := int64(f)
+	if n < 0 || x < 0 || x > 1<<63-1-n {
+		return 1<<63 - 1
+	}
+	return n + x
 }
 
 // tryParseIPv4Mask parses '/num' ipv4 mask and returns (1<<(32-num))
@@ -843,7 +1005,7 @@ func tryParseDuration(s string) (int64, bool) {
 		}
 		if len(s) >= 3 {
 			if strings.HasPrefix(s, "µs") {
-				nsecs += int64(f * nsecsPerMicrosecond)
+				nsecs = addInt64NoOverflow(nsecs, f*nsecsPerMicrosecond)
 				s = s[3:]
 				continue
 			}
@@ -851,37 +1013,37 @@ func tryParseDuration(s string) (int64, bool) {
 		if len(s) >= 2 {
 			switch {
 			case strings.HasPrefix(s, "ms"):
-				nsecs += int64(f * nsecsPerMillisecond)
+				nsecs = addInt64NoOverflow(nsecs, f*nsecsPerMillisecond)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "ns"):
-				nsecs += int64(f)
+				nsecs = addInt64NoOverflow(nsecs, f)
 				s = s[2:]
 				continue
 			}
 		}
 		switch {
 		case strings.HasPrefix(s, "y"):
-			nsecs += int64(f * nsecsPerYear)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerYear)
 			s = s[1:]
 		case strings.HasPrefix(s, "w"):
-			nsecs += int64(f * nsecsPerWeek)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerWeek)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "d"):
-			nsecs += int64(f * nsecsPerDay)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerDay)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "h"):
-			nsecs += int64(f * nsecsPerHour)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerHour)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "m"):
-			nsecs += int64(f * nsecsPerMinute)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerMinute)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "s"):
-			nsecs += int64(f * nsecsPerSecond)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerSecond)
 			s = s[1:]
 			continue
 		default:
@@ -973,6 +1135,33 @@ const (
 	nsecsPerMicrosecond = 1e3
 )
 
+func tryIntEncoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
+	i64s := encoding.GetInt64s(len(srcValues))
+	defer encoding.PutInt64s(i64s)
+	a := i64s.A
+	var minValue, maxValue int64
+	for i, v := range srcValues {
+		n, ok := tryParseInt64(v)
+		if !ok {
+			return dstBuf, dstValues, valueTypeUnknown, 0, 0
+		}
+		a[i] = n
+		if i == 0 || n < minValue {
+			minValue = n
+		}
+		if i == 0 || n > maxValue {
+			maxValue = n
+		}
+	}
+	for _, n := range a {
+		dstLen := len(dstBuf)
+		dstBuf = encoding.MarshalInt64(dstBuf, n)
+		v := bytesutil.ToUnsafeString(dstBuf[dstLen:])
+		dstValues = append(dstValues, v)
+	}
+	return dstBuf, dstValues, valueTypeInt64, uint64(minValue), uint64(maxValue)
+}
+
 func tryUintEncoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u64s := encoding.GetUint64s(len(srcValues))
 	defer encoding.PutUint64s(u64s)
@@ -1060,10 +1249,9 @@ func (vd *valuesDict) reset() {
 func (vd *valuesDict) copyFrom(a *arena, src *valuesDict) {
 	vd.reset()
 
-	dstValues := vd.values
-	for _, v := range src.values {
-		v = a.copyString(v)
-		dstValues = append(dstValues, v)
+	dstValues := slicesutil.SetLength(vd.values, len(src.values))
+	for i, v := range src.values {
+		dstValues[i] = a.copyString(v)
 	}
 	vd.values = dstValues
 }
@@ -1101,16 +1289,14 @@ func (vd *valuesDict) marshal(dst []byte) []byte {
 		logger.Panicf("BUG: valuesDict may contain max %d items; got %d items", maxDictLen, len(values))
 	}
 	dst = append(dst, byte(len(values)))
-	for _, v := range values {
-		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
-	}
+	dst = marshalStrings(dst, values)
 	return dst
 }
 
-// unmarshal unmarshals vd from src.
+// unmarshalInplace unmarshals vd from src.
 //
-// vd is valid until a.reset() is called.
-func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
+// vd is valid until src is changed.
+func (vd *valuesDict) unmarshalInplace(src []byte) ([]byte, error) {
 	vd.reset()
 
 	srcOrig := src
@@ -1126,7 +1312,7 @@ func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
 		}
 		src = src[nSize:]
 
-		v := a.copyBytesToString(data)
+		v := bytesutil.ToUnsafeString(data)
 		vd.values = append(vd.values, v)
 	}
 	return src, nil
@@ -1149,6 +1335,16 @@ func unmarshalUint32(v string) uint32 {
 func unmarshalUint64(v string) uint64 {
 	b := bytesutil.ToUnsafeBytes(v)
 	return encoding.UnmarshalUint64(b)
+}
+
+func unmarshalInt64(v string) int64 {
+	b := bytesutil.ToUnsafeBytes(v)
+	return encoding.UnmarshalInt64(b)
+}
+
+func marshalFloat64(dst []byte, f float64) []byte {
+	n := math.Float64bits(f)
+	return encoding.MarshalUint64(dst, n)
 }
 
 func unmarshalFloat64(v string) float64 {
@@ -1196,6 +1392,10 @@ func marshalUint32String(dst []byte, n uint32) []byte {
 
 func marshalUint64String(dst []byte, n uint64) []byte {
 	return strconv.AppendUint(dst, n, 10)
+}
+
+func marshalInt64String(dst []byte, n int64) []byte {
+	return strconv.AppendInt(dst, n, 10)
 }
 
 func marshalFloat64String(dst []byte, f float64) []byte {

@@ -21,14 +21,14 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Create a new table
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, nil, nil, &isReadOnly)
+	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 
 	// Close it
 	tb.MustClose()
 
 	// Re-open created table multiple times.
 	for i := 0; i < 4; i++ {
-		tb := MustOpenTable(path, nil, nil, &isReadOnly)
+		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 		tb.MustClose()
 	}
 }
@@ -40,7 +40,7 @@ func TestTableAddItemsTooLongItem(t *testing.T) {
 	}
 
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, nil, nil, &isReadOnly)
+	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 	tb.AddItems([][]byte{make([]byte, maxInmemoryBlockSize+1)})
 	tb.MustClose()
 	_ = os.RemoveAll(path)
@@ -61,7 +61,7 @@ func TestTableAddItemsSerial(t *testing.T) {
 		flushes.Add(1)
 	}
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, flushCallback, nil, &isReadOnly)
+	tb := MustOpenTable(path, 0, flushCallback, nil, &isReadOnly)
 
 	const itemsCount = 10e3
 	testAddItemsSerial(r, tb, itemsCount)
@@ -84,7 +84,7 @@ func TestTableAddItemsSerial(t *testing.T) {
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
-	tb = MustOpenTable(path, nil, nil, &isReadOnly)
+	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly)
 	const moreItemsCount = itemsCount * 3
 	testAddItemsSerial(r, tb, moreItemsCount)
 	tb.MustClose()
@@ -110,7 +110,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	}
 
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, nil, nil, &isReadOnly)
+	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 
 	// Write a lot of items into the table, so background merges would start.
 	const itemsCount = 3e5
@@ -122,26 +122,23 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	// Close and open the table in order to flush all the data to disk before creating snapshots.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4272#issuecomment-1550221840
 	tb.MustClose()
-	tb = MustOpenTable(path, nil, nil, &isReadOnly)
+	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly)
 
 	// Create multiple snapshots.
 	snapshot1 := path + "-test-snapshot1"
-	if err := tb.CreateSnapshotAt(snapshot1); err != nil {
-		t.Fatalf("cannot create snapshot1: %s", err)
-	}
+	tb.MustCreateSnapshotAt(snapshot1)
+
 	snapshot2 := path + "-test-snapshot2"
-	if err := tb.CreateSnapshotAt(snapshot2); err != nil {
-		t.Fatalf("cannot create snapshot2: %s", err)
-	}
+	tb.MustCreateSnapshotAt(snapshot2)
 
 	// Verify snapshots contain all the data.
-	tb1 := MustOpenTable(snapshot1, nil, nil, &isReadOnly)
-	tb2 := MustOpenTable(snapshot2, nil, nil, &isReadOnly)
+	tb1 := MustOpenTable(snapshot1, 0, nil, nil, &isReadOnly)
+	tb2 := MustOpenTable(snapshot2, 0, nil, nil, &isReadOnly)
 
 	var ts, ts1, ts2 TableSearch
-	ts.Init(tb)
-	ts1.Init(tb1)
-	ts2.Init(tb2)
+	ts.Init(tb, false)
+	ts1.Init(tb1, false)
+	ts2.Init(tb2, false)
 	for i := 0; i < itemsCount; i++ {
 		key := []byte(fmt.Sprintf("item %d", i))
 		if err := ts.FirstItemWithPrefix(key); err != nil {
@@ -214,7 +211,7 @@ func TestTableAddItemsConcurrentStress(t *testing.T) {
 	}
 
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, flushCallback, prepareBlock, &isReadOnly)
+	tb := MustOpenTable(path, 0, flushCallback, prepareBlock, &isReadOnly)
 
 	testAddItems(tb)
 
@@ -253,7 +250,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 		return data, items
 	}
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, flushCallback, prepareBlock, &isReadOnly)
+	tb := MustOpenTable(path, 0, flushCallback, prepareBlock, &isReadOnly)
 
 	const itemsCount = 10e3
 	testAddItemsConcurrent(tb, itemsCount)
@@ -276,7 +273,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
-	tb = MustOpenTable(path, nil, nil, &isReadOnly)
+	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly)
 	const moreItemsCount = itemsCount * 3
 	testAddItemsConcurrent(tb, moreItemsCount)
 	tb.MustClose()
@@ -315,7 +312,7 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 
 	for i := 0; i < 10; i++ {
 		var isReadOnly atomic.Bool
-		tb := MustOpenTable(path, nil, nil, &isReadOnly)
+		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
 		if n := m.TotalItemsCount(); n != uint64(itemsCount) {

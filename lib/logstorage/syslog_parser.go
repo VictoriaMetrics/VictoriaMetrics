@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +20,9 @@ import (
 func GetSyslogParser(currentYear int, timezone *time.Location) *SyslogParser {
 	v := syslogParserPool.Get()
 	if v == nil {
-		v = &SyslogParser{}
+		v = &SyslogParser{
+			unescaper: strings.NewReplacer(`\]`, `]`),
+		}
 	}
 	p := v.(*SyslogParser)
 	p.currentYear = currentYear
@@ -62,8 +63,11 @@ type SyslogParser struct {
 	// currentYear is used as the current year for rfc3164 messages.
 	currentYear int
 
-	// timezeon is used as the current timezeon for rfc3164 messages.
+	// timezone is used as the current timezone for rfc3164 messages.
 	timezone *time.Location
+
+	// unescaper is a replacer, which unescapes \] that is allowed in rfc5424, but breaks strings unquoting
+	unescaper *strings.Replacer
 }
 
 func (p *SyslogParser) reset() {
@@ -240,14 +244,20 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	sdID := s[:n]
 	s = s[n:]
 
+	if n := strings.IndexByte(sdID, '='); n >= 0 {
+		// Special case when sdID contains `key=value`
+		p.addField(sdID[:n], sdID[n+1:])
+		sdID = ""
+	}
+
 	// Parse structured data
 	i := 0
-	for i < len(s) && s[i] != ']' {
+	for i < len(s) && (s[i] != ']' || (i > 0 && s[i-1] == '\\')) {
 		// skip whitespace
-		if s[i] != ' ' {
-			return s, false
+		if s[i] == ' ' {
+			i++
+			continue
 		}
-		i++
 
 		// Parse name
 		n := strings.IndexByte(s[i:], '=')
@@ -257,24 +267,46 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 		i += n + 1
 
 		// Parse value
-		qp, err := strconv.QuotedPrefix(s[i:])
-		if err != nil {
-			return s, false
+		if s[i] == '"' {
+			valid := false
+			i++
+			for i < len(s) {
+				if s[i] == '"' && s[i-1] != '\\' {
+					valid = true
+					break
+				}
+				i++
+			}
+			if !valid {
+				return s, false
+			}
+			i++
+		} else {
+			n := strings.IndexAny(s[i:], " ]")
+			if n < 0 {
+				return s, false
+			}
+			i += n
 		}
-		i += len(qp)
 	}
 	if i == len(s) {
 		return s, false
 	}
 
-	sdValue := strings.TrimSpace(s[:i])
-
+	sdValue := p.unescaper.Replace(strings.TrimSpace(s[:i]))
 	p.sdParser.parse(sdValue)
 	if len(p.sdParser.fields) == 0 {
 		// Special case when structured data doesn't contain any fields
-		p.addField(sdID, "")
+		if sdID != "" {
+			p.addField(sdID, "")
+		}
 	} else {
 		for _, f := range p.sdParser.fields {
+			if sdID == "" {
+				p.addField(f.Name, f.Value)
+				continue
+			}
+
 			bufLen := len(p.buf)
 			p.buf = append(p.buf, sdID...)
 			p.buf = append(p.buf, '.')

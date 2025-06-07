@@ -51,30 +51,31 @@ type Series struct {
 	Measurement string
 	Field       string
 	LabelPairs  []LabelPair
+
+	// EmptyTags contains tags in measurement whose value must be empty.
+	EmptyTags []string
 }
 
 var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
 func (s Series) fetchQuery(timeFilter string) string {
-	f := &strings.Builder{}
-	fmt.Fprintf(f, "select %q from %q", s.Field, s.Measurement)
-	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 {
-		f.WriteString(" where")
+	conditions := make([]string, 0, len(s.LabelPairs)+len(s.EmptyTags))
+	for _, pair := range s.LabelPairs {
+		conditions = append(conditions, fmt.Sprintf("%q::tag='%s'", pair.Name, valueEscaper.Replace(pair.Value)))
 	}
-	for i, pair := range s.LabelPairs {
-		pairV := valueEscaper.Replace(pair.Value)
-		fmt.Fprintf(f, " %q::tag='%s'", pair.Name, pairV)
-		if i != len(s.LabelPairs)-1 {
-			f.WriteString(" and")
-		}
+	for _, label := range s.EmptyTags {
+		conditions = append(conditions, fmt.Sprintf("%q::tag=''", label))
 	}
 	if len(timeFilter) > 0 {
-		if len(s.LabelPairs) > 0 {
-			f.WriteString(" and")
-		}
-		fmt.Fprintf(f, " %s", timeFilter)
+		conditions = append(conditions, timeFilter)
 	}
-	return f.String()
+
+	q := fmt.Sprintf("select %q from %q", s.Field, s.Measurement)
+	if len(conditions) > 0 {
+		q += fmt.Sprintf(" where %s", strings.Join(conditions, " and "))
+	}
+
+	return q
 }
 
 // LabelPair is the key-value record
@@ -118,7 +119,7 @@ func NewClient(cfg Config) (*Client, error) {
 }
 
 // Database returns database name
-func (c Client) Database() string {
+func (c *Client) Database() string {
 	return c.database
 }
 
@@ -140,16 +141,18 @@ func timeFilter(start, end string) string {
 }
 
 // Explore checks the existing data schema in influx
-// by checking available fields and series,
+// by checking available (non-empty) tags, fields and measurements
 // which unique combination represents all possible
 // time series existing in database.
-// The explore required to reduce the load on influx
+// Explore is required to reduce the load on influx
 // by querying field of the exact time series at once,
-// instead of fetching all of the values over and over.
+// instead of fetching all the values over and over.
 //
 // May contain non-existing time series.
 func (c *Client) Explore() ([]*Series, error) {
 	log.Printf("Exploring scheme for database %q", c.database)
+
+	// {"measurement1": ["value1", "value2"]}
 	mFields, err := c.fieldsByMeasurement()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get field keys: %s", err)
@@ -157,6 +160,12 @@ func (c *Client) Explore() ([]*Series, error) {
 
 	if len(mFields) < 1 {
 		return nil, fmt.Errorf("found no numeric fields for import in database %q", c.database)
+	}
+
+	// {"measurement1": {"tag1", "tag2"}}
+	measurementTags, err := c.getMeasurementTags()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags of measurements: %s", err)
 	}
 
 	series, err := c.getSeries()
@@ -171,16 +180,39 @@ func (c *Client) Explore() ([]*Series, error) {
 			log.Printf("skip measurement %q since it has no fields", s.Measurement)
 			continue
 		}
+		emptyTags := getEmptyTags(measurementTags[s.Measurement], s.LabelPairs)
 		for _, field := range fields {
 			is := &Series{
 				Measurement: s.Measurement,
 				Field:       field,
 				LabelPairs:  s.LabelPairs,
+				EmptyTags:   emptyTags,
 			}
 			iSeries = append(iSeries, is)
 		}
 	}
 	return iSeries, nil
+}
+
+// getEmptyTags returns tags of a measurement that are missing in a specific series.
+// Tags represent all tags of a measurement. LabelPairs represent tags of a specific series.
+func getEmptyTags(tags map[string]struct{}, LabelPairs []LabelPair) []string {
+	if len(tags) == 0 {
+		// fast path: the measurement does not contain any tag
+		return nil
+	}
+
+	labelMap := make(map[string]struct{})
+	for _, pair := range LabelPairs {
+		labelMap[pair.Name] = struct{}{}
+	}
+	var result []string
+	for tag := range tags {
+		if _, ok := labelMap[tag]; !ok {
+			result = append(result, tag)
+		}
+	}
+	return result
 }
 
 // ChunkedResponse is a wrapper over influx.ChunkedResponse.
@@ -308,10 +340,7 @@ func (c *Client) fieldsByMeasurement() (map[string][]string, error) {
 }
 
 func (c *Client) getSeries() ([]*Series, error) {
-	com := "show series"
-	if c.filterSeries != "" {
-		com = fmt.Sprintf("%s %s", com, c.filterSeries)
-	}
+	com := c.getSeriesCommand()
 	q := influx.Query{
 		Command:         com,
 		Database:        c.database,
@@ -354,6 +383,72 @@ func (c *Client) getSeries() ([]*Series, error) {
 		}
 	}
 	log.Printf("found %d series", len(result))
+	return result, nil
+}
+
+func (c *Client) getSeriesCommand() string {
+	com := "show series"
+	if c.filterSeries != "" {
+		com = fmt.Sprintf("%s %s", com, c.filterSeries)
+	}
+	if c.filterTime != "" {
+		joinStatement := " where "
+		if strings.Contains(strings.ToLower(com), joinStatement) {
+			joinStatement = " AND "
+		}
+		com = fmt.Sprintf("%s%s%s", com, joinStatement, c.filterTime)
+	}
+	return com
+}
+
+// getMeasurementTags get the tags for each measurement.
+// tags are placed in a map without values (similar to a set) for quick lookups:
+// {"measurement1": {"tag1", "tag2"}, "measurement2": {"tag3", "tag4"}}
+func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
+	com := "show tag keys"
+	q := influx.Query{
+		Command:         com,
+		Database:        c.database,
+		RetentionPolicy: c.retention,
+		Chunked:         true,
+		ChunkSize:       c.chunkSize,
+	}
+
+	log.Printf("fetching tag keys: %s", stringify(q))
+	cr, err := c.QueryAsChunk(q)
+	if err != nil {
+		return nil, fmt.Errorf("error while executing query %q: %s", q.Command, err)
+	}
+
+	const tagKey = "tagKey"
+	var tagsCount int
+	result := make(map[string]map[string]struct{})
+	for {
+		resp, err := cr.NextResponse()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if resp.Error() != nil {
+			return nil, fmt.Errorf("response error for query %q: %s", q.Command, resp.Error())
+		}
+		qValues, err := parseResult(resp.Results[0])
+		if err != nil {
+			return nil, err
+		}
+		for _, qv := range qValues {
+			if result[qv.name] == nil {
+				result[qv.name] = make(map[string]struct{}, len(qv.values[tagKey]))
+			}
+			for _, tk := range qv.values[tagKey] {
+				result[qv.name][tk.(string)] = struct{}{}
+				tagsCount++
+			}
+		}
+	}
+	log.Printf("found %d tag(s) for %d measurements", tagsCount, len(result))
 	return result, nil
 }
 

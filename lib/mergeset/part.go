@@ -14,6 +14,7 @@ import (
 
 var idxbCache = blockcache.NewCache(getMaxIndexBlocksCacheSize)
 var ibCache = blockcache.NewCache(getMaxInmemoryBlocksCacheSize)
+var ibSparseCache = blockcache.NewCache(getMaxInmemoryBlocksSparseCacheSize)
 
 // SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlocks cache
 func SetIndexBlocksCacheSize(size int) {
@@ -48,9 +49,26 @@ func getMaxInmemoryBlocksCacheSize() int {
 	return maxInmemoryBlockCacheSize
 }
 
+// SetDataBlocksSparseCacheSize overrides the default size of indexdb/dataBlocksSparse cache
+func SetDataBlocksSparseCacheSize(size int) {
+	maxInmemorySparseMergeCacheSize = size
+}
+
+func getMaxInmemoryBlocksSparseCacheSize() int {
+	maxInmemoryBlockSparseCacheSizeOnce.Do(func() {
+		if maxInmemorySparseMergeCacheSize <= 0 {
+			maxInmemorySparseMergeCacheSize = int(0.05 * float64(memory.Allowed()))
+		}
+	})
+	return maxInmemorySparseMergeCacheSize
+}
+
 var (
 	maxInmemoryBlockCacheSize     int
 	maxInmemoryBlockCacheSizeOnce sync.Once
+
+	maxInmemorySparseMergeCacheSize     int
+	maxInmemoryBlockSparseCacheSizeOnce sync.Once
 )
 
 type part struct {
@@ -118,12 +136,13 @@ func (p *part) MustClose() {
 
 	idxbCache.RemoveBlocksForPart(p)
 	ibCache.RemoveBlocksForPart(p)
+	ibSparseCache.RemoveBlocksForPart(p)
 }
 
 type indexBlock struct {
 	bhs []blockHeader
 
-	// The buffer for holding the data referrred by bhs
+	// The buffer for holding the data referred by bhs
 	buf []byte
 }
 

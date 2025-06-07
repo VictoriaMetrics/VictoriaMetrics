@@ -1,9 +1,11 @@
 package config
 
 import (
-	"crypto/md5"
+	"bytes"
+	"flag"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"net/url"
 	"sort"
 	"strings"
@@ -11,9 +13,13 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+)
+
+var (
+	defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
 )
 
 // Group contains list of Rules grouped into
@@ -21,15 +27,15 @@ import (
 type Group struct {
 	Type       Type `yaml:"type,omitempty"`
 	File       string
-	Name       string              `yaml:"name"`
-	Interval   *promutils.Duration `yaml:"interval,omitempty"`
-	EvalOffset *promutils.Duration `yaml:"eval_offset,omitempty"`
+	Name       string             `yaml:"name"`
+	Interval   *promutil.Duration `yaml:"interval,omitempty"`
+	EvalOffset *promutil.Duration `yaml:"eval_offset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
-	EvalDelay   *promutils.Duration `yaml:"eval_delay,omitempty"`
-	Limit       int                 `yaml:"limit,omitempty"`
-	Rules       []Rule              `yaml:"rules"`
-	Concurrency int                 `yaml:"concurrency"`
+	EvalDelay   *promutil.Duration `yaml:"eval_delay,omitempty"`
+	Limit       int                `yaml:"limit,omitempty"`
+	Rules       []Rule             `yaml:"rules"`
+	Concurrency int                `yaml:"concurrency"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	// It has priority over the external labels.
 	Labels map[string]string `yaml:"labels"`
@@ -44,6 +50,8 @@ type Group struct {
 	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// EvalAlignment will make the timestamp of group query requests be aligned with interval
 	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
+	// Debug enables debug logs for the group
+	Debug bool `yaml:"debug,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]any `yaml:",inline"`
 }
@@ -58,12 +66,10 @@ func (g *Group) UnmarshalYAML(unmarshal func(any) error) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal group configuration for checksum: %w", err)
 	}
-	// change default value to prometheus datasource.
 	if g.Type.Get() == "" {
-		g.Type.Set(NewPrometheusType())
+		g.Type = NewRawType(*defaultRuleType)
 	}
-
-	h := md5.New()
+	h := fnv.New64a()
 	h.Write(b)
 	g.Checksum = fmt.Sprintf("%x", h.Sum(nil))
 	return nil
@@ -83,6 +89,9 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 	// if `eval_offset` is set, interval won't use global evaluationInterval flag and must bigger than offset.
 	if g.EvalOffset.Duration() > g.Interval.Duration() {
 		return fmt.Errorf("eval_offset should be smaller than interval; now eval_offset: %v, interval: %v", g.EvalOffset.Duration(), g.Interval.Duration())
+	}
+	if g.EvalOffset != nil && g.EvalDelay != nil {
+		return fmt.Errorf("eval_offset cannot be used with eval_delay")
 	}
 	if g.Limit < 0 {
 		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
@@ -128,15 +137,15 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 // recording rule or alerting rule.
 type Rule struct {
 	ID     uint64
-	Record string              `yaml:"record,omitempty"`
-	Alert  string              `yaml:"alert,omitempty"`
-	Expr   string              `yaml:"expr"`
-	For    *promutils.Duration `yaml:"for,omitempty"`
+	Record string             `yaml:"record,omitempty"`
+	Alert  string             `yaml:"alert,omitempty"`
+	Expr   string             `yaml:"expr"`
+	For    *promutil.Duration `yaml:"for,omitempty"`
 	// Alert will continue firing for this long even when the alerting expression no longer has results.
-	KeepFiringFor *promutils.Duration `yaml:"keep_firing_for,omitempty"`
-	Labels        map[string]string   `yaml:"labels,omitempty"`
-	Annotations   map[string]string   `yaml:"annotations,omitempty"`
-	Debug         bool                `yaml:"debug,omitempty"`
+	KeepFiringFor *promutil.Duration `yaml:"keep_firing_for,omitempty"`
+	Labels        map[string]string  `yaml:"labels,omitempty"`
+	Annotations   map[string]string  `yaml:"annotations,omitempty"`
+	Debug         *bool              `yaml:"debug,omitempty"`
 	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
 	// Overrides `-rule.updateEntriesLimit`.
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
@@ -258,7 +267,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	errGroup := new(utils.ErrGroup)
+	errGroup := new(vmalertutil.ErrGroup)
 	var groups []Group
 	for file, data := range files {
 		uniqueGroups := map[string]struct{}{}
@@ -298,16 +307,30 @@ func parseConfig(data []byte) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	g := struct {
+
+	var result []Group
+	type cfgFile struct {
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.
 		XXX map[string]any `yaml:",inline"`
-	}{}
-	err = yaml.Unmarshal(data, &g)
-	if err != nil {
-		return nil, err
 	}
-	return g.Groups, checkOverflow(g.XXX, "config")
+
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	for {
+		var cf cfgFile
+		if err = decoder.Decode(&cf); err != nil {
+			if err == io.EOF { // EOF indicates no more documents to read
+				break
+			}
+			return nil, err
+		}
+		if err = checkOverflow(cf.XXX, "config"); err != nil {
+			return nil, err
+		}
+		result = append(result, cf.Groups...)
+	}
+
+	return result, nil
 }
 
 func checkOverflow(m map[string]any, ctx string) error {

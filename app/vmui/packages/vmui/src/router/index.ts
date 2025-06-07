@@ -1,4 +1,4 @@
-import { AppType } from "../types/appType";
+import { APP_TYPE_LOGS } from "../constants/appType";
 
 const router = {
   home: "/",
@@ -15,6 +15,9 @@ const router = {
   icons: "/icons",
   anomaly: "/anomaly",
   query: "/query",
+  rawQuery: "/raw-query",
+  downsamplingDebug: "/downsampling-filters-debug",
+  retentionDebug: "/retention-filters-debug",
 };
 
 export interface RouterOptionsHeader {
@@ -31,21 +34,22 @@ export interface RouterOptions {
   header: RouterOptionsHeader
 }
 
-const { REACT_APP_TYPE } = process.env;
-const isLogsApp = REACT_APP_TYPE === AppType.logs;
-
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !isLogsApp,
-    timeSelector: !isLogsApp,
-    executionControls: !isLogsApp,
+    stepControl: !APP_TYPE_LOGS,
+    timeSelector: !APP_TYPE_LOGS,
+    executionControls: !APP_TYPE_LOGS,
   }
 };
 
-export const routerOptions: {[key: string]: RouterOptions} = {
+export const routerOptions: { [key: string]: RouterOptions } = {
   [router.home]: {
     title: "Query",
+    ...routerOptionsDefault
+  },
+  [router.rawQuery]: {
+    title: "Raw query",
     ...routerOptionsDefault
   },
   [router.metrics]: {
@@ -108,6 +112,14 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.query]: {
     title: "Query",
     ...routerOptionsDefault
+  },
+  [router.downsamplingDebug]: {
+    title: "Downsampling filters debug",
+    header: {}
+  },
+  [router.retentionDebug]: {
+    title: "Retention filters debug",
+    header: {}
   }
 };
 

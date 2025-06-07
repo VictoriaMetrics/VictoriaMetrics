@@ -9,8 +9,9 @@ import useBoolean from "../../hooks/useBoolean";
 import UploadJsonButtons from "../../components/UploadJsonButtons/UploadJsonButtons";
 import JsonForm from "./JsonForm/JsonForm";
 import "../TracePage/style.scss";
+import "./style.scss";
 import QueryAnalyzerView from "./QueryAnalyzerView/QueryAnalyzerView";
-import { InstantMetricResult, MetricResult, TracingData } from "../../api/types";
+import { InstantMetricResult, MetricResult, ReportMetaData, TracingData } from "../../api/types";
 import QueryAnalyzerInfo from "./QueryAnalyzerInfo/QueryAnalyzerInfo";
 import { TimeParams } from "../../types";
 import { dateFromSeconds, formatDateToUTC, humanizeSeconds } from "../../utils/time";
@@ -21,15 +22,8 @@ export type DataAnalyzerType = {
     resultType: "vector" | "matrix";
     result: MetricResult[] | InstantMetricResult[]
   };
-  stats?: {
-    seriesFetched?: string;
-    executionTimeMsec?: number
-  };
-  vmui?: {
-    id: number;
-    comment: string;
-    params: Record<string, string>;
-  };
+  stats?: Record<string, string>;
+  vmui?: ReportMetaData;
   status: string;
   trace?: TracingData;
   isPartial?: boolean;
@@ -92,10 +86,12 @@ const QueryAnalyzer: FC = () => {
         setData(response);
       } else {
         setError("Invalid structure - JSON does not match the expected format");
+        setData([]);
       }
     } catch (e) {
       if (e instanceof Error) {
         setError(`${e.name}: ${e.message}`);
+        setData([]);
       }
     }
   };
@@ -112,10 +108,12 @@ const QueryAnalyzer: FC = () => {
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target) return;
+    const target = e.target as HTMLInputElement;
     setError("");
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(target.files || []);
     handleReadFiles(files);
-    e.target.value = "";
+    target.value = "";
   };
 
   const handleCloseError = () => {
@@ -129,33 +127,16 @@ const QueryAnalyzer: FC = () => {
   }, [files]);
 
   return (
-    <div className="vm-trace-page">
+    <div className="vm-query-analyzer">
       {hasData && (
-        <div className="vm-trace-page-header">
-          <div className="vm-trace-page-header-errors">
-            <QueryAnalyzerInfo
-              data={data}
-              period={period}
-            />
-          </div>
-          <div>
-            <UploadJsonButtons
-              onOpenModal={handleOpenModal}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="vm-trace-page-header-errors-item vm-trace-page-header-errors-item_margin-bottom">
-          <Alert variant="error">{error}</Alert>
-          <Button
-            className="vm-trace-page-header-errors-item__close"
-            startIcon={<CloseIcon/>}
-            variant="text"
-            color="error"
-            onClick={handleCloseError}
+        <div className="vm-query-analyzer-header">
+          <QueryAnalyzerInfo
+            data={data}
+            period={period}
+          />
+          <UploadJsonButtons
+            onOpenModal={handleOpenModal}
+            onChange={handleChange}
           />
         </div>
       )}
@@ -181,6 +162,19 @@ const QueryAnalyzer: FC = () => {
           <UploadJsonButtons
             onOpenModal={handleOpenModal}
             onChange={handleChange}
+          />
+        </div>
+      )}
+
+      {error && (
+        <div className="vm-query-analyzer-error">
+          <Alert variant="error">{error}</Alert>
+          <Button
+            className="vm-query-analyzer-error__close"
+            startIcon={<CloseIcon/>}
+            variant="text"
+            color="error"
+            onClick={handleCloseError}
           />
         </div>
       )}

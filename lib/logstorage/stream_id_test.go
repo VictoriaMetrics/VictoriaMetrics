@@ -6,23 +6,27 @@ import (
 )
 
 func TestStreamIDMarshalUnmarshalString(t *testing.T) {
-	f := func(sid *streamID) {
+	f := func(sid *streamID, resultExpected string) {
 		t.Helper()
 
-		s := string(sid.marshalString(nil))
+		result := string(sid.marshalString(nil))
 
-		var sid2 streamID
-		if !sid2.tryUnmarshalFromString(s) {
-			t.Fatalf("cannot unmarshal streamID from %q", s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%q\nwant\n%q", result, resultExpected)
 		}
 
-		s2 := string(sid2.marshalString(nil))
-		if s != s2 {
-			t.Fatalf("unexpected marshaled streamID; got %s; want %s", s2, s)
+		var sid2 streamID
+		if !sid2.tryUnmarshalFromString(result) {
+			t.Fatalf("cannot unmarshal streamID from %q", result)
+		}
+
+		result2 := string(sid2.marshalString(nil))
+		if result != result2 {
+			t.Fatalf("unexpected marshaled streamID; got %s; want %s", result2, result)
 		}
 	}
 
-	f(&streamID{})
+	f(&streamID{}, "000000000000000000000000000000000000000000000000")
 	f(&streamID{
 		tenantID: TenantID{
 			AccountID: 123,
@@ -32,7 +36,7 @@ func TestStreamIDMarshalUnmarshalString(t *testing.T) {
 			lo: 89,
 			hi: 344334,
 		},
-	})
+	}, "0000007b000001c8000000000005410e0000000000000059")
 }
 
 func TestStreamIDMarshalUnmarshal(t *testing.T) {

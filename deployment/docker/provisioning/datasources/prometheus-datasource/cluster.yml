@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+    - name: VictoriaMetrics - cluster
+      type: prometheus
+      access: proxy
+      url: http://vmauth:8427/select/0/prometheus
+      isDefault: true
+      jsonData:
+        prometheusType: Prometheus
+        prometheusVersion: 2.24.0

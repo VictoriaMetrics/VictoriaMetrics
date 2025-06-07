@@ -24,6 +24,7 @@
   &_sidebar {
     display: grid;
     grid-template-columns: 40px auto 1fr;
+    box-shadow: $color-background-body 0 1px 1px 0px;
   }
 
   &_mobile {
@@ -47,25 +48,20 @@
     justify-content: flex-start;
     cursor: pointer;
     width: 100%;
-    max-width: 65px;
-    min-width: 65px;
+    max-width: 75px;
+    min-width: 75px;
     margin-bottom: 2px;
     overflow: hidden;
 
     svg {
-      max-width: 65px;
-      min-width: 65px;
+      max-width: 75px;
+      min-width: 75px;
     }
 
     &_mobile {
-      max-width: 65px;
-      min-width: 65px;
-      margin: 0 auto;
-    }
-
-    &_logs, &_logs svg {
       max-width: 75px;
       min-width: 75px;
+      margin: 0 auto;
     }
   }
 }

@@ -46,7 +46,9 @@ func main() {
 	vlselect.Init()
 	vlinsert.Init()
 
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	})
 	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/victorialogs/", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -90,6 +92,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if vlselect.RequestHandler(w, r) {
+		return true
+	}
+	if vlstorage.RequestHandler(w, r) {
 		return true
 	}
 	return false

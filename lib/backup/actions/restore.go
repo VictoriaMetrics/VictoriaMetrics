@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,12 +9,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // Restore restores data according to the provided settings.
@@ -40,7 +42,7 @@ type Restore struct {
 }
 
 // Run runs r with the provided settings.
-func (r *Restore) Run() error {
+func (r *Restore) Run(ctx context.Context) error {
 	startTime := time.Now()
 
 	// Make sure VictoriaMetrics doesn't run during the restore process.
@@ -155,7 +157,7 @@ func (r *Restore) Run() error {
 		}
 		logger.Infof("downloading %d parts from %s to %s", len(partsToCopy), src, dst)
 		var bytesDownloaded atomic.Uint64
-		err = runParallelPerPath(concurrency, perPath, func(parts []common.Part) error {
+		err = runParallelPerPath(ctx, concurrency, perPath, func(parts []common.Part) error {
 			// Sort partsToCopy in order to properly grow file size during downloading
 			// and to properly resume downloading of incomplete files on the next Restore.Run call.
 			common.SortParts(parts)
@@ -219,7 +221,7 @@ func createRestoreLock(dstDir string) error {
 func removeRestoreLock(dstDir string) error {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	if err := os.Remove(lockF); err != nil {
-		return fmt.Errorf("cannote remove restore lock file %q: %w", lockF, err)
+		return fmt.Errorf("cannot remove restore lock file %q: %w", lockF, err)
 	}
 	return nil
 }

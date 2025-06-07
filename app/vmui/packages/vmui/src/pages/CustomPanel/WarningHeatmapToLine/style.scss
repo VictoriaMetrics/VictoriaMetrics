@@ -1,0 +1,7 @@
+@use "src/styles/variables" as *;
+
+.vm-warning-heatmap-to-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

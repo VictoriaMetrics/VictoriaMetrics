@@ -97,6 +97,10 @@ type Search struct {
 	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
 
+	// putIndexDB decrements the idb ref counter. Must be called in
+	// Search.MustClose().
+	putIndexDB func()
+
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
 
@@ -118,6 +122,9 @@ type Search struct {
 	loops int
 
 	prevMetricID uint64
+
+	// metricGroupBuf holds metricGroup used for metric names tracker
+	metricGroupBuf []byte
 }
 
 func (s *Search) reset() {
@@ -125,6 +132,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.idb = nil
+	s.putIndexDB = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -134,6 +142,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricGroupBuf = nil
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -144,13 +153,17 @@ func (s *Search) reset() {
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
+
+	indexTR := storage.adjustTimeRange(tr)
+	dataTR := tr
+
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.idb = storage.idb()
+	s.idb, s.putIndexDB = storage.getCurrIndexDB()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -158,17 +171,17 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.needClosing = true
 
 	var tsids []TSID
-	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, deadline)
 	if err == nil {
 		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 		if err == nil {
-			err = storage.prefetchMetricNames(qt, metricIDs, deadline)
+			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
 		}
 	}
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
-	s.ts.Init(storage.tb, tsids, tr)
+	s.ts.Init(storage.tb, tsids, dataTR)
 	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
 		s.err = err
@@ -183,6 +196,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
+	s.putIndexDB()
 	s.reset()
 }
 
@@ -214,11 +228,23 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
+			}
+			// for performance reasons parse metricGroup conditionally
+			if s.idb.s.metricsTracker != nil {
+				var err error
+				// MetricName must be sorted and marshalled with MetricName.Marshal()
+				// it guarantees that first tag is metricGroup
+				_, s.metricGroupBuf, err = unmarshalTagValue(s.metricGroupBuf[:0], s.MetricBlockRef.MetricName)
+				if err != nil {
+					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
+					return false
+				}
+				s.idb.s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}

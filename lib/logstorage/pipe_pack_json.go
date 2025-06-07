@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"slices"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipePackJSON processes '| pack_json ...' pipe.
@@ -11,13 +13,14 @@ import (
 type pipePackJSON struct {
 	resultField string
 
-	fields []string
+	// the field names and/or field name prefixes to put inside the packed json
+	fieldFilters []string
 }
 
 func (pp *pipePackJSON) String() string {
 	s := "pack_json"
-	if len(pp.fields) > 0 {
-		s += " fields (" + fieldsToString(pp.fields) + ")"
+	if len(pp.fieldFilters) > 0 {
+		s += " fields (" + fieldNamesString(pp.fieldFilters) + ")"
 	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)
@@ -25,47 +28,51 @@ func (pp *pipePackJSON) String() string {
 	return s
 }
 
+func (pp *pipePackJSON) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pp, nil
+}
+
 func (pp *pipePackJSON) canLiveTail() bool {
 	return true
 }
 
-func (pp *pipePackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
-}
-
-func (pp *pipePackJSON) optimize() {
-	// nothing to do
+func (pp *pipePackJSON) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForPipePack(pf, pp.resultField, pp.fieldFilters)
 }
 
 func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackJSON) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pp, nil
 }
 
-func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToJSON)
+func (pp *pipePackJSON) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
-func parsePackJSON(lex *lexer) (*pipePackJSON, error) {
+func (pp *pipePackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	return newPipePackProcessor(ppNext, pp.resultField, pp.fieldFilters, MarshalFieldsToJSON)
+}
+
+func parsePipePackJSON(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("pack_json") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "pack_json")
 	}
 	lex.nextToken()
 
-	var fields []string
+	var fieldFilters []string
 	if lex.isKeyword("fields") {
 		lex.nextToken()
-		fs, err := parseFieldNamesInParens(lex)
+		fs, err := parseFieldFiltersInParens(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse fields: %w", err)
 		}
 		if slices.Contains(fs, "*") {
 			fs = nil
 		}
-		fields = fs
+		fieldFilters = fs
 	}
 
 	// parse optional 'as ...` part
@@ -82,8 +89,8 @@ func parsePackJSON(lex *lexer) (*pipePackJSON, error) {
 	}
 
 	pp := &pipePackJSON{
-		resultField: resultField,
-		fields:      fields,
+		resultField:  resultField,
+		fieldFilters: fieldFilters,
 	}
 
 	return pp, nil

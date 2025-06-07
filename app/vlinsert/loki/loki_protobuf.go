@@ -2,38 +2,27 @@ package loki
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 var (
-	bytesBufPool bytesutil.ByteBufferPool
 	pushReqsPool sync.Pool
 )
 
 func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
-	wcr := writeconcurrencylimiter.GetReader(r.Body)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
 
 	cp, err := getCommonParams(r)
 	if err != nil {
@@ -44,59 +33,67 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.NewLogMessageProcessor()
-	n, err := parseProtobufRequest(data, lmp)
-	lmp.MustClose()
+
+	encoding := r.Header.Get("Content-Encoding")
+	if encoding == "" {
+		// Loki protocol uses snappy compression by default.
+		// See https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
+		encoding = "snappy"
+	}
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.cp.NewLogMessageProcessor("loki_protobuf", false)
+		useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+		err := parseProtobufRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
+		httpserver.Errorf(w, r, "cannot read Loki protobuf data: %s", err)
 		return
 	}
-
-	rowsIngestedProtobufTotal.Add(n)
 
 	// update requestProtobufDuration only for successfully parsed requests
 	// There is no need in updating requestProtobufDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	requestProtobufDuration.UpdateDuration(startTime)
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505
+	w.WriteHeader(http.StatusNoContent)
 }
 
 var (
-	requestsProtobufTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
-	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="protobuf"}`)
-	requestProtobufDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
+	requestsProtobufTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
+	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
-func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
-	bb := bytesBufPool.Get()
-	defer bytesBufPool.Put(bb)
-
-	buf, err := snappy.Decode(bb.B[:cap(bb.B)], data)
-	if err != nil {
-		return 0, fmt.Errorf("cannot decode snappy-encoded request body: %w", err)
-	}
-	bb.B = buf
-
+func parseProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
 	req := getPushRequest()
 	defer putPushRequest(req)
 
-	err = req.UnmarshalProtobuf(bb.B)
+	err := req.UnmarshalProtobuf(data)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse request body: %w", err)
+		return fmt.Errorf("cannot parse request body: %w", err)
 	}
 
 	fields := getFields()
 	defer putFields(fields)
 
-	rowsIngested := 0
+	var msgParser *logstorage.JSONParser
+	if parseMessage {
+		msgParser = logstorage.GetJSONParser()
+		defer logstorage.PutJSONParser(msgParser)
+	}
+
 	streams := req.Streams
 	currentTimestamp := time.Now().UnixNano()
+
 	for i := range streams {
 		stream := &streams[i]
 		// st.Labels contains labels for the stream.
 		// Labels are same for all entries in the stream.
 		fields.fields, err = parsePromLabels(fields.fields[:0], stream.Labels)
 		if err != nil {
-			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %w", stream.Labels, err)
+			return fmt.Errorf("cannot parse stream labels %q: %w", stream.Labels, err)
 		}
 		commonFieldsLen := len(fields.fields)
 
@@ -112,21 +109,25 @@ func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int
 				})
 			}
 
-			fields.fields = append(fields.fields, logstorage.Field{
-				Name:  "_msg",
-				Value: e.Line,
-			})
+			allowMsgRenaming := false
+			fields.fields, allowMsgRenaming = addMsgField(fields.fields, msgParser, e.Line)
 
 			ts := e.Timestamp.UnixNano()
 			if ts == 0 {
 				ts = currentTimestamp
 			}
 
-			lmp.AddRow(ts, fields.fields)
+			var streamFields []logstorage.Field
+			if useDefaultStreamFields {
+				streamFields = fields.fields[:commonFieldsLen]
+			}
+			if allowMsgRenaming {
+				logstorage.RenameField(fields.fields[commonFieldsLen:], msgFields, "_msg")
+			}
+			lmp.AddRow(ts, fields.fields, streamFields)
 		}
-		rowsIngested += len(stream.Entries)
 	}
-	return rowsIngested, nil
+	return nil
 }
 
 func getFields() *fields {

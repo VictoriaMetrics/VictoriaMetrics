@@ -263,22 +263,22 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	switch action {
 	case "graphite":
 		if graphiteMatchTemplate == nil {
-			return nil, fmt.Errorf("missing `match` for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
+			return nil, fmt.Errorf("missing `match` for `action=graphite`; see https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling")
 		}
 		if len(graphiteLabelRules) == 0 {
-			return nil, fmt.Errorf("missing `labels` for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
+			return nil, fmt.Errorf("missing `labels` for `action=graphite`; see https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling")
 		}
 		if len(rc.SourceLabels) > 0 {
-			return nil, fmt.Errorf("`source_labels` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
+			return nil, fmt.Errorf("`source_labels` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling")
 		}
 		if rc.TargetLabel != "" {
-			return nil, fmt.Errorf("`target_label` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
+			return nil, fmt.Errorf("`target_label` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling")
 		}
 		if rc.Replacement != nil {
-			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
+			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling")
 		}
 		if rc.Regex != nil {
-			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
+			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/victoriametrics/vmagent/#graphite-relabeling")
 		}
 	case "replace":
 		if targetLabel == "" {
@@ -293,7 +293,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 	case "keep_if_contains":
 		if targetLabel == "" {
-			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_containes`")
+			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_contains`")
 		}
 		if len(sourceLabels) == 0 {
 			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=keep_if_contains`")
@@ -303,7 +303,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 	case "drop_if_contains":
 		if targetLabel == "" {
-			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_containes`")
+			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_contains`")
 		}
 		if len(sourceLabels) == 0 {
 			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=drop_if_contains`")

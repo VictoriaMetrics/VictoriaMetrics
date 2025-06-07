@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackSyslog processes '| unpack_syslog ...' pipe.
@@ -46,24 +48,24 @@ func (pu *pipeUnpackSyslog) String() string {
 	return s
 }
 
+func (pu *pipeUnpackSyslog) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pu, nil
+}
+
 func (pu *pipeUnpackSyslog) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnpackSyslog) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, neededFields, unneededFields)
-}
-
-func (pu *pipeUnpackSyslog) optimize() {
-	pu.iff.optimizeFilterIn()
+func (pu *pipeUnpackSyslog) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, pf)
 }
 
 func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackSyslog) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pu *pipeUnpackSyslog) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,11 @@ func (pu *pipeUnpackSyslog) initFilterInValues(cache map[string][]string, getFie
 	return &puNew, nil
 }
 
-func (pu *pipeUnpackSyslog) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackSyslog) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
+func (pu *pipeUnpackSyslog) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackSyslog := func(uctx *fieldsUnpackerContext, s string) {
 		year := currentYear.Load()
 		p := GetSyslogParser(int(year), pu.offsetTimezone)
@@ -85,7 +91,7 @@ func (pu *pipeUnpackSyslog) newPipeProcessor(workersCount int, _ <-chan struct{}
 		PutSyslogParser(p)
 	}
 
-	return newPipeUnpackProcessor(workersCount, unpackSyslog, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, false, pu.iff)
+	return newPipeUnpackProcessor(unpackSyslog, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, false, pu.iff)
 }
 
 var currentYear atomic.Int64
@@ -105,7 +111,7 @@ func init() {
 	}()
 }
 
-func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
+func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_syslog") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_syslog")
 	}
@@ -121,8 +127,10 @@ func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
 	}
 
 	fromField := "_msg"
-	if lex.isKeyword("from") {
-		lex.nextToken()
+	if !lex.isKeyword("offset", "result_prefix", "keep_original_fields", ")", "|", "") {
+		if lex.isKeyword("from") {
+			lex.nextToken()
+		}
 		f, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)

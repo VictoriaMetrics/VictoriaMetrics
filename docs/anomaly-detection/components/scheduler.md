@@ -5,13 +5,17 @@ menu:
   docs:
     parent: "vmanomaly-components"
     weight: 3
+tags:
+  - metrics
+  - enterprise
 aliases:
   - /anomaly-detection/components/scheduler.html
 ---
+
 Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
 Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 
-> **Note: Starting from [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110) scheduler section in config supports multiple schedulers via aliasing. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
+> Scheduler section in config supports multiple schedulers via **aliasing** {{% available_from "v1.11.0" anomaly %}}. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.
 
 ```yaml
 schedulers:
@@ -28,7 +32,7 @@ schedulers:
 ...
 ```  
 
-Old-style configs (< [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110))
+Old-style configs {{% deprecated_from "v1.11.0" anomaly %}}
 
 ```yaml
 scheduler:
@@ -60,7 +64,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 -  `"scheduler.oneoff.OneoffScheduler"`: runs the process once and exits. Useful for testing.
 -  `"scheduler.backtesting.BacktestingScheduler"`: imitates consecutive backtesting runs of OneoffScheduler. Runs the process once and exits. Use to get more granular control over testing on historical data.
 
-> **Note**: starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), class aliases are supported, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
+> **Class aliases** are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
 **Depending on selected class, different parameters should be used**
 
@@ -109,47 +113,77 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <th>Parameter</th>
             <th>Type</th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>
 
-`fit_window`
+<span style="white-space: nowrap;">`fit_window`</span>
             </td>
             <td>str</td>
             <td>
 
-`"14d"`
+`14d`
             </td>
             <td>What time range to use for training the models. Must be at least 1 second.</td>
         </tr>
         <tr>
             <td>
 
-`infer_every`
+<span style="white-space: nowrap;">`infer_every`</span>
             </td>
             <td>str</td>
             <td>
 
-`"1m"`
+`1m`
             </td>
-            <td>How often a model will write its conclusions on newly added data. Must be at least 1 second.</td>
+            <td>How often a model produce and write its anomaly scores on new datapoints. Must be at least 1 second.</td>
         </tr>
         <tr>
             <td>
 
-`fit_every`
+<span style="white-space: nowrap;">`fit_every`</span>
             </td>
             <td>str, Optional</td>
             <td>
 
-`"1h"`
+`1h`
             </td>
             <td>
 
-How often to completely retrain the models. If missing value of `infer_every` is used and retrain on every inference run.
+How often to completely retrain the models. If not set, value of `infer_every` is used and retrain happens on every inference run.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`start_from`{{% available_from "v1.18.5" anomaly %}}</span>
+            </td>
+            <td>str, <span style="white-space: nowrap;">Optional</span></td>
+            <td>
+
+<span style="white-space: nowrap;">`2024-11-26T01:00:00Z`</span>, `01:00`
+            </td>
+            <td>
+
+Specifies when to initiate the first `fit_every` call. Accepts either an ISO 8601 datetime or a time in HH:MM format. If the specified time is in the past, the next suitable time is calculated based on the `fit_every` interval. For the HH:MM format, if the time is in the past, it will be scheduled for the same time on the following day, respecting the `tz` argument if provided. By default, the timezone defaults to `UTC`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`tz`{{% available_from "v1.18.5" anomaly %}}</span>
+            </td>
+            <td>str, <span style="white-space: nowrap;">Optional</span></td>
+            <td>
+
+`America/New_York`
+            </td>
+            <td>
+
+Defines the local timezone for the `start_from` parameter, if specified. Defaults to `UTC` if no timezone is provided.
             </td>
         </tr>
     </tbody>
@@ -161,13 +195,15 @@ How often to completely retrain the models. If missing value of `infer_every` is
 schedulers:
   periodic_scheduler_alias:
     class: "periodic"
-    # (or class: "scheduler.periodic.PeriodicScheduler" until v1.13.0 with class alias support)
+    # (or class: "scheduler.periodic.PeriodicScheduler" for versions before v1.13.0, without class alias support)
     fit_window: "14d" 
     infer_every: "1m" 
-    fit_every: "1h" 
+    fit_every: "1h"
+    start_from: "20:00"  # If launched before 20:00 (local Kyiv time), the first run starts today at 20:00. Otherwise, it starts tomorrow at 20:00.
+    tz: "Europe/Kyiv"  # Defaults to 'UTC' if not specified.
 ```
 
-This part of the config means that `vmanomaly` will calculate the time window of the previous 14 days and use it to train a model. Every hour model will be retrained again on 14 days’ data, which will include + 1 hour of new data. The time window is strictly the same 14 days and doesn't extend for the next retrains. Every minute `vmanomaly` will produce model inferences for newly added data points by using the model that is kept in memory at that time.
+This configuration specifies that `vmanomaly` will calculate a 14-day time window from the time of `fit_every` call to train the model. Starting at 20:00 Kyiv local time today (or tomorrow if launched after 20:00), the model will be retrained every hour using the most recent 14-day window, which always includes an additional hour of new data. The time window remains strictly 14 days and does not extend with subsequent retrains. Additionally, `vmanomaly` will perform model inference every minute, processing newly added data points using the most recent model.
 
 ## Oneoff scheduler 
 
@@ -185,11 +221,11 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
+            <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -197,7 +233,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`fit_start_iso`
+<span style="white-space: nowrap;">`fit_start_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -210,16 +246,19 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`fit_start_s`
+<span style="white-space: nowrap;">`fit_start_s`</span>
             </td>
-            <td>float</td>
+            <td>
+
+<span style="white-space: nowrap;">float</span>
+            </td>
             <td>1648771200</td>
         </tr>
         <tr>
             <td>ISO 8601</td>
             <td>
 
-`fit_end_iso`
+<span style="white-space: nowrap;">`fit_end_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -235,7 +274,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`fit_end_s`
+<span style="white-space: nowrap;">`fit_end_s`</span>
             </td>
             <td>float</td>
             <td>1649548800</td>
@@ -247,11 +286,11 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
+            <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -259,7 +298,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`infer_start_iso`
+<span style="white-space: nowrap;">`infer_start_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -272,16 +311,19 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`infer_start_s`
+<span style="white-space: nowrap;">`infer_start_s`</span>
             </td>
-            <td>float</td>
+            <td>
+
+<span style="white-space: nowrap;">float</span>
+            </td>
             <td>1649635200</td>
         </tr>
         <tr>
             <td>ISO 8601</td>
             <td>
 
-`infer_end_iso`
+<span style="white-space: nowrap;">`infer_end_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -297,7 +339,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`infer_end_s`
+<span style="white-space: nowrap;">`infer_end_s`</span>
             </td>
             <td>float</td>
             <td>1649894400</td>
@@ -332,6 +374,14 @@ schedulers:
 
 ## Backtesting scheduler
 
+> A new, more intuitive backtesting mode is available {{% available_from "v1.22.1" anomaly %}}. In **Inference only** mode, the window you specify via `[from, to]` (or `[from_iso, to_iso]`) is used *solely for inference*, and the corresponding training (“fit”) windows are determined automatically. To enable this behavior, set:
+> ```yaml
+> inference_only: true
+> ```
+>
+> in your scheduler configuration. (The default is `false` for backward-compatibility.) For full details, see [Inference only mode](#inference-only-mode).
+
+
 ### Parameters
 As for [Oneoff scheduler](#oneoff-scheduler), timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
 ISO format supported time zone offset formats are:
@@ -346,9 +396,18 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
+            <th>
+
+<span style="white-space: nowrap;">Parameter</span>
+</th>
+            <th>
+
+<span style="white-space: nowrap;">Type</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Example</span>
+</th>
             <th>Description</th>  
         </tr>
     </thead>
@@ -356,9 +415,9 @@ If a time zone is omitted, a timezone-naive datetime is used.
         <tr>
             <td>
 
-`n_jobs`
+<span style="white-space: nowrap;">`n_jobs`</span>
             </td>
-            <td>int</td>
+            <td><span style="white-space: nowrap;">int</span></td>
             <td>
 
 `1`
@@ -371,27 +430,87 @@ Allows *proportionally faster (yet more resource-intensive)* evaluations of a co
     </tbody>
 </table>
 
+### Inference only mode
+
+In **Inference only** mode {{% available_from "v1.22.1" anomaly %}}, the scheduler splits your overall time window into non-overlapping inference segments and automatically derives the preceding training segments:
+
+1. **Inference Window**  
+   - Defined by your `from`/`to` (or `from_iso`/`to_iso`) parameters.
+   - Each inference segment spans the configured `fit_every` duration.
+2. **Training Window**  
+   - Automatically set to the configured `fit_window` immediately preceding each inference segment.
+   - Ensures each model is trained on the most recent `fit_window` of data before inferring, see [example](#example) section for the details
+
+#### Configuration Parameters
+- `inference_only: true`: Enables of such inference-only behavior.
+- `from`, `to` (or `from_iso`, `to_iso`): Overall inference-only timeframe.
+- `fit_window`: Duration of historical data used for each training run (e.g. `P7D`, `PT1H`).
+- `fit_every`: Interval between consecutive training/inference cycles.
+- `n_jobs`: Number of parallel jobs for backtesting (default: `1`).
+
+#### Example
+
+The config
+
+```yaml
+# other config sections ...
+schedulers:
+  backtesting_inference_only:       # scheduler alias
+    class: "backtesting"
+    fit_window: "P7D"               # train on the 7-day window preceding each inference
+    fit_every: "PT12H"              # inference interval of 12 hours
+    inference_only: true            # use [from, to] to construct inference windows only
+    from_iso: "2025-05-08T03:00:00Z"
+    to_iso:   "2025-05-09T00:00:00Z"
+    n_jobs: 2                       # number of parallel jobs
+```
+
+will result in 2 intervals:
+
+- Complete inference interval (12h): `2025-05-08T12:00:00Z` - `2025-05-09T00:00:00Z`
+<br>Training window (7d): `2025-05-01T12:00:00Z` - `2025-05-08T12:00:00Z`
+
+- Partial inference interval (9h): `2025-05-08T03:00:00Z` - `2025-05-08T12:00:00Z` 
+<br>(start is "clipped" by `from_iso` so it's less than `fit_every`)
+<br>Training window (7d): `2025-05-01T03:00:00Z` - `2025-05-08T03:00:00Z`
+
+Where models, fit on training window, will be used to calculate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) on respective inference windows.
+
 ### Defining overall timeframe
+
+> This legacy mode is retained for backward compatibility and is less straightforward. Use it only if you cannot upgrade `vmanomaly` to [v1.22.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1221) or later.
 
 This timeframe will be used for slicing on intervals `(fit_window, infer_window == fit_every)`, starting from the *latest available* time point, which is `to_*` and going back, until no full `fit_window + infer_window` interval exists within the provided timeframe.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
-            <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th>
+
+<span style="white-space: nowrap;">Format</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Parameter</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Type</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Example</span>
+            </th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
-            <td>ISO 8601</td>
+            <td><span style="white-space: nowrap;">ISO 8601</span></td>
             <td>
 
-`from_iso`
+<span style="white-space: nowrap;">`from_iso`</span>
             </td>
-            <td>str</td>
+            <td><span style="white-space: nowrap;">str</span></td>
             <td>
 
 `"2022-04-01T00:00:00Z", "2022-04-01T00:00:00+01:00", "2022-04-01T00:00:00+0100", "2022-04-01T00:00:00+01"`
@@ -402,7 +521,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>UNIX time</td>
             <td>
 
-`from_s`
+<span style="white-space: nowrap;">`from_s`</span>
             </td>
             <td>float</td>
             <td>1648771200</td>
@@ -411,7 +530,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>ISO 8601</td>
             <td>
 
-`to_iso`
+<span style="white-space: nowrap;">`to_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -427,7 +546,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>UNIX time</td>
             <td>
 
-`to_s`
+<span style="white-space: nowrap;">`to_s`</span>
             </td>
             <td>float</td>
             <td>1649548800</td>
@@ -440,11 +559,11 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Example</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -452,12 +571,12 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <td>ISO 8601</td>
             <td rowspan=2>
 
-`fit_window`
+<span style="white-space: nowrap;">`fit_window`</span>
             </td>
             <td rowspan=2>str</td>
             <td>
 
-`"PT1M", "P1H"`
+<span style="white-space: nowrap;">`"PT1M"`</span>, `"P1H"`
             </td>
             <td rowspan=2>What time range to use for training the models. Must be at least 1 second.</td>
         </tr>
@@ -465,7 +584,7 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <td>Prometheus-compatible</td>
             <td>
 
-`"1m", "1h"`
+<span style="white-space: nowrap;">`"1m"`</span>, `"1h"`
             </td>
         </tr>
     </tbody>
@@ -478,9 +597,9 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
         <tr>
             <th>Format</th>
             <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Example</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -488,12 +607,12 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <td>ISO 8601</td>
             <td rowspan=2>
 
-`fit_every`
+<span style="white-space: nowrap;">`fit_every`</span>
             </td>
             <td rowspan=2>str</td>
             <td>
 
-`"PT1M", "P1H"`
+<span style="white-space: nowrap;">`"PT1M"`</span>, `"P1H"`
             </td>
             <td rowspan=2>What time range to use previously trained model to infer on new data until next retrain happens.</td>
         </tr>
@@ -501,7 +620,7 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <td>Prometheus-compatible</td>
             <td>
 
-`"1m", "1h"`
+<span style="white-space: nowrap;">`"1m"`</span>, `"1h"`
             </td>
         </tr>
     </tbody>

@@ -2,9 +2,10 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
+	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackJSON processes '| unpack_json ...' pipe.
@@ -14,10 +15,8 @@ type pipeUnpackJSON struct {
 	// fromField is the field to unpack json fields from
 	fromField string
 
-	// fields is an optional list of fields to extract from json.
-	//
-	// if it is empty, then all the fields are extracted.
-	fields []string
+	// fieldFilters is a list of field filters to extract from json.
+	fieldFilters []string
 
 	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
@@ -37,8 +36,8 @@ func (pu *pipeUnpackJSON) String() string {
 	if !isMsgFieldName(pu.fromField) {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
-	if len(pu.fields) > 0 {
-		s += " fields (" + fieldsToString(pu.fields) + ")"
+	if !prefixfilter.MatchAll(pu.fieldFilters) {
+		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -52,24 +51,24 @@ func (pu *pipeUnpackJSON) String() string {
 	return s
 }
 
+func (pu *pipeUnpackJSON) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pu, nil
+}
+
 func (pu *pipeUnpackJSON) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
-}
-
-func (pu *pipeUnpackJSON) optimize() {
-	pu.iff.optimizeFilterIn()
+func (pu *pipeUnpackJSON) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }
 
 func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackJSON) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pu *pipeUnpackJSON) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -78,45 +77,56 @@ func (pu *pipeUnpackJSON) initFilterInValues(cache map[string][]string, getField
 	return &puNew, nil
 }
 
-func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackJSON) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
+func (pu *pipeUnpackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackJSON := func(uctx *fieldsUnpackerContext, s string) {
 		if len(s) == 0 || s[0] != '{' {
 			// This isn't a JSON object
 			return
 		}
 		p := GetJSONParser()
-		err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s))
+		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), math.MaxInt)
 		if err != nil {
-			for _, fieldName := range pu.fields {
-				uctx.addField(fieldName, "")
+			for _, filter := range pu.fieldFilters {
+				if !prefixfilter.IsWildcardFilter(filter) {
+					uctx.addField(filter, "")
+				}
 			}
 		} else {
-			if len(pu.fields) == 0 {
-				for _, f := range p.Fields {
-					uctx.addField(f.Name, f.Value)
+			for _, f := range p.Fields {
+				if !prefixfilter.MatchFilters(pu.fieldFilters, f.Name) {
+					continue
 				}
-			} else {
-				for _, fieldName := range pu.fields {
-					addedField := false
-					for _, f := range p.Fields {
-						if f.Name == fieldName {
-							uctx.addField(f.Name, f.Value)
-							addedField = true
-							break
-						}
+
+				uctx.addField(f.Name, f.Value)
+			}
+
+			for _, filter := range pu.fieldFilters {
+				if prefixfilter.IsWildcardFilter(filter) {
+					continue
+				}
+
+				addEmptyField := true
+				for _, f := range p.Fields {
+					if f.Name == filter {
+						addEmptyField = false
+						break
 					}
-					if !addedField {
-						uctx.addField(fieldName, "")
-					}
+				}
+				if addEmptyField {
+					uctx.addField(filter, "")
 				}
 			}
 		}
 		PutJSONParser(p)
 	}
-	return newPipeUnpackProcessor(workersCount, unpackJSON, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
+	return newPipeUnpackProcessor(unpackJSON, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
-func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
+func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_json") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_json")
 	}
@@ -132,8 +142,10 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 	}
 
 	fromField := "_msg"
-	if lex.isKeyword("from") {
-		lex.nextToken()
+	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
+		if lex.isKeyword("from") {
+			lex.nextToken()
+		}
 		f, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
@@ -141,17 +153,17 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 		fromField = f
 	}
 
-	var fields []string
+	var fieldFilters []string
 	if lex.isKeyword("fields") {
 		lex.nextToken()
-		fs, err := parseFieldNamesInParens(lex)
+		fs, err := parseFieldFiltersInParens(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'fields': %w", err)
 		}
-		fields = fs
-		if slices.Contains(fields, "*") {
-			fields = nil
-		}
+		fieldFilters = fs
+	}
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	resultPrefix := ""
@@ -177,7 +189,7 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 
 	pu := &pipeUnpackJSON{
 		fromField:          fromField,
-		fields:             fields,
+		fieldFilters:       fieldFilters,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
 		skipEmptyResults:   skipEmptyResults,

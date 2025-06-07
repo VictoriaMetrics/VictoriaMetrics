@@ -18,20 +18,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
 	addr    = flag.String("addr", "stdout", "HTTP address to push the generated logs to; if it is set to stdout, then logs are generated to stdout")
 	workers = flag.Int("workers", 1, "The number of workers to use to push logs to -addr")
 
-	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/#timestamp-formats")
-	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/#timestamp-formats")
+	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats")
+	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats")
 	activeStreams = flag.Int("activeStreams", 100, "The number of active log streams to generate; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields")
 	totalStreams  = flag.Int("totalStreams", 0, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
 		"during data generation")
 	logsPerStream     = flag.Int64("logsPerStream", 1_000, "The number of log entries to generate per each log stream. Log entries are evenly distributed between -start and -end")
-	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constaint values to generate per each log entry; "+
+	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constant values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	varFieldsPerLog = flag.Int("varFieldsPerLog", 1, "The number of fields with variable values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
@@ -44,6 +44,8 @@ var (
 	u32FieldsPerLog = flag.Int("u32FieldsPerLog", 1, "The number of fields with uint32 values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	u64FieldsPerLog = flag.Int("u64FieldsPerLog", 1, "The number of fields with uint64 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
+	i64FieldsPerLog = flag.Int("i64FieldsPerLog", 1, "The number of fields with int64 values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	floatFieldsPerLog = flag.Int("floatFieldsPerLog", 1, "The number of fields with float64 values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
@@ -175,7 +177,10 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 	sw := &statWriter{
 		w: pw,
 	}
-	bw := bufio.NewWriter(sw)
+
+	// The 1MB write buffer increases data ingestion performance by reducing the number of send() syscalls
+	bw := bufio.NewWriterSize(sw, 1024*1024)
+
 	doneCh := make(chan struct{})
 	go func() {
 		generateLogs(bw, workerID, cfg.activeStreams, cfg.totalStreams)
@@ -201,6 +206,8 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 	if err != nil {
 		logger.Fatalf("cannot perform request to %q: %s", cfg.url, err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode/100 != 2 {
 		logger.Fatalf("unexpected status code got from %q: %d; want 2xx", cfg.url, err)
 	}
@@ -254,6 +261,9 @@ func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStre
 		for j := 0; j < *u64FieldsPerLog; j++ {
 			fmt.Fprintf(bw, `,"u64_%d":"%d"`, j, rand.Uint64())
 		}
+		for j := 0; j < *i64FieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"i64_%d":"%d"`, j, int64(rand.Uint64()))
+		}
 		for j := 0; j < *floatFieldsPerLog; j++ {
 			fmt.Fprintf(bw, `,"float_%d":"%v"`, j, math.Round(10_000*rand.Float64())/1000)
 		}
@@ -301,7 +311,7 @@ type timeFlag struct {
 }
 
 func (tf *timeFlag) Set(s string) error {
-	msec, err := promutils.ParseTimeMsec(s)
+	msec, err := timeutil.ParseTimeMsec(s)
 	if err != nil {
 		return fmt.Errorf("cannot parse time from %q: %w", s, err)
 	}

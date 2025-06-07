@@ -15,6 +15,8 @@ func TestParsePipeFormatSuccess(t *testing.T) {
 	f(`format "foo<bar>" keep_original_fields`)
 	f(`format "" as x`)
 	f(`format "<>" as x`)
+	f(`format "<_>"`)
+	f(`format "<*>"`)
 	f(`format foo as x`)
 	f(`format foo as x skip_empty_results`)
 	f(`format foo as x keep_original_fields`)
@@ -39,6 +41,9 @@ func TestParsePipeFormatFailure(t *testing.T) {
 	f(`format foo bar`)
 	f(`format foo if`)
 	f(`format foo as x if (x:y)`)
+	f(`format "foo<bar*>"`)
+	f(`format "foo<bar>" as *`)
+	f(`format "foo<bar>" as x*`)
 }
 
 func TestPipeFormat(t *testing.T) {
@@ -47,30 +52,34 @@ func TestPipeFormat(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	// format time, duration and ipv4
-	f(`format 'time=<time:foo>, duration=<duration:bar>, ip=<ipv4:baz>' as x`, [][]Field{
+	// format time, duration, duration_seconds and ipv4
+	f(`format 'time=<time:foo>, duration=<duration:bar>, duration_secs=<duration_seconds:d> ip=<ipv4:baz>' as x`, [][]Field{
 		{
 			{"foo", `1717328141123456789`},
 			{"bar", `210123456789`},
 			{"baz", "1234567890"},
+			{"d", "1h5m35s"},
 		},
 		{
 			{"foo", `abc`},
 			{"bar", `de`},
 			{"baz", "ghkl"},
+			{"d", "foobar"},
 		},
 	}, [][]Field{
 		{
 			{"foo", `1717328141123456789`},
 			{"bar", `210123456789`},
 			{"baz", "1234567890"},
-			{"x", "time=2024-06-02T11:35:41.123456789Z, duration=3m30.123456789s, ip=73.150.2.210"},
+			{"d", "1h5m35s"},
+			{"x", "time=2024-06-02T11:35:41.123456789Z, duration=3m30.123456789s, duration_secs=3935 ip=73.150.2.210"},
 		},
 		{
 			{"foo", `abc`},
 			{"bar", `de`},
 			{"baz", "ghkl"},
-			{"x", "time=abc, duration=de, ip=ghkl"},
+			{"d", "foobar"},
+			{"x", "time=abc, duration=de, duration_secs=foobar ip=ghkl"},
 		},
 	})
 
@@ -186,6 +195,44 @@ func TestPipeFormat(t *testing.T) {
 		},
 	})
 
+	// plain string
+	f(`format '<uc:foo><lc:bar> <hexencode:foo> <hexdecode:baz> <hexnumencode:n> <hexnumdecode:hn> <urlencode:foo> <urldecode:y>' as x`, [][]Field{
+		{
+			{"foo", `aцC`},
+			{"bar", `aBП`},
+			{"baz", "D099D0A6D0A3D09A"},
+			{"n", "1234"},
+			{"hn", "00000000000004D2"},
+			{"y", "a+b%20d"},
+		},
+	}, [][]Field{
+		{
+			{"foo", `aцC`},
+			{"bar", `aBП`},
+			{"baz", "D099D0A6D0A3D09A"},
+			{"n", "1234"},
+			{"hn", "00000000000004D2"},
+			{"y", "a+b%20d"},
+			{"x", `AЦCabп 61D18643 ЙЦУК 00000000000004D2 1234 a%D1%86C a b d`},
+		},
+	})
+
+	// plain string
+	f(`format '<base64encode:foo>;<base64decode:bar>;<base64decode:baz>'`, [][]Field{
+		{
+			{"foo", `aцC`},
+			{"bar", `YdGGQw==`},
+			{"baz", "al"},
+		},
+	}, [][]Field{
+		{
+			{"foo", `aцC`},
+			{"bar", `YdGGQw==`},
+			{"baz", "al"},
+			{"_msg", "YdGGQw==;aцC;al"},
+		},
+	})
+
 	// plain string into a single field
 	f(`format foo as x`, [][]Field{
 		{
@@ -286,9 +333,9 @@ func TestPipeFormat(t *testing.T) {
 }
 
 func TestPipeFormatUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -369,4 +416,133 @@ func TestPipeFormatUpdateNeededFields(t *testing.T) {
 	f(`format if (x:z or y:w) "<f1>foo" as f2`, "f1,f2,y", "", "f1,x,y", "")
 	f(`format if (x:z or y:w) "<f1>foo" as f2 skip_empty_results`, "f1,f2,y", "", "f1,f2,x,y", "")
 	f(`format if (x:z or y:w) "<f1>foo" as f2 keep_original_fields`, "f1,f2,y", "", "f1,f2,x,y", "")
+}
+
+func TestAppendUppercase(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendUppercase(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foo", "FOO")
+	f("лДЫ", "ЛДЫ")
+}
+
+func TestAppendLowercase(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendLowercase(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("FoO", "foo")
+	f("ЛДЫ", "лды")
+}
+
+func TestAppendURLEncode(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendURLEncode(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foo", "foo")
+	f("a b+", "a+b%2B")
+	f("йЫВ9&=/;", "%D0%B9%D0%AB%D0%929%26%3D%2F%3B")
+}
+
+func TestAppendURLDecode(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendURLDecode(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foo", "foo")
+	f("a+b%2Bs", "a b+s")
+	f("%D0%B9%D0%AB%D0%929%26%3D%2F%3B", "йЫВ9&=/;")
+	f("%qwer%3", "%qwer%3")
+}
+
+func TestAppendHexUint64Encode(t *testing.T) {
+	f := func(n uint64, resultExpected string) {
+		t.Helper()
+
+		result := appendHexUint64Encode(nil, n)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f(0, "0000000000000000")
+	f(123456654, "00000000075BCC8E")
+}
+
+func TestAppendHexUint64Decode(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendHexUint64Decode(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("0", "0")
+	f("5", "5")
+	f("ff", "255")
+	f("0000000000000000", "0")
+	f("00000000075BCC8E", "123456654")
+}
+
+func TestAppendHexEncode(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendHexEncode(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("aA oqDF", "6141206F714446")
+	f("ЙЦУК", "D099D0A6D0A3D09A")
+}
+
+func TestAppendHexDecode(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendHexDecode(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("6141206F714446", "aA oqDF")
+	f("D099D0A6D0A3D09A", "ЙЦУК")
+	f("1", "1")
+	f("1t", "1t")
+	f("t3", "t3")
+	f("qwert", "qwert")
+	f("qwerty", "qwerty")
 }

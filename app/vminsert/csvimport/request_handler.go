@@ -6,9 +6,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -19,16 +19,16 @@ var (
 
 // InsertHandler processes /api/v1/import/csv requests.
 func InsertHandler(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	return stream.Parse(req, func(rows []parser.Row) error {
+	return stream.Parse(req, func(rows []csvimport.Row) error {
 		return insertRows(rows, extraLabels)
 	})
 }
 
-func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(rows []csvimport.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -46,14 +46,9 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}

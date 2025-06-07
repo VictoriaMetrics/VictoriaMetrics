@@ -36,7 +36,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	// Force finishing pending merges
 	tb.MustClose()
 	var isReadOnly atomic.Bool
-	tb = MustOpenTable(path, nil, nil, &isReadOnly)
+	tb = MustOpenTable(path, 0, nil, nil, &isReadOnly)
 	defer tb.MustClose()
 
 	keys := make([][]byte, len(items))
@@ -83,7 +83,7 @@ func benchmarkTableSearchKeysExt(b *testing.B, tb *Table, keys [][]byte, stripSu
 	b.RunParallel(func(pb *testing.PB) {
 		r := rand.New(rand.NewSource(1))
 		var ts TableSearch
-		ts.Init(tb)
+		ts.Init(tb, false)
 		defer ts.MustClose()
 		for pb.Next() {
 			startIdx := r.Intn(len(keys) - searchKeysCount)

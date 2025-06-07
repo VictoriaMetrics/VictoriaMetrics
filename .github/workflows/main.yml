@@ -85,9 +85,38 @@ jobs:
           restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: Run tests
-        run: make ${{ matrix.scenario}}
+        run: GOGC=10 make ${{ matrix.scenario}}
 
       - name: Publish coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.txt
+          files: ./coverage.txt
+
+  integration-test:
+    name: integration-test
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        id: go
+        uses: actions/setup-go@v5
+        with:
+          cache: false
+          go-version: stable
+
+      - name: Cache Go artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/bin
+            ~/go/pkg/mod
+          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
+
+      - name: Run integration tests
+        run: make integration-test

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeReplace processes '| replace ...' pipe.
@@ -37,24 +38,24 @@ func (pr *pipeReplace) String() string {
 	return s
 }
 
+func (pr *pipeReplace) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pr, nil
+}
+
 func (pr *pipeReplace) canLiveTail() bool {
 	return true
 }
 
-func (pr *pipeReplace) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
-}
-
-func (pr *pipeReplace) optimize() {
-	pr.iff.optimizeFilterIn()
+func (pr *pipeReplace) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUpdatePipe(pf, pr.field, pr.iff)
 }
 
 func (pr *pipeReplace) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }
 
-func (pr *pipeReplace) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pr *pipeReplace) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -63,17 +64,21 @@ func (pr *pipeReplace) initFilterInValues(cache map[string][]string, getFieldVal
 	return &peNew, nil
 }
 
-func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pr *pipeReplace) visitSubqueries(visitFunc func(q *Query)) {
+	pr.iff.visitSubqueries(visitFunc)
+}
+
+func (pr *pipeReplace) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
 		bLen := len(a.b)
 		a.b = appendReplace(a.b, v, pr.oldSubstr, pr.newSubstr, pr.limit)
 		return bytesutil.ToUnsafeString(a.b[bLen:])
 	}
 
-	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
+	return newPipeUpdateProcessor(updateFunc, ppNext, pr.field, pr.iff)
 }
 
-func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
+func parsePipeReplace(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("replace") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "replace")
 	}

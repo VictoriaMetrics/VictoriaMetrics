@@ -29,7 +29,7 @@ type indexBlockHeader struct {
 	indexBlockSize uint64
 }
 
-// reset resets ih for subsequent re-use.
+// reset resets ih for subsequent reuse.
 func (ih *indexBlockHeader) reset() {
 	ih.streamID.reset()
 	ih.minTimestamp = 0
@@ -38,7 +38,7 @@ func (ih *indexBlockHeader) reset() {
 	ih.indexBlockSize = 0
 }
 
-// mustWriteIndexBlock writes data with the given additioanl args to sw and updates ih accordingly.
+// mustWriteIndexBlock writes data with the given additional args to sw and updates ih accordingly.
 func (ih *indexBlockHeader) mustWriteIndexBlock(data []byte, sidFirst streamID, minTimestamp, maxTimestamp int64, sw *streamWriters) {
 	ih.streamID = sidFirst
 	ih.minTimestamp = minTimestamp
@@ -110,25 +110,36 @@ func (ih *indexBlockHeader) unmarshal(src []byte) ([]byte, error) {
 	return src[32:], nil
 }
 
+// mustWriteIndexBlockHeaders writes metaindexData to w.
+func mustWriteIndexBlockHeaders(w *writerWithStats, metaindexData []byte) {
+	bb := longTermBufPool.Get()
+	bb.B = encoding.CompressZSTDLevel(bb.B[:0], metaindexData, 1)
+	w.MustWrite(bb.B)
+	if len(bb.B) < 1024*1024 {
+		longTermBufPool.Put(bb)
+	}
+}
+
 // mustReadIndexBlockHeaders reads indexBlockHeader entries from r, appends them to dst and returns the result.
 func mustReadIndexBlockHeaders(dst []indexBlockHeader, r *readerWithStats) []indexBlockHeader {
 	data, err := io.ReadAll(r)
 	if err != nil {
-		logger.Panicf("FATAL: cannot read indexBlockHeader entries from %s: %s", r.Path(), err)
+		logger.Panicf("FATAL: %s: cannot read indexBlockHeader entries: %s", r.Path(), err)
 	}
 
 	bb := longTermBufPool.Get()
 	bb.B, err = encoding.DecompressZSTD(bb.B[:0], data)
 	if err != nil {
-		logger.Panicf("FATAL: cannot decompress indexBlockHeader entries from %s: %s", r.Path(), err)
+		logger.Panicf("FATAL: %s: cannot decompress indexBlockHeader entries: %s", r.Path(), err)
 	}
 	dst, err = unmarshalIndexBlockHeaders(dst, bb.B)
 	if len(bb.B) < 1024*1024 {
 		longTermBufPool.Put(bb)
 	}
 	if err != nil {
-		logger.Panicf("FATAL: cannot parse indexBlockHeader entries from %s: %s", r.Path(), err)
+		logger.Panicf("FATAL: %s: cannot parse indexBlockHeader entries: %s", r.Path(), err)
 	}
+
 	return dst
 }
 

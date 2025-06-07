@@ -14,6 +14,7 @@ func TestParsePipePackJSONSuccess(t *testing.T) {
 	f(`pack_json as x`)
 	f(`pack_json fields (a, b)`)
 	f(`pack_json fields (a, b) as x`)
+	f(`pack_json fields (foo.*, bar, baz.abc.*) as x`)
 }
 
 func TestParsePipePackJSONFailure(t *testing.T) {
@@ -24,6 +25,8 @@ func TestParsePipePackJSONFailure(t *testing.T) {
 
 	f(`pack_json foo bar`)
 	f(`pack_json fields`)
+	f(`pack_json as *`)
+	f(`pack_json as x*`)
 }
 
 func TestPipePackJSON(t *testing.T) {
@@ -96,19 +99,37 @@ func TestPipePackJSON(t *testing.T) {
 			{"_msg", `x`},
 			{"foo", `abc`},
 			{"bar", `cde`},
-			{"a", `{"foo":"abc","baz":""}`},
+			{"a", `{"foo":"abc"}`},
 		},
 		{
-			{"a", `{"foo":"","baz":""}`},
+			{"a", `{}`},
 			{"c", "d"},
+		},
+	})
+
+	// pack only the needed wildcard fields
+	f(`pack_json fields (x*,y) a`, [][]Field{
+		{
+			{"x", `abc`},
+			{"xx", `xabc`},
+			{"yy", `cde`},
+			{"y", `xcde`},
+		},
+	}, [][]Field{
+		{
+			{"x", `abc`},
+			{"xx", `xabc`},
+			{"yy", `cde`},
+			{"y", `xcde`},
+			{"a", `{"x":"abc","xx":"xabc","y":"xcde"}`},
 		},
 	})
 }
 
 func TestPipePackJSONUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -116,13 +137,17 @@ func TestPipePackJSONUpdateNeededFields(t *testing.T) {
 
 	// unneeded fields do not intersect with output
 	f(`pack_json as x`, "*", "f1,f2", "*", "")
+	f(`pack_json as x`, "*", "f*", "*", "")
 
 	// unneeded fields intersect with output
 	f(`pack_json as f1`, "*", "f1,f2", "*", "f1,f2")
+	f(`pack_json as f1`, "*", "f*", "*", "f*")
 
 	// needed fields do not intersect with output
 	f(`pack_json f1`, "x,y", "", "x,y", "")
+	f(`pack_json f1`, "x*,y", "", "x*,y", "")
 
 	// needed fields intersect with output
 	f(`pack_json as f2`, "f2,y", "", "*", "")
+	f(`pack_json as f2`, "f*,y", "", "*", "")
 }

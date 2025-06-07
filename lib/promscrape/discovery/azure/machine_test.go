@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 )
 
 var (
@@ -82,7 +82,7 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 			}))
 			defer testServer.Close()
 			testServerURL = testServer.URL
-			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
+			c, err := discoveryutil.NewClient(testServer.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 			if err != nil {
 				t.Fatalf("unexpected error at client create: %s", err)
 			}
@@ -93,6 +93,7 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 				c:              c,
 				apiServerHost:  u.Hostname(),
 				subscriptionID: "some-id",
+				resourceGroup:  "some-resource-group",
 				refreshToken: func() (string, time.Duration, error) {
 					return "auth-token", 0, nil
 				},

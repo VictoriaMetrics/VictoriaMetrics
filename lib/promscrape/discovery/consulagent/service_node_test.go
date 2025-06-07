@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseServiceNodesFailure(t *testing.T) {
@@ -114,8 +114,8 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 	// Check sn.appendTargetLabels()
 	tagSeparator := ","
 	labelss := appendTargetLabels(sn, nil, "redis", tagSeparator, agent)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                       "10.1.10.12:8000",
 			"__meta_consulagent_address":                        "10.1.10.12",
 			"__meta_consulagent_dc":                             "dc1",
@@ -137,5 +137,5 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 			"__meta_consulagent_tags":                           ",primary,foo=bar,",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabelss)
 }

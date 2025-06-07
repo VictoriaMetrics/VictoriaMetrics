@@ -1,4 +1,4 @@
-import React, { Ref, useMemo, forwardRef } from "preact/compat";
+import React, { useMemo, forwardRef } from "preact/compat";
 import Calendar from "../../Main/DatePicker/Calendar/Calendar";
 import dayjs, { Dayjs } from "dayjs";
 import Popper from "../../Main/Popper/Popper";
@@ -9,7 +9,7 @@ import useEventListener from "../../../hooks/useEventListener";
 
 interface DatePickerProps {
   date: string | Date | Dayjs,
-  targetRef: Ref<HTMLElement>
+  targetRef: React.RefObject<HTMLElement>;
   format?: string
   label?: string
   onChange: (val: string) => void

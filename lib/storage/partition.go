@@ -13,12 +13,12 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -64,7 +64,6 @@ func SetDataFlushInterval(d time.Duration) {
 	}
 
 	dataFlushInterval = d
-	mergeset.SetDataFlushInterval(d)
 }
 
 // The maximum number of rawRow items in rawRowsShard.
@@ -204,8 +203,11 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
-	pt.tr.fromPartitionTimestamp(timestamp)
+	var tr TimeRange
+	tr.fromPartitionTimestamp(timestamp)
+
+	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
+
 	pt.startBackgroundWorkers()
 
 	logger.Infof("partition %q has been created", name)
@@ -241,6 +243,10 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
 	name := filepath.Base(smallPartsPath)
+	var tr TimeRange
+	if err := tr.fromPartitionName(name); err != nil {
+		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
+	}
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
@@ -258,22 +264,21 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
-	if err := pt.tr.fromPartitionName(name); err != nil {
-		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
-	}
+
 	pt.startBackgroundWorkers()
 
 	return pt
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath string, tr TimeRange, s *Storage) *partition {
 	p := &partition{
 		name:           name,
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
+		tr:             tr,
 		s:              s,
 		stopCh:         make(chan struct{}),
 	}
@@ -513,9 +518,8 @@ type rawRowsShardNopad struct {
 type rawRowsShard struct {
 	rawRowsShardNopad
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(rawRowsShardNopad{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(rawRowsShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
 func (rrs *rawRowsShard) Len() int {
@@ -634,7 +638,7 @@ func (pt *partition) inmemoryPartsMerger() {
 		}
 
 		inmemoryPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false)
 		<-inmemoryPartsConcurrencyCh
 
 		if err == nil {
@@ -667,7 +671,7 @@ func (pt *partition) smallPartsMerger() {
 		}
 
 		smallPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false)
 		<-smallPartsConcurrencyCh
 
 		if err == nil {
@@ -700,7 +704,7 @@ func (pt *partition) bigPartsMerger() {
 		}
 
 		bigPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false)
 		<-bigPartsConcurrencyCh
 
 		if err == nil {
@@ -745,6 +749,9 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 			}()
 
 			pw := pt.mustMergeInmemoryPartsFinal(pwsChunk)
+			if pw == nil {
+				return
+			}
 
 			pwsResultLock.Lock()
 			pwsResult = append(pwsResult, pw)
@@ -758,6 +765,10 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 	return pwsResult
 }
 
+// mustMergeInmemoryPartsFinal merges the given in-memory part wrappers (pws) into a single new in-memory part wrapper.
+// It panics if the input slice pws is empty (though the caller should prevent this).
+// Returns nil if the merge results in an empty part (e.g., due to retention filters removing all data).
+// Otherwise, returns the wrapper for the merged part.
 func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")
@@ -796,7 +807,7 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh, so use nil stopCh.
-	ph, err := pt.mergePartsInternal("", bsw, bsrs, partInmemory, nil)
+	ph, err := pt.mergePartsInternal("", bsw, bsrs, partInmemory, nil, time.Now().UnixMilli(), false)
 	putBlockStreamWriter(bsw)
 	for _, bsr := range bsrs {
 		putBlockStreamReader(bsr)
@@ -804,8 +815,14 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
-	mpDst.ph = *ph
 
+	// The resulting part is empty, no need to create a part wrapper
+	if ph.BlocksCount == 0 {
+		putInmemoryPart(mpDst)
+		return nil
+	}
+
+	mpDst.ph = *ph
 	return newPartWrapperFromInmemoryPart(mpDst, flushToDiskDeadline)
 }
 
@@ -885,7 +902,7 @@ func incRefForParts(pws []*partWrapper) {
 // The pt must be detached from table before calling pt.MustClose.
 func (pt *partition) MustClose() {
 	// Notify the background workers to stop.
-	// The pt.partsLock is aquired in order to guarantee that pt.wg.Add() isn't called
+	// The pt.partsLock is acquired in order to guarantee that pt.wg.Add() isn't called
 	// after pt.stopCh is closed and pt.wg.Wait() is called below.
 	pt.partsLock.Lock()
 	close(pt.stopCh)
@@ -1099,7 +1116,7 @@ func (pt *partition) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsToFiles(pws, nil, inmemoryPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, nil, inmemoryPartsConcurrencyCh, false); err != nil {
 		logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
 	}
 }
@@ -1164,7 +1181,7 @@ func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
 	return dst
 }
 
-func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{}, concurrencyCh chan struct{}) error {
+func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{}, concurrencyCh chan struct{}, useSparseCache bool) error {
 	pwsLen := len(pws)
 
 	var errGlobal error
@@ -1180,7 +1197,7 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 				wg.Done()
 			}()
 
-			if err := pt.mergeParts(pwsChunk, stopCh, true); err != nil && !errors.Is(err, errForciblyStopped) {
+			if err := pt.mergeParts(pwsChunk, stopCh, true, useSparseCache); err != nil && !errors.Is(err, errForciblyStopped) {
 				errGlobalLock.Lock()
 				if errGlobal == nil {
 					errGlobal = err
@@ -1220,7 +1237,7 @@ func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 	// If len(pws) == 1, then the merge must run anyway.
 	// This allows applying the configured retention, removing the deleted series
 	// and performing de-duplication if needed.
-	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh, true); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
 
@@ -1325,16 +1342,6 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 	pt.partsLock.Unlock()
 }
 
-func (pt *partition) runFinalDedup(stopCh <-chan struct{}) error {
-	t := time.Now()
-	logger.Infof("start removing duplicate samples from partition (%s, %s)", pt.bigPartsPath, pt.smallPartsPath)
-	if err := pt.ForceMergeAllParts(stopCh); err != nil {
-		return fmt.Errorf("cannot remove duplicate samples from partition (%s, %s): %w", pt.bigPartsPath, pt.smallPartsPath, err)
-	}
-	logger.Infof("duplicate samples have been removed from partition (%s, %s) in %.3f seconds", pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
-	return nil
-}
-
 func (pt *partition) isFinalDedupNeeded() bool {
 	dedupInterval := GetDedupInterval()
 
@@ -1371,7 +1378,7 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 //
 // All the parts inside pws must have isInMerge field set to true.
 // The isInMerge field inside pws parts is set to false before returning from the function.
-func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
+func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal, useSparseCache bool) error {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: empty pws cannot be passed to mergeParts()")
 	}
@@ -1409,6 +1416,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	}
 	rowsPerBlock := float64(srcRowsCount) / float64(srcBlocksCount)
 	compressLevel := getCompressLevel(rowsPerBlock)
+	currentTimestamp := startTime.UnixMilli()
 	bsw := getBlockStreamWriter()
 	var mpNew *inmemoryPart
 	if dstPartType == partInmemory {
@@ -1422,8 +1430,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
 	}
 
-	// Merge source parts to destination part.
-	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh)
+	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh, currentTimestamp, useSparseCache)
 	putBlockStreamWriter(bsw)
 	for _, bsr := range bsrs {
 		putBlockStreamReader(bsr)
@@ -1535,7 +1542,7 @@ func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 	return bsrs
 }
 
-func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
+func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}, currentTimestamp int64, useSparseCache bool) (*partHeader, error) {
 	var ph partHeader
 	var rowsMerged *atomic.Uint64
 	var rowsDeleted *atomic.Uint64
@@ -1560,9 +1567,10 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	default:
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
-	retentionDeadline := timestampFromTime(time.Now()) - pt.s.retentionMsecs
+	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted)
+	dmis := pt.s.getDeletedMetricIDs()
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {
@@ -1922,7 +1930,7 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
+				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
 		}
 
@@ -2002,8 +2010,8 @@ func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrappe
 	}
 
 	// Copy the appliedRetentionFilename to dstDir.
-	// This file can be created by VictoriaMetrics enterprise.
-	// See https://docs.victoriametrics.com/#retention-filters .
+	// This file can be created by VictoriaMetrics Enterprise.
+	// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters .
 	// Do not make hard link to this file, since it can be modified over time.
 	srcPath := filepath.Join(srcDir, appliedRetentionFilename)
 	if fs.IsPathExist(srcPath) {

@@ -158,6 +158,7 @@
           "color": {
             "mode": "thresholds"
           },
+          "min": 0,
           "mappings": [
             {
               "options": {
@@ -233,6 +234,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -297,6 +299,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -361,6 +364,7 @@
           "color": {
             "mode": "thresholds"
           },
+          "min": 0,
           "mappings": [
             {
               "options": {
@@ -450,6 +454,7 @@
               "type": "value"
             }
           ],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -523,6 +528,7 @@
               "type": "value"
             }
           ],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1684,7 +1690,9 @@
   ],
   "refresh": "1m",
   "schemaVersion": 39,
-  "tags": [],
+  "tags": [
+    "victoriametrics"
+  ],
   "templating": {
     "list": [
       {

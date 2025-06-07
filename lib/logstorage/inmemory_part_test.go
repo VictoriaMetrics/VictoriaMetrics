@@ -7,35 +7,38 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func TestInmemoryPartMustInitFromRows(t *testing.T) {
-	f := func(lr *LogRows, blocksCountExpected int, compressionRateExpected float64) {
+	f := func(lrOrig *LogRows, blocksCountExpected int, compressionRateExpected float64) {
 		t.Helper()
 
-		uncompressedSizeBytesExpected := uncompressedRowsSizeBytes(lr.rows)
-		rowsCountExpected := len(lr.timestamps)
+		uncompressedSizeBytesExpected := uncompressedRowsSizeBytes(lrOrig.rows)
+		rowsCountExpected := len(lrOrig.timestamps)
 		minTimestampExpected := int64(math.MaxInt64)
 		maxTimestampExpected := int64(math.MinInt64)
 
-		// make a copy of lr - it is used for comapring the results later,
-		// since lr may be modified by inmemoryPart.mustInitFromRows()
-		lrOrig := GetLogRows(nil, nil)
-		for i, timestamp := range lr.timestamps {
+		for _, timestamp := range lrOrig.timestamps {
 			if timestamp < minTimestampExpected {
 				minTimestampExpected = timestamp
 			}
 			if timestamp > maxTimestampExpected {
 				maxTimestampExpected = timestamp
 			}
-			lrOrig.mustAddInternal(lr.streamIDs[i], timestamp, lr.rows[i], lr.streamTagsCanonicals[i])
 		}
+
+		var lrExpected logRows
+		lrExpected.mustAddRows(lrOrig)
+
+		var lr logRows
+		lr.mustAddRows(lrOrig)
 
 		// Create inmemory part from lr
 		mp := getInmemoryPart()
-		mp.mustInitFromRows(lr)
+		mp.mustInitFromRows(&lr)
 
 		// Check mp.ph
 		ph := &mp.ph
@@ -58,7 +61,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 			}
 		}
 
-		// Read log entries from mp to rrsResult
+		// Read log entries from mp to lrResult
 		sbu := getStringsBlockUnmarshaler()
 		defer putStringsBlockUnmarshaler(sbu)
 		vd := getValuesDecoder()
@@ -66,28 +69,54 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		lrResult := mp.readLogRows(sbu, vd)
 		putInmemoryPart(mp)
 
-		// compare lrOrig to lrResult
-		if err := checkEqualRows(lrResult, lrOrig); err != nil {
+		// compare lrExpected to lrResult
+		if err := checkEqualRows(lrResult, &lrExpected); err != nil {
 			t.Fatalf("unequal log entries: %s", err)
 		}
 	}
 
-	f(GetLogRows(nil, nil), 0, 0)
+	f(GetLogRows(nil, nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
-	f(newTestLogRows(1, 1, 0), 1, 0.8)
-	f(newTestLogRows(1, 2, 0), 1, 0.9)
-	f(newTestLogRows(1, 10, 0), 1, 2.0)
-	f(newTestLogRows(1, 1000, 0), 1, 7.1)
-	f(newTestLogRows(1, 20000, 0), 2, 7.2)
+	f(newTestLogRows(1, 1, 0), 1, 1.3)
+	f(newTestLogRows(1, 2, 0), 1, 1.7)
+	f(newTestLogRows(1, 10, 0), 1, 4.6)
+	f(newTestLogRows(1, 1000, 0), 1, 17.1)
+	f(newTestLogRows(1, 20000, 0), 5, 16.8)
 
 	// Check how inmemoryPart works with multiple streams
-	f(newTestLogRows(2, 1, 0), 2, 0.8)
-	f(newTestLogRows(10, 1, 0), 10, 0.9)
-	f(newTestLogRows(100, 1, 0), 100, 1.0)
-	f(newTestLogRows(10, 5, 0), 10, 1.4)
-	f(newTestLogRows(10, 1000, 0), 10, 7.2)
-	f(newTestLogRows(100, 100, 0), 100, 5.0)
+	f(newTestLogRows(2, 1, 0), 2, 1.6)
+	f(newTestLogRows(10, 1, 0), 10, 2.1)
+	f(newTestLogRows(100, 1, 0), 100, 2.3)
+	f(newTestLogRows(10, 5, 0), 10, 3.6)
+	f(newTestLogRows(10, 1000, 0), 10, 17.1)
+	f(newTestLogRows(100, 100, 0), 100, 12.4)
+}
+
+func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
+	f := func(lrOrig *LogRows, blocksCountExpected int, compressionRateExpected float64) {
+		t.Helper()
+
+		var lr logRows
+		lr.mustAddRows(lrOrig)
+
+		// Create inmemory part from lr
+		mp := getInmemoryPart()
+		mp.mustInitFromRows(&lr)
+
+		// Check mp.ph
+		ph := &mp.ph
+		checkCompressionRate(t, ph, compressionRateExpected)
+		if ph.BlocksCount != uint64(blocksCountExpected) {
+			t.Fatalf("unexpected blocksCount in partHeader; got %d; want %d", ph.BlocksCount, blocksCountExpected)
+		}
+	}
+
+	// check block overflow with unique tag rows
+	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.5)
+	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.6)
+	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.7)
+	f(newTestLogRowsUniqTags(15, 20, 250), 15, 0.6)
 }
 
 func checkCompressionRate(t *testing.T, ph *partHeader, compressionRateExpected float64) {
@@ -107,8 +136,8 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		minTimestampExpected := int64(math.MaxInt64)
 		maxTimestampExpected := int64(math.MinInt64)
 
-		// make a copy of rrss in order to compare the results after merge.
-		lrOrig := GetLogRows(nil, nil)
+		// make a copy of lrs in order to compare the results after merge.
+		var lrExpected logRows
 		for _, lr := range lrs {
 			uncompressedSizeBytesExpected += uncompressedRowsSizeBytes(lr.rows)
 			rowsCountExpected += len(lr.timestamps)
@@ -119,16 +148,19 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 				if timestamp > maxTimestampExpected {
 					maxTimestampExpected = timestamp
 				}
-				lrOrig.mustAddInternal(lr.streamIDs[j], timestamp, lr.rows[j], lr.streamTagsCanonicals[j])
+				lrExpected.mustAddRow(lr.streamIDs[j], timestamp, lr.rows[j])
 			}
 		}
 
 		// Initialize readers from lrs
 		var mpsSrc []*inmemoryPart
 		var bsrs []*blockStreamReader
-		for _, lr := range lrs {
+		for _, lrOrig := range lrs {
+			var lr logRows
+			lr.mustAddRows(lrOrig)
+
 			mp := getInmemoryPart()
-			mp.mustInitFromRows(lr)
+			mp.mustInitFromRows(&lr)
 			mpsSrc = append(mpsSrc, mp)
 
 			bsr := getBlockStreamReader()
@@ -172,7 +204,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 			}
 		}
 
-		// Read log entries from mpDst to rrsResult
+		// Read log entries from mpDst to lrResult
 		sbu := getStringsBlockUnmarshaler()
 		defer putStringsBlockUnmarshaler(sbu)
 		vd := getValuesDecoder()
@@ -180,62 +212,63 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		lrResult := mpDst.readLogRows(sbu, vd)
 		putInmemoryPart(mpDst)
 
-		// compare rrsOrig to rrsResult
-		if err := checkEqualRows(lrResult, lrOrig); err != nil {
+		// compare lrExpected to lrResult
+		if err := checkEqualRows(lrResult, &lrExpected); err != nil {
 			t.Fatalf("unequal log entries: %s", err)
 		}
 	}
 
 	// Check empty readers
 	f(nil, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil)}, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil), GetLogRows(nil, nil)}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, nil, ""), GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
-	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.8)
-	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 2.0)
-	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 4.9)
-	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 7.1)
-	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 1, 7.4)
-	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 0.9)
-	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 1.0)
-	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 1.0)
-	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 2.1)
-	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 4.9)
+	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.3)
+	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 4.6)
+	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 12.0)
+	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 17.1)
+	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 3, 17.2)
+	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 2.1)
+	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 2.3)
+	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2.2)
+	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 5.5)
+	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 12.4)
 
 	//Check merge with multiple readers
 	f([]*LogRows{
 		newTestLogRows(1, 1, 0),
 		newTestLogRows(1, 1, 1),
-	}, 2, 0.9)
+	}, 2, 1.7)
 	f([]*LogRows{
 		newTestLogRows(2, 2, 0),
 		newTestLogRows(2, 2, 0),
-	}, 2, 1.8)
+	}, 2, 3.8)
 	f([]*LogRows{
 		newTestLogRows(1, 20, 0),
 		newTestLogRows(1, 10, 1),
 		newTestLogRows(1, 5, 2),
-	}, 3, 2.2)
+	}, 3, 5.5)
 	f([]*LogRows{
 		newTestLogRows(10, 20, 0),
 		newTestLogRows(20, 10, 1),
 		newTestLogRows(30, 5, 2),
-	}, 60, 2.0)
+	}, 60, 5.2)
 	f([]*LogRows{
 		newTestLogRows(10, 20, 0),
 		newTestLogRows(20, 10, 1),
 		newTestLogRows(30, 5, 2),
 		newTestLogRows(20, 7, 3),
 		newTestLogRows(10, 9, 4),
-	}, 90, 1.9)
+	}, 90, 5.0)
 }
 
 func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
+	longConstValue := "some-value " + string(make([]byte, maxConstColumnValueSize))
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil)
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	rng := rand.New(rand.NewSource(seed))
 	var fields []Field
 	for i := 0; i < streams; i++ {
@@ -268,6 +301,11 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 				Name:  "job",
 				Value: "foobar",
 			})
+			// add a field with const value with the length exceeding maxConstColumnValueSize
+			fields = append(fields, Field{
+				Name:  "long-const",
+				Value: longConstValue,
+			})
 			// add a field with uint value
 			fields = append(fields, Field{
 				Name:  "response_size_bytes",
@@ -278,13 +316,13 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 				fields[i], fields[j] = fields[j], fields[i]
 			})
 			timestamp := rng.Int63()
-			lr.MustAdd(tenantID, timestamp, fields)
+			lr.MustAdd(tenantID, timestamp, fields, nil)
 		}
 	}
 	return lr
 }
 
-func checkEqualRows(lrResult, lrOrig *LogRows) error {
+func checkEqualRows(lrResult, lrOrig *logRows) error {
 	if len(lrResult.timestamps) != len(lrOrig.timestamps) {
 		return fmt.Errorf("unexpected length LogRows; got %d; want %d", len(lrResult.timestamps), len(lrOrig.timestamps))
 	}
@@ -292,11 +330,6 @@ func checkEqualRows(lrResult, lrOrig *LogRows) error {
 	sort.Sort(lrResult)
 	sort.Sort(lrOrig)
 
-	sortFieldNames := func(fields []Field) {
-		sort.Slice(fields, func(i, j int) bool {
-			return fields[i].Name < fields[j].Name
-		})
-	}
 	for i := range lrOrig.timestamps {
 		if !lrOrig.streamIDs[i].equal(&lrResult.streamIDs[i]) {
 			return fmt.Errorf("unexpected streamID for log entry %d\ngot\n%s\nwant\n%s", i, &lrResult.streamIDs[i], &lrOrig.streamIDs[i])
@@ -309,8 +342,8 @@ func checkEqualRows(lrResult, lrOrig *LogRows) error {
 		if len(fieldsOrig) != len(fieldsResult) {
 			return fmt.Errorf("unexpected number of fields at log entry %d\ngot\n%s\nwant\n%s", i, fieldsResult, fieldsOrig)
 		}
-		sortFieldNames(fieldsOrig)
-		sortFieldNames(fieldsResult)
+		sortFieldsByName(fieldsOrig)
+		sortFieldsByName(fieldsResult)
 		if !reflect.DeepEqual(fieldsOrig, fieldsResult) {
 			return fmt.Errorf("unexpected fields for log entry %d\ngot\n%s\nwant\n%s", i, fieldsResult, fieldsOrig)
 		}
@@ -321,8 +354,9 @@ func checkEqualRows(lrResult, lrOrig *LogRows) error {
 // readLogRows reads log entries from mp.
 //
 // This function is for testing and debugging purposes only.
-func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDecoder) *LogRows {
-	lr := GetLogRows(nil, nil)
+func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDecoder) *logRows {
+	var lr logRows
+
 	bsr := getBlockStreamReader()
 	defer putBlockStreamReader(bsr)
 	bsr.MustInitFromInmemoryPart(mp)
@@ -334,10 +368,40 @@ func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDeco
 			logger.Panicf("BUG: cannot unmarshal log entries from inmemoryPart: %s", err)
 		}
 		for i, timestamp := range tmp.timestamps {
-			lr.MustAdd(streamID.tenantID, timestamp, tmp.rows[i])
+			lr.mustAddRow(streamID, timestamp, tmp.rows[i])
 			lr.streamIDs[len(lr.streamIDs)-1] = streamID
 		}
 		tmp.reset()
+	}
+	return &lr
+}
+
+func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRows {
+	streamTags := []string{
+		"some-stream-tag",
+	}
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
+	var fields []Field
+	for i := 0; i < streams; i++ {
+		tenantID := TenantID{
+			AccountID: 0,
+			ProjectID: 0,
+		}
+		for j := 0; j < rowsPerStream; j++ {
+			// Add stream tags
+			fields = append(fields[:0], Field{
+				Name:  "some-stream-tag",
+				Value: fmt.Sprintf("some-stream-value-%d", i),
+			})
+			// Add the remaining unique tags
+			for k := 0; k < uniqFieldsPerRow; k++ {
+				fields = append(fields, Field{
+					Name:  fmt.Sprintf("field_%d_%d_%d", i, j, k),
+					Value: fmt.Sprintf("value_%d_%d_%d", i, j, k),
+				})
+			}
+			lr.MustAdd(tenantID, time.Now().UnixMilli(), fields, nil)
+		}
 	}
 	return lr
 }

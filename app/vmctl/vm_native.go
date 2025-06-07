@@ -14,9 +14,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -51,14 +51,14 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		startTime: time.Now(),
 	}
 
-	start, err := utils.ParseTime(p.filter.TimeStart)
+	start, err := vmctlutil.ParseTime(p.filter.TimeStart)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
 	}
 
 	end := time.Now().In(start.Location())
 	if p.filter.TimeEnd != "" {
-		end, err = utils.ParseTime(p.filter.TimeEnd)
+		end, err = vmctlutil.ParseTime(p.filter.TimeEnd)
 		if err != nil {
 			return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 		}
@@ -120,7 +120,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	if p.disablePerMetricRequests {
 		pr := bar.NewProxyReader(reader)
 		if pr != nil {
-			reader = bar.NewProxyReader(reader)
+			reader = pr
 			fmt.Printf("Continue import process with filter %s:\n", f.String())
 		}
 	}
@@ -193,7 +193,15 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var metrics = map[string][][]time.Time{
 		"": ranges,
 	}
+
+	format := nativeSingleProcessTpl
+	barPrefix := "Requests to make"
+	if p.interCluster {
+		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
+	}
+
 	if !p.disablePerMetricRequests {
+		format = fmt.Sprintf(nativeWithBackoffTpl, barPrefix)
 		metrics, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("failed to explore metric names: %s", err)
@@ -223,15 +231,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		log.Print(foundSeriesMsg)
 	}
 
-	barPrefix := "Requests to make"
-	if p.interCluster {
-		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
-	}
-
-	bar := barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
-	if p.disablePerMetricRequests {
-		bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
-	}
+	bar := barpool.NewSingleProgress(format, requestsToMake)
 	bar.Start()
 	defer bar.Finish()
 
@@ -362,15 +362,16 @@ func byteCountSI(b int64) string {
 }
 
 func buildMatchWithFilter(filter string, metricName string) (string, error) {
-	if filter == metricName {
-		return filter, nil
-	}
-	nameFilter := fmt.Sprintf("__name__=%q", metricName)
-
-	tfss, err := searchutils.ParseMetricSelector(filter)
+	tfss, err := searchutil.ParseMetricSelector(filter)
 	if err != nil {
 		return "", err
 	}
+
+	if filter == metricName || metricName == "" {
+		return filter, nil
+	}
+
+	nameFilter := fmt.Sprintf("__name__=%q", metricName)
 
 	var filters []string
 	for _, tfs := range tfss {

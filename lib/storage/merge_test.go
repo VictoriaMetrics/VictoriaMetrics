@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"sync/atomic"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func TestMergeBlockStreamsOneStreamOneRow(t *testing.T) {
@@ -375,8 +377,8 @@ func TestMergeForciblyStop(t *testing.T) {
 	var rowsMerged, rowsDeleted atomic.Uint64
 	close(ch)
 
-	strg := newTestStorage()
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, strg, 0, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
+	dmis := &uint64set.Set{}
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, dmis, 0, &rowsMerged, &rowsDeleted, true); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
 	if n := rowsMerged.Load(); n != 0 {
@@ -385,7 +387,6 @@ func TestMergeForciblyStop(t *testing.T) {
 	if n := rowsDeleted.Load(); n != 0 {
 		t.Fatalf("unexpected rowsDeleted; got %d; want %d", n, 0)
 	}
-	stopTestStorage(strg)
 }
 
 func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBlocksCount, expectedRowsCount int, expectedMinTimestamp, expectedMaxTimestamp int64) {
@@ -396,12 +397,11 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&mp, -5)
 
-	strg := newTestStorage()
+	dmis := &uint64set.Set{}
 	var rowsMerged, rowsDeleted atomic.Uint64
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, 0, &rowsMerged, &rowsDeleted, true); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
-	stopTestStorage(strg)
 
 	// Verify written data.
 	if mp.ph.RowsCount != uint64(expectedRowsCount) {

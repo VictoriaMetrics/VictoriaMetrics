@@ -17,8 +17,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 )
 
@@ -41,6 +41,7 @@ type RemoteWriteServer struct {
 	server         *httptest.Server
 	series         []vm.TimeSeries
 	expectedSeries []vm.TimeSeries
+	tss            []vm.TimeSeries
 }
 
 // NewRemoteWriteServer prepares test remote write server
@@ -73,6 +74,10 @@ func (rws *RemoteWriteServer) ExpectedSeries(series []vm.TimeSeries) {
 	rws.expectedSeries = append(rws.expectedSeries, series...)
 }
 
+func (rws *RemoteWriteServer) GetCollectedTimeSeries() []vm.TimeSeries {
+	return rws.tss
+}
+
 // URL returns server url
 func (rws *RemoteWriteServer) URL() string {
 	return rws.server.URL
@@ -80,7 +85,6 @@ func (rws *RemoteWriteServer) URL() string {
 
 func (rws *RemoteWriteServer) getWriteHandler(t *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var tss []vm.TimeSeries
 		scanner := bufio.NewScanner(r.Body)
 		var rows parser.Rows
 		for scanner.Scan() {
@@ -102,15 +106,9 @@ func (rws *RemoteWriteServer) getWriteHandler(t *testing.T) http.Handler {
 				ts.Timestamps = append(ts.Timestamps, row.Timestamps...)
 				ts.Name = nameValue
 				ts.LabelPairs = labelPairs
-				tss = append(tss, ts)
+				rws.tss = append(rws.tss, ts)
 			}
 			rows.Reset()
-		}
-
-		if !reflect.DeepEqual(tss, rws.expectedSeries) {
-			w.WriteHeader(http.StatusInternalServerError)
-			t.Fatalf("datasets not equal, expected: %#v; \n got: %#v", rws.expectedSeries, tss)
-			return
 		}
 
 		w.WriteHeader(http.StatusNoContent)
@@ -206,13 +204,13 @@ func (rws *RemoteWriteServer) exportNativeHandler() http.Handler {
 
 func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		common.StartUnmarshalWorkers()
-		defer common.StopUnmarshalWorkers()
+		protoparserutil.StartUnmarshalWorkers()
+		defer protoparserutil.StopUnmarshalWorkers()
 
 		var gotTimeSeries []vm.TimeSeries
 		var mx sync.RWMutex
 
-		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
+		err := stream.Parse(r.Body, "", func(block *stream.Block) error {
 			mn := &block.MetricName
 			var timeseries vm.TimeSeries
 			timeseries.Name = string(mn.MetricGroup)

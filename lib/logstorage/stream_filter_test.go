@@ -133,7 +133,7 @@ func TestStreamFilterMatchStreamName(t *testing.T) {
 	f(`{a=~"foo.+",a!~".+bar"}`, `{a="foobar"}`, false)
 	f(`{a=~"foo.+",a!~".+bar"}`, `{a="foozar"}`, true)
 
-	// multple `or` filters
+	// multiple `or` filters
 	f(`{a="b" or b="c"}`, `{x="y"}`, false)
 	f(`{a="b" or b="c"}`, `{x="y",b="c"}`, true)
 	f(`{a="b" or b="c"}`, `{a="b",x="y",b="c"}`, true)
@@ -144,6 +144,23 @@ func TestStreamFilterMatchStreamName(t *testing.T) {
 	f(`{a="b" or c=""}`, `{}`, true)
 	f(`{a="b" or c=""}`, `{c="x"}`, false)
 	f(`{a="b" or c=""}`, `{a="b"}`, true)
+
+	// `in` operator
+	f(`{a in (b, "c")}`, `{a="c"}`, true)
+	f(`{a in (b, "c")}`, `{a="b"}`, true)
+	f(`{a in (b, "c")}`, `{a="d"}`, false)
+	f(`{x="y" or a in (b, "c")}`, `{a="d",x="y"}`, true)
+	f(`{a in (*)}`, `{b="c"}`, true)
+	f(`{a in (*)}`, `{a="c"}`, true)
+
+	// `not_in` operator
+	f(`{a not_in (b, "c")}`, `{a="c"}`, false)
+	f(`{a not_in (b, "c")}`, `{a="b"}`, false)
+	f(`{a not_in (b, "c")}`, `{a="d"}`, true)
+	f(`{x="y", a not_in (b, "c")}`, `{a="b",x="y"}`, false)
+	f(`{x="y", a not_in (b, "c")}`, `{a="d",x="y"}`, true)
+	f(`{a not_in (*)}`, `{b="c"}`, false)
+	f(`{a not_in (*)}`, `{a="c"}`, false)
 }
 
 func TestNewTestStreamFilterSuccess(t *testing.T) {
@@ -163,7 +180,11 @@ func TestNewTestStreamFilterSuccess(t *testing.T) {
 	f(`{foo="bar"}`, `{foo="bar"}`)
 	f(`{ "foo" =~ "bar.+" , baz!="a" or x="y"}`, `{foo=~"bar.+",baz!="a" or x="y"}`)
 	f(`{"a b"='c}"d' OR de="aaa"}`, `{"a b"="c}\"d" or de="aaa"}`)
-	f(`{a="b", c="d" or x="y"}`, `{a="b",c="d" or x="y"}`)
+	f(`{a-q:w.z="b", c="d" or 'x a'=y-z=q}`, `{"a-q:w.z"="b",c="d" or "x a"="y-z=q"}`)
+	f(`{a in (a, "b.c|d")}`, `{a=~"a|b\\.c\\|d"}`)
+	f(`{a not_in (a, "b.c|d")}`, `{a!~"a|b\\.c\\|d"}`)
+	f(`{a in (*)}`, `{a=~".*"}`)
+	f(`{a not_in (*)}`, `{a!~".*"}`)
 }
 
 func TestNewTestStreamFilterFailure(t *testing.T) {
@@ -189,6 +210,11 @@ func TestNewTestStreamFilterFailure(t *testing.T) {
 	f("{foo=bar")
 	f("{foo=bar baz}")
 	f("{foo='bar' baz='x'}")
+	f("{foo=(a}")
+	f("{foo=(a)}")
+	f("{foo in (a")
+	f("{foo in (a,")
+	f("{foo in (a,}")
 }
 
 func mustNewTestStreamFilter(s string) *StreamFilter {
@@ -200,7 +226,7 @@ func mustNewTestStreamFilter(s string) *StreamFilter {
 }
 
 func newTestStreamFilter(s string) (*StreamFilter, error) {
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	fs, err := parseFilterStream(lex)
 	if err != nil {
 		return nil, err

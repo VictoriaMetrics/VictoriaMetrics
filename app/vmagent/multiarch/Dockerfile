@@ -9,4 +9,5 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8429
 ENTRYPOINT ["/vmagent-prod"]
 ARG TARGETARCH
-COPY vmagent-linux-${TARGETARCH}-prod ./vmagent-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vmagent-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vmagent-prod

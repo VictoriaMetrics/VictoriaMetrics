@@ -2,11 +2,13 @@ package logstorage
 
 import (
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type ifFilter struct {
 	f            filter
-	neededFields []string
+	allowFilters []string
 }
 
 func (iff *ifFilter) String() string {
@@ -40,36 +42,14 @@ func parseIfFilter(lex *lexer) (*ifFilter, error) {
 	}
 	lex.nextToken()
 
-	neededFields := newFieldsSet()
-	f.updateNeededFields(neededFields)
+	var pf prefixfilter.Filter
+	f.updateNeededFields(&pf)
+	allowFilters := pf.GetAllowFilters()
 
 	iff := &ifFilter{
 		f:            f,
-		neededFields: neededFields.getAll(),
+		allowFilters: allowFilters,
 	}
 
 	return iff, nil
-}
-
-func (iff *ifFilter) optimizeFilterIn() {
-	if iff == nil {
-		return
-	}
-
-	optimizeFilterIn(iff.f)
-}
-
-func optimizeFilterIn(f filter) {
-	if f == nil {
-		return
-	}
-
-	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		if ok && fi.q != nil {
-			fi.q.Optimize()
-		}
-		return false
-	}
-	_ = visitFilter(f, visitFunc)
 }

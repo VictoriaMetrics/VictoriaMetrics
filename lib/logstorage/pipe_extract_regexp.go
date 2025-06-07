@@ -3,8 +3,9 @@ package logstorage
 import (
 	"fmt"
 	"regexp"
-	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -43,20 +44,20 @@ func (pe *pipeExtractRegexp) String() string {
 	return s
 }
 
-func (pe *pipeExtractRegexp) canLiveTail() bool {
-	return true
+func (pe *pipeExtractRegexp) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pe, nil
 }
 
-func (pe *pipeExtractRegexp) optimize() {
-	pe.iff.optimizeFilterIn()
+func (pe *pipeExtractRegexp) canLiveTail() bool {
+	return true
 }
 
 func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtractRegexp) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pe *pipeExtractRegexp) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -65,65 +66,43 @@ func (pe *pipeExtractRegexp) initFilterInValues(cache map[string][]string, getFi
 	return &peNew, nil
 }
 
-func (pe *pipeExtractRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (pe *pipeExtractRegexp) visitSubqueries(visitFunc func(q *Query)) {
+	pe.iff.visitSubqueries(visitFunc)
+}
+
+func (pe *pipeExtractRegexp) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		if pe.iff != nil {
-			neededFields.addFields(pe.iff.neededFields)
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		needFromField := false
-		for _, f := range pe.reFields {
-			if f == "" {
-				continue
-			}
-			if !unneededFieldsOrig.contains(f) {
-				needFromField = true
-			}
+	pfOrig := pf.Clone()
+	needFromField := false
+	for _, f := range pe.reFields {
+		if f == "" {
+			continue
+		}
+		if pfOrig.MatchString(f) {
+			needFromField = true
 			if !pe.keepOriginalFields && !pe.skipEmptyResults {
-				unneededFields.add(f)
+				pf.AddDenyFilter(f)
 			}
 		}
-		if needFromField {
-			unneededFields.remove(pe.fromField)
-			if pe.iff != nil {
-				unneededFields.removeFields(pe.iff.neededFields)
-			}
-		} else {
-			unneededFields.add(pe.fromField)
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := false
-		for _, f := range pe.reFields {
-			if f == "" {
-				continue
-			}
-			if neededFieldsOrig.contains(f) {
-				needFromField = true
-				if !pe.keepOriginalFields && !pe.skipEmptyResults {
-					neededFields.remove(f)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(pe.fromField)
-			if pe.iff != nil {
-				neededFields.addFields(pe.iff.neededFields)
-			}
+	}
+	if needFromField {
+		pf.AddAllowFilter(pe.fromField)
+		if pe.iff != nil {
+			pf.AddAllowFilters(pe.iff.allowFilters)
 		}
 	}
 }
 
-func (pe *pipeExtractRegexp) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pe *pipeExtractRegexp) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeExtractRegexpProcessor{
 		pe:     pe,
 		ppNext: ppNext,
-
-		shards: make([]pipeExtractRegexpProcessorShard, workersCount),
 	}
 }
 
@@ -131,14 +110,19 @@ type pipeExtractRegexpProcessor struct {
 	pe     *pipeExtractRegexp
 	ppNext pipeProcessor
 
-	shards []pipeExtractRegexpProcessorShard
+	shards atomicutil.Slice[pipeExtractRegexpProcessorShard]
 }
 
 type pipeExtractRegexpProcessorShard struct {
-	pipeExtractRegexpProcessorShardNopad
+	bm bitmap
 
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeExtractRegexpProcessorShardNopad{})%128]byte
+	resultColumns []*blockResultColumn
+	resultValues  []string
+
+	rcs []resultColumn
+	a   arena
+
+	fields []string
 }
 
 func (shard *pipeExtractRegexpProcessorShard) apply(re *regexp.Regexp, v string) {
@@ -162,30 +146,18 @@ func (shard *pipeExtractRegexpProcessorShard) apply(re *regexp.Regexp, v string)
 	}
 }
 
-type pipeExtractRegexpProcessorShardNopad struct {
-	bm bitmap
-
-	resultColumns []*blockResultColumn
-	resultValues  []string
-
-	rcs []resultColumn
-	a   arena
-
-	fields []string
-}
-
 func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	pe := pep.pe
-	shard := &pep.shards[workerID]
+	shard := pep.shards.Get(workerID)
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pe.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pep.ppNext.writeBlock(workerID, br)
@@ -215,13 +187,13 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+		if pe.iff == nil || bm.isSetBit(rowIdx) {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
 				shard.apply(pe.re, v)
 
@@ -246,6 +218,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 					resultValues[i] = c.getValueAtRow(br, rowIdx)
 				}
 			}
+			needUpdates = true
 		}
 
 		for i, v := range resultValues {
@@ -257,7 +230,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 
 	for i := range rcs {
 		if reFields[i] != "" {
-			br.addResultColumn(&rcs[i])
+			br.addResultColumn(rcs[i])
 		}
 	}
 	pep.ppNext.writeBlock(workerID, br)
@@ -272,7 +245,7 @@ func (pep *pipeExtractRegexpProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtractRegexp(lex *lexer) (*pipeExtractRegexp, error) {
+func parsePipeExtractRegexp(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract_regexp") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract_regexp")
 	}

@@ -9,4 +9,5 @@ export interface GraphOptions {
   graphStyle: GRAPH_STYLES;
   stacked: boolean;
   fill: boolean;
+  hideChart: boolean;
 }

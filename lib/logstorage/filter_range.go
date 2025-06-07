@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterRange matches the given range [minValue..maxValue].
@@ -22,8 +23,8 @@ func (fr *filterRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
 }
 
-func (fr *filterRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -44,9 +45,10 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
+		timestamps := br.getTimestamps()
 		minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
 		bm.forEachSetBit(func(idx int) bool {
-			timestamp := br.timestamps[idx]
+			timestamp := timestamps[idx]
 			return timestamp >= minValueInt && timestamp <= maxValueInt
 		})
 		return
@@ -122,6 +124,18 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 			n := unmarshalUint64(v)
 			return n >= minValueUint && n <= maxValueUint
 		})
+	case valueTypeInt64:
+		minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
+		if minValueInt > int64(c.maxValue) || maxValueInt < int64(c.minValue) {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := unmarshalInt64(v)
+			return n >= minValueInt && n <= maxValueInt
+		})
 	case valueTypeFloat64:
 		if minValue > math.Float64frombits(c.maxValue) || maxValue < math.Float64frombits(c.minValue) {
 			bm.resetBits()
@@ -172,7 +186,7 @@ func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchRange(v, minValue, maxValue) {
 			bm.resetBits()
@@ -181,7 +195,7 @@ func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()
@@ -201,6 +215,8 @@ func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeUint64:
 		matchUint64ByRange(bs, ch, bm, minValue, maxValue)
+	case valueTypeInt64:
+		matchInt64ByRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeFloat64:
 		matchFloat64ByRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeIPv4:
@@ -311,6 +327,23 @@ func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 		}
 		n := unmarshalUint64(v)
 		return n >= minValueUint && n <= maxValueUint
+	})
+	bbPool.Put(bb)
+}
+
+func matchInt64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
+	minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
+	if minValueInt > int64(ch.maxValue) || maxValueInt < int64(ch.minValue) {
+		bm.resetBits()
+		return
+	}
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		if len(v) != 8 {
+			logger.Panicf("FATAL: %s: unexpected length for binary representation of int64 number; got %d; want 8", bs.partPath(), len(v))
+		}
+		n := unmarshalInt64(v)
+		return n >= minValueInt && n <= maxValueInt
 	})
 	bbPool.Put(bb)
 }

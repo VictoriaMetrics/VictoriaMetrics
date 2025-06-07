@@ -1,63 +1,41 @@
-# Docker compose Vector integration with VictoriaLogs for docker
+# Docker compose Vector integration with VictoriaLogs
 
-The folder contains the example of integration of [vector](https://vector.dev/docs/) with Victorialogs
+The folder contains examples of [Vector](https://vector.dev/docs/) integration with VictoriaLogs using protocols:
 
-To spin-up environment  run the following command:
-```
+* [elasticsearch](./elasticsearch)
+* [loki](./loki)
+* [jsonline single node](./jsonline)
+* [jsonline HA setup](./jsonline-ha)
+* [datadog](./datadog)
+
+## Quick start
+
+To spin-up environment `cd` to any of listed above directories run the following command:
+```sh
 docker compose up -d 
 ```
 
 To shut down the docker-compose environment run the following command:
-```
-docker compose down
-docker compose rm -f
+```sh
+docker compose down -v
 ```
 
 The docker compose file contains the following components:
 
-* vector - vector is configured to collect logs from the `docker`, you can find configuration in the `vector.yaml`. It writes data in VictoriaLogs. It pushes metrics to VictoriaMetrics.
-* VictoriaLogs - the log database, it accepts the data from `vector` by elastic protocol
-* VictoriaMetrics - collects metrics from `VictoriaLogs` and `VictoriaMetrics`
+* vector - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `vector` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `vector` for observability purposes
 
-Querying the data
+## Querying
 
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
-* for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
+* for querying the data via command-line please check [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
+Vector configuration example can be found below:
+* [elasticsearch](./elasticsearch/vector.yml)
+* [loki](./loki/vector.yml)
+* [jsonline single node](./jsonline/vector.yml)
+* [jsonline HA setup](./jsonline-ha/vector.yml)
+* [datadog](./datadog/vector.yml)
 
-the example of vector configuration(`vector.yaml`)
-
-```
-sources:
-  docker:
-    type: docker_logs
-transforms:
-  msg_parser:
-    type: remap
-    inputs:
-      - docker
-    source: |
-      .log = parse_json!(.message)
-      del(.message)
-sinks:
-  vlogs_es:
-    type: elasticsearch
-    inputs:
-      - msg_parser
-    endpoints:
-      - http://victorialogs:9428/insert/elasticsearch/
-    mode: bulk
-    api_version: v8
-    compression: gzip
-    healthcheck.enabled: false
-    query:
-      _msg_field: log.msg
-      _time_field: timestamp
-      _stream_fields: source_type,host,container_name
-    request:
-      headers:
-        AccountID: "0"
-        ProjectID: "0"
-```
-
-Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.
+> Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseTasks(t *testing.T) {
@@ -93,11 +93,11 @@ func TestParseTasks(t *testing.T) {
 }
 
 func TestAddTasksLabels(t *testing.T) {
-	f := func(tasks []task, nodesLabels []*promutils.Labels, networkLabels map[string]*promutils.Labels, services []service, labelssExpected []*promutils.Labels) {
+	f := func(tasks []task, nodesLabels []*promutil.Labels, networkLabels map[string]*promutil.Labels, serviceLabels []*promutil.Labels, services []service, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
-		labelss := addTasksLabels(tasks, nodesLabels, nil, networkLabels, services, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		labelss := addTasksLabels(tasks, nodesLabels, serviceLabels, networkLabels, services, 9100)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// adds 1 task with nodes labels
@@ -126,8 +126,21 @@ func TestAddTasksLabels(t *testing.T) {
 		},
 	}
 
-	nodesLabels := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	svcLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "t91nf284wzle1ya09lqvyjgnq",
+			"__meta_dockerswarm_service_name": "real_service_name",
+			"__meta_dockerswarm_service_mode": "real_service_mode",
+		}),
+		promutil.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "fake_service_id",
+			"__meta_dockerswarm_service_name": "fake_service_name",
+			"__meta_dockerswarm_service_mode": "fake_service_mode",
+		}),
+	}
+
+	nodesLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "172.31.40.97:9100",
 			"__meta_dockerswarm_node_address":               "172.31.40.97",
 			"__meta_dockerswarm_node_availability":          "active",
@@ -141,8 +154,8 @@ func TestAddTasksLabels(t *testing.T) {
 		}),
 	}
 
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "172.31.40.97:6379",
 			"__meta_dockerswarm_node_address":               "172.31.40.97",
 			"__meta_dockerswarm_node_availability":          "active",
@@ -159,9 +172,12 @@ func TestAddTasksLabels(t *testing.T) {
 			"__meta_dockerswarm_task_port_publish_mode":     "ingress",
 			"__meta_dockerswarm_task_slot":                  "1",
 			"__meta_dockerswarm_task_state":                 "running",
+			"__meta_dockerswarm_service_id":                 "t91nf284wzle1ya09lqvyjgnq",
+			"__meta_dockerswarm_service_name":               "real_service_name",
+			"__meta_dockerswarm_service_mode":               "real_service_mode",
 		}),
 	}
-	f(tasks, nodesLabels, nil, nil, labelssExpected)
+	f(tasks, nodesLabels, nil, svcLabels, nil, labelssExpected)
 
 	//  adds 1 task with nodes, network and services labels
 	tasks = []task{
@@ -189,8 +205,8 @@ func TestAddTasksLabels(t *testing.T) {
 		},
 	}
 
-	networksLabels := map[string]*promutils.Labels{
-		"qs0hog6ldlei9ct11pr3c77v1": promutils.NewLabelsFromMap(map[string]string{
+	networksLabels := map[string]*promutil.Labels{
+		"qs0hog6ldlei9ct11pr3c77v1": promutil.NewLabelsFromMap(map[string]string{
 			"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 			"__meta_dockerswarm_network_ingress":    "true",
 			"__meta_dockerswarm_network_internal":   "false",
@@ -200,8 +216,8 @@ func TestAddTasksLabels(t *testing.T) {
 		}),
 	}
 
-	nodesLabels = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	nodesLabels = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "172.31.40.97:9100",
 			"__meta_dockerswarm_node_address":               "172.31.40.97",
 			"__meta_dockerswarm_node_availability":          "active",
@@ -212,6 +228,19 @@ func TestAddTasksLabels(t *testing.T) {
 			"__meta_dockerswarm_node_platform_os":           "linux",
 			"__meta_dockerswarm_node_role":                  "manager",
 			"__meta_dockerswarm_node_status":                "ready",
+		}),
+	}
+
+	svcLabels = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "tgsci5gd31aai3jyudv98pqxf",
+			"__meta_dockerswarm_service_name": "redis2",
+			"__meta_dockerswarm_service_mode": "replicated",
+		}),
+		promutil.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "fake_service_id",
+			"__meta_dockerswarm_service_name": "fake_service_name",
+			"__meta_dockerswarm_service_mode": "fake_service_mode",
 		}),
 	}
 
@@ -250,8 +279,8 @@ func TestAddTasksLabels(t *testing.T) {
 		},
 	}
 
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "10.10.15.15:6379",
 			"__meta_dockerswarm_network_id":                 "qs0hog6ldlei9ct11pr3c77v1",
 			"__meta_dockerswarm_network_ingress":            "true",
@@ -274,7 +303,10 @@ func TestAddTasksLabels(t *testing.T) {
 			"__meta_dockerswarm_task_port_publish_mode":     "ingress",
 			"__meta_dockerswarm_task_slot":                  "1",
 			"__meta_dockerswarm_task_state":                 "running",
+			"__meta_dockerswarm_service_id":                 "tgsci5gd31aai3jyudv98pqxf",
+			"__meta_dockerswarm_service_name":               "redis2",
+			"__meta_dockerswarm_service_mode":               "replicated",
 		}),
 	}
-	f(tasks, nodesLabels, networksLabels, services, labelssExpected)
+	f(tasks, nodesLabels, networksLabels, svcLabels, services, labelssExpected)
 }

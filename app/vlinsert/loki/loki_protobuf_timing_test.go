@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/snappy"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -25,14 +23,13 @@ func BenchmarkParseProtobufRequest(b *testing.B) {
 }
 
 func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
-	blp := &insertutils.BenchmarkLogMessageProcessor{}
+	blp := &insertutil.BenchmarkLogMessageProcessor{}
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {
 		body := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			_, err := parseProtobufRequest(body, blp)
-			if err != nil {
+			if err := parseProtobufRequest(body, blp, nil, false, true); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
@@ -79,8 +76,5 @@ func getProtobufBody(streamsCount, rowsCount, labelsCount int) []byte {
 		Streams: streams,
 	}
 
-	body := pr.MarshalProtobuf(nil)
-	encodedBody := snappy.Encode(nil, body)
-
-	return encodedBody
+	return pr.MarshalProtobuf(nil)
 }

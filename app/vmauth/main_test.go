@@ -52,7 +52,7 @@ func TestRequestHandler(t *testing.T) {
 		r.Header.Set("Pass-Header", "abc")
 
 		w := &fakeResponseWriter{}
-		if !requestHandler(w, r) {
+		if !requestHandlerWithInternalRoutes(w, r) {
 			t.Fatalf("unexpected false is returned from requestHandler")
 		}
 
@@ -88,6 +88,20 @@ requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
 Pass-Header: abc
 User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// routing of all failed to authorize requests to unauthorized_user (issue #7543)
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo"
+  keep_original_host: true`
+	requestURL = "http://foo:invalid-secret@some-host.com/abc/def"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url=http://some-host.com/foo/abc/def`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// keep_original_host
@@ -181,7 +195,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=401
-The provided authKey doesn't match -reloadAuthKey`
+Expected to receive non-empty authKey when -reloadAuthKey is set`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if err := reloadAuthKey.Set(origAuthKey); err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -346,7 +360,27 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for http://some-host.com/abc?de=fg`
+remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg"`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
+	cfgStr = `
+unauthorized_user:
+  dump_request_on_errors: true
+  url_map:
+  - src_paths: ["/foo/.+"]
+    url_prefix: {BACKEND}/x-foo/`
+	requestURL = "http://some-host.com/abc?de=fg"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=400
+remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+Pass-Header: abc
+Some-Header: foobar
+X-Forwarded-For: 12.34.56.78
+)`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user when there are configs for authorized users
@@ -511,8 +545,7 @@ func TestReadTrackingBody_RetrySuccess(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true before reading anything")
@@ -547,8 +580,7 @@ func TestReadTrackingBody_RetrySuccessPartialRead(t *testing.T) {
 		t.Helper()
 
 		// Check the case with partial read
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		for i := 0; i < len(s); i++ {
 			buf := make([]byte, i)
@@ -597,8 +629,7 @@ func TestReadTrackingBody_RetryFailureTooBigBody(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true before reading anything")
@@ -647,8 +678,7 @@ func TestReadTrackingBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true before reading anything")

@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // writerWithStats writes data to w and tracks the total amounts of data written at bytesWritten.
@@ -44,62 +44,159 @@ func (w *writerWithStats) MustClose() {
 
 // streamWriters contain writers for blockStreamWriter
 type streamWriters struct {
+	columnNamesWriter        writerWithStats
+	columnIdxsWriter         writerWithStats
 	metaindexWriter          writerWithStats
 	indexWriter              writerWithStats
+	columnsHeaderIndexWriter writerWithStats
 	columnsHeaderWriter      writerWithStats
 	timestampsWriter         writerWithStats
-	fieldValuesWriter        writerWithStats
-	fieldBloomFilterWriter   writerWithStats
-	messageValuesWriter      writerWithStats
-	messageBloomFilterWriter writerWithStats
+
+	messageBloomValuesWriter bloomValuesWriter
+
+	bloomValuesShards       []bloomValuesWriter
+	createBloomValuesWriter func(shardIdx uint64) bloomValuesStreamWriter
+	maxShards               uint64
+
+	// columnNameIDGenerator is used for generating columnName->id mapping for all the columns seen in bsw
+	columnNameIDGenerator columnNameIDGenerator
+
+	columnIdxs    map[uint64]uint64
+	nextColumnIdx uint64
+}
+
+type bloomValuesWriter struct {
+	bloom  writerWithStats
+	values writerWithStats
+}
+
+func (w *bloomValuesWriter) reset() {
+	w.bloom.reset()
+	w.values.reset()
+}
+
+func (w *bloomValuesWriter) init(sw bloomValuesStreamWriter) {
+	w.bloom.init(sw.bloom)
+	w.values.init(sw.values)
+}
+
+func (w *bloomValuesWriter) totalBytesWritten() uint64 {
+	return w.bloom.bytesWritten + w.values.bytesWritten
+}
+
+func (w *bloomValuesWriter) MustClose() {
+	w.bloom.MustClose()
+	w.values.MustClose()
+}
+
+type bloomValuesStreamWriter struct {
+	bloom  filestream.WriteCloser
+	values filestream.WriteCloser
 }
 
 func (sw *streamWriters) reset() {
+	sw.columnNamesWriter.reset()
+	sw.columnIdxsWriter.reset()
 	sw.metaindexWriter.reset()
 	sw.indexWriter.reset()
+	sw.columnsHeaderIndexWriter.reset()
 	sw.columnsHeaderWriter.reset()
 	sw.timestampsWriter.reset()
-	sw.fieldValuesWriter.reset()
-	sw.fieldBloomFilterWriter.reset()
-	sw.messageValuesWriter.reset()
-	sw.messageBloomFilterWriter.reset()
+
+	sw.messageBloomValuesWriter.reset()
+	for i := range sw.bloomValuesShards {
+		sw.bloomValuesShards[i].reset()
+	}
+	sw.bloomValuesShards = sw.bloomValuesShards[:0]
+
+	sw.createBloomValuesWriter = nil
+	sw.maxShards = 0
+
+	sw.columnNameIDGenerator.reset()
+	sw.columnIdxs = nil
+	sw.nextColumnIdx = 0
 }
 
-func (sw *streamWriters) init(metaindexWriter, indexWriter, columnsHeaderWriter, timestampsWriter, fieldValuesWriter, fieldBloomFilterWriter,
-	messageValuesWriter, messageBloomFilterWriter filestream.WriteCloser,
+func (sw *streamWriters) init(columnNamesWriter, columnIdxsWriter, metaindexWriter, indexWriter,
+	columnsHeaderIndexWriter, columnsHeaderWriter, timestampsWriter filestream.WriteCloser,
+	messageBloomValuesWriter bloomValuesStreamWriter, createBloomValuesWriter func(shardIdx uint64) bloomValuesStreamWriter, maxShards uint64,
 ) {
+	sw.columnNamesWriter.init(columnNamesWriter)
+	sw.columnIdxsWriter.init(columnIdxsWriter)
 	sw.metaindexWriter.init(metaindexWriter)
 	sw.indexWriter.init(indexWriter)
+	sw.columnsHeaderIndexWriter.init(columnsHeaderIndexWriter)
 	sw.columnsHeaderWriter.init(columnsHeaderWriter)
 	sw.timestampsWriter.init(timestampsWriter)
-	sw.fieldValuesWriter.init(fieldValuesWriter)
-	sw.fieldBloomFilterWriter.init(fieldBloomFilterWriter)
-	sw.messageValuesWriter.init(messageValuesWriter)
-	sw.messageBloomFilterWriter.init(messageBloomFilterWriter)
+
+	sw.messageBloomValuesWriter.init(messageBloomValuesWriter)
+
+	sw.createBloomValuesWriter = createBloomValuesWriter
+	sw.maxShards = maxShards
 }
 
 func (sw *streamWriters) totalBytesWritten() uint64 {
 	n := uint64(0)
+
+	n += sw.columnNamesWriter.bytesWritten
+	n += sw.columnIdxsWriter.bytesWritten
 	n += sw.metaindexWriter.bytesWritten
 	n += sw.indexWriter.bytesWritten
+	n += sw.columnsHeaderIndexWriter.bytesWritten
 	n += sw.columnsHeaderWriter.bytesWritten
 	n += sw.timestampsWriter.bytesWritten
-	n += sw.fieldValuesWriter.bytesWritten
-	n += sw.fieldBloomFilterWriter.bytesWritten
-	n += sw.messageValuesWriter.bytesWritten
-	n += sw.messageBloomFilterWriter.bytesWritten
+
+	n += sw.messageBloomValuesWriter.totalBytesWritten()
+	for i := range sw.bloomValuesShards {
+		n += sw.bloomValuesShards[i].totalBytesWritten()
+	}
+
 	return n
 }
 
 func (sw *streamWriters) MustClose() {
+	sw.columnNamesWriter.MustClose()
+	sw.columnIdxsWriter.MustClose()
 	sw.metaindexWriter.MustClose()
 	sw.indexWriter.MustClose()
+	sw.columnsHeaderIndexWriter.MustClose()
 	sw.columnsHeaderWriter.MustClose()
 	sw.timestampsWriter.MustClose()
-	sw.fieldValuesWriter.MustClose()
-	sw.fieldBloomFilterWriter.MustClose()
-	sw.messageValuesWriter.MustClose()
-	sw.messageBloomFilterWriter.MustClose()
+
+	sw.messageBloomValuesWriter.MustClose()
+	for i := range sw.bloomValuesShards {
+		sw.bloomValuesShards[i].MustClose()
+	}
+}
+
+func (sw *streamWriters) getBloomValuesWriterForColumnName(name string) *bloomValuesWriter {
+	if name == "" {
+		return &sw.messageBloomValuesWriter
+	}
+
+	columnID := sw.columnNameIDGenerator.getColumnNameID(name)
+	shardIdx, ok := sw.columnIdxs[columnID]
+	if ok {
+		return &sw.bloomValuesShards[shardIdx]
+	}
+
+	shardIdx = sw.nextColumnIdx % sw.maxShards
+	sw.nextColumnIdx++
+
+	if sw.columnIdxs == nil {
+		sw.columnIdxs = make(map[uint64]uint64)
+	}
+	sw.columnIdxs[columnID] = shardIdx
+
+	if shardIdx >= uint64(len(sw.bloomValuesShards)) {
+		if shardIdx > uint64(len(sw.bloomValuesShards)) {
+			logger.Panicf("BUG: shardIdx must equal %d; got %d; maxShards=%d; columnIdxs=%v", len(sw.bloomValuesShards), shardIdx, sw.maxShards, sw.columnIdxs)
+		}
+		sws := sw.createBloomValuesWriter(shardIdx)
+		sw.bloomValuesShards = slicesutil.SetLength(sw.bloomValuesShards, len(sw.bloomValuesShards)+1)
+		sw.bloomValuesShards[len(sw.bloomValuesShards)-1].init(sws)
+	}
+	return &sw.bloomValuesShards[shardIdx]
 }
 
 // blockStreamWriter is used for writing blocks into the underlying storage in streaming manner.
@@ -150,7 +247,7 @@ type blockStreamWriter struct {
 	indexBlockHeader indexBlockHeader
 }
 
-// reset resets bsw for subsequent re-use.
+// reset resets bsw for subsequent reuse.
 func (bsw *blockStreamWriter) reset() {
 	bsw.streamWriters.reset()
 	bsw.sidLast.reset()
@@ -180,7 +277,13 @@ func (bsw *blockStreamWriter) reset() {
 // MustInitForInmemoryPart initializes bsw from mp
 func (bsw *blockStreamWriter) MustInitForInmemoryPart(mp *inmemoryPart) {
 	bsw.reset()
-	bsw.streamWriters.init(&mp.metaindex, &mp.index, &mp.columnsHeader, &mp.timestamps, &mp.fieldValues, &mp.fieldBloomFilter, &mp.messageValues, &mp.messageBloomFilter)
+
+	messageBloomValues := mp.messageBloomValues.NewStreamWriter()
+	createBloomValuesWriter := func(_ uint64) bloomValuesStreamWriter {
+		return mp.fieldBloomValues.NewStreamWriter()
+	}
+
+	bsw.streamWriters.init(&mp.columnNames, &mp.columnIdxs, &mp.metaindex, &mp.index, &mp.columnsHeaderIndex, &mp.columnsHeader, &mp.timestamps, messageBloomValues, createBloomValuesWriter, 1)
 }
 
 // MustInitForFilePart initializes bsw for writing data to file part located at path.
@@ -191,28 +294,51 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 
 	fs.MustMkdirFailIfExist(path)
 
+	columnNamesPath := filepath.Join(path, columnNamesFilename)
+	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
+	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
 	columnsHeaderPath := filepath.Join(path, columnsHeaderFilename)
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	fieldValuesPath := filepath.Join(path, fieldValuesFilename)
-	fieldBloomFilterPath := filepath.Join(path, fieldBloomFilename)
-	messageValuesPath := filepath.Join(path, messageValuesFilename)
-	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
-	// Always cache metaindex file, since it it re-read immediately after part creation
+	// Always cache columnNames file, since it is re-read immediately after part creation
+	columnNamesWriter := filestream.MustCreate(columnNamesPath, false)
+
+	// Always cache columnIdxs file, since it is re-read immediately after part creation
+	columnIdxsWriter := filestream.MustCreate(columnIdxsPath, false)
+
+	// Always cache metaindex file, since it is re-read immediately after part creation
 	metaindexWriter := filestream.MustCreate(metaindexPath, false)
 
 	indexWriter := filestream.MustCreate(indexPath, nocache)
+	columnsHeaderIndexWriter := filestream.MustCreate(columnsHeaderIndexPath, nocache)
 	columnsHeaderWriter := filestream.MustCreate(columnsHeaderPath, nocache)
 	timestampsWriter := filestream.MustCreate(timestampsPath, nocache)
-	fieldValuesWriter := filestream.MustCreate(fieldValuesPath, nocache)
-	fieldBloomFilterWriter := filestream.MustCreate(fieldBloomFilterPath, nocache)
-	messageValuesWriter := filestream.MustCreate(messageValuesPath, nocache)
-	messageBloomFilterWriter := filestream.MustCreate(messageBloomFilterPath, nocache)
 
-	bsw.streamWriters.init(metaindexWriter, indexWriter, columnsHeaderWriter, timestampsWriter,
-		fieldValuesWriter, fieldBloomFilterWriter, messageValuesWriter, messageBloomFilterWriter)
+	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
+	messageValuesPath := filepath.Join(path, messageValuesFilename)
+	messageBloomValuesWriter := bloomValuesStreamWriter{
+		bloom:  filestream.MustCreate(messageBloomFilterPath, nocache),
+		values: filestream.MustCreate(messageValuesPath, nocache),
+	}
+
+	createBloomValuesWriter := func(shardIdx uint64) bloomValuesStreamWriter {
+		bloomPath := getBloomFilePath(path, shardIdx)
+		bloom := filestream.MustCreate(bloomPath, nocache)
+
+		valuesPath := getValuesFilePath(path, shardIdx)
+		values := filestream.MustCreate(valuesPath, nocache)
+
+		return bloomValuesStreamWriter{
+			bloom:  bloom,
+			values: values,
+		}
+	}
+
+	bsw.streamWriters.init(columnNamesWriter, columnIdxsWriter, metaindexWriter, indexWriter,
+		columnsHeaderIndexWriter, columnsHeaderWriter, timestampsWriter, messageBloomValuesWriter,
+		createBloomValuesWriter, bloomValuesMaxShardsCount)
 }
 
 // MustWriteRows writes timestamps with rows under the given sid to bsw.
@@ -270,6 +396,7 @@ func (bsw *blockStreamWriter) mustWriteBlockInternal(sid *streamID, b *block, bd
 	} else {
 		bd.mustWriteTo(bh, &bsw.streamWriters)
 	}
+
 	th := &bh.timestampsHeader
 	if bsw.globalRowsCount == 0 || th.minTimestamp < bsw.globalMinTimestamp {
 		bsw.globalMinTimestamp = th.minTimestamp
@@ -316,23 +443,26 @@ func (bsw *blockStreamWriter) mustFlushIndexBlock(data []byte) {
 //
 // It closes the writers passed to MustInit().
 //
-// bsw can be re-used after calling Finalize().
+// bsw can be reused after calling Finalize().
 func (bsw *blockStreamWriter) Finalize(ph *partHeader) {
+	ph.FormatVersion = partFormatLatestVersion
 	ph.UncompressedSizeBytes = bsw.globalUncompressedSizeBytes
 	ph.RowsCount = bsw.globalRowsCount
 	ph.BlocksCount = bsw.globalBlocksCount
 	ph.MinTimestamp = bsw.globalMinTimestamp
 	ph.MaxTimestamp = bsw.globalMaxTimestamp
+	ph.BloomValuesShardsCount = uint64(len(bsw.streamWriters.bloomValuesShards))
 
 	bsw.mustFlushIndexBlock(bsw.indexBlockData)
 
+	// Write columnNames data
+	mustWriteColumnNames(&bsw.streamWriters.columnNamesWriter, bsw.streamWriters.columnNameIDGenerator.columnNames)
+
+	// Write columnIdxs data
+	mustWriteColumnIdxs(&bsw.streamWriters.columnIdxsWriter, bsw.streamWriters.columnIdxs)
+
 	// Write metaindex data
-	bb := longTermBufPool.Get()
-	bb.B = encoding.CompressZSTDLevel(bb.B[:0], bsw.metaindexData, 1)
-	bsw.streamWriters.metaindexWriter.MustWrite(bb.B)
-	if len(bb.B) < 1024*1024 {
-		longTermBufPool.Put(bb)
-	}
+	mustWriteIndexBlockHeaders(&bsw.streamWriters.metaindexWriter, bsw.metaindexData)
 
 	ph.CompressedSizeBytes = bsw.streamWriters.totalBytesWritten()
 

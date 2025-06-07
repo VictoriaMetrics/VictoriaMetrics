@@ -2,7 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackLogfmt processes '| unpack_logfmt ...' pipe.
@@ -12,10 +13,8 @@ type pipeUnpackLogfmt struct {
 	// fromField is the field to unpack logfmt fields from
 	fromField string
 
-	// fields is an optional list of fields to extract from logfmt.
-	//
-	// if it is empty, then all the fields are extracted.
-	fields []string
+	// filterFields is list of field filters to extract from logfmt.
+	fieldFilters []string
 
 	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
@@ -35,8 +34,8 @@ func (pu *pipeUnpackLogfmt) String() string {
 	if !isMsgFieldName(pu.fromField) {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
-	if len(pu.fields) > 0 {
-		s += " fields (" + fieldsToString(pu.fields) + ")"
+	if !prefixfilter.MatchAll(pu.fieldFilters) {
+		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -50,24 +49,24 @@ func (pu *pipeUnpackLogfmt) String() string {
 	return s
 }
 
+func (pu *pipeUnpackLogfmt) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pu, nil
+}
+
 func (pu *pipeUnpackLogfmt) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
-}
-
-func (pu *pipeUnpackLogfmt) optimize() {
-	pu.iff.optimizeFilterIn()
+func (pu *pipeUnpackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }
 
 func (pu *pipeUnpackLogfmt) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackLogfmt) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pu *pipeUnpackLogfmt) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -76,38 +75,48 @@ func (pu *pipeUnpackLogfmt) initFilterInValues(cache map[string][]string, getFie
 	return &puNew, nil
 }
 
-func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackLogfmt) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
+func (pu *pipeUnpackLogfmt) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackLogfmt := func(uctx *fieldsUnpackerContext, s string) {
 		p := getLogfmtParser()
 
 		p.parse(s)
-		if len(pu.fields) == 0 {
-			for _, f := range p.fields {
-				uctx.addField(f.Name, f.Value)
+
+		for _, f := range p.fields {
+			if !prefixfilter.MatchFilters(pu.fieldFilters, f.Name) {
+				continue
 			}
-		} else {
-			for _, fieldName := range pu.fields {
-				addedField := false
-				for _, f := range p.fields {
-					if f.Name == fieldName {
-						uctx.addField(f.Name, f.Value)
-						addedField = true
-						break
-					}
+
+			uctx.addField(f.Name, f.Value)
+		}
+
+		for _, filter := range pu.fieldFilters {
+			if prefixfilter.IsWildcardFilter(filter) {
+				continue
+			}
+
+			addEmptyField := true
+			for _, f := range p.fields {
+				if f.Name == filter {
+					addEmptyField = false
+					break
 				}
-				if !addedField {
-					uctx.addField(fieldName, "")
-				}
+			}
+			if addEmptyField {
+				uctx.addField(filter, "")
 			}
 		}
 
 		putLogfmtParser(p)
 	}
 
-	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
+	return newPipeUnpackProcessor(unpackLogfmt, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
-func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
+func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_logfmt") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_logfmt")
 	}
@@ -123,8 +132,10 @@ func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
 	}
 
 	fromField := "_msg"
-	if lex.isKeyword("from") {
-		lex.nextToken()
+	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
+		if lex.isKeyword("from") {
+			lex.nextToken()
+		}
 		f, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
@@ -132,17 +143,17 @@ func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
 		fromField = f
 	}
 
-	var fields []string
+	var fieldFilters []string
 	if lex.isKeyword("fields") {
 		lex.nextToken()
-		fs, err := parseFieldNamesInParens(lex)
+		fs, err := parseFieldFiltersInParens(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'fields': %w", err)
 		}
-		fields = fs
-		if slices.Contains(fields, "*") {
-			fields = nil
-		}
+		fieldFilters = fs
+	}
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	resultPrefix := ""
@@ -168,7 +179,7 @@ func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
 
 	pu := &pipeUnpackLogfmt{
 		fromField:          fromField,
-		fields:             fields,
+		fieldFilters:       fieldFilters,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
 		skipEmptyResults:   skipEmptyResults,

@@ -21,17 +21,15 @@ type streamID struct {
 	id u128
 }
 
-// reset resets sid for subsequent re-use
+// reset resets sid for subsequent reuse
 func (sid *streamID) reset() {
 	*sid = streamID{}
 }
 
 // marshalString returns _stream_id value for the given sid.
 func (sid *streamID) marshalString(dst []byte) []byte {
-	bb := bbPool.Get()
-	bb.B = sid.marshal(bb.B)
-	dst = hex.AppendEncode(dst, bb.B)
-	bbPool.Put(bb)
+	dst = sid.tenantID.marshalString(dst)
+	dst = sid.id.marshalString(dst)
 	return dst
 }
 

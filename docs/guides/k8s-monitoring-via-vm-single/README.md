@@ -1,6 +1,6 @@
 **This guide covers:**
 
-* The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
+* The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
 * How to scrape metrics from k8s components using service discovery 
 * How to visualize stored data 
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com) tsdb
@@ -8,18 +8,16 @@
 **Precondition**
 
 We will use:
-* [Kubernetes cluster 1.19.9-gke.1900](https://cloud.google.com/kubernetes-engine)
+* [Kubernetes cluster 1.31.1-gke.1678000](https://cloud.google.com/kubernetes-engine)
 > We use GKE cluster from [GCP](https://cloud.google.com/) but this guide is also applied on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
-* [Helm 3 ](https://helm.sh/docs/intro/install)
-* [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
+* [Helm 3.14+](https://helm.sh/docs/intro/install)
+* [kubectl 1.31](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
 ![VictoriaMetrics Single on Kubernetes cluster](k8s-scheme.webp)
 
 ## 1. VictoriaMetrics Helm repository
 
-> For this guide we will use Helm 3 but if you already use Helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
-
-You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/). You can do this by running the following command:
+You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/). You can do this by running the following command:
 
 
 ```shell
@@ -42,18 +40,23 @@ helm search repo vm/
 The expected output is:
 
 ```text
-NAME                         	CHART VERSION	APP VERSION	DESCRIPTION                                       
-vm/victoria-metrics-agent    	0.7.20       	v1.62.0    	Victoria Metrics Agent - collects metrics from ...
-vm/victoria-metrics-alert    	0.3.34       	v1.62.0    	Victoria Metrics Alert - executes a list of giv...
-vm/victoria-metrics-auth     	0.2.23       	1.62.0     	Victoria Metrics Auth - is a simple auth proxy ...
-vm/victoria-metrics-cluster  	0.8.32       	1.62.0     	Victoria Metrics Cluster version - high-perform...
-vm/victoria-metrics-k8s-stack	0.2.9        	1.16.0     	Kubernetes monitoring on VictoriaMetrics stack....
-vm/victoria-metrics-operator 	0.1.17       	0.16.0     	Victoria Metrics Operator                         
-vm/victoria-metrics-single   	0.7.5        	1.62.0     	Victoria Metrics Single version - high-performa...
+NAME                           	CHART VERSION	APP VERSION	DESCRIPTION                                       
+vm/victoria-logs-single        	0.9.3        	v1.16.0    	Victoria Logs Single version - high-performance...
+vm/victoria-metrics-agent      	0.17.2       	v1.113.0   	Victoria Metrics Agent - collects metrics from ...
+vm/victoria-metrics-alert      	0.15.0       	v1.113.0   	Victoria Metrics Alert - executes a list of giv...
+vm/victoria-metrics-anomaly    	1.9.0        	v1.21.0    	Victoria Metrics Anomaly Detection - a service ...
+vm/victoria-metrics-auth       	0.10.0       	v1.113.0   	Victoria Metrics Auth - is a simple auth proxy ...
+vm/victoria-metrics-cluster    	0.19.2       	v1.113.0   	Victoria Metrics Cluster version - high-perform...
+vm/victoria-metrics-common     	0.0.42       	           	Victoria Metrics Common - contains shared templ...
+vm/victoria-metrics-distributed	0.9.0        	v1.113.0   	A Helm chart for Running VMCluster on Multiple ...
+vm/victoria-metrics-gateway    	0.8.0        	v1.113.0   	Victoria Metrics Gateway - Auth & Rate-Limittin...
+vm/victoria-metrics-k8s-stack  	0.39.0       	v1.113.0   	Kubernetes monitoring on VictoriaMetrics stack....
+vm/victoria-metrics-operator   	0.43.0       	v0.54.1    	Victoria Metrics Operator                         
+vm/victoria-metrics-single     	0.15.1       	v1.113.0   	Victoria Metrics Single version - high-performa...
 ```
 
 
-## 2. Install [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) from Helm Chart
+## 2. Install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) from Helm Chart
 
 Run this command in your terminal:
 
@@ -86,9 +89,9 @@ server:
           relabel_configs:
             - source_labels:
                 [
-                    __meta_kubernetes_namespace,
-                    __meta_kubernetes_service_name,
-                    __meta_kubernetes_endpoint_port_name,
+                  __meta_kubernetes_namespace,
+                  __meta_kubernetes_service_name,
+                  __meta_kubernetes_endpoint_port_name,
                 ]
               action: keep
               regex: default;kubernetes;https
@@ -145,36 +148,39 @@ server:
               regex: '^/system\.slice/(.+)\.service$'
               target_label: systemd_service_name
               replacement: '${1}'
-
 ```
 
 
-* By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
-* By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/)
-* On line 166 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml) we added `metric_relabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
+* By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
+* By adding `scrape: enabled: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
+* On line 67 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml) we added `metric_relabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
 
 
 As a result of the command you will see the following output:
 
 ```text
-NAME: victoria-metrics
-LAST DEPLOYED: Fri Jun 25 12:06:13 2021
+NAME: vmsingle
+LAST DEPLOYED: Fri Mar 21 11:50:39 2025
 NAMESPACE: default
 STATUS: deployed
 REVISION: 1
 TEST SUITE: None
 NOTES:
 The VictoriaMetrics write api can be accessed via port 8428 on the following DNS name from within your cluster:
-    vmsingle-victoria-metrics-single-server.default.svc.cluster.local
-
+    vmsingle-victoria-metrics-single-server.default.svc.cluster.local.
 
 Metrics Ingestion:
   Get the Victoria Metrics service URL by running these commands in the same shell:
-    export POD_NAME=$(kubectl get pods --namespace default -l "app=server" -o jsonpath="{.items[0].metadata.name}")
+    export POD_NAME=$(kubectl get pods --namespace default -l "app=" -o jsonpath="{.items[0].metadata.name}")
     kubectl --namespace default port-forward $POD_NAME 8428
 
-  Write url inside the kubernetes cluster:
-    http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local:8428/api/v1/write
+  Write URL inside the kubernetes cluster:
+    http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428/<protocol-specific-write-endpoint>
+
+  All supported write endpoints can be found at https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data
+
+  E.g: for Prometheus:
+    http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428/api/v1/write
 
 Metrics Scrape:
   Pull-based scrapes are enabled
@@ -183,15 +189,14 @@ Metrics Scrape:
 
   The target’s information is accessible via api:
     Inside cluster:
-      http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local:8428/targets
+      http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428/targets
     Outside cluster:
       You need to port-forward service (see instructions above) and call
       http://<service-host-port>/targets
 
 Read Data:
-  The following url can be used as the datasource url in Grafana::
-    http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local:8428
-
+  The following URL can be used as the datasource URL in Grafana::
+    http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428
 ```
 
 For us it’s important to remember the url for the datasource (copy lines from output).

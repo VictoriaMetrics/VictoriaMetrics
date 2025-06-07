@@ -8,22 +8,37 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var disableFSyncForTesting = envutil.GetenvBool("DISABLE_FSYNC_FOR_TESTING")
-
-var tmpFileNum atomic.Uint64
+var tmpFileNum atomicutil.Uint64
 
 // MustSyncPath syncs contents of the given path.
 func MustSyncPath(path string) {
 	mustSyncPath(path)
+}
+
+// MustWriteStreamSync writes src contents to the file at path and then calls fsync on the created file.
+// The fsync guarantees that the written data survives hardware reset after successful call.
+//
+// This function may leave the file at the path in inconsistent state on app crash
+// in the middle of the write.
+// Use MustWriteAtomic if the file at the path must be either written in full
+// or not written at all on app crash in the middle of the write.
+func MustWriteStreamSync(path string, src io.WriterTo) {
+	f := filestream.MustCreate(path, false)
+	if _, err := src.WriteTo(f); err != nil {
+		f.MustClose()
+		// Do not call MustRemoveAll(path), so the user could inspect
+		// the file contents during investigation of the issue.
+		logger.Panicf("FATAL: cannot write data to %q: %s", path, err)
+	}
+	f.MustClose()
 }
 
 // MustWriteSync writes data to the file at path and then calls fsync on the created file.
@@ -42,7 +57,6 @@ func MustWriteSync(path string, data []byte) {
 		// the file contents during investigation of the issue.
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(data), path, err)
 	}
-	// Sync and close the file.
 	f.MustClose()
 }
 
@@ -210,8 +224,8 @@ func MustRemoveDirAtomic(dir string) {
 	MustSyncPath(parentDir)
 }
 
-var atomicDirRemoveCounter = func() *atomic.Uint64 {
-	var x atomic.Uint64
+var atomicDirRemoveCounter = func() *atomicutil.Uint64 {
+	var x atomicutil.Uint64
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()

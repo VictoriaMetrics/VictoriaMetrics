@@ -1,0 +1,24 @@
+name: datadog-serverless-aws
+include:
+ - ../../compose-base.yml
+services:
+  lambda:
+    build: .
+    restart: on-failure
+    ports:
+      - 8080:8080
+    environment:
+      DD_LOG_LEVEL: trace
+      DD_LOGS_ENABLED: true
+      DD_SOURCE: test
+      DD_API_KEY: test
+      DD_DD_URL: http://dd-proxy:8427
+      DD_PROFILING_ENABLED: false
+      DD_ENHANCED_METRICS: true
+      DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-proxy:8427
+      DD_SERVERLESS_FLUSH_STRATEGY: periodically,100
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy

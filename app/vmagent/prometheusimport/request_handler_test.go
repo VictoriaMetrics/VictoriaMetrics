@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 var (
@@ -26,7 +26,7 @@ func TestInsertHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/insert/0/api/v1/import/prometheus", bytes.NewBufferString(`{"foo":"bar"}
 go_memstats_alloc_bytes_total 1`))
 	if err := InsertHandler(nil, req); err != nil {
-		t.Fatalf("unxepected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	expectedMsg := "cannot unmarshal Prometheus line"
 	if !strings.Contains(testOutput.String(), expectedMsg) {
@@ -44,14 +44,14 @@ func setUp() {
 		log.Fatalf("unable to set %q with value %q, err: %v", remoteWriteFlag, srv.URL, err)
 	}
 	logger.Init()
-	common.StartUnmarshalWorkers()
+	protoparserutil.StartUnmarshalWorkers()
 	remotewrite.Init()
 	testOutput = &bytes.Buffer{}
 	logger.SetOutputForTests(testOutput)
 }
 
 func tearDown() {
-	common.StopUnmarshalWorkers()
+	protoparserutil.StopUnmarshalWorkers()
 	srv.Close()
 	logger.ResetOutputForTest()
 	tmpDataDir := flag.Lookup("remoteWrite.tmpDataPath").Value.String()

@@ -13,7 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -244,7 +244,7 @@ func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
 	if !ok {
 		return rvs
 	}
-	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
+	tfss := searchutil.ToTagFilterss(me.LabelFilterss)
 	if len(tfss) != 1 {
 		return rvs
 	}
@@ -1544,10 +1544,8 @@ func transformRangeFirst(tfa *transformFuncArg) ([]*timeseries, error) {
 			continue
 		}
 		vFirst := values[0]
-		for i, v := range values {
-			if math.IsNaN(v) {
-				continue
-			}
+		values = ts.Values
+		for i := range values {
 			values[i] = vFirst
 		}
 	}
@@ -1571,10 +1569,8 @@ func setLastValues(tss []*timeseries) {
 			continue
 		}
 		vLast := values[len(values)-1]
-		for i, v := range values {
-			if math.IsNaN(v) {
-				continue
-			}
+		values = ts.Values
+		for i := range values {
 			values[i] = vLast
 		}
 	}

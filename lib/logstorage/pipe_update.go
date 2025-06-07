@@ -1,29 +1,17 @@
 package logstorage
 
 import (
-	"unsafe"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
-func updateNeededFieldsForUpdatePipe(neededFields, unneededFields fieldsSet, field string, iff *ifFilter) {
-	if neededFields.isEmpty() {
-		if iff != nil {
-			neededFields.addFields(iff.neededFields)
-		}
-		return
-	}
-
-	if neededFields.contains("*") {
-		if !unneededFields.contains(field) && iff != nil {
-			unneededFields.removeFields(iff.neededFields)
-		}
-	} else {
-		if neededFields.contains(field) && iff != nil {
-			neededFields.addFields(iff.neededFields)
-		}
+func updateNeededFieldsForUpdatePipe(pf *prefixfilter.Filter, field string, iff *ifFilter) {
+	if iff != nil && (pf.MatchString(field) || pf.MatchNothing()) {
+		pf.AddAllowFilters(iff.allowFilters)
 	}
 }
 
-func newPipeUpdateProcessor(workersCount int, updateFunc func(a *arena, v string) string, ppNext pipeProcessor, field string, iff *ifFilter) pipeProcessor {
+func newPipeUpdateProcessor(updateFunc func(a *arena, v string) string, ppNext pipeProcessor, field string, iff *ifFilter) pipeProcessor {
 	return &pipeUpdateProcessor{
 		updateFunc: updateFunc,
 
@@ -31,8 +19,6 @@ func newPipeUpdateProcessor(workersCount int, updateFunc func(a *arena, v string
 		iff:   iff,
 
 		ppNext: ppNext,
-
-		shards: make([]pipeUpdateProcessorShard, workersCount),
 	}
 }
 
@@ -44,17 +30,10 @@ type pipeUpdateProcessor struct {
 
 	ppNext pipeProcessor
 
-	shards []pipeUpdateProcessorShard
+	shards atomicutil.Slice[pipeUpdateProcessorShard]
 }
 
 type pipeUpdateProcessorShard struct {
-	pipeUpdateProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUpdateProcessorShardNopad{})%128]byte
-}
-
-type pipeUpdateProcessorShardNopad struct {
 	bm bitmap
 
 	rc resultColumn
@@ -62,16 +41,16 @@ type pipeUpdateProcessorShardNopad struct {
 }
 
 func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &pup.shards[workerID]
+	shard := pup.shards.Get(workerID)
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pup.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -84,21 +63,24 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	c := br.getColumnByName(pup.field)
 	values := c.getValues(br)
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
+	vNew := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+		if pup.iff == nil || bm.isSetBit(rowIdx) {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
-				v = pup.updateFunc(&shard.a, v)
+				vNew = pup.updateFunc(&shard.a, v)
 			}
+			shard.rc.addValue(vNew)
+		} else {
+			shard.rc.addValue(v)
 		}
-		shard.rc.addValue(v)
 	}
 
-	br.addResultColumn(&shard.rc)
+	br.addResultColumn(shard.rc)
 	pup.ppNext.writeBlock(workerID, br)
 
 	shard.rc.reset()

@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterPhrase filters field entries by phrase match (aka full text search).
@@ -33,8 +34,8 @@ func (fp *filterPhrase) String() string {
 	return quoteFieldNameIfNeeded(fp.fieldName) + quoteTokenIfNeeded(fp.phrase)
 }
 
-func (fp *filterPhrase) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fp.fieldName)
+func (fp *filterPhrase) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fp.fieldName)
 }
 
 func (fp *filterPhrase) getTokens() []string {
@@ -61,7 +62,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	phrase := fp.phrase
 
 	// Verify whether fp matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchPhrase(v, phrase) {
 			bm.resetBits()
@@ -70,7 +71,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -95,6 +96,8 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByExactValue(bs, ch, bm, phrase, tokens)
 	case valueTypeUint64:
 		matchUint64ByExactValue(bs, ch, bm, phrase, tokens)
+	case valueTypeInt64:
+		matchInt64ByExactValue(bs, ch, bm, phrase, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByPhrase(bs, ch, bm, phrase, tokens)
 	case valueTypeIPv4:
@@ -158,7 +161,7 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase 
 	// This means we cannot search in binary representation of floating-point numbers.
 	// Instead, we need searching for the whole phrase in string representation
 	// of floating-point numbers :(
-	_, ok := tryParseFloat64(phrase)
+	_, ok := tryParseFloat64Exact(phrase)
 	if !ok && phrase != "." && phrase != "+" && phrase != "-" {
 		bm.resetBits()
 		return
@@ -396,6 +399,13 @@ func applyToBlockResultGeneric(br *blockResult, bm *bitmap, fieldName, phrase st
 		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
 	case valueTypeUint64:
 		_, ok := tryParseUint64(phrase)
+		if !ok {
+			bm.resetBits()
+			return
+		}
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeInt64:
+		_, ok := tryParseInt64(phrase)
 		if !ok {
 			bm.resetBits()
 			return

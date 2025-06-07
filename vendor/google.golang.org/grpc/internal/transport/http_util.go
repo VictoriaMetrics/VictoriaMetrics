@@ -393,7 +393,7 @@ type framer struct {
 	fr     *http2.Framer
 }
 
-var writeBufferPoolMap map[int]*sync.Pool = make(map[int]*sync.Pool)
+var writeBufferPoolMap = make(map[int]*sync.Pool)
 var writeBufferMutex sync.Mutex
 
 func newFramer(conn net.Conn, writeBufferSize, readBufferSize int, sharedWriteBuffer bool, maxHeaderListSize uint32) *framer {
@@ -439,8 +439,8 @@ func getWriteBufferPool(size int) *sync.Pool {
 	return pool
 }
 
-// parseDialTarget returns the network and address to pass to dialer.
-func parseDialTarget(target string) (string, string) {
+// ParseDialTarget returns the network and address to pass to dialer.
+func ParseDialTarget(target string) (string, string) {
 	net := "tcp"
 	m1 := strings.Index(target, ":")
 	m2 := strings.Index(target, ":/")

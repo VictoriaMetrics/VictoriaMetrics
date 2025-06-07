@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDCheckInterval defines interval for docker targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.dockerSDCheckInterval", 30*time.Second, "Interval for checking for changes in docker. "+
 	"This works only if docker_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#docker_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#docker_sd_configs for details")
 
 // SDConfig defines the `docker_sd` section for Docker based discovery
 //
@@ -23,6 +23,12 @@ type SDConfig struct {
 	Port               int      `yaml:"port,omitempty"`
 	Filters            []Filter `yaml:"filters,omitempty"`
 	HostNetworkingHost string   `yaml:"host_networking_host,omitempty"`
+	// MatchFirstNetwork sorts container networks in ascending order by name
+	// and uses first value
+	//
+	// Has default value of true
+	// to align with prometheus service discovery behaviour
+	MatchFirstNetwork *bool `yaml:"match_first_network"`
 
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
@@ -37,7 +43,7 @@ type Filter struct {
 }
 
 // GetLabels returns docker labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

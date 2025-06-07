@@ -2,6 +2,7 @@ package prompush
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -49,6 +50,7 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 	}
 	ctx.Reset(rowsLen)
 	rowsTotal := 0
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range tss {
 		ts := &tss[i]
 		rowsTotal += len(ts.Samples)
@@ -57,12 +59,9 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 			label := &ts.Labels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		ctx.ApplyRelabeling()
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		for i := range ts.Samples {

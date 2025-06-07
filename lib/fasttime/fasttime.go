@@ -1,8 +1,10 @@
 package fasttime
 
 import (
-	"sync/atomic"
+	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 )
 
 func init() {
@@ -16,8 +18,8 @@ func init() {
 	}()
 }
 
-var currentTimestamp = func() *atomic.Uint64 {
-	var x atomic.Uint64
+var currentTimestamp = func() *atomicutil.Uint64 {
+	var x atomicutil.Uint64
 	x.Store(uint64(time.Now().Unix()))
 	return &x
 }()
@@ -26,6 +28,12 @@ var currentTimestamp = func() *atomic.Uint64 {
 //
 // It is faster than time.Now().Unix()
 func UnixTimestamp() uint64 {
+	if testing.Testing() {
+		// When executing inside the tests, use the time package directly.
+		// This allows to override time using synctest package.
+		return uint64(time.Now().Unix())
+	}
+
 	return currentTimestamp.Load()
 }
 

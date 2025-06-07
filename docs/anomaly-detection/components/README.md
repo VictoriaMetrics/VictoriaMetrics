@@ -1,26 +1,31 @@
-This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/overview/)) service:
+This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) service:
 
 - [Model(s) section](https://docs.victoriametrics.com/anomaly-detection/components/models/) - Required
 - [Reader section](https://docs.victoriametrics.com/anomaly-detection/components/reader/) - Required
 - [Scheduler(s) section](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) - Required
 - [Writer section](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - Required
 - [Monitoring section](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) -  Optional
+- [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/) - Optional
 
-> **Note**: starting from [v1.7.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v172), once the service starts, automated config validation is performed. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
+> Once the service starts, automated config validation is performed{{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
 
-> **Note**: starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), components' class can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
+> Components' class{{% available_from "v1.13.0" anomaly %}} can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `preset` modes are available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
+> `preset` modes are available{{% available_from "v1.13.0" anomaly %}} for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
 Below, you will find an example illustrating how the components of `vmanomaly` interact with each other and with a single-node VictoriaMetrics setup.
 
-> **Note**: [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) also support [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy), so you can read/write from/to different locations - see `tenant_id` param description.
+> [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) also support [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy), so you can read/write from/to different locations - see `tenant_id` param description.
 
 ![vmanomaly-components](vmanomaly-components.webp)
 
 Here's a minimalistic full config example, demonstrating many-to-many configuration (actual for [latest version](https://docs.victoriametrics.com/anomaly-detection/changelog/)):
 
 ```yaml
+settings:
+  n_workers: 4  # number of workers to run models in parallel
+  anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
+
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
 schedulers:
@@ -51,7 +56,8 @@ models:
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_1w']  # will be attached to 1-week schedule, fit every 1h and infer every 15m
-    min_dev_from_expected: 0.01  # if |y - yhat| < 0.01, anomaly score will be 0
+    min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
+    anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
     detection_direction: 'above_expected'
     args:  # model-specific arguments
       interval_width: 0.98

@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDCheckInterval defines interval for Vultr targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.vultrSDCheckInterval", 30*time.Second, "Interval for checking for changes in Vultr. "+
 	"This works only if vultr_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#vultr_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#vultr_sd_configs for details")
 
 // SDConfig represents service discovery config for Vultr.
 //
@@ -42,10 +42,10 @@ type SDConfig struct {
 	// refresh_interval is obtained from `-promscrape.vultrSDCheckInterval` command-line option.
 }
 
-var configMap = discoveryutils.NewConfigMap()
+var configMap = discoveryutil.NewConfigMap()
 
-// GetLabels returns gce labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
+// GetLabels returns Vultr instances' labels according to sdc.
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutil.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -62,13 +62,13 @@ func (sdc *SDConfig) MustStop() {
 	_ = configMap.Delete(sdc)
 }
 
-// getInstanceLabels returns labels for vultr instances obtained from the given cfg
-func getInstanceLabels(instances []Instance, port int) []*promutils.Labels {
-	ms := make([]*promutils.Labels, 0, len(instances))
+// getInstanceLabels returns labels for Vultr instances obtained from the given cfg
+func getInstanceLabels(instances []Instance, port int) []*promutil.Labels {
+	ms := make([]*promutil.Labels, 0, len(instances))
 
 	for _, instance := range instances {
-		m := promutils.NewLabels(18)
-		m.Add("__address__", discoveryutils.JoinHostPort(instance.MainIP, port))
+		m := promutil.NewLabels(18)
+		m.Add("__address__", discoveryutil.JoinHostPort(instance.MainIP, port))
 		m.Add("__meta_vultr_instance_allowed_bandwidth_gb", strconv.Itoa(instance.AllowedBandwidth))
 		m.Add("__meta_vultr_instance_disk_gb", strconv.Itoa(instance.Disk))
 		m.Add("__meta_vultr_instance_hostname", instance.Hostname)

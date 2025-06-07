@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestMatchAnyCasePhrase(t *testing.T) {
@@ -44,8 +46,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	t.Parallel()
 
 	t.Run("single-row", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -119,8 +119,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("const-column", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "other-column",
@@ -230,8 +228,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("dict", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -287,8 +283,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("strings", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -359,8 +353,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("uint8", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -426,8 +418,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("uint16", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -492,8 +482,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -558,8 +546,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("uint64", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -622,9 +608,70 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 		testFilterMatchForColumns(t, columns, pf, "foo", nil)
 	})
 
-	t.Run("float64", func(t *testing.T) {
-		t.Parallel()
+	t.Run("int64", func(t *testing.T) {
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"1234",
+					"0",
+					"3454",
+					"65536",
+					"-12345678901",
+					"1",
+					"2",
+					"3",
+					"4",
+				},
+			},
+		}
 
+		// match
+		pf := &filterAnyCasePhrase{
+			fieldName: "foo",
+			phrase:    "1234",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", []int{0})
+
+		pf = &filterAnyCasePhrase{
+			fieldName: "foo",
+			phrase:    "-12345678901",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", []int{4})
+
+		pf = &filterAnyCasePhrase{
+			fieldName: "non-existing-column",
+			phrase:    "",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
+
+		// mismatch
+		pf = &filterAnyCasePhrase{
+			fieldName: "foo",
+			phrase:    "bar",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", nil)
+
+		pf = &filterAnyCasePhrase{
+			fieldName: "foo",
+			phrase:    "",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", nil)
+
+		pf = &filterAnyCasePhrase{
+			fieldName: "foo",
+			phrase:    "33",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", nil)
+
+		pf = &filterAnyCasePhrase{
+			fieldName: "foo",
+			phrase:    "12345678901234567890",
+		}
+		testFilterMatchForColumns(t, columns, pf, "foo", nil)
+	})
+
+	t.Run("float64", func(t *testing.T) {
 		columns := []column{
 			{
 				name: "foo",
@@ -730,8 +777,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -828,8 +873,6 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "_msg",
@@ -872,7 +915,7 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, pf, "_msg", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 
-		// mimatch
+		// mismatch
 		pf = &filterAnyCasePhrase{
 			fieldName: "_msg",
 			phrase:    "bar",
@@ -911,4 +954,7 @@ func TestFilterAnyCasePhrase(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, pf, "_msg", nil)
 	})
+
+	// Remove the remaining data files for the test
+	fs.MustRemoveAll(t.Name())
 }

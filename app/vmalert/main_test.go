@@ -74,7 +74,10 @@ func TestGetAlertURLGenerator(t *testing.T) {
 
 func TestConfigReload(t *testing.T) {
 	originalRulePath := *rulePath
+	originalExternalURL := extURL
+	extURL = &url.URL{}
 	defer func() {
+		extURL = originalExternalURL
 		*rulePath = originalRulePath
 	}()
 
@@ -166,7 +169,6 @@ groups:
 	checkCfg(nil)
 	groupsLen = lenLocked(m)
 	if groupsLen != 2 {
-		fmt.Println(m.groups)
 		t.Fatalf("expected to have exactly 2 groups loaded; got %d", groupsLen)
 	}
 

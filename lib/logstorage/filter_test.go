@@ -212,12 +212,14 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 		if len(cs) != 2 {
 			t.Fatalf("unexpected number of columns in blockResult; got %d; want 2", len(cs))
 		}
-		values := cs[0].getValues(br)
+		mc := getMatchingColumns(br, []string{neededColumnName})
+		values := mc.cs[0].getValues(br)
+		timestamps := br.getTimestamps()
 		resultsMu.Lock()
 		for i, v := range values {
 			results = append(results, result{
 				value:     strings.Clone(v),
-				timestamp: br.timestamps[i],
+				timestamp: timestamps[i],
 			})
 		}
 		resultsMu.Unlock()
@@ -248,7 +250,7 @@ func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {
 		"job",
 		"instance",
 	}
-	lr := GetLogRows(streamTags, nil)
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	var fields []Field
 	for i := range columns[0].values {
 		// Add stream tags
@@ -267,8 +269,9 @@ func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {
 			})
 		}
 		timestamp := int64(i) * 1e9
-		lr.MustAdd(tenantID, timestamp, fields)
+		lr.MustAdd(tenantID, timestamp, fields, nil)
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)
+	s.DebugFlush()
 }

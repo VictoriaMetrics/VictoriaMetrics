@@ -6,10 +6,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -20,7 +20,7 @@ var (
 
 // InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
 func InsertHandlerForHTTP(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func insertRows(series []datadogv1.Series, extraLabels []prompbmarshal.Label) er
 			ctx.AddLabel("device", ss.Device)
 		}
 		for _, tag := range ss.Tags {
-			name, value := datadogutils.SplitTag(tag)
+			name, value := datadogutil.SplitTag(tag)
 			if name == "host" {
 				name = "exported_host"
 			}
@@ -63,14 +63,9 @@ func insertRows(series []datadogv1.Series, extraLabels []prompbmarshal.Label) er
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		for _, pt := range ss.Points {

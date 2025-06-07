@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
 func BenchmarkParseJSONRequest(b *testing.B) {
@@ -22,14 +22,13 @@ func BenchmarkParseJSONRequest(b *testing.B) {
 }
 
 func benchmarkParseJSONRequest(b *testing.B, streams, rows, labels int) {
-	blp := &insertutils.BenchmarkLogMessageProcessor{}
+	blp := &insertutil.BenchmarkLogMessageProcessor{}
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {
 		data := getJSONBody(streams, rows, labels)
 		for pb.Next() {
-			_, err := parseJSONRequest(data, blp)
-			if err != nil {
+			if err := parseJSONRequest(data, blp, nil, false, true); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}

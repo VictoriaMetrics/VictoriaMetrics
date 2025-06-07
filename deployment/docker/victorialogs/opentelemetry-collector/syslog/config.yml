@@ -1,0 +1,33 @@
+exporters:
+  syslog:
+    network: tcp
+    endpoint: victorialogs
+    port: 5410
+    tls:
+      insecure: true
+  debug:
+    verbosity: detailed
+processors:
+  transform:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["message"], body)
+receivers:
+  filelog:
+    include: [/tmp/logs/*.log]
+service:
+  telemetry:
+    metrics:
+      readers:
+        - periodic:
+            interval: 5000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/api/v1/push
+  pipelines:
+    logs:
+      receivers: [filelog]
+      exporters: [syslog, debug]
+      processors: [transform]

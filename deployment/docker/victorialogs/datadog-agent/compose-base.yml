@@ -1,0 +1,26 @@
+include:
+ - ../compose-base.yml
+services:
+  agent:
+    image: docker.io/datadog/agent:7.57.2
+    restart: on-failure
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      DD_API_KEY: test
+      DD_URL: http://dd-proxy:8427
+      DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-proxy:8427
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: true
+      DD_LOGS_ENABLED: true
+      DD_LOGS_CONFIG_USE_HTTP: true
+      DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED: false
+      DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED: false
+      DD_PROCESS_CONFIG_PROCESS_DISCOVERY_ENABLED: false
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy

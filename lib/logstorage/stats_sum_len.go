@@ -1,88 +1,93 @@
 package logstorage
 
 import (
+	"fmt"
 	"strconv"
-	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsSumLen struct {
-	fields []string
+	fieldFilters []string
 }
 
 func (ss *statsSumLen) String() string {
-	return "sum_len(" + statsFuncFieldsToString(ss.fields) + ")"
+	return "sum_len(" + fieldNamesString(ss.fieldFilters) + ")"
 }
 
-func (ss *statsSumLen) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, ss.fields)
+func (ss *statsSumLen) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(ss.fieldFilters)
 }
 
-func (ss *statsSumLen) newStatsProcessor() (statsProcessor, int) {
-	ssp := &statsSumLenProcessor{
-		ss:     ss,
-		sumLen: 0,
-	}
-	return ssp, int(unsafe.Sizeof(*ssp))
+func (ss *statsSumLen) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	return a.newStatsSumLenProcessor()
 }
 
 type statsSumLenProcessor struct {
-	ss *statsSumLen
-
 	sumLen uint64
 }
 
-func (ssp *statsSumLenProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := ssp.ss.fields
-	if len(fields) == 0 {
-		// Sum all the columns
-		for _, c := range br.getColumns() {
-			ssp.sumLen += c.sumLenValues(br)
-		}
-	} else {
-		// Sum the requested columns
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			ssp.sumLen += c.sumLenValues(br)
-		}
+func (ssp *statsSumLenProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	ss := sf.(*statsSumLen)
+
+	mc := getMatchingColumns(br, ss.fieldFilters)
+	for _, c := range mc.cs {
+		ssp.sumLen += c.sumLenValues(br)
 	}
+	putMatchingColumns(mc)
+
 	return 0
 }
 
-func (ssp *statsSumLenProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := ssp.ss.fields
-	if len(fields) == 0 {
-		// Sum all the fields for the given row
-		for _, c := range br.getColumns() {
-			v := c.getValueAtRow(br, rowIdx)
-			ssp.sumLen += uint64(len(v))
-		}
-	} else {
-		// Sum only the given fields for the given row
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			ssp.sumLen += uint64(len(v))
-		}
+func (ssp *statsSumLenProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	ss := sf.(*statsSumLen)
+
+	mc := getMatchingColumns(br, ss.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		ssp.sumLen += uint64(len(v))
 	}
+	putMatchingColumns(mc)
+
 	return 0
 }
 
-func (ssp *statsSumLenProcessor) mergeState(sfp statsProcessor) {
+func (ssp *statsSumLenProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumLenProcessor)
 	ssp.sumLen += src.sumLen
 }
 
-func (ssp *statsSumLenProcessor) finalizeStats() string {
-	return strconv.FormatUint(ssp.sumLen, 10)
+func (ssp *statsSumLenProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	return encoding.MarshalVarUint64(dst, ssp.sumLen)
+}
+
+func (ssp *statsSumLenProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	sumLen, n := encoding.UnmarshalVarUint64(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot unmarshal sumLen")
+	}
+	src = src[n:]
+	ssp.sumLen = sumLen
+
+	if len(src) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(src))
+	}
+
+	return 0, nil
+}
+
+func (ssp *statsSumLenProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	return strconv.AppendUint(dst, ssp.sumLen, 10)
 }
 
 func parseStatsSumLen(lex *lexer) (*statsSumLen, error) {
-	fields, err := parseStatsFuncFields(lex, "sum_len")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "sum_len")
 	if err != nil {
 		return nil, err
 	}
 	ss := &statsSumLen{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	return ss, nil
 }

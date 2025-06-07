@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -13,6 +14,7 @@ func TestParseStatsAvgSuccess(t *testing.T) {
 	f(`avg(*)`)
 	f(`avg(a)`)
 	f(`avg(a, b)`)
+	f(`avg(a*, b)`)
 }
 
 func TestParseStatsAvgFailure(t *testing.T) {
@@ -386,7 +388,7 @@ func TestStatsAvg(t *testing.T) {
 func expectParseStatsFuncFailure(t *testing.T, s string) {
 	t.Helper()
 
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	sf, err := parseStatsFunc(lex)
 	if err == nil && lex.isEnd() {
 		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", s, sf)
@@ -396,7 +398,7 @@ func expectParseStatsFuncFailure(t *testing.T, s string) {
 func expectParseStatsFuncSuccess(t *testing.T, s string) {
 	t.Helper()
 
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	p, err := parseStatsFunc(lex)
 	if err != nil {
 		t.Fatalf("cannot parse [%s]: %s", s, err)
@@ -409,4 +411,39 @@ func expectParseStatsFuncSuccess(t *testing.T, s string) {
 	if sResult != s {
 		t.Fatalf("unexpected string representation of stats func; got\n%s\nwant\n%s", sResult, s)
 	}
+}
+
+func TestStatsAvg_ExportImportState(t *testing.T) {
+	f := func(sap *statsAvgProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := sap.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var sap2 statsAvgProcessor
+		stateSize, err := sap2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(sap, &sap2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &sap2, sap)
+		}
+	}
+
+	var sap statsAvgProcessor
+
+	f(&sap, 9, 0)
+
+	sap = statsAvgProcessor{
+		sum:   123.3243,
+		count: 234,
+	}
+	f(&sap, 10, 0)
 }

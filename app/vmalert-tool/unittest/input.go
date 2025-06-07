@@ -14,11 +14,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-var numReg = regexp.MustCompile(`\D?\d*\.?\d*\D?`)
+var numReg = regexp.MustCompile(`(?i)[+x-]?(?:\d+(?:\.\d*)?|\.\d+|inf|nan|_)(?:e[+-]?\d+)?[+x-]?`)
 
 // series holds input_series defined in the test file
 type series struct {
@@ -41,20 +41,35 @@ func httpWrite(address string, r io.Reader) {
 }
 
 // writeInputSeries send input series to vmstorage and flush them
-func writeInputSeries(input []series, interval *promutils.Duration, startStamp time.Time, dst string) error {
+func writeInputSeries(input []series, interval *promutil.Duration, startStamp time.Time, dst string) error {
 	r := testutil.WriteRequest{}
+	var err error
+	r.Timeseries, err = parseInputSeries(input, interval, startStamp)
+	if err != nil {
+		return err
+	}
+
+	data := testutil.Compress(r)
+	// write input series to vm
+	httpWrite(dst, bytes.NewBuffer(data))
+	vmstorage.Storage.DebugFlush()
+	return nil
+}
+
+func parseInputSeries(input []series, interval *promutil.Duration, startStamp time.Time) ([]testutil.TimeSeries, error) {
+	var res []testutil.TimeSeries
 	for _, data := range input {
 		expr, err := metricsql.Parse(data.Series)
 		if err != nil {
-			return fmt.Errorf("failed to parse series %s: %v", data.Series, err)
+			return res, fmt.Errorf("failed to parse series %s: %v", data.Series, err)
 		}
 		promvals, err := parseInputValue(data.Values, true)
 		if err != nil {
-			return fmt.Errorf("failed to parse input series value %s: %v", data.Values, err)
+			return res, fmt.Errorf("failed to parse input series value %s: %v", data.Values, err)
 		}
 		metricExpr, ok := expr.(*metricsql.MetricExpr)
-		if !ok {
-			return fmt.Errorf("failed to parse series %s to metric expr: %v", data.Series, err)
+		if !ok || len(metricExpr.LabelFilterss) != 1 {
+			return res, fmt.Errorf("got invalid input series %s: %v", data.Series, err)
 		}
 		samples := make([]testutil.Sample, 0, len(promvals))
 		ts := startStamp
@@ -71,24 +86,25 @@ func writeInputSeries(input []series, interval *promutils.Duration, startStamp t
 		for _, filter := range metricExpr.LabelFilterss[0] {
 			ls = append(ls, testutil.Label{Name: filter.Label, Value: filter.Value})
 		}
-		r.Timeseries = append(r.Timeseries, testutil.TimeSeries{Labels: ls, Samples: samples})
+		res = append(res, testutil.TimeSeries{Labels: ls, Samples: samples})
 	}
-
-	data := testutil.Compress(r)
-	// write input series to vm
-	httpWrite(dst, bytes.NewBuffer(data))
-	vmstorage.Storage.DebugFlush()
-	return nil
+	return res, nil
 }
 
 // parseInputValue support input like "1", "1+1x1 _ -4 3+20x1", see more examples in test.
 func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 	var res []sequenceValue
-	items := strings.Split(input, " ")
+	items := strings.Fields(input)
+	if len(items) == 0 {
+		return nil, fmt.Errorf("values cannot be an empty string")
+	}
 	for _, item := range items {
 		if item == "stale" {
 			res = append(res, sequenceValue{Value: decimal.StaleNaN})
 			continue
+		}
+		if strings.Contains(item, "stale") {
+			return nil, fmt.Errorf("stale metric doesn't support operations")
 		}
 		vals := numReg.FindAllString(item, -1)
 		switch len(vals) {

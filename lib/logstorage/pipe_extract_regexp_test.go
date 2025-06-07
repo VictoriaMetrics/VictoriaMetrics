@@ -37,6 +37,10 @@ func TestParsePipeExtractRegexpFailure(t *testing.T) {
 	f(`extract_regexp "a(?P<b>.*)" if (x:y)`)
 	f(`extract_regexp "a"`)
 	f(`extract_regexp "(foo)"`)
+	f(`extract_regexp "foo(?P<*>.*)"`)
+	f(`extract_regexp "foo(?P<bar*>.*)"`)
+	f(`extract_regexp "foo(?P<bar>.*)" from *`)
+	f(`extract_regexp "foo(?P<bar>.*)" from x*`)
 }
 
 func TestPipeExtractRegexp(t *testing.T) {
@@ -165,7 +169,7 @@ func TestPipeExtractRegexp(t *testing.T) {
 		},
 	})
 
-	// single row, overwirte existing column
+	// single row, overwrite existing column
 	f(`extract_regexp "foo=(?P<bar>.*) baz=(?P<xx>.*)" from x`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},
@@ -260,9 +264,9 @@ func TestPipeExtractRegexp(t *testing.T) {
 }
 
 func TestPipeExtractRegexpUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -289,6 +293,7 @@ func TestPipeExtractRegexpUpdateNeededFields(t *testing.T) {
 
 	// unneeded fields intersect with output fields
 	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo", "*", "bar,f2,foo")
+	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,x", "*", "bar,f2,foo")
 	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x keep_original_fields", "*", "f2,foo", "*", "f2,foo")
 	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x skip_empty_results", "*", "f2,foo", "*", "f2,foo")
 	f("extract_regexp if (f1:abc) '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo", "*", "bar,f2,foo")
@@ -297,10 +302,12 @@ func TestPipeExtractRegexpUpdateNeededFields(t *testing.T) {
 	f("extract_regexp if (f2:abc foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x skip_empty_results", "*", "f2,foo", "*", "")
 
 	// unneeded fields intersect with all the output fields
-	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x keep_original_fields", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x skip_empty_results", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
+	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,bar", "*", "bar,f2,foo")
+	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,bar,x", "*", "bar,f2,foo,x")
+	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,bar", "*", "bar,f2,foo")
+	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x", "*", "f2,foo,bar,x", "*", "bar,f2,foo,x")
+	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x keep_original_fields", "*", "f2,foo,bar", "*", "bar,f2,foo")
+	f("extract_regexp if (a:b f2:q x:y foo:w) '(?P<foo>.*)x(?P<bar>.*)' from x skip_empty_results", "*", "f2,foo,bar", "*", "bar,f2,foo")
 
 	// needed fields do not intersect with pattern and output fields
 	f("extract_regexp '(?P<foo>.*)x(?P<bar>.*)' from x", "f1,f2", "", "f1,f2", "")

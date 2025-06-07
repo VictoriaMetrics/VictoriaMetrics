@@ -17,6 +17,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
@@ -119,8 +121,6 @@ type HTTPClientConfig struct {
 	// - http2 is used very rarely comparing to http for Prometheus metrics exposition and service discovery
 	// - http2 is much harder to debug than http
 	// - http2 has very bad security record because of its complexity - see https://portswigger.net/research/http2
-	//
-	// VictoriaMetrics components are compiled with nethttpomithttp2 tag because of these issues.
 	//
 	// EnableHTTP2 bool
 }
@@ -233,10 +233,10 @@ func urlValuesFromMap(m map[string]string) url.Values {
 }
 
 func (oi *oauth2ConfigInternal) initTokenSource() error {
+	tr := httputil.NewTransport(false, "vm_oauth_client")
+	tr.Proxy = oi.proxyURLFunc
 	c := &http.Client{
-		Transport: oi.ac.NewRoundTripper(&http.Transport{
-			Proxy: oi.proxyURLFunc,
-		}),
+		Transport: oi.ac.NewRoundTripper(tr),
 	}
 	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
 	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
@@ -393,7 +393,7 @@ func newGetAuthHeaderCached(getAuthHeader getAuthHeaderFunc) getAuthHeaderFunc {
 	var ah string
 	var err error
 	return func() (string, error) {
-		// Cahe the auth header and the error for up to a second in order to save CPU time
+		// Cache the auth header and the error for up to a second in order to save CPU time
 		// on reading and parsing auth headers from files.
 		// This also reduces load on OAuth2 server when oauth2 config is enabled.
 		mu.Lock()
@@ -453,7 +453,7 @@ func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 // GetTLSConfig returns cached tls configuration
 func (ac *Config) GetTLSConfig() (*tls.Config, error) {
 	if ac.getTLSConfigCached == nil {
-		return nil, fmt.Errorf("BUG: config must be properly initialized with Options.NewConfig() call")
+		logger.Panicf("BUG: config must be properly initialized with Options.NewConfig() call")
 	}
 	tlsC, err := ac.getTLSConfigCached()
 	if err != nil {
@@ -479,9 +479,10 @@ type roundTripper struct {
 	trBase             *http.Transport
 	getTLSConfigCached getTLSConfigFunc
 
+	// mu protects access to rootCAPrev and trPrev
+	mu         sync.Mutex
 	rootCAPrev *x509.CertPool
 	trPrev     *http.Transport
-	mu         sync.Mutex
 }
 
 // RoundTrip implements http.RoundTripper interface.
@@ -518,7 +519,8 @@ func (rt *roundTripper) getTransport() (*http.Transport, error) {
 	}
 
 	tr := rt.trBase.Clone()
-	tr.TLSClientConfig = tlsCfg
+	tr.TLSClientConfig = tlsCfg.Clone()
+
 	rt.trPrev = tr
 	rt.rootCAPrev = tlsCfg.RootCAs
 
@@ -527,7 +529,7 @@ func (rt *roundTripper) getTransport() (*http.Transport, error) {
 
 func (ac *Config) getTLSConfig() (*tls.Config, error) {
 	if ac.getTLSCertCached == nil && ac.tlsServerName == "" && !ac.tlsInsecureSkipVerify && ac.tlsMinVersion == 0 && ac.getTLSRootCA == nil {
-		// Re-use zeroTLSConfig when ac doesn't contain tls-specific configs.
+		// Reuse zeroTLSConfig when ac doesn't contain tls-specific configs.
 		// This should reduce memory usage a bit.
 		return zeroTLSConfig, nil
 	}
@@ -679,10 +681,10 @@ func (opts *Options) NewConfig() (*Config, error) {
 	}
 	hd := xxhash.New()
 	for _, kv := range headers {
-		hd.Sum([]byte(kv.key))
-		hd.Sum([]byte("="))
-		hd.Sum([]byte(kv.value))
-		hd.Sum([]byte(","))
+		_, _ = hd.Write([]byte(kv.key))
+		_, _ = hd.Write([]byte("="))
+		_, _ = hd.Write([]byte(kv.value))
+		_, _ = hd.Write([]byte(","))
 	}
 	headersDigest := fmt.Sprintf("digest(headers)=%d", hd.Sum64())
 
@@ -754,15 +756,15 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 	passwordFile := ba.PasswordFile
 	if username == "" && usernameFile == "" {
 		return fmt.Errorf("missing `username` and `username_file` in `basic_auth` section; please specify one; " +
-			"see https://docs.victoriametrics.com/sd_configs/#http-api-client-options")
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
 	}
 	if username != "" && usernameFile != "" {
 		return fmt.Errorf("both `username` and `username_file` are set in `basic_auth` section; please specify only one; " +
-			"see https://docs.victoriametrics.com/sd_configs/#http-api-client-options")
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
 	}
 	if password != "" && passwordFile != "" {
 		return fmt.Errorf("both `password` and `password_file` are set in `basic_auth` section; please specify only one; " +
-			"see https://docs.victoriametrics.com/sd_configs/#http-api-client-options")
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
 	}
 	if usernameFile != "" {
 		usernameFile = fscore.GetFilepath(baseDir, usernameFile)

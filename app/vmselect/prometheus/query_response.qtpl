@@ -34,9 +34,13 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 		{% code
 			// seriesFetched is string instead of int because of historical reasons.
 			// It cannot be converted to int without breaking backwards compatibility at vmalert :(
+            executionDuration := int64(0)
+            if ed := qs.ExecutionDuration.Load(); ed != nil {
+                executionDuration = ed.Milliseconds()
+            }
 		%}
 		"seriesFetched": "{%dl qs.SeriesFetched.Load() %}",
-		"executionTimeMsec": {%dl qs.ExecutionTimeMsec.Load() %}
+		"executionTimeMsec": {%dl executionDuration %}
 	}
 	{% code
 		qt.Printf("generate /api/v1/query response for series=%d", seriesCount)

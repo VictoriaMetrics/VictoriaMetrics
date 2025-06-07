@@ -19,12 +19,21 @@ const Accordion: FC<AccordionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultExpanded);
 
   const toggleOpen = () => {
-    setIsOpen(prev => !prev);
+    const selection = window.getSelection();
+    if (selection && selection.toString()) {
+      return; // If the text is selected, cancel the execution of toggle.
+    }
+
+    setIsOpen((prev) => {
+      const newState = !prev;
+      onChange && onChange(newState);
+      return newState;
+    });
   };
 
   useEffect(() => {
-    onChange && onChange(isOpen);
-  }, [isOpen]);
+    setIsOpen(defaultExpanded);
+  }, [defaultExpanded]);
 
   return (
     <>

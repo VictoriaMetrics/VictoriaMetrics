@@ -1,0 +1,46 @@
+---
+groups:
+  - name: groupTest
+    rules:
+      - alert: VMRows
+        for: 1ms
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"
+  - name: groupTest-2
+    rules:
+      - alert: VMRows-2
+        for: 1ms
+        expr: vm_rows_2 > 0
+        labels:
+          label: bar2
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "\n markdown result is : \n---\n # header\n body: \n text \n----\n"
+---
+groups:
+  - name: groupTest-3
+    rules:
+      - alert: VMRows-3
+        for: 1ms
+        expr: vm_rows_3 > 0
+        labels:
+          label: bar_3
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"
+  - name: groupTest-4
+    rules:
+      - alert: VMRows-4
+        for: 1ms
+        expr: vm_rows_4 > 0
+        labels:
+          label: bar4
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"
+---
+groups:

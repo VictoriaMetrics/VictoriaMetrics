@@ -50,12 +50,12 @@ func TestRequestToCurl(t *testing.T) {
 	f(req, "curl -k -X POST 'https://user:xxxxx@foo.com?query=up&step=10'")
 
 	req = newReq("https://user:pass@foo.com")
-	req.Header.Set("Authorisation", "Bearer 123456")
-	f(req, "curl -k -X POST -H 'Authorisation: <secret>' 'https://user:xxxxx@foo.com'")
+	req.Header.Set("Authorization", "Bearer 123456")
+	f(req, "curl -k -X POST -H 'Authorization: <secret>' 'https://user:xxxxx@foo.com'")
 
 	req = newReq("https://user:pass@foo.com")
-	req.Header.Set("Authorisation", "Basic 123456")
-	f(req, "curl -k -X POST -H 'Authorisation: <secret>' 'https://user:xxxxx@foo.com'")
+	req.Header.Set("Authorization", "Basic 123456")
+	f(req, "curl -k -X POST -H 'Authorization: <secret>' 'https://user:xxxxx@foo.com'")
 
 	req = newReq("https://foo.com")
 	req.Header.Set("My-Password", "mypassword")
@@ -66,7 +66,7 @@ func TestRequestToCurl(t *testing.T) {
 	f(req, "curl -k -X POST -H 'Key-For: <secret>' 'https://foo.com'")
 
 	req = newReq("https://foo.com")
-	req.Header.Set("My-Secret-Org", "secret-organisation")
+	req.Header.Set("My-Secret-Org", "secret-organization")
 	f(req, "curl -k -X POST -H 'My-Secret-Org: <secret>' 'https://foo.com'")
 
 	req = newReq("https://foo.com")

@@ -14,6 +14,9 @@ import (
 
 // partHeader contains the information about a single part
 type partHeader struct {
+	// FormatVersion is the version of the part format
+	FormatVersion uint
+
 	// CompressedSizeBytes is physical size of the part
 	CompressedSizeBytes uint64
 
@@ -31,22 +34,29 @@ type partHeader struct {
 
 	// MaxTimestamp is the maximum timestamp seen in the part
 	MaxTimestamp int64
+
+	// BloomValuesShardsCount is the number of (bloom, values) shards in the part.
+	BloomValuesShardsCount uint64
 }
 
-// reset resets ph for subsequent re-use
+// reset resets ph for subsequent reuse
 func (ph *partHeader) reset() {
+	ph.FormatVersion = 0
 	ph.CompressedSizeBytes = 0
 	ph.UncompressedSizeBytes = 0
 	ph.RowsCount = 0
 	ph.BlocksCount = 0
 	ph.MinTimestamp = 0
 	ph.MaxTimestamp = 0
+	ph.BloomValuesShardsCount = 0
 }
 
-// String returns string represenation for ph.
+// String returns string representation for ph.
 func (ph *partHeader) String() string {
-	return fmt.Sprintf("{CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, MinTimestamp=%s, MaxTimestamp=%s}",
-		ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount, timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp))
+	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, "+
+		"MinTimestamp=%s, MaxTimestamp=%s, BloomValuesShardsCount=%d}",
+		ph.FormatVersion, ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount,
+		timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp), ph.BloomValuesShardsCount)
 }
 
 func (ph *partHeader) mustReadMetadata(partPath string) {
@@ -61,9 +71,24 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 		logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
 	}
 
+	if ph.FormatVersion <= 1 {
+		if ph.BloomValuesShardsCount != 0 {
+			logger.Panicf("FATAL: %s: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", metadataPath, ph.BloomValuesShardsCount)
+		}
+		if ph.FormatVersion == 1 {
+			ph.BloomValuesShardsCount = 8
+		}
+	}
+
 	// Perform various checks
+	if ph.FormatVersion > partFormatLatestVersion {
+		logger.Panicf("FATAL: %s: unsupported part format version; got %d; mustn't exceed %d", metadataPath, ph.FormatVersion, partFormatLatestVersion)
+	}
 	if ph.MinTimestamp > ph.MaxTimestamp {
-		logger.Panicf("FATAL: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", ph.MinTimestamp, ph.MaxTimestamp)
+		logger.Panicf("FATAL: %s: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", metadataPath, ph.MinTimestamp, ph.MaxTimestamp)
+	}
+	if ph.BlocksCount > ph.RowsCount {
+		logger.Panicf("FATAL: %s: BlocksCount=%d cannot exceed RowsCount=%d", metadataPath, ph.BlocksCount, ph.RowsCount)
 	}
 }
 

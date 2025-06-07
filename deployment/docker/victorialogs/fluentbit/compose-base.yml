@@ -1,0 +1,18 @@
+include:
+ - ../compose-base.yml
+services:
+  nginx:
+    image: nginx:1.27
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on: [fluentbit]
+    ports:
+      - "8080:80"
+  fluentbit:
+    image: cr.fluentbit.io/fluent/fluent-bit:3.1.7
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ${PWD}/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    depends_on: [victorialogs]
+    ports:
+      - "5140:5140"

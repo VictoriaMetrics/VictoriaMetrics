@@ -5,69 +5,66 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeRename implements '| rename ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#rename-pipe
 type pipeRename struct {
-	// srcFields contains a list of source fields to rename
-	srcFields []string
+	// srcFieldFilters contains a list of source fields to rename
+	srcFieldFilters []string
 
-	// dstFields contains a list of destination fields
-	dstFields []string
+	// dstFieldFilters contains a list of destination fields
+	dstFieldFilters []string
 }
 
 func (pr *pipeRename) String() string {
-	if len(pr.srcFields) == 0 {
-		logger.Panicf("BUG: pipeRename must contain at least a single srcField")
+	if len(pr.srcFieldFilters) == 0 {
+		logger.Panicf("BUG: pipeRename must contain at least a single srcFieldFilter")
 	}
 
-	a := make([]string, len(pr.srcFields))
-	for i, srcField := range pr.srcFields {
-		dstField := pr.dstFields[i]
-		a[i] = quoteTokenIfNeeded(srcField) + " as " + quoteTokenIfNeeded(dstField)
+	a := make([]string, len(pr.srcFieldFilters))
+	for i, srcFieldFilter := range pr.srcFieldFilters {
+		dstFieldFilter := pr.dstFieldFilters[i]
+		a[i] = quoteFieldFilterIfNeeded(srcFieldFilter) + " as " + quoteFieldFilterIfNeeded(dstFieldFilter)
 	}
 	return "rename " + strings.Join(a, ", ")
+}
+
+func (pr *pipeRename) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pr, nil
 }
 
 func (pr *pipeRename) canLiveTail() bool {
 	return true
 }
 
-func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	for i := len(pr.srcFields) - 1; i >= 0; i-- {
-		srcField := pr.srcFields[i]
-		dstField := pr.dstFields[i]
+func (pr *pipeRename) updateNeededFields(pf *prefixfilter.Filter) {
+	for i := len(pr.srcFieldFilters) - 1; i >= 0; i-- {
+		srcFieldFilter := pr.srcFieldFilters[i]
+		dstFieldFilter := pr.dstFieldFilters[i]
 
-		if neededFields.contains("*") {
-			if unneededFields.contains(dstField) {
-				unneededFields.add(srcField)
-			} else {
-				unneededFields.add(dstField)
-				unneededFields.remove(srcField)
-			}
+		needSrcField := pf.MatchStringOrWildcard(dstFieldFilter)
+		pf.AddDenyFilter(dstFieldFilter)
+		if needSrcField {
+			pf.AddAllowFilter(srcFieldFilter)
 		} else {
-			if neededFields.contains(dstField) {
-				neededFields.remove(dstField)
-				neededFields.add(srcField)
-			} else {
-				neededFields.remove(srcField)
-			}
+			pf.AddDenyFilter(srcFieldFilter)
 		}
 	}
-}
-
-func (pr *pipeRename) optimize() {
-	// nothing to do
 }
 
 func (pr *pipeRename) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pr *pipeRename) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
 	return pr, nil
+}
+
+func (pr *pipeRename) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -83,11 +80,11 @@ type pipeRenameProcessor struct {
 }
 
 func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	br.renameColumns(prp.pr.srcFields, prp.pr.dstFields)
+	br.renameColumnsByFilters(prp.pr.srcFieldFilters, prp.pr.dstFieldFilters)
 	prp.ppNext.writeBlock(workerID, br)
 }
 
@@ -95,35 +92,35 @@ func (prp *pipeRenameProcessor) flush() error {
 	return nil
 }
 
-func parsePipeRename(lex *lexer) (*pipeRename, error) {
+func parsePipeRename(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("rename", "mv") {
 		return nil, fmt.Errorf("expecting 'rename' or 'mv'; got %q", lex.token)
 	}
 
-	var srcFields []string
-	var dstFields []string
+	var srcFieldFilters []string
+	var dstFieldFilters []string
 	for {
 		lex.nextToken()
-		srcField, err := parseFieldName(lex)
+		srcFieldFilter, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse src field name: %w", err)
 		}
 		if lex.isKeyword("as") {
 			lex.nextToken()
 		}
-		dstField, err := parseFieldName(lex)
+		dstFieldFilter, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse dst field name: %w", err)
 		}
 
-		srcFields = append(srcFields, srcField)
-		dstFields = append(dstFields, dstField)
+		srcFieldFilters = append(srcFieldFilters, srcFieldFilter)
+		dstFieldFilters = append(dstFieldFilters, dstFieldFilter)
 
 		switch {
 		case lex.isKeyword("|", ")", ""):
 			pr := &pipeRename{
-				srcFields: srcFields,
-				dstFields: dstFields,
+				srcFieldFilters: srcFieldFilters,
+				dstFieldFilters: dstFieldFilters,
 			}
 			return pr, nil
 		case lex.isKeyword(","):

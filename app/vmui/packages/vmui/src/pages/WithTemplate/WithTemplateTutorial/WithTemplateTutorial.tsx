@@ -5,7 +5,7 @@ import CodeExample from "../../../components/Main/CodeExample/CodeExample";
 const MetricsQL = () => (
   <a
     className="vm-link vm-link_colored"
-    href="https://docs.victoriametrics.com/MetricsQL.html"
+    href="https://docs.victoriametrics.com/victoriametrics/metricsql/"
     target="_blank"
     rel="help noreferrer"
   >
@@ -16,7 +16,7 @@ const MetricsQL = () => (
 const NodeExporterFull = () => (
   <a
     className="vm-link vm-link_colored"
-    href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/"
+    href="https://grafana.com/grafana/dashboards/1860"
     target="_blank"
     rel="help noreferrer"
   >
@@ -185,7 +185,7 @@ count(
     </div>
     <div className="vm-with-template-tutorial-section">
       <p className="vm-with-template-tutorial-section__text">
-        4. Put node_cpu_seconds_total{"{commonFilters}"} into its own varialbe with the name cpuSeconds:
+        4. Put node_cpu_seconds_total{"{commonFilters}"} into its own variable with the name cpuSeconds:
       </p>
       <CodeExample
         code={`WITH (

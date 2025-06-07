@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterSequence matches an ordered sequence of phrases
@@ -32,8 +33,8 @@ func (fs *filterSequence) String() string {
 	return fmt.Sprintf("%sseq(%s)", quoteFieldNameIfNeeded(fs.fieldName), strings.Join(a, ","))
 }
 
-func (fs *filterSequence) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fs.fieldName)
+func (fs *filterSequence) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fs.fieldName)
 }
 
 func (fs *filterSequence) getTokens() []string {
@@ -87,7 +88,7 @@ func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchSequence(v, phrases) {
 			bm.resetBits()
@@ -96,7 +97,7 @@ func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -121,6 +122,8 @@ func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32BySequence(bs, ch, bm, phrases, tokens)
 	case valueTypeUint64:
 		matchUint64BySequence(bs, ch, bm, phrases, tokens)
+	case valueTypeInt64:
+		matchInt64BySequence(bs, ch, bm, phrases, tokens)
 	case valueTypeFloat64:
 		matchFloat64BySequence(bs, ch, bm, phrases, tokens)
 	case valueTypeIPv4:
@@ -243,6 +246,14 @@ func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase
 		return
 	}
 	matchUint64ByExactValue(bs, ch, bm, phrases[0], tokens)
+}
+
+func matchInt64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
+	if len(phrases) > 1 {
+		bm.resetBits()
+		return
+	}
+	matchInt64ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
 func matchSequence(s string, phrases []string) bool {

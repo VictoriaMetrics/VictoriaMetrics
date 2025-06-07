@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/metrics"
@@ -17,7 +16,7 @@ import (
 var (
 	relabelConfig = flag.String("relabelConfig", "", "Optional path to a file with relabeling rules, which are applied to all the ingested metrics. "+
 		"The path can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling for details. The config is reloaded on SIGHUP signal")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
@@ -35,13 +34,20 @@ func Init() {
 	if err != nil {
 		logger.Fatalf("cannot load relabelConfig: %s", err)
 	}
-	pcsGlobal.Store(pcs)
-	configSuccess.Set(1)
-	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	if len(*relabelConfig) == 0 {
 		return
 	}
+
+	configReloads = metrics.NewCounter(`vm_relabel_config_reloads_total`)
+	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
+	configSuccess = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
+	configTimestamp = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
+
+	pcsGlobal.Store(pcs)
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
+
 	go func() {
 		for range sighupCh {
 			configReloads.Inc()
@@ -62,10 +68,10 @@ func Init() {
 }
 
 var (
-	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
-	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
-	configSuccess      = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
-	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
+	configReloads      *metrics.Counter
+	configReloadErrors *metrics.Counter
+	configSuccess      *metrics.Gauge
+	configTimestamp    *metrics.Counter
 )
 
 var pcsGlobal atomic.Pointer[promrelabel.ParsedConfigs]
@@ -108,7 +114,7 @@ func (ctx *Ctx) Reset() {
 // ApplyRelabeling applies relabeling to the given labels and returns the result.
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
-func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
+func (ctx *Ctx) ApplyRelabeling(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	pcs := pcsGlobal.Load()
 	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// There are no relabeling rules.
@@ -159,7 +165,7 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 			name = ""
 		}
 		value := label.Value
-		dst = append(dst, prompb.Label{
+		dst = append(dst, prompbmarshal.Label{
 			Name:  name,
 			Value: value,
 		})

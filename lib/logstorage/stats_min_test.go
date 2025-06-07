@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -13,6 +14,7 @@ func TestParseStatsMinSuccess(t *testing.T) {
 	f(`min(*)`)
 	f(`min(a)`)
 	f(`min(a, b)`)
+	f(`min(a*, b)`)
 }
 
 func TestParseStatsMinFailure(t *testing.T) {
@@ -89,7 +91,7 @@ func TestStatsMin(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "1"},
+			{"x", ""},
 		},
 	})
 
@@ -109,7 +111,7 @@ func TestStatsMin(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "3"},
+			{"x", ""},
 		},
 	})
 
@@ -169,6 +171,7 @@ func TestStatsMin(t *testing.T) {
 			{"c", `54`},
 		},
 	}, [][]Field{
+
 		{
 			{"b", "3"},
 			{"x", "-12.34"},
@@ -198,9 +201,10 @@ func TestStatsMin(t *testing.T) {
 			{"b", `7`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", ""},
 		},
 		{
 			{"a", "3"},
@@ -228,6 +232,7 @@ func TestStatsMin(t *testing.T) {
 			{"b", `7`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"x", "-34"},
@@ -257,13 +262,14 @@ func TestStatsMin(t *testing.T) {
 			{"b", `7`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"x", ""},
 		},
 		{
 			{"a", "3"},
-			{"x", "foo"},
+			{"x", ""},
 		},
 	})
 
@@ -281,15 +287,18 @@ func TestStatsMin(t *testing.T) {
 		{
 			{"a", `3`},
 			{"b", `5`},
+			{"c", `12`},
 		},
 		{
 			{"a", `3`},
 			{"b", `7`},
+			{"c", `14`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
-			{"x", "1"},
+			{"x", ""},
 		},
 		{
 			{"a", "3"},
@@ -313,6 +322,7 @@ func TestStatsMin(t *testing.T) {
 			{"b", `5`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"b", "3"},
@@ -347,6 +357,7 @@ func TestStatsMin(t *testing.T) {
 			{"c", "4"},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"b", "3"},
@@ -363,4 +374,41 @@ func TestStatsMin(t *testing.T) {
 			{"x", "4"},
 		},
 	})
+}
+
+func TestStatsMin_ExportImportState(t *testing.T) {
+	f := func(smp *statsMinProcessor, dataLenExpected, stateSizeExpected int) {
+		t.Helper()
+
+		data := smp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var smp2 statsMinProcessor
+		stateSize, err := smp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if stateSize != stateSizeExpected {
+			t.Fatalf("unexpected state size; got %d bytes; want %d bytes", stateSize, stateSizeExpected)
+		}
+
+		if !reflect.DeepEqual(smp, &smp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &smp2, smp)
+		}
+	}
+
+	var smp statsMinProcessor
+
+	// zero state
+	f(&smp, 1, 0)
+
+	// non-zero state
+	smp = statsMinProcessor{
+		min:      "foobar",
+		hasItems: true,
+	}
+	f(&smp, 8, 6)
 }

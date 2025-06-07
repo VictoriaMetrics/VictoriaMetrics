@@ -3,67 +3,68 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsRowMax struct {
 	srcField string
 
-	fetchFields []string
+	fieldFilters []string
 }
 
 func (sm *statsRowMax) String() string {
 	s := "row_max(" + quoteTokenIfNeeded(sm.srcField)
-	if len(sm.fetchFields) > 0 {
-		s += ", " + fieldNamesString(sm.fetchFields)
+	if !prefixfilter.MatchAll(sm.fieldFilters) {
+		s += ", " + fieldNamesString(sm.fieldFilters)
 	}
 	s += ")"
 	return s
 }
 
-func (sm *statsRowMax) updateNeededFields(neededFields fieldsSet) {
-	if len(sm.fetchFields) == 0 {
-		neededFields.add("*")
-	} else {
-		neededFields.addFields(sm.fetchFields)
-	}
-	neededFields.add(sm.srcField)
+func (sm *statsRowMax) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sm.fieldFilters)
+	pf.AddAllowFilter(sm.srcField)
 }
 
-func (sm *statsRowMax) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsRowMaxProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsRowMax) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	return a.newStatsRowMaxProcessor()
 }
 
 type statsRowMaxProcessor struct {
-	sm *statsRowMax
-
 	max string
 
 	fields []Field
 }
 
-func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
+func (smp *statsRowMaxProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sm := sf.(*statsRowMax)
 	stateSizeIncrease := 0
 
-	c := br.getColumnByName(smp.sm.srcField)
+	c := br.getColumnByName(sm.srcField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		stateSizeIncrease += smp.updateState(v, br, 0)
+		stateSizeIncrease += smp.updateState(sm, v, br, 0)
 		return stateSizeIncrease
 	}
 	if c.isTime {
+		timestamp, ok := TryParseTimestampRFC3339Nano(smp.max)
+		if !ok {
+			timestamp = -1 << 63
+		}
+		maxTimestamp := br.getMaxTimestamp(timestamp)
+		if maxTimestamp <= timestamp {
+			return stateSizeIncrease
+		}
+
 		bb := bbPool.Get()
-		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], br.timestamps[0])
+		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], maxTimestamp)
 		v := bytesutil.ToUnsafeString(bb.B)
-		stateSizeIncrease += smp.updateState(v, br, 0)
+		stateSizeIncrease += smp.updateState(sm, v, br, 0)
 		bbPool.Put(bb)
 		return stateSizeIncrease
 	}
@@ -73,15 +74,19 @@ func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	case valueTypeString:
 		needUpdateState = true
 	case valueTypeDict:
-		for _, v := range c.dictValues {
-			if smp.needUpdateStateString(v) {
+		c.forEachDictValue(br, func(v string) {
+			if !needUpdateState && smp.needUpdateStateString(v) {
 				needUpdateState = true
-				break
 			}
-		}
+		})
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
+		needUpdateState = smp.needUpdateStateBytes(bb.B)
+		bbPool.Put(bb)
+	case valueTypeInt64:
+		bb := bbPool.Get()
+		bb.B = marshalInt64String(bb.B[:0], int64(c.maxValue))
 		needUpdateState = smp.needUpdateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
@@ -107,43 +112,73 @@ func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	if needUpdateState {
 		values := c.getValues(br)
 		for i, v := range values {
-			stateSizeIncrease += smp.updateState(v, br, i)
+			stateSizeIncrease += smp.updateState(sm, v, br, i)
 		}
 	}
 
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (smp *statsRowMaxProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sm := sf.(*statsRowMax)
 	stateSizeIncrease := 0
 
-	c := br.getColumnByName(smp.sm.srcField)
+	c := br.getColumnByName(sm.srcField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		stateSizeIncrease += smp.updateState(v, br, rowIdx)
+		stateSizeIncrease += smp.updateState(sm, v, br, rowIdx)
 		return stateSizeIncrease
 	}
 	if c.isTime {
+		timestamps := br.getTimestamps()
 		bb := bbPool.Get()
-		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], br.timestamps[rowIdx])
+		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], timestamps[rowIdx])
 		v := bytesutil.ToUnsafeString(bb.B)
-		stateSizeIncrease += smp.updateState(v, br, rowIdx)
+		stateSizeIncrease += smp.updateState(sm, v, br, rowIdx)
 		bbPool.Put(bb)
 		return stateSizeIncrease
 	}
 
 	v := c.getValueAtRow(br, rowIdx)
-	stateSizeIncrease += smp.updateState(v, br, rowIdx)
+	stateSizeIncrease += smp.updateState(sm, v, br, rowIdx)
 
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMaxProcessor) mergeState(sfp statsProcessor) {
+func (smp *statsRowMaxProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowMaxProcessor)
 	if smp.needUpdateStateString(src.max) {
 		smp.max = src.max
 		smp.fields = src.fields
 	}
+}
+
+func (smp *statsRowMaxProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
+	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(smp.max))
+	dst = marshalFields(dst, smp.fields)
+	return dst
+}
+
+func (smp *statsRowMaxProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
+	maxValue, n := encoding.UnmarshalBytes(src)
+	if n <= 0 {
+		return 0, fmt.Errorf("cannot read maxValue")
+	}
+	src = src[n:]
+	smp.max = string(maxValue)
+
+	fields, tail, err := unmarshalFields(nil, src)
+	if err != nil {
+		return 0, fmt.Errorf("cannot unmarshal fields: %w", err)
+	}
+	if len(tail) > 0 {
+		return 0, fmt.Errorf("unexpected non-empty tail left; len(tail)=%d", len(tail))
+	}
+	smp.fields = fields
+
+	stateSize := len(smp.max) + fieldsStateSize(smp.fields)
+
+	return stateSize, nil
 }
 
 func (smp *statsRowMaxProcessor) needUpdateStateBytes(b []byte) bool {
@@ -158,7 +193,7 @@ func (smp *statsRowMaxProcessor) needUpdateStateString(v string) bool {
 	return smp.max == "" || lessString(smp.max, v)
 }
 
-func (smp *statsRowMaxProcessor) updateState(v string, br *blockResult, rowIdx int) int {
+func (smp *statsRowMaxProcessor) updateState(sm *statsRowMax, v string, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 
 	if !smp.needUpdateStateString(v) {
@@ -177,65 +212,50 @@ func (smp *statsRowMaxProcessor) updateState(v string, br *blockResult, rowIdx i
 
 	clear(fields)
 	fields = fields[:0]
-	fetchFields := smp.sm.fetchFields
-	if len(fetchFields) == 0 {
-		cs := br.getColumns()
-		for _, c := range cs {
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  strings.Clone(c.name),
-				Value: strings.Clone(v),
-			})
-			stateSizeIncrease += len(c.name) + len(v)
-		}
-	} else {
-		for _, field := range fetchFields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  strings.Clone(c.name),
-				Value: strings.Clone(v),
-			})
-			stateSizeIncrease += len(c.name) + len(v)
-		}
+
+	mc := getMatchingColumns(br, sm.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		fields = append(fields, Field{
+			Name:  strings.Clone(c.name),
+			Value: strings.Clone(v),
+		})
+		stateSizeIncrease += len(c.name) + len(v)
 	}
+	putMatchingColumns(mc)
+
 	smp.fields = fields
 
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMaxProcessor) finalizeStats() string {
-	bb := bbPool.Get()
-	bb.B = MarshalFieldsToJSON(bb.B, smp.fields)
-	result := string(bb.B)
-	bbPool.Put(bb)
-
-	return result
+func (smp *statsRowMaxProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	return MarshalFieldsToJSON(dst, smp.fields)
 }
 
 func parseStatsRowMax(lex *lexer) (*statsRowMax, error) {
-	if !lex.isKeyword("row_max") {
-		return nil, fmt.Errorf("unexpected func; got %q; want 'row_max'", lex.token)
-	}
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "row_max")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'row_max' args: %w", err)
+		return nil, err
 	}
 
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("missing first arg for 'row_max' func - source field")
+	if len(fieldFilters) == 0 {
+		return nil, fmt.Errorf("missing source field for 'row_max' func")
 	}
 
-	srcField := fields[0]
-	fetchFields := fields[1:]
-	if slices.Contains(fetchFields, "*") {
-		fetchFields = nil
+	srcField := fieldFilters[0]
+	if prefixfilter.IsWildcardFilter(srcField) {
+		return nil, fmt.Errorf("the source field %q cannot be wildcard", srcField)
+	}
+
+	fieldFilters = fieldFilters[1:]
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	sm := &statsRowMax{
-		srcField:    srcField,
-		fetchFields: fetchFields,
+		srcField:     srcField,
+		fieldFilters: fieldFilters,
 	}
 	return sm, nil
 }

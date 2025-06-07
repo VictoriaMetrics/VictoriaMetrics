@@ -1,0 +1,57 @@
+name: publish-docs
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yaml'
+  workflow_dispatch: {}
+permissions:
+  contents: read  # This is required for actions/checkout and to commit back image update
+  deployments: write
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          path: __vm
+
+      - name: Checkout private code
+        uses: actions/checkout@v4
+        with:
+          repository: VictoriaMetrics/vmdocs
+          token: ${{ secrets.VM_BOT_GH_TOKEN }}
+          path: __vm-docs
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        id: import-gpg
+        with:
+          gpg_private_key: ${{ secrets.VM_BOT_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.VM_BOT_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_config_global: true
+
+      - name: Copy docs
+        id: update
+        run: |
+          find docs -type d -maxdepth 1 -mindepth 1 -exec \
+            sh -c 'rsync -zarvh --delete {}/ ../__vm-docs/content/$(basename {})/' \;
+          echo "SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_OUTPUT
+        working-directory: __vm
+
+      - name: Push to vmdocs
+        run: |
+          git config --global user.name "${{ steps.import-gpg.outputs.email }}"
+          git config --global user.email "${{ steps.import-gpg.outputs.email }}"
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+            git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.update.outputs.SHORT_SHA }}"
+            git push
+          fi
+        working-directory: __vm-docs

@@ -32,7 +32,7 @@ var (
 	disableAutoCacheReset = flag.Bool("search.disableAutoCacheReset", false, "Whether to disable automatic response cache reset if a sample with timestamp "+
 		"outside -search.cacheTimestampOffset is inserted into VictoriaMetrics")
 	resetRollupResultCacheOnStartup = flag.Bool("search.resetRollupResultCacheOnStartup", false, "Whether to reset rollup result cache on startup. "+
-		"See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#rollup-result-cache . See also -search.disableCache")
 )
 
 // ResetRollupResultCacheIfNeeded resets rollup result cache if mrs contains timestamps outside `now - search.cacheTimestampOffset`.
@@ -121,7 +121,7 @@ func InitRollupResultCache(cachePath string) {
 	var c *workingsetcache.Cache
 	if len(rollupResultCachePath) > 0 {
 		if *resetRollupResultCacheOnStartup {
-			logger.Infof("removing rollupResult cache at %q becasue -search.resetRollupResultCacheOnStartup command-line flag is set", rollupResultCachePath)
+			logger.Infof("removing rollupResult cache at %q because -search.resetRollupResultCacheOnStartup command-line flag is set", rollupResultCachePath)
 			fs.MustRemoveAll(rollupResultCachePath)
 		} else {
 			logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
@@ -291,7 +291,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		qt.Printf("nothing found")
@@ -313,7 +313,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -419,7 +419,7 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
-	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], expr, window, ec.Step, ec.CacheTagFilters)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf.B) > 0 {
@@ -474,7 +474,7 @@ func (rrc *rollupResultCache) getSeriesFromCache(qt *querytracer.Tracer, key []b
 	}
 	qt.Printf("load compressed entry from cache with size %d bytes", len(compressedResultBuf.B))
 	// Decompress into newly allocated byte slice, since tss returned from unmarshalTimeseriesFast
-	// refers to the byte slice, so it cannot be re-used.
+	// refers to the byte slice, so it cannot be reused.
 	resultBuf, err := encoding.DecompressZSTD(nil, compressedResultBuf.B)
 	if err != nil {
 		logger.Panicf("BUG: cannot decompress resultBuf from rollupResultCache: %s; it looks like it was improperly saved", err)

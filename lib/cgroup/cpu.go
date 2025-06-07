@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // AvailableCPUs returns the number of available CPU cores for the app.
@@ -37,15 +39,23 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 		// Do not override explicitly set GOMAXPROCS.
 		return
 	}
-	gomaxprocs := int(cpuQuota + 0.5)
+
+	// Round gomaxprocs to the floor of cpuQuota, since Go runtime doesn't work well
+	// with fractional available CPU cores.
+	gomaxprocs := int(cpuQuota)
+	if gomaxprocs <= 0 {
+		gomaxprocs = 1
+	}
+	if cpuQuota > float64(gomaxprocs) {
+		logger.Warnf("rounding CPU quota %.1f to %d CPUs for performance reasons - see https://docs.victoriametrics.com/victoriametrics/bestpractices/#kubernetes", cpuQuota, gomaxprocs)
+	}
+
 	numCPU := runtime.NumCPU()
 	if gomaxprocs > numCPU {
 		// There is no sense in setting more GOMAXPROCS than the number of available CPU cores.
 		gomaxprocs = numCPU
 	}
-	if gomaxprocs <= 0 {
-		gomaxprocs = 1
-	}
+
 	runtime.GOMAXPROCS(gomaxprocs)
 }
 
@@ -106,7 +116,7 @@ func getCPUQuotaV2(sysPrefix, cgroupPath string) (float64, error) {
 // See https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#cpu
 func parseCPUMax(data string) (float64, error) {
 	bounds := strings.Split(data, " ")
-	if len(bounds) != 2 {
+	if len(bounds) > 2 {
 		return 0, fmt.Errorf("unexpected line format: want 'quota period'; got: %s", data)
 	}
 	if bounds[0] == "max" {
@@ -116,9 +126,16 @@ func parseCPUMax(data string) (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse quota: %w", err)
 	}
-	period, err := strconv.ParseUint(bounds[1], 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse period: %w", err)
+	// The default is “max 100000”.
+	period := uint64(100_000)
+	if len(bounds) == 2 {
+		period, err = strconv.ParseUint(bounds[1], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse period: %w", err)
+		}
+		if period == 0 {
+			return 0, fmt.Errorf("zero value for period is not allowed")
+		}
 	}
 	return float64(quota) / float64(period), nil
 }

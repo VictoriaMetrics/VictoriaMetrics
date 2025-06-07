@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Passes transformed objects to a GetObject operation when using Object Lambda
 // access points. For information about Object Lambda access points, see [Transforming objects with Object Lambda access points]in the
@@ -109,7 +109,7 @@ type WriteGetObjectResponseInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This specifies the
-	// base64-encoded, 32-bit CRC32 checksum of the object returned by the Object
+	// base64-encoded, 32-bit CRC-32 checksum of the object returned by the Object
 	// Lambda function. This may not match the checksum for the object stored in Amazon
 	// S3. Amazon S3 will perform validation of the checksum values only when the
 	// original GetObject request required checksum validation. For more information
@@ -123,7 +123,7 @@ type WriteGetObjectResponseInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This specifies the
-	// base64-encoded, 32-bit CRC32C checksum of the object returned by the Object
+	// base64-encoded, 32-bit CRC-32C checksum of the object returned by the Object
 	// Lambda function. This may not match the checksum for the object stored in Amazon
 	// S3. Amazon S3 will perform validation of the checksum values only when the
 	// original GetObject request required checksum validation. For more information
@@ -382,6 +382,9 @@ func (c *Client) addOperationWriteGetObjectResponseMiddlewares(stack *middleware
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -440,6 +443,18 @@ func (c *Client) addOperationWriteGetObjectResponseMiddlewares(stack *middleware
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

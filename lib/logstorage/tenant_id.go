@@ -44,6 +44,12 @@ func (tid *TenantID) less(a *TenantID) bool {
 	return tid.ProjectID < a.ProjectID
 }
 
+func (tid *TenantID) marshalString(dst []byte) []byte {
+	n := uint64(tid.AccountID)<<32 | uint64(tid.ProjectID)
+	dst = marshalUint64Hex(dst, n)
+	return dst
+}
+
 // marshal appends the marshaled tid to dst and returns the result
 func (tid *TenantID) marshal(dst []byte) []byte {
 	dst = encoding.MarshalUint32(dst, tid.AccountID)
@@ -112,6 +118,30 @@ func ParseTenantID(s string) (TenantID, error) {
 	tenantID.ProjectID = project
 
 	return tenantID, nil
+}
+
+// MarshalTenantIDs appends marshaled tenantIDs to dst and returns the result.
+func MarshalTenantIDs(dst []byte, tenantIDs []TenantID) []byte {
+	for i := range tenantIDs {
+		dst = tenantIDs[i].marshal(dst)
+	}
+	return dst
+}
+
+// UnmarshalTenantIDs unmarshals tenantIDs from src.
+func UnmarshalTenantIDs(src []byte) ([]TenantID, error) {
+	var tenantIDs []TenantID
+	for len(src) > 0 {
+		var tid TenantID
+		tail, err := tid.unmarshal(src)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal tenantID #%d: %w", len(tenantIDs), err)
+		}
+		src = tail
+
+		tenantIDs = append(tenantIDs, tid)
+	}
+	return tenantIDs, nil
 }
 
 func getUint32FromHeader(r *http.Request, headerName string) (uint32, error) {

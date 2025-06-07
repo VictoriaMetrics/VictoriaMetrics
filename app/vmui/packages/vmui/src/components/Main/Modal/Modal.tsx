@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useEffect } from "preact/compat";
-import ReactDOM from "react-dom";
+import React, { FC, useCallback, useEffect, createPortal } from "preact/compat";
 import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
 import { ReactNode, MouseEvent } from "react";
@@ -58,7 +57,7 @@ const Modal: FC<ModalProps> = ({
   useEventListener("popstate", handlePopstate);
   useEventListener("keyup", handleKeyUp);
 
-  return ReactDOM.createPortal((
+  return createPortal((
     <div
       className={classNames({
         "vm-modal": true,
@@ -67,11 +66,11 @@ const Modal: FC<ModalProps> = ({
       })}
       onMouseDown={onClose}
     >
-      <div className="vm-modal-content">
-        <div
-          className="vm-modal-content-header"
-          onMouseDown={handleMouseDown}
-        >
+      <div
+        className="vm-modal-content"
+        onMouseDown={handleMouseDown}
+      >
+        <div className="vm-modal-content-header">
           {title && (
             <div className="vm-modal-content-header__title">
               {title}
@@ -91,7 +90,6 @@ const Modal: FC<ModalProps> = ({
         {/* tabIndex to fix Ctrl-A */}
         <div
           className="vm-modal-content-body"
-          onMouseDown={handleMouseDown}
           tabIndex={0}
         >
           {children}

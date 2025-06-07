@@ -152,7 +152,7 @@ const maxOrValues = 100
 
 // SimplifyRegex simplifies the given regexp expr.
 //
-// It returns plaintext pefix and the remaining regular expression
+// It returns plaintext prefix and the remaining regular expression
 // without capturing parens.
 func SimplifyRegex(expr string) (string, string) {
 	prefix, suffix := simplifyRegex(expr, true)

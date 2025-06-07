@@ -8,9 +8,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
 var (
@@ -20,13 +20,12 @@ var (
 
 // InsertHandlerForHTTP processes remote write for request to /newrelic/infra/v2/metrics/events/bulk request.
 func InsertHandlerForHTTP(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	ce := req.Header.Get("Content-Encoding")
-	isGzip := ce == "gzip"
-	return stream.Parse(req.Body, isGzip, func(rows []newrelic.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, encoding, func(rows []newrelic.Row) error {
 		return insertRows(rows, extraLabels)
 	})
 }
@@ -58,14 +57,9 @@ func insertRows(rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
 				label := &extraLabels[k]
 				ctx.AddLabel(label.Name, label.Value)
 			}
-			if hasRelabeling {
-				ctx.ApplyRelabeling()
-			}
-			if len(ctx.Labels) == 0 {
-				// Skip metric without labels.
+			if !ctx.TryPrepareLabels(hasRelabeling) {
 				continue
 			}
-			ctx.SortLabelsIfNeeded()
 			if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, s.Value); err != nil {
 				return err
 			}

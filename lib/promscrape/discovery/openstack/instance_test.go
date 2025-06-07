@@ -4,16 +4,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAddInstanceLabels(t *testing.T) {
-	f := func(servers []server, labelssExpected []*promutils.Labels) {
+	f := func(servers []server, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addInstanceLabels(servers, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// empty response
@@ -42,8 +42,8 @@ func TestAddInstanceLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                      "192.168.0.1:9100",
 			"__meta_openstack_address_pool":    "test",
 			"__meta_openstack_instance_flavor": "5",
@@ -92,8 +92,8 @@ func TestAddInstanceLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected = []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected = []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                      "10.10.0.1:9100",
 			"__meta_openstack_address_pool":    "internal",
 			"__meta_openstack_instance_flavor": "5",
@@ -104,7 +104,7 @@ func TestAddInstanceLabels(t *testing.T) {
 			"__meta_openstack_project_id":      "some-tenant-id",
 			"__meta_openstack_user_id":         "some-user-id",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                      "192.168.0.1:9100",
 			"__meta_openstack_address_pool":    "test",
 			"__meta_openstack_instance_flavor": "5",

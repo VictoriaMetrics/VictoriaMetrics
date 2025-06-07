@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterIPv4Range matches the given ipv4 range [minValue..maxValue].
@@ -21,8 +22,8 @@ func (fr *filterIPv4Range) String() string {
 	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), minValue, maxValue)
 }
 
-func (fr *filterIPv4Range) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterIPv4Range) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -77,6 +78,8 @@ func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 		bm.resetBits()
 	case valueTypeUint64:
 		bm.resetBits()
+	case valueTypeInt64:
+		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()
 	case valueTypeIPv4:
@@ -102,7 +105,7 @@ func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchIPv4Range(v, minValue, maxValue) {
 			bm.resetBits()
@@ -111,7 +114,7 @@ func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()
@@ -130,6 +133,8 @@ func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

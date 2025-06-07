@@ -3,29 +3,23 @@ package logstorage
 import (
 	"container/heap"
 	"fmt"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+func newPipeTopkProcessor(ps *pipeSort, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
-
-	shards := make([]pipeTopkProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeTopkProcessorShard{
-			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
-				ps:              ps,
-				stateSizeBudget: stateSizeBudgetChunk,
-			},
-		}
-		maxStateSize -= stateSizeBudgetChunk
-	}
 
 	ptp := &pipeTopkProcessor{
 		ps:     ps,
@@ -33,9 +27,10 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
+	}
+	ptp.shards.Init = func(shard *pipeTopkProcessorShard) {
+		shard.ps = ps
 	}
 	ptp.stateSizeBudget.Store(maxStateSize)
 
@@ -48,28 +43,24 @@ type pipeTopkProcessor struct {
 	cancel func()
 	ppNext pipeProcessor
 
-	shards []pipeTopkProcessorShard
+	shards atomicutil.Slice[pipeTopkProcessorShard]
 
 	maxStateSize    int64
 	stateSizeBudget atomic.Int64
 }
 
 type pipeTopkProcessorShard struct {
-	pipeTopkProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeTopkProcessorShardNopad{})%128]byte
-}
-
-type pipeTopkProcessorShardNopad struct {
 	// ps points to the parent pipeSort.
 	ps *pipeSort
 
-	// rows contains rows tracked by the given shard.
-	rows []*pipeTopkRow
+	// partitionColumns contains 'partition by' columns
+	partitionColumns []*blockResultColumn
 
-	// rowNext points to the next index at rows during merge shards phase
-	rowNext int
+	// rowsByPartition contains per-partition rows
+	rowsByPartition map[string]*pipeTopkRows
+
+	// partitionKey is a temporary buffer for constructing partition key
+	partitionKey []byte
 
 	// tmpRow is used as a temporary row when determining whether the next ingested row must be stored in the shard.
 	tmpRow pipeTopkRow
@@ -86,11 +77,58 @@ type pipeTopkProcessorShardNopad struct {
 	stateSizeBudget int
 }
 
+type pipeTopkRows struct {
+	// ps points to the parent pipeSort.
+	ps *pipeSort
+
+	// rows contains rows tracked by the given shard.
+	rows []*pipeTopkRow
+
+	// rowNext points to the next index at rows during merge shards phase
+	rowNext int
+}
+
+func (rs *pipeTopkRows) Len() int {
+	return len(rs.rows)
+}
+
+func (rs *pipeTopkRows) Swap(i, j int) {
+	rows := rs.rows
+	rows[i], rows[j] = rows[j], rows[i]
+}
+
+func (rs *pipeTopkRows) Less(i, j int) bool {
+	rows := rs.rows
+
+	// This is max heap
+	return topkLess(rs.ps, rows[j], rows[i])
+}
+
+func (rs *pipeTopkRows) Push(x any) {
+	r := x.(*pipeTopkRow)
+	rs.rows = append(rs.rows, r)
+}
+
+func (rs *pipeTopkRows) Pop() any {
+	rows := rs.rows
+	x := rows[len(rows)-1]
+	rows[len(rows)-1] = nil
+	rs.rows = rows[:len(rows)-1]
+	return x
+}
+
 type pipeTopkRow struct {
 	byColumns       []string
 	byColumnsIsTime []bool
 	otherColumns    []Field
 	timestamp       int64
+}
+
+func (r *pipeTopkRow) init(byColumns []string, byColumnsIsTime []bool, timestamp int64) {
+	r.byColumns = byColumns
+	r.byColumnsIsTime = byColumnsIsTime
+	r.otherColumns = nil
+	r.timestamp = timestamp
 }
 
 func (r *pipeTopkRow) clone() *pipeTopkRow {
@@ -135,40 +173,19 @@ func (r *pipeTopkRow) sizeBytes() int {
 	return n
 }
 
-func (shard *pipeTopkProcessorShard) Len() int {
-	return len(shard.rows)
-}
-
-func (shard *pipeTopkProcessorShard) Swap(i, j int) {
-	rows := shard.rows
-	rows[i], rows[j] = rows[j], rows[i]
-}
-
-func (shard *pipeTopkProcessorShard) Less(i, j int) bool {
-	rows := shard.rows
-
-	// This is max heap
-	return topkLess(shard.ps, rows[j], rows[i])
-}
-
-func (shard *pipeTopkProcessorShard) Push(x any) {
-	r := x.(*pipeTopkRow)
-	shard.rows = append(shard.rows, r)
-}
-
-func (shard *pipeTopkProcessorShard) Pop() any {
-	rows := shard.rows
-	x := rows[len(rows)-1]
-	rows[len(rows)-1] = nil
-	shard.rows = rows[:len(rows)-1]
-	return x
-}
-
 // writeBlock writes br to shard.
 func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 	cs := br.getColumns()
 
 	byFields := shard.ps.byFields
+
+	partitionColumns := shard.partitionColumns[:0]
+	for _, f := range shard.ps.partitionByFields {
+		c := br.getColumnByName(f)
+		partitionColumns = append(partitionColumns, c)
+	}
+	shard.partitionColumns = partitionColumns
+
 	if len(byFields) == 0 {
 		// Sort by all the fields
 
@@ -179,21 +196,20 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		}
 		shard.byColumnValues = byColumnValues
 
-		byColumns := shard.byColumns[:0]
-		byColumnsIsTime := shard.byColumnsIsTime[:0]
+		byColumns := slicesutil.SetLength(shard.byColumns, 1)
+		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, 1)
 		bb := bbPool.Get()
-		for rowIdx, timestamp := range br.timestamps {
-			byColumns = byColumns[:0]
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			bb.B = bb.B[:0]
 			for i, values := range byColumnValues {
 				v := values[rowIdx]
 				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
-			byColumns = append(byColumns, bytesutil.ToUnsafeString(bb.B))
-			byColumnsIsTime = append(byColumnsIsTime, false)
+			byColumns[0] = bytesutil.ToUnsafeString(bb.B)
+			byColumnsIsTime[0] = false
 
-			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, timestamp)
+			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, 0)
 		}
 		bbPool.Put(bb)
 		shard.byColumns = byColumns
@@ -201,18 +217,18 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 	} else {
 		// Sort by byFields
 
-		byColumnValues := shard.byColumnValues[:0]
-		byColumnsIsTime := shard.byColumnsIsTime[:0]
-		for _, bf := range byFields {
+		byColumnValues := slicesutil.SetLength(shard.byColumnValues, len(byFields))
+		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, len(byFields))
+		for i, bf := range byFields {
 			c := br.getColumnByName(bf.name)
 
-			byColumnsIsTime = append(byColumnsIsTime, c.isTime)
+			byColumnsIsTime[i] = c.isTime
 
 			var values []string
 			if !c.isTime {
 				values = c.getValues(br)
 			}
-			byColumnValues = append(byColumnValues, values)
+			byColumnValues[i] = values
 		}
 		shard.byColumnValues = byColumnValues
 		shard.byColumnsIsTime = byColumnsIsTime
@@ -233,16 +249,23 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		shard.csOther = csOther
 
 		// add rows to shard
-		byColumns := shard.byColumns[:0]
-		for rowIdx, timestamp := range br.timestamps {
-			byColumns = byColumns[:0]
-
+		byColumns := slicesutil.SetLength(shard.byColumns, len(byFields))
+		var timestamps []int64
+		if slices.Contains(byColumnsIsTime, true) {
+			timestamps = br.getTimestamps()
+		}
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			for i, values := range byColumnValues {
 				v := ""
 				if !byColumnsIsTime[i] {
 					v = values[rowIdx]
 				}
-				byColumns = append(byColumns, v)
+				byColumns[i] = v
+			}
+
+			timestamp := int64(0)
+			if timestamps != nil {
+				timestamp = timestamps[rowIdx]
 			}
 
 			shard.addRow(br, byColumns, byColumnsIsTime, csOther, rowIdx, timestamp)
@@ -252,28 +275,35 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 }
 
 func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string, byColumnsIsTime []bool, csOther []*blockResultColumn, rowIdx int, timestamp int64) {
-	r := &shard.tmpRow
-	r.byColumns = byColumns
-	r.byColumnsIsTime = byColumnsIsTime
-	r.timestamp = timestamp
+	// Construct partition key
+	b := shard.partitionKey[:0]
+	for _, c := range shard.partitionColumns {
+		v := c.getValueAtRow(br, rowIdx)
+		b = encoding.MarshalBytes(b, bytesutil.ToUnsafeBytes(v))
+	}
+	shard.partitionKey = b
 
-	rows := shard.rows
+	// Construct a temporary row
+	r := &shard.tmpRow
+	r.init(byColumns, byColumnsIsTime, timestamp)
+
+	rs := shard.getRowsByPartition(bytesutil.ToUnsafeString(shard.partitionKey))
 	maxRows := shard.ps.offset + shard.ps.limit
-	if uint64(len(rows)) >= maxRows && !topkLess(shard.ps, r, rows[0]) {
+	if uint64(len(rs.rows)) >= maxRows && !topkLess(shard.ps, r, rs.rows[0]) {
 		// Fast path - nothing to add.
 		return
 	}
 
-	// Slow path - add r to shard.rows.
+	// Slow path - add r to rs.
 
 	// Populate r.otherColumns
-	otherColumns := shard.otherColumns[:0]
-	for _, c := range csOther {
+	otherColumns := slicesutil.SetLength(shard.otherColumns, len(csOther))
+	for i, c := range csOther {
 		v := c.getValueAtRow(br, rowIdx)
-		otherColumns = append(otherColumns, Field{
+		otherColumns[i] = Field{
 			Name:  c.name,
 			Value: v,
-		})
+		}
 	}
 	shard.otherColumns = otherColumns
 	r.otherColumns = otherColumns
@@ -282,36 +312,54 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	r = r.clone()
 	shard.stateSizeBudget -= r.sizeBytes()
 
-	// Push r to shard.rows.
-	if uint64(len(rows)) < maxRows {
-		heap.Push(shard, r)
+	// Push r to rs.
+	if uint64(len(rs.rows)) < maxRows {
+		heap.Push(rs, r)
 		shard.stateSizeBudget -= int(unsafe.Sizeof(r))
 	} else {
-		shard.stateSizeBudget += rows[0].sizeBytes()
-		rows[0] = r
-		heap.Fix(shard, 0)
+		shard.stateSizeBudget += rs.rows[0].sizeBytes()
+		rs.rows[0] = r
+		heap.Fix(rs, 0)
 	}
+}
+
+func (shard *pipeTopkProcessorShard) getRowsByPartition(partition string) *pipeTopkRows {
+	if shard.rowsByPartition == nil {
+		shard.rowsByPartition = make(map[string]*pipeTopkRows)
+	}
+	rs, ok := shard.rowsByPartition[partition]
+	if !ok {
+		rs = &pipeTopkRows{
+			ps: shard.ps,
+		}
+		partition = strings.Clone(partition)
+		shard.rowsByPartition[partition] = rs
+		shard.stateSizeBudget += int(unsafe.Sizeof(*rs)+unsafe.Sizeof(rs)) + len(partition)
+	}
+	return rs
 }
 
 func (shard *pipeTopkProcessorShard) sortRows(stopCh <-chan struct{}) {
-	rows := shard.rows
-	for i := len(rows) - 1; i > 0; i-- {
-		x := heap.Pop(shard)
-		rows[i] = x.(*pipeTopkRow)
+	for _, rs := range shard.rowsByPartition {
+		rows := rs.rows
+		for i := len(rows) - 1; i > 0; i-- {
+			x := heap.Pop(rs)
+			rows[i] = x.(*pipeTopkRow)
 
-		if needStop(stopCh) {
-			return
+			if needStop(stopCh) {
+				return
+			}
 		}
+		rs.rows = rows
 	}
-	shard.rows = rows
 }
 
 func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &ptp.shards[workerID]
+	shard := ptp.shards.Get(workerID)
 
 	for shard.stateSizeBudget < 0 {
 		// steal some budget for the state size from the global budget.
@@ -340,14 +388,18 @@ func (ptp *pipeTopkProcessor) flush() error {
 	}
 
 	// Sort every shard in parallel
+	shards := ptp.shards.All()
+	if len(shards) == 0 {
+		return nil
+	}
+
 	var wg sync.WaitGroup
-	shards := ptp.shards
-	for i := range shards {
+	for _, shard := range shards {
 		wg.Add(1)
 		go func(shard *pipeTopkProcessorShard) {
+			defer wg.Done()
 			shard.sortRows(ptp.stopCh)
-			wg.Done()
-		}(&shards[i])
+		}(shard)
 	}
 	wg.Wait()
 
@@ -355,37 +407,62 @@ func (ptp *pipeTopkProcessor) flush() error {
 		return nil
 	}
 
-	// Merge sorted results across shards
-	sh := pipeTopkProcessorShardsHeap(make([]*pipeTopkProcessorShard, 0, len(shards)))
-	for i := range shards {
-		shard := &shards[i]
-		if len(shard.rows) > 0 {
-			sh = append(sh, shard)
+	// Obtain all the partition keys
+	partitionKeysMap := make(map[string]struct{})
+	var partitionKeys []string
+	for _, shard := range shards {
+		for k := range shard.rowsByPartition {
+			if _, ok := partitionKeysMap[k]; !ok {
+				partitionKeysMap[k] = struct{}{}
+				partitionKeys = append(partitionKeys, k)
+			}
 		}
 	}
-	if len(sh) == 0 {
-		return nil
+	sort.Strings(partitionKeys)
+
+	// Merge sorted results across shards per each partitionKey
+	for _, k := range partitionKeys {
+		if needStop(ptp.stopCh) {
+			return nil
+		}
+		var rss []*pipeTopkRows
+		for _, shard := range shards {
+			rs, ok := shard.rowsByPartition[k]
+			if ok && len(rs.rows) > 0 {
+				rss = append(rss, rs)
+			}
+		}
+		ptp.mergeAndFlushRows(rss)
 	}
 
-	heap.Init(&sh)
+	return nil
+}
+
+func (ptp *pipeTopkProcessor) mergeAndFlushRows(rss []*pipeTopkRows) {
+	if len(rss) == 0 {
+		return
+	}
+	rsh := pipeTopkRowsHeap(rss)
+
+	heap.Init(&rsh)
 
 	wctx := &pipeTopkWriteContext{
 		ptp: ptp,
 	}
 	shardNextIdx := 0
 
-	for len(sh) > 1 {
-		shard := sh[0]
-		if !wctx.writeNextRow(shard) {
+	for len(rsh) > 1 {
+		rs := rsh[0]
+		if !wctx.writeNextRow(rs) {
 			break
 		}
 
-		if shard.rowNext >= len(shard.rows) {
-			_ = heap.Pop(&sh)
+		if rs.rowNext >= len(rs.rows) {
+			_ = heap.Pop(&rsh)
 			shardNextIdx = 0
 
 			if needStop(ptp.stopCh) {
-				return nil
+				return
 			}
 
 			continue
@@ -393,31 +470,29 @@ func (ptp *pipeTopkProcessor) flush() error {
 
 		if shardNextIdx == 0 {
 			shardNextIdx = 1
-			if len(sh) > 2 && sh.Less(2, 1) {
+			if len(rsh) > 2 && rsh.Less(2, 1) {
 				shardNextIdx = 2
 			}
 		}
 
-		if sh.Less(shardNextIdx, 0) {
-			heap.Fix(&sh, 0)
+		if rsh.Less(shardNextIdx, 0) {
+			heap.Fix(&rsh, 0)
 			shardNextIdx = 0
 
 			if needStop(ptp.stopCh) {
-				return nil
+				return
 			}
 		}
 	}
-	if len(sh) == 1 {
-		shard := sh[0]
-		for shard.rowNext < len(shard.rows) {
-			if !wctx.writeNextRow(shard) {
+	if len(rsh) == 1 {
+		rs := rsh[0]
+		for rs.rowNext < len(rs.rows) {
+			if !wctx.writeNextRow(rs) {
 				break
 			}
 		}
 	}
 	wctx.flush()
-
-	return nil
 }
 
 type pipeTopkWriteContext struct {
@@ -438,16 +513,16 @@ type pipeTopkWriteContext struct {
 	valuesLen int
 }
 
-func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
-	ps := shard.ps
-	rankName := ps.rankName
+func (wctx *pipeTopkWriteContext) writeNextRow(rs *pipeTopkRows) bool {
+	ps := rs.ps
+	rankFieldName := ps.rankFieldName
 	rankFields := 0
-	if rankName != "" {
+	if rankFieldName != "" {
 		rankFields = 1
 	}
 
-	rowIdx := shard.rowNext
-	shard.rowNext++
+	rowIdx := rs.rowNext
+	rs.rowNext++
 
 	wctx.rowsWritten++
 	if wctx.rowsWritten <= ps.offset {
@@ -457,7 +532,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		return false
 	}
 
-	r := shard.rows[rowIdx]
+	r := rs.rows[rowIdx]
 
 	byFields := ps.byFields
 	rcs := wctx.rcs
@@ -476,8 +551,8 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
-		if rankName != "" {
-			rcs = appendResultColumnWithName(rcs, rankName)
+		if rankFieldName != "" {
+			rcs = appendResultColumnWithName(rcs, rankFieldName)
 		}
 		for _, bf := range byFields {
 			rcs = appendResultColumnWithName(rcs, bf.name)
@@ -488,7 +563,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.rcs = rcs
 	}
 
-	if rankName != "" {
+	if rankFieldName != "" {
 		bufLen := len(wctx.buf)
 		wctx.buf = marshalUint64String(wctx.buf, wctx.rowsWritten)
 		v := bytesutil.ToUnsafeString(wctx.buf[bufLen:])
@@ -537,34 +612,34 @@ func (wctx *pipeTopkWriteContext) flush() {
 	wctx.buf = wctx.buf[:0]
 }
 
-type pipeTopkProcessorShardsHeap []*pipeTopkProcessorShard
+type pipeTopkRowsHeap []*pipeTopkRows
 
-func (sh *pipeTopkProcessorShardsHeap) Len() int {
-	return len(*sh)
+func (rsh *pipeTopkRowsHeap) Len() int {
+	return len(*rsh)
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Swap(i, j int) {
-	a := *sh
+func (rsh *pipeTopkRowsHeap) Swap(i, j int) {
+	a := *rsh
 	a[i], a[j] = a[j], a[i]
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Less(i, j int) bool {
-	a := *sh
-	shardA := a[i]
-	shardB := a[j]
-	return topkLess(shardA.ps, shardA.rows[shardA.rowNext], shardB.rows[shardB.rowNext])
+func (rsh *pipeTopkRowsHeap) Less(i, j int) bool {
+	a := *rsh
+	rsA := a[i]
+	rsB := a[j]
+	return topkLess(rsA.ps, rsA.rows[rsA.rowNext], rsB.rows[rsB.rowNext])
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Push(x any) {
-	shard := x.(*pipeTopkProcessorShard)
-	*sh = append(*sh, shard)
+func (rsh *pipeTopkRowsHeap) Push(x any) {
+	rs := x.(*pipeTopkRows)
+	*rsh = append(*rsh, rs)
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Pop() any {
-	a := *sh
+func (rsh *pipeTopkRowsHeap) Pop() any {
+	a := *rsh
 	x := a[len(a)-1]
 	a[len(a)-1] = nil
-	*sh = a[:len(a)-1]
+	*rsh = a[:len(a)-1]
 	return x
 }
 
@@ -634,16 +709,28 @@ func lessString(a, b string) bool {
 		return false
 	}
 
-	nA, okA := tryParseUint64(a)
-	nB, okB := tryParseUint64(b)
-	if okA && okB {
-		return nA < nB
+	if iA, okA := tryParseInt64(a); okA {
+		if iB, okB := tryParseInt64(b); okB {
+			return iA < iB
+		}
 	}
 
-	fA, okA := tryParseNumber(a)
-	fB, okB := tryParseNumber(b)
-	if okA && okB {
-		return fA < fB
+	if uA, okA := tryParseUint64(a); okA {
+		if uB, okB := tryParseUint64(b); okB {
+			return uA < uB
+		}
+	}
+
+	if tsA, okA := TryParseTimestampRFC3339Nano(a); okA {
+		if tsB, okB := TryParseTimestampRFC3339Nano(b); okB {
+			return tsA < tsB
+		}
+	}
+
+	if fA, okA := tryParseNumber(a); okA {
+		if fB, okB := tryParseNumber(b); okB {
+			return fA < fB
+		}
 	}
 
 	return stringsutil.LessNatural(a, b)

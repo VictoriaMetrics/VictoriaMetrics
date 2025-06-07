@@ -1,6 +1,4 @@
-import React, { FC, useRef } from "preact/compat";
-import Tooltip from "../../Tooltip/Tooltip";
-import Button from "../../Button/Button";
+import { FC, useMemo, useRef } from "preact/compat";
 import { ArrowDropDownIcon } from "../../Icons";
 import useBoolean from "../../../../hooks/useBoolean";
 import Popper from "../../Popper/Popper";
@@ -9,23 +7,32 @@ import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import "./style.scss";
 
 interface SelectLimitProps {
-  tooltip?: string;
   limit: number | string;
+  allowUnlimited?: boolean;
   onChange: (val: number) => void;
+  onOpenSelect?: () => void;
 }
 
 const defaultLimits = [10, 25, 50, 100, 250, 500, 1000];
 
-const SelectLimit: FC<SelectLimitProps> = ({ limit, tooltip, onChange }) => {
+const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange, onOpenSelect }) => {
   const { isMobile } = useDeviceDetect();
-  const title = tooltip || "Rows per page";
   const buttonRef = useRef<HTMLDivElement>(null);
+
+  const limits = useMemo(() => {
+    return allowUnlimited ? [...defaultLimits, 0] : defaultLimits;
+  }, [allowUnlimited]);
 
   const {
     value: openList,
     toggle: toggleOpenList,
     setFalse: handleClose,
   } = useBoolean(false);
+
+  const handleClickSelect = () => {
+    toggleOpenList();
+    if(!openList) onOpenSelect?.();
+  };
 
   const handleChangeLimit = (n: number) => () => {
     onChange(n);
@@ -34,17 +41,16 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, tooltip, onChange }) => {
 
   return (
     <>
-      <Tooltip title={title}>
-        <div ref={buttonRef}>
-          <Button
-            variant="text"
-            endIcon={<ArrowDropDownIcon/>}
-            onClick={toggleOpenList}
-          >
-            {limit}
-          </Button>
+      <div
+        className="vm-select-limits-button"
+        onClick={handleClickSelect}
+        ref={buttonRef}
+      >
+        <div>
+          Rows per page: <b>{limit || "All"}</b>
         </div>
-      </Tooltip>
+        <ArrowDropDownIcon/>
+      </div>
       <Popper
         open={openList}
         onClose={handleClose}
@@ -54,7 +60,7 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, tooltip, onChange }) => {
         <div
           className="vm-select-limits"
         >
-          {defaultLimits.map(n => (
+          {limits.map(n => (
             <div
               className={classNames({
                 "vm-list-item": true,
@@ -64,7 +70,7 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, tooltip, onChange }) => {
               key={n}
               onClick={handleChangeLimit(n)}
             >
-              {n}
+              {n || "All"}
             </div>
           ))}
         </div>

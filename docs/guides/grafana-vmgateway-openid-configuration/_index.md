@@ -5,6 +5,9 @@ menu:
   docs:
     parent: guides
     weight: 5
+tags:
+  - metrics
+  - guide
 aliases:
 - /guides/grafana-vmgateway-openid-configuration.html
 ---

@@ -83,7 +83,8 @@ func (m *manager) close() {
 
 func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
 	m.wg.Add(1)
-	id := g.ID()
+	id := g.GetID()
+	g.Init()
 	go func() {
 		defer m.wg.Done()
 		if restore {
@@ -112,7 +113,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 			}
 		}
 		ng := rule.NewGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
-		groupsRegistry[ng.ID()] = ng
+		groupsRegistry[ng.GetID()] = ng
 	}
 
 	if rrPresent && m.rw == nil {
@@ -130,17 +131,17 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 
 	m.groupsMu.Lock()
 	for _, og := range m.groups {
-		ng, ok := groupsRegistry[og.ID()]
+		ng, ok := groupsRegistry[og.GetID()]
 		if !ok {
 			// old group is not present in new list,
 			// so must be stopped and deleted
 			og.Close()
-			delete(m.groups, og.ID())
+			delete(m.groups, og.GetID())
 			og = nil
 			continue
 		}
-		delete(groupsRegistry, ng.ID())
-		if og.Checksum != ng.Checksum {
+		delete(groupsRegistry, ng.GetID())
+		if og.GetCheckSum() != ng.GetCheckSum() {
 			toUpdate = append(toUpdate, updateItem{old: og, new: ng})
 		}
 	}
@@ -160,8 +161,8 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 			// it is important to call InterruptEval before the update, because cancel fn
 			// can be re-assigned during the update.
 			item.old.InterruptEval()
-			go func(old *rule.Group, new *rule.Group) {
-				old.UpdateWith(new)
+			go func(oldGroup *rule.Group, newGroup *rule.Group) {
+				oldGroup.UpdateWith(newGroup)
 				wg.Done()
 			}(item.old, item.new)
 		}

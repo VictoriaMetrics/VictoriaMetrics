@@ -477,7 +477,7 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 		v, e = FromFloat(-f)
 		fNew = ToFloat(v, e)
 		if !equalFloat(-f, fNew) {
-			t.Fatalf("unexepcted fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, -f)
+			t.Fatalf("unexpected fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, -f)
 		}
 	}
 

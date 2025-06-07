@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"bytes"
 	"path/filepath"
 	"sort"
 
@@ -63,8 +62,22 @@ func mustDeletePartition(path string) {
 func mustOpenPartition(s *Storage, path string) *partition {
 	name := filepath.Base(path)
 
-	// Open indexdb
 	indexdbPath := filepath.Join(path, indexdbDirname)
+	isIndexDBExist := fs.IsPathExist(indexdbPath)
+
+	datadbPath := filepath.Join(path, datadbDirname)
+	isDatadbExist := fs.IsPathExist(datadbPath)
+
+	if !isIndexDBExist {
+		if isDatadbExist {
+			logger.Panicf("FATAL: indexdb directory %s is missing, but datadb directory %s exists. "+
+				"This indicates corruption. Manually remove the %s partition to resolve it (partition data will be lost)",
+				indexdbPath, datadbPath, path)
+		}
+
+		logger.Warnf("creating missing indexdb directory %s, this could happen if VictoriaLogs shuts down uncleanly (via OOM crash, a panic, SIGKILL or hardware shutdown) while creating new per-day partition", indexdbPath)
+		mustCreateIndexdb(indexdbPath)
+	}
 	idb := mustOpenIndexdb(indexdbPath, name, s)
 
 	// Start initializing the partition
@@ -75,8 +88,11 @@ func mustOpenPartition(s *Storage, path string) *partition {
 		idb:  idb,
 	}
 
-	// Open datadb
-	datadbPath := filepath.Join(path, datadbDirname)
+	if !isDatadbExist {
+		logger.Warnf("creating missing datadb directory %s, this could happen if VictoriaLogs shuts down uncleanly (via OOM crash, a panic, SIGKILL or hardware shutdown) while creating new per-day partition", datadbPath)
+		mustCreateDatadb(datadbPath)
+	}
+
 	pt.ddb = mustOpenDatadb(pt, datadbPath, s.flushInterval)
 
 	return pt
@@ -146,10 +162,10 @@ func (pt *partition) mustAddRows(lr *LogRows) {
 	}
 }
 
-func (pt *partition) logNewStream(streamTagsCanonical []byte, fields []Field) {
+func (pt *partition) logNewStream(streamTagsCanonical string, fields []Field) {
 	streamTags := getStreamTagsString(streamTagsCanonical)
-	rf := RowFormatter(fields)
-	logger.Infof("partition %s: new stream %s for log entry %s", pt.path, streamTags, &rf)
+	line := MarshalFieldsToJSON(nil, fields)
+	logger.Infof("partition %s: new stream %s for log entry %s", pt.path, streamTags, line)
 }
 
 func (pt *partition) logIngestedRows(lr *LogRows) {
@@ -159,47 +175,19 @@ func (pt *partition) logIngestedRows(lr *LogRows) {
 	}
 }
 
-// appendStreamTagsByStreamID appends canonical representation of stream tags for the given sid to dst
-// and returns the result.
-func (pt *partition) appendStreamTagsByStreamID(dst []byte, sid *streamID) []byte {
-	// Search for the StreamTags in the cache.
-	key := bbPool.Get()
-	defer bbPool.Put(key)
-
-	// There is no need in putting partition name into key here,
-	// since StreamTags is uniquely identified by streamID.
-	key.B = sid.marshal(key.B)
-	dstLen := len(dst)
-	dst = pt.s.streamTagsCache.GetBig(dst, key.B)
-	if len(dst) > dstLen {
-		// Fast path - the StreamTags have been found in cache.
-		return dst
-	}
-
-	// Slow path - search for StreamTags in idb
-	dst = pt.idb.appendStreamTagsByStreamID(dst, sid)
-	if len(dst) > dstLen {
-		// Store the found StreamTags to cache
-		pt.s.streamTagsCache.SetBig(key.B, dst[dstLen:])
-	}
-	return dst
-}
-
 func (pt *partition) hasStreamIDInCache(sid *streamID) bool {
-	var result [1]byte
-
 	bb := bbPool.Get()
 	bb.B = pt.marshalStreamIDCacheKey(bb.B, sid)
-	value := pt.s.streamIDCache.Get(result[:0], bb.B)
+	_, ok := pt.s.streamIDCache.Get(bb.B)
 	bbPool.Put(bb)
 
-	return bytes.Equal(value, okValue)
+	return ok
 }
 
 func (pt *partition) putStreamIDToCache(sid *streamID) {
 	bb := bbPool.Get()
 	bb.B = pt.marshalStreamIDCacheKey(bb.B, sid)
-	pt.s.streamIDCache.Set(bb.B, okValue)
+	pt.s.streamIDCache.Set(bb.B, nil)
 	bbPool.Put(bb)
 }
 
@@ -208,8 +196,6 @@ func (pt *partition) marshalStreamIDCacheKey(dst []byte, sid *streamID) []byte {
 	dst = sid.marshal(dst)
 	return dst
 }
-
-var okValue = []byte("1")
 
 // debugFlush makes sure that all the recently ingested data data becomes searchable
 func (pt *partition) debugFlush() {
@@ -220,4 +206,9 @@ func (pt *partition) debugFlush() {
 func (pt *partition) updateStats(ps *PartitionStats) {
 	pt.ddb.updateStats(&ps.DatadbStats)
 	pt.idb.updateStats(&ps.IndexdbStats)
+}
+
+// mustForceMerge runs forced merge for all the parts in pt.
+func (pt *partition) mustForceMerge() {
+	pt.ddb.mustForceMergeAllParts()
 }

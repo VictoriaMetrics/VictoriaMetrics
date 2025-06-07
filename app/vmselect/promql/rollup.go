@@ -373,9 +373,17 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
+
+	// window > lookbackDelta could result in negative delta.
+	// See issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
+	stalenessInterval := lookbackDelta
+	if stalenessInterval != 0 && stalenessInterval < window {
+		stalenessInterval = window
+	}
+
 	if rollupFuncsRemoveCounterResets[funcName] {
-		preFunc = func(values []float64, _ []int64) {
-			removeCounterResets(values)
+		preFunc = func(values []float64, timestamps []int64) {
+			removeCounterResets(values, timestamps, stalenessInterval)
 		}
 	}
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
@@ -486,8 +494,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, _ []int64) {
-					removeCounterResets(values)
+				preFunc = func(values []float64, timestamps []int64) {
+					removeCounterResets(values, timestamps, stalenessInterval)
 				}
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
@@ -520,7 +528,8 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceding values without restrictions on staleness interval.
+	// Real value preceding values.
+	// Is populated if preceding value is within the rc.LookbackDelta.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -699,8 +708,13 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	scrapeInterval := getScrapeInterval(timestamps, rc.Step)
-	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
+	// Use step as the scrape interval for instant queries (when start == end).
+	maxPrevInterval := rc.Step
+	if rc.Start < rc.End {
+		scrapeInterval := getScrapeInterval(timestamps, rc.Step)
+		maxPrevInterval = getMaxPrevInterval(scrapeInterval)
+	}
+
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
 	}
@@ -759,10 +773,23 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		rfa.realPrevValue = nan
 		if i > 0 {
-			rfa.realPrevValue = values[i-1]
-		} else {
-			rfa.realPrevValue = nan
+			prevValue, prevTimestamp := values[i-1], timestamps[i-1]
+			// set realPrevValue if rc.LookbackDelta == 0 or
+			// if distance between datapoint in prev interval and first datapoint in this interval
+			// doesn't exceed LookbackDelta.
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1381
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935
+			currTimestamp := tStart
+			if len(rfa.timestamps) > 0 {
+				currTimestamp = rfa.timestamps[0]
+			}
+			if rc.LookbackDelta == 0 || (currTimestamp-prevTimestamp) < rc.LookbackDelta {
+				rfa.realPrevValue = prevValue
+			}
 		}
 		if j < len(values) {
 			rfa.realNextValue = values[j]
@@ -886,7 +913,7 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
-func removeCounterResets(values []float64) {
+func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
 	// There is no need in handling NaNs here, since they are impossible
 	// on values from vmstorage.
 	if len(values) == 0 {
@@ -903,6 +930,16 @@ func removeCounterResets(values []float64) {
 				correction += prevValue - v
 			} else {
 				correction += prevValue
+			}
+		}
+		if i > 0 && maxStalenessInterval > 0 {
+			gap := timestamps[i] - timestamps[i-1]
+			if gap > maxStalenessInterval {
+				// reset correction if gap between samples exceeds staleness interval
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072
+				correction = 0
+				prevValue = v
+				continue
 			}
 		}
 		prevValue = v
@@ -1677,9 +1714,9 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {
-	max := rollupMax(rfa)
-	min := rollupMin(rfa)
-	return max - min
+	maxV := rollupMax(rfa)
+	minV := rollupMin(rfa)
+	return maxV - minV
 }
 
 func rollupSum2(rfa *rollupFuncArg) float64 {
@@ -1794,14 +1831,18 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
-	// restore to the real value because of potential staleness reset
-	prevValue := rfa.realPrevValue
+	prevValue := rfa.prevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
 			return nan
 		}
 		// Assume the counter starts from 0.
 		prevValue = 0
+		if !math.IsNaN(rfa.realPrevValue) {
+			// Assume that the value didn't change during the current gap
+			// if realPrevValue exists.
+			prevValue = rfa.realPrevValue
+		}
 	}
 	if len(values) == 0 {
 		// Assume the counter didn't change since prevValue.
@@ -2187,38 +2228,38 @@ func rollupClose(rfa *rollupFuncArg) float64 {
 
 func rollupHigh(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	max := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(max) {
+	maxV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(maxV) {
 		if len(values) == 0 {
 			return nan
 		}
-		max = values[0]
+		maxV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v > max {
-			max = v
+		if v > maxV {
+			maxV = v
 		}
 	}
-	return max
+	return maxV
 }
 
 func rollupLow(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	min := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(min) {
+	minV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(minV) {
 		if len(values) == 0 {
 			return nan
 		}
-		min = values[0]
+		minV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v < min {
-			min = v
+		if v < minV {
+			minV = v
 		}
 	}
-	return min
+	return minV
 }
 
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {

@@ -1,0 +1,3 @@
+include:
+ - ../compose-base.yml
+name: vector-jsonline

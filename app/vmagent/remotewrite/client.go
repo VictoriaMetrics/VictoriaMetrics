@@ -7,35 +7,38 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/golang/snappy"
 )
 
 var (
 	forcePromProto = flagutil.NewArrayBool("remoteWrite.forcePromProto", "Whether to force Prometheus remote write protocol for sending data "+
-		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
+		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol")
 	forceVMProto = flagutil.NewArrayBool("remoteWrite.forceVMProto", "Whether to force VictoriaMetrics remote write protocol for sending data "+
-		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
+		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol")
 
 	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", 0, "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
 	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
 	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 	proxyURL         = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
@@ -87,7 +90,8 @@ type client struct {
 	remoteWriteURL string
 
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
-	useVMProto bool
+	useVMProto          atomic.Bool
+	canDowngradeVMProto atomic.Bool
 
 	fq *persistentqueue.FastQueue
 	hc *http.Client
@@ -124,14 +128,14 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	if err != nil {
 		logger.Fatalf("cannot initialize AWS Config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
-	tr := &http.Transport{
-		DialContext:         netutil.NewStatDialFunc("vmagent_remotewrite"),
-		TLSHandshakeTimeout: tlsHandshakeTimeout.GetOptionalArg(argIdx),
-		MaxConnsPerHost:     2 * concurrency,
-		MaxIdleConnsPerHost: 2 * concurrency,
-		IdleConnTimeout:     time.Minute,
-		WriteBufferSize:     64 * 1024,
-	}
+
+	tr := httputil.NewTransport(false, "vmagent_remotewrite")
+	tr.TLSHandshakeTimeout = tlsHandshakeTimeout.GetOptionalArg(argIdx)
+	tr.MaxConnsPerHost = 2 * concurrency
+	tr.MaxIdleConnsPerHost = 2 * concurrency
+	tr.IdleConnTimeout = time.Minute
+	tr.WriteBufferSize = 64 * 1024
+
 	pURL := proxyURL.GetOptionalArg(argIdx)
 	if len(pURL) > 0 {
 		if !strings.Contains(pURL, "://") {
@@ -166,17 +170,11 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		logger.Fatalf("-remoteWrite.useVMProto and -remoteWrite.usePromProto cannot be set simultaneously for -remoteWrite.url=%s", sanitizedURL)
 	}
 	if !useVMProto && !usePromProto {
-		// Auto-detect whether the remote storage supports VictoriaMetrics remote write protocol.
-		doRequest := func(url string) (*http.Response, error) {
-			return c.doRequest(url, nil)
-		}
-		useVMProto = common.HandleVMProtoClientHandshake(c.remoteWriteURL, doRequest)
-		if !useVMProto {
-			logger.Infof("the remote storage at %q doesn't support VictoriaMetrics remote write protocol. Switching to Prometheus remote write protocol. "+
-				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", sanitizedURL)
-		}
+		// The VM protocol could be downgraded later at runtime if unsupported media type response status is received.
+		useVMProto = true
+		c.canDowngradeVMProto.Store(true)
 	}
-	c.useVMProto = useVMProto
+	c.useVMProto.Store(useVMProto)
 
 	return c
 }
@@ -384,7 +382,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	if c.useVMProto {
+	if encoding.IsZstd(body) {
 		h.Set("Content-Encoding", "zstd")
 		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
 	} else {
@@ -420,7 +418,7 @@ again:
 		if retryDuration > maxRetryDuration {
 			retryDuration = maxRetryDuration
 		}
-		logger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
+		remoteWriteRetryLogger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
 		t := timerpool.Get(retryDuration)
 		select {
@@ -433,6 +431,7 @@ again:
 		c.retriesCount.Inc()
 		goto again
 	}
+
 	statusCode := resp.StatusCode
 	if statusCode/100 == 2 {
 		_ = resp.Body.Close()
@@ -441,21 +440,43 @@ again:
 		c.blocksSent.Inc()
 		return true
 	}
+
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
-	if statusCode == 409 || statusCode == 400 {
-		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if err != nil {
-			remoteWriteRejectedLogger.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; "+
-				"failed to read response body: %s",
-				len(block), c.sanitizedURL, statusCode, err)
-		} else {
-			remoteWriteRejectedLogger.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; response body: %s",
-				len(block), c.sanitizedURL, statusCode, string(body))
-		}
-		// Just drop block on 409 and 400 status codes like Prometheus does.
+	if statusCode == 409 {
+		logBlockRejected(block, c.sanitizedURL, resp)
+
+		// Just drop block on 409 status code like Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
+		_ = resp.Body.Close()
+		c.packetsDropped.Inc()
+		return true
+		// - Remote Write v1 specification implicitly expects a `400 Bad Request` when the encoding is not supported.
+		// - Remote Write v2 specification explicitly specifies a `415 Unsupported Media Type` for unsupported encodings.
+		// - Real-world implementations of v1 use both 400 and 415 status codes.
+		// See more in research: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462#issuecomment-2786918054
+	} else if statusCode == 415 || statusCode == 400 {
+		if c.canDowngradeVMProto.Swap(false) {
+			logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
+				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+			c.useVMProto.Store(false)
+		}
+
+		if encoding.IsZstd(block) {
+			logger.Infof("received unsupported media type or bad request from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
+				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+
+			block = mustRepackBlockFromZstdToSnappy(block)
+
+			c.retriesCount.Inc()
+			_ = resp.Body.Close()
+			goto again
+		}
+
+		// Just drop snappy blocks on 400 or 415 status codes like Prometheus does.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
+		logBlockRejected(block, c.sanitizedURL, resp)
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
 		return true
@@ -463,10 +484,10 @@ again:
 
 	// Unexpected status code returned
 	retriesCount++
-	retryDuration *= 2
-	if retryDuration > maxRetryDuration {
-		retryDuration = maxRetryDuration
-	}
+	retryAfterHeader := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
+	retryDuration = getRetryDuration(retryAfterHeader, retryDuration, maxRetryDuration)
+
+	// Handle response
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
@@ -488,3 +509,72 @@ again:
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
+var remoteWriteRetryLogger = logger.WithThrottler("remoteWriteRetry", 5*time.Second)
+
+// getRetryDuration returns retry duration.
+// retryAfterDuration has the highest priority.
+// If retryAfterDuration is not specified, retryDuration gets doubled.
+// retryDuration can't exceed maxRetryDuration.
+//
+// Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
+func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
+	// retryAfterDuration has the highest priority duration
+	if retryAfterDuration > 0 {
+		return timeutil.AddJitterToDuration(retryAfterDuration)
+	}
+
+	// default backoff retry policy
+	retryDuration *= 2
+	if retryDuration > maxRetryDuration {
+		retryDuration = maxRetryDuration
+	}
+
+	return retryDuration
+}
+
+func mustRepackBlockFromZstdToSnappy(zstdBlock []byte) []byte {
+	plainBlock := make([]byte, 0, len(zstdBlock)*2)
+	plainBlock, err := zstd.Decompress(plainBlock, zstdBlock)
+	if err != nil {
+		logger.Panicf("FATAL: cannot re-pack block with size %d bytes from Zstd to Snappy: %s", len(zstdBlock), err)
+	}
+
+	return snappy.Encode(nil, plainBlock)
+}
+
+func logBlockRejected(block []byte, sanitizedURL string, resp *http.Response) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		remoteWriteRejectedLogger.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; "+
+			"failed to read response body: %s",
+			len(block), sanitizedURL, resp.StatusCode, err)
+	} else {
+		remoteWriteRejectedLogger.Errorf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d; response body: %s",
+			len(block), sanitizedURL, resp.StatusCode, string(body))
+	}
+}
+
+// parseRetryAfterHeader parses `Retry-After` value retrieved from HTTP response header.
+// retryAfterString should be in either HTTP-date or a number of seconds.
+// It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
+func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Duration) {
+	if retryAfterString == "" {
+		return retryAfterDuration
+	}
+
+	defer func() {
+		v := retryAfterDuration.Seconds()
+		logger.Infof("'Retry-After: %s' parsed into %.2f second(s)", retryAfterString, v)
+	}()
+
+	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
+	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
+		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
+	}
+	// Retry-After could be in seconds.
+	if seconds, err := strconv.Atoi(retryAfterString); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+
+	return 0
+}

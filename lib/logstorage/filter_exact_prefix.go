@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterExactPrefix matches the exact prefix.
@@ -24,8 +25,8 @@ func (fep *filterExactPrefix) String() string {
 	return fmt.Sprintf("%s=%s*", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
 }
 
-func (fep *filterExactPrefix) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fep.fieldName)
+func (fep *filterExactPrefix) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fep.fieldName)
 }
 
 func (fep *filterExactPrefix) getTokens() []string {
@@ -51,7 +52,7 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fep.fieldName
 	prefix := fep.prefix
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchExactPrefix(v, prefix) {
 			bm.resetBits()
@@ -60,7 +61,7 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		if !matchExactPrefix("", prefix) {
@@ -84,6 +85,8 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByExactPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeUint64:
 		matchUint64ByExactPrefix(bs, ch, bm, prefix, tokens)
+	case valueTypeInt64:
+		matchInt64ByExactPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByExactPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeIPv4:
@@ -217,6 +220,33 @@ func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pre
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)
+		return matchExactPrefix(s, prefix)
+	})
+	bbPool.Put(bb)
+}
+
+func matchInt64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
+	if prefix == "" {
+		// An empty prefix matches all the values
+		return
+	}
+	if len(tokens) > 0 {
+		// Non-empty tokens means that the prefix contains at least two tokens.
+		// Multiple tokens cannot match any uint value.
+		bm.resetBits()
+		return
+	}
+	if prefix != "-" {
+		n, ok := tryParseInt64(prefix)
+		if !ok || n > int64(ch.maxValue) || n < int64(ch.minValue) {
+			bm.resetBits()
+			return
+		}
+	}
+
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		s := toInt64String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)

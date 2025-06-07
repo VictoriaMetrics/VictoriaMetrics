@@ -1,13 +1,18 @@
 package logstorage
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math"
-	"unsafe"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/valyala/quicktemplate"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFormat processes '| format ...' pipe.
@@ -44,59 +49,43 @@ func (pf *pipeFormat) String() string {
 	return s
 }
 
+func (pf *pipeFormat) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
+	return pf, nil
+}
+
 func (pf *pipeFormat) canLiveTail() bool {
 	return true
 }
 
-func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func (pf *pipeFormat) updateNeededFields(f *prefixfilter.Filter) {
+	if f.MatchNothing() {
 		if pf.iff != nil {
-			neededFields.addFields(pf.iff.neededFields)
+			f.AddAllowFilters(pf.iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		if !unneededFields.contains(pf.resultField) {
-			if !pf.keepOriginalFields && !pf.skipEmptyResults {
-				unneededFields.add(pf.resultField)
-			}
-			if pf.iff != nil {
-				unneededFields.removeFields(pf.iff.neededFields)
-			}
-			for _, step := range pf.steps {
-				if step.field != "" {
-					unneededFields.remove(step.field)
-				}
-			}
+	if f.MatchString(pf.resultField) {
+		if !pf.keepOriginalFields && !pf.skipEmptyResults {
+			f.AddDenyFilter(pf.resultField)
 		}
-	} else {
-		if neededFields.contains(pf.resultField) {
-			if !pf.keepOriginalFields && !pf.skipEmptyResults {
-				neededFields.remove(pf.resultField)
-			}
-			if pf.iff != nil {
-				neededFields.addFields(pf.iff.neededFields)
-			}
-			for _, step := range pf.steps {
-				if step.field != "" {
-					neededFields.add(step.field)
-				}
+		if pf.iff != nil {
+			f.AddAllowFilters(pf.iff.allowFilters)
+		}
+		for _, step := range pf.steps {
+			if step.field != "" {
+				f.AddAllowFilter(step.field)
 			}
 		}
 	}
-}
-
-func (pf *pipeFormat) optimize() {
-	pf.iff.optimizeFilterIn()
 }
 
 func (pf *pipeFormat) hasFilterInWithQuery() bool {
 	return pf.iff.hasFilterInWithQuery()
 }
 
-func (pf *pipeFormat) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
-	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc)
+func (pf *pipeFormat) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (pipe, error) {
+	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
 	if err != nil {
 		return nil, err
 	}
@@ -105,12 +94,14 @@ func (pf *pipeFormat) initFilterInValues(cache map[string][]string, getFieldValu
 	return &pfNew, nil
 }
 
-func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pf *pipeFormat) visitSubqueries(visitFunc func(q *Query)) {
+	pf.iff.visitSubqueries(visitFunc)
+}
+
+func (pf *pipeFormat) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeFormatProcessor{
 		pf:     pf,
 		ppNext: ppNext,
-
-		shards: make([]pipeFormatProcessorShard, workersCount),
 	}
 }
 
@@ -118,17 +109,10 @@ type pipeFormatProcessor struct {
 	pf     *pipeFormat
 	ppNext pipeProcessor
 
-	shards []pipeFormatProcessorShard
+	shards atomicutil.Slice[pipeFormatProcessorShard]
 }
 
 type pipeFormatProcessorShard struct {
-	pipeFormatProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeFormatProcessorShardNopad{})%128]byte
-}
-
-type pipeFormatProcessorShardNopad struct {
 	bm bitmap
 
 	a  arena
@@ -136,17 +120,17 @@ type pipeFormatProcessorShardNopad struct {
 }
 
 func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	shard := &pfp.shards[workerID]
+	shard := pfp.shards.Get(workerID)
 	pf := pfp.pf
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pf.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pfp.ppNext.writeBlock(workerID, br)
@@ -157,9 +141,9 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.rc.name = pf.resultField
 
 	resultColumn := br.getColumnByName(pf.resultField)
-	for rowIdx := range br.timestamps {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		v := ""
-		if bm.isSetBit(rowIdx) {
+		if pf.iff == nil || bm.isSetBit(rowIdx) {
 			v = shard.formatRow(pf, br, rowIdx)
 			if v == "" && pf.skipEmptyResults || pf.keepOriginalFields {
 				if vOrig := resultColumn.getValueAtRow(br, rowIdx); vOrig != "" {
@@ -172,7 +156,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 		shard.rc.addValue(v)
 	}
 
-	br.addResultColumn(&shard.rc)
+	br.addResultColumn(shard.rc)
 	pfp.ppNext.writeBlock(workerID, br)
 
 	shard.a.reset()
@@ -188,36 +172,76 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	bLen := len(b)
 	for _, step := range pf.steps {
 		b = append(b, step.prefix...)
-		if step.field != "" {
-			c := br.getColumnByName(step.field)
-			v := c.getValueAtRow(br, rowIdx)
-			switch step.fieldOpt {
-			case "q":
-				b = quicktemplate.AppendJSONString(b, v, true)
-			case "time":
-				nsecs, ok := tryParseInt64(v)
-				if !ok {
-					b = append(b, v...)
-					continue
-				}
-				b = marshalTimestampRFC3339NanoString(b, nsecs)
-			case "duration":
-				nsecs, ok := tryParseInt64(v)
-				if !ok {
-					b = append(b, v...)
-					continue
-				}
-				b = marshalDurationString(b, nsecs)
-			case "ipv4":
-				ipNum, ok := tryParseUint64(v)
-				if !ok || ipNum > math.MaxUint32 {
-					b = append(b, v...)
-					continue
-				}
-				b = marshalIPv4String(b, uint32(ipNum))
-			default:
+		if step.field == "" {
+			continue
+		}
+
+		c := br.getColumnByName(step.field)
+		v := c.getValueAtRow(br, rowIdx)
+		switch step.fieldOpt {
+		case "base64decode":
+			result, ok := appendBase64Decode(b, v)
+			if !ok {
 				b = append(b, v...)
+			} else {
+				b = result
 			}
+		case "base64encode":
+			b = appendBase64Encode(b, v)
+		case "duration":
+			nsecs, ok := tryParseInt64(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				b = marshalDurationString(b, nsecs)
+			}
+		case "duration_seconds":
+			nsecs, ok := tryParseDuration(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				secs := float64(nsecs) / 1e9
+				b = marshalFloat64String(b, secs)
+			}
+		case "hexdecode":
+			b = appendHexDecode(b, v)
+		case "hexencode":
+			b = appendHexEncode(b, v)
+		case "hexnumdecode":
+			b = appendHexUint64Decode(b, v)
+		case "hexnumencode":
+			n, ok := tryParseUint64(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				b = appendHexUint64Encode(b, n)
+			}
+		case "ipv4":
+			ipNum, ok := tryParseUint64(v)
+			if !ok || ipNum > math.MaxUint32 {
+				b = append(b, v...)
+			} else {
+				b = marshalIPv4String(b, uint32(ipNum))
+			}
+		case "lc":
+			b = appendLowercase(b, v)
+		case "time":
+			nsecs, ok := tryParseInt64(v)
+			if !ok {
+				b = append(b, v...)
+			} else {
+				b = marshalTimestampRFC3339NanoString(b, nsecs)
+			}
+		case "q":
+			b = quicktemplate.AppendJSONString(b, v, true)
+		case "uc":
+			b = appendUppercase(b, v)
+		case "urldecode":
+			b = appendURLDecode(b, v)
+		case "urlencode":
+			b = appendURLEncode(b, v)
+		default:
+			b = append(b, v...)
 		}
 	}
 	shard.a.b = b
@@ -225,7 +249,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	return bytesutil.ToUnsafeString(b[bLen:])
 }
 
-func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
+func parsePipeFormat(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("format") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "format")
 	}
@@ -249,6 +273,13 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 	steps, err := parsePatternSteps(formatStr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", formatStr, err)
+	}
+
+	// Verify that all the fields mentioned in the format pattern do not end with '*'
+	for _, step := range steps {
+		if prefixfilter.IsWildcardFilter(step.field) {
+			return nil, fmt.Errorf("'pattern' %q cannot contain wildcard fields like %q", formatStr, step.field)
+		}
 	}
 
 	// parse optional 'as ...` part
@@ -283,4 +314,151 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 	}
 
 	return pf, nil
+}
+
+func appendUppercase(dst []byte, s string) []byte {
+	for _, r := range s {
+		r = unicode.ToUpper(r)
+		dst = utf8.AppendRune(dst, r)
+	}
+	return dst
+}
+
+func appendLowercase(dst []byte, s string) []byte {
+	for _, r := range s {
+		r = unicode.ToLower(r)
+		dst = utf8.AppendRune(dst, r)
+	}
+	return dst
+}
+
+func appendURLDecode(dst []byte, s string) []byte {
+	for len(s) > 0 {
+		n := strings.IndexAny(s, "%+")
+		if n < 0 {
+			return append(dst, s...)
+		}
+		dst = append(dst, s[:n]...)
+		ch := s[n]
+		s = s[n+1:]
+		if ch == '+' {
+			dst = append(dst, ' ')
+			continue
+		}
+		if len(s) < 2 {
+			dst = append(dst, '%')
+			continue
+		}
+		hi, ok1 := unhexChar(s[0])
+		lo, ok2 := unhexChar(s[1])
+		if !ok1 || !ok2 {
+			dst = append(dst, '%')
+			continue
+		}
+		ch = (hi << 4) | lo
+		dst = append(dst, ch)
+		s = s[2:]
+	}
+	return dst
+}
+
+func appendURLEncode(dst []byte, s string) []byte {
+	n := len(s)
+	for i := 0; i < n; i++ {
+		c := s[i]
+
+		// See http://www.w3.org/TR/html5/forms.html#form-submission-algorithm
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
+			c == '-' || c == '.' || c == '_' {
+			dst = append(dst, c)
+		} else {
+			if c == ' ' {
+				dst = append(dst, '+')
+			} else {
+				dst = append(dst, '%', hexCharUpper(c>>4), hexCharUpper(c&15))
+			}
+		}
+	}
+	return dst
+}
+
+func hexCharUpper(c byte) byte {
+	if c < 10 {
+		return '0' + c
+	}
+	return c - 10 + 'A'
+}
+
+func unhexChar(c byte) (byte, bool) {
+	if c >= '0' && c <= '9' {
+		return c - '0', true
+	}
+	if c >= 'A' && c <= 'F' {
+		return c - 'A' + 10, true
+	}
+	if c >= 'a' && c <= 'f' {
+		return c - 'a' + 10, true
+	}
+	return 0, false
+}
+
+func appendHexUint64Encode(dst []byte, n uint64) []byte {
+	for shift := 60; shift >= 0; shift -= 4 {
+		dst = append(dst, hexCharUpper(byte(n>>shift)&15))
+	}
+	return dst
+}
+
+func appendHexUint64Decode(dst []byte, s string) []byte {
+	if len(s) > 16 {
+		return append(dst, s...)
+	}
+	sOrig := s
+	n := uint64(0)
+	for len(s) > 0 {
+		x, ok := unhexChar(s[0])
+		if !ok {
+			return append(dst, sOrig...)
+		}
+		n = (n << 4) | uint64(x)
+		s = s[1:]
+	}
+	return marshalUint64String(dst, n)
+}
+
+func appendHexEncode(dst []byte, s string) []byte {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		hi := hexCharUpper(c >> 4)
+		lo := hexCharUpper(c & 15)
+		dst = append(dst, hi, lo)
+	}
+	return dst
+}
+
+func appendHexDecode(dst []byte, s string) []byte {
+	for len(s) >= 2 {
+		hi, ok1 := unhexChar(s[0])
+		lo, ok2 := unhexChar(s[1])
+		if !ok1 || !ok2 {
+			dst = append(dst, s[0], s[1])
+		} else {
+			ch := (hi << 4) | lo
+			dst = append(dst, ch)
+		}
+		s = s[2:]
+	}
+	return append(dst, s...)
+}
+
+func appendBase64Encode(dst []byte, s string) []byte {
+	return base64.StdEncoding.AppendEncode(dst, bytesutil.ToUnsafeBytes(s))
+}
+
+func appendBase64Decode(dst []byte, s string) ([]byte, bool) {
+	result, err := base64.StdEncoding.AppendDecode(dst, bytesutil.ToUnsafeBytes(s))
+	if err != nil {
+		return dst, false
+	}
+	return result, true
 }

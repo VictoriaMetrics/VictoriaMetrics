@@ -1,8 +1,13 @@
 package logstorage
 
 import (
+	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 func TestParsePipeCopySuccess(t *testing.T) {
@@ -13,6 +18,8 @@ func TestParsePipeCopySuccess(t *testing.T) {
 
 	f(`copy foo as bar`)
 	f(`copy foo as bar, a as b`)
+	f(`copy * as foo.*`)
+	f(`copy foo* as bar*`)
 }
 
 func TestParsePipeCopyFailure(t *testing.T) {
@@ -146,6 +153,89 @@ func TestPipeCopy(t *testing.T) {
 		},
 	})
 
+	// wildcard copy all the fields to themselves
+	f("copy * as *", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+		},
+	})
+
+	// wildcard copy fields with some prefix to fields with another prefix
+	f("copy a* as foo*", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+			{"foo", `test`},
+			{"foobc", `aaa`},
+		},
+	})
+
+	// wildcard copy fields with some prefix to fields without the prefix.
+	f("copy a* as *", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+			{"", `test`},
+			{"bc", `aaa`},
+		},
+	})
+
+	// wildcard copy fields with some prefix to a single field
+	f("copy a* as foo", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+			{"foo", `aaa`},
+		},
+	})
+
+	// copy all the fields with prefix
+	f("copy * as foo.*", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"abc", `aaa`},
+			{"foo._msg", `{"foo":"bar"}`},
+			{"foo.a", `test`},
+			{"foo.abc", `aaa`},
+		},
+	})
+
 	// Multiple rows
 	f("copy a as b", [][]Field{
 		{
@@ -186,82 +276,111 @@ func TestPipeCopy(t *testing.T) {
 }
 
 func TestPipeCopyUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
 	f("copy s1 d1, s2 d2", "*", "", "*", "d1,d2")
 	f("copy a a", "*", "", "*", "")
+	f("copy foo* bar*", "*", "", "*", "bar*")
+	f("copy foo bar*", "*", "", "*", "bar*")
+	f("copy foo* bar", "*", "", "*", "bar")
+	f("copy * bar*", "*", "", "*", "")
+	f("copy b* bar*", "*", "", "*", "")
+	f("copy bar* b*", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src and dst
-	f("copy s1 d1 ,s2 d2", "*", "f1,f2", "*", "d1,d2,f1,f2")
+	f("copy s1 d1, s2 d2", "*", "f1,f2", "*", "d1,d2,f1,f2")
+	f("copy s1 d1, s2 d2", "*", "f*", "*", "d1,d2,f*")
+	f("copy s1* d1*, s2 d2", "*", "f1,f2", "*", "d1*,d2,f1,f2")
+	f("copy s1* d1*, s2 d2", "*", "f*", "*", "d1*,d2,f*")
 
 	// all the needed fields, unneeded fields intersect with src
-	f("copy s1 d1 ,s2 d2", "*", "s1,f1,f2", "*", "d1,d2,f1,f2")
+	f("copy s1 d1, s2 d2", "*", "s1,f1,f2", "*", "d1,d2,f1,f2")
+	f("copy s1 d1, s2 d2", "*", "s*,f*", "*", "d1,d2,f*")
+	f("copy s1* d1*, s2 d2", "*", "s1,f1,f2", "*", "d1*,d2,f1,f2")
 
 	// all the needed fields, unneeded fields intersect with dst
 	f("copy s1 d1, s2 d2", "*", "d2,f1,f2", "*", "d1,d2,f1,f2")
+	f("copy s1 d1, s2 d2", "*", "d*,f*", "*", "d*,f*")
+	f("copy s1* d1*, s2 d2", "*", "d2,f1,f2", "*", "d1*,d2,f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src and dst
 	f("copy s1 d1, s2 d2", "*", "s1,d1,f1,f2", "*", "d1,d2,f1,f2,s1")
+	f("copy s1 d1, s2 d2", "*", "s*,d*,f1,f2", "*", "d*,f1,f2,s*")
+	f("copy s1* d1*, s2 d2", "*", "s1,d1,f1,f2", "*", "d1*,d2,f1,f2")
 	f("copy s1 d1, s2 d2", "*", "s1,d2,f1,f2", "*", "d1,d2,f1,f2")
+	f("copy s1 d1, s2 d2", "*", "s*,d*,f1,f2", "*", "d*,f1,f2,s*")
+	f("copy s1* d1*, s2 d2", "*", "s1,d2,f1,f2", "*", "d1*,d2,f1,f2")
 
 	// needed fields do not intersect with src and dst
 	f("copy s1 d1, s2 d2", "f1,f2", "", "f1,f2", "")
+	f("copy s1 d1, s2 d2", "f*", "", "f*", "")
+	f("copy s1* d1*, s2 d2", "f1,f2", "", "f1,f2", "")
 
 	// needed fields intersect with src
 	f("copy s1 d1, s2 d2", "s1,f1,f2", "", "s1,f1,f2", "")
+	f("copy s1 d1, s2 d2", "s*,f*", "", "s*,f*", "")
+	f("copy s1* d1*, s2 d2", "s1,f1,f2", "", "s1,f1,f2", "")
 
 	// needed fields intersect with dst
 	f("copy s1 d1, s2 d2", "d1,f1,f2", "", "f1,f2,s1", "")
+	f("copy s1 d1, s2 d2", "d*,f*", "", "d*,f*,s1,s2", "d1,d2")
+	f("copy s1* d1*, s2 d2", "d1,f1,f2", "", "f1,f2,s1*", "")
+	f("copy s1* d1*, s2 d2", "d1*,f1,f2", "", "f1,f2,s1*", "")
 
 	// needed fields intersect with src and dst
 	f("copy s1 d1, s2 d2", "s1,d1,f1,f2", "", "s1,f1,f2", "")
 	f("copy s1 d1, s2 d2", "s1,d2,f1,f2", "", "s1,s2,f1,f2", "")
 	f("copy s1 d1, s2 d2", "s2,d1,f1,f2", "", "s1,s2,f1,f2", "")
+	f("copy s1 d1, s2 d2", "s*,d*,f1,f2", "", "d*,f1,f2,s*", "d1,d2")
+	f("copy s1* d1*, s2 d2", "s2,d1,f1,f2", "", "f1,f2,s1*,s2", "")
 }
 
-func expectPipeNeededFields(t *testing.T, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+func expectPipeNeededFields(t *testing.T, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 	t.Helper()
 
-	nfs := newTestFieldsSet(neededFields)
-	unfs := newTestFieldsSet(unneededFields)
+	pf := newTestFieldsFilter(allowFilters, denyFilters)
 
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	p, err := parsePipe(lex)
 	if err != nil {
 		t.Fatalf("cannot parse %s: %s", s, err)
 	}
-	p.updateNeededFields(nfs, unfs)
+	p.updateNeededFields(pf)
 
-	assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
-}
+	pfStr := pf.String()
+	pfExpectedStr := fmt.Sprintf("allow=[%s], deny=[%s]", quoteStrings(allowFiltersExpected), quoteStrings(denyFiltersExpected))
 
-func assertNeededFields(t *testing.T, nfs, unfs fieldsSet, neededFieldsExpected, unneededFieldsExpected string) {
-	t.Helper()
-
-	nfsStr := nfs.String()
-	unfsStr := unfs.String()
-
-	nfsExpected := newTestFieldsSet(neededFieldsExpected)
-	unfsExpected := newTestFieldsSet(unneededFieldsExpected)
-	nfsExpectedStr := nfsExpected.String()
-	unfsExpectedStr := unfsExpected.String()
-
-	if nfsStr != nfsExpectedStr {
-		t.Fatalf("unexpected needed fields; got %s; want %s", nfsStr, nfsExpectedStr)
-	}
-	if unfsStr != unfsExpectedStr {
-		t.Fatalf("unexpected unneeded fields; got %s; want %s", unfsStr, unfsExpectedStr)
+	if pfStr != pfExpectedStr {
+		t.Fatalf("unexpected field filters\ngot\n%s\nwant\n%s", pfStr, pfExpectedStr)
 	}
 }
 
-func newTestFieldsSet(fields string) fieldsSet {
-	fs := newFieldsSet()
-	if fields != "" {
-		fs.addFields(strings.Split(fields, ","))
+func quoteStrings(s string) string {
+	if s == "" {
+		return ""
 	}
-	return fs
+	a := strings.Split(s, ",")
+	tmp := make([]string, len(a))
+	for i, v := range a {
+		tmp[i] = strconv.Quote(v)
+	}
+	sort.Strings(tmp)
+	return strings.Join(tmp, ",")
+}
+
+func newTestFieldsFilter(allowFilters, denyFilters string) *prefixfilter.Filter {
+	var pf prefixfilter.Filter
+
+	if allowFilters != "" {
+		pf.AddAllowFilters(strings.Split(allowFilters, ","))
+	}
+	if denyFilters != "" {
+		pf.AddDenyFilters(strings.Split(denyFilters, ","))
+	}
+
+	return &pf
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestAggregatorsFailure(t *testing.T) {
@@ -200,11 +201,14 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := LoadFromData([]byte(a), pushFunc, nil, "some_alias")
+		opts := Options{
+			EnableWindows: true,
+		}
+		aa, err := LoadFromData([]byte(a), pushFunc, &opts, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := LoadFromData([]byte(b), pushFunc, nil, "some_alias")
+		ab, err := LoadFromData([]byte(b), pushFunc, &opts, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -266,6 +270,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		opts := &Options{
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
+			EnableWindows:          true,
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
@@ -273,8 +278,8 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 
 		// Push the inputMetrics to Aggregators
-		offsetMsecs := time.Now().UnixMilli()
-		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
+		offsetMsecs := time.Now().Add(15 * time.Second).UnixMilli()
+		tssInput := prometheus.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
 
@@ -305,7 +310,7 @@ func TestAggregatorsSuccess(t *testing.T) {
   outputs: [count_samples, sum_samples, count_series, last]
 `, `
 foo{abc="123"} 4
-bar 5 100
+bar 5 11
 bar 34 10
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
@@ -556,6 +561,18 @@ bar{baz="qwe"} 4.34
 foo:1m_total 0
 `, "11")
 
+	// total output for non-repeated series, ignore first sample 0s
+	f(`
+- interval: 1m
+  outputs: [total]
+  ignore_first_sample_interval: 0s
+`, `
+foo 123
+bar{baz="qwe"} 4.34
+`, `bar:1m_total{baz="qwe"} 4.34
+foo:1m_total 123
+`, "11")
+
 	// total_prometheus output for non-repeated series
 	f(`
 - interval: 1m
@@ -574,7 +591,7 @@ foo:1m_total_prometheus 0
 `, `
 foo 123
 bar{baz="qwe"} 1.31
-bar{baz="qwe"} 4.34 1000
+bar{baz="qwe"} 4.34 1
 bar{baz="qwe"} 2
 foo{baz="qwe"} -5
 bar{baz="qwer"} 343
@@ -985,6 +1002,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		opts := &Options{
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
+			EnableWindows:   true,
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
@@ -992,8 +1010,8 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		}
 
 		// Push the inputMetrics to Aggregators
-		offsetMsecs := time.Now().UnixMilli()
-		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
+		offsetMsecs := time.Now().Add(15 * time.Second).UnixMilli()
+		tssInput := prometheus.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
 

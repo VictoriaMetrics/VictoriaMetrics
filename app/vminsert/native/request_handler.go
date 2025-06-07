@@ -8,8 +8,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -21,12 +21,12 @@ var (
 
 // InsertHandler processes `/api/v1/import/native` request.
 func InsertHandler(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzip := req.Header.Get("Content-Encoding") == "gzip"
-	return stream.Parse(req.Body, isGzip, func(block *stream.Block) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, encoding, func(block *stream.Block) error {
 		return insertRows(block, extraLabels)
 	})
 }
@@ -55,14 +55,9 @@ func insertRows(block *stream.Block, extraLabels []prompbmarshal.Label) error {
 		label := &extraLabels[j]
 		ic.AddLabel(label.Name, label.Value)
 	}
-	if hasRelabeling {
-		ic.ApplyRelabeling()
-	}
-	if len(ic.Labels) == 0 {
-		// Skip metric without labels.
+	if !ic.TryPrepareLabels(hasRelabeling) {
 		return nil
 	}
-	ic.SortLabelsIfNeeded()
 	ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 	values := block.Values
 	timestamps := block.Timestamps
@@ -71,7 +66,9 @@ func insertRows(block *stream.Block, extraLabels []prompbmarshal.Label) error {
 	}
 	for j, value := range values {
 		timestamp := timestamps[j]
-		if err := ic.WriteDataPoint(ctx.metricNameBuf, nil, timestamp, value); err != nil {
+		// TODO: @f41gh7 looks like it's better to use WriteDataPointExt
+		// since metricName never changes inside insertRows call
+		if err := ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels, timestamp, value); err != nil {
 			return err
 		}
 	}

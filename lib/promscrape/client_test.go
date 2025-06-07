@@ -3,7 +3,6 @@ package promscrape
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -25,13 +25,18 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
+type connReadWriteCloser struct {
+	io.Reader
+	io.WriteCloser
+}
+
 func proxyTunnel(w http.ResponseWriter, r *http.Request) {
 	transfer := func(src io.ReadCloser, dst io.WriteCloser) {
 		defer dst.Close()
 		defer src.Close()
 		io.Copy(dst, src) //nolint
 	}
-	destConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+	server, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -42,12 +47,16 @@ func proxyTunnel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Hijacking not supported", http.StatusInternalServerError)
 		return
 	}
-	clientConn, _, err := hijacker.Hijack()
+	clientConn, clientBuf, err := hijacker.Hijack()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
-	go transfer(clientConn, destConn)
-	transfer(destConn, clientConn)
+	// For hijacked connections, one has to read from the connection buffer, but
+	// still write directly to the connection.
+	client := &connReadWriteCloser{clientBuf, clientConn}
+
+	go transfer(client, server)
+	transfer(server, client)
 }
 
 type testProxyServer struct {
@@ -78,7 +87,8 @@ func (tps *testProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := http.DefaultTransport.RoundTrip(r)
+	tr := httputil.NewTransport(false, "test_client")
+	resp, err := tr.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -108,7 +118,7 @@ func newTestAuthConfig(t *testing.T, isTLS bool, ba *promauth.BasicAuthConfig) *
 	}
 	ac, err := a.NewConfig()
 	if err != nil {
-		t.Fatalf("cannot setup promauth.Confg: %s", err)
+		t.Fatalf("cannot setup promauth.Config: %s", err)
 	}
 	return ac
 }
@@ -139,33 +149,31 @@ func TestClientProxyReadOk(t *testing.T) {
 			// bump timeout for slow CIs
 			ScrapeTimeout: 5 * time.Second,
 			// force connection re-creating to avoid broken conns in slow CIs
-			DisableKeepAlive: true,
-			AuthConfig:       newTestAuthConfig(t, isBackendTLS, backendAuth),
-			ProxyAuthConfig:  newTestAuthConfig(t, isProxyTLS, proxyAuth),
-			MaxScrapeSize:    16000,
+			DisableKeepAlive:   true,
+			AuthConfig:         newTestAuthConfig(t, isBackendTLS, backendAuth),
+			ProxyAuthConfig:    newTestAuthConfig(t, isProxyTLS, proxyAuth),
+			MaxScrapeSize:      16000,
+			DisableCompression: true,
 		})
 		if err != nil {
 			t.Fatalf("failed to create client: %s", err)
 		}
 
-		var bb bytesutil.ByteBuffer
-		err = c.ReadData(&bb)
-		if errors.Is(err, io.EOF) {
-			bb.Reset()
-			// EOF could occur in slow envs, like CI
-			err = c.ReadData(&bb)
-		}
-
+		var cb chunkedbuffer.Buffer
+		isGzipped, err := c.ReadData(&cb)
 		if err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
-		got, err := io.ReadAll(bb.NewReader())
+		if isGzipped {
+			t.Fatalf("the response mustn't be gzipped")
+		}
+		got, err := io.ReadAll(cb.NewReader())
 		if err != nil {
 			t.Fatalf("err read: %s", err)
 		}
 
 		if !proxyHandler.receivedProxyRequest {
-			t.Fatalf("proxy server didn't recieved request")
+			t.Fatalf("proxy server didn't received request")
 		}
 		if string(got) != expectedBackendResponse {
 			t.Fatalf("not expected response: ")

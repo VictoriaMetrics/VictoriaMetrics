@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/metrics"
@@ -18,8 +18,6 @@ import (
 var disableFadvise = flag.Bool("filestream.disableFadvise", false, "Whether to disable fadvise() syscall when reading large data files. "+
 	"The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. "+
 	"In some rare cases it is better to disable the syscall if it uses too much CPU")
-
-var disableFSyncForTesting = envutil.GetenvBool("DISABLE_FSYNC_FOR_TESTING")
 
 const dontNeedBlockSize = 16 * 1024 * 1024
 
@@ -37,23 +35,42 @@ type WriteCloser interface {
 	MustClose()
 }
 
-func getBufferSize() int {
-	bufferSizeOnce.Do(func() {
+func getReadBufferSize() int {
+	readBufferSizeOnce.Do(func() {
+		n := memory.Allowed() / 1024 / 64
+		if n < 4*1024 {
+			n = 4 * 1024
+		}
+		if n > 64*1024 {
+			n = 64 * 1024
+		}
+		readBufferSize = n
+	})
+	return readBufferSize
+}
+
+var (
+	readBufferSize     int
+	readBufferSizeOnce sync.Once
+)
+
+func getWriteBufferSize() int {
+	writeBufferSizeOnce.Do(func() {
 		n := memory.Allowed() / 1024 / 8
 		if n < 4*1024 {
 			n = 4 * 1024
 		}
-		if n > 512*1024 {
-			n = 512 * 1024
+		if n > 128*1024 {
+			n = 128 * 1024
 		}
-		bufferSize = n
+		writeBufferSize = n
 	})
-	return bufferSize
+	return writeBufferSize
 }
 
 var (
-	bufferSize     int
-	bufferSizeOnce sync.Once
+	writeBufferSize     int
+	writeBufferSizeOnce sync.Once
 )
 
 // Reader implements buffered file reader.
@@ -166,7 +183,7 @@ func getBufioReader(f *os.File) *bufio.Reader {
 	sr := &statReader{f}
 	v := brPool.Get()
 	if v == nil {
-		return bufio.NewReaderSize(sr, getBufferSize())
+		return bufio.NewReaderSize(sr, getReadBufferSize())
 	}
 	br := v.(*bufio.Reader)
 	br.Reset(sr)
@@ -244,9 +261,9 @@ func (w *Writer) MustClose() {
 	putBufioWriter(w.bw)
 	w.bw = nil
 
-	if !disableFSyncForTesting {
+	if !fsutil.IsFsyncDisabled() {
 		if err := w.f.Sync(); err != nil {
-			logger.Panicf("FATAL: cannot sync file %q: %d", w.f.Name(), err)
+			logger.Panicf("FATAL: cannot sync file %q: %s", w.f.Name(), err)
 		}
 	}
 	if err := w.st.close(); err != nil {
@@ -320,7 +337,7 @@ func getBufioWriter(f *os.File) *bufio.Writer {
 	sw := &statWriter{f}
 	v := bwPool.Get()
 	if v == nil {
-		return bufio.NewWriterSize(sw, getBufferSize())
+		return bufio.NewWriterSize(sw, getWriteBufferSize())
 	}
 	bw := v.(*bufio.Writer)
 	bw.Reset(sw)

@@ -38,7 +38,7 @@ type StreamTags struct {
 	tags []streamTag
 }
 
-// Reset resets st for re-use
+// Reset resets st for reuse
 func (st *StreamTags) Reset() {
 	st.buf = st.buf[:0]
 
@@ -73,8 +73,12 @@ func (st *StreamTags) marshalString(dst []byte) []byte {
 
 // Add adds (name:value) tag to st.
 func (st *StreamTags) Add(name, value string) {
-	if len(name) == 0 || len(value) == 0 {
+	if len(value) == 0 {
 		return
+	}
+
+	if len(name) == 0 {
+		name = "_msg"
 	}
 
 	buf := st.buf
@@ -141,7 +145,7 @@ func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
 	return src, nil
 }
 
-func getStreamTagsString(streamTagsCanonical []byte) string {
+func getStreamTagsString(streamTagsCanonical string) string {
 	st := GetStreamTags()
 	mustUnmarshalStreamTags(st, streamTagsCanonical)
 	s := st.String()
@@ -150,10 +154,11 @@ func getStreamTagsString(streamTagsCanonical []byte) string {
 	return s
 }
 
-func mustUnmarshalStreamTags(dst *StreamTags, src []byte) {
+func mustUnmarshalStreamTags(dst *StreamTags, streamTagsCanonical string) {
+	src := bytesutil.ToUnsafeBytes(streamTagsCanonical)
 	tail, err := dst.UnmarshalCanonical(src)
 	if err != nil {
-		logger.Panicf("FATAL: cannot unmarshal StreamTags from value obtained from cache: %s", err)
+		logger.Panicf("FATAL: cannot unmarshal StreamTags: %s", err)
 	}
 	if len(tail) > 0 {
 		logger.Panicf("FATAL: unexpected tail left after unmarshaling StreamTags; len(tail)=%d; tail=%q", len(tail), tail)

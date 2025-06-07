@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -27,12 +29,13 @@ type Rule interface {
 	// updateWith performs modification of current Rule
 	// with fields of the given Rule.
 	updateWith(Rule) error
-	// close performs the shutdown procedures for rule
-	// such as metrics unregister
-	close()
+	// unregister Rule metrics
+	unregisterMetrics()
+	// register Rule metrics with the given group
+	registerMetrics(set *metrics.Set)
 }
 
-var errDuplicate = errors.New("result contains metrics with the same labelset during evaluation. See https://docs.victoriametrics.com/vmalert/#series-with-the-same-labelset for details")
+var errDuplicate = errors.New("result contains metrics with the same labelset during evaluation. See https://docs.victoriametrics.com/victoriametrics/vmalert/#series-with-the-same-labelset for details")
 
 type ruleState struct {
 	sync.RWMutex

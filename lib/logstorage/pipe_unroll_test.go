@@ -12,6 +12,7 @@ func TestParsePipeUnrollSuccess(t *testing.T) {
 	}
 
 	f(`unroll by (foo)`)
+	f(`unroll by (foo, bar)`)
 	f(`unroll if (x:y) by (foo, bar)`)
 }
 
@@ -24,11 +25,13 @@ func TestParsePipeUrollFailure(t *testing.T) {
 	f(`unroll`)
 	f(`unroll by ()`)
 	f(`unroll by (*)`)
-	f(`unroll by (f, *)`)
+	f(`unroll by (f, x*)`)
 	f(`unroll by`)
 	f(`unroll (`)
 	f(`unroll by (foo) bar`)
 	f(`unroll by (x) if (a:b)`)
+	f(`unroll foo bar`)
+	f(`unroll foo, `)
 }
 
 func TestPipeUnroll(t *testing.T) {
@@ -65,7 +68,7 @@ func TestPipeUnroll(t *testing.T) {
 	})
 
 	// unroll by a single field
-	f("unroll (a)", [][]Field{
+	f("unroll a", [][]Field{
 		{
 			{"a", `["foo",1,{"baz":"x"},[1,2],null,NaN]`},
 			{"q", "w"},
@@ -106,7 +109,7 @@ func TestPipeUnroll(t *testing.T) {
 	})
 
 	// unroll by multiple fields
-	f("unroll by (timestamp, value)", [][]Field{
+	f("unroll timestamp, value", [][]Field{
 		{
 			{"timestamp", "[1,2,3]"},
 			{"value", `["foo","bar","baz"]`},
@@ -209,9 +212,9 @@ func TestPipeUnroll(t *testing.T) {
 }
 
 func TestPipeUnrollUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

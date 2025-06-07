@@ -2,14 +2,14 @@ package logstorage
 
 import (
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestFilterExactPrefix(t *testing.T) {
 	t.Parallel()
 
 	t.Run("single-row", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -59,8 +59,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("const-column", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -112,8 +110,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("dict", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -157,8 +153,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("strings", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -211,8 +205,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("uint8", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -266,8 +258,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("uint16", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -321,8 +311,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -376,8 +364,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("uint64", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -430,9 +416,72 @@ func TestFilterExactPrefix(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fep, "foo", nil)
 	})
 
-	t.Run("float64", func(t *testing.T) {
-		t.Parallel()
+	t.Run("int64", func(t *testing.T) {
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"123",
+					"12",
+					"32",
+					"0",
+					"0",
+					"-12",
+					"1",
+					"-2",
+					"3",
+					"123456789012",
+					"5",
+				},
+			},
+		}
 
+		// match
+		fep := &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "12",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", []int{0, 1, 9})
+
+		fep = &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "-12",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", []int{5})
+
+		fep = &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "-",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", []int{5, 7})
+
+		fep = &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		// mismatch
+		fep = &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "bar",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", nil)
+
+		fep = &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "1234567890123",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", nil)
+
+		fep = &filterExactPrefix{
+			fieldName: "foo",
+			prefix:    "7",
+		}
+		testFilterMatchForColumns(t, columns, fep, "foo", nil)
+	})
+
+	t.Run("float64", func(t *testing.T) {
 		columns := []column{
 			{
 				name: "foo",
@@ -490,8 +539,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "foo",
@@ -540,8 +587,6 @@ func TestFilterExactPrefix(t *testing.T) {
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {
-		t.Parallel()
-
 		columns := []column{
 			{
 				name: "_msg",
@@ -572,7 +617,7 @@ func TestFilterExactPrefix(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, fep, "_msg", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 
-		// mimatch
+		// mismatch
 		fep = &filterExactPrefix{
 			fieldName: "_msg",
 			prefix:    "bar",
@@ -585,4 +630,7 @@ func TestFilterExactPrefix(t *testing.T) {
 		}
 		testFilterMatchForColumns(t, columns, fep, "_msg", nil)
 	})
+
+	// Remove the remaining data files for the test
+	fs.MustRemoveAll(t.Name())
 }

@@ -5,9 +5,10 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
-// filterAnd contains filters joined by AND opertor.
+// filterAnd contains filters joined by AND operator.
 //
 // It is expressed as `f1 AND f2 ... AND fN` in LogsQL.
 type filterAnd struct {
@@ -36,9 +37,9 @@ func (fa *filterAnd) String() string {
 	return strings.Join(a, " ")
 }
 
-func (fa *filterAnd) updateNeededFields(neededFields fieldsSet) {
+func (fa *filterAnd) updateNeededFields(pf *prefixfilter.Filter) {
 	for _, f := range fa.filters {
-		f.updateNeededFields(neededFields)
+		f.updateNeededFields(pf)
 	}
 }
 
@@ -81,7 +82,7 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 		fieldName := ft.field
 		tokens := ft.tokens
 
-		v := bs.csh.getConstColumnValue(fieldName)
+		v := bs.getConstColumnValue(fieldName)
 		if v != "" {
 			if matchStringByAllTokens(v, tokens) {
 				continue
@@ -89,7 +90,7 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 			return false
 		}
 
-		ch := bs.csh.getColumnHeader(fieldName)
+		ch := bs.getColumnHeader(fieldName)
 		if ch == nil {
 			return false
 		}

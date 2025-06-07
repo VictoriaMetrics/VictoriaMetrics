@@ -8,7 +8,7 @@ import (
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
 //
-// the order of returned tokens is unspecified.
+// The order of returned tokens equals the order of tokens seen in a.
 func tokenizeStrings(dst, a []string) []string {
 	t := getTokenizer()
 	for i, s := range a {
@@ -16,7 +16,7 @@ func tokenizeStrings(dst, a []string) []string {
 			// This string has been already tokenized
 			continue
 		}
-		dst = t.tokenizeString(dst, s)
+		dst = t.tokenizeString(dst, s, false)
 	}
 	putTokenizer(t)
 
@@ -31,10 +31,10 @@ func (t *tokenizer) reset() {
 	clear(t.m)
 }
 
-func (t *tokenizer) tokenizeString(dst []string, s string) []string {
+func (t *tokenizer) tokenizeString(dst []string, s string, keepDuplicateTokens bool) []string {
 	if !isASCII(s) {
 		// Slow path - s contains unicode chars
-		return t.tokenizeStringUnicode(dst, s)
+		return t.tokenizeStringUnicode(dst, s, keepDuplicateTokens)
 	}
 
 	// Fast path for ASCII s
@@ -69,7 +69,9 @@ func (t *tokenizer) tokenizeString(dst []string, s string) []string {
 
 		// Register the token.
 		token := s[start:end]
-		if _, ok := m[token]; !ok {
+		if keepDuplicateTokens {
+			dst = append(dst, token)
+		} else if _, ok := m[token]; !ok {
 			m[token] = struct{}{}
 			dst = append(dst, token)
 		}
@@ -77,7 +79,7 @@ func (t *tokenizer) tokenizeString(dst []string, s string) []string {
 	return dst
 }
 
-func (t *tokenizer) tokenizeStringUnicode(dst []string, s string) []string {
+func (t *tokenizer) tokenizeStringUnicode(dst []string, s string, keepDuplicateTokens bool) []string {
 	m := t.m
 	for len(s) > 0 {
 		// Search for the next token.
@@ -104,7 +106,9 @@ func (t *tokenizer) tokenizeStringUnicode(dst []string, s string) []string {
 		// Register the token
 		token := s[:n]
 		s = s[n:]
-		if _, ok := m[token]; !ok {
+		if keepDuplicateTokens {
+			dst = append(dst, token)
+		} else if _, ok := m[token]; !ok {
 			m[token] = struct{}{}
 			dst = append(dst, token)
 		}
@@ -145,27 +149,3 @@ func putTokenizer(t *tokenizer) {
 }
 
 var tokenizerPool sync.Pool
-
-type tokensBuf struct {
-	A []string
-}
-
-func (tb *tokensBuf) reset() {
-	clear(tb.A)
-	tb.A = tb.A[:0]
-}
-
-func getTokensBuf() *tokensBuf {
-	v := tokensBufPool.Get()
-	if v == nil {
-		return &tokensBuf{}
-	}
-	return v.(*tokensBuf)
-}
-
-func putTokensBuf(tb *tokensBuf) {
-	tb.reset()
-	tokensBufPool.Put(tb)
-}
-
-var tokensBufPool sync.Pool

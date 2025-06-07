@@ -12,6 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -35,20 +39,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/marathon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ovhcloud"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/puppetdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
 	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
-	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info")
+	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter for more info")
 	strictParse          = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
 	dryRun               = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
@@ -60,25 +65,25 @@ var (
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+
 		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of vmagent instance in the cluster of scrapers. "+
 		"It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. "+
-		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
-		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"is added to all the scraped metrics. See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberURLTemplate = flag.String("promscrape.cluster.memberURLTemplate", "", "An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. "+
 		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
 		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more details")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more details")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
 		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
-		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/sd_configs/#scrape_configs")
+		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
 )
 
 var clusterMemberID int
@@ -260,21 +265,23 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels *promutils.Labels   `yaml:"external_labels,omitempty"`
+	ScrapeInterval       *promutil.Duration          `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        *promutil.Duration          `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels       *promutil.Labels            `yaml:"external_labels,omitempty"`
+	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
+	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
-	JobName        string              `yaml:"job_name"`
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	MaxScrapeSize  string              `yaml:"max_scrape_size,omitempty"`
-	MetricsPath    string              `yaml:"metrics_path,omitempty"`
-	HonorLabels    bool                `yaml:"honor_labels,omitempty"`
+	JobName        string             `yaml:"job_name"`
+	ScrapeInterval *promutil.Duration `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  *promutil.Duration `yaml:"scrape_timeout,omitempty"`
+	MaxScrapeSize  string             `yaml:"max_scrape_size,omitempty"`
+	MetricsPath    string             `yaml:"metrics_path,omitempty"`
+	HonorLabels    bool               `yaml:"honor_labels,omitempty"`
 
 	// HonorTimestamps is set to false by default contrary to Prometheus, which sets it to true by default,
 	// because of the issue with gaps on graphs when scraping cadvisor or similar targets, which export invalid timestamps.
@@ -310,8 +317,11 @@ type ScrapeConfig struct {
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
+	MarathonSDConfigs     []marathon.SDConfig     `yaml:"marathon_sd_configs,omitempty"`
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
+	OVHCloudSDConfigs     []ovhcloud.SDConfig     `yaml:"ovhcloud_sd_configs,omitempty"`
+	PuppetDBSDConfigs     []puppetdb.SDConfig     `yaml:"puppetdb_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
@@ -320,8 +330,8 @@ type ScrapeConfig struct {
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
+	ScrapeAlignInterval *promutil.Duration         `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        *promutil.Duration         `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         *int                       `yaml:"series_limit,omitempty"`
 	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
@@ -331,7 +341,7 @@ type ScrapeConfig struct {
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
-	swosFunc := func(metaLabels *promutils.Labels) any {
+	swosFunc := func(metaLabels *promutil.Labels) any {
 		target := metaLabels.Get("__address__")
 		sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 		if err != nil {
@@ -394,6 +404,12 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
 	}
+	for i := range sc.OVHCloudSDConfigs {
+		sc.OVHCloudSDConfigs[i].MustStop()
+	}
+	for i := range sc.PuppetDBSDConfigs {
+		sc.PuppetDBSDConfigs[i].MustStop()
+	}
 	for i := range sc.VultrSDConfigs {
 		sc.VultrSDConfigs[i].MustStop()
 	}
@@ -414,8 +430,8 @@ type FileSDConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config
 type StaticConfig struct {
-	Targets []string          `yaml:"targets"`
-	Labels  *promutils.Labels `yaml:"labels,omitempty"`
+	Targets []string         `yaml:"targets"`
+	Labels  *promutil.Labels `yaml:"labels,omitempty"`
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
@@ -737,6 +753,16 @@ func (cfg *Config) getKumaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "kuma_sd_config", prev)
 }
 
+// getMarathonSDScrapeWork returns `marathon_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getMarathonSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.MarathonSDConfigs {
+			visitor(&sc.MarathonSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "marathon_sd_config", prev)
+}
+
 // getNomadSDScrapeWork returns `nomad_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
@@ -755,6 +781,26 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "openstack_sd_config", prev)
+}
+
+// getOVHCloudSDScrapeWork returns `ovhcloud_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getOVHCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.OVHCloudSDConfigs {
+			visitor(&sc.OVHCloudSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "ovhcloud_sd_config", prev)
+}
+
+// getPuppetDBSDScrapeWork returns `puppetdb_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getPuppetDBSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.PuppetDBSDConfigs {
+			visitor(&sc.PuppetDBSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "puppetdb_sd_config", prev)
 }
 
 // getVultrSDScrapeWork returns `vultr_sd_configs` ScrapeWork from cfg.
@@ -778,7 +824,7 @@ func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 }
 
 type targetLabelsGetter interface {
-	GetLabels(baseDir string) ([]*promutils.Labels, error)
+	GetLabels(baseDir string) ([]*promutil.Labels, error)
 }
 
 func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)), discoveryType string, prev []*ScrapeWork) []*ScrapeWork {
@@ -888,11 +934,23 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
+	rcs := sc.RelabelConfigs
+	if len(globalCfg.RelabelConfigs) > 0 {
+		rcs = make([]promrelabel.RelabelConfig, 0, len(globalCfg.RelabelConfigs)+len(sc.RelabelConfigs))
+		rcs = append(rcs, globalCfg.RelabelConfigs...)
+		rcs = append(rcs, sc.RelabelConfigs...)
+	}
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(rcs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
+	mrcs := sc.MetricRelabelConfigs
+	if len(globalCfg.MetricRelabelConfigs) > 0 {
+		mrcs = make([]promrelabel.RelabelConfig, 0, len(globalCfg.MetricRelabelConfigs)+len(sc.MetricRelabelConfigs))
+		mrcs = append(mrcs, globalCfg.MetricRelabelConfigs...)
+		mrcs = append(mrcs, sc.MetricRelabelConfigs...)
+	}
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(mrcs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
@@ -956,7 +1014,7 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
-	externalLabels       *promutils.Labels
+	externalLabels       *promutil.Labels
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
@@ -969,7 +1027,7 @@ type scrapeWorkConfig struct {
 	noStaleMarkers       bool
 }
 
-func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutils.Labels, discoveryType string) []*ScrapeWork {
+func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []*promutil.Labels, discoveryType string) []*ScrapeWork {
 	startTime := time.Now()
 	// Process targetLabels in parallel in order to reduce processing time for big number of targetLabels.
 	type result struct {
@@ -978,7 +1036,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 	}
 	goroutines := cgroup.AvailableCPUs()
 	resultCh := make(chan result, len(targetLabels))
-	workCh := make(chan *promutils.Labels, goroutines)
+	workCh := make(chan *promutil.Labels, goroutines)
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			for metaLabels := range workCh {
@@ -1013,8 +1071,8 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 }
 
 func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
-	metaLabels := promutils.GetLabels()
-	defer promutils.PutLabels(metaLabels)
+	metaLabels := promutil.GetLabels()
+	defer promutil.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
 		pathPattern := fscore.GetFilepath(baseDir, file)
 		paths := []string{pathPattern}
@@ -1051,7 +1109,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc
 	return dst
 }
 
-func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, metaLabels *promutils.Labels) []*ScrapeWork {
+func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, metaLabels *promutil.Labels) []*ScrapeWork {
 	for _, target := range stc.Targets {
 		if target == "" {
 			// Do not return this error, since other targets may be valid
@@ -1071,7 +1129,7 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func appendScrapeWorkKey(dst []byte, labels *promutils.Labels) []byte {
+func appendScrapeWorkKey(dst []byte, labels *promutil.Labels) []byte {
 	for _, label := range labels.GetLabels() {
 		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
 		dst = append(dst, label.Name...)
@@ -1104,12 +1162,12 @@ func getClusterMemberNumsForScrapeWork(key string, membersCount, replicasCount i
 
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
-func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels *promutils.Labels) (*ScrapeWork, error) {
-	labels := promutils.GetLabels()
-	defer promutils.PutLabels(labels)
+func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels *promutil.Labels) (*ScrapeWork, error) {
+	labels := promutil.GetLabels()
+	defer promutil.PutLabels(labels)
 
 	mergeLabels(labels, swc, target, extraLabels, metaLabels)
-	var originalLabels *promutils.Labels
+	var originalLabels *promutil.Labels
 	if !*dropOriginalLabels {
 		originalLabels = labels.Clone()
 	}
@@ -1163,7 +1221,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Read __scrape_interval__ and __scrape_timeout__ from labels.
 	scrapeInterval := swc.scrapeInterval
 	if s := labels.Get("__scrape_interval__"); len(s) > 0 {
-		d, err := promutils.ParseDuration(s)
+		d, err := timeutil.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
 		}
@@ -1171,14 +1229,14 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 	scrapeTimeout := swc.scrapeTimeout
 	if s := labels.Get("__scrape_timeout__"); len(s) > 0 {
-		d, err := promutils.ParseDuration(s)
+		d, err := timeutil.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
 		}
 		scrapeTimeout = d
 	}
 	// Read series_limit option from __series_limit__ label.
-	// See https://docs.victoriametrics.com/vmagent/#cardinality-limiter
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
 	seriesLimit := swc.seriesLimit
 	if s := labels.Get("__series_limit__"); len(s) > 0 {
 		n, err := strconv.Atoi(s)
@@ -1188,7 +1246,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		seriesLimit = n
 	}
 	// Read sample_limit option from __sample_limit__ label.
-	// See https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
 	sampleLimit := swc.sampleLimit
 	if s := labels.Get("__sample_limit__"); len(s) > 0 {
 		n, err := strconv.Atoi(s)
@@ -1198,7 +1256,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		sampleLimit = n
 	}
 	// Read stream_parse option from __stream_parse__ label.
-	// See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode
 	streamParse := swc.streamParse
 	if s := labels.Get("__stream_parse__"); len(s) > 0 {
 		b, err := strconv.ParseBool(s)
@@ -1257,7 +1315,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	return sw, nil
 }
 
-func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Labels {
+func sortOriginalLabelsIfNeeded(originalLabels *promutil.Labels) *promutil.Labels {
 	if originalLabels == nil {
 		return nil
 	}
@@ -1267,7 +1325,7 @@ func sortOriginalLabelsIfNeeded(originalLabels *promutils.Labels) *promutils.Lab
 	return originalLabels
 }
 
-func mergeLabels(dst *promutils.Labels, swc *scrapeWorkConfig, target string, extraLabels, metaLabels *promutils.Labels) {
+func mergeLabels(dst *promutil.Labels, swc *scrapeWorkConfig, target string, extraLabels, metaLabels *promutil.Labels) {
 	if n := dst.Len(); n > 0 {
 		logger.Panicf("BUG: len(dst.Labels) must be 0; got %d", n)
 	}

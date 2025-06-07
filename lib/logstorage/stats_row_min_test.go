@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -13,6 +14,7 @@ func TestParseStatsRowMinSuccess(t *testing.T) {
 	f(`row_min(foo)`)
 	f(`row_min(foo, bar)`)
 	f(`row_min(foo, bar, baz)`)
+	f(`row_min(foo, bar*, baz)`)
 }
 
 func TestParseStatsRowMinFailure(t *testing.T) {
@@ -110,7 +112,7 @@ func TestStatsRowMin(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"2","x":"","b":"3"}`},
+			{"x", `{"a":"2","b":"3"}`},
 		},
 	})
 
@@ -241,7 +243,7 @@ func TestStatsRowMin(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", `{"c":""}`},
+			{"x", `{}`},
 		},
 		{
 			{"a", "3"},
@@ -282,4 +284,48 @@ func TestStatsRowMin(t *testing.T) {
 			{"x", `{"a":"3","b":"5","c":"4"}`},
 		},
 	})
+}
+
+func TestStatsRowMin_ExportImportState(t *testing.T) {
+	f := func(smp *statsRowMinProcessor, dataLenExpected int) {
+		t.Helper()
+
+		data := smp.exportState(nil, nil)
+		dataLen := len(data)
+		if dataLen != dataLenExpected {
+			t.Fatalf("unexpected dataLen; got %d; want %d", dataLen, dataLenExpected)
+		}
+
+		var smp2 statsRowMinProcessor
+		_, err := smp2.importState(data, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if !reflect.DeepEqual(smp, &smp2) {
+			t.Fatalf("unexpected state imported; got %#v; want %#v", &smp2, smp)
+		}
+	}
+
+	var smp statsRowMinProcessor
+
+	// zero state
+	f(&smp, 2)
+
+	// non-zero state
+	smp = statsRowMinProcessor{
+		min: "abcded",
+
+		fields: []Field{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "abc",
+				Value: "de",
+			},
+		},
+	}
+	f(&smp, 23)
 }

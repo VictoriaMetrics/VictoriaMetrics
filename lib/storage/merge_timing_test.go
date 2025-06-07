@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"sync/atomic"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func BenchmarkMergeBlockStreamsTwoSourcesWorstCase(b *testing.B) {
@@ -25,7 +27,7 @@ func BenchmarkMergeBlockStreamsFourSourcesBestCase(b *testing.B) {
 
 func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop int64) {
 	var rowsMerged, rowsDeleted atomic.Uint64
-	strg := newTestStorage()
+	dmis := &uint64set.Set{}
 
 	b.ReportAllocs()
 	b.SetBytes(rowsPerLoop)
@@ -43,13 +45,11 @@ func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop i
 			}
 			mpOut.Reset()
 			bsw.MustInitFromInmemoryPart(&mpOut, -5)
-			if err := mergeBlockStreams(&mpOut.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
+			if err := mergeBlockStreams(&mpOut.ph, &bsw, bsrs, nil, dmis, 0, &rowsMerged, &rowsDeleted, true); err != nil {
 				panic(fmt.Errorf("cannot merge block streams: %w", err))
 			}
 		}
 	})
-
-	stopTestStorage(strg)
 }
 
 var benchTwoSourcesWorstCaseMPS = func() []*inmemoryPart {

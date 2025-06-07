@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
@@ -25,8 +26,8 @@ func (fr *filterRegexp) String() string {
 	return fmt.Sprintf("%s~%s", quoteFieldNameIfNeeded(fr.fieldName), quoteTokenIfNeeded(fr.re.String()))
 }
 
-func (fr *filterRegexp) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterRegexp) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterRegexp) getTokens() []string {
@@ -78,7 +79,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	re := fr.re
 
 	// Verify whether filter matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !re.MatchString(v) {
 			bm.resetBits()
@@ -87,7 +88,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		if !re.MatchString("") {
@@ -111,6 +112,8 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeUint64:
 		matchUint64ByRegexp(bs, ch, bm, re, tokens)
+	case valueTypeInt64:
+		matchInt64ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeIPv4:
@@ -231,6 +234,19 @@ func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)
+		return re.MatchString(s)
+	})
+	bbPool.Put(bb)
+}
+
+func matchInt64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		s := toInt64String(bs, bb, v)
 		return re.MatchString(s)
 	})
 	bbPool.Put(bb)

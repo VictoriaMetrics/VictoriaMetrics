@@ -1,25 +1,44 @@
 @use "src/styles/variables" as *;
 
 .vm-explore-logs-body {
+  position: relative;
+
   &-header {
+    background-color: $color-background-block;
+    z-index: 1;
     margin: -$padding-medium 0-$padding-medium 0;
+    position: sticky;
+    top: 0;
+
+    @media (max-width:1000px) {
+      top: 51px;
+    }
 
     &_mobile {
       margin: -$padding-global 0-$padding-global 0;
+      display: block;
+      border-bottom: none;
     }
 
     &__settings {
       display: flex;
       align-items: center;
       gap: $padding-small;
+      justify-content: flex-end;
     }
 
     &__log-info {
       flex-grow: 1;
       text-align: right;
-      padding-right: $padding-global;
+      padding-right: $padding-large;
       color: $color-text-secondary;
+      font-size: $font-size-small;
+    }
 
+    &__tabs {
+      &_mobile {
+        border-bottom: var(--border-divider);
+      }
     }
   }
 
@@ -43,6 +62,7 @@
 
     &_mobile {
       width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+      padding-top: $padding-large;
     }
 
     .vm-table {

@@ -295,13 +295,13 @@ func aggrFuncMin(tss []*timeseries) []*timeseries {
 	}
 	dst := tss[0]
 	for i := range dst.Values {
-		min := dst.Values[i]
+		minV := dst.Values[i]
 		for _, ts := range tss {
-			if math.IsNaN(min) || ts.Values[i] < min {
-				min = ts.Values[i]
+			if math.IsNaN(minV) || ts.Values[i] < minV {
+				minV = ts.Values[i]
 			}
 		}
-		dst.Values[i] = min
+		dst.Values[i] = minV
 	}
 	return tss[:1]
 }
@@ -313,13 +313,13 @@ func aggrFuncMax(tss []*timeseries) []*timeseries {
 	}
 	dst := tss[0]
 	for i := range dst.Values {
-		max := dst.Values[i]
+		maxV := dst.Values[i]
 		for _, ts := range tss {
-			if math.IsNaN(max) || ts.Values[i] > max {
-				max = ts.Values[i]
+			if math.IsNaN(maxV) || ts.Values[i] > maxV {
+				maxV = ts.Values[i]
 			}
 		}
-		dst.Values[i] = max
+		dst.Values[i] = maxV
 	}
 	return tss[:1]
 }
@@ -478,7 +478,7 @@ func aggrFuncShare(afa *aggrFuncArg) ([]*timeseries, error) {
 				}
 				sum += v
 			}
-			// Divide every non-negative value at poisition i by sum in order to get its' share.
+			// Divide every non-negative value at position i by sum in order to get its' share.
 			for _, ts := range tss {
 				v := ts.Values[i]
 				if math.IsNaN(v) || v < 0 {
@@ -793,7 +793,7 @@ func fillNaNsAtIdx(idx int, k float64, tss []*timeseries) {
 	}
 }
 
-func getIntK(k float64, max int) int {
+func getIntK(k float64, maxV int) int {
 	if math.IsNaN(k) {
 		return 0
 	}
@@ -801,38 +801,35 @@ func getIntK(k float64, max int) int {
 	if kn < 0 {
 		return 0
 	}
-	if kn > max {
-		return max
-	}
-	return kn
+	return min(kn, maxV)
 }
 
 func minValue(values []float64) float64 {
-	min := nan
-	for len(values) > 0 && math.IsNaN(min) {
-		min = values[0]
+	minV := nan
+	for len(values) > 0 && math.IsNaN(minV) {
+		minV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if !math.IsNaN(v) && v < min {
-			min = v
+		if !math.IsNaN(v) && v < minV {
+			minV = v
 		}
 	}
-	return min
+	return minV
 }
 
 func maxValue(values []float64) float64 {
-	max := nan
-	for len(values) > 0 && math.IsNaN(max) {
-		max = values[0]
+	maxV := nan
+	for len(values) > 0 && math.IsNaN(maxV) {
+		maxV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if !math.IsNaN(v) && v > max {
-			max = v
+		if !math.IsNaN(v) && v > maxV {
+			maxV = v
 		}
 	}
-	return max
+	return maxV
 }
 
 func avgValue(values []float64) float64 {
