@@ -1289,3 +1289,119 @@ func TestTagFiltersAddEmpty(t *testing.T) {
 		t.Fatalf("missing added filter")
 	}
 }
+
+func TestTagFilterLess(t *testing.T) {
+	// Create helper function f to execute and verify Less method results
+	f := func(tf1, tf2 *tagFilter, expected bool) {
+		t.Helper()
+
+		result := tf1.Less(tf2)
+		if result != expected {
+			t.Fatalf("unexpected Less result: got %v, want %v for %v.Less(%v)",
+				result, expected, tf1, tf2)
+		}
+	}
+
+	// Test composite filters come first
+	compositeFilter := &tagFilter{
+		key:        []byte{compositeTagKeyPrefix, 'c', 'o', 'm', 'p', 'o', 's', 'i', 't', 'e'},
+		matchCost:  20,
+		isRegexp:   false,
+		orSuffixes: []string{},
+	}
+	normalFilter := &tagFilter{
+		key:        []byte("normal"),
+		matchCost:  10, // Although matchCost is smaller, composite filter should come first
+		isRegexp:   false,
+		orSuffixes: []string{},
+	}
+	f(compositeFilter, normalFilter, true)
+	f(normalFilter, compositeFilter, false)
+
+	// Test lower matchCost comes first (when neither is composite)
+	lowCost := &tagFilter{
+		key:        []byte("key1"),
+		matchCost:  5,
+		isRegexp:   false,
+		orSuffixes: []string{},
+	}
+	highCost := &tagFilter{
+		key:        []byte("key1"),
+		matchCost:  15,
+		isRegexp:   false,
+		orSuffixes: []string{},
+	}
+	f(lowCost, highCost, true)
+	f(highCost, lowCost, false)
+
+	// Test non-regexp filters come first
+	nonRegexp := &tagFilter{
+		key:        []byte("key2"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{},
+	}
+	regexp := &tagFilter{
+		key:        []byte("key2"),
+		matchCost:  10,
+		isRegexp:   true,
+		orSuffixes: []string{},
+	}
+	f(nonRegexp, regexp, true)
+	f(regexp, nonRegexp, false)
+
+	// Test fewer orSuffixes come first
+	fewSuffixes := &tagFilter{
+		key:        []byte("key3"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{"a"},
+	}
+	manySuffixes := &tagFilter{
+		key:        []byte("key3"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{"a", "b"},
+	}
+	f(fewSuffixes, manySuffixes, true)
+	f(manySuffixes, fewSuffixes, false)
+
+	// Test non-negative filters come first
+	nonNegative := &tagFilter{
+		key:        []byte("key4"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{},
+		isNegative: false,
+	}
+	negative := &tagFilter{
+		key:        []byte("key4"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{},
+		isNegative: true,
+	}
+	f(nonNegative, negative, true)
+	f(negative, nonNegative, false)
+
+	// Test lower lexicographical prefix comes first
+	prefixA := &tagFilter{
+		key:        []byte("key5"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{},
+		isNegative: false,
+		prefix:     []byte("aaa"),
+	}
+	prefixB := &tagFilter{
+		key:        []byte("key5"),
+		matchCost:  10,
+		isRegexp:   false,
+		orSuffixes: []string{},
+		isNegative: false,
+		prefix:     []byte("bbb"),
+	}
+	f(prefixA, prefixB, true)
+	f(prefixB, prefixA, false)
+}
+
