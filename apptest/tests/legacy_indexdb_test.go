@@ -175,8 +175,8 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 	// - Ingest second batch of records (new2). Ensure that queries now return
 	//   (legacy1+new1+new2) data.
 	// - Create a backup
-	// - Stop legacy vmsingle
-	// - Restore legacy1 from backup, start legacy vmsingle, and ensure the
+	// - Stop new vmsingle
+	// - Restore legacy1 from backup, start new vmsingle, and ensure the
 	//   storage does not have legacy2 data
 	// - Stop new vmsingle
 	// - Restore from (legacy1+new1) backup
