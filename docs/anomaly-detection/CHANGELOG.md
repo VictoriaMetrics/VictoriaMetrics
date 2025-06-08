@@ -14,6 +14,13 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.23.1
+Released: 2025-06-08
+
+- BUGFIX: In [sharding mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) the corner case when shard number (`VMANOMALY_MEMBER_NUM`) is greater than the number of configured shards (`VMANOMALY_MEMBERS_COUNT`) is now properly handled.
+
+- BUGFIX: In [sharding mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), the corner case when the number of produced [sub-configurations](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) is less than the number of configured shards (`VMANOMALY_MEMBERS_COUNT`) is now properly handled. Until config hot-reload is supported, such "idle" shards will be turned off with exit code 1 and respective critical message logged.
+
 ## v1.23.0
 Released: 2025-06-05
 
