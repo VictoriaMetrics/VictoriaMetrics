@@ -22,12 +22,6 @@ var secretFlags = make(map[string]bool)
 var secretFlagsList = NewArrayString("secret.flags",
 	"Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page")
 
-func init() {
-	for _, f := range *secretFlagsList {
-		RegisterSecretFlag(f)
-	}
-}
-
 // ApplySecretFlags registers flags from `-secret.flags` after they are parsed.
 //
 // This function must be called after flag.Parse and before starting logging.
