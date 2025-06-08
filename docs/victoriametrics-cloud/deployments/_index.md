@@ -3,7 +3,7 @@ title: Deployments
 weight: 0
 menu:
   docs:
-    weight: 5
+    weight: 3
     parent: cloud
     identifier: deployments
     pageRef: /victoriametrics-cloud/deployments/

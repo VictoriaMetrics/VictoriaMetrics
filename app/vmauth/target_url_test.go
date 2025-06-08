@@ -128,7 +128,40 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "", "http://foo.bar/.", "", "", nil, "least_loaded", 0)
+	}, "", "http://foo.bar", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar"),
+	}, "/", "http://foo.bar", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar"),
+	}, "http://aaa///", "http://foo.bar", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/", "http://foo.bar/", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/x", "http://foo.bar/x", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/x/", "http://foo.bar/x/", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "http://abc///x/", "http://foo.bar/x/", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "http://foo//x", "http://foo.bar/x", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/baz"),
+	}, "", "http://foo.bar/baz", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/baz"),
+	}, "/", "http://foo.bar/baz", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/x/"),
+	}, "/abc", "http://foo.bar/x/abc", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/x/"),
+	}, "/abc/", "http://foo.bar/x/abc/", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 		HeadersConf: HeadersConf{
@@ -149,6 +182,12 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar"),
+	}, "/a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
+	f(&UserInfo{
+		URLPrefix: mustParseURL("http://foo.bar/"),
+	}, "/a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
 	}, "/z", "https://sss:3894/x/y/z", "", "", nil, "least_loaded", 0)

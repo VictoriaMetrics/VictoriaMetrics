@@ -256,9 +256,10 @@ For Helm chart users, refer to the `persistentVolume` [section](https://github.c
 
 With the introduction of [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) {{% available_from "v1.15.0" anomaly %}} , you can additionally reduce resource consumption (e.g., flatten `fit` stage peaks by querying less data from VictoriaMetrics at once).
 
-- **Reduced Latency**: Online models update incrementally, which can lead to faster response times for anomaly detection since the model continuously adapts to new data without waiting for a batch `fit`.
+- **Reduced latency**: Online models update incrementally, which can lead to faster response times for anomaly detection since the model continuously adapts to new data without waiting for a batch `fit`.
 - **Scalability**: Handling smaller data chunks at a time reduces memory and computational overhead, making it easier to scale the anomaly detection system.
-- **Improved Resource Utilization**: By spreading the computational load over time and reducing peak demands, online models make more efficient use of system resources, potentially lowering operational costs.
+- **Optimized resource utilization**: By spreading the computational load over time and reducing peak demands, online models make more efficient use of resources and inducing less data transfer from VictoriaMetrics TSDB, improving overall system performance.
+- **Faster convergence**: Online models can adapt {{% available_from "v1.23.0" anomaly %}} to changes in data patterns more quickly, which is particularly beneficial in dynamic environments where data characteristics may shift frequently. See `decay` argument descrition [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay).
 
 Here's an example of how we can switch from (offline) [Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score) to [Online Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score):
 
@@ -292,6 +293,7 @@ models:
   zscore_example:
     class: 'zscore_online'
     min_n_samples_seen: 120  # i.e. minimal relevant seasonality or (initial) fit_window / sampling_frequency
+    decay: 0.999  # decay factor to control how fast the model adapts to new data, the lower, the faster it adapts
     schedulers: ['periodic']
     # other model params ...
 # other config sections ...
