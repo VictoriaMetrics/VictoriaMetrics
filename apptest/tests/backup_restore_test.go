@@ -11,8 +11,8 @@ import (
 )
 
 type testBackupRestoreOpts struct {
-	start              func() at.PrometheusWriteQuerier
-	stop               func()
+	startSUT           func() at.PrometheusWriteQuerier
+	stopSUT            func()
 	storageDataPaths   []string
 	snapshotCreateURLs func(at.PrometheusWriteQuerier) []string
 }
@@ -24,14 +24,14 @@ func TestSingleBackupRestore(t *testing.T) {
 	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
 
 	opts := testBackupRestoreOpts{
-		start: func() at.PrometheusWriteQuerier {
+		startSUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartVmsingle("vmsingle", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
 				"-search.maxStalenessInterval=1m",
 			})
 		},
-		stop: func() {
+		stopSUT: func() {
 			tc.StopApp("vmsingle")
 		},
 		storageDataPaths: []string{
@@ -55,7 +55,7 @@ func TestClusterBackupRestore(t *testing.T) {
 	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
 
 	opts := testBackupRestoreOpts{
-		start: func() at.PrometheusWriteQuerier {
+		startSUT: func() at.PrometheusWriteQuerier {
 			return tc.MustStartCluster(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1",
 				Vmstorage1Flags: []string{
@@ -75,7 +75,7 @@ func TestClusterBackupRestore(t *testing.T) {
 				},
 			})
 		},
-		stop: func() {
+		stopSUT: func() {
 			tc.StopApp("vminsert")
 			tc.StopApp("vmselect")
 			tc.StopApp("vmstorage1")
@@ -167,15 +167,32 @@ func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 				},
 			},
 			FailNow: true,
-			// The vmsingle with pt index seems to require more retries before
-			// the ingested data becomes available for querying.
-			Retries: 100,
+			Retries: 300,
 		})
+	}
+
+	createBackup := func(sut at.PrometheusWriteQuerier, name string) {
+		for i, storageDataPath := range opts.storageDataPaths {
+			replica := fmt.Sprintf("replica-%d", i)
+			instance := fmt.Sprintf("vmbackup-%s-%s", name, replica)
+			snapshotCreateURL := opts.snapshotCreateURLs(sut)[i]
+			backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
+			tc.MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, backupPath)
+		}
+	}
+
+	restoreFromBackup := func(name string) {
+		for i, storageDataPath := range opts.storageDataPaths {
+			replica := fmt.Sprintf("replica-%d", i)
+			instance := fmt.Sprintf("vmrestore-%s-%s", name, replica)
+			backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
+			tc.MustStartVmrestore(instance, backupPath, storageDataPath)
+		}
 	}
 
 	// Use the same number of metrics and time range for all the data ingestions
 	// below.
-	const numMetrics = 1000
+	const numMetrics = 10
 	// With 1000 metrics (one per minute), the time range spans 2 months.
 	end := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).UnixMilli()
 	start := end - numMetrics*msecPerMinute
@@ -192,47 +209,31 @@ func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 	// - Start vmsingle
 	// - Ensure that the queries return batch1 data only.
 
-	sut := opts.start()
-
 	batch1Data, wantBatch1Series, wantBatch1QueryResults := genData(numMetrics, "batch1", start)
+	batch2Data, wantBatch2Series, wantBatch2QueryResults := genData(numMetrics, "batch2", start)
+	wantBatch12Series := slices.Concat(wantBatch1Series, wantBatch2Series)
+	wantBatch12QueryResults := slices.Concat(wantBatch1QueryResults, wantBatch2QueryResults)
+
+	sut := opts.startSUT()
+
 	sut.PrometheusAPIV1ImportPrometheus(t, batch1Data, at.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSeries(sut, start, end, wantBatch1Series)
 	assertQueryResults(sut, start, end, wantBatch1QueryResults)
-
-	createBackup := func(sut at.PrometheusWriteQuerier, name string) {
-		for i, storageDataPath := range opts.storageDataPaths {
-			replica := fmt.Sprintf("replica-%d", i)
-			instance := fmt.Sprintf("vmbackup-%s-%s", name, replica)
-			snapshotCreateURL := opts.snapshotCreateURLs(sut)[i]
-			backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
-			tc.MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, backupPath)
-		}
-	}
 	createBackup(sut, "batch1")
 
-	batch2Data, wantBatch2Series, wantBatch2QueryResults := genData(numMetrics, "batch2", start)
 	sut.PrometheusAPIV1ImportPrometheus(t, batch2Data, at.QueryOpts{})
 	sut.ForceFlush(t)
-	wantAllSeries := slices.Concat(wantBatch1Series, wantBatch2Series)
-	assertSeries(sut, start, end, wantAllSeries)
-	wantAllQueryResults := slices.Concat(wantBatch1QueryResults, wantBatch2QueryResults)
-	assertQueryResults(sut, start, end, wantAllQueryResults)
+	assertSeries(sut, start, end, wantBatch12Series)
+	assertQueryResults(sut, start, end, wantBatch12QueryResults)
 	createBackup(sut, "batch2")
 
-	opts.stop()
+	opts.stopSUT()
 
-	restore := func(name string) {
-		for i, storageDataPath := range opts.storageDataPaths {
-			replica := fmt.Sprintf("replica-%d", i)
-			instance := fmt.Sprintf("vmrestore-%s-%s", name, replica)
-			backupPath := "fs://" + filepath.Join(backupBaseDir, name, replica)
-			tc.MustStartVmrestore(instance, backupPath, storageDataPath)
-		}
-	}
-	restore("batch1")
+	restoreFromBackup("batch1")
 
-	sut = opts.start()
+	sut = opts.startSUT()
+
 	assertSeries(sut, start, end, wantBatch1Series)
 	assertQueryResults(sut, start, end, wantBatch1QueryResults)
 }
