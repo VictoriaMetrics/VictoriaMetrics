@@ -16,6 +16,13 @@ func RegisterSecretFlag(flagName string) {
 }
 
 var secretFlags = make(map[string]bool)
+var secretFlagsList = NewArrayString("secret.flags", "Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page")
+
+func init() {
+	for _, f := range *secretFlagsList {
+		RegisterSecretFlag(f)
+	}
+}
 
 // IsSecretFlag returns true of s contains flag name with secret value, which shouldn't be exposed.
 func IsSecretFlag(s string) bool {
