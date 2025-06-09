@@ -217,9 +217,8 @@ type rawItemsShardNopad struct {
 type rawItemsShard struct {
 	rawItemsShardNopad
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(rawItemsShardNopad{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(rawItemsShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
 func (ris *rawItemsShard) Len() int {

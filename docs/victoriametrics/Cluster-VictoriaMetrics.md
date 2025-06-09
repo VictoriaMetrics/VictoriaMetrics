@@ -537,8 +537,7 @@ By default, the following TCP ports are used:
 
 It is recommended setting up [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
-with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
-or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
+with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`

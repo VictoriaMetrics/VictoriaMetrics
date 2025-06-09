@@ -59,7 +59,7 @@ services:
       - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr": },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
     restart: always
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.23.0
+    image: victoriametrics/vmanomaly:v1.23.2
     depends_on:
       - "victoriametrics"
     ports:
