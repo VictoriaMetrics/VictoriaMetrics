@@ -862,60 +862,11 @@ func testStorageConvertToLegacy(t *testing.T) {
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	})
-	tfsAll := NewTagFilters()
-	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
-	}
-	tfssAll := []*TagFilters{tfsAll}
-	seenGlobalIndexEntries := make(map[uint64]bool)
-	type dateMetricID struct {
-		date     uint64
-		metricID uint64
-	}
-	seenPerDayIndexEntries := make(map[dateMetricID]bool)
+
 	for _, idb := range idbs {
-		for ts := idb.tr.MinTimestamp; ts < idb.tr.MaxTimestamp; ts += msecPerDay {
-			day := TimeRange{
-				MinTimestamp: ts,
-				MaxTimestamp: ts + msecPerDay - 1,
-			}
-			date := uint64(ts / msecPerDay)
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, day, 1e9, noDeadline)
-			if err != nil {
-				t.Fatalf("could not search metricIDs: %v", err)
-			}
-			tsids, err := idb.getTSIDsFromMetricIDs(nil, metricIDs, noDeadline)
-			if err != nil {
-				t.Fatalf("could not get TSIDs from metricIDs: %v", err)
-			}
-			for i, metricID := range metricIDs {
-				if tsids[i].MetricID != metricID {
-					t.Fatalf("metricID and TSID slices do not match")
-				}
-			}
-			for _, tsid := range tsids {
-				metricID := tsid.MetricID
-				mnBytes, ok := idb.searchMetricName(nil, metricID, false)
-				if !ok {
-					t.Fatalf("could not get metric name for metricID %d", metricID)
-				}
-				var mn MetricName
-				if err := mn.Unmarshal(mnBytes); err != nil {
-					t.Fatalf("Could not unmarshal metric name from bytes %q: %v", string(mnBytes), err)
-				}
-				if !seenGlobalIndexEntries[metricID] {
-					legacyIDBCurr.createGlobalIndexes(&tsid, &mn)
-					seenGlobalIndexEntries[metricID] = true
-				}
-				dateMetricID := dateMetricID{
-					date:     date,
-					metricID: metricID,
-				}
-				if !seenPerDayIndexEntries[dateMetricID] {
-					legacyIDBCurr.createPerDayIndexes(date, &tsid, &mn)
-					seenPerDayIndexEntries[dateMetricID] = true
-				}
-			}
+		err := idb.appendTo([]*indexDB{legacyIDBCurr})
+		if err != nil {
+			t.Fatalf("could not convert indexDBs to legacy: %v", err)
 		}
 	}
 
