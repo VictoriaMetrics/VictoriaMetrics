@@ -56,7 +56,8 @@ models:
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_1w']  # will be attached to 1-week schedule, fit every 1h and infer every 15m
-    min_dev_from_expected: 0.01  # if |y - yhat| < 0.01, anomaly score will be 0
+    min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
+    anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
     detection_direction: 'above_expected'
     args:  # model-specific arguments
       interval_width: 0.98

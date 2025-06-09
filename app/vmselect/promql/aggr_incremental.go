@@ -5,8 +5,10 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/metricsql"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions
@@ -66,9 +68,8 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 type incrementalAggrContextMap struct {
 	m map[string]*incrementalAggrContext
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(map[string]*incrementalAggrContext{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(map[string]*incrementalAggrContext{})%atomicutil.CacheLineSize]byte
 }
 
 type incrementalAggrFuncContext struct {

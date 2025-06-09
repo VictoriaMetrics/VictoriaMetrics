@@ -692,7 +692,7 @@ type rowsBufferShard struct {
 	flushTimer *time.Timer
 
 	// padding for preventing false sharing
-	_ [128]byte
+	_ [atomicutil.CacheLineSize]byte
 }
 
 func (rb *rowsBuffer) flush() {

@@ -12,8 +12,7 @@ aliases:
 ---
 ## Goals
 
-1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/victoriametrics/enterprise/) resolving issues with VictoriaMetrics components,
-   so they could use these components in the most efficient way**.
+1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/victoriametrics/enterprise/) using VictoriaMetrics and VictoriaLogs component in the most efficient way**.
 1. Fixing bugs in the essential functionality of VictoriaMetrics components. Small usability bugs are usually the most annoying,
    so they **must be fixed first**.
 1. Improving [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) for VictoriaMetrics components,

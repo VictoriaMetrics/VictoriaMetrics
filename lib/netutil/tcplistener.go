@@ -42,6 +42,11 @@ func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Con
 	return tln, err
 }
 
+// EnableIPv6 enables IPv6 for dialing and listening.
+func EnableIPv6() {
+	*enableTCP6 = true
+}
+
 // TCP6Enabled returns true if dialing and listening for IPv4 TCP is enabled.
 func TCP6Enabled() bool {
 	return *enableTCP6

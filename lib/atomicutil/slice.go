@@ -19,8 +19,8 @@ type Slice[T any] struct {
 type itemPadded[T any] struct {
 	x T
 
-	// The padding prevents false sharing on widespread platforms with cache line size >= 128.
-	_ [128]byte
+	// The padding prevents false sharing
+	_ [CacheLineSize]byte
 }
 
 // Get returns *T item for the given workerID in a goroutine-safe manner.
