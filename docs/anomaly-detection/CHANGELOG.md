@@ -14,6 +14,13 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.23.2
+Released: 2025-06-09
+
+- IMPROVEMENT: Increased convergence speed for [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score), [ZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score), [MADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad), and [OnlineMADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) models. Now it works better for tight optimization budgets (n_trials < 10, timeout < 1s)
+
+- BUGFIX: Now mean and variance of [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) with exponential `decay` < 1 [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) are properly calculated for unbiased predictions.
+
 ## v1.23.1
 Released: 2025-06-08
 
