@@ -86,7 +86,7 @@ func (m *Label) marshalToSizedBuffer(dst []byte) (int, error) {
 	return len(dst) - i, nil
 }
 
-func (m *Sample) Size() (n int) {
+func (m *Sample) size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -99,22 +99,22 @@ func (m *Sample) Size() (n int) {
 	return n
 }
 
-func (m *TimeSeries) Size() (n int) {
+func (m *TimeSeries) size() (n int) {
 	if m == nil {
 		return 0
 	}
 	for _, e := range m.Labels {
-		l := e.Size()
+		l := e.size()
 		n += 1 + l + sov(uint64(l))
 	}
 	for _, e := range m.Samples {
-		l := e.Size()
+		l := e.size()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n
 }
 
-func (m *Label) Size() (n int) {
+func (m *Label) size() (n int) {
 	if m == nil {
 		return 0
 	}

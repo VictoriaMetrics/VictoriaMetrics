@@ -37,12 +37,12 @@ func encodeVarint(dst []byte, offset int, v uint64) int {
 	dst[offset] = uint8(v)
 	return base
 }
-func (m *WriteRequest) Size() (n int) {
+func (m *WriteRequest) size() (n int) {
 	if m == nil {
 		return 0
 	}
 	for _, e := range m.Timeseries {
-		l := e.Size()
+		l := e.size()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n

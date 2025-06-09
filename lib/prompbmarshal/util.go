@@ -8,7 +8,7 @@ import (
 
 // MarshalProtobuf marshals wr to dst and returns the result.
 func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
-	size := wr.Size()
+	size := wr.size()
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+size)
 	n, err := wr.marshalToSizedBuffer(dst[dstLen:])
