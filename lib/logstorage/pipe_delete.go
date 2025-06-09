@@ -4,22 +4,23 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeDelete implements '| delete ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe
 type pipeDelete struct {
-	// fields contains a list of fields to delete
-	fields []string
+	// fieldFilters contains a list of field filters to delete
+	fieldFilters []string
 }
 
 func (pd *pipeDelete) String() string {
-	if len(pd.fields) == 0 {
+	if len(pd.fieldFilters) == 0 {
 		logger.Panicf("BUG: pipeDelete must contain at least a single field")
 	}
 
-	return "delete " + fieldNamesString(pd.fields)
+	return "delete " + fieldNamesString(pd.fieldFilters)
 }
 
 func (pd *pipeDelete) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
@@ -30,12 +31,8 @@ func (pd *pipeDelete) canLiveTail() bool {
 	return true
 }
 
-func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		unneededFields.addFields(pd.fields)
-	} else {
-		neededFields.removeFields(pd.fields)
-	}
+func (pd *pipeDelete) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddDenyFilters(pd.fieldFilters)
 }
 
 func (pd *pipeDelete) hasFilterInWithQuery() bool {
@@ -67,7 +64,7 @@ func (pdp *pipeDeleteProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	br.deleteColumns(pdp.pd.fields)
+	br.deleteColumnsByFilters(pdp.pd.fieldFilters)
 	pdp.ppNext.writeBlock(workerID, br)
 }
 
@@ -81,12 +78,12 @@ func parsePipeDelete(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	fields, err := parseCommaSeparatedFields(lex)
+	fieldFilters, err := parseCommaSeparatedFields(lex)
 	if err != nil {
 		return nil, err
 	}
 	pd := &pipeDelete{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	return pd, nil
 }

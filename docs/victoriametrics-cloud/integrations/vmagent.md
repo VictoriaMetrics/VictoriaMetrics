@@ -27,9 +27,11 @@ or simply follow this interactive guide:
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/3;"
+    height="1900" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/vmagent" >
+    src="https://console.victoriametrics.cloud/public/integrations/vmagent"
+    style="background: white;"
+    >
 </iframe>

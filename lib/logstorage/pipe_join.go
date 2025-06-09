@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -72,12 +73,8 @@ func (pj *pipeJoin) initJoinMap(getJoinMapFunc getJoinMapFunc) (pipe, error) {
 	return &pjNew, nil
 }
 
-func (pj *pipeJoin) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		unneededFields.removeFields(pj.byFields)
-	} else {
-		neededFields.addFields(pj.byFields)
-	}
+func (pj *pipeJoin) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(pj.byFields)
 }
 
 func (pj *pipeJoin) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {

@@ -22,4 +22,4 @@ Here you can find some guides and best practices:
 * [Kubernetes Monitoring with VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/how-to-monitor-k8s/)
 * [Setup Notifications](https://docs.victoriametrics.com/victoriametrics-cloud/setup-notifications/)
 * [User Management](https://docs.victoriametrics.com/victoriametrics-cloud/user-management/)
-* [How to write and read data](../deployments/access-tokens.md)
+* [How to write and read data](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/access-tokens/)

@@ -1,6 +1,7 @@
 package flagutil
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"strconv"
@@ -30,6 +31,25 @@ type RetentionDuration struct {
 	msecs int64
 
 	valueString string
+}
+
+var (
+	_ json.Marshaler   = (*RetentionDuration)(nil)
+	_ json.Unmarshaler = (*RetentionDuration)(nil)
+)
+
+// MarshalJSON implements json.Marshaler interface
+func (d *RetentionDuration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.valueString)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface
+func (d *RetentionDuration) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	return d.Set(s)
 }
 
 // Duration returns d as time.Duration

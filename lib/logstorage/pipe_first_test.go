@@ -27,11 +27,18 @@ func TestParsePipeFirstFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
+	f(`first by (*)`)
+	f(`first by (a*)`)
+	f(`first by ("a*")`)
 	f(`first a`)
 	f(`first by`)
 	f(`first by(x) foo`)
 	f(`first by (x) partition`)
 	f(`first by (x) partition by`)
+	f(`first by (x) partition by (*)`)
+	f(`first by (x) partition by (a*)`)
+	f(`first by (x) rank as *`)
+	f(`first by (x) rank as y*`)
 }
 
 func TestPipeFirst(t *testing.T) {
@@ -187,9 +194,9 @@ func TestPipeFirst(t *testing.T) {
 }
 
 func TestPipeFirstUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

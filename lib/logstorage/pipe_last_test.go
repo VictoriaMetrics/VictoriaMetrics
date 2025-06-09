@@ -34,6 +34,12 @@ func TestParsePipeLastFailure(t *testing.T) {
 	f(`last rank by (x)`)
 	f(`last partition`)
 	f(`last partition by`)
+	f(`last by (*)`)
+	f(`last by (x*)`)
+	f(`last by (x) partition by (*)`)
+	f(`last by (x) partition by (y*)`)
+	f(`last by (x) rank as *`)
+	f(`last by (x) rank as y*`)
 }
 
 func TestPipeLast(t *testing.T) {
@@ -188,9 +194,9 @@ func TestPipeLast(t *testing.T) {
 }
 
 func TestPipeLastUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

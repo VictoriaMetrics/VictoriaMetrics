@@ -26,9 +26,10 @@ To integrate OpenTelemetry Collector with VictoriaMetrics Cloud, visit the
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/3;"
+    height="1800" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/opentelemetry" >
+    src="https://console.victoriametrics.cloud/public/integrations/opentelemetry" 
+    style="background: white;" >
 </iframe>

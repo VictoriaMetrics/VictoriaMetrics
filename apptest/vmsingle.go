@@ -35,10 +35,11 @@ type Vmsingle struct {
 	prometheusAPIV1WriteURL            string
 
 	// vmselect URLs.
-	prometheusAPIV1ExportURL     string
-	prometheusAPIV1QueryURL      string
-	prometheusAPIV1QueryRangeURL string
-	prometheusAPIV1SeriesURL     string
+	prometheusAPIV1ExportURL       string
+	prometheusAPIV1ExportNativeURL string
+	prometheusAPIV1QueryURL        string
+	prometheusAPIV1QueryRangeURL   string
+	prometheusAPIV1SeriesURL       string
 }
 
 // StartVmsingle starts an instance of vmsingle with the given flags. It also
@@ -81,6 +82,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
 		prometheusAPIV1ExportURL:           fmt.Sprintf("http://%s/prometheus/api/v1/export", stderrExtracts[1]),
+		prometheusAPIV1ExportNativeURL:     fmt.Sprintf("http://%s/prometheus/api/v1/export/native", stderrExtracts[1]),
 		prometheusAPIV1QueryURL:            fmt.Sprintf("http://%s/prometheus/api/v1/query", stderrExtracts[1]),
 		prometheusAPIV1QueryRangeURL:       fmt.Sprintf("http://%s/prometheus/api/v1/query_range", stderrExtracts[1]),
 		prometheusAPIV1SeriesURL:           fmt.Sprintf("http://%s/prometheus/api/v1/series", stderrExtracts[1]),
@@ -161,11 +163,31 @@ func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 	}
 }
 
+// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// of records in native format for the given tenant by sending an HTTP POST
+// request to /api/v1/import/native vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format
+func (app *Vmsingle) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/api/v1/import/native", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
 // OpenTSDBAPIPut is a test helper function that inserts a collection of
 // records in OpenTSDB format for the given tenant by sending an HTTP POST
 // request to /api/put vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http
+// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http
 func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
@@ -233,6 +255,23 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
+// PrometheusAPIV1ExportNative is a test helper function that performs the export of
+// raw samples in native binary format by sending an HTTP POST request to
+// /prometheus/api/v1/export/native vmselect endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
+func (app *Vmsingle) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
+	t.Helper()
+
+	t.Helper()
+	values := opts.asURLValues()
+	values.Add("match[]", query)
+	values.Add("format", "promapi")
+
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportNativeURL, values)
+	return []byte(res)
 }
 
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL

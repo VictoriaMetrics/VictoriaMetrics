@@ -2,27 +2,24 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFields implements '| fields ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe
 type pipeFields struct {
-	// fields contains list of fields to fetch
-	fields []string
-
-	// whether fields contains star
-	containsStar bool
+	// fieldFilters contains list of filters for fields to fetch
+	fieldFilters []string
 }
 
 func (pf *pipeFields) String() string {
-	if len(pf.fields) == 0 {
-		logger.Panicf("BUG: pipeFields must contain at least a single field")
+	if len(pf.fieldFilters) == 0 {
+		logger.Panicf("BUG: pipeFields must contain at least a single field filter")
 	}
-	return "fields " + fieldNamesString(pf.fields)
+	return "fields " + fieldNamesString(pf.fieldFilters)
 }
 
 func (pf *pipeFields) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
@@ -33,29 +30,15 @@ func (pf *pipeFields) canLiveTail() bool {
 	return true
 }
 
-func (pf *pipeFields) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if pf.containsStar {
-		return
-	}
+func (pf *pipeFields) updateNeededFields(f *prefixfilter.Filter) {
+	fOrig := f.Clone()
+	f.Reset()
 
-	if neededFields.contains("*") {
-		// subtract unneeded fields from pf.fields
-		neededFields.reset()
-		neededFields.addFields(pf.fields)
-		for _, f := range unneededFields.getAll() {
-			neededFields.remove(f)
-		}
-	} else {
-		// intersect needed fields with pf.fields
-		neededFieldsOrig := neededFields.clone()
-		neededFields.reset()
-		for _, f := range pf.fields {
-			if neededFieldsOrig.contains(f) {
-				neededFields.add(f)
-			}
+	for _, filter := range pf.fieldFilters {
+		if fOrig.MatchStringOrWildcard(filter) {
+			f.AddAllowFilter(filter)
 		}
 	}
-	unneededFields.reset()
 }
 
 func (pf *pipeFields) hasFilterInWithQuery() bool {
@@ -87,9 +70,7 @@ func (pfp *pipeFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	if !pfp.pf.containsStar {
-		br.setColumns(pfp.pf.fields)
-	}
+	br.setColumnFilters(pfp.pf.fieldFilters)
 	pfp.ppNext.writeBlock(workerID, br)
 }
 
@@ -103,16 +84,12 @@ func parsePipeFields(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	fields, err := parseCommaSeparatedFields(lex)
+	fieldFilters, err := parseCommaSeparatedFields(lex)
 	if err != nil {
 		return nil, err
 	}
-	if slices.Contains(fields, "*") {
-		fields = []string{"*"}
-	}
 	pf := &pipeFields{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fieldFilters: fieldFilters,
 	}
 	return pf, nil
 }
@@ -120,7 +97,7 @@ func parsePipeFields(lex *lexer) (pipe, error) {
 func parseCommaSeparatedFields(lex *lexer) ([]string, error) {
 	var fields []string
 	for {
-		field, err := parseFieldName(lex)
+		field, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
 		}

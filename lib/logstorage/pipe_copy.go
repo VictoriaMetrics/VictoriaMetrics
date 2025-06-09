@@ -5,28 +5,29 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeCopy implements '| copy ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#copy-pipe
 type pipeCopy struct {
-	// srcFields contains a list of source fields to copy
-	srcFields []string
+	// srcFieldFilters contains a list of source field filters to copy
+	srcFieldFilters []string
 
-	// dstFields contains a list of destination fields
-	dstFields []string
+	// dstFieldFilters contains a list of destination field filters
+	dstFieldFilters []string
 }
 
 func (pc *pipeCopy) String() string {
-	if len(pc.srcFields) == 0 {
-		logger.Panicf("BUG: pipeCopy must contain at least a single srcField")
+	if len(pc.srcFieldFilters) == 0 {
+		logger.Panicf("BUG: pipeCopy must contain at least a single srcFieldFilter")
 	}
 
-	a := make([]string, len(pc.srcFields))
-	for i, srcField := range pc.srcFields {
-		dstField := pc.dstFields[i]
-		a[i] = quoteTokenIfNeeded(srcField) + " as " + quoteTokenIfNeeded(dstField)
+	a := make([]string, len(pc.srcFieldFilters))
+	for i, srcFieldFilter := range pc.srcFieldFilters {
+		dstFieldFilter := pc.dstFieldFilters[i]
+		a[i] = quoteFieldFilterIfNeeded(srcFieldFilter) + " as " + quoteFieldFilterIfNeeded(dstFieldFilter)
 	}
 	return "copy " + strings.Join(a, ", ")
 }
@@ -39,21 +40,15 @@ func (pc *pipeCopy) canLiveTail() bool {
 	return true
 }
 
-func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	for i := len(pc.srcFields) - 1; i >= 0; i-- {
-		srcField := pc.srcFields[i]
-		dstField := pc.dstFields[i]
+func (pc *pipeCopy) updateNeededFields(f *prefixfilter.Filter) {
+	for i := len(pc.srcFieldFilters) - 1; i >= 0; i-- {
+		srcFieldFilter := pc.srcFieldFilters[i]
+		dstFieldFilter := pc.dstFieldFilters[i]
 
-		if neededFields.contains("*") {
-			if !unneededFields.contains(dstField) {
-				unneededFields.add(dstField)
-				unneededFields.remove(srcField)
-			}
-		} else {
-			if neededFields.contains(dstField) {
-				neededFields.remove(dstField)
-				neededFields.add(srcField)
-			}
+		needSrcField := f.MatchStringOrWildcard(dstFieldFilter)
+		f.AddDenyFilter(dstFieldFilter)
+		if needSrcField {
+			f.AddAllowFilter(srcFieldFilter)
 		}
 	}
 }
@@ -87,7 +82,7 @@ func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	br.copyColumns(pcp.pc.srcFields, pcp.pc.dstFields)
+	br.copyColumnsByFilters(pcp.pc.srcFieldFilters, pcp.pc.dstFieldFilters)
 	pcp.ppNext.writeBlock(workerID, br)
 }
 
@@ -100,30 +95,30 @@ func parsePipeCopy(lex *lexer) (pipe, error) {
 		return nil, fmt.Errorf("expecting 'copy' or 'cp'; got %q", lex.token)
 	}
 
-	var srcFields []string
-	var dstFields []string
+	var srcFieldFilters []string
+	var dstFieldFilters []string
 	for {
 		lex.nextToken()
-		srcField, err := parseFieldName(lex)
+		srcFieldFilter, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse src field name: %w", err)
 		}
 		if lex.isKeyword("as") {
 			lex.nextToken()
 		}
-		dstField, err := parseFieldName(lex)
+		dstFieldFilter, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse dst field name: %w", err)
 		}
 
-		srcFields = append(srcFields, srcField)
-		dstFields = append(dstFields, dstField)
+		srcFieldFilters = append(srcFieldFilters, srcFieldFilter)
+		dstFieldFilters = append(dstFieldFilters, dstFieldFilter)
 
 		switch {
 		case lex.isKeyword("|", ")", ""):
 			pc := &pipeCopy{
-				srcFields: srcFields,
-				dstFields: dstFields,
+				srcFieldFilters: srcFieldFilters,
+				dstFieldFilters: dstFieldFilters,
 			}
 			return pc, nil
 		case lex.isKeyword(","):

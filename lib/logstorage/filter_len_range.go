@@ -4,6 +4,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterLenRange matches field values with the length in the given range [minLen, maxLen].
@@ -21,8 +22,8 @@ func (fr *filterLenRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + "len_range" + fr.stringRepr
 }
 
-func (fr *filterLenRange) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fr.fieldName)
+func (fr *filterLenRange) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fr.fieldName)
 }
 
 func (fr *filterLenRange) applyToBlockResult(br *blockResult, bm *bitmap) {

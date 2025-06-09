@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"sync/atomic"
 	"testing"
 )
 
@@ -23,11 +22,10 @@ func BenchmarkBlockStreamWriterRowsBestCase(b *testing.B) {
 }
 
 func benchmarkBlockStreamWriter(b *testing.B, ebs []Block, rowsCount int, writeRows bool) {
-	var rowsMerged atomic.Uint64
-
 	b.ReportAllocs()
 	b.SetBytes(int64(rowsCount))
 	b.RunParallel(func(pb *testing.PB) {
+		var rowsMerged uint64
 		var bsw blockStreamWriter
 		var mp inmemoryPart
 		var ph partHeader
@@ -38,6 +36,7 @@ func benchmarkBlockStreamWriter(b *testing.B, ebs []Block, rowsCount int, writeR
 			ebsCopy = append(ebsCopy, ebCopy)
 		}
 		loopCount := 0
+
 		for pb.Next() {
 			if writeRows {
 				for i := range ebsCopy {

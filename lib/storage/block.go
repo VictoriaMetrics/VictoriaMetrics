@@ -3,8 +3,8 @@ package storage
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -177,7 +177,7 @@ func (b *Block) deduplicateSamplesDuringMerge() {
 	b.values = b.values[:b.nextIdx+len(values)]
 }
 
-var dedupsDuringMerge atomic.Uint64
+var dedupsDuringMerge atomicutil.Uint64
 
 func (b *Block) rowsCount() int {
 	if len(b.values) == 0 {

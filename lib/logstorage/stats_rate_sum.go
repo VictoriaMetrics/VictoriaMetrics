@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"strconv"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsRateSum struct {
@@ -12,11 +14,11 @@ type statsRateSum struct {
 }
 
 func (sr *statsRateSum) String() string {
-	return "rate_sum(" + statsFuncFieldsToString(sr.ss.fields) + ")"
+	return "rate_sum(" + fieldNamesString(sr.ss.fieldFilters) + ")"
 }
 
-func (sr *statsRateSum) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sr.ss.fields)
+func (sr *statsRateSum) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sr.ss.fieldFilters)
 }
 
 func (sr *statsRateSum) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -63,13 +65,13 @@ func (srp *statsRateSumProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-ch
 }
 
 func parseStatsRateSum(lex *lexer) (*statsRateSum, error) {
-	fields, err := parseStatsFuncFields(lex, "rate_sum")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "rate_sum")
 	if err != nil {
 		return nil, err
 	}
 	sr := &statsRateSum{
 		ss: &statsSum{
-			fields: fields,
+			fieldFilters: fieldFilters,
 		},
 	}
 	return sr, nil

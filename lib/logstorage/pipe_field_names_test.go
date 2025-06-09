@@ -20,6 +20,8 @@ func TestParsePipeFieldNamesFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
+	f(`field_names as *`)
+	f(`field_names as foo*`)
 	f(`field_names(foo)`)
 	f(`field_names a b`)
 	f(`field_names as`)
@@ -78,9 +80,9 @@ func TestPipeFieldNames(t *testing.T) {
 }
 
 func TestPipeFieldNamesUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

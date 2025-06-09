@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestCase holds the state and defines clean-up procedure common for all test
@@ -27,6 +28,7 @@ type Stopper interface {
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
+	t.Parallel()
 	return &TestCase{t, NewClient(), make(map[string]Stopper)}
 }
 
@@ -189,7 +191,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 
 // MustStartDefaultCluster starts a typical cluster configuration with default
 // flags.
-func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 	tc.t.Helper()
 
 	return tc.MustStartCluster(&ClusterOptions{
@@ -223,7 +225,7 @@ type ClusterOptions struct {
 }
 
 // MustStartCluster starts a typical cluster configuration with custom flags.
-func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerier {
+func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
 	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
@@ -249,6 +251,18 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerie
 	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
 
 	return &Vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
+}
+
+// MustStartVmctl is a test helper function that starts an instance of vmctl
+func (tc *TestCase) MustStartVmctl(instance string, flags []string) *Vmctl {
+	tc.t.Helper()
+
+	app, err := StartVmctl(instance, flags)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
 }
 
 func (tc *TestCase) addApp(instance string, app Stopper) {

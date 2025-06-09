@@ -14,6 +14,7 @@ func TestParseStatsMedianSuccess(t *testing.T) {
 	f(`median(*)`)
 	f(`median(a)`)
 	f(`median(a, b)`)
+	f(`median(a*, b)`)
 }
 
 func TestParseStatsMedianFailure(t *testing.T) {

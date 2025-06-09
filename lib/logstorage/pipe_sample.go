@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -31,7 +32,7 @@ func (ps *pipeSample) canLiveTail() bool {
 	return true
 }
 
-func (ps *pipeSample) updateNeededFields(_, _ fieldsSet) {
+func (ps *pipeSample) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 

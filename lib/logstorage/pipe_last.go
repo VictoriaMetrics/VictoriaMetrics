@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeLast processes '| last ...' queries.
@@ -32,7 +34,7 @@ func pipeLastFirstString(ps *pipeSort) string {
 		s += " by (" + strings.Join(a, ", ") + ")"
 	}
 	if len(ps.partitionByFields) > 0 {
-		s += " partition by (" + fieldsToString(ps.partitionByFields) + ")"
+		s += " partition by (" + fieldNamesString(ps.partitionByFields) + ")"
 	}
 	if ps.rankFieldName != "" {
 		s += rankFieldNameString(ps.rankFieldName)
@@ -48,8 +50,8 @@ func (pl *pipeLast) canLiveTail() bool {
 	return false
 }
 
-func (pl *pipeLast) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	pl.ps.updateNeededFields(neededFields, unneededFields)
+func (pl *pipeLast) updateNeededFields(pf *prefixfilter.Filter) {
+	pl.ps.updateNeededFields(pf)
 }
 
 func (pl *pipeLast) hasFilterInWithQuery() bool {

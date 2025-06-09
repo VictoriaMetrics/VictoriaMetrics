@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -442,7 +443,7 @@ func invalidateTagFiltersCache() {
 	tagFiltersKeyGen.Add(1)
 }
 
-var tagFiltersKeyGen atomic.Uint64
+var tagFiltersKeyGen atomicutil.Uint64
 
 func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	if len(metricIDs) == 0 {
@@ -3149,8 +3150,8 @@ func generateUniqueMetricID() uint64 {
 // This number mustn't go backwards on restarts, otherwise metricID
 // collisions are possible. So don't change time on the server
 // between VictoriaMetrics restarts.
-var nextUniqueMetricID = func() *atomic.Uint64 {
-	var n atomic.Uint64
+var nextUniqueMetricID = func() *atomicutil.Uint64 {
+	var n atomicutil.Uint64
 	n.Store(uint64(time.Now().UnixNano()))
 	return &n
 }()
@@ -3425,8 +3426,8 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 }
 
 var (
-	indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
-	indexBlocksWithMetricIDsProcessed      atomic.Uint64
+	indexBlocksWithMetricIDsIncorrectOrder atomicutil.Uint64
+	indexBlocksWithMetricIDsProcessed      atomicutil.Uint64
 )
 
 func checkItemsSorted(data []byte, items []mergeset.Item) bool {

@@ -2,7 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackLogfmt processes '| unpack_logfmt ...' pipe.
@@ -12,10 +13,8 @@ type pipeUnpackLogfmt struct {
 	// fromField is the field to unpack logfmt fields from
 	fromField string
 
-	// fields is an optional list of fields to extract from logfmt.
-	//
-	// if it is empty, then all the fields are extracted.
-	fields []string
+	// filterFields is list of field filters to extract from logfmt.
+	fieldFilters []string
 
 	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
@@ -35,8 +34,8 @@ func (pu *pipeUnpackLogfmt) String() string {
 	if !isMsgFieldName(pu.fromField) {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
-	if len(pu.fields) > 0 {
-		s += " fields (" + fieldsToString(pu.fields) + ")"
+	if !prefixfilter.MatchAll(pu.fieldFilters) {
+		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -58,8 +57,8 @@ func (pu *pipeUnpackLogfmt) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
+func (pu *pipeUnpackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }
 
 func (pu *pipeUnpackLogfmt) hasFilterInWithQuery() bool {
@@ -85,23 +84,29 @@ func (pu *pipeUnpackLogfmt) newPipeProcessor(_ int, _ <-chan struct{}, _ func(),
 		p := getLogfmtParser()
 
 		p.parse(s)
-		if len(pu.fields) == 0 {
-			for _, f := range p.fields {
-				uctx.addField(f.Name, f.Value)
+
+		for _, f := range p.fields {
+			if !prefixfilter.MatchFilters(pu.fieldFilters, f.Name) {
+				continue
 			}
-		} else {
-			for _, fieldName := range pu.fields {
-				addedField := false
-				for _, f := range p.fields {
-					if f.Name == fieldName {
-						uctx.addField(f.Name, f.Value)
-						addedField = true
-						break
-					}
+
+			uctx.addField(f.Name, f.Value)
+		}
+
+		for _, filter := range pu.fieldFilters {
+			if prefixfilter.IsWildcardFilter(filter) {
+				continue
+			}
+
+			addEmptyField := true
+			for _, f := range p.fields {
+				if f.Name == filter {
+					addEmptyField = false
+					break
 				}
-				if !addedField {
-					uctx.addField(fieldName, "")
-				}
+			}
+			if addEmptyField {
+				uctx.addField(filter, "")
 			}
 		}
 
@@ -138,17 +143,17 @@ func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 		fromField = f
 	}
 
-	var fields []string
+	var fieldFilters []string
 	if lex.isKeyword("fields") {
 		lex.nextToken()
-		fs, err := parseFieldNamesInParens(lex)
+		fs, err := parseFieldFiltersInParens(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'fields': %w", err)
 		}
-		fields = fs
-		if slices.Contains(fields, "*") {
-			fields = nil
-		}
+		fieldFilters = fs
+	}
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	resultPrefix := ""
@@ -174,7 +179,7 @@ func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 
 	pu := &pipeUnpackLogfmt{
 		fromField:          fromField,
-		fields:             fields,
+		fieldFilters:       fieldFilters,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
 		skipEmptyResults:   skipEmptyResults,

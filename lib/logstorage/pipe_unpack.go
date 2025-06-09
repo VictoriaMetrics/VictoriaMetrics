@@ -3,54 +3,35 @@ package logstorage
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
-func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
+func updateNeededFieldsForUnpackPipe(fromField string, outFieldFilters []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, pf *prefixfilter.Filter) {
+	if pf.MatchNothing() {
 		if iff != nil {
-			neededFields.addFields(iff.neededFields)
+			pf.AddAllowFilters(iff.allowFilters)
 		}
 		return
 	}
 
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		unneededFieldsCount := 0
-		if len(outFields) > 0 {
-			for _, f := range outFields {
-				if unneededFieldsOrig.contains(f) {
-					unneededFieldsCount++
-				}
-				if !keepOriginalFields && !skipEmptyResults {
-					unneededFields.add(f)
-				}
+	needFromField := len(outFieldFilters) == 0
+	for _, f := range outFieldFilters {
+		if pf.MatchStringOrWildcard(f) {
+			needFromField = true
+			break
+		}
+	}
+	if !keepOriginalFields && !skipEmptyResults {
+		for _, f := range outFieldFilters {
+			if !prefixfilter.IsWildcardFilter(f) {
+				pf.AddDenyFilter(f)
 			}
 		}
-		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
-			unneededFields.remove(fromField)
-			if iff != nil {
-				unneededFields.removeFields(iff.neededFields)
-			}
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := len(outFields) == 0
-		if len(outFields) > 0 {
-			needFromField = false
-			for _, f := range outFields {
-				if neededFieldsOrig.contains(f) {
-					needFromField = true
-				}
-				if !keepOriginalFields && !skipEmptyResults {
-					neededFields.remove(f)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(fromField)
-			if iff != nil {
-				neededFields.addFields(iff.neededFields)
-			}
+	}
+	if needFromField {
+		pf.AddAllowFilter(fromField)
+		if iff != nil {
+			pf.AddAllowFilters(iff.allowFilters)
 		}
 	}
 }
