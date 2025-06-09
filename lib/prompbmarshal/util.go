@@ -11,7 +11,7 @@ func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
 	size := wr.Size()
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+size)
-	n, err := wr.MarshalToSizedBuffer(dst[dstLen:])
+	n, err := wr.marshalToSizedBuffer(dst[dstLen:])
 	if err != nil {
 		panic(fmt.Errorf("BUG: unexpected error when marshaling WriteRequest: %w", err))
 	}
