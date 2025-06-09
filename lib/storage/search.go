@@ -283,10 +283,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, TimeRange{
-				MinTimestamp: s.ts.BlockRef.bh.MinTimestamp,
-				MaxTimestamp: s.ts.BlockRef.bh.MaxTimestamp,
-			})
+			s.MetricBlockRef.MetricName, ok = s.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, &s.ts.BlockRef.bh)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
@@ -318,14 +315,19 @@ func (s *Search) NextMetricBlock() bool {
 	return false
 }
 
-func (s *Search) searchMetricName(metricName []byte, metricID uint64, tr TimeRange) ([]byte, bool) {
+func (s *Search) searchMetricName(metricName []byte, metricID uint64, bh *blockHeader) ([]byte, bool) {
+	tr := TimeRange{
+		MinTimestamp: bh.MinTimestamp,
+		MaxTimestamp: bh.MaxTimestamp,
+	}
 	for _, idb := range s.idbs {
 		if idb.tr.overlapsWith(tr) {
 			mn, found := idb.searchMetricName(metricName, metricID, false)
 			if found {
 				return mn, true
 			}
-			// Do not continue, since only one partition indexDB can contain the time range.
+			// Do not continue, since the data block time range cannot span
+			// multiple indexDBs.
 			break
 		}
 	}
