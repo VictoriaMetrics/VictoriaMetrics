@@ -57,8 +57,6 @@ type appOptions struct {
 func startApp(instance string, binary string, flags []string, opts *appOptions) (*app, []string, error) {
 	flags = setDefaultFlags(flags, opts.defaultFlags)
 
-	var err error
-
 	cmd := exec.Command(binary, flags...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
