@@ -11,10 +11,10 @@ type WriteRequest struct {
 	Timeseries []TimeSeries
 }
 
-func (m *WriteRequest) MarshalToSizedBuffer(dst []byte) (int, error) {
+func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	for j := len(m.Timeseries) - 1; j >= 0; j-- {
-		size, err := m.Timeseries[j].MarshalToSizedBuffer(dst[:i])
+		size, err := m.Timeseries[j].marshalToSizedBuffer(dst[:i])
 		if err != nil {
 			return 0, err
 		}

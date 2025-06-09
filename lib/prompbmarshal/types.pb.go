@@ -26,7 +26,7 @@ type Label struct {
 	Value string
 }
 
-func (m *Sample) MarshalToSizedBuffer(dst []byte) (int, error) {
+func (m *Sample) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	if m.Timestamp != 0 {
 		i = encodeVarint(dst, i, uint64(m.Timestamp))
@@ -42,10 +42,10 @@ func (m *Sample) MarshalToSizedBuffer(dst []byte) (int, error) {
 	return len(dst) - i, nil
 }
 
-func (m *TimeSeries) MarshalToSizedBuffer(dst []byte) (int, error) {
+func (m *TimeSeries) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	for j := len(m.Samples) - 1; j >= 0; j-- {
-		size, err := m.Samples[j].MarshalToSizedBuffer(dst[:i])
+		size, err := m.Samples[j].marshalToSizedBuffer(dst[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -55,7 +55,7 @@ func (m *TimeSeries) MarshalToSizedBuffer(dst []byte) (int, error) {
 		dst[i] = 0x12
 	}
 	for j := len(m.Labels) - 1; j >= 0; j-- {
-		size, err := m.Labels[j].MarshalToSizedBuffer(dst[:i])
+		size, err := m.Labels[j].marshalToSizedBuffer(dst[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -67,7 +67,7 @@ func (m *TimeSeries) MarshalToSizedBuffer(dst []byte) (int, error) {
 	return len(dst) - i, nil
 }
 
-func (m *Label) MarshalToSizedBuffer(dst []byte) (int, error) {
+func (m *Label) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	if len(m.Value) > 0 {
 		i -= len(m.Value)
