@@ -545,7 +545,7 @@ test-full:
 test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: victoria-metrics vmagent vmalert vmauth vmctl
+integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
 integration-test-legacy: victoria-metrics vmbackup vmrestore
