@@ -434,9 +434,6 @@ func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
 // PutIndexDB decrements the ref counter for the given indexDB and the
 // partition it belongs to.
 func (tb *table) PutIndexDB(idb *indexDB) {
-	if idb == nil {
-		return
-	}
 	idb.decRef()
 	idb.ptw.decRef()
 }

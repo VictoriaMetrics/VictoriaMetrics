@@ -595,21 +595,12 @@ func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSe
 }
 
 func (db *indexDB) putIndexSearch(is *indexSearch) {
-	if is == nil {
-		return
-	}
-
 	is.ts.MustClose()
 	is.kb.Reset()
 	is.mp.Reset()
 	is.deadline = 0
 
-	if db != nil {
-		db.indexSearchPool.Put(is)
-		return
-	}
-
-	logger.Panicf("BUG: indexDB must not be nil for non-nil indexSearch")
+	db.indexSearchPool.Put(is)
 }
 
 func generateTSID(dst *TSID, mn *MetricName) {
@@ -703,9 +694,6 @@ var indexItemsPool sync.Pool
 
 // HasTimestamp checks if index contains given timestamp.
 func (db *indexDB) HasTimestamp(timestamp int64) bool {
-	if db == nil {
-		return false
-	}
 	return timestamp >= db.tr.MinTimestamp && timestamp <= db.tr.MaxTimestamp
 }
 

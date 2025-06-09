@@ -1457,7 +1457,7 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
 //
 // The method does not provide status for legacy IDBs because merging partition
-// indexDB and legacy indexDB statuses is not-trivial and not many users use
+// indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	idbs := s.tb.GetIndexDBs(TimeRange{
@@ -1688,9 +1688,13 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mr := &mrs[i]
 		date := uint64(mr.Timestamp) / msecPerDay
 
-		if !idb.HasTimestamp(mr.Timestamp) {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(mr.Timestamp) {
+			if idb != nil {
+				if is != nil {
+					idb.putIndexSearch(is)
+				}
+				s.tb.PutIndexDB(idb)
+			}
 			idb = s.tb.MustGetIndexDB(mr.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
 		}
@@ -1772,8 +1776,12 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
 		newSeriesCount++
 	}
-	idb.putIndexSearch(is)
-	s.tb.PutIndexDB(idb)
+	if idb != nil {
+		if is != nil {
+			idb.putIndexSearch(is)
+		}
+		s.tb.PutIndexDB(idb)
+	}
 
 	s.newTimeseriesCreated.Add(newSeriesCount)
 	s.timeseriesRepopulated.Add(seriesRepopulated)
@@ -1854,9 +1862,13 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		date := s.date(r.Timestamp)
 		hour := uint64(r.Timestamp) / msecPerHour
 
-		if !idb.HasTimestamp(r.Timestamp) {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
+			if idb != nil {
+				if is != nil {
+					idb.putIndexSearch(is)
+				}
+				s.tb.PutIndexDB(idb)
+			}
 			idb = s.tb.MustGetIndexDB(r.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
 		}
@@ -1865,7 +1877,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
+
 			if !is.hasMetricID(prevTSID.MetricID) {
+				// The found TSID is not present in the current indexDB (one
+				// that corresponds to the timestamp of the current sample).
+				// Create it in the current indexdb.
+
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -1985,8 +2002,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
-	idb.putIndexSearch(is)
-	s.tb.PutIndexDB(idb)
+	if idb != nil {
+		if is != nil {
+			idb.putIndexSearch(is)
+		}
+		s.tb.PutIndexDB(idb)
+	}
 
 	s.slowRowInserts.Add(slowInsertsCount)
 	s.newTimeseriesCreated.Add(newSeriesCount)
@@ -2235,8 +2256,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 		}
 
-		if !idb.HasTimestamp(r.Timestamp) {
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
+			if idb != nil {
+				s.tb.PutIndexDB(idb)
+			}
 			idb = s.tb.MustGetIndexDB(r.Timestamp)
 		}
 
@@ -2251,8 +2274,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			mr:   mrs[i],
 		})
 	}
-	s.tb.PutIndexDB(idb)
-	idb = nil
+	if idb != nil {
+		s.tb.PutIndexDB(idb)
+		idb = nil
+	}
 
 	if len(pendingNextDayMetricIDs) > 0 {
 		s.pendingNextDayMetricIDsLock.Lock()
@@ -2286,9 +2311,13 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		metricID := dmid.tsid.MetricID
 
 		timestamp := int64(date) * msecPerDay
-		if !idb.HasTimestamp(timestamp) {
-			idb.putIndexSearch(is)
-			s.tb.PutIndexDB(idb)
+		if idb == nil || !idb.HasTimestamp(timestamp) {
+			if idb != nil {
+				if is != nil {
+					idb.putIndexSearch(is)
+				}
+				s.tb.PutIndexDB(idb)
+			}
 			idb = s.tb.MustGetIndexDB(timestamp)
 			is = idb.getIndexSearch(noDeadline)
 		}
@@ -2313,8 +2342,12 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			metricID: metricID,
 		})
 	}
-	idb.putIndexSearch(is)
-	s.tb.PutIndexDB(idb)
+	if idb != nil {
+		if is != nil {
+			idb.putIndexSearch(is)
+		}
+		s.tb.PutIndexDB(idb)
+	}
 
 	PutMetricName(mn)
 	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.
