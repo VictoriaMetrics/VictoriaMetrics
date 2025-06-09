@@ -372,9 +372,9 @@ func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.Prometheus
 	})
 }
 
-// TestVLSingleKeyConcepts verifies cases from https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
+// TestVlsingleKeyConcepts verifies cases from https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
 // for vl-single.
-func TestVLSingleKeyConcepts(t *testing.T) {
+func TestVlsingleKeyConcepts(t *testing.T) {
 	os.RemoveAll(t.Name())
 	tc := at.NewTestCase(t)
 	defer tc.Stop()

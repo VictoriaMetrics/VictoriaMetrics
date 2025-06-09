@@ -440,8 +440,12 @@ func NewLogsQLQueryResponse(t *testing.T, s string) *LogsQLQueryResponse {
 		logLine, err := bs.ReadString('\n')
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				if len(logLine) > 0 {
+					t.Fatalf("BUG: unexpected non-empty line=%q with io.EOF", logLine)
+				}
 				break
 			}
+			t.Fatalf("BUG: cannot read logline from buffer: %s", err)
 		}
 		var lv map[string]any
 		if err := json.Unmarshal([]byte(logLine), &lv); err != nil {
