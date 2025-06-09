@@ -1404,4 +1404,3 @@ func TestTagFilterLess(t *testing.T) {
 	f(prefixA, prefixB, true)
 	f(prefixB, prefixA, false)
 }
-
