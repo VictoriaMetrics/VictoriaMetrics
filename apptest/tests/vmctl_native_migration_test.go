@@ -17,7 +17,10 @@ func TestSingleToSingleVmctlNativeProtocol(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	vmsingleSrc := tc.MustStartDefaultVmsingle()
+	vmsingleSrc := tc.MustStartVmsingle("vmsingle_src", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmsingle_src",
+		"-retentionPeriod=100y",
+	})
 	// we need a separate vmsingle for the destination to avoid conflicts
 	vmsingleDst := tc.MustStartVmsingle("vmsingle_dst", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmsingle_dst",
@@ -36,7 +39,7 @@ func TestSingleToSingleVmctlNativeProtocol(t *testing.T) {
 		`--disable-progress-bar=true`,
 	}
 
-	testNativeProtocol(tc, vmsingleSrc, vmsingleDst, flags)
+	testVmctlNativeProtocol(tc, vmsingleSrc, vmsingleDst, flags)
 }
 
 func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
@@ -45,7 +48,12 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	clusterSrc := tc.MustStartDefaultCluster()
+	clusterSrc := tc.MustStartCluster(&apptest.ClusterOptions{
+		Vmstorage1Instance: "vmstorageSrc1",
+		Vmstorage2Instance: "vmstorageSrc2",
+		VminsertInstance:   "vminsertSrc",
+		VmselectInstance:   "vmselectSrc",
+	})
 	clusterDst := tc.MustStartCluster(&apptest.ClusterOptions{
 		Vmstorage1Instance: "vmstorageDst1",
 		Vmstorage2Instance: "vmstorageDst2",
@@ -66,10 +74,10 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 		`--vm-intercluster`,
 	}
 
-	testNativeProtocol(tc, clusterSrc, clusterDst, flags)
+	testVmctlNativeProtocol(tc, clusterSrc, clusterDst, flags)
 }
 
-func testNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuerier, dstSut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
+func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuerier, dstSut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
 	t := tc.T()
 	t.Helper()
 
@@ -118,7 +126,7 @@ func testNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuer
 	srcSut.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
 	srcSut.ForceFlush(t)
 
-	_ = tc.MustStartVmctl("vmctl", vmctlFlags)
+	tc.MustStartVmctl("vmctl", vmctlFlags)
 
 	dstSut.ForceFlush(t)
 
