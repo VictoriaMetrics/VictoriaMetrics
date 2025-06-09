@@ -85,7 +85,7 @@ func (app *Vlsingle) JSONLineWrite(t *testing.T, records []string, opts QueryOpt
 
 	_, statusCode := app.cli.Post(t, url, "text/plain", data)
 	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
 }
 
