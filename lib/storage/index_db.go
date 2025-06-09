@@ -176,19 +176,21 @@ type indexDB struct {
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
 
+	// The number of metricNames that have been loaded using
+	// prefetchMetricNames() func. Prefetching this way is considered slow.
 	slowMetricNameLoads atomic.Uint64
 
-	// minMissingTimestampByKey holds the minimum timestamps by index search key,
+	// legacyMinMissingTimestampByKey holds the minimum timestamps by index search key,
 	// which is missing in the given indexDB.
 	// Key must be formed with marshalCommonPrefix function.
 	//
-	// This field is used at containsTimeRange() function only for the legacy indexDBs,
-	// since these indexDBs are readonly.
+	// This field is used at legacyContainsTimeRange() function only for the
+	// legacy indexDBs, since these indexDBs are readonly.
 	// This field cannot be used for the partition indexDBs, since they may receive data
 	// with bigger timestamps at any time.
-	minMissingTimestampByKey map[string]int64
-	// protects minMissingTimestampByKey
-	minMissingTimestampByKeyLock sync.RWMutex
+	legacyMinMissingTimestampByKey map[string]int64
+	// protects legacyMinMissingTimestampByKey
+	legacyMinMissingTimestampByKeyLock sync.RWMutex
 
 	// id identifies the indexDB. It is used for in various caches to know which
 	// indexDB contains a metricID and which does not.
@@ -279,15 +281,14 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		tr:   tr,
 		name: name,
 
-		minMissingTimestampByKey:   make(map[string]int64),
-		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
-		s:                          s,
-		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
-		metricIDCache:              newMetricIDCache(),
-		prefetchedMetricIDs:        &uint64set.Set{},
+		legacyMinMissingTimestampByKey: make(map[string]int64),
+		tagFiltersToMetricIDsCache:     workingsetcache.New(tagFiltersCacheSize),
+		s:                              s,
+		loopsPerDateTagFilterCache:     workingsetcache.New(mem / 128),
+		metricIDCache:                  newMetricIDCache(),
+		prefetchedMetricIDs:            &uint64set.Set{},
 	}
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
-	db.tb = tb
+	db.tb = mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
 	db.incRef()
 	db.loadDeletedMetricIDs()
 
@@ -1806,9 +1807,8 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 
 	var metricIDs []uint64
 	db.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := db.prefetchedMetricIDs
 	for _, metricID := range srcMetricIDs {
-		if prefetchedMetricIDs.Has(metricID) {
+		if db.prefetchedMetricIDs.Has(metricID) {
 			continue
 		}
 		metricIDs = append(metricIDs, metricID)
@@ -1824,7 +1824,7 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 	db.slowMetricNameLoads.Add(uint64(len(metricIDs)))
 
 	// Pre-fetch metricIDs.
-	prefetchedMetricIDs = &uint64set.Set{}
+	prefetchedMetricIDs := &uint64set.Set{}
 	var metricName []byte
 	is := db.getIndexSearch(deadline)
 	defer db.putIndexSearch(is)
@@ -1934,7 +1934,8 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, bo
 	return dst, true
 }
 
-func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
+// TODO(@rtm0): Move to index_db_legacy.go
+func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
 	if tr == globalIndexTimeRange {
 		return true
 	}
@@ -1944,11 +1945,6 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 		return true
 	}
 
-	return is.legacyContainsTimeRange(tr)
-}
-
-// TODO(@rtm0): Move to index_db_legacy.go
-func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
 	// use common prefix as a key for minMissingTimestamp
 	// it's needed to properly track timestamps for cluster version
 	// which uses tenant labels for the index search
@@ -1958,30 +1954,31 @@ func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
 
 	db := is.db
 
-	db.minMissingTimestampByKeyLock.RLock()
-	minMissingTimestamp, ok := db.minMissingTimestampByKey[string(key)]
-	db.minMissingTimestampByKeyLock.RUnlock()
+	db.legacyMinMissingTimestampByKeyLock.RLock()
+	minMissingTimestamp, ok := db.legacyMinMissingTimestampByKey[string(key)]
+	db.legacyMinMissingTimestampByKeyLock.RUnlock()
 
 	if ok && tr.MinTimestamp >= minMissingTimestamp {
 		return false
 	}
-	if is.containsTimeRangeSlowForPrefixBuf(kb, tr) {
+	if is.legacyContainsTimeRangeSlow(kb, tr) {
 		return true
 	}
 
-	db.minMissingTimestampByKeyLock.Lock()
-	db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
-	db.minMissingTimestampByKeyLock.Unlock()
+	db.legacyMinMissingTimestampByKeyLock.Lock()
+	db.legacyMinMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	db.legacyMinMissingTimestampByKeyLock.Unlock()
 
 	return false
 }
 
-func (is *indexSearch) containsTimeRangeSlowForPrefixBuf(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
+// TODO(@rtm0): Move to index_db_legacy.go
+func (is *indexSearch) legacyContainsTimeRangeSlow(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
 	ts := &is.ts
 
 	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
 	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
-	// This means that containsTimeRangeSlow() can return true if `tr` is located below the min date stored in `ts`.
+	// This means that this func can return true if `tr` is located below the min date stored in `ts`.
 	// This is OK, since this case isn't encountered too much in practice.
 	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
 	// is located above the max date stored there.
@@ -2298,9 +2295,7 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 
 	metricIDs := &uint64set.Set{}
 
-	// Always returns true for partition indexDBs or zero time range used
-	// to indicate global index search.
-	if !is.containsTimeRange(tr) {
+	if !is.legacyContainsTimeRange(tr) {
 		qt.Printf("indexdb doesn't contain data for the given timeRange=%s", &tr)
 		return metricIDs, nil
 	}

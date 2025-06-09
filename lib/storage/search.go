@@ -220,9 +220,6 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		var all []TSID
 		seen := &uint64set.Set{}
 		for _, tsids := range data {
-			if tsids == nil {
-				continue
-			}
 			for _, tsid := range tsids {
 				if seen.Has(tsid.MetricID) {
 					continue
