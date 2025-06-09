@@ -126,8 +126,18 @@ func isASCII(s string) bool {
 }
 
 func isTokenChar(c byte) bool {
-	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'
+	return tokenCharTable[c] != 0
 }
+
+var tokenCharTable = func() *[256]byte {
+	var a [256]byte
+	for c := uint(0); c < 256; c++ {
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' {
+			a[c] = 1
+		}
+	}
+	return &a
+}()
 
 func isTokenRune(c rune) bool {
 	if c < utf8.RuneSelf {
