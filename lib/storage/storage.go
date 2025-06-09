@@ -1358,71 +1358,11 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
-		return s.searchLabelValues(qt, idb, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+		return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	}
 	labelValues, err := searchAndMerge(qt, s, tr, search, mergeUniq)
 	qt.Donef("found %d label values", len(labelValues))
 	return labelValues, err
-}
-
-func (s *Storage) searchLabelValues(qt *querytracer.Tracer, idb *indexDB, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
-
-	key := labelName
-	if key == "__name__" {
-		key = ""
-	}
-	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && string(tfss[0].tfs[0].key) == key {
-		// tfss contains only a single filter on labelName. It is faster searching for label values
-		// without any filters and limits and then later applying the filter and the limit to the found label values.
-		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
-
-		lvs, err := idb.SearchLabelValues(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
-		if err != nil {
-			qt.Donef("found %d label values", len(lvs))
-			return nil, err
-		}
-		needSlowSearch := len(lvs) == maxMetrics
-
-		lvsLen := len(lvs)
-		lvs = filterLabelValues(lvs, &tfss[0].tfs[0], key)
-		qt.Printf("found %d out of %d values for the label %q after filtering", len(lvs), lvsLen, labelName)
-		if len(lvs) >= maxLabelValues {
-			qt.Printf("leave %d out of %d values for the label %q because of the limit", maxLabelValues, len(lvs), labelName)
-			lvs = lvs[:maxLabelValues]
-
-			// We found at least maxLabelValues unique values for the label with the given filters.
-			// It is OK returning all these values instead of falling back to the slow search.
-			needSlowSearch = false
-		}
-		if !needSlowSearch {
-			qt.Donef("found %d label values", len(lvs))
-			return lvs, nil
-		}
-		qt.Printf("fall back to slow search because only a subset of label values is found")
-	}
-
-	lvs, err := idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
-	qt.Donef("found %d label values", len(lvs))
-	return lvs, err
-}
-
-func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
-	var b []byte
-	result := lvs[:0]
-	for _, lv := range lvs {
-		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs)
-		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
-		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
-		ok, err := tf.match(b)
-		if err != nil {
-			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
-		}
-		if ok {
-			result = append(result, lv)
-		}
-	}
-	return result
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given
