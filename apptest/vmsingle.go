@@ -469,11 +469,6 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 	return &res
 }
 
-// SnapshotCreateURL returns the URL for creating snapshots.
-func (app *Vmsingle) SnapshotCreateURL() string {
-	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-}
-
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
 // //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
