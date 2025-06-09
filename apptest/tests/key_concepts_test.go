@@ -492,7 +492,7 @@ func assertLogsQLResponseEqual(t *testing.T, got, want *at.LogsQLQueryResponse) 
 		}
 		// stream_id is always unique, remove it from comparison
 		delete(gotLineJSON, "_stream_id")
-		delete(wantLineJSON, "stream_id")
+		delete(wantLineJSON, "_stream_id")
 		if diff := cmp.Diff(gotLineJSON, wantLineJSON); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s\n%s\n%s", diff, wantLine, gotLine)
 			return
