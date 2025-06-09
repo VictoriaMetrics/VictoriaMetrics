@@ -130,6 +130,10 @@ func isTokenChar(c byte) bool {
 }
 
 func isTokenRune(c rune) bool {
+	if c < utf8.RuneSelf {
+		// Fast path - the char is ASCII
+		return isTokenChar(byte(c))
+	}
 	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
 }
 
