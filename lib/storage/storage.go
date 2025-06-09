@@ -57,11 +57,8 @@ type Storage struct {
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
 
-	// legacyNextRotationTimestamp is a timestamp in seconds of the next legacy indexdb rotation.
-	//
-	// It is used for gradual pre-population of the idbNext during the last hour before the indexdb rotation.
-	// in order to reduce spikes in CPU and disk IO usage just after the rotiation.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
+	// legacyNextRotationTimestamp is a timestamp in seconds of the next legacy
+	// indexdb rotation.
 	legacyNextRotationTimestamp atomic.Int64
 
 	path           string
@@ -72,7 +69,7 @@ type Storage struct {
 	flockF *os.File
 
 	// legacyIDBPrev and legacyIDBCurr contain the legacy previous and current
-	// IndexDBs respectively if they existed on file system before partition
+	// IndexDBs respectively if they existed on filesystem before partition
 	// index was introduced. Otherwise, these fields will contain nil pointers.
 	// The fields will also contain nil pointers once the corresponding IndexDBs
 	// will become outside the retention period.
@@ -1145,9 +1142,9 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	if len(idbs) == 1 {
 		idb := idbs[0]
 		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qt := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
 		defer qt.Done()
-		data, err := search(qt, idb, searchTR)
+		data, err := search(qtChild, idb, searchTR)
 		if err != nil {
 			var zeroValue T
 			return zeroValue, err
@@ -1161,14 +1158,14 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	errs := make([]error, len(idbs))
 	for i, idb := range idbs {
 		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qt := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
+		qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
 		wg.Add(1)
 		go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
 			defer wg.Done()
 			defer qt.Done()
 
 			data[i], errs[i] = search(qt, idb, tr)
-		}(qt, i, idb, searchTR)
+		}(qtChild, i, idb, searchTR)
 	}
 	wg.Wait()
 	qtSearch.Done()
@@ -2282,6 +2279,10 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 	return mn.String()
 }
 
+// prefillNextIndexDB gradually pre-populates the indexDB of the next partition
+// during the last hour before that parition becomes the current one. This is
+// needed in order to reduce spikes in CPU and disk IO usage just after the
+// switch. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401.
 func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	now := time.Unix(int64(fasttime.UnixTimestamp()), 0)
 	nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
