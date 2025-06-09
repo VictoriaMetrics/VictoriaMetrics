@@ -21,6 +21,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * SECURITY: upgrade Go builder from Go1.24.3 to Go1.24.4. See [the list of issues addressed in Go1.24.4](https://github.com/golang/go/issues?q=milestone%3AGo1.24.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.3 to 3.22.0. See [Alpine 3.22.0 release notes](https://alpinelinux.org/posts/Alpine-3.22.0-released.html).
 
+* FEATURE: all the VictoriaMetrics components: add `-http.disableKeepAlive` cmd-line flag for disabling HTTP keep-alives for incoming connections. See [#9125](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9125) and [#2395](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2395) for details.
+
 ## [v1.119.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.119.0)
 
 Released at 2025-06-06
