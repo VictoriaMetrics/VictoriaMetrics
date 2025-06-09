@@ -24,7 +24,7 @@ type Vlsingle struct {
 	forceFlushURL string
 }
 
-// StartVlsingle starts an instance of vmsingle with the given flags. It also
+// StartVlsingle starts an instance of vlsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
 func StartVlsingle(instance string, flags []string, cli *Client) (*Vlsingle, error) {
@@ -68,7 +68,7 @@ func (app *Vlsingle) ForceFlush(t *testing.T) {
 
 // JSONLineWrite is a test helper function that inserts a
 // collection of records in json line format by sending a HTTP
-// POST request to /insert/jsonline vmsingle endpoint.
+// POST request to /insert/jsonline vlsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api
 func (app *Vlsingle) JSONLineWrite(t *testing.T, records []string, opts QueryOpts) {
@@ -129,7 +129,7 @@ func (app *Vlsingle) HTTPAddr() string {
 	return app.httpListenAddr
 }
 
-// String returns the string representation of the vmsingle app state.
+// String returns the string representation of the vlsingle app state.
 func (app *Vlsingle) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q}", []any{
 		app.app, app.storageDataPath, app.httpListenAddr}...)

@@ -421,7 +421,7 @@ func sortTSDBStatusResponseEntries(entries []TSDBStatusResponseEntry) {
 	})
 }
 
-// LogsQLQueryResponse is an inmemory representation of the
+// LogsQLQueryResponse is an in-memory representation of the
 // /select/logsql/query response.
 type LogsQLQueryResponse struct {
 	LogLines []string
