@@ -638,6 +638,33 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 	return mns, tsids, nil
 }
 
+func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
+	f := func(q, expectedRegexp string) {
+		t.Helper()
+		re, err := getRegexpForGraphiteQuery(q)
+		if err != nil {
+			t.Fatalf("unexpected error for query=%q: %s", q, err)
+		}
+		reStr := re.String()
+		if reStr != expectedRegexp {
+			t.Fatalf("unexpected regexp for query %q; got %q want %q", q, reStr, expectedRegexp)
+		}
+	}
+	f(``, `^$`)
+	f(`*`, `^[^.]*$`)
+	f(`foo.`, `^foo\.$`)
+	f(`foo.bar`, `^foo\.bar$`)
+	f(`{foo,b*ar,b[a-z]}`, `^(?:foo|b[^.]*ar|b[a-z])$`)
+	f(`[-a-zx.]`, `^[-a-zx.]$`)
+	f(`**`, `^[^.]*[^.]*$`)
+	f(`a*[de]{x,y}z`, `^a[^.]*[de](?:x|y)z$`)
+	f(`foo{bar`, `^foo\{bar$`)
+	f(`foo{ba,r`, `^foo\{ba,r$`)
+	f(`foo[bar`, `^foo\[bar$`)
+	f(`foo{bar}`, `^foobar$`)
+	f(`foo{bar,,b{{a,b*},z},[x-y]*z}a`, `^foo(?:bar||b(?:(?:a|b[^.]*)|z)|[x-y][^.]*z)a$`)
+}
+
 func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, timestamp int64, isConcurrent bool) error {
 	hasValue := func(lvs []string, v []byte) bool {
 		for _, lv := range lvs {

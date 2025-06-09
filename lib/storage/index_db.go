@@ -6,13 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metricsql"
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
@@ -1307,6 +1310,134 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 		return fmt.Errorf("error when searching for tag value suffixes for prefix %q: %w", prefix, err)
 	}
 	return nil
+}
+
+func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
+	n := bytes.IndexAny(qTail, "*[{")
+	if n < 0 {
+		// Verify that qHead matches a metric name.
+		qHead = append(qHead, qTail...)
+		suffixes, err := db.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
+		if err != nil {
+			return nil, err
+		}
+		if len(suffixes) == 0 {
+			// The query doesn't match anything.
+			return nil, nil
+		}
+		if len(suffixes[0]) > 0 {
+			// The query matches a metric name with additional suffix.
+			return nil, nil
+		}
+		return []string{string(qHead)}, nil
+	}
+	qHead = append(qHead, qTail[:n]...)
+	suffixes, err := db.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(suffixes) == 0 {
+		return nil, nil
+	}
+	if len(suffixes) >= maxPaths {
+		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
+	}
+	qNode := qTail[n:]
+	qTail = nil
+	mustMatchLeafs := true
+	if m := bytes.IndexByte(qNode, '.'); m >= 0 {
+		qTail = qNode[m+1:]
+		qNode = qNode[:m+1]
+		mustMatchLeafs = false
+	}
+	re, err := getRegexpForGraphiteQuery(string(qNode))
+	if err != nil {
+		return nil, err
+	}
+	qHeadLen := len(qHead)
+	var paths []string
+	for _, suffix := range suffixes {
+		if len(paths) > maxPaths {
+			return nil, fmt.Errorf("more than maxPath=%d paths found", maxPaths)
+		}
+		if !re.MatchString(suffix) {
+			continue
+		}
+		if mustMatchLeafs {
+			qHead = append(qHead[:qHeadLen], suffix...)
+			paths = append(paths, string(qHead))
+			continue
+		}
+		qHead = append(qHead[:qHeadLen], suffix...)
+		ps, err := db.SearchGraphitePaths(qt, tr, qHead, qTail, maxPaths, deadline)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, ps...)
+	}
+	return paths, nil
+}
+
+func getRegexpForGraphiteQuery(q string) (*regexp.Regexp, error) {
+	parts, tail := getRegexpPartsForGraphiteQuery(q)
+	if len(tail) > 0 {
+		return nil, fmt.Errorf("unexpected tail left after parsing %q: %q", q, tail)
+	}
+	reStr := "^" + strings.Join(parts, "") + "$"
+	return metricsql.CompileRegexp(reStr)
+}
+
+func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
+	var parts []string
+	for {
+		n := strings.IndexAny(q, "*{}[,")
+		if n < 0 {
+			parts = append(parts, regexp.QuoteMeta(q))
+			return parts, ""
+		}
+		parts = append(parts, regexp.QuoteMeta(q[:n]))
+		q = q[n:]
+		switch q[0] {
+		case ',', '}':
+			return parts, q
+		case '*':
+			parts = append(parts, "[^.]*")
+			q = q[1:]
+		case '{':
+			var tmp []string
+			for {
+				a, tail := getRegexpPartsForGraphiteQuery(q[1:])
+				tmp = append(tmp, strings.Join(a, ""))
+				if len(tail) == 0 {
+					parts = append(parts, regexp.QuoteMeta("{"))
+					parts = append(parts, strings.Join(tmp, ","))
+					return parts, ""
+				}
+				if tail[0] == ',' {
+					q = tail
+					continue
+				}
+				if tail[0] == '}' {
+					if len(tmp) == 1 {
+						parts = append(parts, tmp[0])
+					} else {
+						parts = append(parts, "(?:"+strings.Join(tmp, "|")+")")
+					}
+					q = tail[1:]
+					break
+				}
+				logger.Panicf("BUG: unexpected first char at tail %q; want `.` or `}`", tail)
+			}
+		case '[':
+			n := strings.IndexByte(q, ']')
+			if n < 0 {
+				parts = append(parts, regexp.QuoteMeta(q))
+				return parts, ""
+			}
+			parts = append(parts, q[:n+1])
+			q = q[n+1:]
+		}
+	}
 }
 
 // GetSeriesCount returns the total number of time series registered in all
