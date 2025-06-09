@@ -1748,6 +1748,48 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	return tsids, nil
 }
 
+func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
+	defer qt.Done()
+
+	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(metricIDs) == 0 {
+		return nil, nil
+	}
+	if err = db.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
+		return nil, err
+	}
+
+	metricNames := make([]string, 0, len(metricIDs))
+	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
+	var metricName []byte
+	for i, metricID := range metricIDs {
+		if i&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+				return nil, err
+			}
+		}
+		var ok bool
+		metricName, ok = db.searchMetricName(metricName[:0], metricID, false)
+		if !ok {
+			// Skip missing metricName for metricID.
+			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
+			continue
+		}
+		if _, ok := metricNamesSeen[string(metricName)]; ok {
+			// The given metric name was already seen; skip it
+			continue
+		}
+		metricNames = append(metricNames, string(metricName))
+		metricNamesSeen[metricNames[len(metricNames)-1]] = struct{}{}
+	}
+	qt.Printf("loaded %d metric names", len(metricNames))
+	return metricNames, nil
+}
+
 // prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
 //
 // This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.

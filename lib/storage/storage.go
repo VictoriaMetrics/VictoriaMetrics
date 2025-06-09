@@ -1222,65 +1222,15 @@ func mergeUniq[T cmp.Ordered](data [][]T) []T {
 //
 // The marshaled metric names must be unmarshaled via
 // MetricName.UnmarshalString().
-//
-// If -disablePerDayIndex flag is not set, the metric names are searched
-// within the given time range (as long as the time range is no more than 40
-// days), i.e. the per-day index are used for searching.
-//
-// If -disablePerDayIndex is set or the time range is more than 40 days, the
-// time range is ignored and the metrics are searched within the entire
-// retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
-		return s.searchMetricNames(qt, idb, tfss, tr, maxMetrics, deadline)
+		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	}
 	metricNames, err := searchAndMerge(qt, s, tr, search, mergeUniq)
 
 	qt.Donef("found %d metric names", len(metricNames))
 	return metricNames, err
-}
-
-func (s *Storage) searchMetricNames(qt *querytracer.Tracer, idb *indexDB, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
-	defer qt.Done()
-
-	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if len(metricIDs) == 0 {
-		return nil, nil
-	}
-	if err = idb.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
-		return nil, err
-	}
-
-	metricNames := make([]string, 0, len(metricIDs))
-	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
-	var metricName []byte
-	for i, metricID := range metricIDs {
-		if i&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(deadline); err != nil {
-				return nil, err
-			}
-		}
-		var ok bool
-		metricName, ok = idb.searchMetricName(metricName[:0], metricID, false)
-		if !ok {
-			// Skip missing metricName for metricID.
-			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
-			continue
-		}
-		if _, ok := metricNamesSeen[string(metricName)]; ok {
-			// The given metric name was already seen; skip it
-			continue
-		}
-		metricNames = append(metricNames, string(metricName))
-		metricNamesSeen[metricNames[len(metricNames)-1]] = struct{}{}
-	}
-	qt.Printf("loaded %d metric names", len(metricNames))
-	return metricNames, nil
 }
 
 // ErrDeadlineExceeded is returned when the request times out.
