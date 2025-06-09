@@ -1190,7 +1190,7 @@ func mergeUniq[T cmp.Ordered](data [][]T) []T {
 	maxLength := 0
 	for _, s := range data {
 		if len(s) > maxLength {
-			maxLength = len(s)
+			maxLength += len(s)
 		}
 	}
 	if maxLength == 0 {
@@ -1200,9 +1200,6 @@ func mergeUniq[T cmp.Ordered](data [][]T) []T {
 	all := make([]T, 0, maxLength)
 	seen := make(map[T]struct{}, maxLength)
 	for _, s := range data {
-		if s == nil {
-			continue
-		}
 		for _, v := range s {
 			if _, ok := seen[v]; ok {
 				continue
