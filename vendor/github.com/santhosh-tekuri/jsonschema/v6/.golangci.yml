@@ -1,5 +1,0 @@
-linters:
-  enable:
-    - nakedret
-    - errname
-    - godot
