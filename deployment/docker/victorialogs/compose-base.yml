@@ -8,7 +8,7 @@ services:
       - -syslog.listenAddr.tcp=0.0.0.0:8094
       - -datadog.streamFields=service,hostname,ddsource
       - -journald.streamFields=_HOSTNAME,_SYSTEMD_UNIT,_PID
-      - -journald.ignoreFields=MESSAGE_ID,INVOCATION_ID,USER_INVOCATION_ID,
+      - -journald.ignoreFields=MESSAGE_ID,INVOCATION_ID,USER_INVOCATION_ID
       - -journald.ignoreFields=_BOOT_ID,_MACHINE_ID,_SYSTEMD_INVOCATION_ID,_STREAM_ID,_UID
     deploy:
       replicas: 0
