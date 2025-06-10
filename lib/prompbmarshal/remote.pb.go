@@ -11,10 +11,10 @@ type WriteRequest struct {
 	Timeseries []TimeSeries
 }
 
-func (m *WriteRequest) MarshalToSizedBuffer(dst []byte) (int, error) {
+func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	for j := len(m.Timeseries) - 1; j >= 0; j-- {
-		size, err := m.Timeseries[j].MarshalToSizedBuffer(dst[:i])
+		size, err := m.Timeseries[j].marshalToSizedBuffer(dst[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -37,12 +37,12 @@ func encodeVarint(dst []byte, offset int, v uint64) int {
 	dst[offset] = uint8(v)
 	return base
 }
-func (m *WriteRequest) Size() (n int) {
+func (m *WriteRequest) size() (n int) {
 	if m == nil {
 		return 0
 	}
 	for _, e := range m.Timeseries {
-		l := e.Size()
+		l := e.size()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n
