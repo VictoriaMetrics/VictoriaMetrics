@@ -1545,7 +1545,7 @@ There are two gauge metrics to monitor the retention filters process:
 - `vm_retention_filters_partitions_scheduled` shows the total number of partitions scheduled for retention filters 
 - `vm_retention_filters_partitions_scheduled_size_bytes` shows the total size of scheduled partitions.
 
-Additionally, a log message with the filter expression and the paritition name is written to the log on the start and completion of the operation.
+Additionally, a log message with the filter expression and the partition name is written to the log on the start and completion of the operation.
 
 Important notes:
 
