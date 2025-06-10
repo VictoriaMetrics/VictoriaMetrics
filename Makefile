@@ -578,8 +578,26 @@ quicktemplate-gen:
 golangci-lint:
 	GOEXPERIMENT=synctest go tool golangci-lint run
 
-govulncheck:
-	go tool govulncheck ./...
+golangci-lint: install-golangci-lint
+	GOEXPERIMENT=synctest golangci-lint run
 
-check-licenses:
-	go tool wwhrd check -f .wwhrd.yml
+install-golangci-lint:
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.64.7
+
+remove-golangci-lint:
+	rm -rf `which golangci-lint`
+
+govulncheck: install-govulncheck
+	govulncheck ./...
+
+install-govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
+
+remove-govulncheck:
+	rm -rf `which govulncheck`
+
+install-wwhrd:
+	which wwhrd || go install github.com/frapposelli/wwhrd@latest
+
+check-licenses: install-wwhrd
+	wwhrd check -f .wwhrd.yml
