@@ -5652,7 +5652,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5695,7 +5695,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=$job_storage&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_storage&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5751,7 +5751,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}\n)",
+              "expr": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -5766,7 +5766,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "min(\n    max_over_time(process_resident_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}\n)",
+              "expr": "min(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -5782,7 +5782,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}\n)",
+              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_storage\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -5792,7 +5792,7 @@
               "refId": "C"
             }
           ],
-          "title": "Memory usage % ($instance)",
+          "title": "Memory (anon) usage % ($instance)",
           "type": "timeseries"
         },
         {
@@ -7709,6 +7709,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7748,7 +7749,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=$job_select&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_select&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -7803,7 +7804,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}\n)",
+              "expr": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -7818,7 +7819,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "min(\n    max_over_time(process_resident_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}\n)",
+              "expr": "min(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -7834,7 +7835,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}\n)",
+              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_select\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -7844,7 +7845,7 @@
               "refId": "C"
             }
           ],
-          "title": "Memory usage % ($instance)",
+          "title": "Memory (anon) usage % ($instance)",
           "type": "timeseries"
         },
         {
@@ -8934,6 +8935,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8973,7 +8975,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=$job_insert&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=$job_insert&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -9028,7 +9030,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}\n)",
+              "expr": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -9043,7 +9045,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "min(\n    max_over_time(process_resident_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}\n)",
+              "expr": "min(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -9059,7 +9061,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}\n)",
+              "expr": "quantile(0.5,\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job_insert\", instance=~\"$instance\"}\n)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -9069,7 +9071,7 @@
               "refId": "C"
             }
           ],
-          "title": "Memory usage % ($instance)",
+          "title": "Memory (anon) usage % ($instance)",
           "type": "timeseries"
         },
         {
