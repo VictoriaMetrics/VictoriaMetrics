@@ -189,6 +189,36 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 	return app
 }
 
+// MustStartVmbackup is a test helper that starts an instance of vmbackup
+// and waits until the app exits. It fails the test if the app fails to start or
+// exits with non zero code.
+func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, dst string) {
+	tc.t.Helper()
+
+	if err := StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst); err != nil {
+		tc.t.Fatalf("vmbackup %q failed to start or exited with non-zero code: %v", instance, err)
+	}
+
+	// Do not add the process to the list of running apps using
+	// tc.addApp(instance, app), because the method blocks until the process
+	// exits.
+}
+
+// MustStartVmrestore is a test helper that starts an instance of vmrestore
+// and waits until the app exits. It fails the test if the app fails to start or
+// exits with non zero code.
+func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string) {
+	tc.t.Helper()
+
+	if err := StartVmrestore(instance, src, storageDataPath); err != nil {
+		tc.t.Fatalf("vmrestore %q failed to start or exited with non-zero code: %v", instance, err)
+	}
+
+	// Do not add the process to the list of running apps using
+	// tc.addApp(instance, app), because the method blocks until the process
+	// exits.
+}
+
 // MustStartDefaultCluster starts a typical cluster configuration with default
 // flags.
 func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {

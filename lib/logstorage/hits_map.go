@@ -6,6 +6,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
@@ -33,8 +34,8 @@ type hitsMapAdaptive struct {
 type hitsMapShard struct {
 	hitsMap
 
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(hitsMap{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(hitsMap{})%atomicutil.CacheLineSize]byte
 }
 
 // the maximum number of values to track in hitsMapAdaptive.hm before switching to hitsMapAdaptive.hmShards
