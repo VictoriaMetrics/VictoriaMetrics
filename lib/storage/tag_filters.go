@@ -303,7 +303,7 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 	// Move composite filters to the top, since they usually match lower number of time series.
 	// Move regexp filters to the bottom, since they require scanning all the entries for the given label.
 	isCompositeA := tf.isComposite()
-	isCompositeB := tf.isComposite()
+	isCompositeB := other.isComposite()
 	if isCompositeA != isCompositeB {
 		return isCompositeA
 	}
