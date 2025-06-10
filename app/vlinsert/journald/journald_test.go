@@ -1,6 +1,7 @@
 package journald
 
 import (
+	"bytes"
 	"net/http"
 	"testing"
 
@@ -22,7 +23,8 @@ func TestPushJournaldOk(t *testing.T) {
 			t.Fatalf("cannot create commonParams: %s", err)
 		}
 
-		if err := parseJournaldRequest([]byte(src), tlp, cp); err != nil {
+		buf := bytes.NewBufferString(src)
+		if err := processStreamInternal("test", buf, tlp, cp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
@@ -65,7 +67,8 @@ func TestPushJournald_Failure(t *testing.T) {
 			t.Fatalf("cannot create commonParams: %s", err)
 		}
 
-		if err := parseJournaldRequest([]byte(data), tlp, cp); err == nil {
+		buf := bytes.NewBufferString(data)
+		if err := processStreamInternal("test", buf, tlp, cp); err == nil {
 			t.Fatalf("expected non nil error")
 		}
 	}

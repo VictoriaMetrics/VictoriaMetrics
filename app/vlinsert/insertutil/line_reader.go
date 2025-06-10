@@ -46,15 +46,9 @@ func NewLineReader(name string, r io.Reader) *LineReader {
 	}
 }
 
-// NextLine reads the next line from the underlying reader.
-//
-// It returns true if the next line is successfully read into Line.
-// If the line length exceeds MaxLineSizeBytes, then this line is skipped
-// and an empty line is returned instead.
-//
-// If false is returned, then no more lines left to read from r.
-// Check for Err in this case.
-func (lr *LineReader) NextLine() bool {
+// NextLineWithLineFn reads line of size, that starts from offset size, returned by offsetFn
+// Required for cases, when line length can be extracted from message, that can contain newline characters
+func (lr *LineReader) NextLineWithLineFn(lineFn func([]byte) (int, int)) bool {
 	for {
 		if lr.bufOffset >= len(lr.buf) {
 			if lr.err != nil || lr.eofReached {
@@ -67,12 +61,14 @@ func (lr *LineReader) NextLine() bool {
 				return false
 			}
 		}
-
 		buf := lr.buf[lr.bufOffset:]
-		if n := bytes.IndexByte(buf, '\n'); n >= 0 {
-			lr.Line = buf[:n]
-			lr.bufOffset += n + 1
-			return true
+		if offset, size := lineFn(buf); size >= 0 && offset >= 0 {
+			buf = buf[offset:]
+			if size < len(buf) {
+				lr.bufOffset += size + offset + 1
+				lr.Line = buf[:size]
+				return true
+			}
 		}
 		if lr.eofReached {
 			lr.Line = buf
@@ -83,6 +79,20 @@ func (lr *LineReader) NextLine() bool {
 			return false
 		}
 	}
+}
+
+// NextLine reads the next line from the underlying reader.
+//
+// It returns true if the next line is successfully read into Line.
+// If the line length exceeds MaxLineSizeBytes, then this line is skipped
+// and an empty line is returned instead.
+//
+// If false is returned, then no more lines left to read from r.
+// Check for Err in this case.
+func (lr *LineReader) NextLine() bool {
+	return lr.NextLineWithLineFn(func(buf []byte) (int, int) {
+		return 0, bytes.IndexByte(buf, '\n')
+	})
 }
 
 // Err returns the last error after NextLine call.
