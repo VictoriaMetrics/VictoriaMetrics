@@ -71,7 +71,7 @@ func (app *Vlsingle) ForceFlush(t *testing.T) {
 // POST request to /insert/jsonline vlsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api
-func (app *Vlsingle) JSONLineWrite(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vlsingle) JSONLineWrite(t *testing.T, records []string, opts QueryOptsLogs) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
@@ -112,7 +112,7 @@ func (app *Vlsingle) NativeWrite(t *testing.T, records []logstorage.InsertRow, o
 // /select/logsql/query endpoint.
 //
 // See https://docs.victoriametrics.com/victorialogs/querying/#querying-logs
-func (app *Vlsingle) LogsQLQuery(t *testing.T, query string, opts QueryOpts) *LogsQLQueryResponse {
+func (app *Vlsingle) LogsQLQuery(t *testing.T, query string, opts QueryOptsLogs) *LogsQLQueryResponse {
 	t.Helper()
 
 	values := opts.asURLValues()

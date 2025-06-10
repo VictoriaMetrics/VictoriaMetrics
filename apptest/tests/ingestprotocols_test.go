@@ -508,14 +508,14 @@ func TestVlsingleIngestionProtocols(t *testing.T) {
 	f := func(opts *opts) {
 		t.Helper()
 		sut.ForceFlush(t)
-		got := sut.LogsQLQuery(t, opts.query, at.QueryOpts{})
+		got := sut.LogsQLQuery(t, opts.query, at.QueryOptsLogs{})
 		assertLogsQLResponseEqual(t, got, &at.LogsQLQueryResponse{LogLines: opts.wantLogLines})
 	}
 	// json line ingest
 	sut.JSONLineWrite(t, []string{
 		`{"_msg":"ingest jsonline","_time": "2025-06-05T14:30:19.088007Z", "foo":"bar"}`,
 		`{"_msg":"ingest jsonline","_time": "2025-06-05T14:30:19.088007Z", "bar":"foo"}`,
-	}, at.QueryOpts{})
+	}, at.QueryOptsLogs{})
 	f(&opts{
 		query: "ingest jsonline",
 		wantLogLines: []string{
