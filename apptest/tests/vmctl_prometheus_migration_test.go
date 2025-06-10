@@ -72,7 +72,7 @@ func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQue
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	_ = tc.MustStartVmctl("vmctl", vmctlFlags)
+	tc.MustStartVmctl("vmctl", vmctlFlags)
 
 	sut.ForceFlush(t)
 
