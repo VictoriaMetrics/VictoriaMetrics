@@ -864,10 +864,7 @@ func testStorageConvertToLegacy(t *testing.T) {
 	})
 
 	for _, idb := range idbs {
-		err := idb.appendTo([]*indexDB{legacyIDBCurr})
-		if err != nil {
-			t.Fatalf("could not convert indexDBs to legacy: %v", err)
-		}
+		idb.mustAppendSnapshotTo([]*indexDB{legacyIDBCurr})
 	}
 
 	s.tb.PutIndexDBs(idbs)

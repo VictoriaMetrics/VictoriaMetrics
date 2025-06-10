@@ -2036,7 +2036,7 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 	})
 }
 
-func TestIndexDB_AppendTo(t *testing.T) {
+func TestIndexDB_mustAppendSnapshotTo(t *testing.T) {
 	var isReadOnly atomic.Bool
 
 	open := func(name string, isPartitioned, disablePerDayIndex bool) *indexDB {
@@ -2067,7 +2067,7 @@ func TestIndexDB_AppendTo(t *testing.T) {
 	prefill := func(db *indexDB, metricGroups int, tr TimeRange) ([]want, *uint64set.Set) {
 		r := rand.New(rand.NewSource(1))
 		wants := make([]want, 0, metricGroups)
-		deletedMetricIds := &uint64set.Set{}
+		deletedMetricIDs := &uint64set.Set{}
 
 		minDate, maxDate := tr.DateRange()
 
@@ -2103,20 +2103,20 @@ func TestIndexDB_AppendTo(t *testing.T) {
 			wants = append(wants, want)
 
 			if r.Intn(2) == 0 {
-				deletedMetricIds.Add(tsid.MetricID)
+				deletedMetricIDs.Add(tsid.MetricID)
 			}
 		}
 
-		db.deleteMetricIDs(deletedMetricIds.AppendTo(nil))
+		db.deleteMetricIDs(deletedMetricIDs.AppendTo(nil))
 
 		// Flush index to disk, so it becomes visible for search
 		db.tb.DebugFlush()
 
-		return wants, deletedMetricIds
+		return wants, deletedMetricIDs
 	}
 
-	assertDateTagToMetricIDs := func(is *indexSearch, date uint64, metricGroup []byte, expectedMetricIds *uint64set.Set) {
-		var metricIds *uint64set.Set
+	assertDateTagToMetricIDs := func(is *indexSearch, date uint64, metricGroup []byte, expectedMetricIDs *uint64set.Set) {
+		var metricIDs *uint64set.Set
 		var err error
 		tfs := NewTagFilters()
 		if err := tfs.Add(nil, metricGroup, false, true); err != nil {
@@ -2124,17 +2124,17 @@ func TestIndexDB_AppendTo(t *testing.T) {
 		}
 
 		// check nsPrefixDateTagToMetricIDs and nsPrefixDateTagToMetricIDs
-		if metricIds, err = is.searchMetricIDsWithFiltersOnDate(nil, []*TagFilters{tfs}, date, 1e9); err != nil {
+		if metricIDs, err = is.searchMetricIDsWithFiltersOnDate(nil, []*TagFilters{tfs}, date, 1e9); err != nil {
 			t.Fatalf("unexpected error in searchMetricIDsWithFiltersOnDate: %v", err)
 		}
 
-		if !metricIds.Equal(expectedMetricIds) {
+		if !metricIDs.Equal(expectedMetricIDs) {
 			t.Fatalf("searchMetricIDsWithFiltersOnDate(%s, %d) for %s returns unexpected metric ids;\n"+
-				"got\n%d\nwant\n%d", metricGroup, date, is.db.name, metricIds.AppendTo(nil), expectedMetricIds.AppendTo(nil))
+				"got\n%d\nwant\n%d", metricGroup, date, is.db.name, metricIDs.AppendTo(nil), expectedMetricIDs.AppendTo(nil))
 		}
 	}
 
-	assertIndexDB := func(db *indexDB, wants []want, deletedMetricIds *uint64set.Set, tr TimeRange) {
+	assertIndexDB := func(db *indexDB, wants []want, deletedMetricIDs *uint64set.Set, tr TimeRange) {
 		is := db.getIndexSearch(noDeadline)
 		defer db.putIndexSearch(is)
 
@@ -2146,9 +2146,9 @@ func TestIndexDB_AppendTo(t *testing.T) {
 		var err error
 
 		// check nsPrefixDeletedMetricID
-		actualDeletedMetricIds := db.getDeletedMetricIDs()
-		if !actualDeletedMetricIds.Equal(deletedMetricIds) {
-			t.Fatalf("getDeletedMetricIDs() differs for %s; got\n%d\nwant\n%d", db.name, actualDeletedMetricIds.AppendTo(nil), deletedMetricIds.AppendTo(nil))
+		actualDeletedMetricIDs := db.getDeletedMetricIDs()
+		if !actualDeletedMetricIDs.Equal(deletedMetricIDs) {
+			t.Fatalf("getDeletedMetricIDs() differs for %s; got\n%d\nwant\n%d", db.name, actualDeletedMetricIDs.AppendTo(nil), deletedMetricIDs.AppendTo(nil))
 		}
 
 		for _, want := range wants {
@@ -2156,8 +2156,8 @@ func TestIndexDB_AppendTo(t *testing.T) {
 			tsid := want.tsid
 			metricName := mn.Marshal(nil)
 
-			expectedMetricIds := &uint64set.Set{}
-			expectedMetricIds.Add(tsid.MetricID)
+			expectedMetricIDs := &uint64set.Set{}
+			expectedMetricIDs.Add(tsid.MetricID)
 
 			// check nsPrefixMetricIDToTSID
 			if !is.hasMetricID(tsid.MetricID) {
@@ -2178,19 +2178,21 @@ func TestIndexDB_AppendTo(t *testing.T) {
 				t.Fatalf("unexpected metric name (-want, +got):\n%s", diff)
 			}
 
-			assertDateTagToMetricIDs(is, globalIndexDate, mn.MetricGroup, expectedMetricIds)
+			assertDateTagToMetricIDs(is, globalIndexDate, mn.MetricGroup, expectedMetricIDs)
 
 			if !db.s.disablePerDayIndex {
 				for day := startDate; day <= endDate; day++ {
 					_, hasDay := want.days[day]
-					dayMetricIds := &uint64set.Set{}
+					hasDay = hasDay && db.tr.hasDay(day)
+
+					dayMetricIDs := &uint64set.Set{}
 					if hasDay {
-						dayMetricIds = expectedMetricIds
+						dayMetricIDs = expectedMetricIDs
 					}
 
 					// check nsPrefixMetricNameToTSID and nsPrefixDateMetricNameToTSID
 					// getTSIDByMetricName filter outs deleted metric ids
-					expectedHasTSID := hasDay && !deletedMetricIds.Has(tsid.MetricID)
+					expectedHasTSID := hasDay && !deletedMetricIDs.Has(tsid.MetricID)
 					if is.getTSIDByMetricName(&tmpTsid, metricName, day) != expectedHasTSID {
 						t.Fatalf("getTSIDByMetricName(%s, %d) must be %t for %s", mn.String(), day, expectedHasTSID, db.name)
 					}
@@ -2200,7 +2202,7 @@ func TestIndexDB_AppendTo(t *testing.T) {
 						t.Fatalf("hasDateMetricID(%d, %d) must be %t for %s", day, tsid.MetricID, hasDay, db.name)
 					}
 
-					assertDateTagToMetricIDs(is, day, mn.MetricGroup, dayMetricIds)
+					assertDateTagToMetricIDs(is, day, mn.MetricGroup, dayMetricIDs)
 				}
 			}
 		}
@@ -2229,17 +2231,14 @@ func TestIndexDB_AppendTo(t *testing.T) {
 			MaxTimestamp: parseDate("2025_02").UnixMilli(),
 		}
 
-		wants, deletedMetricIds := prefill(global, 10, prefillTr)
+		wants, deletedMetricIDs := prefill(global, 10, prefillTr)
 		global.tb.DebugFlush()
-		assertIndexDB(global, wants, deletedMetricIds, prefillTr)
+		assertIndexDB(global, wants, deletedMetricIDs, prefillTr)
 
-		err := global.appendTo([]*indexDB{partitioned1, partitioned2})
-		if err != nil {
-			t.Fatalf("cannot append %s index db: %s", global.name, err)
-		}
+		global.mustAppendSnapshotTo([]*indexDB{partitioned1, partitioned2})
 
-		assertIndexDB(partitioned1, wants, deletedMetricIds, partitioned1.tr)
-		assertIndexDB(partitioned2, wants, deletedMetricIds, partitioned2.tr)
+		assertIndexDB(partitioned1, wants, deletedMetricIDs, prefillTr)
+		assertIndexDB(partitioned2, wants, deletedMetricIDs, prefillTr)
 	}
 
 	f(false) // with per-day index
