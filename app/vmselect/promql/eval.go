@@ -17,6 +17,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -139,6 +140,13 @@ type EvalConfig struct {
 	// EnforcedTagFilterss may contain additional label filters to use in the query.
 	EnforcedTagFilterss [][]storage.TagFilter
 
+	// CacheTagFilters stores the original tag-filter sets and extra_label from the request.
+	// The slice is never modified after creation and is used only to build
+	// the query-cache key.
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9001
+	CacheTagFilters [][]storage.TagFilter
+
 	// The callback, which returns the request URI during logging.
 	// The request URI isn't stored here because its' construction may take non-trivial amounts of CPU.
 	GetRequestURI func() string
@@ -165,6 +173,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
+	ec.CacheTagFilters = src.CacheTagFilters
 	ec.GetRequestURI = src.GetRequestURI
 	ec.QueryStats = src.QueryStats
 
@@ -1885,9 +1894,8 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 type timeseriesWithPadding struct {
 	tss []*timeseries
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof([]*timeseries{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof([]*timeseries{})%atomicutil.CacheLineSize]byte
 }
 
 type timeseriesByWorkerID struct {
@@ -1966,11 +1974,14 @@ func sumNoOverflow(a, b int64) int64 {
 }
 
 func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]float64, []int64) {
-	if *noStaleMarkers || funcName == "default_rollup" || funcName == "stale_samples_over_time" {
+	if *noStaleMarkers || funcName == "stale_samples_over_time" ||
+		funcName == "default_rollup" || funcName == "increase" || funcName == "rate" {
 		// Do not drop Prometheus staleness marks (aka stale NaNs) for default_rollup() function,
 		// since it uses them for Prometheus-style staleness detection.
 		// Do not drop staleness marks for stale_samples_over_time() function, since it needs
 		// to calculate the number of staleness markers.
+		// Do not drop staleness marks for increase() and rate() function, so they could stop
+		// returning results for stale series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
 		return values, timestamps
 	}
 	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.

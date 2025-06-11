@@ -25,6 +25,9 @@ var (
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the search request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg")
+
+	disableSelect   = flag.Bool("select.disable", false, "Whether to disable /select/* HTTP endpoints")
+	disableInternal = flag.Bool("internalselect.disable", false, "Whether to disable /internal/select/* HTTP endpoints")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -71,13 +74,31 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles select requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
-	if !strings.HasPrefix(path, "/select/") && !strings.HasPrefix(path, "/internal/select/") {
-		// Skip requests, which do not start with /select/, since these aren't our requests.
-		return false
+	if strings.HasPrefix(path, "/select/") {
+		if *disableSelect {
+			httpserver.Errorf(w, r, "requests to /select/* are disabled with -select.disable command-line flag")
+			return true
+		}
+
+		return selectHandler(w, r, path)
 	}
-	path = strings.ReplaceAll(path, "//", "/")
+
+	if strings.HasPrefix(path, "/internal/select/") {
+		if *disableInternal || *disableSelect {
+			httpserver.Errorf(w, r, "requests to /internal/select/* are disabled with -internalselect.disable or -select.disable command-line flag")
+			return true
+		}
+		internalselect.RequestHandler(r.Context(), w, r)
+		return true
+	}
+
+	return false
+}
+
+func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
+	ctx := r.Context()
 
 	if path == "/select/vmui" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
@@ -100,7 +121,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	ctx := r.Context()
 	if path == "/select/logsql/tail" {
 		logsqlTailRequests.Inc()
 		// Process live tailing request without timeout, since it is OK to run live tailing requests for very long time.
@@ -119,13 +139,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	defer decRequestConcurrency()
-
-	if strings.HasPrefix(path, "/internal/select/") {
-		// Process internal request from vlselect without timeout (e.g. use ctx instead of ctxWithTimeout),
-		// since the timeout must be controlled by the vlselect.
-		internalselect.RequestHandler(ctx, w, r)
-		return true
-	}
 
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {

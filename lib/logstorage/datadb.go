@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -691,7 +692,7 @@ type rowsBufferShard struct {
 	flushTimer *time.Timer
 
 	// padding for preventing false sharing
-	_ [128]byte
+	_ [atomicutil.CacheLineSize]byte
 }
 
 func (rb *rowsBuffer) flush() {
@@ -1083,7 +1084,7 @@ func releaseDiskSpace(n uint64) {
 // background merges across all the partitions.
 //
 // It should allow avoiding background merges when there is no free disk space.
-var reservedDiskSpace atomic.Uint64
+var reservedDiskSpace atomicutil.Uint64
 
 func needStop(stopCh <-chan struct{}) bool {
 	select {

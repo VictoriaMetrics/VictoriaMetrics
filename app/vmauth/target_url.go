@@ -120,6 +120,9 @@ func normalizeURL(uOrig *url.URL) *url.URL {
 	u := *uOrig
 	// Prevent from attacks with using `..` in r.URL.Path
 	u.Path = path.Clean(u.Path)
+	if u.Path == "." {
+		u.Path = "/"
+	}
 	if !strings.HasSuffix(u.Path, "/") && strings.HasSuffix(uOrig.Path, "/") {
 		// The path.Clean() removes trailing slash.
 		// Return it back if needed.

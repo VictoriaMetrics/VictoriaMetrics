@@ -5,6 +5,7 @@ This chapter describes different components, that correspond to respective secti
 - [Scheduler(s) section](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) - Required
 - [Writer section](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - Required
 - [Monitoring section](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) -  Optional
+- [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/) - Optional
 
 > Once the service starts, automated config validation is performed{{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
 
@@ -21,6 +22,10 @@ Below, you will find an example illustrating how the components of `vmanomaly` i
 Here's a minimalistic full config example, demonstrating many-to-many configuration (actual for [latest version](https://docs.victoriametrics.com/anomaly-detection/changelog/)):
 
 ```yaml
+settings:
+  n_workers: 4  # number of workers to run models in parallel
+  anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
+
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
 schedulers:
@@ -51,7 +56,8 @@ models:
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_1w']  # will be attached to 1-week schedule, fit every 1h and infer every 15m
-    min_dev_from_expected: 0.01  # if |y - yhat| < 0.01, anomaly score will be 0
+    min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
+    anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
     detection_direction: 'above_expected'
     args:  # model-specific arguments
       interval_width: 0.98
