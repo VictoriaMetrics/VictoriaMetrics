@@ -1,15 +1,19 @@
 package logstorage
 
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
+)
+
 type statsMedian struct {
 	sq *statsQuantile
 }
 
 func (sm *statsMedian) String() string {
-	return "median(" + statsFuncFieldsToString(sm.sq.fields) + ")"
+	return "median(" + fieldNamesString(sm.sq.fieldFilters) + ")"
 }
 
-func (sm *statsMedian) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sm.sq.fields)
+func (sm *statsMedian) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sm.sq.fieldFilters)
 }
 
 func (sm *statsMedian) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -50,15 +54,15 @@ func (smp *statsMedianProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh 
 }
 
 func parseStatsMedian(lex *lexer) (*statsMedian, error) {
-	fields, err := parseStatsFuncFields(lex, "median")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "median")
 	if err != nil {
 		return nil, err
 	}
 	sm := &statsMedian{
 		sq: &statsQuantile{
-			fields: fields,
-			phi:    0.5,
-			phiStr: "0.5",
+			fieldFilters: fieldFilters,
+			phi:          0.5,
+			phiStr:       "0.5",
 		},
 	}
 	return sm, nil

@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/valyala/quicktemplate"
 
@@ -263,4 +264,10 @@ func (rs *rows) mergeRows(timestampsA, timestampsB []int64, fieldsA, fieldsB [][
 	} else {
 		rs.appendRows(timestampsA, fieldsA)
 	}
+}
+
+func sortFieldsByName(fields []Field) {
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Name < fields[j].Name
+	})
 }

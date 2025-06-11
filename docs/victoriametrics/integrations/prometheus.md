@@ -5,6 +5,9 @@ menu:
   docs:
     parent: "integrations-vm"
     weight: 2
+aliases:
+  - /victoriametrics/data-ingestion/prometheus/
+  - /data-ingestion/prometheus/
 ---
 
 VictoriaMetrics integrates with Prometheus as [remote storage for writes](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).

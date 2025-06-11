@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
@@ -152,8 +152,8 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 }
 
 var (
-	compositeFilterSuccessConversions atomic.Uint64
-	compositeFilterMissingConversions atomic.Uint64
+	compositeFilterSuccessConversions atomicutil.Uint64
+	compositeFilterMissingConversions atomicutil.Uint64
 )
 
 // TagFilters represents filters used for filtering tags.
@@ -295,7 +295,7 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 	// Move composite filters to the top, since they usually match lower number of time series.
 	// Move regexp filters to the bottom, since they require scanning all the entries for the given label.
 	isCompositeA := tf.isComposite()
-	isCompositeB := tf.isComposite()
+	isCompositeB := other.isComposite()
 	if isCompositeA != isCompositeB {
 		return isCompositeA
 	}

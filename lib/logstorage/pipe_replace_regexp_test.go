@@ -26,6 +26,8 @@ func TestParsePipeReplaceRegexpFailure(t *testing.T) {
 	}
 
 	f(`replace_regexp`)
+	f(`replace_regexp (foo, bar) at *`)
+	f(`replace_regexp (foo, bar) at x*`)
 	f(`replace_regexp if`)
 	f(`replace_regexp foo`)
 	f(`replace_regexp (`)
@@ -156,9 +158,9 @@ func TestPipeReplaceRegexp(t *testing.T) {
 }
 
 func TestPipeReplaceRegexpUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

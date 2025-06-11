@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFilter processes '| filter ...' queries.
@@ -26,16 +27,8 @@ func (pf *pipeFilter) canLiveTail() bool {
 	return true
 }
 
-func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		fs := newFieldsSet()
-		pf.f.updateNeededFields(fs)
-		for f := range fs {
-			unneededFields.remove(f)
-		}
-	} else {
-		pf.f.updateNeededFields(neededFields)
-	}
+func (pf *pipeFilter) updateNeededFields(f *prefixfilter.Filter) {
+	pf.f.updateNeededFields(f)
 }
 
 func (pf *pipeFilter) hasFilterInWithQuery() bool {

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterAnd contains filters joined by AND operator.
@@ -36,9 +37,9 @@ func (fa *filterAnd) String() string {
 	return strings.Join(a, " ")
 }
 
-func (fa *filterAnd) updateNeededFields(neededFields fieldsSet) {
+func (fa *filterAnd) updateNeededFields(pf *prefixfilter.Filter) {
 	for _, f := range fa.filters {
-		f.updateNeededFields(neededFields)
+		f.updateNeededFields(pf)
 	}
 }
 

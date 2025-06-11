@@ -88,9 +88,9 @@ func splitQueryToRemoteAndLocal(q *Query) (*Query, []pipe) {
 		break
 	}
 
-	neededColumnNames, unneededColumnNames := getNeededColumns(pipesLocal)
 	// Limit fields to select at the remote storage.
-	qRemote.addFieldsFilters(neededColumnNames, unneededColumnNames)
+	pf := getNeededColumns(pipesLocal)
+	qRemote.addFieldsFilters(pf)
 
 	return qRemote, pipesLocal
 }

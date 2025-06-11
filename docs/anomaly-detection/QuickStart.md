@@ -34,24 +34,26 @@ The `vmanomaly` service supports several command-line arguments to configure its
 > `vmanomaly` support {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
 ```shellhelp
-usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {INFO,DEBUG,ERROR,WARNING,FATAL}] [--watch] config [config ...]
+usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}] [--watch] [--dryRun] [--outputSpec PATH] config [config ...]
 
 VictoriaMetrics Anomaly Detection Service
 
 positional arguments:
-  config                YAML config file(s) or directories containing YAML files. Multiple files will recursively merge each other values so multiple configs can be combined. If a directory
-                        is provided, all `.yaml` files inside will be merged, without recursion. Default: vmanomaly.yaml is expected in the current directory.
+  config                YAML config file(s) or directories containing YAML files. Multiple files will recursively merge each other values so multiple configs can be combined. If a directory is provided,
+                        all `.yaml` files inside will be merged, without recursion. Default: vmanomaly.yaml is expected in the current directory.
 
 options:
   -h                    show this help message and exit
   --license STRING      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --licenseFile PATH    Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --license.forceOffline 
-                        Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The
-                        issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
-  --loggerLevel {INFO,DEBUG,ERROR,WARNING,FATAL}
+                        Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued
+                        license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
+  --loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}
                         Minimum level to log. Possible values: DEBUG, INFO, WARNING, ERROR, FATAL.
   --watch               [DEPRECATED SINCE v1.11.0] Watch config files for changes. This option is no longer supported and will be ignored.
+  --dryRun              Validate only: parse + merge all YAML(s) and run schema checks, then exit. Does not require a license to run. Does not expose metrics, or launch vmanomaly service(s).
+  --outputSpec PATH     Target location of .yaml output spec.
 ```
 
 You can specify these options when running `vmanomaly` to fine-tune logging levels or handle licensing configurations, as per your requirements.
@@ -116,13 +118,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.20.1
+docker pull victoriametrics/vmanomaly:v1.23.2
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.20.1 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.23.2 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -156,7 +158,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.21.0
+    image: victoriametrics/vmanomaly:v1.23.2
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -189,8 +191,9 @@ with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/mas
 ## How to configure vmanomaly
 To run `vmanomaly` you need to set up configuration file in `yaml` format.
 
-Here is an example of config file that will run [Facebook Prophet](https://facebook.github.io/prophet/) model, that will be retrained every 2 hours on 14 days of previous data. It will generate [inference metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) (including `anomaly_score`) every 1 minute.
+> Before deploying, to check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, logs errors and warnings (if found) and then exit without starting the service or requiring a license.
 
+Here is an example of config file that will run [Facebook Prophet](https://facebook.github.io/prophet/) model, that will be retrained every 2 hours on 14 days of previous data. It will generate [inference metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) (including `anomaly_score`) every 1 minute.
 
 ```yaml
 schedulers:
@@ -206,7 +209,7 @@ models:
   prophet_model:
     class: 'prophet'
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']  # for debugging
-    tz_aware: True
+    tz_aware: True  # set to True if your data is timezone-aware, to deal with DST changes correctly
     tz_use_cyclical_encoding: True
     tz_seasonalities: # intra-day + intra-week seasonality
       - name: 'hod'  # intra-day seasonality, hour of the day

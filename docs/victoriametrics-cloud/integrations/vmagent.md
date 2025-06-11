@@ -6,7 +6,7 @@ menu:
 ---
 
 [VMAgent](https://docs.victoriametrics.com/victoriametrics/vmagent/) is a lightweight agent
-designed to collect metrics from various sources, apply [relabeling and filtering](https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling) rules, and
+designed to collect metrics from various sources, apply [relabeling and filtering](https://docs.victoriametrics.com/victoriametrics/relabeling/) rules, and
 forward the data to storage systems. It supports both the Prometheus `remote_write` protocol and
 the [VictoriaMetrics `remote_write` protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol)
 for sending data.
@@ -27,9 +27,11 @@ or simply follow this interactive guide:
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/3;"
+    height="1900" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/vmagent" >
+    src="https://console.victoriametrics.cloud/public/integrations/vmagent"
+    style="background: white;"
+    >
 </iframe>

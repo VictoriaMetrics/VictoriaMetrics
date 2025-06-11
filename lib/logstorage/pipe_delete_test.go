@@ -12,6 +12,8 @@ func TestParsePipeDeleteSuccess(t *testing.T) {
 
 	f(`delete f1`)
 	f(`delete f1, f2`)
+	f(`delete *`)
+	f(`delete f*, bar, baz*`)
 }
 
 func TestParsePipeDeleteFailure(t *testing.T) {
@@ -76,6 +78,30 @@ func TestPipeDelete(t *testing.T) {
 		},
 	})
 
+	// Wildcard delete all
+	f("delete *", [][]Field{
+		{
+			{"a", "foo"},
+			{"b", "bar"},
+			{"c", "1235"},
+		},
+	}, [][]Field{
+		{},
+	})
+
+	// Wildcard delete some
+	f("delete b*", [][]Field{
+		{
+			{"a", "foo"},
+			{"b", "bar"},
+			{"bc", "1235"},
+		},
+	}, [][]Field{
+		{
+			{"a", "foo"},
+		},
+	})
+
 	// Multiple rows
 	f("delete _msg, a", [][]Field{
 		{
@@ -110,23 +136,37 @@ func TestPipeDelete(t *testing.T) {
 }
 
 func TestPipeDeleteUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
 	f("del s1,s2", "*", "", "*", "s1,s2")
+	f("del s*,s2,x", "*", "", "*", "s*,x")
+	f("del *", "*", "", "", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("del s1,s2", "*", "f1,f2", "*", "s1,s2,f1,f2")
+	f("del s1,s2", "*", "f*", "*", "s1,s2,f*")
+	f("del s*,s2", "*", "f1,f2", "*", "s*,f1,f2")
+	f("del s*,s2", "*", "f*", "*", "s*,f*")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("del s1,s2", "*", "s1,f1,f2", "*", "s1,s2,f1,f2")
+	f("del s1,s2", "*", "s*,f*", "*", "s*,f*")
+	f("del s*", "*", "s1,f1,f2", "*", "s*,f1,f2")
+	f("del s*", "*", "s*,f*", "*", "s*,f*")
 
 	// needed fields do not intersect with src
 	f("del s1,s2", "f1,f2", "", "f1,f2", "")
+	f("del s1,s2", "f*", "", "f*", "")
+	f("del s*", "f1,f2", "", "f1,f2", "")
+	f("del s*", "f*", "", "f*", "")
 
 	// needed fields intersect with src
 	f("del s1,s2", "s1,f1,f2", "", "f1,f2", "")
+	f("del s1,s2", "s*,f*", "", "f*,s*", "s1,s2")
+	f("del s*", "s1,f1,f2", "", "f1,f2", "")
+	f("del s*", "s*,f*", "", "f*", "s*")
 }

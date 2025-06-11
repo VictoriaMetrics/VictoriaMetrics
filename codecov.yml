@@ -1,0 +1,9 @@
+# see https://docs.codecov.com/docs/common-recipe-list#set-non-blocking-status-checks
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true

@@ -100,8 +100,8 @@ It is hard to predict the amount of compute resources (CPU, Mem) or cluster size
 Active Time Series. The much better approach is to run tests for your type of load (ingestion and reads) and extrapolate
 from there.
 
-For example, if you already run [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus)
-or [Telegraf](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf)
+For example, if you already run [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/)
+or [Telegraf](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf)
 for metrics collection then just configure them (or a part of them) to replicate data to VictoriaMetrics. In this way,
 you'd have the most precise simulation of your production environment.
 
@@ -159,18 +159,8 @@ vminsert and vmselect components are stateless, and can be easily scaled up or d
 
 ### VictoriaMetrics Cloud
 
-Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series.
-We assume that the Churn Rate is no more than **30%**. You may need to choose a more extensive deployment if you have a higher Churn Rate.
-
-#### Example
-
-Deployment type: **s.medium ~100k samples/s Ingestion Rate, ~2.5M of Active Time Series**
-
-You can collect metrics from
-
-- 10x Kubernetes cluster with 50 nodes each - 4200 * 10 * 50 = 2.1M
-- 500 node exporters - 0.5M
-- With metrics collection interval - 30s
+Please follow [these docs](http://docs.victoriametrics.com/victoriametrics-cloud/deployments/tiers-and-types/) for detailed
+VictoriaMetrics Cloud tiers and setup sizes information.
 
 ### On-Premise
 

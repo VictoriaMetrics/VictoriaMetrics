@@ -20,22 +20,22 @@ If there's an integration you'd like to see here but it's currently missing, fee
 
 ## Ingestion
 
-- [CloudWatch - Agentless AWS monitoring](cloudwatch.md)
+- [CloudWatch - Agentless AWS monitoring](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/cloudwatch/)
 - [CURL](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/curl/)
-- [Kubernetes](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/kubernetes.md)
-- [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/opentelemetry.md)
-- [Prometheus (remote write)](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/prometheus.md)
-- [Telegraf](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/telegraf.md)
-- [Vector](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/vector.md)
-- [VMAgent](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/vmagent.md)
+- [Kubernetes](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/kubernetes/)
+- [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/opentelemetry/)
+- [Prometheus (remote write)](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/prometheus/)
+- [Telegraf](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/telegraf/)
+- [Vector](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/vector/)
+- [VMAgent](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/vmagent/)
 
 ## Data Visualization
 
-- [CURL](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/curl.md)
-- [Grafana](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/grafana.md)
-- [Perses](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/perses.md)
+- [CURL](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/curl/)
+- [Grafana](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/grafana/)
+- [Perses](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/perses/)
 
 ## Notifications
 
-- [Cloud Alertmanager](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/cloud-alertmanager.md)
-- [Custom Alertmanager](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/custom-alertmanager.md)
+- [Cloud Alertmanager](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/cloud-alertmanager/)
+- [Custom Alertmanager](https://docs.victoriametrics.com/victoriametrics-cloud/integrations/custom-alertmanager/)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFieldNames processes '| field_names' pipe.
@@ -37,13 +38,12 @@ func (pf *pipeFieldNames) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (pf *pipeFieldNames) updateNeededFields(f *prefixfilter.Filter) {
 	if pf.isFirstPipe {
-		neededFields.reset()
+		f.Reset()
 	} else {
-		neededFields.add("*")
+		f.AddAllowFilter("*")
 	}
-	unneededFields.reset()
 }
 
 func (pf *pipeFieldNames) hasFilterInWithQuery() bool {

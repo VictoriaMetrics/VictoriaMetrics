@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 func TestStorageRunQuery(t *testing.T) {
@@ -1153,12 +1154,15 @@ func TestParseStreamFieldsSuccess(t *testing.T) {
 }
 
 func newTestGenericSearchOptions(tenantIDs []TenantID, f filter, neededColumns []string) *genericSearchOptions {
+	var pf prefixfilter.Filter
+	pf.AddAllowFilters(neededColumns)
+
 	return &genericSearchOptions{
-		tenantIDs:         tenantIDs,
-		minTimestamp:      math.MinInt64,
-		maxTimestamp:      math.MaxInt64,
-		filter:            f,
-		neededColumnNames: neededColumns,
+		tenantIDs:    tenantIDs,
+		minTimestamp: math.MinInt64,
+		maxTimestamp: math.MaxInt64,
+		filter:       f,
+		fieldsFilter: &pf,
 	}
 }
 

@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"sync/atomic"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeLimit implements '| limit ...' pipe.
@@ -24,7 +26,7 @@ func (pl *pipeLimit) canLiveTail() bool {
 	return false
 }
 
-func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
+func (pl *pipeLimit) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 

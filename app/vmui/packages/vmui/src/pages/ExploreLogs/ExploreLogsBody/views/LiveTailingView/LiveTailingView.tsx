@@ -10,6 +10,8 @@ import { useSearchParams } from "react-router-dom";
 import throttle from "lodash/throttle";
 import GroupLogsItem from "../../../GroupLogs/GroupLogsItem";
 import LiveTailingSettings from "./LiveTailingSettings";
+import Alert from "../../../../../components/Main/Alert/Alert";
+import { isDecreasing } from "../../../../../utils/array";
 
 const SCROLL_THRESHOLD = 100;
 const scrollToBottom = () => window.scrollTo({
@@ -36,7 +38,8 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
     stopLiveTailing,
     pauseLiveTailing,
     resumeLiveTailing,
-    clearLogs
+    clearLogs,
+    isLimitedLogsPerUpdate
   } = useLiveTailingLogs(query, rowsPerPage);
 
   const displayFieldsString = searchParams.get(LOGS_URL_PARAMS.DISPLAY_FIELDS) || LOGS_DISPLAY_FIELDS;
@@ -64,13 +67,17 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
     const container = containerRef.current;
     if (!container) return;
 
+    let prevScrollTop: number[] = [];
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
       const isBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < SCROLL_THRESHOLD;
 
       setIsAtBottom(isBottom);
+      prevScrollTop.push(scrollTop);
+      prevScrollTop = prevScrollTop.slice(-3);
+      const isMoveToTop = isDecreasing(prevScrollTop);
 
-      if (!isBottom && !isPaused) {
+      if (!isBottom && !isPaused && isMoveToTop) {
         pauseLiveTailing();
       }
     };
@@ -88,8 +95,6 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
   useEffect(() => {
     handleResumeLiveTailing();
   }, [rowsPerPage]);
-
-
 
   if (error) {
     return <div className="vm-live-tailing-view__error">{error}</div>;
@@ -138,6 +143,7 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
           </div>
           )}
       </div>
+      {isLimitedLogsPerUpdate && (<Alert variant="warning">Too many logs per second detected. Large volumes of log data are difficult to process and may impact performance. We recommend adding filters to your query for better analysis and system performance.</Alert>)}
     </>
   );
 };

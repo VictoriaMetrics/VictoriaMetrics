@@ -163,9 +163,9 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 //
 //   - process_pressure_io_stalled_seconds_total - the number of seconds all the processes in the current cgroup v2 were waiting for io to complete
 //
-//   - process_pressure_mem_waiting_seconds_total - the number of seconds processes in the current cgroup v2 were waiting for memory access to complete
+//   - process_pressure_memory_waiting_seconds_total - the number of seconds processes in the current cgroup v2 were waiting for memory access to complete
 //
-//   - process_pressure_mem_stalled_seconds_total - the number of seconds all the processes in the current cgroup v2 were waiting for memory access to complete
+//   - process_pressure_memory_stalled_seconds_total - the number of seconds all the processes in the current cgroup v2 were waiting for memory access to complete
 //
 //   - go_sched_latencies_seconds - time spent by goroutines in ready state before they start execution
 //

@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterValueType filters field entries by value type.
@@ -18,8 +20,8 @@ func (fv *filterValueType) String() string {
 	return fmt.Sprintf("%svalue_type(%s)", quoteFieldNameIfNeeded(fv.fieldName), quoteTokenIfNeeded(fv.valueType))
 }
 
-func (fv *filterValueType) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fv.fieldName)
+func (fv *filterValueType) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fv.fieldName)
 }
 
 func (fv *filterValueType) applyToBlockResult(br *blockResult, bm *bitmap) {

@@ -5,8 +5,9 @@ import (
 	"regexp"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
+
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 // snapshotNameRE covers years 1970-2099.
@@ -104,7 +105,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartDefaultCluster().(*at.Vmcluster)
+	sut := tc.MustStartDefaultCluster()
 
 	// Insert some data.
 	const numSamples = 1000

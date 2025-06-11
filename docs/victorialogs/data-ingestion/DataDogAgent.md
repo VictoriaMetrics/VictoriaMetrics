@@ -10,6 +10,7 @@ url: /victorialogs/data-ingestion/datadog-agent/
 tags:
   - logs
 aliases:
+  - /victorialogs/data-ingestion/datadog/
   - /victorialogs/data-ingestion/DataDogAgent.html
 ---
 

@@ -63,7 +63,7 @@ by VictoriaMetrics, so lookups by names or labels have the same query speed.
 
 ## Write data
 
-VictoriaMetrics supports [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb)
+VictoriaMetrics supports [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/)
 for data ingestion. For example, to write a measurement to VictoriaMetrics we need to send an HTTP POST request with
 payload in a line protocol format:
 ```sh
@@ -95,7 +95,7 @@ The expected response is the following:
 }
 ```
 
-_VictoriaMetrics performs additional [data mapping](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#data-transformations)
+_VictoriaMetrics performs additional [data mapping](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#data-transformations)
 to the data ingested via InfluxDB line protocol._
 
 VictoriaMetrics is also compatible with [Telegraf](https://github.com/influxdata/telegraf).
@@ -117,7 +117,7 @@ querying and visualizing metrics:
 
 ![Migrate from Influx](vmui.webp)
 
-VictoriaMetrics can be configured as [Grafana datasource](https://docs.victoriametrics.com/victoriametrics/integrations/grafana).
+VictoriaMetrics can be configured as [Grafana datasource](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data).
 
 ### Basic concepts
@@ -154,7 +154,7 @@ WHERE ("instance" = 'localhost')
 GROUP BY time (1m)
 ```
 
-Now, let's [import](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb#influxdb-compatible-agents-such-as-telegraf)
+Now, let's [import](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf)
 the same data sample in VictoriaMetrics and plot it in Grafana. To understand how the InfluxQL query might be translated
 to [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) let's break it into components first:
 

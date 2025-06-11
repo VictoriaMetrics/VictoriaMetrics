@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsCountUniqHash struct {
@@ -18,15 +19,15 @@ type statsCountUniqHash struct {
 }
 
 func (su *statsCountUniqHash) String() string {
-	s := "count_uniq_hash(" + statsFuncFieldsToString(su.fields) + ")"
+	s := "count_uniq_hash(" + fieldNamesString(su.fields) + ")"
 	if su.limit > 0 {
 		s += fmt.Sprintf(" limit %d", su.limit)
 	}
 	return s
 }
 
-func (su *statsCountUniqHash) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, su.fields)
+func (su *statsCountUniqHash) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(su.fields)
 }
 
 func (su *statsCountUniqHash) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -153,64 +154,18 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(sf statsFunc, br *
 		return 0
 	}
 
-	fields := su.fields
-
 	stateSizeIncrease := 0
-	if len(fields) == 0 {
-		// Count unique rows
-		cs := br.getColumns()
 
-		columnValues := sup.columnValues[:0]
-		for _, c := range cs {
-			values := c.getValues(br)
-			columnValues = append(columnValues, values)
-		}
-		sup.columnValues = columnValues
-
-		keyBuf := sup.keyBuf[:0]
-		for i := 0; i < br.rowsLen; i++ {
-			seenKey := true
-			for _, values := range columnValues {
-				if i == 0 || values[i-1] != values[i] {
-					seenKey = false
-					break
-				}
-			}
-			if seenKey {
-				// This key has been already counted.
-				continue
-			}
-
-			allEmptyValues := true
-			keyBuf = keyBuf[:0]
-			for j, values := range columnValues {
-				v := values[i]
-				if v != "" {
-					allEmptyValues = false
-				}
-				// Put column name into key, since every block can contain different set of columns for '*' selector.
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(cs[j].name))
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
-			}
-			if allEmptyValues {
-				// Do not count empty values
-				continue
-			}
-			stateSizeIncrease += sup.updateStateString(keyBuf)
-		}
-		sup.keyBuf = keyBuf
-		return stateSizeIncrease
-	}
-	if len(fields) == 1 {
+	if len(su.fields) == 1 {
 		// Fast path for a single column.
-		return sup.updateStatsForAllRowsSingleColumn(br, fields[0])
+		return sup.updateStatsForAllRowsSingleColumn(br, su.fields[0])
 	}
 
 	// Slow path for multiple columns.
 
 	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
 	columnValues := sup.columnValues[:0]
-	for _, f := range fields {
+	for _, f := range su.fields {
 		c := br.getColumnByName(f)
 		values := c.getValues(br)
 		columnValues = append(columnValues, values)
@@ -255,38 +210,16 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(sf statsFunc, br *bloc
 		return 0
 	}
 
-	fields := su.fields
-
-	if len(fields) == 0 {
-		// Count unique rows
-		allEmptyValues := true
-		keyBuf := sup.keyBuf[:0]
-		for _, c := range br.getColumns() {
-			v := c.getValueAtRow(br, rowIdx)
-			if v != "" {
-				allEmptyValues = false
-			}
-			// Put column name into key, since every block can contain different set of columns for '*' selector.
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
-		}
-		sup.keyBuf = keyBuf
-
-		if allEmptyValues {
-			// Do not count empty values
-			return 0
-		}
-		return sup.updateStateString(keyBuf)
-	}
-	if len(fields) == 1 {
+	if len(su.fields) == 1 {
 		// Fast path for a single column.
-		return sup.updateStatsForRowSingleColumn(br, fields[0], rowIdx)
+		return sup.updateStatsForRowSingleColumn(br, su.fields[0], rowIdx)
 	}
 
 	// Slow path for multiple columns.
 	allEmptyValues := true
 	keyBuf := sup.keyBuf[:0]
-	for _, f := range fields {
+
+	for _, f := range su.fields {
 		c := br.getColumnByName(f)
 		v := c.getValueAtRow(br, rowIdx)
 		if v != "" {
@@ -743,6 +676,9 @@ func parseStatsCountUniqHash(lex *lexer) (*statsCountUniqHash, error) {
 	fields, err := parseStatsFuncFields(lex, "count_uniq_hash")
 	if err != nil {
 		return nil, err
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("expecting at least a single field")
 	}
 	su := &statsCountUniqHash{
 		fields: fields,

@@ -14,6 +14,7 @@ func TestParseStatsValuesSuccess(t *testing.T) {
 	f(`values(*)`)
 	f(`values(a)`)
 	f(`values(a, b)`)
+	f(`values(a*, b)`)
 	f(`values(a, b) limit 10`)
 }
 

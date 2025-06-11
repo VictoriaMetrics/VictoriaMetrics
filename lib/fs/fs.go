@@ -8,15 +8,15 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var tmpFileNum atomic.Uint64
+var tmpFileNum atomicutil.Uint64
 
 // MustSyncPath syncs contents of the given path.
 func MustSyncPath(path string) {
@@ -224,8 +224,8 @@ func MustRemoveDirAtomic(dir string) {
 	MustSyncPath(parentDir)
 }
 
-var atomicDirRemoveCounter = func() *atomic.Uint64 {
-	var x atomic.Uint64
+var atomicDirRemoveCounter = func() *atomicutil.Uint64 {
+	var x atomicutil.Uint64
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()

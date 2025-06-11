@@ -165,6 +165,8 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
 	m.Add("__meta_kubernetes_endpointslice_address_type", eps.AddressType)
 	m.Add("__meta_kubernetes_endpointslice_endpoint_conditions_ready", strconv.FormatBool(ea.Conditions.Ready))
+	m.Add("__meta_kubernetes_endpointslice_endpoint_conditions_serving", strconv.FormatBool(ea.Conditions.Serving))
+	m.Add("__meta_kubernetes_endpointslice_endpoint_conditions_terminating", strconv.FormatBool(ea.Conditions.Terminating))
 	m.Add("__meta_kubernetes_endpointslice_port_name", epp.Name)
 	m.Add("__meta_kubernetes_endpointslice_port_protocol", epp.Protocol)
 	m.Add("__meta_kubernetes_endpointslice_port", strconv.Itoa(epp.Port))
@@ -177,6 +179,9 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 	}
 	if ea.Hostname != "" {
 		m.Add("__meta_kubernetes_endpointslice_endpoint_hostname", ea.Hostname)
+	}
+	if ea.NodeName != "" {
+		m.Add("__meta_kubernetes_endpointslice_endpoint_node_name", ea.NodeName)
 	}
 	for k, v := range ea.Topology {
 		m.Add(discoveryutil.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_"+k), v)
@@ -212,11 +217,14 @@ type Endpoint struct {
 	Hostname   string
 	TargetRef  ObjectReference
 	Topology   map[string]string
+	NodeName   string
 }
 
 // EndpointConditions implements kubernetes endpoint condition.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointconditions-v1-discovery-k8s-io
 type EndpointConditions struct {
-	Ready bool
+	Ready       bool
+	Serving     bool
+	Terminating bool
 }

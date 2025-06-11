@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import { FC, useMemo, useState } from "preact/compat";
 import useBoolean from "../../../hooks/useBoolean";
 import { RestartIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
@@ -62,7 +62,8 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
   ].some(Boolean);
 
   const logsKeys = useMemo(() => {
-    return Array.from(new Set(logs.map(l => Object.keys(l)).flat()));
+    const uniqueKeys = new Set(logs.map(l => Object.keys(l)).flat());
+    return Array.from(uniqueKeys).sort((a, b) => a.localeCompare(b));
   }, [logs]);
 
   const {

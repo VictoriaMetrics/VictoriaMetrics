@@ -1,10 +1,10 @@
 ---
-weight: 3
+weight: 14
 title: Kubernetes Monitoring with VictoriaMetrics Cloud
 menu:
   docs:
     parent: "cloud"
-    weight: 3
+    weight: 14
 tags:
    - metrics
    - cloud

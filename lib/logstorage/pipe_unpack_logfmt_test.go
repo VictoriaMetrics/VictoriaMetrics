@@ -14,6 +14,7 @@ func TestParsePipeUnpackLogfmtSuccess(t *testing.T) {
 	f(`unpack_logfmt skip_empty_results`)
 	f(`unpack_logfmt keep_original_fields`)
 	f(`unpack_logfmt fields (a, b)`)
+	f(`unpack_logfmt fields (a, b*)`)
 	f(`unpack_logfmt fields (a, b) skip_empty_results`)
 	f(`unpack_logfmt fields (a, b) keep_original_fields`)
 	f(`unpack_logfmt if (a:x)`)
@@ -51,6 +52,8 @@ func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
 	f(`unpack_logfmt if`)
 	f(`unpack_logfmt if (x:y) foobar,`)
 	f(`unpack_logfmt from`)
+	f(`unpack_logfmt from *`)
+	f(`unpack_logfmt from x*`)
 	f(`unpack_logfmt from x y`)
 	f(`unpack_logfmt from x if`)
 	f(`unpack_logfmt from x result_prefix`)
@@ -287,9 +290,9 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 }
 
 func TestPipeUnpackLogfmtUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
@@ -302,6 +305,7 @@ func TestPipeUnpackLogfmtUpdateNeededFields(t *testing.T) {
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("unpack_logfmt from x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_logfmt from x", "*", "f*", "*", "f*")
 	f("unpack_logfmt if (y:z) from x", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_logfmt if (f1:z) from x", "*", "f1,f2", "*", "f2")
 
@@ -317,6 +321,7 @@ func TestPipeUnpackLogfmtUpdateNeededFields(t *testing.T) {
 
 	// needed fields intersect with src
 	f("unpack_logfmt from x", "f2,x", "", "f2,x", "")
+	f("unpack_logfmt from x", "f*,x*", "", "f*,x*", "")
 	f("unpack_logfmt if (y:z) from x", "f2,x", "", "f2,x,y", "")
 	f("unpack_logfmt if (f2:z y:qwe) from x", "f2,x", "", "f2,x,y", "")
 }

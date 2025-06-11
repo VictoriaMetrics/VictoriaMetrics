@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -32,10 +33,29 @@ type pipeStats struct {
 
 type pipeStatsMode int
 
+func (psm pipeStatsMode) needExportState() bool {
+	switch psm {
+	case pipeStatsModeRemote, pipeStatsModeProxy:
+		return true
+	default:
+		return false
+	}
+}
+
+func (psm pipeStatsMode) needImportState() bool {
+	switch psm {
+	case pipeStatsModeLocal, pipeStatsModeProxy:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	pipeStatsModeDefault = pipeStatsMode(0)
 	pipeStatsModeRemote  = pipeStatsMode(1)
 	pipeStatsModeLocal   = pipeStatsMode(2)
+	pipeStatsModeProxy   = pipeStatsMode(3)
 )
 
 type pipeStatsFunc struct {
@@ -53,8 +73,8 @@ type statsFunc interface {
 	// String returns string representation of statsFunc
 	String() string
 
-	// updateNeededFields update neededFields with the fields needed for calculating the given stats
-	updateNeededFields(neededFields fieldsSet)
+	// updateNeededFields update pf with the fields needed for calculating the given stats
+	updateNeededFields(pf *prefixfilter.Filter)
 
 	// newStatsProcessor must create new statsProcessor for calculating stats for the given statsFunc
 	//
@@ -112,6 +132,8 @@ func (ps *pipeStats) String() string {
 		s = "stats_remote"
 	case pipeStatsModeLocal:
 		s = "stats_local"
+	case pipeStatsModeProxy:
+		s = "stats_proxy"
 	default:
 		logger.Panicf("BUG: unknown mode: %d", ps.mode)
 	}
@@ -130,10 +152,11 @@ func (ps *pipeStats) String() string {
 		logger.Panicf("BUG: pipeStats must contain at least a single statsFunc")
 	}
 	a := make([]string, len(funcs))
-	isLocal := ps.mode == pipeStatsModeLocal
+
+	needImportState := ps.mode.needImportState()
 	for i, f := range funcs {
 		resultNameQuoted := quoteTokenIfNeeded(f.resultName)
-		if isLocal {
+		if needImportState {
 			a[i] = fmt.Sprintf("import_state(%s) as %s", resultNameQuoted, resultNameQuoted)
 		} else {
 			line := f.f.String()
@@ -153,7 +176,19 @@ func (ps *pipeStats) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
 	psRemote.mode = pipeStatsModeRemote
 
 	psLocal := *ps
-	psLocal.mode = pipeStatsModeLocal
+
+	switch ps.mode {
+	case pipeStatsModeDefault:
+		psLocal.mode = pipeStatsModeLocal
+	case pipeStatsModeLocal:
+		logger.Panicf("BUG: stats_local cannot be split")
+	case pipeStatsModeProxy:
+		logger.Panicf("BUG: stats_proxy cannot be split")
+	case pipeStatsModeRemote:
+		psLocal.mode = pipeStatsModeProxy
+	default:
+		logger.Panicf("BUG: unexpected pipeStatsMode: %d", ps.mode)
+	}
 
 	return &psRemote, []pipe{&psLocal}
 }
@@ -162,41 +197,38 @@ func (ps *pipeStats) canLiveTail() bool {
 	return false
 }
 
-func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if ps.mode == pipeStatsModeLocal {
-		ps.updateNeededFieldsLocal(neededFields, unneededFields)
+func (ps *pipeStats) updateNeededFields(pf *prefixfilter.Filter) {
+	if ps.mode.needImportState() {
+		ps.updateNeededFieldsLocal(pf)
 		return
 	}
 
-	neededFieldsOrig := neededFields.clone()
-	neededFields.reset()
+	pfOrig := pf.Clone()
+	pf.Reset()
 
 	// byFields are needed unconditionally, since the output number of rows depends on them.
 	for _, bf := range ps.byFields {
-		neededFields.add(bf.name)
+		pf.AddAllowFilter(bf.name)
 	}
 
 	for _, f := range ps.funcs {
-		if neededFieldsOrig.contains(f.resultName) && !unneededFields.contains(f.resultName) {
-			f.f.updateNeededFields(neededFields)
+		if pfOrig.MatchString(f.resultName) {
+			f.f.updateNeededFields(pf)
 			if f.iff != nil {
-				neededFields.addFields(f.iff.neededFields)
+				pf.AddAllowFilters(f.iff.allowFilters)
 			}
 		}
 	}
-
-	unneededFields.reset()
 }
 
-func (ps *pipeStats) updateNeededFieldsLocal(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (ps *pipeStats) updateNeededFieldsLocal(pf *prefixfilter.Filter) {
+	pf.Reset()
 
 	for _, bf := range ps.byFields {
-		neededFields.add(bf.name)
+		pf.AddAllowFilter(bf.name)
 	}
 	for _, f := range ps.funcs {
-		neededFields.add(f.resultName)
+		pf.AddAllowFilter(f.resultName)
 	}
 }
 
@@ -346,8 +378,8 @@ type pipeStatsProcessorShard struct {
 type pipeStatsGroupMapShard struct {
 	pipeStatsGroupMap
 
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeStatsGroupMap{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(pipeStatsGroupMap{})%atomicutil.CacheLineSize]byte
 }
 
 // the maximum number of groups to track in pipeStatsProcessorShard.groupMap before switching to pipeStatsProcessorShard.groupMapShards
@@ -900,7 +932,7 @@ func (psg *pipeStatsGroup) importStateFromRow(columnValues [][]string, rowIdx in
 		v := columnValues[i][rowIdx]
 		stateSize, err := sfp.importState(bytesutil.ToUnsafeBytes(v), stopCh)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("cannot import state for %s: %w", psg.funcs[i].f, err)
 		}
 		n += stateSize
 	}
@@ -970,7 +1002,7 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 		shard.stateSizeBudget += stateSizeBudgetChunk
 	}
 
-	if psp.ps.mode == pipeStatsModeLocal {
+	if psp.ps.mode.needImportState() {
 		shard.writeBlockLocal(br)
 	} else {
 		shard.writeBlockDefault(br)
@@ -1050,11 +1082,11 @@ func newPipeStatsWriter(psp *pipeStatsProcessor, workerID uint) *pipeStatsWriter
 }
 
 func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup) {
-	isRemote := psw.psp.ps.mode == pipeStatsModeRemote
+	needExportState := psw.psp.ps.mode.needExportState()
 	stopCh := psw.psp.stopCh
 	for i, sfp := range psg.sfps {
 		bufLen := len(psw.valuesBuf)
-		if isRemote {
+		if needExportState {
 			psw.valuesBuf = sfp.exportState(psw.valuesBuf, stopCh)
 		} else {
 			psw.valuesBuf = sfp.finalizeStats(psg.funcs[i].f, psw.valuesBuf, stopCh)
@@ -1221,6 +1253,7 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
 		switch {
 		case lex.isKeyword("stats"):
 			lex.nextToken()
+			ps.mode = pipeStatsModeDefault
 		case lex.isKeyword("stats_remote"):
 			lex.nextToken()
 			ps.mode = pipeStatsModeRemote
@@ -1630,6 +1663,19 @@ func tryParseBucketSize(s string) (float64, bool) {
 }
 
 func parseFieldNamesInParens(lex *lexer) ([]string, error) {
+	fieldNames, err := parseFieldFiltersInParens(lex)
+	if err != nil {
+		return nil, err
+	}
+	for _, fieldName := range fieldNames {
+		if prefixfilter.IsWildcardFilter(fieldName) {
+			return nil, fmt.Errorf("the field name %q cannot end with '*'", fieldName)
+		}
+	}
+	return fieldNames, nil
+}
+
+func parseFieldFiltersInParens(lex *lexer) ([]string, error) {
 	if !lex.isKeyword("(") {
 		return nil, fmt.Errorf("missing `(`")
 	}
@@ -1643,7 +1689,7 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 		if lex.isKeyword(",") {
 			return nil, fmt.Errorf("unexpected `,`")
 		}
-		field, err := parseFieldName(lex)
+		field, err := parseFieldFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
 		}
@@ -1660,6 +1706,17 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 }
 
 func parseFieldName(lex *lexer) (string, error) {
+	fieldName, err := parseFieldFilter(lex)
+	if err != nil {
+		return "", err
+	}
+	if prefixfilter.IsWildcardFilter(fieldName) {
+		return "", fmt.Errorf("field name cannot end with '*'; got %q", fieldName)
+	}
+	return fieldName, nil
+}
+
+func parseFieldFilter(lex *lexer) (string, error) {
 	fieldName, err := getCompoundToken(lex)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse field name: %w", err)
@@ -1671,10 +1728,7 @@ func parseFieldName(lex *lexer) (string, error) {
 func fieldNamesString(fields []string) string {
 	a := make([]string, len(fields))
 	for i, f := range fields {
-		if f != "*" {
-			f = quoteTokenIfNeeded(f)
-		}
-		a[i] = f
+		a[i] = quoteFieldFilterIfNeeded(f)
 	}
 	return strings.Join(a, ", ")
 }

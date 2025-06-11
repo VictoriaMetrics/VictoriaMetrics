@@ -15,7 +15,7 @@ import (
 )
 
 var maxGraphiteSeries = flag.Int("search.maxGraphiteSeries", 300e3, "The maximum number of time series, which can be scanned during queries to Graphite Render API. "+
-	"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite#render-api")
+	"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#render-api")
 
 type evalConfig struct {
 	startTime   int64

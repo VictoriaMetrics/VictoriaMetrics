@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterExact matches the exact value.
@@ -25,8 +26,8 @@ func (fe *filterExact) String() string {
 	return fmt.Sprintf("%s=%s", quoteFieldNameIfNeeded(fe.fieldName), quoteTokenIfNeeded(fe.value))
 }
 
-func (fe *filterExact) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fe.fieldName)
+func (fe *filterExact) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fe.fieldName)
 }
 
 func (fe *filterExact) getTokens() []string {

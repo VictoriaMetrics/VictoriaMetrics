@@ -482,3 +482,20 @@ plus up to 100 logs after the given log message:
 ```logsql
 _time:5m stacktrace | stream_context before 10 after 100
 ```
+
+
+## How to get the duration since the last seen log entry matching the given filter?
+
+Use the following query:
+
+```logsql
+_time:1d ERROR
+  | stats max(_time) as max_time
+  | math round((now() - max_time) / 1s) as duration_seconds
+```
+
+It uses [`max()` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats) for obtaining the maximum value
+for the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) across all the logs for the last day,
+which contain the `ERROR` word in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Then it uses `now()` function at [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe) for calculating
+the duration since the last seen log entry with the `ERROR` word.

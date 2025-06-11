@@ -19,9 +19,10 @@ this guide:
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/1;"
+    height="900" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/custom-alertmanager" >
+    src="https://console.victoriametrics.cloud/public/integrations/custom-alertmanager" 
+    style="background: white;" >
 </iframe>

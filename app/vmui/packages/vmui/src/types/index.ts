@@ -138,6 +138,10 @@ export interface RelabelStep {
   rule: string;
   inLabels: string;
   outLabels: string;
+  errors: {
+    inLabels: string;
+    outLabels: string;
+  }
 }
 
 export interface RelabelData {
