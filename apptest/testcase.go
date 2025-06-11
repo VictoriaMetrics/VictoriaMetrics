@@ -409,3 +409,27 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 		tc.t.Error(msg)
 	}
 }
+
+// MustStartDefaultVlsingle is a test helper function that starts an instance of
+// vlsingle with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVlsingle() *Vlsingle {
+	tc.t.Helper()
+
+	return tc.MustStartVlsingle("vlsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vlsingle",
+		"-retentionPeriod=100y",
+	})
+}
+
+// MustStartVlsingle is a test helper function that starts an instance of
+// vlsingle and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVlsingle(instance string, flags []string) *Vlsingle {
+	tc.t.Helper()
+
+	app, err := StartVlsingle(instance, flags, tc.cli)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
