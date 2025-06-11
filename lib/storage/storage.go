@@ -2419,10 +2419,13 @@ func (dmc *dateMetricIDCache) SizeBytes() uint64 {
 }
 
 func (dmc *dateMetricIDCache) Has(idbID, date, metricID uint64) bool {
-	if byDate := dmc.byDate.Load(); byDate.get(idbID, date).Has(metricID) {
+	byDate := dmc.byDate.Load()
+	v := byDate.get(idbID, date)
+	if v.Has(metricID) {
 		// Fast path. The majority of calls must go here.
 		return true
 	}
+
 	// Slow path. Acquire the lock and search the immutable map again and then
 	// also search the mutable map.
 	return dmc.hasSlow(idbID, date, metricID)
