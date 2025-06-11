@@ -82,7 +82,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	}
 
 	filteredTsids := tsids
-	deletedMetricsIds := pt.getDeletedMetricIDs()
+	deletedMetricsIds := pt.idb.getDeletedMetricIDs()
 	if deletedMetricsIds.Len() > 0 {
 		filteredTsids = make([]TSID, 0, len(tsids))
 		for _, tsid := range tsids {

@@ -295,6 +295,11 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	db.incRef()
 	db.loadDeletedMetricIDs()
 
+	// legacy indexDBs are read-only, add all legacy deleted metricIDs on the start to avoid set union on every filtration.
+	if s.legacyDeletedMetricIDs.Len() != 0 {
+		db.updateDeletedMetricIDs(s.legacyDeletedMetricIDs.AppendTo(nil))
+	}
+
 	return db
 }
 
@@ -1751,7 +1756,6 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 }
 
 func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
-	logger.Infof("deleting %v metricIDs from indexDB %q", metricIDs, db.name)
 	// atomically add deleted metricIDs to an inmemory map.
 	db.updateDeletedMetricIDs(metricIDs)
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
