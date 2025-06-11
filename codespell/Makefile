@@ -12,3 +12,13 @@ codespell-check: codespell
 		codespell \
 			--ignore-words=/vm/codespell/stopwords \
 			--skip='*/node_modules/*,*/vmdocs/*,*/vendor/*,*.js,*.pb.go,*.qtpl.go' /vm
+
+# Automatically fixes spelling errors.
+codespell-fix: codespell
+	@-docker run \
+		--mount type=bind,src="$(PWD)",dst=/vm \
+		--rm \
+		codespell \
+			--write-changes \
+			--ignore-words=/vm/codespell/stopwords \
+			--skip='*/node_modules/*,*/vmdocs/*,*/vendor/*,*.js,*.pb.go,*.qtpl.go' /vm
