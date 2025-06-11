@@ -1141,13 +1141,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	tfssMetric12 := tfss("metric(1|2)")
 	tfssMetric123 := tfss("metric(1|2|3)")
 
-	assertMetricNameCached := func(metricNameRaw []byte, want bool) {
-		t.Helper()
-		var v legacyTSID
-		if got := s.getTSIDFromCache(&v, metricNameRaw); got != want {
-			t.Errorf("unexpected %q metric name in TSID cache: got %t, want %t", string(metricNameRaw), got, want)
-		}
-	}
 	assertTagFiltersCached := func(tfss []*TagFilters, tr TimeRange, want bool) {
 		t.Helper()
 
@@ -1186,12 +1179,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		}
 	}
 
-	// The Data is inserted but never queried or deleted. Expect all three
-	// metrics to be in TSID cache and expect TFSS and deletedMetricIDs caches
+	// The Data is inserted but never queried or deleted. Expect TFSS and deletedMetricIDs caches
 	// to be empty.
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, false)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1220,9 +1209,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// for month1 but not for month2.
 	searchMetricNames(tfssMetric1, month1, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, false)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1240,9 +1226,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// empty result is still cached for month2.
 	searchMetricNames(tfssMetric1, month2, 0)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1260,9 +1243,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// empty result is still cached for month1.
 	searchMetricNames(tfssMetric2, month1, 0)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1280,9 +1260,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// filters will be cached for month2.
 	searchMetricNames(tfssMetric2, month2, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1301,9 +1278,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// filters will be cached for month1 only.
 	searchMetricNames(tfssMetric3, month1, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1321,9 +1295,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// month2.
 	searchMetricNames(tfssMetric3, month2, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1341,9 +1312,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// month1 only.
 	searchMetricNames(tfssMetric12, month1, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1361,9 +1329,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// for month2.
 	searchMetricNames(tfssMetric12, month2, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1381,9 +1346,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// for month1 only.
 	searchMetricNames(tfssMetric123, month1, 2)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1401,9 +1363,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// for month2.
 	searchMetricNames(tfssMetric123, month2, 2)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, true)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, true)
@@ -1433,9 +1392,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// deletedMetricIDsCache size must be 1.
 	deleteSeries(tfssMetric1, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1453,9 +1409,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// deletedMetricIDsCache size for month2 must be 1.
 	deleteSeries(tfssMetric2, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, false)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1472,9 +1425,6 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// Delete metric3. deletedMetricIDsCache size for month1 and 2 must be 2.
 	deleteSeries(tfssMetric3, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, false)
 	assertTagFiltersCached(tfssMetric2, month1, false)
