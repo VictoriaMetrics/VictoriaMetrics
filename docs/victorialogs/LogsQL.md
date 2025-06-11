@@ -3582,7 +3582,7 @@ over the last 5 minutes:
 _time:5m | stats count(username, password) logs_with_username_or_password
 ```
 
-It is possible to caclulate the number of logs with at least a single non-empty field with common prefix with `count(prefix*)` syntax.
+It is possible to calculate the number of logs with at least a single non-empty field with common prefix with `count(prefix*)` syntax.
 For example, the following query returns the number of logs with at least a single non-empty field with `foo` prefix over the last 5 minutes:
 
 ```logsql
