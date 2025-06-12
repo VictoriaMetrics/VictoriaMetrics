@@ -45,6 +45,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: add `-insert.disable` and `-select.disable` command-line flags for disabling both public and internal HTTP endpoints (`/insert/*` + `/internal/insert` and `/select/*` + `/internal/select/*` respectively). See [#9061](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9061).
 
 * BUGFIX: [query API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs): properly set storage node authorization in cluster mode when [Basic Auth](https://docs.victoriametrics.com/victorialogs/cluster/#security) is enabled. See [#9080](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9080).
+* BUGFIX: [journald](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/) — Fixes the issue where journald timestamps were not being correctly parsed when using the default configuration, ensuring that actual log timestamps from `__REALTIME_TIMESTAMP` are used instead of `_time` as documented. See [#9144](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9144).
 
 ## [v1.23.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.3-victorialogs)
 

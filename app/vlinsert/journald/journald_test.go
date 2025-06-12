@@ -1,10 +1,41 @@
 package journald
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
+
+func TestGetCommonParams_TimeField(t *testing.T) {
+	f := func(timeFieldHeader, expectedTimeField string) {
+		t.Helper()
+
+		req, err := http.NewRequest("POST", "/insert/journald/upload", nil)
+		if err != nil {
+			t.Fatalf("unexpected error creating request: %s", err)
+		}
+
+		if timeFieldHeader != "" {
+			req.Header.Set("VL-Time-Field", timeFieldHeader)
+		}
+
+		cp, err := getCommonParams(req)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if len(cp.TimeFields) != 1 || cp.TimeFields[0] != expectedTimeField {
+			t.Fatalf("unexpected TimeFields; got %v; want [%s]", cp.TimeFields, expectedTimeField)
+		}
+	}
+
+	// Test default behavior - when no custom time field is specified, journald uses __REALTIME_TIMESTAMP
+	f("", "__REALTIME_TIMESTAMP")
+
+	// Test custom time field - when a custom time field is specified via HTTP header, it's respected
+	f("custom_time", "custom_time")
+}
 
 func TestPushJournaldOk(t *testing.T) {
 	f := func(src string, timestampsExpected []int64, resultExpected string) {

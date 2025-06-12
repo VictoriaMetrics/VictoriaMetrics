@@ -53,7 +53,7 @@ func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
 		}
 		cp.TenantID = tenantID
 	}
-	if len(cp.TimeFields) == 0 {
+	if !cp.IsTimeFieldSet {
 		cp.TimeFields = []string{*journaldTimeField}
 	}
 	if len(cp.StreamFields) == 0 {
