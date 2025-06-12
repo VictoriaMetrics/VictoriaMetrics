@@ -11,17 +11,15 @@ type WriteRequest struct {
 
 func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
-	if len(m.Metadata) > 0 {
-		for iNdEx := len(m.Metadata) - 1; iNdEx >= 0; iNdEx-- {
-			size, err := m.Metadata[iNdEx].MarshalToSizedBuffer(dst[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarint(dst, i, uint64(size))
-			i--
-			dst[i] = 0x1a
+	for j := len(m.Metadata) - 1; j >= 0; j-- {
+		size, err := m.Metadata[j].MarshalToSizedBuffer(dst[:i])
+		if err != nil {
+			return 0, err
 		}
+		i -= size
+		i = encodeVarint(dst, i, uint64(size))
+		i--
+		dst[i] = 0x1a
 	}
 	for j := len(m.Timeseries) - 1; j >= 0; j-- {
 		size, err := m.Timeseries[j].marshalToSizedBuffer(dst[:i])
