@@ -660,7 +660,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		}
 	}
 
-	assertCountMonthsWithLabels := func(min, max int) {
+	assertCountMonthsWithLabels := func(count int) {
 		t.Helper()
 
 		ts := time.Unix(0, 0)
@@ -677,12 +677,12 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 			ts = ts.AddDate(0, 1, 0)
 		}
 
-		if n < min || n > max {
-			t.Fatalf("unexpected labels count; got %d; want between %d and %d", n, min, max)
+		if n != count {
+			t.Fatalf("unexpected labels count; got %d; want %d", n, count)
 		}
 	}
 
-	assertCountRows := func(min, max int) {
+	assertCountRows := func(count int) {
 		t.Helper()
 
 		var search Search
@@ -698,13 +698,13 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		if err := search.Error(); err != nil {
 			t.Fatalf("error in Search: %s", err)
 		}
-		if n < min || n > max {
-			t.Fatalf("unexpected rows count; got %d; want between %d and %d", n, min, max)
+		if n != count {
+			t.Fatalf("unexpected rows count; got %d; want %d", n, count)
 		}
 	}
 
 	// Verify no metrics exist
-	assertCountRows(0, 0)
+	assertCountRows(0)
 
 	start := time.Unix(0, 0)
 	middle := start.AddDate(0, (numMonths-1)/2, 0)
@@ -721,16 +721,16 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 
 	// Verify metrics are partially deleted
 	s.DebugFlush()
-	assertCountRows(0, numMonths-1)
+	assertCountRows(numMonths / 2)
 
 	// Verify all deleted TSIDs are recreated. TSIDs should be deleted only for some subset of months in the beginning.
 	// Add rows in reverse order to ensure that cache is not leaking between partitions.
 	addRows(start, end, true)
 	s.DebugFlush()
-	assertCountMonthsWithLabels(numMonths, numMonths)
+	assertCountMonthsWithLabels(numMonths)
 
 	// Verify all metrics are present
-	assertCountRows(numMonths, numMonths*2-1)
+	assertCountRows(numMonths/2 + numMonths)
 
 	s.MustClose()
 }
