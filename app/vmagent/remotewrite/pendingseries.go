@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -30,6 +31,7 @@ var (
 	vmProtoCompressLevel = flag.Int("remoteWrite.vmProtoCompressLevel", 0, "The compression level for VictoriaMetrics remote write protocol. "+
 		"Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol")
+	maxPersistentQueueRetention = flagutil.NewArrayDuration("remoteWrite.maxPersistentQueueRetention", 0*time.Second, "Optional maximum time a block can stay in the persistent queue before being dropped. Disabled by default (0).")
 )
 
 type pendingSeries struct {
@@ -138,7 +140,7 @@ func (wr *writeRequest) reset() {
 // This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
 func (wr *writeRequest) mustFlushOnStop() {
 	wr.wr.Timeseries = wr.tss
-	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite.Load()) {
+	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite.Load(), 0) {
 		logger.Panicf("BUG: final flush must always return true")
 	}
 	wr.reset()
@@ -152,7 +154,7 @@ func (wr *writeRequest) mustWriteBlock(block []byte) bool {
 func (wr *writeRequest) tryFlush() bool {
 	wr.wr.Timeseries = wr.tss
 	wr.lastFlushTime.Store(fasttime.UnixTimestamp())
-	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite.Load()) {
+	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite.Load(), 0) {
 		return false
 	}
 	wr.reset()
@@ -240,7 +242,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 // marshalConcurrency limits the maximum number of concurrent workers, which marshal and compress WriteRequest.
 var marshalConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
+func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool, argIdx int) bool {
 	if len(wr.Timeseries) == 0 {
 		// Nothing to push
 		return true
@@ -258,23 +260,32 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 			zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
 		}
 		writeRequestBufPool.Put(bb)
-
 		<-marshalConcurrencyCh
-
 		if len(zb.B) <= persistentqueue.MaxBlockSize {
-			zbLen := len(zb.B)
+			// prepend timestamp if maxPersistentQueueRetention is set ---
+			if maxPersistentQueueRetention.GetOptionalArg(argIdx) > 0 {
+				tmp := make([]byte, 8+len(zb.B))
+				encoding.StoreUint64LE(tmp[:8], uint64(time.Now().Unix()))
+				copy(tmp[8:], zb.B)
+				ok := tryPushBlock(tmp)
+				compressBufPool.Put(zb)
+				if ok {
+					blockSizeRows.Update(float64(len(wr.Timeseries)))
+					blockSizeBytes.Update(float64(len(tmp)))
+				}
+				return ok
+			}
 			ok := tryPushBlock(zb.B)
 			compressBufPool.Put(zb)
 			if ok {
 				blockSizeRows.Update(float64(len(wr.Timeseries)))
-				blockSizeBytes.Update(float64(zbLen))
+				blockSizeBytes.Update(float64(len(zb.B)))
 			}
 			return ok
 		}
 		compressBufPool.Put(zb)
 	} else {
 		writeRequestBufPool.Put(bb)
-
 		<-marshalConcurrencyCh
 	}
 
@@ -288,12 +299,12 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 		}
 		n := len(samples) / 2
 		wr.Timeseries[0].Samples = samples[:n]
-		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite, argIdx) {
 			wr.Timeseries[0].Samples = samples
 			return false
 		}
 		wr.Timeseries[0].Samples = samples[n:]
-		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite, argIdx) {
 			wr.Timeseries[0].Samples = samples
 			return false
 		}
@@ -303,12 +314,12 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 	timeseries := wr.Timeseries
 	n := len(timeseries) / 2
 	wr.Timeseries = timeseries[:n]
-	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite, argIdx) {
 		wr.Timeseries = timeseries
 		return false
 	}
 	wr.Timeseries = timeseries[n:]
-	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite, argIdx) {
 		wr.Timeseries = timeseries
 		return false
 	}
@@ -319,6 +330,8 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 var (
 	blockSizeBytes = metrics.NewHistogram(`vmagent_remotewrite_block_size_bytes`)
 	blockSizeRows  = metrics.NewHistogram(`vmagent_remotewrite_block_size_rows`)
+	// New metric for dropped blocks due to age
+	blocksDroppedDueToAge = metrics.NewCounter(`vmagent_remotewrite_blocks_dropped_due_to_age_total`)
 )
 
 var (

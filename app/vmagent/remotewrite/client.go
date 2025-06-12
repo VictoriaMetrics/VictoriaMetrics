@@ -38,11 +38,13 @@ var (
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
 	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
-	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
-	proxyURL         = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
+	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMaxInterval = flagutil.NewArrayDuration("remoteWrite.retryMaxInterval", time.Minute, "The maximum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the previous delay up to this limit. See also -remoteWrite.retryMinInterval")
+	// retryMaxTime is a deprecated alias for retryMaxInterval for backward compatibility
+	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "(DEPRECATED, use -remoteWrite.retryMaxInterval) The maximum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the previous delay up to this limit. This option is deprecated as the behaviour in vmagent and vmalert differs. In vmagent it is an alias for -remoteWrite.retryMaxInterval.")
+	retryMaxDuration = flagutil.NewArrayDuration("remoteWrite.retryMaxDuration", 0*time.Second, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. By default, unlimited (disabled). Set to a positive duration to limit the total retry time. See also -remoteWrite.retryMaxInterval and -remoteWrite.retryMinInterval.")
+	proxyURL = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
-
 	tlsHandshakeTimeout   = flagutil.NewArrayDuration("remoteWrite.tlsHandshakeTimeout", 20*time.Second, "The timeout for establishing tls connections to the corresponding -remoteWrite.url")
 	tlsInsecureSkipVerify = flagutil.NewArrayBool("remoteWrite.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to the corresponding -remoteWrite.url")
 	tlsCertFile           = flagutil.NewArrayString("remoteWrite.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting "+
@@ -97,7 +99,8 @@ type client struct {
 	hc *http.Client
 
 	retryMinInterval time.Duration
-	retryMaxTime     time.Duration
+	retryMaxInterval time.Duration
+	retryMaxDuration time.Duration
 
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
@@ -117,8 +120,11 @@ type client struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	argIdx int
 }
 
+// newHTTPClient creates a new HTTP client for the given arguments.
 func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
@@ -151,6 +157,16 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		Transport: authCfg.NewRoundTripper(tr),
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
+
+	// Implement retryMaxTime as an alias for retryMaxInterval (retryMaxTime is missleading)
+	retryMaxIntervalVal := retryMaxInterval.GetOptionalArg(argIdx)
+	if retryMaxIntervalVal == time.Minute { // default value
+		retryMaxTimeVal := retryMaxTime.GetOptionalArg(argIdx)
+		if retryMaxTimeVal != time.Minute { // user set retryMaxTime
+			retryMaxIntervalVal = retryMaxTimeVal
+		}
+	}
+
 	c := &client{
 		sanitizedURL:     sanitizedURL,
 		remoteWriteURL:   remoteWriteURL,
@@ -159,8 +175,10 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		fq:               fq,
 		hc:               hc,
 		retryMinInterval: retryMinInterval.GetOptionalArg(argIdx),
-		retryMaxTime:     retryMaxTime.GetOptionalArg(argIdx),
+		retryMaxInterval: retryMaxIntervalVal,
+		retryMaxDuration: retryMaxDuration.GetOptionalArg(argIdx),
 		stopCh:           make(chan struct{}),
+		argIdx:           argIdx,
 	}
 	c.sendBlock = c.sendBlockHTTP
 
@@ -303,17 +321,40 @@ func (c *client) runWorker() {
 	for {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
-			return
+			continue
 		}
 		if len(block) == 0 {
 			// skip empty data blocks from sending
 			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
 			continue
 		}
+
+		// section relevant for dropping old blocks (relevant for long unavailability of remoteWrite)
+		// Only applies to blocks created when vmagent has maxPersistentQueueRetention set and works only for blocks generated when this flag was already set.
+		// See Issue #8982 for details
+		if maxPersistentQueueRetention.GetOptionalArg(c.argIdx) > 0 {
+			// Only apply this logic for blocks that contain timestamp - blocks generated by vmagent without
+			// maxPersistentQueueRetention option are always passed to sendBlock..
+			if len(block) >= 8 {
+				blockTimestamp := int64(encoding.LoadUint64LE(block[:8]))
+				// Only treat as timestamp if it's in a plausible range (after 2000-01-01 and not in the future)
+				if blockTimestamp > 946684800 && blockTimestamp <= time.Now().Unix() {
+					blockAge := time.Now().Unix() - blockTimestamp
+					if blockAge > int64(maxPersistentQueueRetention.GetOptionalArg(c.argIdx).Seconds()) {
+						blocksDroppedDueToAge.Inc()
+						logger.Warnf("Dropping block from persistent queue for %q due to queue retention limit (%ds > %ds)", c.sanitizedURL, blockAge, int64(maxPersistentQueueRetention.GetOptionalArg(c.argIdx).Seconds()))
+						continue // Drop this block
+					}
+					// We know the block is fresh and we want to proceed it. Let's ommit the timestamp from the block so the rest of code is untouched by this logic.
+					block = block[8:]
+				}
+			}
+		}
+
 		go func() {
-			startTime := time.Now()
+			intervalStartTime := time.Now()
 			ch <- c.sendBlock(block)
-			c.sendDuration.Add(time.Since(startTime).Seconds())
+			c.sendDuration.Add(time.Since(intervalStartTime).Seconds())
 		}()
 		select {
 		case ok := <-ch:
@@ -404,22 +445,35 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // Otherwise, it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.Register(len(block))
-	maxRetryDuration := timeutil.AddJitterToDuration(c.retryMaxTime)
+	maxRetryInterval := timeutil.AddJitterToDuration(c.retryMaxInterval)
+	retryMaxTime := c.retryMaxDuration // 0 means unlimited
 	retryDuration := timeutil.AddJitterToDuration(c.retryMinInterval)
+
 	retriesCount := 0
+	retryStartTime := time.Now()
 
 again:
-	startTime := time.Now()
+	intervalStartTime := time.Now()
 	resp, err := c.doRequest(c.remoteWriteURL, block)
-	c.requestDuration.UpdateDuration(startTime)
+	c.requestDuration.UpdateDuration(intervalStartTime)
+	timeLeftForRetries := retryMaxTime - time.Since(retryStartTime)
+
 	if err != nil {
 		c.errorsCount.Inc()
-		retryDuration *= 2
-		if retryDuration > maxRetryDuration {
-			retryDuration = maxRetryDuration
+
+		if retryMaxTime > 0 && timeLeftForRetries < 0 {
+			logger.Errorf("dropping sample: total time in queue %.1fs and couldn't send a block with size %d bytes to %q: %s;",
+				time.Since(retryStartTime).Seconds(), len(block), c.sanitizedURL, err)
+			c.packetsDropped.Inc()
+			return true
 		}
-		remoteWriteRetryLogger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
-			len(block), c.sanitizedURL, err, retryDuration.Seconds())
+
+		retryDuration *= 2
+		if retryDuration > maxRetryInterval {
+			retryDuration = maxRetryInterval
+		}
+		remoteWriteRetryLogger.Warnf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds; total time in queue: %.1fs",
+			len(block), c.sanitizedURL, err, retryDuration.Seconds(), time.Since(retryStartTime).Seconds())
 		t := timerpool.Get(retryDuration)
 		select {
 		case <-c.stopCh:
@@ -485,14 +539,24 @@ again:
 	// Unexpected status code returned
 	retriesCount++
 	retryAfterHeader := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
-	retryDuration = getRetryDuration(retryAfterHeader, retryDuration, maxRetryDuration)
+	retryDuration = getRetryDuration(retryAfterHeader, retryDuration, maxRetryInterval)
 
 	// Handle response
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
+		if retryMaxTime > 0 && timeLeftForRetries < 0 {
+			logger.Errorf("dropping sample: --remoteWrite.retryMaxTime passed and cannot read response body from %q during retry #%d: %s", c.sanitizedURL, retriesCount, err)
+			c.packetsDropped.Inc()
+			return true
+		}
 		logger.Errorf("cannot read response body from %q during retry #%d: %s", c.sanitizedURL, retriesCount, err)
 	} else {
+		if retryMaxTime > 0 && timeLeftForRetries < 0 {
+			logger.Errorf("dropping sample: --remoteWrite.retryMaxTime passed and unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; ", len(block), c.sanitizedURL, retriesCount, statusCode, body)
+			c.packetsDropped.Inc()
+			return true
+		}
 		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
 			"re-sending the block in %.3f seconds", len(block), c.sanitizedURL, retriesCount, statusCode, body, retryDuration.Seconds())
 	}
@@ -514,10 +578,10 @@ var remoteWriteRetryLogger = logger.WithThrottler("remoteWriteRetry", 5*time.Sec
 // getRetryDuration returns retry duration.
 // retryAfterDuration has the highest priority.
 // If retryAfterDuration is not specified, retryDuration gets doubled.
-// retryDuration can't exceed maxRetryDuration.
+// retryDuration can't exceed maxRetryInterval.
 //
 // Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
-func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
+func getRetryDuration(retryAfterDuration, retryDuration, maxRetryInterval time.Duration) time.Duration {
 	// retryAfterDuration has the highest priority duration
 	if retryAfterDuration > 0 {
 		return timeutil.AddJitterToDuration(retryAfterDuration)
@@ -525,8 +589,8 @@ func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.D
 
 	// default backoff retry policy
 	retryDuration *= 2
-	if retryDuration > maxRetryDuration {
-		retryDuration = maxRetryDuration
+	if retryDuration > maxRetryInterval {
+		retryDuration = maxRetryInterval
 	}
 
 	return retryDuration
