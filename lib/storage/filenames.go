@@ -8,8 +8,9 @@ const (
 	partsFilename      = "parts.json"
 	metadataFilename   = "metadata.json"
 
-	appliedRetentionFilename    = "appliedRetention.txt"
-	resetCacheOnStartupFilename = "reset_cache_on_startup"
+	appliedRetentionFilename      = "appliedRetention.txt"
+	resetCacheOnStartupFilename   = "reset_cache_on_startup"
+	migrateIndexOnStartupFilename = "migrate_index_on_startup"
 )
 
 const (

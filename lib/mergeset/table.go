@@ -1599,6 +1599,44 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	fs.MustSyncPath(parentDir)
 }
 
+// MustAppendSnapshotTo uses the same technique as MustCreateSnapshotTo but does not override dstTb.
+// Instead, it appends snapshot parts to dstTb.
+func (tb *Table) MustAppendSnapshotTo(dstTb *Table) {
+	// Flush inmemory items to disk.
+	tb.flushInmemoryItemsToFiles()
+
+	pws := tb.getParts(nil)
+	defer tb.putParts(pws)
+
+	pwsNew := make([]*partWrapper, 0, len(pws))
+
+	// Make hardlinks for pws at dstDir
+	for _, pw := range pws {
+		if pw.mp != nil {
+			// Skip in-memory parts
+			continue
+		}
+		srcPartPath := pw.p.path
+		dstPartPath := filepath.Join(dstTb.path, filepath.Base(srcPartPath))
+		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
+		pNew := mustOpenFilePart(dstPartPath)
+		pwNew := &partWrapper{
+			p: pNew,
+		}
+		pwNew.incRef()
+		pwsNew = append(pwsNew, pwNew)
+	}
+
+	dstTb.partsLock.Lock()
+	dstTb.fileParts = append(dstTb.fileParts, pwsNew...)
+	mustWritePartNames(dstTb.fileParts, dstTb.path)
+	dstTb.partsLock.Unlock()
+
+	fs.MustSyncPath(dstTb.path)
+	parentDir := filepath.Dir(dstTb.path)
+	fs.MustSyncPath(parentDir)
+}
+
 func mustWritePartNames(pws []*partWrapper, dstDir string) {
 	partNames := make([]string, 0, len(pws))
 	for _, pw := range pws {

@@ -110,6 +110,12 @@ func (tr *TimeRange) overlapsWith(v TimeRange) bool {
 	return tr.MinTimestamp <= v.MaxTimestamp && tr.MaxTimestamp >= v.MinTimestamp
 }
 
+// overlapsWith returns true if the time range contains given day.
+func (tr *TimeRange) hasDay(date uint64) bool {
+	ts := int64(date) * msecPerDay
+	return tr.MinTimestamp <= ts && tr.MaxTimestamp >= ts
+}
+
 const msecPerDay = 24 * 3600 * 1000
 
 const msecPerHour = 3600 * 1000

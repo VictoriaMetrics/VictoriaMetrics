@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"path/filepath"
 	"reflect"
@@ -2033,6 +2034,215 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 			deletedMetricIDs:        metricIDs,
 		})
 	})
+}
+
+func TestIndexDB_mustAppendSnapshotTo(t *testing.T) {
+	var isReadOnly atomic.Bool
+
+	open := func(name string, isPartitioned, disablePerDayIndex bool) *indexDB {
+		t.Helper()
+		var tr TimeRange
+		if isPartitioned {
+			if err := tr.fromPartitionName(name); err != nil {
+				t.Fatalf("cannot parse partition name %q: %s", name, err)
+			}
+		} else {
+			tr = TimeRange{0, math.MaxInt}
+		}
+
+		var s Storage
+		s.disablePerDayIndex = disablePerDayIndex
+
+		path := filepath.Join(t.Name(), name)
+		return mustOpenIndexDB(1, tr, name, path, &s, &isReadOnly)
+	}
+
+	type want struct {
+		tsid TSID
+		mn   MetricName
+
+		days map[uint64]struct{}
+	}
+
+	prefill := func(db *indexDB, metricGroups int, tr TimeRange) ([]want, *uint64set.Set) {
+		r := rand.New(rand.NewSource(1))
+		wants := make([]want, 0, metricGroups)
+		deletedMetricIDs := &uint64set.Set{}
+
+		minDate, maxDate := tr.DateRange()
+
+		var metricNameBuf []byte
+		for i := 0; i < metricGroups; i++ {
+			var mn MetricName
+
+			mn.MetricGroup = []byte(fmt.Sprintf("metricGroup_%d", i))
+			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+
+			days := map[uint64]struct{}{}
+			var tsid TSID
+
+			for date := minDate; date <= maxDate; date++ {
+				if r.Intn(2) == 0 {
+					continue
+				}
+
+				// Create tsid for the metricName.
+				if tsid.MetricID == 0 {
+					generateTSID(&tsid, &mn)
+					db.createGlobalIndexes(&tsid, &mn)
+				}
+				db.createPerDayIndexes(date, &tsid, &mn)
+				days[date] = struct{}{}
+			}
+
+			want := want{
+				tsid: tsid,
+				mn:   mn,
+				days: days,
+			}
+			wants = append(wants, want)
+
+			if r.Intn(2) == 0 {
+				deletedMetricIDs.Add(tsid.MetricID)
+			}
+		}
+
+		db.deleteMetricIDs(deletedMetricIDs.AppendTo(nil))
+
+		// Flush index to disk, so it becomes visible for search
+		db.tb.DebugFlush()
+
+		return wants, deletedMetricIDs
+	}
+
+	assertDateTagToMetricIDs := func(is *indexSearch, date uint64, metricGroup []byte, expectedMetricIDs *uint64set.Set) {
+		var metricIDs *uint64set.Set
+		var err error
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, metricGroup, false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+
+		// check nsPrefixDateTagToMetricIDs and nsPrefixDateTagToMetricIDs
+		if metricIDs, err = is.searchMetricIDsWithFiltersOnDate(nil, []*TagFilters{tfs}, date, 1e9); err != nil {
+			t.Fatalf("unexpected error in searchMetricIDsWithFiltersOnDate: %v", err)
+		}
+
+		if !metricIDs.Equal(expectedMetricIDs) {
+			t.Fatalf("searchMetricIDsWithFiltersOnDate(%s, %d) for %s returns unexpected metric ids;\n"+
+				"got\n%d\nwant\n%d", metricGroup, date, is.db.name, metricIDs.AppendTo(nil), expectedMetricIDs.AppendTo(nil))
+		}
+	}
+
+	assertIndexDB := func(db *indexDB, wants []want, deletedMetricIDs *uint64set.Set, tr TimeRange) {
+		is := db.getIndexSearch(noDeadline)
+		defer db.putIndexSearch(is)
+
+		startDate, endDate := tr.DateRange()
+
+		var metricNameBuf []byte
+		var tmpTsid TSID
+		mnActual := MetricName{}
+		var err error
+
+		// check nsPrefixDeletedMetricID
+		actualDeletedMetricIDs := db.getDeletedMetricIDs()
+		if !actualDeletedMetricIDs.Equal(deletedMetricIDs) {
+			t.Fatalf("getDeletedMetricIDs() differs for %s; got\n%d\nwant\n%d", db.name, actualDeletedMetricIDs.AppendTo(nil), deletedMetricIDs.AppendTo(nil))
+		}
+
+		for _, want := range wants {
+			mn := want.mn
+			tsid := want.tsid
+			metricName := mn.Marshal(nil)
+
+			expectedMetricIDs := &uint64set.Set{}
+			expectedMetricIDs.Add(tsid.MetricID)
+
+			// check nsPrefixMetricIDToTSID
+			if !is.hasMetricID(tsid.MetricID) {
+				t.Fatalf("hasMetricID(%d) must be true for %s", tsid.MetricID, db.name)
+			}
+
+			// check nsPrefixMetricIDToMetricName
+			var ok bool
+			if metricNameBuf, ok = is.searchMetricName(metricNameBuf[:0], tsid.MetricID); !ok {
+				t.Fatalf("searchMetricName(%d) must be true for %s", tsid.MetricID, db.name)
+			}
+
+			if err = mnActual.Unmarshal(metricNameBuf); err != nil {
+				t.Fatalf("cannot unmarshal MetricName for MetricId %d: %v", tsid.MetricID, err)
+			}
+
+			if diff := cmp.Diff(mn, mnActual); diff != "" {
+				t.Fatalf("unexpected metric name (-want, +got):\n%s", diff)
+			}
+
+			assertDateTagToMetricIDs(is, globalIndexDate, mn.MetricGroup, expectedMetricIDs)
+
+			if !db.s.disablePerDayIndex {
+				for day := startDate; day <= endDate; day++ {
+					_, hasDay := want.days[day]
+					hasDay = hasDay && db.tr.hasDay(day)
+
+					dayMetricIDs := &uint64set.Set{}
+					if hasDay {
+						dayMetricIDs = expectedMetricIDs
+					}
+
+					// check nsPrefixMetricNameToTSID and nsPrefixDateMetricNameToTSID
+					// getTSIDByMetricName filter outs deleted metric ids
+					expectedHasTSID := hasDay && !deletedMetricIDs.Has(tsid.MetricID)
+					if is.getTSIDByMetricName(&tmpTsid, metricName, day) != expectedHasTSID {
+						t.Fatalf("getTSIDByMetricName(%s, %d) must be %t for %s", mn.String(), day, expectedHasTSID, db.name)
+					}
+
+					//check nsPrefixDateToMetricID
+					if is.hasDateMetricID(day, tsid.MetricID) != hasDay {
+						t.Fatalf("hasDateMetricID(%d, %d) must be %t for %s", day, tsid.MetricID, hasDay, db.name)
+					}
+
+					assertDateTagToMetricIDs(is, day, mn.MetricGroup, dayMetricIDs)
+				}
+			}
+		}
+	}
+
+	parseDate := func(date string) time.Time {
+		d, err := time.Parse("2006_01", date)
+		if err != nil {
+			t.Fatalf("cannot parse name %q: %s", date, err)
+		}
+		return d
+	}
+
+	f := func(disablePerDayIndex bool) {
+		defer testRemoveAll(t)
+
+		global := open("global", false, disablePerDayIndex)
+		defer global.MustClose()
+		partitioned1 := open("2025_01", true, disablePerDayIndex)
+		defer partitioned1.MustClose()
+		partitioned2 := open("2025_02", true, disablePerDayIndex)
+		defer partitioned2.MustClose()
+
+		prefillTr := TimeRange{
+			MinTimestamp: parseDate("2024_12").UnixMilli(),
+			MaxTimestamp: parseDate("2025_02").UnixMilli(),
+		}
+
+		wants, deletedMetricIDs := prefill(global, 10, prefillTr)
+		global.tb.DebugFlush()
+		assertIndexDB(global, wants, deletedMetricIDs, prefillTr)
+
+		global.mustAppendSnapshotTo([]*indexDB{partitioned1, partitioned2})
+
+		assertIndexDB(partitioned1, wants, deletedMetricIDs, prefillTr)
+		assertIndexDB(partitioned2, wants, deletedMetricIDs, prefillTr)
+	}
+
+	f(false) // with per-day index
+	f(true)  // without per-day index
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {

@@ -278,6 +278,12 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
 
+	// Migrate legacy indexes if needed once the storage is initialized.
+	if path := filepath.Join(legacyIDBPath, migrateIndexOnStartupFilename); fs.IsPathExist(path) {
+		s.migrateLegacyIndexes()
+		fs.MustRemoveAll(path)
+	}
+
 	// Load nextDayMetricIDs cache after the data table is opened since it
 	// requires the table to operate properly.
 	// Load prevHourMetricIDs, currHourMetricIDs, and nextDayMetricIDs caches

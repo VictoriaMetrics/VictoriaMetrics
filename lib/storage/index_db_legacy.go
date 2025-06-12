@@ -29,3 +29,12 @@ func mustOpenLegacyIndexDBReadOnly(path string, s *Storage) *indexDB {
 	alwaysReadOnly.Store(true)
 	return mustOpenIndexDB(id, tr, name, path, s, &alwaysReadOnly)
 }
+
+// mustAppendSnapshotTo takes snapshot of current idb and add hardlinks to all parts to dstIdbs.
+func (db *indexDB) mustAppendSnapshotTo(dstIdbs []*indexDB) {
+	for _, dstIdb := range dstIdbs {
+		db.tb.MustAppendSnapshotTo(dstIdb.tb)
+		dstIdb.loadDeletedMetricIDs()
+		dstIdb.invalidateTagFiltersCache()
+	}
+}

@@ -2038,6 +2038,12 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
 func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) bool {
+	// IndexDB may contain per day entries out of its time range after migration from global indexDB.
+	// So we need to check whether the date is within the time range of the indexDB.
+	if date != globalIndexDate && !is.db.tr.hasDay(date) {
+		return false
+	}
+
 	dmis := is.db.getDeletedMetricIDs()
 
 	ts := &is.ts
@@ -2757,6 +2763,12 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 		defer qt.Done()
 	}
 
+	// IndexDB may contain per day entries out of its time range after migration from global indexDB.
+	// So we need to check whether the date is within the time range of the indexDB.
+	if date != globalIndexDate && !is.db.tr.hasDay(date) {
+		return nil, nil
+	}
+
 	// Sort tfs by loopsCount needed for performing each filter.
 	// This stats is usually collected from the previous queries.
 	// This way we limit the amount of work below by applying fast filters at first.
@@ -3106,6 +3118,12 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 		return is.hasMetricID(metricID)
 	}
 
+	// IndexDB may contain per day entries out of its time range after migration from global indexDB.
+	// So we need to check whether the date is within the time range of the indexDB.
+	if !is.db.tr.hasDay(date) {
+		return false
+	}
+
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
@@ -3152,6 +3170,12 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *
 	if qt.Enabled() {
 		qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
 		defer qt.Done()
+	}
+
+	// IndexDB may contain per day entries out of its time range after migration from global indexDB.
+	// So we need to check whether the date is within the time range of the indexDB.
+	if date != globalIndexDate && !is.db.tr.hasDay(date) {
+		return nil, 0, nil
 	}
 
 	if !bytes.HasPrefix(tf.prefix, commonPrefix) {
@@ -3226,6 +3250,12 @@ func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf
 }
 
 func (is *indexSearch) getMetricIDsForDate(date uint64, maxMetrics int) (*uint64set.Set, error) {
+	// IndexDB may contain per day entries out of its time range after migration from global indexDB.
+	// So we need to check whether the date is within the time range of the indexDB.
+	if date != globalIndexDate && !is.db.tr.hasDay(date) {
+		return nil, nil
+	}
+
 	// Extract all the metricIDs from (date, __name__=value)->metricIDs entries.
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)

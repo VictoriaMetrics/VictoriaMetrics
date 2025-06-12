@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"math"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -290,7 +291,8 @@ func TestLegacyStorage_SearchMetricNames(t *testing.T) {
 	assertNewData := func(s *Storage) {
 		assertSearchResults(s, wantNew)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_SearchLabelNames(t *testing.T) {
@@ -319,6 +321,7 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 	}
 	legacyData, wantLegacy := genData(numMetrics, "legacy", tr)
 	newData, wantNew := genData(numMetrics, "new", tr)
+	wantLegacy = append(wantLegacy, "__name__")
 	wantNew = append(wantNew, wantLegacy...)
 
 	assertSearchResults := func(s *Storage, want []string) {
@@ -334,16 +337,15 @@ func TestLegacyStorage_SearchLabelNames(t *testing.T) {
 	}
 
 	assertLegacyData := func(s *Storage) {
-		want := append(wantLegacy, "__name__")
-		slices.Sort(want)
-		assertSearchResults(s, want)
+		slices.Sort(wantLegacy)
+		assertSearchResults(s, wantLegacy)
 	}
 	assertNewData := func(s *Storage) {
-		want := append(wantNew, "__name__")
-		slices.Sort(want)
-		assertSearchResults(s, want)
+		slices.Sort(wantNew)
+		assertSearchResults(s, wantNew)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_SearchLabelValues(t *testing.T) {
@@ -395,7 +397,8 @@ func TestLegacyStorage_SearchLabelValues(t *testing.T) {
 		t.Helper()
 		assertSearchResults(s, wantNew)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
@@ -445,7 +448,8 @@ func TestLegacyStorage_SearchTagValueSuffixes(t *testing.T) {
 		t.Helper()
 		assertSearchResults(s, wantNew)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
@@ -495,7 +499,8 @@ func TestLegacyStorage_SearchGraphitePaths(t *testing.T) {
 		t.Helper()
 		assertSearchResults(s, wantNew)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_Search(t *testing.T) {
@@ -540,7 +545,8 @@ func TestLegacyStorage_Search(t *testing.T) {
 		want := slices.Concat(legacyData, newData)
 		assertSearchResults(s, want)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_GetSeriesCount(t *testing.T) {
@@ -574,7 +580,8 @@ func TestLegacyStorage_GetSeriesCount(t *testing.T) {
 		want := uint64(len(legacyData) + len(newData))
 		assertSearchResults(s, want)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
 }
 
 func TestLegacyStorage_DeleteSeries(t *testing.T) {
@@ -623,12 +630,13 @@ func TestLegacyStorage_DeleteSeries(t *testing.T) {
 
 		assertSeriesCount(s, 0)
 	}
-	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, false, assertLegacyData, assertNewData)
+	testSearchOpWithLegacyIndexDBs(t, legacyData, newData, true, assertLegacyData, assertNewData)
 }
 
 // testSearchWithLegacyIndexDBs a search operation when the index data
 // is located both partition and legacy indexDBs.
-func testSearchOpWithLegacyIndexDBs(t *testing.T, legacyData, newData []MetricRow, assertLegacyData, assertNewData func(s *Storage)) {
+func testSearchOpWithLegacyIndexDBs(t *testing.T, legacyData, newData []MetricRow, migrateLegacyIndex bool, assertLegacyData, assertNewData func(s *Storage)) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
@@ -638,7 +646,25 @@ func testSearchOpWithLegacyIndexDBs(t *testing.T, legacyData, newData []MetricRo
 	s.MustClose()
 
 	testStorageConvertToLegacy(t)
+
+	if migrateLegacyIndex {
+		f, err := os.OpenFile(filepath.Join(t.Name(), indexdbDirname, migrateIndexOnStartupFilename), os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			t.Fatalf("Could not create %q file: %v", migrateIndexOnStartupFilename, err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatalf("Could not close %q file: %v", migrateIndexOnStartupFilename, err)
+		}
+	}
+
 	s = MustOpenStorage(t.Name(), OpenOptions{})
+
+	if migrateLegacyIndex {
+		if s.hasLegacyIndexDBs() {
+			t.Fatalf("storage was expected to have no legacy indexDBs at this point")
+		}
+	}
+
 	assertLegacyData(s)
 	s.AddRows(newData, defaultPrecisionBits)
 	s.DebugFlush()
@@ -862,61 +888,9 @@ func testStorageConvertToLegacy(t *testing.T) {
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	})
-	tfsAll := NewTagFilters()
-	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
-	}
-	tfssAll := []*TagFilters{tfsAll}
-	seenGlobalIndexEntries := make(map[uint64]bool)
-	type dateMetricID struct {
-		date     uint64
-		metricID uint64
-	}
-	seenPerDayIndexEntries := make(map[dateMetricID]bool)
+
 	for _, idb := range idbs {
-		for ts := idb.tr.MinTimestamp; ts < idb.tr.MaxTimestamp; ts += msecPerDay {
-			day := TimeRange{
-				MinTimestamp: ts,
-				MaxTimestamp: ts + msecPerDay - 1,
-			}
-			date := uint64(ts / msecPerDay)
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, day, 1e9, noDeadline)
-			if err != nil {
-				t.Fatalf("could not search metricIDs: %v", err)
-			}
-			tsids, err := idb.getTSIDsFromMetricIDs(nil, metricIDs, noDeadline)
-			if err != nil {
-				t.Fatalf("could not get TSIDs from metricIDs: %v", err)
-			}
-			for i, metricID := range metricIDs {
-				if tsids[i].MetricID != metricID {
-					t.Fatalf("metricID and TSID slices do not match")
-				}
-			}
-			for _, tsid := range tsids {
-				metricID := tsid.MetricID
-				mnBytes, ok := idb.searchMetricName(nil, metricID, false)
-				if !ok {
-					t.Fatalf("could not get metric name for metricID %d", metricID)
-				}
-				var mn MetricName
-				if err := mn.Unmarshal(mnBytes); err != nil {
-					t.Fatalf("Could not unmarshal metric name from bytes %q: %v", string(mnBytes), err)
-				}
-				if !seenGlobalIndexEntries[metricID] {
-					legacyIDBCurr.createGlobalIndexes(&tsid, &mn)
-					seenGlobalIndexEntries[metricID] = true
-				}
-				dateMetricID := dateMetricID{
-					date:     date,
-					metricID: metricID,
-				}
-				if !seenPerDayIndexEntries[dateMetricID] {
-					legacyIDBCurr.createPerDayIndexes(date, &tsid, &mn)
-					seenPerDayIndexEntries[dateMetricID] = true
-				}
-			}
-		}
+		idb.mustAppendSnapshotTo([]*indexDB{legacyIDBCurr})
 	}
 
 	s.tb.PutIndexDBs(idbs)
