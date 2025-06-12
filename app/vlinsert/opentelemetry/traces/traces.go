@@ -13,8 +13,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/traceutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -28,7 +26,7 @@ var (
 )
 
 var (
-	defaultStreamFields = []string{traceutil.ResourceAttrServiceName, traceutil.Name}
+	defaultStreamFields = []string{pb.ResourceAttrServiceName, pb.NameField}
 )
 
 // HandleProtobuf handles the trace ingestion request.
@@ -77,12 +75,9 @@ func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error 
 
 	var commonFields []logstorage.Field
 	for _, rs := range req.ResourceSpans {
+		commonFields = commonFields[:0]
 		attributes := rs.Resource.Attributes
-		commonFields = slicesutil.SetLength(commonFields, len(attributes))
-		for i, attr := range attributes {
-			commonFields[i].Name = traceutil.ResourceAttrPrefix + attr.Key
-			commonFields[i].Value = attr.Value.FormatString(true)
-		}
+		commonFields = appendKeyValuesWithPrefix(commonFields, attributes, "", pb.ResourceAttrPrefix)
 		commonFieldsLen := len(commonFields)
 		for _, ss := range rs.ScopeSpans {
 			commonFields = pushFieldsFromScopeSpans(ss, commonFields[:commonFieldsLen], lmp)
@@ -93,18 +88,13 @@ func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error 
 
 func pushFieldsFromScopeSpans(ss *pb.ScopeSpans, commonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
 	commonFields = append(commonFields, logstorage.Field{
-		Name:  traceutil.InstrumentationScopeName,
+		Name:  pb.InstrumentationScopeName,
 		Value: ss.Scope.Name,
 	}, logstorage.Field{
-		Name:  traceutil.InstrumentationScopeVersion,
+		Name:  pb.InstrumentationScopeVersion,
 		Value: ss.Scope.Version,
 	})
-	for _, attr := range ss.Scope.Attributes {
-		commonFields = append(commonFields, logstorage.Field{
-			Name:  traceutil.InstrumentationScopeAttrPrefix + attr.Key,
-			Value: attr.Value.FormatString(true),
-		})
-	}
+	commonFields = appendKeyValuesWithPrefix(commonFields, ss.Scope.Attributes, "", pb.InstrumentationScopeAttrPrefix)
 	commonFieldsLen := len(commonFields)
 	for _, span := range ss.Spans {
 		commonFields = pushFieldsFromSpan(span, commonFields[:commonFieldsLen], lmp)
@@ -115,80 +105,77 @@ func pushFieldsFromScopeSpans(ss *pb.ScopeSpans, commonFields []logstorage.Field
 func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
 	fields := scopeCommonFields
 	fields = append(fields,
-		logstorage.Field{Name: traceutil.TraceID, Value: span.TraceID},
-		logstorage.Field{Name: traceutil.SpanID, Value: span.SpanID},
-		logstorage.Field{Name: traceutil.TraceState, Value: span.TraceState},
-		logstorage.Field{Name: traceutil.ParentSpanID, Value: span.ParentSpanID},
-		logstorage.Field{Name: traceutil.Flags, Value: strconv.FormatUint(uint64(span.Flags), 10)},
-		logstorage.Field{Name: traceutil.Name, Value: span.Name},
-		logstorage.Field{Name: traceutil.Kind, Value: strconv.FormatInt(int64(span.Kind), 10)},
-		logstorage.Field{Name: traceutil.StartTimeUnixNano, Value: strconv.FormatUint(span.StartTimeUnixNano, 10)},
-		logstorage.Field{Name: traceutil.EndTimeUnixNano, Value: strconv.FormatUint(span.EndTimeUnixNano, 10)},
-		logstorage.Field{Name: traceutil.Duration, Value: strconv.FormatUint(span.EndTimeUnixNano-span.StartTimeUnixNano, 10)},
+		logstorage.Field{Name: pb.TraceIDField, Value: span.TraceID},
+		logstorage.Field{Name: pb.SpanIDField, Value: span.SpanID},
+		logstorage.Field{Name: pb.TraceStateField, Value: span.TraceState},
+		logstorage.Field{Name: pb.ParentSpanIDField, Value: span.ParentSpanID},
+		logstorage.Field{Name: pb.FlagsField, Value: strconv.FormatUint(uint64(span.Flags), 10)},
+		logstorage.Field{Name: pb.NameField, Value: span.Name},
+		logstorage.Field{Name: pb.KindField, Value: strconv.FormatInt(int64(span.Kind), 10)},
+		logstorage.Field{Name: pb.StartTimeUnixNanoField, Value: strconv.FormatUint(span.StartTimeUnixNano, 10)},
+		logstorage.Field{Name: pb.EndTimeUnixNanoField, Value: strconv.FormatUint(span.EndTimeUnixNano, 10)},
+		logstorage.Field{Name: pb.DurationField, Value: strconv.FormatUint(span.EndTimeUnixNano-span.StartTimeUnixNano, 10)},
 
-		logstorage.Field{Name: traceutil.DroppedAttributesCount, Value: strconv.FormatUint(uint64(span.DroppedAttributesCount), 10)},
-		logstorage.Field{Name: traceutil.DroppedEventsCount, Value: strconv.FormatUint(uint64(span.DroppedEventsCount), 10)},
-		logstorage.Field{Name: traceutil.DroppedLinksCount, Value: strconv.FormatUint(uint64(span.DroppedLinksCount), 10)},
+		logstorage.Field{Name: pb.DroppedAttributesCountField, Value: strconv.FormatUint(uint64(span.DroppedAttributesCount), 10)},
+		logstorage.Field{Name: pb.DroppedEventsCountField, Value: strconv.FormatUint(uint64(span.DroppedEventsCount), 10)},
+		logstorage.Field{Name: pb.DroppedLinksCountField, Value: strconv.FormatUint(uint64(span.DroppedLinksCount), 10)},
 
-		logstorage.Field{Name: traceutil.StatusMessage, Value: span.Status.Message},
-		logstorage.Field{Name: traceutil.StatusCode, Value: strconv.FormatInt(int64(span.Status.Code), 10)},
+		logstorage.Field{Name: pb.StatusMessageField, Value: span.Status.Message},
+		logstorage.Field{Name: pb.StatusCodeField, Value: strconv.FormatInt(int64(span.Status.Code), 10)},
 	)
 
-	for _, attr := range span.Attributes {
-		v := attr.Value.FormatString(true)
-		if len(v) == 0 {
-			// VictoriaLogs does not support empty string as field value. set it to "-" to preserve the field.
-			v = "-"
-		}
-		fields = append(fields, logstorage.Field{
-			Name:  traceutil.SpanAttrPrefix + attr.Key,
-			Value: v,
-		})
-	}
+	// append span attributes
+	fields = appendKeyValuesWithPrefix(fields, span.Attributes, "", pb.SpanAttrPrefixField)
 
 	for idx, event := range span.Events {
-		eventFieldPrefix := traceutil.EventPrefix + strconv.Itoa(idx) + ":"
+		eventFieldPrefix := pb.EventPrefix + strconv.Itoa(idx) + ":"
 		fields = append(fields,
-			logstorage.Field{Name: eventFieldPrefix + traceutil.EventTimeUnixNano, Value: strconv.FormatUint(event.TimeUnixNano, 10)},
-			logstorage.Field{Name: eventFieldPrefix + traceutil.EventName, Value: event.Name},
-			logstorage.Field{Name: eventFieldPrefix + traceutil.EventDroppedAttributesCount, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
+			logstorage.Field{Name: eventFieldPrefix + pb.EventTimeUnixNanoField, Value: strconv.FormatUint(event.TimeUnixNano, 10)},
+			logstorage.Field{Name: eventFieldPrefix + pb.EventNameField, Value: event.Name},
+			logstorage.Field{Name: eventFieldPrefix + pb.EventDroppedAttributesCountField, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
 		)
-		for _, eventAttr := range event.Attributes {
-			v := eventAttr.Value.FormatString(true)
-			if len(v) == 0 {
-				// VictoriaLogs does not support empty string as field value. set it to "-" to preserve the field.
-				v = "-"
-			}
-			fields = append(fields, logstorage.Field{
-				Name:  eventFieldPrefix + traceutil.EventAttrPrefix + eventAttr.Key,
-				Value: v,
-			})
-		}
+		// append event attributes
+		fields = appendKeyValuesWithPrefix(fields, event.Attributes, "", eventFieldPrefix+pb.EventAttrPrefix)
 	}
 
 	for idx, link := range span.Links {
-		linkFieldPrefix := traceutil.LinkPrefix + strconv.Itoa(idx) + ":"
+		linkFieldPrefix := pb.LinkPrefix + strconv.Itoa(idx) + ":"
 
 		fields = append(fields,
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkTraceID, Value: link.TraceID},
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkSpanID, Value: link.SpanID},
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkTraceState, Value: traceutil.LinkTraceState},
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkDroppedAttributesCount, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
-			logstorage.Field{Name: linkFieldPrefix + traceutil.LinkFlags, Value: strconv.FormatUint(uint64(link.Flags), 10)},
+			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceIDField, Value: link.TraceID},
+			logstorage.Field{Name: linkFieldPrefix + pb.LinkSpanIDField, Value: link.SpanID},
+			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceStateField, Value: pb.LinkTraceStateField},
+			logstorage.Field{Name: linkFieldPrefix + pb.LinkDroppedAttributesCountField, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
+			logstorage.Field{Name: linkFieldPrefix + pb.LinkFlagsField, Value: strconv.FormatUint(uint64(link.Flags), 10)},
 		)
 
-		for _, linkAttr := range link.Attributes {
-			v := linkAttr.Value.FormatString(true)
+		// append link attributes
+		fields = appendKeyValuesWithPrefix(fields, link.Attributes, "", linkFieldPrefix+pb.LinkAttrPrefix)
+	}
+	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
+	return fields
+}
+
+func appendKeyValuesWithPrefix(fields []logstorage.Field, kvs []*pb.KeyValue, parentField, prefix string) []logstorage.Field {
+	for _, attr := range kvs {
+		fieldName := attr.Key
+		if parentField != "" {
+			fieldName = parentField + "." + fieldName
+		}
+
+		if attr.Value.KeyValueList != nil {
+			fields = appendKeyValuesWithPrefix(fields, attr.Value.KeyValueList.Values, fieldName, prefix)
+		} else {
+			v := attr.Value.FormatString(true)
 			if len(v) == 0 {
 				// VictoriaLogs does not support empty string as field value. set it to "-" to preserve the field.
 				v = "-"
 			}
 			fields = append(fields, logstorage.Field{
-				Name:  linkFieldPrefix + traceutil.LinkAttrPrefix + linkAttr.Key,
+				Name:  prefix + fieldName,
 				Value: v,
 			})
 		}
 	}
-	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
 	return fields
 }

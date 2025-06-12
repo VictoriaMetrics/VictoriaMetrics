@@ -4,18 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/hashpool"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/query"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -40,14 +39,12 @@ var (
 	jaegerDependenciesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/dependencies"}`)
 )
 
-// hash pool for processID
-var xxhashPool = &sync.Pool{
-	New: func() any {
-		return xxhash.New()
-	},
-}
-
-// RequestHandler is the entry point for all jaeger query APIs.
+// RequestHandler is the entry point for all Jaeger query APIs.
+// Jaeger JSON API is intentionally undocumented.
+// So APIs are based on the implementation in Jaeger repository.
+// See:
+// 1. https://www.jaegertracing.io/docs/1.70/architecture/apis/#http-json-internal
+// 2. https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L110
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	httpserver.EnableCORS(w, r)
 	startTime := time.Now()
@@ -82,6 +79,8 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	return false
 }
 
+// processGetServicesRequest handle the Jaeger /api/services API request.
+// https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L146
 func processGetServicesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cp, err := query.GetCommonParams(r)
 	if err != nil {
@@ -100,6 +99,8 @@ func processGetServicesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	WriteGetServicesResponse(w, serviceList)
 }
 
+// processGetOperationsRequest handle the Jaeger /api/services/<service_name>/operations API request.
+// https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L158
 func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cp, err := query.GetCommonParams(r)
 	if err != nil {
@@ -109,12 +110,12 @@ func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *
 
 	// extract the `service_name`.
 	// the path must be like `/select/trace/api/services/<service_name>/operations`.
-	paths := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
-	if len(paths) < 6 {
+	u := r.URL.Path[len("/select/jaeger/api/services/"):]
+	serviceName := u[:len(u)-len("/operations")]
+	if len(serviceName) == 0 {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
 		return
 	}
-	serviceName := paths[len(paths)-2]
 
 	operationList, err := query.GetSpanNameList(ctx, cp, serviceName)
 	if err != nil {
@@ -127,6 +128,8 @@ func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *
 	WriteGetOperationsResponse(w, operationList)
 }
 
+// processGetTraceRequest handle the Jaeger /api/traces/<trace_id> API request.
+// https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L465
 func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cp, err := query.GetCommonParams(r)
 	if err != nil {
@@ -136,12 +139,11 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 
 	// extract the `trace_id`.
 	// the path must be like `/select/trace/api/traces/<trace_id>`.
-	paths := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
-	if len(paths) < 5 {
+	traceID := r.URL.Path[len("/select/jaeger/api/traces/"):]
+	if len(traceID) == 0 {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
 		return
 	}
-	traceID := paths[len(paths)-1]
 
 	rows, err := query.GetTrace(ctx, cp, traceID)
 	if err != nil {
@@ -190,6 +192,8 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	WriteGetTracesResponse(w, []*trace{t})
 }
 
+// processGetTracesRequest handle the Jaeger /api/traces API request.
+// https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L227
 func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cp, err := query.GetCommonParams(r)
 	if err != nil {
@@ -346,7 +350,7 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 
 // hashProcess generate hash result for a process according to its tags.
 func hashProcess(process *process) uint64 {
-	d := xxhashPool.Get().(*xxhash.Digest)
+	d := hashpool.Get()
 	sort.Slice(process.tags, func(i, j int) bool {
 		return process.tags[i].key < process.tags[j].key
 	})
@@ -357,6 +361,6 @@ func hashProcess(process *process) uint64 {
 	}
 	h := d.Sum64()
 	d.Reset()
-	xxhashPool.Put(d)
+	hashpool.Put(d)
 	return h
 }

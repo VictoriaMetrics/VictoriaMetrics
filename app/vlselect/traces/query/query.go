@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"net/http"
 	"strings"
 	"sync"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/traceutil"
 )
 
 var (
@@ -79,7 +79,7 @@ func GetServiceNameList(ctx context.Context, cp *CommonParams) ([]string, error)
 	}
 	q.AddTimeFilter(currentTime.Add(-*traceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
 
-	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, cp.TenantIDs, q, traceutil.ResourceAttrServiceName, *traceMaxServiceNameList)
+	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, cp.TenantIDs, q, pb.ResourceAttrServiceName, *traceMaxServiceNameList)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
@@ -97,14 +97,14 @@ func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) 
 	currentTime := time.Now()
 
 	// query: _time:[start, end] {"resource_attr:service.name"=serviceName}
-	qStr := fmt.Sprintf("_stream:{%s=\"%s\"}", traceutil.ResourceAttrServiceName, serviceName)
+	qStr := fmt.Sprintf("_stream:{%s=\"%s\"}", pb.ResourceAttrServiceName, serviceName)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	q.AddTimeFilter(currentTime.Add(-*traceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
 
-	spanNameHits, err := vlstorage.GetStreamFieldValues(ctx, cp.TenantIDs, q, traceutil.Name, *traceMaxSpanNameList)
+	spanNameHits, err := vlstorage.GetStreamFieldValues(ctx, cp.TenantIDs, q, pb.NameField, *traceMaxSpanNameList)
 	if err != nil {
 		return nil, fmt.Errorf("get span name hits error: %s", err)
 	}
@@ -132,7 +132,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	currentTime := time.Now()
 
 	// query: trace_id:traceID
-	qStr := fmt.Sprintf(traceutil.TraceID+": \"%s\"", traceID)
+	qStr := fmt.Sprintf(pb.TraceIDField+": \"%s\"", traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -141,9 +141,9 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 
 	// search for trace spans and write to `rows []*Row`
+	var rowsLock sync.Mutex
 	var rows []*Row
-	rowsLock := &sync.Mutex{}
-	missingTimeColumn := &atomic.Bool{}
+	var missingTimeColumn atomic.Bool
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		if missingTimeColumn.Load() {
 			return
@@ -235,7 +235,7 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 	}
 
 	// query 2: trace_id:in(traceID, traceID, ...)
-	qStr := fmt.Sprintf(traceutil.TraceID+":in(%s)", strings.Join(traceIDs, ","))
+	qStr := fmt.Sprintf(pb.TraceIDField+":in(%s)", strings.Join(traceIDs, ","))
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -247,9 +247,9 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 
 	// search for trace spans and write to `rows []*Row`
+	var rowsLock sync.Mutex
 	var rows []*Row
-	rowsLock := &sync.Mutex{}
-	missingTimeColumn := &atomic.Bool{}
+	var missingTimeColumn atomic.Bool
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		if missingTimeColumn.Load() {
 			return
@@ -303,23 +303,23 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 	// query: <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	qStr := ""
 	if param.ServiceName != "" {
-		qStr += fmt.Sprintf("AND _stream:{"+traceutil.ResourceAttrServiceName+"=\"%s\"} ", param.ServiceName)
+		qStr += fmt.Sprintf("AND _stream:{"+pb.ResourceAttrServiceName+"=\"%s\"} ", param.ServiceName)
 	}
 	if param.SpanName != "" {
-		qStr += fmt.Sprintf("AND _stream:{"+traceutil.Name+"=\"%s\"} ", param.SpanName)
+		qStr += fmt.Sprintf("AND _stream:{"+pb.NameField+"=\"%s\"} ", param.SpanName)
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
-			qStr += fmt.Sprintf(`AND "`+traceutil.SpanAttrPrefix+`%s":=%s `, k, v)
+			qStr += fmt.Sprintf(`AND "`+pb.SpanAttrPrefixField+`%s":=%s `, k, v)
 		}
 	}
 	if param.DurationMin > 0 {
-		qStr += fmt.Sprintf("AND "+traceutil.Duration+":>%d ", param.DurationMin.Nanoseconds())
+		qStr += fmt.Sprintf("AND "+pb.DurationField+":>%d ", param.DurationMin.Nanoseconds())
 	}
 	if param.DurationMax > 0 {
 		qStr += fmt.Sprintf("AND duration:<%d ", param.DurationMax.Nanoseconds())
 	}
-	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+traceutil.TraceID+") | fields _time, "+traceutil.TraceID+" | sort by (_time) desc", "AND ")
+	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+pb.TraceIDField+") | fields _time, "+pb.TraceIDField+" | sort by (_time) desc", "AND ")
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {

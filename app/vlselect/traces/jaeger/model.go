@@ -2,11 +2,11 @@ package jaeger
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/traceutil"
 )
 
 type trace struct {
@@ -69,17 +69,17 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 	for _, field := range fields {
 		switch field.Name {
 		case "_stream":
-			//logstorage.GetStreamTags()
-		case traceutil.TraceID:
+			// no-op
+		case pb.TraceIDField:
 			sp.traceID = field.Value
-		case traceutil.SpanID:
+		case pb.SpanIDField:
 			sp.spanID = field.Value
-		case traceutil.Name:
+		case pb.NameField:
 			sp.operationName = field.Value
-		case traceutil.ParentSpanID:
+		case pb.ParentSpanIDField:
 			parentSpanRef.spanID = field.Value
 			parentSpanRef.refType = "CHILD_OF"
-		case traceutil.Kind:
+		case pb.KindField:
 			if field.Value != "" {
 				spanKind := ""
 				switch field.Value {
@@ -96,58 +96,58 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				}
 				spanTagList = append(spanTagList, keyValue{key: "span.kind", vStr: spanKind})
 			}
-		case traceutil.Flags:
+		case pb.FlagsField:
 			// todo trace does not contain "flag" in result
 			//flagU64, err := strconv.ParseUint(field.Value, 10, 32)
 			//if err != nil {
 			//	return nil, err
 			//}
 			//sp.Flags = uint32(flagU64)
-		case traceutil.StartTimeUnixNano:
+		case pb.StartTimeUnixNanoField:
 			unixNano, err := strconv.ParseInt(field.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			}
 			sp.startTime = unixNano / 1000
-		case traceutil.Duration:
+		case pb.DurationField:
 			nano, err := strconv.ParseInt(field.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			}
 			sp.duration = nano / 1000
-		case traceutil.StatusCode:
+		case pb.StatusCodeField:
 			if field.Value == "2" {
 				spanTagList = append(spanTagList, keyValue{key: "error", vStr: "true"})
 			}
-		case traceutil.StatusMessage:
+		case pb.StatusMessageField:
 			if field.Value != "" {
 				spanTagList = append(spanTagList, keyValue{key: "otel.status_description", vStr: field.Value})
 			}
-		case traceutil.TraceState:
+		case pb.TraceStateField:
 			if field.Value != "" {
 				spanTagList = append(spanTagList, keyValue{key: "w3c.tracestate", vStr: field.Value})
 			}
 		// resource level fields
-		case traceutil.ResourceAttrServiceName:
+		case pb.ResourceAttrServiceName:
 			sp.process.serviceName = field.Value
 		// scope level fields
-		case traceutil.InstrumentationScopeName:
+		case pb.InstrumentationScopeName:
 			if field.Value != "" {
 				spanTagList = append(spanTagList, keyValue{key: "otel.scope.name", vStr: field.Value})
 			}
-		case traceutil.InstrumentationScopeVersion:
+		case pb.InstrumentationScopeVersion:
 			if field.Value != "" {
 				spanTagList = append(spanTagList, keyValue{key: "otel.scope.version", vStr: field.Value})
 			}
 		default:
-			if strings.HasPrefix(field.Name, traceutil.ResourceAttrPrefix) {
-				processTagList = append(processTagList, keyValue{key: strings.TrimPrefix(field.Name, traceutil.ResourceAttrPrefix), vStr: field.Value})
-			} else if strings.HasPrefix(field.Name, traceutil.SpanAttrPrefix) {
-				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, traceutil.SpanAttrPrefix), vStr: field.Value})
-			} else if strings.HasPrefix(field.Name, traceutil.InstrumentationScopeAttrPrefix) {
-				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, traceutil.InstrumentationScopeAttrPrefix), vStr: field.Value})
-			} else if strings.HasPrefix(field.Name, traceutil.EventPrefix) {
-				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, traceutil.EventPrefix), ":", 2)
+			if strings.HasPrefix(field.Name, pb.ResourceAttrPrefix) {
+				processTagList = append(processTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.ResourceAttrPrefix), vStr: field.Value})
+			} else if strings.HasPrefix(field.Name, pb.SpanAttrPrefixField) {
+				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.SpanAttrPrefixField), vStr: field.Value})
+			} else if strings.HasPrefix(field.Name, pb.InstrumentationScopeAttrPrefix) {
+				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.InstrumentationScopeAttrPrefix), vStr: field.Value})
+			} else if strings.HasPrefix(field.Name, pb.EventPrefix) {
+				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.EventPrefix), ":", 2)
 				if len(fieldSplit) != 2 {
 					return nil, fmt.Errorf("invalid event field: %s", field.Name)
 				}
@@ -157,19 +157,19 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				}
 				log := logsMap[idx]
 				switch fieldName {
-				case traceutil.EventTimeUnixNano:
+				case pb.EventTimeUnixNanoField:
 					unixNano, _ := strconv.ParseInt(field.Value, 10, 64)
 					log.timestamp = unixNano / 1000
-				case traceutil.EventName:
+				case pb.EventNameField:
 					log.fields = append(log.fields, keyValue{key: "event", vStr: field.Value})
-				case traceutil.EventDroppedAttributesCount:
+				case pb.EventDroppedAttributesCountField:
 					//no need to display
 					//log.Fields = append(log.Fields, KeyValue{Key: fieldName, VStr: field.Value})
 				default:
-					log.fields = append(log.fields, keyValue{key: strings.TrimPrefix(fieldName, traceutil.EventAttrPrefix), vStr: field.Value})
+					log.fields = append(log.fields, keyValue{key: strings.TrimPrefix(fieldName, pb.EventAttrPrefix), vStr: field.Value})
 				}
-			} else if strings.HasPrefix(field.Name, traceutil.LinkAttrPrefix) {
-				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, traceutil.LinkAttrPrefix), ":", 2)
+			} else if strings.HasPrefix(field.Name, pb.LinkAttrPrefix) {
+				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.LinkAttrPrefix), ":", 2)
 				if len(fieldSplit) != 2 {
 					return nil, fmt.Errorf("invalid link field: %s", field.Name)
 				}
@@ -181,15 +181,13 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				}
 				ref := refsMap[idx]
 				switch fieldName {
-				case traceutil.LinkTraceID:
+				case pb.LinkTraceIDField:
 					ref.traceID = field.Value
-				case traceutil.LinkSpanID:
+				case pb.LinkSpanIDField:
 					ref.spanID = field.Value
-				//case LinkTraceState:
-				//case LinkFlags:
-				//case LinkDroppedAttributesCount:
+				case pb.LinkTraceStateField, pb.LinkFlagsField, pb.LinkDroppedAttributesCountField:
 				default:
-					if strings.TrimPrefix(field.Name, traceutil.LinkPrefix) == "opentracing.ref_type" && field.Value == "child_of" {
+					if strings.TrimPrefix(field.Name, pb.LinkPrefix) == "opentracing.ref_type" && field.Value == "child_of" {
 						ref.refType = "CHILD_OF" // CHILD_OF
 					}
 				}
