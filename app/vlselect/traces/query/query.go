@@ -310,7 +310,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
-			qStr += fmt.Sprintf(`AND "`+pb.SpanAttrPrefixField+`%s":=%s `, k, v)
+			qStr += fmt.Sprintf(`AND "%s":=%s `, k, v)
 		}
 	}
 	if param.DurationMin > 0 {

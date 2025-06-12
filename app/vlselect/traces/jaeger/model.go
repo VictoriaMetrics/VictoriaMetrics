@@ -55,6 +55,16 @@ type log struct {
 	fields    []keyValue
 }
 
+var spanAttributeConvertionMap = map[string]string{
+	"span.kind":               pb.KindField,
+	"error":                   pb.StatusCodeField,
+	"otel.status_description": pb.StatusMessageField,
+	"w3c.tracestate":          pb.TraceStateField,
+	"otel.scope.name":         pb.InstrumentationScopeName,
+	"otel.scope.version":      pb.InstrumentationScopeVersion,
+	// scope attributes
+}
+
 // fieldsToSpan convert OTLP spans in fields to Jaeger Spans.
 func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 	sp := &span{
@@ -145,7 +155,7 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 			} else if strings.HasPrefix(field.Name, pb.SpanAttrPrefixField) {
 				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.SpanAttrPrefixField), vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, pb.InstrumentationScopeAttrPrefix) {
-				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.InstrumentationScopeAttrPrefix), vStr: field.Value})
+				spanTagList = append(spanTagList, keyValue{key: field.Name, vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, pb.EventPrefix) {
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.EventPrefix), ":", 2)
 				if len(fieldSplit) != 2 {

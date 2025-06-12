@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/hashpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"net/http"
 	"sort"
 	"strconv"
@@ -345,6 +346,25 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 			return nil, fmt.Errorf("cannot parse tags [%s]: %w", tags, err)
 		}
 	}
+
+	attributesFilter := make(map[string]string, len(p.Attributes))
+	// some special fields in the OpenTelemetry span will be treated as span attributes/tags
+	// in query result, so they should be converted to proper filters correspondingly.
+	// e.g.: `otel.status_description` attribute in query result could be:
+	// 1. retrieved from `span_attr:otel.status_description` field directly.
+	// 2. converted from `status_message` field for Jaeger API.
+	for k, v := range p.Attributes {
+		if field, ok := spanAttributeConvertionMap[k]; ok {
+			// need to convert to opentelemetry field name in storage.
+			attributesFilter[field] = v
+		} else if strings.HasPrefix(k, pb.InstrumentationScopeAttrPrefix) {
+			attributesFilter[k] = v
+		} else {
+			attributesFilter[pb.SpanAttrPrefixField+k] = v
+		}
+	}
+	p.Attributes = attributesFilter
+
 	return p, nil
 }
 
