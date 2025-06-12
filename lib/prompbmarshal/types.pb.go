@@ -149,19 +149,17 @@ func LabelsToString(labels []Label) string {
 }
 
 // MetricMetadata represents additional meta information for specific MetricFamilyName
+// Refer to https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L21
 type MetricMetadata struct {
 	// Represents the metric type, these match the set from Prometheus.
-	// Refer to github.com/prometheus/common/model/metadata.go for details.
-	Type             int32
+	// Refer to https://github.com/prometheus/common/blob/95acce133ca2c07a966a71d475fb936fc282db18/model/metadata.go for details.
+	Type             uint32
 	MetricFamilyName string
 	Help             string
 	Unit             string
 }
 
 func (m *MetricMetadata) MarshalToSizedBuffer(dst []byte) (int, error) {
-	if m == nil {
-		return 0, nil
-	}
 	i := len(dst)
 	if len(m.Unit) > 0 {
 		i -= len(m.Unit)
@@ -196,21 +194,16 @@ func (m *MetricMetadata) Size() (n int) {
 	if m == nil {
 		return 0
 	}
-	var l int
-	_ = l
 	if m.Type != 0 {
 		n += 1 + sov(uint64(m.Type))
 	}
-	l = len(m.MetricFamilyName)
-	if l > 0 {
+	if l := len(m.MetricFamilyName); l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
-	l = len(m.Help)
-	if l > 0 {
+	if l := len(m.Help); l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
-	l = len(m.Unit)
-	if l > 0 {
+	if l := len(m.Unit); l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
 	return n

@@ -11,7 +11,8 @@ type WriteRequest struct {
 	// Timeseries is a list of time series in the given WriteRequest
 	Timeseries []TimeSeries
 
-	MetricMetadata []MetricMetadata
+	// Metadata is a list of metadata info in the given WriteRequest
+	Metadata []MetricMetadata
 
 	labelsPool  []Label
 	samplesPool []Sample
@@ -22,14 +23,14 @@ func (wr *WriteRequest) Reset() {
 	clear(wr.Timeseries)
 	wr.Timeseries = wr.Timeseries[:0]
 
+	clear(wr.Metadata)
+	wr.Metadata = wr.Metadata[:0]
+
 	clear(wr.labelsPool)
 	wr.labelsPool = wr.labelsPool[:0]
 
 	clear(wr.samplesPool)
 	wr.samplesPool = wr.samplesPool[:0]
-
-	clear(wr.MetricMetadata)
-	wr.MetricMetadata = wr.MetricMetadata[:0]
 }
 
 // TimeSeries is a timeseries.
@@ -68,10 +69,10 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 	// message WriteRequest {
 	//    repeated TimeSeries timeseries = 1;
 	//    reserved 2;
-	//    repeated MetricMetadata metadata = 3;
+	//    repeated Metadata metadata = 3;
 	// }
 	tss := wr.Timeseries
-	mms := wr.MetricMetadata
+	mms := wr.Metadata
 	labelsPool := wr.labelsPool
 	samplesPool := wr.samplesPool
 	var fc easyproto.FieldContext
@@ -114,7 +115,7 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 		}
 	}
 	wr.Timeseries = tss
-	wr.MetricMetadata = mms
+	wr.Metadata = mms
 	wr.labelsPool = labelsPool
 	wr.samplesPool = samplesPool
 	return nil
@@ -229,10 +230,11 @@ func (s *Sample) unmarshalProtobuf(src []byte) (err error) {
 }
 
 // MetricMetadata represents additional meta information for specific MetricFamilyName
+// Refer to https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L21
 type MetricMetadata struct {
 	// Represents the metric type, these match the set from Prometheus.
-	// Refer to github.com/prometheus/common/model/metadata.go for details.
-	Type             int32
+	// Refer to https://github.com/prometheus/common/blob/95acce133ca2c07a966a71d475fb936fc282db18/model/metadata.go for details.
+	Type             uint32
 	MetricFamilyName string
 	Help             string
 	Unit             string
@@ -251,8 +253,6 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 	//     STATESET = 7;
 	//   }
 	//
-	//   // Represents the metric type, these match the set from Prometheus.
-	//   // Refer to github.com/prometheus/common/model/metadata.go for details.
 	//   MetricType type = 1;
 	//   string metric_family_name = 2;
 	//   string help = 4;
@@ -266,7 +266,7 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-			value, ok := fc.Int32()
+			value, ok := fc.Uint32()
 			if !ok {
 				return fmt.Errorf("cannot read metric type")
 			}
