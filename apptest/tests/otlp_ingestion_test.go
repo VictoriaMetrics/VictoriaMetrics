@@ -175,7 +175,7 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 					StartTime: spanTime.UnixMicro(),
 					Tags: []at.Tag{
 						{Key: "span.kind", Type: "string", Value: "internal"},
-						{Key: "testTag", Type: "string", Value: "testValue"},
+						{Key: "scope_attr:testTag", Type: "string", Value: "testValue"},
 						{Key: "otel.scope.name", Type: "string", Value: "testInstrumentation"},
 						{Key: "otel.scope.version", Type: "string", Value: "1.0"},
 						{Key: "testTag", Type: "string", Value: "testValue"},
