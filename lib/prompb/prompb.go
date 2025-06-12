@@ -72,7 +72,7 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 	//    repeated Metadata metadata = 3;
 	// }
 	tss := wr.Timeseries
-	mms := wr.Metadata
+	mds := wr.Metadata
 	labelsPool := wr.labelsPool
 	samplesPool := wr.samplesPool
 	var fc easyproto.FieldContext
@@ -102,20 +102,20 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read metricMetadata data")
 			}
-			if len(mms) < cap(mms) {
-				mms = mms[:len(mms)+1]
+			if len(mds) < cap(mds) {
+				mds = mds[:len(mds)+1]
 			} else {
-				mms = append(mms, MetricMetadata{})
+				mds = append(mds, MetricMetadata{})
 			}
-			mm := &mms[len(mms)-1]
-			if err := mm.unmarshalProtobuf(data); err != nil {
+			md := &mds[len(mds)-1]
+			if err := md.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal metricMetadata: %w", err)
 			}
 
 		}
 	}
 	wr.Timeseries = tss
-	wr.Metadata = mms
+	wr.Metadata = mds
 	wr.labelsPool = labelsPool
 	wr.samplesPool = samplesPool
 	return nil

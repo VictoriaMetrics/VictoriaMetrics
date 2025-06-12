@@ -78,12 +78,12 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 			Samples: samples,
 		})
 	}
-	for _, mm := range wr.Metadata {
+	for _, md := range wr.Metadata {
 		wrm.Metadata = append(wrm.Metadata, prompbmarshal.MetricMetadata{
-			Type:             mm.Type,
-			MetricFamilyName: mm.MetricFamilyName,
-			Help:             mm.Help,
-			Unit:             mm.Unit,
+			Type:             md.Type,
+			MetricFamilyName: md.MetricFamilyName,
+			Help:             md.Help,
+			Unit:             md.Unit,
 		})
 	}
 
