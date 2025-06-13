@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"slices"
@@ -485,6 +486,89 @@ func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query
 // If limit > 0, then up to limit unique streams are returned.
 func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]ValueWithHits, error) {
 	return s.GetFieldValues(ctx, tenantIDs, q, "_stream_id", limit)
+}
+
+// GetTenantIDs returns tenantIDs for the given start and end.
+func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]byte, error) {
+	return s.getTenantIDs(ctx, start, end)
+}
+
+func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]byte, error) {
+	workersCount := cgroup.AvailableCPUs()
+	stopCh := ctx.Done()
+
+	tenantIDs := make([][]string, workersCount)
+	processPartitions := func(pt *partition, workerID uint) {
+		tenants := pt.idb.searchTenants()
+		tenantIDs[workerID] = append(tenantIDs[workerID], tenants...)
+	}
+
+	// Spin up workers
+	var wgWorkers sync.WaitGroup
+	workCh := make(chan *partition, workersCount)
+	wgWorkers.Add(workersCount)
+	for i := 0; i < workersCount; i++ {
+		go func(workerID uint) {
+			for pt := range workCh {
+				if needStop(stopCh) {
+					// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
+					continue
+				}
+				processPartitions(pt, workerID)
+			}
+			wgWorkers.Done()
+		}(uint(i))
+	}
+
+	// Select partitions according to the selected time range
+	s.partitionsLock.Lock()
+	ptws := s.partitions
+	minDay := start / nsecsPerDay
+	n := sort.Search(len(ptws), func(i int) bool {
+		return ptws[i].day >= minDay
+	})
+	ptws = ptws[n:]
+	maxDay := end / nsecsPerDay
+	n = sort.Search(len(ptws), func(i int) bool {
+		return ptws[i].day > maxDay
+	})
+	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
+	for _, ptw := range ptws {
+		ptw.incRef()
+	}
+	s.partitionsLock.Unlock()
+
+	// Schedule concurrent search across matching partitions.
+	for _, ptw := range ptws {
+		workCh <- ptw.pt
+	}
+
+	// Wait until workers finish their work
+	close(workCh)
+	wgWorkers.Wait()
+
+	// Decrement references to partitions
+	for _, ptw := range ptws {
+		ptw.decRef()
+	}
+
+	m := make(map[string]struct{})
+	for _, tids := range tenantIDs {
+		for _, tid := range tids {
+			m[tid] = struct{}{}
+		}
+	}
+
+	tenants := make([]string, 0, len(m))
+	for k := range m {
+		tenants = append(tenants, k)
+	}
+
+	return json.Marshal(tenants)
 }
 
 func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
