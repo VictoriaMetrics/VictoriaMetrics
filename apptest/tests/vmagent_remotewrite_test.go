@@ -7,30 +7,23 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-// TestSingleVMAgentReloadConfigs verifies that vmagent reload loads new configurations on SIGHUP signal
+// TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
 func TestSingleVMAgentReloadConfigs(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	const (
-		retries = 20
-		period  = 100 * time.Millisecond
-	)
-
 	vmsingle := tc.MustStartDefaultVmsingle()
 
-	const relabelFileName = "relabel_config.yaml"
 	relabelingRules := `
 - replacement: value1
   target_label: label1
   `
-	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), relabelFileName)
+	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), "relabel_config.yaml")
 	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
 		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
 	}
@@ -72,19 +65,7 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
 	}
 
-	reloadsTotal := vmagent.GetMetric(t, "vmagent_relabel_config_reloads_total")
-	vmagent.Reload()
-	newReloadsTotal := reloadsTotal
-	for range retries {
-		newReloadsTotal = vmagent.GetMetric(t, "vmagent_relabel_config_reloads_total")
-		if newReloadsTotal != reloadsTotal {
-			break
-		}
-		time.Sleep(period)
-	}
-	if newReloadsTotal == reloadsTotal {
-		t.Fatalf("reloads count wasn't changed")
-	}
+	vmagent.ReloadRelabelConfigs(t)
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"bar_foo 1 1652169600001", // 2022-05-10T08:00:00Z

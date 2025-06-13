@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -133,13 +132,6 @@ func (app *app) Stop() {
 	}
 	if _, err := app.process.Wait(); err != nil {
 		log.Fatalf("Could not wait for %s process completion: %v", app.instance, err)
-	}
-}
-
-// Reload sends the app process a SIGHUP signal
-func (app *app) Reload() {
-	if err := app.process.Signal(syscall.SIGHUP); err != nil {
-		log.Fatalf("Could not send SIGHUP signal to %s process: %v", app.instance, err)
 	}
 }
 
