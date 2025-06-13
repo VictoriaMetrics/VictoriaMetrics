@@ -1581,6 +1581,8 @@ The shortlist of configuration flags is the following:
      Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -secret.flags array
+    Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
   -version
      Show VictoriaMetrics version
 ```
