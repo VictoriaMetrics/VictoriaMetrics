@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"net/http"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 var (
@@ -310,7 +310,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
-			qStr += fmt.Sprintf(`AND "%s":=%s `, k, v)
+			qStr += fmt.Sprintf(`AND "%s":="%s" `, k, v)
 		}
 	}
 	if param.DurationMin > 0 {

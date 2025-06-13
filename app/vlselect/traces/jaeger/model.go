@@ -75,6 +75,7 @@ var spanAttributeMap = map[string]string{
 }
 
 var errorStatusCodeMap = map[string]string{
+	"unset": "0",
 	"true":  "2",
 	"false": "1",
 }
@@ -151,8 +152,14 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 			}
 			sp.duration = nano / 1000
 		case pb.StatusCodeField:
-			hasErr := field.Value == "2"
-			spanTagList = append(spanTagList, keyValue{key: "error", vStr: strconv.FormatBool(hasErr)})
+			v := "unset"
+			switch field.Value {
+			case "1":
+				v = "false"
+			case "2":
+				v = "true"
+			}
+			spanTagList = append(spanTagList, keyValue{key: "error", vStr: v})
 		case pb.StatusMessageField:
 			if field.Value != "" {
 				spanTagList = append(spanTagList, keyValue{key: "otel.status_description", vStr: field.Value})
