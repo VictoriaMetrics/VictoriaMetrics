@@ -21,7 +21,7 @@ func TestHandler(t *testing.T) {
 	fq.Add(datasource.Metric{
 		Values: []float64{1}, Timestamps: []int64{0},
 	})
-	g := rule.NewGroup(config.Group{
+	g1 := rule.NewGroup(config.Group{
 		Name:        "group",
 		File:        "rules.yaml",
 		Concurrency: 1,
@@ -30,13 +30,25 @@ func TestHandler(t *testing.T) {
 			{ID: 1, Record: "record"},
 		},
 	}, fq, 1*time.Minute, nil)
-	ar := g.Rules[0].(*rule.AlertingRule)
-	rr := g.Rules[1].(*rule.RecordingRule)
+	ar := g1.Rules[0].(*rule.AlertingRule)
+	rr := g1.Rules[1].(*rule.RecordingRule)
 
-	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
+	g1.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
+
+	g2 := rule.NewGroup(config.Group{
+		Name:        "group-2",
+		File:        "rules.yaml",
+		Concurrency: 1,
+		Rules: []config.Rule{
+			{ID: 0, Alert: "alert"},
+			{ID: 1, Record: "record"},
+		},
+	}, fq, 1*time.Minute, nil)
+	g2.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
 
 	m := &manager{groups: map[uint64]*rule.Group{
-		g.CreateID(): g,
+		g1.CreateID(): g1,
+		g2.CreateID(): g2,
 	}}
 	rh := &requestHandler{m: m}
 
@@ -95,14 +107,14 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/alerts", func(t *testing.T) {
 		lr := listAlertsResponse{}
 		getResp(t, ts.URL+"/api/v1/alerts", &lr, 200)
-		if length := len(lr.Data.Alerts); length != 1 {
-			t.Fatalf("expected 1 alert got %d", length)
+		if length := len(lr.Data.Alerts); length != 2 {
+			t.Fatalf("expected 2 alert got %d", length)
 		}
 
 		lr = listAlertsResponse{}
 		getResp(t, ts.URL+"/vmalert/api/v1/alerts", &lr, 200)
-		if length := len(lr.Data.Alerts); length != 1 {
-			t.Fatalf("expected 1 alert got %d", length)
+		if length := len(lr.Data.Alerts); length != 2 {
+			t.Fatalf("expected 2 alert got %d", length)
 		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
@@ -138,14 +150,14 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/rules", func(t *testing.T) {
 		lr := listGroupsResponse{}
 		getResp(t, ts.URL+"/api/v1/rules", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Fatalf("expected 1 group got %d", length)
+		if length := len(lr.Data.Groups); length != 2 {
+			t.Fatalf("expected 2 group got %d", length)
 		}
 
 		lr = listGroupsResponse{}
 		getResp(t, ts.URL+"/vmalert/api/v1/rules", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Fatalf("expected 1 group got %d", length)
+		if length := len(lr.Data.Groups); length != 2 {
+			t.Fatalf("expected 2 group got %d", length)
 		}
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
@@ -191,15 +203,15 @@ func TestHandler(t *testing.T) {
 			}
 		}
 
-		check("/api/v1/rules?type=alert", 1, 1)
-		check("/api/v1/rules?type=record", 1, 1)
+		check("/api/v1/rules?type=alert", 2, 2)
+		check("/api/v1/rules?type=record", 2, 2)
 
-		check("/vmalert/api/v1/rules?type=alert", 1, 1)
-		check("/vmalert/api/v1/rules?type=record", 1, 1)
+		check("/vmalert/api/v1/rules?type=alert", 2, 2)
+		check("/vmalert/api/v1/rules?type=record", 2, 2)
 
 		// no filtering expected due to bad params
-		check("/api/v1/rules?type=badParam", 1, 2)
-		check("/api/v1/rules?foo=bar", 1, 2)
+		check("/api/v1/rules?type=badParam", 2, 4)
+		check("/api/v1/rules?foo=bar", 2, 4)
 
 		check("/api/v1/rules?rule_group[]=foo&rule_group[]=bar", 0, 0)
 		check("/api/v1/rules?rule_group[]=foo&rule_group[]=group&rule_group[]=bar", 1, 2)
@@ -210,6 +222,12 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 1, 0)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 1, 1)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 1, 2)
+
+		check("/api/v1/rules?group_limit=1", 1, 2)
+		check("/api/v1/rules?group_limit=1&type=alert", 1, 1)
+		check("/api/v1/rules?group_limit=1&type=record", 1, 1)
+		check("/api/v1/rules?group_limit=2", 2, 4)
+
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default
