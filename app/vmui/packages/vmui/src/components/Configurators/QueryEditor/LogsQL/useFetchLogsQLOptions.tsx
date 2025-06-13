@@ -10,11 +10,11 @@ import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { LogsFiledValues } from "../../../../api/types";
 import { useLogsDispatch, useLogsState } from "../../../../state/logsPanel/LogsStateContext";
 import { useTenant } from "../../../../hooks/useTenant";
+import { generateQuery } from "./utils";
 
 type FetchDataArgs = {
   urlSuffix: string;
-  setter: Dispatch<SetStateAction<AutocompleteOptions[]>>
-  type: ContextType;
+  setter: (value: LogsFiledValues[]) => void;
   params?: URLSearchParams;
 }
 
@@ -24,7 +24,8 @@ const icons = {
   [ContextType.FilterValue]: <ValueIcon/>,
   [ContextType.PipeName]: <FunctionIcon/>,
   [ContextType.PipeValue]: <LabelIcon/>,
-  [ContextType.Unknown]: <ValueIcon/>
+  [ContextType.Unknown]: <ValueIcon/>,
+  [ContextType.FilterOrPipeName]: <FunctionIcon/>
 };
 
 export const useFetchLogsQLOptions = (contextData?: ContextData) => {
@@ -61,7 +62,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
     }));
   };
 
-  const fetchData = async ({ urlSuffix, setter, type, params }: FetchDataArgs) => {
+  const fetchData = async ({ urlSuffix, setter, params }: FetchDataArgs) => {
     abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;
@@ -73,7 +74,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
     try {
       const cachedData = autocompleteCache.get(key);
       if (cachedData) {
-        setter(processData(cachedData, type));
+        setter(cachedData);
         setLoading(false);
         return;
       }
@@ -86,7 +87,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
       if (response.ok) {
         const data = await response.json();
         const value = (data?.values || []) as LogsFiledValues[];
-        setter(value ? processData(value, type) : []);
+        setter(value || []);
         dispatch({ type: "SET_AUTOCOMPLETE_CACHE", payload: { key, value } });
       }
       setLoading(false);
@@ -101,7 +102,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
 
   // fetch field names
   useEffect(() => {
-    const validContexts = [ContextType.FilterName, ContextType.FilterUnknown];
+    const validContexts = [ContextType.FilterName, ContextType.FilterUnknown, ContextType.FilterOrPipeName];
     const isInvalidContext = !validContexts.includes(contextData?.contextType || ContextType.Unknown);
     if (!serverUrl || isInvalidContext) {
       return;
@@ -109,11 +110,14 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
 
     setFieldNames([]);
 
+    const setter = (filterNames: LogsFiledValues[]) => {
+      setFieldNames(processData(filterNames, ContextType.FilterName));
+    };
+
     fetchData({
       urlSuffix: "field_names",
-      setter: setFieldNames,
-      type: ContextType.FilterName,
-      params: getQueryParams({ query: "*" })
+      setter: setter,
+      params: getQueryParams({ query: contextData?.queryBeforeIncompleteFilter || "*" })
     });
 
     return () => abortControllerRef.current?.abort();
@@ -128,11 +132,14 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
 
     setFieldValues([]);
 
+    const setter = (filterValues: LogsFiledValues[]) => {
+      setFieldValues(processData(filterValues, ContextType.FilterValue));
+    };
+
     fetchData({
       urlSuffix: "field_values",
-      setter: setFieldValues,
-      type: ContextType.FilterValue,
-      params: getQueryParams({ query: "*", field: contextData.filterName })
+      setter: setter,
+      params: getQueryParams({ query: generateQuery(contextData), field: contextData.filterName })
     });
 
     return () => abortControllerRef.current?.abort();
