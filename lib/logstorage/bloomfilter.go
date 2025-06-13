@@ -214,7 +214,7 @@ func (bf *bloomFilter) containsAll(hashes []uint64) bool {
 	}
 	maxBits := uint64(len(bits)) * 64
 	for _, h := range hashes {
-		idx := h % maxBits
+		idx := h % maxBits  // todo: can be faster when maxBits is power of 2
 		i := idx / 64
 		j := idx % 64
 		mask := uint64(1) << j
