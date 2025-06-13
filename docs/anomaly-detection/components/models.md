@@ -1276,7 +1276,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.23.2
+docker pull victoriametrics/vmanomaly:v1.23.3
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
