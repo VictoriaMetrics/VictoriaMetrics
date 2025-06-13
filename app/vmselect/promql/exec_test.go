@@ -2324,6 +2324,167 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("label_split(empty)", func(t *testing.T) {
+		t.Parallel()
+		q := `label_split(vector(time()), "tt", "(sep)", "BAR")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+
+	t.Run("label_split(single)", func(t *testing.T) {
+		t.Parallel()
+		q := `with (
+			x = (
+				label_set(vector(time()), "foo", "a"),
+			)
+		)
+		label_split(x, "split", ",", "foo")
+		`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a"),
+			},
+			{
+				Key:   []byte("split"),
+				Value: []byte("a"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+
+	t.Run("label_split(multi)", func(t *testing.T) {
+		t.Parallel()
+		q := `with (
+			x = (
+				label_set(vector(time()), "foo", "a,b"),
+			)
+		)
+		label_split(x, "split", ",", "foo")
+		`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a,b"),
+			},
+			{
+				Key:   []byte("split"),
+				Value: []byte("a"),
+			},
+		}
+
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a,b"),
+			},
+			{
+				Key:   []byte("split"),
+				Value: []byte("b"),
+			},
+		}
+
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+
+	t.Run(`label_split(__name__)`, func(t *testing.T) {
+		t.Parallel()
+		q := `with (
+			x = (
+				label_set(vector(time()), "foo", "a,b"),
+			)
+		)
+		label_split(x, "__name__", ",", "foo")
+		`
+
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a,b"),
+			},
+		}
+		r1.MetricName.MetricGroup = []byte("a")
+
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a,b"),
+			},
+		}
+		r2.MetricName.MetricGroup = []byte("b")
+
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+
+	t.Run(`label_split src matches dst`, func(t *testing.T) {
+		t.Parallel()
+		q := `with (
+			x = (
+				label_set(vector(time()), "foo", "a,b"),
+			)
+		)
+		label_split(x, "foo", ",", "foo")
+		`
+
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("b"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+
 	t.Run(`label_value()`, func(t *testing.T) {
 		t.Parallel()
 		q := `with (
@@ -9869,6 +10030,7 @@ func TestExecError(t *testing.T) {
 	f(`clamp_min(1,2,3)`)
 	f(`hour(1,2)`)
 	f(`label_join()`)
+	f(`label_split()`)
 	f(`label_replace(1)`)
 	f(`label_transform(1)`)
 	f(`label_set()`)
@@ -10036,6 +10198,10 @@ func TestExecError(t *testing.T) {
 	f(`label_join(1, 2, 3)`)
 	f(`label_join(1, "foo", 2)`)
 	f(`label_join(1, "foo", "bar", 2)`)
+	f(`label_split(1, 2, 3)`)
+	f(`label_split(1, "foo", 2)`)
+	f(`label_split(1, "foo", "bar", 2)`)
+	f(`label_split(1, "foo", "bar", "src", "src2"`)
 	f(`label_replace(1, 2, 3, 4, 5)`)
 	f(`label_replace(1, "foo", 3, 4, 5)`)
 	f(`label_replace(1, "foo", "bar", 4, 5)`)
