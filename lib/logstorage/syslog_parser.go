@@ -17,11 +17,12 @@ import (
 // the timezone is used for rfc3164 format for setting the desired timezone.
 //
 // Return back the parser to the pool by calling PutSyslogParser when it is no longer needed.
-func GetSyslogParser(currentYear int, timezone *time.Location) *SyslogParser {
+func GetSyslogParser(currentYear int, timezone *time.Location, severityAsLevel bool) *SyslogParser {
 	v := syslogParserPool.Get()
 	if v == nil {
 		v = &SyslogParser{
-			unescaper: strings.NewReplacer(`\]`, `]`),
+			unescaper:       strings.NewReplacer(`\]`, `]`),
+			severityAsLevel: severityAsLevel,
 		}
 	}
 	p := v.(*SyslogParser)
@@ -68,6 +69,9 @@ type SyslogParser struct {
 
 	// unescaper is a replacer, which unescapes \] that is allowed in rfc5424, but breaks strings unquoting
 	unescaper *strings.Replacer
+
+	// severityAsLevel enables adding level alias to severity field
+	severityAsLevel bool
 }
 
 func (p *SyslogParser) reset() {
@@ -132,6 +136,9 @@ func (p *SyslogParser) Parse(s string) {
 
 	bufLen = len(p.buf)
 	p.buf = marshalUint64String(p.buf, severity)
+	if p.severityAsLevel {
+		p.addField("level", bytesutil.ToUnsafeString(p.buf[bufLen:]))
+	}
 	p.addField("severity", bytesutil.ToUnsafeString(p.buf[bufLen:]))
 
 	p.parseNoHeader(s)

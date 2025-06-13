@@ -37,6 +37,7 @@ var (
 	journaldTenantID = flag.String("journald.tenantID", "0:0", "TenantID for logs ingested via the Journald endpoint. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#multitenancy")
 	journaldIncludeEntryMetadata = flag.Bool("journald.includeEntryMetadata", false, "Include journal entry fields, which with double underscores.")
+	journaldPriorityAsLevel      = flag.Bool("journald.priorityAsLevel", true, "Store Journald priority as level field.")
 
 	maxRequestSize = flagutil.NewBytes("journald.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single journald request")
 )
@@ -221,6 +222,12 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 		}
 
 		if *journaldIncludeEntryMetadata || !strings.HasPrefix(name, "__") {
+			if *journaldPriorityAsLevel && name == "PRIORITY" {
+				fields = append(fields, logstorage.Field{
+					Name:  "level",
+					Value: value,
+				})
+			}
 			fields = append(fields, logstorage.Field{
 				Name:  name,
 				Value: value,
