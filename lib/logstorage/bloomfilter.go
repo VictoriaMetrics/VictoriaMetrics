@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	bitutil "math/bits"
 	"sync"
 	"unsafe"
 
@@ -82,10 +83,31 @@ func (bf *bloomFilter) mustInitTokens(tokens []string) {
 // mustInitHashes initializes bf with the given hashes
 func (bf *bloomFilter) mustInitHashes(hashes []uint64) {
 	bitsCount := len(hashes) * bloomFilterBitsPerItem
-	wordsCount := (bitsCount + 63) / 64
-	bits := slicesutil.SetLength(bf.bits, wordsCount)
+	wordsCount := int64((bitsCount + 63) / 64)
+	/*
+		If the length of the array is a power of 2, then subsequent calculations can use bitwise operations instead of modulo operations to improve performance.
+		However, the increase in array length also increases the length of the data, resulting in negative optimization.
+		A wider range of trade-offs may be required.
+	*/
+	//wordsCount = roundUpPowerOf2(wordsCount)
+	bits := slicesutil.SetLength(bf.bits, int(wordsCount))
 	bloomFilterAddHashes(bits, hashes)
 	bf.bits = bits
+}
+
+func roundUpPowerOf2(x int64) int64 {
+	if x <= 0 {
+		return 1
+	}
+	x--
+	x |= x >> 1
+	x |= x >> 2
+	x |= x >> 4
+	x |= x >> 8
+	x |= x >> 16
+	x |= x >> 32
+	x++
+	return x
 }
 
 // bloomFilterAddTokens adds the given tokens to the bloom filter bits
@@ -107,15 +129,30 @@ func bloomFilterAddHashes(bits, hashes []uint64) {
 }
 
 func initBloomFilter(bits, hashes []uint64) {
-	maxBits := uint64(len(bits)) * 64
+	maxBits := uint64(len(bits)) << 6 // x<<6 means x*64
+	ptr := unsafe.Pointer(unsafe.SliceData(bits))
+	if bitutil.OnesCount64(maxBits) == 1 { // Determine whether it is a power of 2
+		// fast path
+		for _, h := range hashes {
+			idx := h & (maxBits - 1) // Fast modulo algorithm: 1,bit operation instead of division; 2,no judgment on whether the divisor is 0
+			i := idx >> 6
+			j := idx & 63
+			mask := uint64(1) << j
+			w := (*uint64)(unsafe.Add(ptr, i<<3))
+			if (*w & mask) == 0 {
+				*w |= mask
+			}
+		}
+		return
+	}
 	for _, h := range hashes {
 		idx := h % maxBits
-		i := idx / 64
-		j := idx % 64
+		i := idx >> 6
+		j := idx & 63
 		mask := uint64(1) << j
-		w := bits[i]
-		if (w & mask) == 0 {
-			bits[i] = w | mask
+		w := (*uint64)(unsafe.Add(ptr, i<<3))
+		if (*w & mask) == 0 {
+			*w |= mask
 		}
 	}
 }
