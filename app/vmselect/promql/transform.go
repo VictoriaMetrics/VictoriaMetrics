@@ -64,6 +64,7 @@ var transformFuncs = map[string]transformFunc{
 	"label_del":                  transformLabelDel,
 	"label_graphite_group":       transformLabelGraphiteGroup,
 	"label_join":                 transformLabelJoin,
+	"label_split":                transformLabelSplit,
 	"label_keep":                 transformLabelKeep,
 	"label_lowercase":            transformLabelLowercase,
 	"label_map":                  transformLabelMap,
@@ -1955,6 +1956,54 @@ func transformLabelJoin(tfa *transformFuncArg) ([]*timeseries, error) {
 		*dstValue = b
 		if len(b) == 0 {
 			mn.RemoveTag(dstLabel)
+		}
+	}
+	return rvs, nil
+}
+
+func transformLabelSplit(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 4 {
+		return nil, fmt.Errorf(`not enough args; got %d; want exactly 4`, len(args))
+	}
+
+	if len(args) > 4 {
+		return nil, fmt.Errorf(`too many args; got %d; want exactly 4`, len(args))
+	}
+	dstLabel, err := getString(args[1], 1)
+	if err != nil {
+		return nil, err
+	}
+	separator, err := getString(args[2], 2)
+	if err != nil {
+		return nil, err
+	}
+	srcLabel, err := getString(args[3], 3)
+	if err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+
+	for _, ts := range rvs {
+		mn := &ts.MetricName
+		srcValue := mn.GetTagValue(srcLabel)
+		if len(srcValue) == 0 {
+			continue
+		}
+		parts := strings.Split(string(srcValue), separator)
+		for i, p := range parts {
+			//modify the first one in place, skip a copy
+			if i == 0 {
+				dstValue := getDstValue(mn, dstLabel)
+				*dstValue = []byte(parts[0])
+				continue
+			}
+			var nts timeseries
+			nts.CopyFromMetricNames(ts)
+
+			dstValue := getDstValue(&nts.MetricName, dstLabel)
+			*dstValue = []byte(p)
+			rvs = append(rvs, &nts)
 		}
 	}
 	return rvs, nil
