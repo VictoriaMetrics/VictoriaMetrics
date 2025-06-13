@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/hashpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"net/http"
 	"sort"
 	"strconv"
@@ -13,8 +11,10 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/query"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/hashpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -354,8 +354,14 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 	// 1. retrieved from `span_attr:otel.status_description` field directly.
 	// 2. converted from `status_message` field for Jaeger API.
 	for k, v := range p.Attributes {
-		if field, ok := spanAttributeConvertionMap[k]; ok {
-			// need to convert to opentelemetry field name in storage.
+		// convert to OpenTelemetry field name in storage.
+		if field, ok := spanAttributeMap[k]; ok {
+			// 2 special cases that need to converted value as well.
+			if k == "error" {
+				v = errorStatusCodeMap[v]
+			} else if k == "span.kind" {
+				v = spanKindMap[v]
+			}
 			attributesFilter[field] = v
 		} else if strings.HasPrefix(k, pb.InstrumentationScopeAttrPrefix) {
 			attributesFilter[k] = v

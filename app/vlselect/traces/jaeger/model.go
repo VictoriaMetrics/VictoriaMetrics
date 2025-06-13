@@ -2,11 +2,11 @@ package jaeger
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 type trace struct {
@@ -55,14 +55,36 @@ type log struct {
 	fields    []keyValue
 }
 
-var spanAttributeConvertionMap = map[string]string{
-	"span.kind":               pb.KindField,
-	"error":                   pb.StatusCodeField,
+// since Jaeger renamed some fields in OpenTelemetry
+// into other span attributes during query, the following map
+// is created to translate the span attributes filter into the
+// original field names in OpenTelemetry (VictoriaTraces).
+//
+// format: <special span attributes in Jaeger>: <fields in OpenTelemetry>
+var spanAttributeMap = map[string]string{
+	// special cases that need to map string to int status code, see errorStatusCodeMap
+	"error":     pb.StatusCodeField,
+	"span.kind": pb.KindField,
+
+	// only attributes/field name conversion.
 	"otel.status_description": pb.StatusMessageField,
 	"w3c.tracestate":          pb.TraceStateField,
 	"otel.scope.name":         pb.InstrumentationScopeName,
 	"otel.scope.version":      pb.InstrumentationScopeVersion,
 	// scope attributes
+}
+
+var errorStatusCodeMap = map[string]string{
+	"true":  "2",
+	"false": "1",
+}
+
+var spanKindMap = map[string]string{
+	"internal": "1",
+	"server":   "2",
+	"client":   "3",
+	"producer": "4",
+	"consumer": "5",
 }
 
 // fieldsToSpan convert OTLP spans in fields to Jaeger Spans.
@@ -103,6 +125,9 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 					spanKind = "producer"
 				case "5":
 					spanKind = "consumer"
+				default:
+					// unexpected span kind.
+					// this line does nothing should never be reached.
 				}
 				spanTagList = append(spanTagList, keyValue{key: "span.kind", vStr: spanKind})
 			}
@@ -126,9 +151,8 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 			}
 			sp.duration = nano / 1000
 		case pb.StatusCodeField:
-			if field.Value == "2" {
-				spanTagList = append(spanTagList, keyValue{key: "error", vStr: "true"})
-			}
+			hasErr := field.Value == "2"
+			spanTagList = append(spanTagList, keyValue{key: "error", vStr: strconv.FormatBool(hasErr)})
 		case pb.StatusMessageField:
 			if field.Value != "" {
 				spanTagList = append(spanTagList, keyValue{key: "otel.status_description", vStr: field.Value})
