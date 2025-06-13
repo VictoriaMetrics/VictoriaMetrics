@@ -2533,6 +2533,8 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 
 func readTrace(qt *querytracer.Tracer, bc *handshake.BufferedConn) error {
 	bb := traceJSONBufPool.Get()
+	defer traceJSONBufPool.Put(bb)
+
 	var err error
 	bb.B, err = readBytes(bb.B[:0], bc, maxTraceJSONSize)
 	if err != nil {
@@ -2541,7 +2543,6 @@ func readTrace(qt *querytracer.Tracer, bc *handshake.BufferedConn) error {
 	if err := qt.AddJSON(bb.B); err != nil {
 		return fmt.Errorf("cannot parse trace read from the server: %w", err)
 	}
-	traceJSONBufPool.Put(bb)
 	return nil
 }
 
