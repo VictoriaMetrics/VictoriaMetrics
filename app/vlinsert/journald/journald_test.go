@@ -1,6 +1,7 @@
 package journald
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
@@ -14,7 +15,8 @@ func TestPushJournaldOk(t *testing.T) {
 			TimeFields: []string{"__REALTIME_TIMESTAMP"},
 			MsgFields:  []string{"MESSAGE"},
 		}
-		if err := parseJournaldRequest([]byte(src), tlp, cp); err != nil {
+		r := bytes.NewBufferString(src)
+		if err := processStreamInternal("test", r, tlp, cp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
@@ -49,7 +51,8 @@ func TestPushJournald_Failure(t *testing.T) {
 			TimeFields: []string{"__REALTIME_TIMESTAMP"},
 			MsgFields:  []string{"MESSAGE"},
 		}
-		if err := parseJournaldRequest([]byte(data), tlp, cp); err == nil {
+		r := bytes.NewBufferString(data)
+		if err := processStreamInternal("test", r, tlp, cp); err == nil {
 			t.Fatalf("expected non nil error")
 		}
 	}
