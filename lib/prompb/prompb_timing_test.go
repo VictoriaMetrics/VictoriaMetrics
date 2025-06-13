@@ -75,6 +75,15 @@ var benchWriteRequest = func() *prompbmarshal.WriteRequest {
 	}
 	wrm := &prompbmarshal.WriteRequest{
 		Timeseries: tss,
+		Metadata: []prompbmarshal.MetricMetadata{
+			{
+				// COUNTER = 1
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
+			},
+		},
 	}
 	return wrm
 }()

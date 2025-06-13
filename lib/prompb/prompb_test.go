@@ -41,6 +41,15 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 				Samples: samples,
 			})
 		}
+		for _, md := range wr.Metadata {
+			wrm.Metadata = append(wrm.Metadata, prompbmarshal.MetricMetadata{
+				Type:             md.Type,
+				MetricFamilyName: md.MetricFamilyName,
+				Help:             md.Help,
+				Unit:             md.Unit,
+			})
+		}
+
 		dataResult := wrm.MarshalProtobuf(nil)
 		if !bytes.Equal(dataResult, data) {
 			t.Fatalf("unexpected data obtained after marshaling\ngot\n%X\nwant\n%X", dataResult, data)
@@ -123,6 +132,15 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			},
 		},
 	}
+	wrm.Metadata = []prompbmarshal.MetricMetadata{
+		{
+			// COUNTER = 1
+			Type:             1,
+			MetricFamilyName: "process_cpu_seconds_total",
+			Help:             "Total user and system CPU time spent in seconds",
+			Unit:             "seconds",
+		},
+	}
 	data = wrm.MarshalProtobuf(data[:0])
 	f(data)
 
@@ -166,6 +184,29 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 					Value: 9873,
 				},
 			},
+		},
+	}
+	wrm.Metadata = []prompbmarshal.MetricMetadata{
+		{
+			// COUNTER = 1
+			Type:             1,
+			MetricFamilyName: "process_cpu_seconds_total",
+			Help:             "Total user and system CPU time spent in seconds",
+			Unit:             "seconds",
+		},
+	}
+	data = wrm.MarshalProtobuf(data[:0])
+	f(data)
+
+	wrm.Reset()
+	// pass only MetricMetadata, no series
+	wrm.Metadata = []prompbmarshal.MetricMetadata{
+		{
+			// COUNTER = 1
+			Type:             1,
+			MetricFamilyName: "process_cpu_seconds_total",
+			Help:             "Total user and system CPU time spent in seconds",
+			Unit:             "seconds",
 		},
 	}
 	data = wrm.MarshalProtobuf(data[:0])
