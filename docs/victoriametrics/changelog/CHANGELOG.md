@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): respect staleness markers when calculating `rate` and `increase` functions. The new behavior will interrupt rate/increase calculation if last sample on the selected time window is a [staleness marker](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers), making the series to disappear immediately instead of slowly fading away. See more details in [#8891-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891#issuecomment-2875542721).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): fixed `rate_sum` and `rate_avg` for cases, when scrape rate is smaller than aggregation interval. See [#9017](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9017).
 
 ## [v1.119.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.119.0)
 
