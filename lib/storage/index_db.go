@@ -295,11 +295,6 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	db.incRef()
 	db.loadDeletedMetricIDs()
 
-	// legacy indexDBs are read-only, add all legacy deleted metricIDs on the start to avoid set union on every filtration.
-	if s.legacyDeletedMetricIDs.Len() != 0 {
-		db.updateDeletedMetricIDs(s.legacyDeletedMetricIDs.AppendTo(nil))
-	}
-
 	return db
 }
 
@@ -1755,9 +1750,30 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 	return dst, false
 }
 
+func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) ([]uint64, error) {
+	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
+
+	// Unconditionally search global index since a given day in per-day
+	// index may not contain the full set of metricIDs that correspond
+	// to the tfss.
+	metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
+	if err != nil {
+		return nil, err
+	}
+
+	db.deleteMetricIDs(metricIDs)
+	return metricIDs, nil
+}
+
 func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
+	if len(metricIDs) == 0 {
+		return
+	}
+
 	// atomically add deleted metricIDs to an inmemory map.
 	db.updateDeletedMetricIDs(metricIDs)
+
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	db.invalidateTagFiltersCache()
 
