@@ -153,7 +153,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
 		return jaeger.RequestHandler(ctx, w, r)
 	}
-	
+
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {
 		return false
