@@ -13,6 +13,144 @@ import (
 
 var legacyVmsinglePath = os.Getenv("VM_LEGACY_VMSINGLE_PATH")
 
+func TestLegacySingleDeleteSeries(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	type want struct {
+		series       []map[string]string
+		queryResults []*at.QueryResult
+	}
+
+	genData := func(prefix string, start, end, step int64, value float64) (recs []string, w *want) {
+		count := (end - start) / step
+		recs = make([]string, count)
+		w = &want{
+			series:       make([]map[string]string, count),
+			queryResults: make([]*at.QueryResult, count),
+		}
+		for i := range count {
+			name := fmt.Sprintf("%s_%03d", prefix, i)
+			timestamp := start + int64(i)*step
+
+			recs[i] = fmt.Sprintf("%s %f %d", name, value, timestamp)
+			w.series[i] = map[string]string{"__name__": name}
+			w.queryResults[i] = &at.QueryResult{
+				Metric:  map[string]string{"__name__": name},
+				Samples: []*at.Sample{{Timestamp: timestamp, Value: value}},
+			}
+		}
+		return recs, w
+	}
+
+	assertSearchResults := func(app at.PrometheusQuerier, query string, start, end int64, step string, want *want) {
+		t.Helper()
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+			Got: func() any {
+				return app.PrometheusAPIV1Series(t, query, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+				}).Sort()
+			},
+			Want: &at.PrometheusAPIV1SeriesResponse{
+				Status: "success",
+				Data:   want.series,
+			},
+			FailNow: true,
+		})
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/query_range response",
+			Got: func() any {
+				return app.PrometheusAPIV1QueryRange(t, query, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+					Step:  step,
+				})
+			},
+			Want: &at.PrometheusAPIV1QueryResponse{
+				Status: "success",
+				Data: &at.QueryData{
+					ResultType: "matrix",
+					Result:     want.queryResults,
+				},
+			},
+			FailNow: true,
+		})
+	}
+
+	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
+
+	// startLegacyVmsingle starts and instance of vmsingle that uses legacy
+	// indexDB.
+	startLegacyVmsingle := func() *at.Vmsingle {
+		return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+			"-storageDataPath=" + storageDataPath,
+			"-retentionPeriod=100y",
+			"-search.maxStalenessInterval=1m",
+		})
+	}
+
+	// startNewVmsingle starts and instance of vmsingle that uses partition
+	// indexDBs.
+	startNewVmsingle := func() *at.Vmsingle {
+		return tc.MustStartVmsingle("vmsingle-new", []string{
+			"-storageDataPath=" + storageDataPath,
+			"-retentionPeriod=100y",
+			"-search.maxStalenessInterval=1m",
+		})
+	}
+
+	// - start legacy vmsingle
+	// - insert data1
+	// - confirm that metric names and samples are searcheable
+	// - stop legacy vmsingle
+	const step = 24 * 3600 * 1000 // 24h
+	start1 := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	end1 := time.Date(2000, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	data1, want1 := genData("metric", start1, end1, step, 1)
+	legacyVmsingle := startLegacyVmsingle()
+	legacyVmsingle.PrometheusAPIV1ImportPrometheus(t, data1, at.QueryOpts{})
+	legacyVmsingle.ForceFlush(t)
+	assertSearchResults(legacyVmsingle, `{__name__=~".*"}`, start1, end1, "1d", want1)
+	tc.StopApp(legacyVmsingle.Name())
+
+	// - start new vmsingle
+	// - confirm that data1 metric names and samples are searcheable
+	// - delete data1
+	// - confirm that data1 metric names and samples are not searcheable anymore
+	// - insert data2 (same metric names, different dates)
+	// - confirm that metric names become searcheable again
+	// - confirm that data1 samples are not searchable and data2 samples are searcheable
+
+	newVmsingle := startNewVmsingle()
+	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end1, "1d", want1)
+
+	newVmsingle.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	wantNoResults := &want{
+		series:       []map[string]string{},
+		queryResults: []*at.QueryResult{},
+	}
+	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end1, "1d", wantNoResults)
+
+	start2 := time.Date(2000, 1, 11, 0, 0, 0, 0, time.UTC).UnixMilli()
+	end2 := time.Date(2000, 1, 20, 0, 0, 0, 0, time.UTC).UnixMilli()
+	data2, want2 := genData("metric", start2, end2, step, 2)
+	newVmsingle.PrometheusAPIV1ImportPrometheus(t, data2, at.QueryOpts{})
+	newVmsingle.ForceFlush(t)
+	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end2, "1d", want2)
+
+	// - restart new vmsingle
+	// - confirm that metric names still searchable, data1 samples are not
+	//   searchable, and data2 samples are searcheable
+
+	tc.StopApp(newVmsingle.Name())
+	newVmsingle = startNewVmsingle()
+	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end2, "1d", want2)
+}
+
 func TestLegacySingleBackupRestore(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()

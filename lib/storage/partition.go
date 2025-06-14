@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // The maximum size of big part.
@@ -1618,7 +1617,7 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
-	dmis := pt.getDeletedMetricIDs()
+	dmis := pt.idb.getDeletedMetricIDs()
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
@@ -1630,18 +1629,6 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		ph.MustWriteMetadata(dstPartPath)
 	}
 	return &ph, nil
-}
-
-func (pt *partition) getDeletedMetricIDs() *uint64set.Set {
-	if pt.s.legacyDeletedMetricIDs == nil {
-		return pt.idb.getDeletedMetricIDs()
-	}
-	if pt.idb.getDeletedMetricIDs().Len() == 0 {
-		return pt.s.legacyDeletedMetricIDs
-	}
-	dmis := pt.idb.getDeletedMetricIDs().Clone()
-	dmis.Union(pt.s.legacyDeletedMetricIDs)
-	return dmis
 }
 
 func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *inmemoryPart, dstPartPath string) *partWrapper {

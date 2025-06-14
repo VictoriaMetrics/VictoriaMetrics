@@ -317,6 +317,23 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
+// APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending
+// a request to /api/v1/admin/tsdb/delete_series.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
+func (app *Vmsingle) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/api/v1/admin/tsdb/delete_series", app.httpListenAddr)
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
+	}
+}
+
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //

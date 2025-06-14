@@ -22,6 +22,7 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
+	APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts)
 }
 
 // Writer contains methods for writing new data

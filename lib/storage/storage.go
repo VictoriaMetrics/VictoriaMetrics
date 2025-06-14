@@ -120,10 +120,6 @@ type Storage struct {
 	pendingNextDayMetricIDsLock sync.Mutex
 	pendingNextDayMetricIDs     *uint64set.Set
 
-	// legacyDeletedMetricIDs contains deleted metricIDs stored in legacy
-	// previous and current IndexDBs.
-	legacyDeletedMetricIDs *uint64set.Set
-
 	stopCh chan struct{}
 
 	currHourMetricIDsUpdaterWG sync.WaitGroup
@@ -260,15 +256,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	nextRotationTimestamp := legacyNextRetentionDeadlineSeconds(nowSecs, retentionSecs, legacyRetentionTimezoneOffsetSecs)
 	s.legacyNextRotationTimestamp.Store(nextRotationTimestamp)
 
-	// Load deleted metricIDs from legacy previous and current IndexDBs.
-	s.legacyDeletedMetricIDs = &uint64set.Set{}
-	if legacyIDBPrev != nil {
-		s.legacyDeletedMetricIDs.Union(legacyIDBPrev.getDeletedMetricIDs())
-	}
-	if legacyIDBCurr != nil {
-		s.legacyDeletedMetricIDs.Union(legacyIDBCurr.getDeletedMetricIDs())
-	}
-
 	// check for free disk space before opening the table
 	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
 	s.startFreeDiskSpaceWatcher()
@@ -277,6 +264,22 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	tablePath := filepath.Join(path, dataDirname)
 	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
+
+	// Add deleted metricIDs from legacy previous and current indexDBs to every
+	// partition indexDB.
+	legacyDeletedMetricIDSet := &uint64set.Set{}
+	if legacyIDBPrev != nil {
+		legacyDeletedMetricIDSet.Union(legacyIDBPrev.getDeletedMetricIDs())
+	}
+	if legacyIDBCurr != nil {
+		legacyDeletedMetricIDSet.Union(legacyIDBCurr.getDeletedMetricIDs())
+	}
+	legacyDeletedMetricIDs := legacyDeletedMetricIDSet.AppendTo(nil)
+	ptws := tb.GetPartitions(nil)
+	for _, ptw := range ptws {
+		ptw.pt.idb.updateDeletedMetricIDs(legacyDeletedMetricIDs)
+	}
+	tb.PutPartitions(ptws)
 
 	// Load nextDayMetricIDs cache after the data table is opened since it
 	// requires the table to operate properly.
@@ -1246,95 +1249,40 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		return 0, nil
 	}
 
-	// Not using Storage.searchAndMerge because this method does not follow the
-	// same search-then-merge pattern as most other public methods.
+	// Not deleting in parallel because the deletion operation is rare.
 
-	var idbs []*indexDB
+	deletedMetricIDs := &uint64set.Set{}
+	legacyDMIs, err := s.legacyDeleteSeries(qt, tfss, maxMetrics)
+	if err != nil {
+		return 0, err
+	}
+	deletedMetricIDs.AddMulti(legacyDMIs)
 
 	// Get all partition IndexDBs.
-	ptIDBs := s.tb.GetIndexDBs(TimeRange{
+	idbs := s.tb.GetIndexDBs(TimeRange{
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	})
-	defer s.tb.PutIndexDBs(ptIDBs)
-	idbs = append(idbs, ptIDBs...)
+	defer s.tb.PutIndexDBs(idbs)
 
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
-	if legacyIDBPrev != nil {
-		idbs = append(idbs, legacyIDBPrev)
-	}
-	if legacyIDBCurr != nil {
-		idbs = append(idbs, legacyIDBCurr)
-	}
-
-	if len(idbs) == 0 {
-		qt.Printf("found no indexDBs")
-		return 0, nil
-	}
-
-	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
-
-	// Unconditionally search global index since a given day in per-day
-	// index may not contain the full set of metricIDs that correspond
-	// to the tfss.
-	tr := globalIndexTimeRange
-
-	var wg sync.WaitGroup
-	metricIDss := make([][]uint64, len(idbs))
-	errs := make([]error, len(idbs))
-	for i, idb := range idbs {
-		qt := qtSearch.NewChild("search indexDB %s: filters=%s, timeRange=%s, maxMetrics=%d", idb.name, tfss, &tr, maxMetrics)
-		wg.Add(1)
-		go func(qt *querytracer.Tracer, i int, idb *indexDB) {
-			defer wg.Done()
-			defer qt.Done()
-			is := idb.getIndexSearch(noDeadline)
-			defer idb.putIndexSearch(is)
-			metricIDss[i], errs[i] = is.searchMetricIDs(qt, tfss, tr, maxMetrics)
-		}(qt, i, idb)
-	}
-	wg.Wait()
-
-	qtSearch.Done()
-
-	for _, err := range errs {
+	for _, idb := range idbs {
+		qt.Printf("start deleting from %s partition indexDB", idb.name)
+		if len(legacyDMIs) > 0 {
+			idb.updateDeletedMetricIDs(legacyDMIs)
+		}
+		dmis, err := idb.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return 0, err
 		}
+		deletedMetricIDs.AddMulti(dmis)
+		qt.Printf("deleted %d metricIDs from %s partition indexDB", len(dmis), idb.name)
 	}
-
-	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
-	s.resetAndSaveTSIDCache()
-	qt.Printf("reset and save tsidCache")
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
-	qtDelete := qt.NewChild("delete from %d indexDBs in parallel", len(idbs))
-	deletedMetricIDs := &uint64set.Set{}
-	for i, idb := range idbs {
-		metricIDs := metricIDss[i]
-		qt := qtDelete.NewChild("delete %d metricIDs from indexDB %s", len(metricIDs), idb.name)
-		if len(metricIDs) == 0 {
-			qt.Done()
-			// Do not call idb.deleteMetricIDs for empty metricIDs to avoid
-			// unnecessary resetting of tfss cache.
-			continue
-		}
-		wg.Add(1)
-		go func(qt *querytracer.Tracer, idb *indexDB, metricIDs []uint64) {
-			defer wg.Done()
-			defer qt.Done()
-			idb.deleteMetricIDs(metricIDs)
-		}(qt, idb, metricIDs)
-		deletedMetricIDs.AddMulti(metricIDs)
-	}
-	wg.Wait()
-	qtDelete.Done()
-
 	n := deletedMetricIDs.Len()
-	qt.Donef("deleted %d metricIDs", n)
+	qt.Donef("deleted %d unique metricIDs", n)
 	return n, nil
 }
 
@@ -1682,6 +1630,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 	var idb *indexDB
 	var is *indexSearch
+	var deletedMetricIDs *uint64set.Set
 
 	var firstWarn error
 	for i := range mrs {
@@ -1697,11 +1646,13 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			}
 			idb = s.tb.MustGetIndexDB(mr.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
+			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
-			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
-
+		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
+			// If the TSID is deleted, we re-register time series.
+			// Eventually, the deleted TSID will be removed from the cache.{
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip row, since it exceeds cardinality limit
 				continue
@@ -1818,6 +1769,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	var lTSID legacyTSID
 	var idb *indexDB
 	var is *indexSearch
+	var deletedMetricIDs *uint64set.Set
 
 	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
@@ -1871,6 +1823,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 			idb = s.tb.MustGetIndexDB(r.Timestamp)
 			is = idb.getIndexSearch(noDeadline)
+			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
@@ -1898,12 +1851,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) {
+		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
-			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
-			// contain MetricName->TSID entries for deleted time series.
-			// See Storage.DeleteSeries code for details.
-
+			// If the TSID is deleted, we re-register time series.
+			// Eventually, the deleted TSID will be removed from the cache.
 			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip row, since it exceeds cardinality limit
 				j--
