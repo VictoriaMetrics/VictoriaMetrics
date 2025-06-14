@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support VictoriaLogs native rotocol. "+
+	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support VictoriaLogs native protocol. "+
 		"Example url: http://<victorialogs-host>:9428/internal/insert . "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
 		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
