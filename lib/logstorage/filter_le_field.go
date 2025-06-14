@@ -3,8 +3,10 @@ package logstorage
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterLeField matches if the fieldName field is smaller or equal to the otherFieldName field
@@ -15,6 +17,9 @@ type filterLeField struct {
 	otherFieldName string
 
 	excludeEqualValues bool
+
+	prefixFilter     prefixfilter.Filter
+	prefixFilterOnce sync.Once
 }
 
 func (fe *filterLeField) String() string {
@@ -25,9 +30,18 @@ func (fe *filterLeField) String() string {
 	return fmt.Sprintf("%s%s(%s)", quoteFieldNameIfNeeded(fe.fieldName), funcName, quoteTokenIfNeeded(fe.otherFieldName))
 }
 
-func (fe *filterLeField) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fe.fieldName)
-	neededFields.add(fe.otherFieldName)
+func (fe *filterLeField) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fe.fieldName)
+	pf.AddAllowFilter(fe.otherFieldName)
+}
+
+func (fe *filterLeField) getPrefixFilter() *prefixfilter.Filter {
+	fe.prefixFilterOnce.Do(fe.initPrefixFilter)
+	return &fe.prefixFilter
+}
+
+func (fe *filterLeField) initPrefixFilter() {
+	fe.prefixFilter.AddAllowFilters([]string{fe.fieldName, fe.otherFieldName})
 }
 
 func (fe *filterLeField) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -206,7 +220,9 @@ func (fe *filterLeField) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 func (fe *filterLeField) applyFilterString(bs *blockSearch, bm *bitmap) {
 	br := getBlockResult()
 	br.mustInit(bs, bm)
-	br.initRequestedColumns([]string{fe.fieldName, fe.otherFieldName})
+
+	pf := fe.getPrefixFilter()
+	br.initColumns(pf)
 
 	c := br.getColumnByName(fe.fieldName)
 	cOther := br.getColumnByName(fe.otherFieldName)

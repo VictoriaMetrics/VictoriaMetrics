@@ -212,7 +212,8 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 		if len(cs) != 2 {
 			t.Fatalf("unexpected number of columns in blockResult; got %d; want 2", len(cs))
 		}
-		values := cs[0].getValues(br)
+		mc := getMatchingColumns(br, []string{neededColumnName})
+		values := mc.cs[0].getValues(br)
 		timestamps := br.getTimestamps()
 		resultsMu.Lock()
 		for i, v := range values {

@@ -55,6 +55,12 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// HTTPAddr returns the address at which the vmselect process is
+// listening for incoming HTTP requests.
+func (app *Vmselect) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // PrometheusAPIV1Export is a test helper function that performs the export of
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmselect endpoint.
@@ -69,6 +75,22 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values.Add("format", "promapi")
 	res, _ := app.cli.PostForm(t, exportURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
+// PrometheusAPIV1ExportNative is a test helper function that performs the export of
+// raw samples in native binary format by sending an HTTP POST request to
+// /prometheus/api/v1/export/native vmselect endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
+func (app *Vmselect) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
+	t.Helper()
+
+	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export/native", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	values.Add("match[]", query)
+	values.Add("format", "promapi")
+	res, _ := app.cli.PostForm(t, exportURL, values)
+	return []byte(res)
 }
 
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
@@ -203,6 +225,24 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	}
 	status.Sort()
 	return status
+}
+
+// APIV1AdminTenants sends a query to a /admin/tenants endpoint
+func (app *Vmselect) APIV1AdminTenants(t *testing.T) *AdminTenantsResponse {
+	t.Helper()
+
+	tenantsURL := fmt.Sprintf("http://%s/admin/tenants", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, tenantsURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var tenants *AdminTenantsResponse
+	if err := json.Unmarshal([]byte(res), tenants); err != nil {
+		t.Fatalf("could not unmarshal tenants response data:\n%s\n err: %v", res, err)
+	}
+
+	return tenants
 }
 
 // String returns the string representation of the vmselect app state.

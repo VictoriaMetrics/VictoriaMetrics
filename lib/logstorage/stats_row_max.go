@@ -3,36 +3,32 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"slices"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsRowMax struct {
 	srcField string
 
-	fetchFields []string
+	fieldFilters []string
 }
 
 func (sm *statsRowMax) String() string {
 	s := "row_max(" + quoteTokenIfNeeded(sm.srcField)
-	if len(sm.fetchFields) > 0 {
-		s += ", " + fieldNamesString(sm.fetchFields)
+	if !prefixfilter.MatchAll(sm.fieldFilters) {
+		s += ", " + fieldNamesString(sm.fieldFilters)
 	}
 	s += ")"
 	return s
 }
 
-func (sm *statsRowMax) updateNeededFields(neededFields fieldsSet) {
-	if len(sm.fetchFields) == 0 {
-		neededFields.add("*")
-	} else {
-		neededFields.addFields(sm.fetchFields)
-	}
-	neededFields.add(sm.srcField)
+func (sm *statsRowMax) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sm.fieldFilters)
+	pf.AddAllowFilter(sm.srcField)
 }
 
 func (sm *statsRowMax) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -216,28 +212,18 @@ func (smp *statsRowMaxProcessor) updateState(sm *statsRowMax, v string, br *bloc
 
 	clear(fields)
 	fields = fields[:0]
-	fetchFields := sm.fetchFields
-	if len(fetchFields) == 0 {
-		cs := br.getColumns()
-		for _, c := range cs {
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  strings.Clone(c.name),
-				Value: strings.Clone(v),
-			})
-			stateSizeIncrease += len(c.name) + len(v)
-		}
-	} else {
-		for _, field := range fetchFields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  strings.Clone(c.name),
-				Value: strings.Clone(v),
-			})
-			stateSizeIncrease += len(c.name) + len(v)
-		}
+
+	mc := getMatchingColumns(br, sm.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		fields = append(fields, Field{
+			Name:  strings.Clone(c.name),
+			Value: strings.Clone(v),
+		})
+		stateSizeIncrease += len(c.name) + len(v)
 	}
+	putMatchingColumns(mc)
+
 	smp.fields = fields
 
 	return stateSizeIncrease
@@ -248,28 +234,28 @@ func (smp *statsRowMaxProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan
 }
 
 func parseStatsRowMax(lex *lexer) (*statsRowMax, error) {
-	if !lex.isKeyword("row_max") {
-		return nil, fmt.Errorf("unexpected func; got %q; want 'row_max'", lex.token)
-	}
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "row_max")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'row_max' args: %w", err)
+		return nil, err
 	}
 
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("missing first arg for 'row_max' func - source field")
+	if len(fieldFilters) == 0 {
+		return nil, fmt.Errorf("missing source field for 'row_max' func")
 	}
 
-	srcField := fields[0]
-	fetchFields := fields[1:]
-	if slices.Contains(fetchFields, "*") {
-		fetchFields = nil
+	srcField := fieldFilters[0]
+	if prefixfilter.IsWildcardFilter(srcField) {
+		return nil, fmt.Errorf("the source field %q cannot be wildcard", srcField)
+	}
+
+	fieldFilters = fieldFilters[1:]
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	sm := &statsRowMax{
-		srcField:    srcField,
-		fetchFields: fetchFields,
+		srcField:     srcField,
+		fieldFilters: fieldFilters,
 	}
 	return sm, nil
 }

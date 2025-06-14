@@ -6,23 +6,24 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsJSONValues struct {
-	fields []string
-	limit  uint64
+	fieldFilters []string
+	limit        uint64
 }
 
 func (sv *statsJSONValues) String() string {
-	s := "json_values(" + statsFuncFieldsToString(sv.fields) + ")"
+	s := "json_values(" + fieldNamesString(sv.fieldFilters) + ")"
 	if sv.limit > 0 {
 		s += fmt.Sprintf(" limit %d", sv.limit)
 	}
 	return s
 }
 
-func (sv *statsJSONValues) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
+func (sv *statsJSONValues) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sv.fieldFilters)
 }
 
 func (sv *statsJSONValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -36,7 +37,6 @@ type statsJSONValuesProcessor struct {
 
 	a *chunkedAllocator
 
-	csBuf     []*blockResultColumn
 	fieldsBuf []Field
 	buf       []byte
 }
@@ -49,10 +49,14 @@ func (svp *statsJSONValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blo
 	}
 
 	stateSizeIncrease := 0
-	cs := svp.getColumns(br, sv.fields)
+
+	mc := getMatchingColumns(br, sv.fieldFilters)
+	mc.sort()
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-		stateSizeIncrease += svp.updateStateForRow(br, cs, rowIdx)
+		stateSizeIncrease += svp.updateStateForRow(br, mc.cs, rowIdx)
 	}
+	putMatchingColumns(mc)
+
 	return stateSizeIncrease
 }
 
@@ -71,22 +75,6 @@ func (svp *statsJSONValuesProcessor) updateStateForRow(br *blockResult, cs []*bl
 	return (svp.a.bytesAllocated - bytesAllocated) + int(unsafe.Sizeof(value))
 }
 
-func (svp *statsJSONValuesProcessor) getColumns(br *blockResult, fields []string) []*blockResultColumn {
-	csBuf := svp.csBuf[:0]
-	if len(fields) == 0 {
-		cs := br.getColumns()
-		csBuf = append(csBuf, cs...)
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			csBuf = append(csBuf, c)
-		}
-	}
-	svp.csBuf = csBuf
-
-	return csBuf
-}
-
 func (svp *statsJSONValuesProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	sv := sf.(*statsJSONValues)
 	if svp.limitReached(sv) {
@@ -94,8 +82,12 @@ func (svp *statsJSONValuesProcessor) updateStatsForRow(sf statsFunc, br *blockRe
 		return 0
 	}
 
-	cs := svp.getColumns(br, sv.fields)
-	return svp.updateStateForRow(br, cs, rowIdx)
+	mc := getMatchingColumns(br, sv.fieldFilters)
+	mc.sort()
+	stateSizeIncrease := svp.updateStateForRow(br, mc.cs, rowIdx)
+	putMatchingColumns(mc)
+
+	return stateSizeIncrease
 }
 
 func (svp *statsJSONValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
@@ -168,12 +160,12 @@ func (svp *statsJSONValuesProcessor) limitReached(sv *statsJSONValues) bool {
 }
 
 func parseStatsJSONValues(lex *lexer) (*statsJSONValues, error) {
-	fields, err := parseStatsFuncFields(lex, "json_values")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "json_values")
 	if err != nil {
 		return nil, err
 	}
 	sv := &statsJSONValues{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	if lex.isKeyword("limit") {
 		lex.nextToken()

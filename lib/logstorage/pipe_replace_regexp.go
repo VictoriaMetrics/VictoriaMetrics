@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeReplaceRegexp processes '| replace_regexp ...' pipe.
@@ -45,8 +46,8 @@ func (pr *pipeReplaceRegexp) canLiveTail() bool {
 	return true
 }
 
-func (pr *pipeReplaceRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
+func (pr *pipeReplaceRegexp) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUpdatePipe(pf, pr.field, pr.iff)
 }
 
 func (pr *pipeReplaceRegexp) hasFilterInWithQuery() bool {

@@ -46,7 +46,7 @@ See [the list of supported Journald fields](https://www.freedesktop.org/software
 ## Multitenancy
 
 By default VictoriaLogs stores logs ingested via journald protocol into `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
-This can be changed by passing the needed tenant in the format `AccountID:ProjectID` at the `-journlad.tenantID` command-line flag.
+This can be changed by passing the needed tenant in the format `AccountID:ProjectID` at the `-journald.tenantID` command-line flag.
 For example, `-journald.tenantID=123:456` would store logs ingested via journald protocol into `(AccountID=123, ProjectID=456)` tenant.
 
 See also:

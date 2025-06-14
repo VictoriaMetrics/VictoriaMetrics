@@ -330,11 +330,6 @@ func checkEqualRows(lrResult, lrOrig *logRows) error {
 	sort.Sort(lrResult)
 	sort.Sort(lrOrig)
 
-	sortFieldNames := func(fields []Field) {
-		sort.Slice(fields, func(i, j int) bool {
-			return fields[i].Name < fields[j].Name
-		})
-	}
 	for i := range lrOrig.timestamps {
 		if !lrOrig.streamIDs[i].equal(&lrResult.streamIDs[i]) {
 			return fmt.Errorf("unexpected streamID for log entry %d\ngot\n%s\nwant\n%s", i, &lrResult.streamIDs[i], &lrOrig.streamIDs[i])
@@ -347,8 +342,8 @@ func checkEqualRows(lrResult, lrOrig *logRows) error {
 		if len(fieldsOrig) != len(fieldsResult) {
 			return fmt.Errorf("unexpected number of fields at log entry %d\ngot\n%s\nwant\n%s", i, fieldsResult, fieldsOrig)
 		}
-		sortFieldNames(fieldsOrig)
-		sortFieldNames(fieldsResult)
+		sortFieldsByName(fieldsOrig)
+		sortFieldsByName(fieldsResult)
 		if !reflect.DeepEqual(fieldsOrig, fieldsResult) {
 			return fmt.Errorf("unexpected fields for log entry %d\ngot\n%s\nwant\n%s", i, fieldsResult, fieldsOrig)
 		}

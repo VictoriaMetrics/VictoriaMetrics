@@ -14,6 +14,40 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.23.3
+Released: 2025-06-13
+
+- IMPROVEMENT: Added backward-compatible single-dashed form support for `vmanomaly`'s [command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to enhance compatibility with VictoriaMetrics ecosystem and ease devOps experience. For example, `-license.forceOffline` can now be used in addition to `--license.forceOffline` - for the users who prefer the single-dash format or are accustomed to it from other VictoriaMetrics tools.
+
+## v1.23.2
+Released: 2025-06-09
+
+- IMPROVEMENT: Increased convergence speed for [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score), [ZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score), [MADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad), and [OnlineMADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) models. Now it works better for tight optimization budgets (n_trials < 10, timeout < 1s)
+
+- BUGFIX: Now mean and variance of [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) with exponential `decay` < 1 [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) are properly calculated for unbiased predictions.
+
+## v1.23.1
+Released: 2025-06-08
+
+- BUGFIX: In [sharding mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) the corner case when shard number (`VMANOMALY_MEMBER_NUM`) is greater than the number of configured shards (`VMANOMALY_MEMBERS_COUNT`) is now properly handled.
+
+- BUGFIX: In [sharding mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), the corner case when the number of produced [sub-configurations](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) is less than the number of configured shards (`VMANOMALY_MEMBERS_COUNT`) is now properly handled. Until config hot-reload is supported, such "idle" shards will be turned off with exit code 1 and respective critical message logged.
+
+## v1.23.0
+Released: 2025-06-05
+
+- FEATURE: Added `decay` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) to [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models). This parameters allows for newer data to be weighted more heavily in online models. By default this is set to 1 which means all data points are weighted the same to maintain backward compatibility with existing configs. The closer this value is to 0 the more important new data is.
+
+- IMPROVEMENT: **Restored back parallelization** in the read/fit/infer pipeline, previously disabled in [v1.22.0](#v1220-experimental) due to deadlock issues. The new implementation prevents deadlocks, allowing to control the parallelization level via `n_workers` in [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/). It's suggested to upgrade from [v1.22.0](#v1220) - [v1.22.1](#v1221) to this version to regain the performance benefits of parallel processing.
+
+- IMPROVEMENT: Added `--dryRun` [argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to `vmanomaly` to enable dry run mode. This mode allows to validate configuration without executing any actual operations and doesn't require a license. It is particularly useful to test the configurations before deploying them in a production environment.
+
+- IMPROVEMENT: Enhanced task scheduling to reduce locks between anomaly detection models' fit and inference calls, improving their concurrent performance.
+
+- IMPROVEMENT: `min_dev_from_expected` model [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) is now bi-directional, allowing you to set *different* thresholds for peaks and drops.
+
+- BUGFIX: Now `clip_predictions` [model common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) is properly used with [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), ensuring that the predictions are clipped to the respective query's `data_range` values even if the model saw *less datapoints* than required `min_n_samples_seen_` to produce anomaly scores (e.g., when a new model instance was created during `infer` call for new timeseries not seen at training time).
+
 ## v1.22.1
 Released: 2025-05-11
 
@@ -28,7 +62,7 @@ Released: 2025-04-11
 
 **(Experimental Patch Release)**
 
-> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Future releases will reintroduce optimized parallelization.
+> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Please upgrade to [v1.23.0](#v1230) or newer for restored parallelization.
 
 - BUGFIX: Resolved an intermittent deadlock in the fit/infer process that previously caused the service to freeze indefinitely, thereby preventing anomaly score production and model refits on multicore systems.
 
@@ -189,7 +223,7 @@ Released: 2024-10-22
 ## v1.17.1
 Released: 2024-10-18
 
-- BUGFIX: [Prophet models](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) no longer fail to train on *constant* data, data consisting of the same value and no variation across time. The bug prevented the `fit` stage from completing successfully, resulting in the model instance not being stored in the model registry, after automated model cleanup was added in [v1.17.0](#1170).
+- BUGFIX: [Prophet models](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) no longer fail to train on *constant* data, data consisting of the same value and no variation across time. The bug prevented the `fit` stage from completing successfully, resulting in the model instance not being stored in the model registry, after automated model cleanup was added in [v1.17.0](#v1170).
 
 ## v1.17.0
 Released: 2024-10-17

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
@@ -18,6 +18,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
 import { getUpdatedHistory } from "../../components/QueryHistory/utils";
 import { useDebounceCallback } from "../../hooks/useDebounceCallback";
+import usePrevious from "../../hooks/usePrevious";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
@@ -30,6 +31,7 @@ const ExploreLogs: FC = () => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [searchParams] = useSearchParams();
   const hideChart = useMemo(() => searchParams.get("hide_chart"), [searchParams]);
+  const prevHideChart = usePrevious(hideChart);
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
@@ -118,11 +120,10 @@ const ExploreLogs: FC = () => {
   }, [query, isUpdatingQuery]);
 
   useEffect(() => {
-    if (!hideChart) debouncedFetchLogs(period, true);
-    return () => {
-      debouncedFetchLogs.cancel?.();
-    };
-  }, [hideChart, period]);
+    if (!hideChart && prevHideChart) {
+      fetchLogHits(period);
+    }
+  }, [hideChart, prevHideChart, period]);
 
   return (
     <div className="vm-explore-logs">

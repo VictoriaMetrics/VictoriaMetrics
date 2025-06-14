@@ -11,6 +11,7 @@ func TestParsePipeStatsSuccess(t *testing.T) {
 	}
 
 	f(`stats count(*) as rows`)
+	f(`stats count(a*, b) as rows`)
 	f(`stats by (x) count(*) as rows, count_uniq(x) as uniqs`)
 	f(`stats by (_time:month offset 6.5h, y) count(*) as rows, count_uniq(x) as uniqs`)
 	f(`stats by (_time:month offset 6.5h, y) count(*) if (q:w) as rows, count_uniq(x) as uniqs`)
@@ -31,6 +32,10 @@ func TestParsePipeStatsFailure(t *testing.T) {
 	f(`stats by(x:abc) count() rows`)
 	f(`stats by(x:1h offset) count () rows`)
 	f(`stats by(x:1h offset foo) count() rows`)
+	f(`stats by (*) count()`)
+	f(`stats by (x*) count()`)
+	f(`stats count() as *`)
+	f(`stats count() as x*`)
 }
 
 func TestPipeStats(t *testing.T) {
@@ -465,9 +470,9 @@ func TestPipeStats(t *testing.T) {
 }
 
 func TestPipeStatsUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

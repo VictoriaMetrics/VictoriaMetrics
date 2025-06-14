@@ -120,7 +120,7 @@ groups:
   [ - <rule_group> ]
 ```
 
-> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/) in the following [guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/).
+> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/) in the following [guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
 
 > For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config), 
 > many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically. 
@@ -786,7 +786,7 @@ To run vmalert in `replay` mode:
     -datasource.url=http://localhost:8428 \     # Prometheus HTTP API compatible datasource
     -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
     -replay.timeFrom=2021-05-11T07:21:43Z \     # to start replay from
-    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, is optional
+    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, optional. By default, set to the current time
 ```
 
 The output of the command will look like the following:
@@ -1050,11 +1050,11 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 See general recommendations regarding security [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
 vmalert [web UI](#web) exposes configuration details such as list of [Groups](#groups), active alerts, 
-[alerts state](#alerts-state), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
+[alerts state](#alerts-state-on-restarts), [notifiers](#notifier-configuration-file). Notifier addresses (sanitized) are attached
 as labels to metrics `vmalert_alerts_sent_.*` on `http://<vmalert>/metrics` page. Consider limiting user's access 
 to the web UI or `/metrics` page if this information is sensitive.
 
-[Alerts state](#alerts-state) page or [debug mode](#debug-mode) could emit additional information about configured
+[Alerts state](#alerts-state-on-restarts) page or [debug mode](#debug-mode) could emit additional information about configured
 datasource URL, GET params and headers. Sensitive information such as passwords or auth tokens is stripped by default.
 To disable stripping of such info pass `-datasource.showURL` cmd-line flag to vmalert.
 
@@ -1440,7 +1440,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores. (default 32)
+     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration

@@ -154,13 +154,13 @@ const Relabel: FC = () => {
               <div className="vm-relabeling-steps-item__row">
                 <span>Input Labels:</span>
                 <code>
-                  <pre dangerouslySetInnerHTML={{ __html: step.inLabels }}/>
+                  <pre dangerouslySetInnerHTML={{ __html: step.errors?.inLabels || step.inLabels }}/>
                 </code>
               </div>
               <div className="vm-relabeling-steps-item__row">
                 <span>Output labels:</span>
                 <code>
-                  <pre dangerouslySetInnerHTML={{ __html: step.outLabels }}/>
+                  <pre dangerouslySetInnerHTML={{ __html: step.errors?.outLabels || step.outLabels }}/>
                 </code>
               </div>
             </div>

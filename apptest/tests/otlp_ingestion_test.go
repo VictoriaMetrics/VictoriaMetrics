@@ -21,7 +21,7 @@ func TestSingleOTLPIngestionJaegerQuery(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartDefaultVlsingle()
+	sut := tc.MustStartDefaultVtsingle()
 
 	testOTLPIngestionJaegerQuery(tc, sut)
 }
@@ -179,6 +179,7 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 						{Key: "otel.scope.name", Type: "string", Value: "testInstrumentation"},
 						{Key: "otel.scope.version", Type: "string", Value: "1.0"},
 						{Key: "testTag", Type: "string", Value: "testValue"},
+						{Key: "error", Type: "string", Value: "unset"},
 						{Key: "otel.status_description", Type: "string", Value: "success"},
 						{Key: "w3c.tracestate", Type: "string", Value: "trace_state"},
 					},

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackSyslog processes '| unpack_syslog ...' pipe.
@@ -54,8 +56,8 @@ func (pu *pipeUnpackSyslog) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnpackSyslog) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, neededFields, unneededFields)
+func (pu *pipeUnpackSyslog) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, pf)
 }
 
 func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {

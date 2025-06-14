@@ -14,6 +14,7 @@ func TestParseStatsMaxSuccess(t *testing.T) {
 	f(`max(*)`)
 	f(`max(a)`)
 	f(`max(a, b)`)
+	f(`max(a*, b)`)
 }
 
 func TestParseStatsMaxFailure(t *testing.T) {

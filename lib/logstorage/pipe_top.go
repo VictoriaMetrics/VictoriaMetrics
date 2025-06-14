@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeTopDefaultLimit is the default number of entries pipeTop returns.
@@ -45,9 +46,7 @@ func (pt *pipeTop) String() string {
 	if pt.limit != pipeTopDefaultLimit {
 		s += " " + pt.limitStr
 	}
-	if len(pt.byFields) > 0 {
-		s += " by (" + fieldNamesString(pt.byFields) + ")"
-	}
+	s += " by (" + fieldNamesString(pt.byFields) + ")"
 	if pt.hitsFieldName != "hits" {
 		s += " hits as " + quoteTokenIfNeeded(pt.hitsFieldName)
 	}
@@ -78,15 +77,9 @@ func (pt *pipeTop) canLiveTail() bool {
 	return false
 }
 
-func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
-
-	if len(pt.byFields) == 0 {
-		neededFields.add("*")
-	} else {
-		neededFields.addFields(pt.byFields)
-	}
+func (pt *pipeTop) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.Reset()
+	pf.AddAllowFilters(pt.byFields)
 }
 
 func (pt *pipeTop) hasFilterInWithQuery() bool {
@@ -154,22 +147,6 @@ type pipeTopProcessorShard struct {
 // writeBlock writes br to shard.
 func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	byFields := shard.pt.byFields
-	if len(byFields) == 0 {
-		// Take into account all the columns in br.
-		keyBuf := shard.keyBuf
-		cs := br.getColumns()
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-			keyBuf = keyBuf[:0]
-			for _, c := range cs {
-				v := c.getValueAtRow(br, rowIdx)
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
-			}
-			shard.m.updateStateString(keyBuf, 1)
-		}
-		shard.keyBuf = keyBuf
-		return
-	}
 	if len(byFields) == 1 {
 		// Fast path for a single field.
 		shard.updateStatsSingleColumn(br, byFields[0])
@@ -345,37 +322,7 @@ func (ptp *pipeTopProcessor) flush() error {
 		return dst
 	}
 
-	if len(byFields) == 0 {
-		for i, e := range entries {
-			if needStop(ptp.stopCh) {
-				return nil
-			}
-
-			rowFields = rowFields[:0]
-			keyBuf := bytesutil.ToUnsafeBytes(e.k)
-			for len(keyBuf) > 0 {
-				name, nSize := encoding.UnmarshalBytes(keyBuf)
-				if nSize <= 0 {
-					logger.Panicf("BUG: cannot unmarshal field name")
-				}
-				keyBuf = keyBuf[nSize:]
-
-				value, nSize := encoding.UnmarshalBytes(keyBuf)
-				if nSize <= 0 {
-					logger.Panicf("BUG: cannot unmarshal field value")
-				}
-				keyBuf = keyBuf[nSize:]
-
-				rowFields = append(rowFields, Field{
-					Name:  bytesutil.ToUnsafeString(name),
-					Value: bytesutil.ToUnsafeString(value),
-				})
-			}
-			rowFields = addHitsField(rowFields, e.hits)
-			rowFields = addRankField(rowFields, i)
-			wctx.writeRow(rowFields)
-		}
-	} else if len(byFields) == 1 {
+	if len(byFields) == 1 {
 		fieldName := byFields[0]
 		for i, e := range entries {
 			if needStop(ptp.stopCh) {
@@ -670,8 +617,8 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 	} else if needFields {
 		return nil, fmt.Errorf("missing fields after 'by'")
 	}
-	if slices.Contains(byFields, "*") {
-		byFields = nil
+	if len(byFields) == 0 {
+		return nil, fmt.Errorf("expecting at least a single field in 'by(...)'")
 	}
 
 	pt := &pipeTop{
@@ -725,7 +672,7 @@ func parseRankFieldName(lex *lexer) (string, error) {
 		}
 	}
 	if !lex.isKeyword("", "|", ")", "limit") {
-		s, err := getCompoundToken(lex)
+		s, err := parseFieldName(lex)
 		if err != nil {
 			return "", err
 		}

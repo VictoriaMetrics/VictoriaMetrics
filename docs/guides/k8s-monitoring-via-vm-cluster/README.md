@@ -390,7 +390,7 @@ config:
           target_label: kubernetes_pod_name
 ```
 
-* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) to write scraped metrics into the `vminsert` service.
+* By updating `remoteWrite` we're configuring [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) to write scraped metrics into the `vminsert` service.
 * The second part of this yaml file is needed to add the `metric_relabel_configs` section that helps us to show Kubernetes metrics on the Grafana dashboard.
 
 
@@ -473,7 +473,7 @@ By running this command we:
 * Provision a VictoriaMetrics data source with the url from the output above which we remembered.
 * Add [this dashboard](https://grafana.com/grafana/dashboards/11176) for [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 * Add [this dashboard](https://grafana.com/grafana/dashboards/12683) for [VictoriaMetrics Agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
-* Add [this dashboard](https://grafana.com/grafana/dashboards/14205) dashboard to see Kubernetes cluster metrics.
+* Add [this dashboard](https://grafana.com/grafana/dashboards/14205) to see Kubernetes cluster metrics.
 
 
 Please see the output log in your terminal. Copy, paste and run these commands. 
@@ -505,7 +505,7 @@ The VictoriaMetrics dashboard is also available to use:
 
 vmagent has its own dashboard:
 
-![VMAgent dashboard](vmagent-grafana-dash.webp)
+![VMAgent dashboard](grafana-dash.webp)
 
 ## 6. Final thoughts
 

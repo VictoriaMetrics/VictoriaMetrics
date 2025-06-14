@@ -236,9 +236,14 @@
       "description": "Regional Endpoint",
       "endpointUrl": "https://storage.northamerica-northeast1.rep.googleapis.com/",
       "location": "northamerica-northeast1"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.europe-north2.rep.googleapis.com/",
+      "location": "europe-north2"
     }
   ],
-  "etag": "\"36333136333838383435323333303139303231\"",
+  "etag": "\"3137363332393730373232373731313039383638\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -257,10 +262,12 @@
       "default": "json",
       "description": "Data format for the response.",
       "enum": [
-        "json"
+        "json",
+        "media"
       ],
       "enumDescriptions": [
-        "Responses with Content-Type of application/json"
+        "Responses with Content-Type of application/json",
+        "Responses containing object data"
       ],
       "location": "query",
       "type": "string"
@@ -3439,6 +3446,19 @@
               "location": "query",
               "type": "string"
             },
+            "projection": {
+              "description": "Set of properties to return. Defaults to noAcl.",
+              "enum": [
+                "full",
+                "noAcl"
+              ],
+              "enumDescriptions": [
+                "Include all properties.",
+                "Omit the owner, acl property."
+              ],
+              "location": "query",
+              "type": "string"
+            },
             "sourceObject": {
               "description": "Name of the source object. For information about how to URL encode object names to be path safe, see [Encoding URI Path Parts](https://cloud.google.com/storage/docs/request-endpoints#encoding).",
               "location": "path",
@@ -4509,7 +4529,7 @@
       }
     }
   },
-  "revision": "20250420",
+  "revision": "20250521",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AdvanceRelocateBucketOperationRequest": {
@@ -4801,6 +4821,10 @@
         "ipFilter": {
           "description": "The bucket's IP filter configuration. Specifies the network sources that are allowed to access the operations on the bucket, as well as its underlying objects. Only enforced when the mode is set to 'Enabled'.",
           "properties": {
+            "allowCrossOrgVpcs": {
+              "description": "Whether to allow cross-org VPCs in the bucket's IP filter configuration.",
+              "type": "boolean"
+            },
             "mode": {
               "description": "The mode of the IP filter. Valid values are 'Enabled' and 'Disabled'.",
               "type": "string"

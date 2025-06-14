@@ -2,7 +2,7 @@ package logstorage
 
 import (
 	"math"
-	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -300,20 +301,56 @@ func (br *blockResult) addResultColumnConst(rc resultColumn) {
 	})
 }
 
-// initAllColumns initializes all the columns in br except of unneededColumnNames.
-func (br *blockResult) initAllColumns(unneededColumnNames []string) {
-	if !slices.Contains(unneededColumnNames, "_time") {
-		// Add _time column
+// initColumns initializes columns in br according to pf.
+func (br *blockResult) initColumns(pf *prefixfilter.Filter) {
+	fields, ok := pf.GetAllowStrings()
+	if ok {
+		// Fast path
+		br.initColumnsByFields(fields)
+	} else {
+		// Slow path
+		br.initColumnsByFilter(pf)
+	}
+
+	br.csInitFast()
+}
+
+func (br *blockResult) initColumnsByFields(fields []string) {
+	for _, f := range fields {
+		switch f {
+		case "_time":
+			br.addTimeColumn()
+		case "_stream_id":
+			br.addStreamIDColumn()
+		case "_stream":
+			if !br.addStreamColumn() {
+				// Skip the current block, since the associated stream tags are missing
+				br.reset()
+				return
+			}
+		default:
+			v := br.bs.getConstColumnValue(f)
+			if v != "" {
+				br.addConstColumn(f, v)
+			} else if ch := br.bs.getColumnHeader(f); ch != nil {
+				br.addColumn(ch)
+			} else {
+				br.addConstColumn(f, "")
+			}
+		}
+	}
+}
+
+func (br *blockResult) initColumnsByFilter(pf *prefixfilter.Filter) {
+	if pf.MatchString("_time") {
 		br.addTimeColumn()
 	}
 
-	if !slices.Contains(unneededColumnNames, "_stream_id") {
-		// Add _stream_id column
+	if pf.MatchString("_stream_id") {
 		br.addStreamIDColumn()
 	}
 
-	if !slices.Contains(unneededColumnNames, "_stream") {
-		// Add _stream column
+	if pf.MatchString("_stream") {
 		if !br.addStreamColumn() {
 			// Skip the current block, since the associated stream tags are missing
 			br.reset()
@@ -321,7 +358,7 @@ func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 		}
 	}
 
-	if !slices.Contains(unneededColumnNames, "_msg") {
+	if pf.MatchString("_msg") {
 		// Add _msg column
 		v := br.bs.getConstColumnValue("_msg")
 		if v != "" {
@@ -337,9 +374,10 @@ func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 	csh := br.bs.getColumnsHeader()
 	for _, cc := range csh.constColumns {
 		if cc.Name == "" {
+			// We already added _msg column above
 			continue
 		}
-		if !slices.Contains(unneededColumnNames, cc.Name) {
+		if pf.MatchString(cc.Name) {
 			br.addConstColumn(cc.Name, cc.Value)
 		}
 	}
@@ -349,43 +387,13 @@ func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 	for i := range chs {
 		ch := &chs[i]
 		if ch.name == "" {
+			// We already added _msg column above
 			continue
 		}
-		if !slices.Contains(unneededColumnNames, ch.name) {
+		if pf.MatchString(ch.name) {
 			br.addColumn(ch)
 		}
 	}
-
-	br.csInitFast()
-}
-
-// initRequestedColumns initializes neededColumnNames at br.
-func (br *blockResult) initRequestedColumns(neededColumnNames []string) {
-	for _, columnName := range neededColumnNames {
-		switch columnName {
-		case "_stream_id":
-			br.addStreamIDColumn()
-		case "_stream":
-			if !br.addStreamColumn() {
-				// Skip the current block, since the associated stream tags are missing.
-				br.reset()
-				return
-			}
-		case "_time":
-			br.addTimeColumn()
-		default:
-			v := br.bs.getConstColumnValue(columnName)
-			if v != "" {
-				br.addConstColumn(columnName, v)
-			} else if ch := br.bs.getColumnHeader(columnName); ch != nil {
-				br.addColumn(ch)
-			} else {
-				br.addConstColumn(columnName, "")
-			}
-		}
-	}
-
-	br.csInitFast()
 }
 
 // mustInit initializes br with the given bs and bm.
@@ -1753,132 +1761,266 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 	return s
 }
 
-// copyColumns copies columns from srcColumnNames to dstColumnNames.
-func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
-	for i, srcName := range srcColumnNames {
-		br.copySingleColumn(srcName, dstColumnNames[i])
+// copyColumnsByFilters copies columns from srcColumnFilters to dstColumnFilters.
+//
+// srcColumnFilters and dstColumnFilters may contain column names and column name prefixes ending with '*'.
+func (br *blockResult) copyColumnsByFilters(srcColumnFilters, dstColumnFilters []string) {
+	for i, srcFilter := range srcColumnFilters {
+		dstFilter := dstColumnFilters[i]
+		br.copyColumnsByFilter(srcFilter, dstFilter)
 	}
 }
 
-func (br *blockResult) copySingleColumn(srcName, dstName string) {
+func (br *blockResult) copyColumnsByFilter(srcFilter, dstFilter string) {
 	found := false
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
+
 	for _, c := range cs {
-		if c.name != dstName {
-			br.csBuf = append(br.csBuf, *c)
+		if !prefixfilter.MatchFilter(srcFilter, c.name) {
+			continue
 		}
-		if c.name == srcName {
-			cCopy := *c
-			cCopy.name = dstName
-			br.csBuf = append(br.csBuf, cCopy)
-			found = true
-		}
-	}
-	if !found {
-		br.addConstColumn(dstName, "")
-	}
-	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
-	br.csInitialized = false
-}
 
-// renameColumns renames columns from srcColumnNames to dstColumnNames.
-func (br *blockResult) renameColumns(srcColumnNames, dstColumnNames []string) {
-	for i, srcName := range srcColumnNames {
-		br.renameSingleColumn(srcName, dstColumnNames[i])
+		aLen := len(br.a.b)
+		br.a.b = prefixfilter.AppendReplace(br.a.b, srcFilter, dstFilter, c.name)
+		fieldName := bytesutil.ToUnsafeString(br.a.b[aLen:])
+
+		cCopy := *c
+		cCopy.name = fieldName
+		br.csAdd(cCopy)
+		found = true
+	}
+
+	if !found && !prefixfilter.IsWildcardFilter(srcFilter) {
+		br.addConstColumn(dstFilter, "")
 	}
 }
 
-func (br *blockResult) renameSingleColumn(srcName, dstName string) {
+// renameColumnsByFilters renames columns from srcColumnFilters to dstColumnFilters.
+//
+// srcColumnFilters and dstColumnFilters may contain column names and column name prefixes ending with '*'.
+func (br *blockResult) renameColumnsByFilters(srcColumnFilters, dstColumnFilters []string) {
+	for i, srcFilter := range srcColumnFilters {
+		dstFilter := dstColumnFilters[i]
+		br.renameColumnsByFilter(srcFilter, dstFilter)
+	}
+}
+
+func (br *blockResult) renameColumnsByFilter(srcFilter, dstFilter string) {
 	found := false
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
+
+	br.csInitialized = false
+	csBuf := br.csBuf
+	csBufLen := len(csBuf)
+
 	for _, c := range cs {
-		if c.name == srcName {
-			cCopy := *c
-			cCopy.name = dstName
-			br.csBuf = append(br.csBuf, cCopy)
-			found = true
-		} else if c.name != dstName {
-			br.csBuf = append(br.csBuf, *c)
+		if !prefixfilter.MatchFilter(srcFilter, c.name) {
+			csBuf = append(csBuf, *c)
 		}
 	}
-	if !found {
-		br.addConstColumn(dstName, "")
+
+	for _, c := range cs {
+		if !prefixfilter.MatchFilter(srcFilter, c.name) {
+			continue
+		}
+
+		aLen := len(br.a.b)
+		br.a.b = prefixfilter.AppendReplace(br.a.b, srcFilter, dstFilter, c.name)
+
+		c.name = bytesutil.ToUnsafeString(br.a.b[aLen:])
+		csBuf = append(csBuf, *c)
+		found = true
 	}
+
+	br.csBuf = csBuf
 	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
-	br.csInitialized = false
+
+	if !found && !prefixfilter.IsWildcardFilter(srcFilter) {
+		br.addConstColumn(dstFilter, "")
+	}
 }
 
-// deleteColumns deletes columns with the given columnNames.
-func (br *blockResult) deleteColumns(columnNames []string) {
-	if len(columnNames) == 0 {
+// deleteColumnsByFilters deletes columns with the given columnFilters.
+//
+// columnFilters may contain column names and column name prefixes ending with '*'.
+func (br *blockResult) deleteColumnsByFilters(columnFilters []string) {
+	if len(columnFilters) == 0 {
 		return
 	}
 
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
+
+	br.csInitialized = false
+	csBuf := br.csBuf
+	csBufLen := len(csBuf)
+
 	for _, c := range cs {
-		if !slices.Contains(columnNames, c.name) {
-			br.csBuf = append(br.csBuf, *c)
+		if !prefixfilter.MatchFilters(columnFilters, c.name) {
+			csBuf = append(csBuf, *c)
 		}
 	}
 
+	br.csBuf = csBuf
 	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
-	br.csInitialized = false
 }
 
-// setColumns sets the resulting columns to the given columnNames.
-func (br *blockResult) setColumns(columnNames []string) {
-	if br.areSameColumns(columnNames) {
+// setColumnFilters sets the resulting columns according to the given columnFilters.
+func (br *blockResult) setColumnFilters(columnFilters []string) {
+	if br.areSameColumns(columnFilters) {
 		// Fast path - nothing to change.
 		return
 	}
 
 	// Slow path - construct the requested columns
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
-	for _, c := range cs {
-		if slices.Contains(columnNames, c.name) {
-			br.csBuf = append(br.csBuf, *c)
-		}
-	}
 
-	for _, columnName := range columnNames {
-		if idx := getBlockResultColumnIdxByName(cs, columnName); idx < 0 {
-			br.addConstColumn(columnName, "")
-		}
-	}
-
-	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
 	br.csInitialized = false
+	csBuf := br.csBuf
+	csBufLen := len(csBuf)
+
+	for _, c := range cs {
+		if prefixfilter.MatchFilters(columnFilters, c.name) {
+			csBuf = append(csBuf, *c)
+		}
+	}
+
+	br.csBuf = csBuf
+	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
+
+	for _, columnFilter := range columnFilters {
+		if prefixfilter.IsWildcardFilter(columnFilter) {
+			continue
+		}
+		if idx := getBlockResultColumnIdxByName(cs, columnFilter); idx < 0 {
+			br.addConstColumn(columnFilter, "")
+		}
+	}
 }
 
-func (br *blockResult) areSameColumns(columnNames []string) bool {
+func (br *blockResult) areSameColumns(columnFilters []string) bool {
 	cs := br.getColumns()
-	if len(cs) != len(columnNames) {
-		return false
-	}
-	for i, c := range cs {
-		if c.name != columnNames[i] {
+	for _, c := range cs {
+		if !prefixfilter.MatchFilters(columnFilters, c.name) {
 			return false
 		}
 	}
+
+	for _, columnFilter := range columnFilters {
+		if prefixfilter.IsWildcardFilter(columnFilter) {
+			continue
+		}
+		if idx := getBlockResultColumnIdxByName(cs, columnFilter); idx < 0 {
+			return false
+		}
+	}
+
 	return true
 }
 
-func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
-	if columnName == "" {
-		columnName = "_msg"
+func getMatchingColumns(br *blockResult, filters []string) *matchingColumns {
+	v := matchingColumnsPool.Get()
+	if v == nil {
+		v = &matchingColumns{}
 	}
+	mc := v.(*matchingColumns)
+
+	if isSingleField(filters) {
+		// Fast path - a single column is requested
+		field := filters[0]
+		c := br.getColumnByName(field)
+		mc.cs = append(mc.cs[:0], c)
+		return mc
+	}
+
+	// Slower path - multiple columns are requested
+	mc.cs = br.getMatchingColumnsSlow(mc.cs[:0], filters)
+	return mc
+}
+
+func putMatchingColumns(mc *matchingColumns) {
+	mc.reset()
+	matchingColumnsPool.Put(mc)
+}
+
+type matchingColumns struct {
+	cs []*blockResultColumn
+}
+
+func (mc *matchingColumns) reset() {
+	clear(mc.cs)
+	mc.cs = mc.cs[:0]
+}
+
+func (mc *matchingColumns) sort() {
+	if len(mc.cs) > 1 && !sort.IsSorted(mc) {
+		sort.Sort(mc)
+	}
+}
+
+func (mc *matchingColumns) Len() int {
+	return len(mc.cs)
+}
+func (mc *matchingColumns) Less(i, j int) bool {
+	cs := mc.cs
+	return cs[i].name < cs[j].name
+}
+func (mc *matchingColumns) Swap(i, j int) {
+	cs := mc.cs
+	cs[i], cs[j] = cs[j], cs[i]
+}
+
+var matchingColumnsPool sync.Pool
+
+func (br *blockResult) getMatchingColumnsSlow(dst []*blockResultColumn, filters []string) []*blockResultColumn {
 	cs := br.getColumns()
 
+	// Add columns matching the given filters
+	for _, c := range cs {
+		if prefixfilter.MatchFilters(filters, c.name) {
+			dst = append(dst, c)
+		}
+	}
+
+	// Add empty columns for non-wildcard filters, which do not match non-empty columns.
+	for _, f := range filters {
+		if prefixfilter.IsWildcardFilter(f) {
+			continue
+		}
+
+		needEmptyField := true
+		for _, c := range cs {
+			if f == c.name {
+				needEmptyField = false
+				break
+			}
+		}
+
+		if needEmptyField {
+			c := br.getEmptyColumnByName(f)
+			dst = append(dst, c)
+		}
+	}
+
+	return dst
+}
+
+func isSingleField(filters []string) bool {
+	return len(filters) == 1 && !prefixfilter.IsWildcardFilter(filters[0])
+}
+
+func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
+	cs := br.getColumns()
+
+	columnName = getCanonicalColumnName(columnName)
 	idx := getBlockResultColumnIdxByName(cs, columnName)
 	if idx >= 0 {
 		return cs[idx]
 	}
 
-	// Search for empty column with the given name
+	return br.getEmptyColumnByName(columnName)
+}
+
+func (br *blockResult) getEmptyColumnByName(columnName string) *blockResultColumn {
 	csEmpty := br.csEmpty
 	for i := range csEmpty {
 		if csEmpty[i].name == columnName {

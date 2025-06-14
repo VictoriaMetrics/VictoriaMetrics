@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -87,6 +88,12 @@ func (app *Vminsert) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// HTTPAddr returns the address at which the vminsert process is
+// listening for incoming HTTP requests.
+func (app *Vminsert) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // InfluxWrite is a test helper function that inserts a
 // collection of records in Influx line format by sending a HTTP
 // POST request to /influx/write vmsingle endpoint.
@@ -136,6 +143,28 @@ func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 	}
 	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
+		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// of records in Native format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/native vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	app.sendBlocking(t, 1, func() {
 		_, statusCode := app.cli.Post(t, url, "text/plain", data)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)

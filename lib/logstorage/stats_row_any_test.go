@@ -14,6 +14,7 @@ func TestParseStatsRowAnySuccess(t *testing.T) {
 	f(`row_any(*)`)
 	f(`row_any(foo)`)
 	f(`row_any(foo, bar)`)
+	f(`row_any(foo*, bar)`)
 }
 
 func TestParseStatsRowAnyFailure(t *testing.T) {

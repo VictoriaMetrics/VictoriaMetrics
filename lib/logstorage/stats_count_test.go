@@ -14,6 +14,7 @@ func TestParseStatsCountSuccess(t *testing.T) {
 	f(`count(*)`)
 	f(`count(a)`)
 	f(`count(a, b)`)
+	f(`count(a*, b)`)
 }
 
 func TestParseStatsCountFailure(t *testing.T) {

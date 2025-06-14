@@ -55,7 +55,10 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	keepConstFields := httputil.GetBool(r, "keep_const_fields")
 
+	// Pipes must be dropped, since it is expected facets are obtained
+	// from the real logs stored in the database.
 	q.DropAllPipes()
+
 	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen, keepConstFields)
 
 	var mLock sync.Mutex
@@ -156,8 +159,10 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		fieldsLimit = 0
 	}
 
-	// Prepare the query for hits count.
+	// Pipes must be dropped, since it is expected hits are obtained
+	// from the real logs stored in the database.
 	q.DropAllPipes()
+
 	q.AddCountByTimePipe(int64(step), int64(offset), fields)
 
 	var mLock sync.Mutex
@@ -290,6 +295,10 @@ func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Pipes must be dropped, since it is expected field names are obtained
+	// from the real logs stored in the database.
+	q.DropAllPipes()
+
 	// Obtain field names for the given query
 	fieldNames, err := vlstorage.GetFieldNames(ctx, tenantIDs, q)
 	if err != nil {
@@ -329,6 +338,10 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 		limit = 0
 	}
 
+	// Pipes must be dropped, since it is expected field values are obtained
+	// from the real logs stored in the database.
+	q.DropAllPipes()
+
 	// Obtain unique values for the given field
 	values, err := vlstorage.GetFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
 	if err != nil {
@@ -350,6 +363,10 @@ func ProcessStreamFieldNamesRequest(ctx context.Context, w http.ResponseWriter, 
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
+
+	// Pipes must be dropped, since it is expected stream field names are obtained
+	// from the real logs stored in the database.
+	q.DropAllPipes()
 
 	// Obtain stream field names for the given query
 	names, err := vlstorage.GetStreamFieldNames(ctx, tenantIDs, q)
@@ -389,6 +406,10 @@ func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 		limit = 0
 	}
 
+	// Pipes must be dropped, since it is expected stream field values are obtained
+	// from the real logs stored in the database.
+	q.DropAllPipes()
+
 	// Obtain stream field values for the given query and the given fieldName
 	values, err := vlstorage.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
 	if err != nil {
@@ -420,6 +441,10 @@ func ProcessStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 		limit = 0
 	}
 
+	// Pipes must be dropped, since it is expected stream ids are obtained
+	// from the real logs stored in the database.
+	q.DropAllPipes()
+
 	// Obtain streamIDs for the given query
 	streamIDs, err := vlstorage.GetStreamIDs(ctx, tenantIDs, q, uint64(limit))
 	if err != nil {
@@ -450,6 +475,10 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 	if limit < 0 {
 		limit = 0
 	}
+
+	// Pipes must be dropped, since it is expected stream are obtained
+	// from the real logs stored in the database.
+	q.DropAllPipes()
 
 	// Obtain streams for the given query
 	streams, err := vlstorage.GetStreams(ctx, tenantIDs, q, uint64(limit))
@@ -551,7 +580,7 @@ var liveTailRequests = metrics.NewCounter(`vl_live_tailing_requests`)
 const tailOffsetNsecs = 5e9
 
 type logRow struct {
-	timestamp string
+	timestamp int64
 	fields    []logstorage.Field
 }
 
@@ -567,7 +596,7 @@ type tailProcessor struct {
 	mu sync.Mutex
 
 	perStreamRows  map[string][]logRow
-	lastTimestamps map[string]string
+	lastTimestamps map[string]int64
 
 	err error
 }
@@ -577,7 +606,7 @@ func newTailProcessor(cancel func()) *tailProcessor {
 		cancel: cancel,
 
 		perStreamRows:  make(map[string][]logRow),
-		lastTimestamps: make(map[string]string),
+		lastTimestamps: make(map[string]int64),
 	}
 }
 
@@ -594,7 +623,7 @@ func (tp *tailProcessor) writeBlock(_ uint, db *logstorage.DataBlock) {
 	}
 
 	// Make sure columns contain _time field, since it is needed for proper tail work.
-	timestamps, ok := db.GetTimestamps()
+	timestamps, ok := db.GetTimestamps(nil)
 	if !ok {
 		tp.err = fmt.Errorf("missing _time field")
 		tp.cancel()
@@ -1043,9 +1072,7 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 }
 
 func getLastNRows(rows []logRow, limit int) []logRow {
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].timestamp < rows[j].timestamp
-	})
+	sortLogRows(rows)
 	if len(rows) > limit {
 		rows = rows[len(rows)-limit:]
 	}
@@ -1070,7 +1097,7 @@ func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.Tenant
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 
-		timestamps, ok := db.GetTimestamps()
+		timestamps, ok := db.GetTimestamps(nil)
 		if !ok {
 			missingTimeColumn.Store(true)
 			cancel()

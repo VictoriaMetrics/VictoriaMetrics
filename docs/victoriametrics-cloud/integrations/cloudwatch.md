@@ -29,9 +29,10 @@ or follow this interactive guide:
 
 <iframe 
     width="100%"
-    style="aspect-ratio: 1/9;"
+    height="7000" 
     name="iframe" 
     id="integration" 
     frameborder="0"
-    src="https://console.victoriametrics.cloud/public/integrations/cloudwatch" >
+    src="https://console.victoriametrics.cloud/public/integrations/cloudwatch" 
+    style="background: white;" >
 </iframe>

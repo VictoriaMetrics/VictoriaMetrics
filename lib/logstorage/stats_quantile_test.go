@@ -14,6 +14,7 @@ func TestParseStatsQuantileSuccess(t *testing.T) {
 	f(`quantile(0.3)`)
 	f(`quantile(1, a)`)
 	f(`quantile(0.99, a, b)`)
+	f(`quantile(0.99, a*, b)`)
 }
 
 func TestParseStatsQuantileFailure(t *testing.T) {

@@ -66,8 +66,8 @@ or at your own [VictoriaMetrics instance](https://docs.victoriametrics.com/victo
 The list of MetricsQL features on top of PromQL:
 
 * Graphite-compatible filters can be passed via `{__graphite__="foo.*.bar"}` syntax.
-  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#selecting-graphite-metrics).
-  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite#graphite-api-usage) for details.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#selecting-graphite-metrics).
+  VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage) for details.
   See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
 * Lookbehind window in square brackets for [rollup functions](#rollup-functions) may be omitted. VictoriaMetrics automatically selects the lookbehind window
   depending on the `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
@@ -742,7 +742,23 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 
 This function is supported by PromQL.
 
-See also [irate](#irate) and [rollup_rate](#rollup_rate).
+See also [irate](#irate), [rollup_rate](#rollup_rate) and [rate_prometheus](#rate_prometheus).
+
+#### rate_prometheus
+
+`rate_prometheus(series_selector[d])` {{% available_from "#" %}} is a [rollup function](#rollup-functions), which calculates the average per-second
+increase rate over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
+The resulting calculation is equivalent to `increase_prometheus(series_selector[d]) / d`.
+
+It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does.
+See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
+
+See also [increase_prometheus](#increase_prometheus) and [rate](#rate).
+
 
 #### rate_over_sum
 

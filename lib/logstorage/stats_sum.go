@@ -6,18 +6,19 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsSum struct {
-	fields []string
+	fieldFilters []string
 }
 
 func (ss *statsSum) String() string {
-	return "sum(" + statsFuncFieldsToString(ss.fields) + ")"
+	return "sum(" + fieldNamesString(ss.fieldFilters) + ")"
 }
 
-func (ss *statsSum) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, ss.fields)
+func (ss *statsSum) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(ss.fieldFilters)
 }
 
 func (ss *statsSum) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -32,43 +33,28 @@ type statsSumProcessor struct {
 
 func (ssp *statsSumProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	ss := sf.(*statsSum)
-	fields := ss.fields
-	if len(fields) == 0 {
-		// Sum all the columns
-		for _, c := range br.getColumns() {
-			ssp.updateStateForColumn(br, c)
-		}
-	} else {
-		// Sum the requested columns
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			ssp.updateStateForColumn(br, c)
-		}
+
+	mc := getMatchingColumns(br, ss.fieldFilters)
+	for _, c := range mc.cs {
+		ssp.updateStateForColumn(br, c)
 	}
+	putMatchingColumns(mc)
+
 	return 0
 }
 
 func (ssp *statsSumProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	ss := sf.(*statsSum)
-	fields := ss.fields
-	if len(fields) == 0 {
-		// Sum all the fields for the given row
-		for _, c := range br.getColumns() {
-			f, ok := c.getFloatValueAtRow(br, rowIdx)
-			if ok {
-				ssp.updateState(f)
-			}
-		}
-	} else {
-		// Sum only the given fields for the given row
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			f, ok := c.getFloatValueAtRow(br, rowIdx)
-			if ok {
-				ssp.updateState(f)
-			}
+
+	mc := getMatchingColumns(br, ss.fieldFilters)
+	for _, c := range mc.cs {
+		f, ok := c.getFloatValueAtRow(br, rowIdx)
+		if ok {
+			ssp.updateState(f)
 		}
 	}
+	putMatchingColumns(mc)
+
 	return 0
 }
 
@@ -111,12 +97,12 @@ func (ssp *statsSumProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {
-	fields, err := parseStatsFuncFields(lex, "sum")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "sum")
 	if err != nil {
 		return nil, err
 	}
 	ss := &statsSum{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	return ss, nil
 }

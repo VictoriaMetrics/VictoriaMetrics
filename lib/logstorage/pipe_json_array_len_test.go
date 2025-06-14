@@ -24,6 +24,11 @@ func TestParsePipeJSONArrayLenFailure(t *testing.T) {
 	f(`json_array_len(`)
 	f(`json_array_len()`)
 	f(`json_array_len(x) y z`)
+	f(`json_array_len(foo,bar)`)
+	f(`json_array_len(*)`)
+	f(`json_array_len(foo*)`)
+	f(`json_array_len(foo) as *`)
+	f(`json_array_len(foo) as bar*`)
 }
 
 func TestPipeJSONArrayLen(t *testing.T) {
@@ -63,9 +68,9 @@ func TestPipeJSONArrayLen(t *testing.T) {
 }
 
 func TestPipeJSONArrayLenUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

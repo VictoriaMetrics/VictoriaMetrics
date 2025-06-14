@@ -62,7 +62,7 @@ type TraceQueryParam struct {
 
 // Row represent the query result of a trace span.
 type Row struct {
-	Timestamp string
+	Timestamp int64
 	Fields    []logstorage.Field
 }
 
@@ -155,7 +155,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 
-		timestamps, ok := db.GetTimestamps()
+		timestamps, ok := db.GetTimestamps(nil)
 		if !ok {
 			missingTimeColumn.Store(true)
 			cancel()
@@ -261,7 +261,7 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 
-		timestamps, ok := db.GetTimestamps()
+		timestamps, ok := db.GetTimestamps(nil)
 		if !ok {
 			missingTimeColumn.Store(true)
 			cancel()

@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -32,14 +33,13 @@ func (pf *pipeFieldValuesLocal) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFieldValuesLocal) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (pf *pipeFieldValuesLocal) updateNeededFields(f *prefixfilter.Filter) {
+	f.Reset()
 
-	neededFields.add(pf.pf.field)
+	f.AddAllowFilter(pf.pf.field)
 
 	hitsFieldName := pf.pf.getHitsFieldName()
-	neededFields.add(hitsFieldName)
+	f.AddAllowFilter(hitsFieldName)
 }
 
 func (pf *pipeFieldValuesLocal) hasFilterInWithQuery() bool {

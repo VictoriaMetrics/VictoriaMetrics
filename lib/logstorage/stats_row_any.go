@@ -2,28 +2,24 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 type statsRowAny struct {
-	fields []string
+	fieldFilters []string
 }
 
 func (sa *statsRowAny) String() string {
-	return "row_any(" + statsFuncFieldsToString(sa.fields) + ")"
+	return "row_any(" + fieldNamesString(sa.fieldFilters) + ")"
 }
 
-func (sa *statsRowAny) updateNeededFields(neededFields fieldsSet) {
-	if len(sa.fields) == 0 {
-		neededFields.add("*")
-	} else {
-		neededFields.addFields(sa.fields)
-	}
+func (sa *statsRowAny) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sa.fieldFilters)
 }
 
 func (sa *statsRowAny) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -149,54 +145,35 @@ func fieldsStateSize(fields []Field) int {
 
 func (sap *statsRowAnyProcessor) updateState(sa *statsRowAny, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
-	fields := sap.fields
-	fetchFields := sa.fields
-	if len(fetchFields) == 0 {
-		cs := br.getColumns()
-		for _, c := range cs {
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  strings.Clone(c.name),
-				Value: strings.Clone(v),
-			})
-			stateSizeIncrease += len(c.name) + len(v)
-		}
-	} else {
-		for _, field := range fetchFields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  strings.Clone(c.name),
-				Value: strings.Clone(v),
-			})
-			stateSizeIncrease += len(c.name) + len(v)
-		}
+	sap.fields = sap.fields[:0]
+
+	mc := getMatchingColumns(br, sa.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		sap.fields = append(sap.fields, Field{
+			Name:  strings.Clone(c.name),
+			Value: strings.Clone(v),
+		})
+		stateSizeIncrease += len(c.name) + len(v)
 	}
-	sap.fields = fields
+	putMatchingColumns(mc)
 
 	return stateSizeIncrease
 }
 
 func (sap *statsRowAnyProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	sortFieldsByName(sap.fields)
 	return MarshalFieldsToJSON(dst, sap.fields)
 }
 
 func parseStatsRowAny(lex *lexer) (*statsRowAny, error) {
-	if !lex.isKeyword("row_any") {
-		return nil, fmt.Errorf("unexpected func; got %q; want 'row_any'", lex.token)
-	}
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "row_any")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'row_any' args: %w", err)
-	}
-
-	if slices.Contains(fields, "*") {
-		fields = nil
+		return nil, err
 	}
 
 	sa := &statsRowAny{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	return sa, nil
 }

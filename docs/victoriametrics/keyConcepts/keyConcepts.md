@@ -45,7 +45,7 @@ requests_total{path="/", code="200"}
 
 Labels can be automatically attached to the [time series](#time-series) 
 written via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) 
-or [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus).
+or [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/).
 VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
@@ -371,7 +371,7 @@ We recommend using the [github.com/VictoriaMetrics/metrics](https://github.com/V
 for pushing application metrics to VictoriaMetrics.
 It is also possible to use already existing clients compatible with the protocols listed above
 like [Telegraf](https://github.com/influxdata/telegraf)
-for [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb).
+for [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/).
 
 Creating custom clients or instrumenting the application for metrics writing is as easy as sending a POST request:
 
@@ -464,7 +464,7 @@ or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cl
 VictoriaMetrics provides
 an [HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana). The same API is also used by
+[Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/). The same API is also used by
 [VMUI](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) - a graphical User Interface for querying
 and visualizing metrics.
 
@@ -949,7 +949,7 @@ Open `http://victoriametrics:8428/vmui` page, type the query and see the results
 ![vmui](vmui.webp)
 
 VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
-which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana)
+which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/)
 in the same way as Grafana queries Prometheus.
 
 ## Modify data

@@ -99,8 +99,7 @@ func (app *Vmstorage) ForceMerge(t *testing.T) {
 func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -111,6 +110,11 @@ func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	}
 
 	return &res
+}
+
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (app *Vmstorage) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
 // SnapshotList lists existing database snapshots by sending a query to the
