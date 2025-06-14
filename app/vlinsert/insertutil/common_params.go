@@ -24,6 +24,15 @@ var (
 		"Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
 )
 
+var mustAddRows = vlstorage.MustAddRows
+
+// SetMustAddRows changes insert write destination from local storage to provided callback
+//
+// Must be set before any method from this package can be used
+func SetMustAddRows(addRows func(lr *logstorage.LogRows)) {
+	mustAddRows = addRows
+}
+
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
 //
 // See https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters
@@ -264,7 +273,7 @@ func (lmp *logMessageProcessor) AddInsertRow(r *logstorage.InsertRow) {
 // flushLocked must be called under locked lmp.mu.
 func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lastFlushTime = time.Now()
-	vlstorage.MustAddRows(lmp.lr)
+	mustAddRows(lmp.lr)
 	lmp.lr.ResetKeepSettings()
 }
 
