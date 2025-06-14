@@ -2197,7 +2197,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
 		}
 
-		if logNewSeries {
+		if logNewSeries || (logNewSeriesEndTime.After(time.Now())) {
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
@@ -2246,6 +2246,12 @@ func SetLogNewSeries(ok bool) {
 }
 
 var logNewSeries = false
+
+func SetLogNewSeriesEndTime(t time.Time) {
+	logNewSeriesEndTime = t
+}
+
+var logNewSeriesEndTime = time.Now().Add(-time.Hour)
 
 func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
 	is.createGlobalIndexes(tsid, mn)
