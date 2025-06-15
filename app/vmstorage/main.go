@@ -319,9 +319,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if path == "/internal/logNewSeries" {
-		logger.Infof("logNewSeries is enable during next minute")
+		logger.Infof("enable logging new series during the next minute")
 		endTime := time.Now().Add(1 * time.Minute)
-		storage.SetLogNewSeriesEndTime(endTime)
+		Storage.SetLogNewSeriesEndTime(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":"%s"}}`, endTime.Format(time.RFC3339))
 		return true
 	}
