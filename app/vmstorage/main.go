@@ -259,6 +259,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		strg.DebugFlush()
 		return true
 	}
+	if path == "/internal/logNewSeries" {
+		logger.Infof("enable logging new series during the next minute")
+		endTime := time.Now().Add(1 * time.Minute)
+		strg.SetLogNewSeriesEndTime(endTime)
+		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":"%s"}}`, endTime.Format(time.RFC3339))
+		return true
+	}
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
