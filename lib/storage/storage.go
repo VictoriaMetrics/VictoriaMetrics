@@ -174,7 +174,7 @@ type Storage struct {
 
 	metricsTracker *metricnamestats.Tracker
 
-	// logNewSeriesStartTime is used for logging the new series
+	// logNewSeriesEndTime is used for logging the new series
 	logNewSeriesEndTime time.Time
 }
 
