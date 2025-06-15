@@ -72,6 +72,11 @@ var (
 	storageNodeTLSServerName = flagutil.NewArrayString("storageNode.tlsServerName", "Optional TLS server name to use for connections to the corresponding -storageNode. "+
 		"By default, the server name from -storageNode is used")
 	storageNodeTLSInsecureSkipVerify = flagutil.NewArrayBool("storageNode.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to the corresponding -storageNode")
+
+	insertMaxConcurrency = flag.Int("insert.maxStorageConcurrency", 1, "The maximum number of concurrent storage write operations for log ingestion. "+
+		"This limits concurrency at the storage level (after HTTP request processing), which helps control memory and CPU usage during high-volume ingestion. "+
+		"Higher values can improve throughput at the cost of increased resource usage. A value of 0 means no concurrency limit. "+
+		"This is different from -maxConcurrentInserts, which limits HTTP request concurrency.")
 )
 
 var localStorage *logstorage.Storage
@@ -80,10 +85,24 @@ var localStorageMetrics *metrics.Set
 var netstorageInsert *netinsert.Storage
 var netstorageSelect *netselect.Storage
 
+// InsertLimiter limits the concurrency of insert operations
+type InsertLimiter struct {
+	workerPool chan struct{}
+}
+
+var insertLimiter *InsertLimiter
+
 // Init initializes vlstorage.
 //
 // Stop must be called when vlstorage is no longer needed
 func Init() {
+	// Initialize the insert limiter for concurrency control
+	if *insertMaxConcurrency > 0 {
+		insertLimiter = &InsertLimiter{
+			workerPool: make(chan struct{}, *insertMaxConcurrency),
+		}
+	}
+
 	if len(*storageNodeAddrs) == 0 {
 		initLocalStorage()
 	} else {
@@ -188,6 +207,15 @@ func newAuthConfigForStorageNode(argIdx int) *promauth.Config {
 
 // Stop stops vlstorage.
 func Stop() {
+	// Stop insert limiter first to ensure all data is flushed
+	if insertLimiter != nil {
+		// Wait for all workers to complete by filling the worker pool
+		for i := 0; i < *insertMaxConcurrency; i++ {
+			insertLimiter.workerPool <- struct{}{}
+		}
+		insertLimiter = nil
+	}
+
 	if localStorage != nil {
 		metrics.UnregisterSet(localStorageMetrics, true)
 		localStorageMetrics = nil
@@ -274,11 +302,29 @@ func CanWriteData() error {
 //
 // It is advised to call CanWriteData() before calling MustAddRows()
 func MustAddRows(lr *logstorage.LogRows) {
+	// if insertMaxConcurrency is smaller than 1 we don't limit concurrency
+	if *insertMaxConcurrency < 1 || insertLimiter == nil {
+		if localStorage != nil {
+			localStorage.MustAddRows(lr)
+		} else {
+			lr.ForEachRow(netstorageInsert.AddRow)
+		}
+		return
+	}
+
+	insertLimiter.processInsertWithLimiting(lr)
+}
+
+func (il *InsertLimiter) processInsertWithLimiting(lr *logstorage.LogRows) {
+	// Acquire a worker from the pool (this blocks if all workers are busy)
+	il.workerPool <- struct{}{}
+
+	// Process synchronously but with limited concurrency
+	defer func() { <-il.workerPool }() // Release worker back to pool
+
 	if localStorage != nil {
-		// Store lr in the local storage.
 		localStorage.MustAddRows(lr)
 	} else {
-		// Store lr across the remote storage nodes.
 		lr.ForEachRow(netstorageInsert.AddRow)
 	}
 }

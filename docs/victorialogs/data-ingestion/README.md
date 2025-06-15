@@ -312,6 +312,23 @@ storing the logs in VictoriaLogs. This simplifies further querying and analysis 
 Decolorizing can be done either at the log collector / shipper side or at the VictoriaLogs side with `decolorize_fields` HTTP query arg
 and `VL-Decolorize-Fields` HTTP request header according to [these docs](#http-parameters).
 
+## Performance tuning
+
+VictoriaLogs provides several command-line flags for tuning data ingestion performance:
+
+- `-insert.maxStorageConcurrency` - controls the maximum number of concurrent storage write operations for log ingestion. 
+  This limits concurrency at the storage level (after HTTP request processing), which helps control memory and CPU usage during high-volume ingestion.
+  Higher values can improve throughput at the cost of increased resource usage. A value of 0 means no concurrency limit. Default value is `1`.
+
+- `-maxConcurrentInserts` - controls the maximum number of concurrent HTTP insert requests that can be processed simultaneously.
+  This provides protection at the HTTP request level and applies before storage processing. Default value is `2*CPU_cores`.
+
+- `-insert.maxLineSizeBytes` - controls the maximum size in bytes for a single log line during ingestion.
+  Lines exceeding this limit are ignored. See [these docs](../FAQ.md#what-length-a-log-record-is-expected-to-have) for details.
+
+- `-insert.maxFieldsPerLine` - controls the maximum number of fields per log line during ingestion.
+  This helps avoid issues with logs containing excessive number of fields.
+
 ## Troubleshooting
 
 The following command can be used for verifying whether the data is successfully ingested into VictoriaLogs:
