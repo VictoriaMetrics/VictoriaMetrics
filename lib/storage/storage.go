@@ -173,6 +173,9 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	// logNewSeriesEndTime is used for logging new series.
+	logNewSeriesEndTime time.Time
 }
 
 type pendingHourMetricIDEntry struct {
@@ -206,10 +209,11 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		retention = retentionMax
 	}
 	s := &Storage{
-		path:           path,
-		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retention.Milliseconds(),
-		stopCh:         make(chan struct{}),
+		path:                path,
+		cachePath:           filepath.Join(path, cacheDirname),
+		retentionMsecs:      retention.Milliseconds(),
+		stopCh:              make(chan struct{}),
+		logNewSeriesEndTime: time.Now(),
 	}
 	fs.MustMkdirIfNotExist(path)
 
@@ -2322,7 +2326,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			pendingHourEntries = append(pendingHourEntries, e)
 		}
 
-		if logNewSeries || (logNewSeriesEndTime.After(time.Now())) {
+		if logNewSeries || (s.logNewSeriesEndTime.After(time.Now())) {
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
@@ -2372,11 +2376,9 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
-func SetLogNewSeriesEndTime(t time.Time) {
-	logNewSeriesEndTime = t
+func (s *Storage) SetLogNewSeriesEndTime(t time.Time) {
+	s.logNewSeriesEndTime = t
 }
-
-var logNewSeriesEndTime = time.Now().Add(-time.Hour)
 
 func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
 	is.createGlobalIndexes(tsid, mn)
