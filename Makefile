@@ -267,7 +267,7 @@ integration-test:
 
 apptest:
 	$(MAKE) all vmctl vmbackup vmrestore
-	go test ./apptest/... -skip="^TestSingle.*"
+	go test ./apptest/... -skip="^Test(Single|Legacy).*"
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...

@@ -380,6 +380,9 @@ func (t *Trace) stringWithIndent(indent string) string {
 
 // Contains counts how many trace messages contain substring s.
 func (t *Trace) Contains(s string) int {
+	if t == nil {
+		return 0
+	}
 	var times int
 	if strings.Contains(t.Message, s) {
 		times++
