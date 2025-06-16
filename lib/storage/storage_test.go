@@ -1597,7 +1597,7 @@ func testCountAllMetricNamesNoExtDB(tfss *TagFilters, is *indexSearch, tr TimeRa
 	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9, getSearchOptions(noDeadline, "test"))
+	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, getSearchOptions(noDeadline, 1e9, "test"))
 	if err != nil {
 		panic(fmt.Sprintf("searchMetricIDs failed unexpectedly: %v", err))
 	}
@@ -2271,7 +2271,7 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	}
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
-	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, getSearchOptions(noDeadline, "test"))
+	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, getSearchOptions(noDeadline, 1e9, "test"))
 	if err != nil {
 		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
 	}
@@ -4339,17 +4339,17 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 		}
 		tfssAll := []*TagFilters{tfsAll}
-		so := getSearchOptions(noDeadline, "test")
+		so := getSearchOptions(noDeadline, 1e9, "test")
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, so)
+			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, so)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs
 		}
 		searchMetricNames := func() []string {
-			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, so.deadline)
+			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, so.maxMetrics, so.deadline)
 			if err != nil {
 				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 			}

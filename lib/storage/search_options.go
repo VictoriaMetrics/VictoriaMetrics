@@ -10,7 +10,8 @@ import (
 
 // searchOptions contains common options for Search.
 type searchOptions struct {
-	deadline uint64
+	deadline   uint64
+	maxMetrics int
 
 	readMetricIDs atomic.Uint64
 	source        string
@@ -18,10 +19,11 @@ type searchOptions struct {
 
 // getSearchOptions returns new searchOptions.
 // Note that the readMetricIDs metric is only flushed when the searchOptions is put back with putSearchOptions.
-func getSearchOptions(deadline uint64, source string) *searchOptions {
+func getSearchOptions(deadline uint64, maxMetrics int, source string) *searchOptions {
 	return &searchOptions{
-		deadline: deadline,
-		source:   source,
+		deadline:   deadline,
+		maxMetrics: maxMetrics,
+		source:     source,
 
 		readMetricIDs: atomic.Uint64{},
 	}

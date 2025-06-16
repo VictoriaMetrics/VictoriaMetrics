@@ -187,7 +187,7 @@ func (s *Search) reset() {
 //
 // Init returns the upper bound on the number of found time series.
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
-	so := getSearchOptions(deadline, "search")
+	so := getSearchOptions(deadline, maxMetrics, "search")
 	defer putSearchOptions(so)
 
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
@@ -210,7 +210,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.needClosing = true
 
 	var tsids []TSID
-	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, so)
+	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, so)
 	if err == nil && len(metricIDs) > 0 && len(tfss) > 0 {
 		accountID := tfss[0].accountID
 		projectID := tfss[0].projectID
