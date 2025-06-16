@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [vlinsert](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add `-insert.maxRetries` command-line flag for limiting retry attempts when sending data to storage nodes. After exhausting retries, data is queued in a retry buffer and new ingestion requests are rejected with HTTP 429 until storage nodes recover. See [#9121](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9121).
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support `-` as a timestamp value, as described in [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.3).
 * FEATURE: [`delete` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe): allow deleting all the fields with common prefix via `... | delete prefix*` syntax.
 * FEATURE: [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe): allow keeping all the fields with common prefix via `... | fields prefix*` syntax.

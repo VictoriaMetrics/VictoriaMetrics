@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -155,6 +156,7 @@ type LogMessageProcessor interface {
 }
 
 type logMessageProcessor struct {
+	isStreamMode  bool
 	mu            sync.Mutex
 	wg            sync.WaitGroup
 	stopCh        chan struct{}
@@ -183,6 +185,10 @@ func (lmp *logMessageProcessor) initPeriodicFlush() {
 			case <-lmp.stopCh:
 				return
 			case <-ticker.C:
+				if vlstorage.CanWriteData() != nil {
+					continue
+				}
+
 				lmp.mu.Lock()
 				if time.Since(lmp.lastFlushTime) >= d {
 					lmp.flushLocked()
@@ -197,6 +203,10 @@ func (lmp *logMessageProcessor) initPeriodicFlush() {
 //
 // If streamFields is non-nil, then it is used as log stream fields instead of the pre-configured stream fields.
 func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []logstorage.Field) {
+	if !lmp.canWriteData() {
+		lmp.waitUntilStorageIsAvailable()
+	}
+
 	lmp.rowsIngestedTotal.Inc()
 	n := logstorage.EstimatedJSONRowLen(fields)
 	lmp.bytesIngestedTotal.Add(n)
@@ -223,6 +233,23 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []l
 	if lmp.lr.NeedFlush() {
 		lmp.flushLocked()
 	}
+}
+
+func (lmp *logMessageProcessor) waitUntilStorageIsAvailable() {
+	t := timerpool.Get(time.Second)
+	for lmp.canWriteData() {
+		select {
+		case <-lmp.stopCh:
+			timerpool.Put(t)
+			return
+		case <-t.C:
+			timerpool.Put(t)
+		}
+	}
+}
+
+func (lmp *logMessageProcessor) canWriteData() bool {
+	return !lmp.isStreamMode || vlstorage.CanWriteData() == nil
 }
 
 // InsertRowProcessor is used by native data ingestion protocol parser.
@@ -286,8 +313,9 @@ func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode
 	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_rows_ingested_total{type=%q}", protocolName))
 	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
 	lmp := &logMessageProcessor{
-		cp: cp,
-		lr: lr,
+		isStreamMode: isStreamMode,
+		cp:           cp,
+		lr:           lr,
 
 		rowsIngestedTotal:  rowsIngestedTotal,
 		bytesIngestedTotal: bytesIngestedTotal,

@@ -2,6 +2,7 @@ package netinsert
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +24,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
+var (
+	maxInsertRetries = flag.Int("insert.maxRetries", 20, "The maximum number of retry attempts when sending data to storage nodes. "+
+		"After exhausting retries, the data is queued in a retry buffer and new ingestion requests are rejected with HTTP 429 until storage nodes recover.")
+)
+
 // the maximum size of a single data block sent to storage node.
 const maxInsertBlockSize = 2 * 1024 * 1024
 
@@ -40,6 +46,10 @@ type Storage struct {
 	srt *streamRowsTracker
 
 	pendingDataBuffers chan *bytesutil.ByteBuffer
+
+	retryDataBuffersMu sync.Mutex
+	needDrainRetryData atomic.Bool
+	retryDataBuffers   []*bytesutil.ByteBuffer
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -110,6 +120,10 @@ func (sn *storageNode) backgroundFlusher() {
 		case <-sn.s.stopCh:
 			return
 		case <-t.C:
+			if sn.s.needDrainRetryData.Load() {
+				sn.flushRetryData()
+				continue
+			}
 			sn.flushPendingData()
 		}
 	}
@@ -126,7 +140,31 @@ func (sn *storageNode) flushPendingData() {
 	pendingData := sn.grabPendingDataForFlushLocked()
 	sn.pendingDataMu.Unlock()
 
-	sn.mustSendInsertRequest(pendingData)
+	_ = sn.mustSendInsertRequest(pendingData)
+}
+
+func (sn *storageNode) flushRetryData() {
+	sn.s.retryDataBuffersMu.Lock()
+	defer sn.s.retryDataBuffersMu.Unlock()
+
+	for len(sn.s.retryDataBuffers) > 0 {
+		lastIdx := len(sn.s.retryDataBuffers) - 1
+		pendingData := sn.s.retryDataBuffers[lastIdx]
+		sn.s.retryDataBuffers = sn.s.retryDataBuffers[:lastIdx]
+		if !sn.mustSendInsertRequest(pendingData) {
+			return
+		}
+	}
+
+	sn.s.needDrainRetryData.Store(len(sn.s.retryDataBuffers) > 0)
+}
+
+func (sn *storageNode) addRetryData(pendingData *bytesutil.ByteBuffer) {
+	sn.s.retryDataBuffersMu.Lock()
+	defer sn.s.retryDataBuffersMu.Unlock()
+
+	sn.s.retryDataBuffers = append(sn.s.retryDataBuffers, pendingData)
+	sn.s.needDrainRetryData.Store(true)
 }
 
 func (sn *storageNode) addRow(r *logstorage.InsertRow) {
@@ -152,7 +190,7 @@ func (sn *storageNode) addRow(r *logstorage.InsertRow) {
 	bbPool.Put(bb)
 
 	if pendingData != nil {
-		sn.mustSendInsertRequest(pendingData)
+		_ = sn.mustSendInsertRequest(pendingData)
 	}
 }
 
@@ -166,21 +204,37 @@ func (sn *storageNode) grabPendingDataForFlushLocked() *bytesutil.ByteBuffer {
 	return pendingData
 }
 
-func (sn *storageNode) mustSendInsertRequest(pendingData *bytesutil.ByteBuffer) {
+// mustSendInsertRequest guarantees that data will be sent to storage nodes or buffered for retry.
+// It attempts to send pendingData to storage nodes with retry logic and returns:
+//   - true: data was handled (successfully sent to a storage node, or operation was cancelled during shutdown)
+//   - false: all storage nodes are unavailable after maxInsertRetries attempts, data has been added to retry buffer
+//
+// When this method returns false, it indicates that the storages are temporarily unavailable
+// and the data has been queued in the retry buffer for later processing when nodes become available.
+// The retry buffer prevents data loss while protecting against infinite memory accumulation.
+func (sn *storageNode) mustSendInsertRequest(pendingData *bytesutil.ByteBuffer) (handled bool) {
 	defer func() {
-		pendingData.Reset()
-		sn.s.pendingDataBuffers <- pendingData
+		if handled {
+			pendingData.Reset()
+			sn.s.pendingDataBuffers <- pendingData
+		}
 	}()
 
 	err := sn.sendInsertRequest(pendingData)
 	if err == nil {
-		return
+		return true
 	}
 
 	if !errors.Is(err, errTemporarilyDisabled) {
 		logger.Warnf("%s; re-routing the data block to the remaining nodes", err)
 	}
-	for !sn.s.sendInsertRequestToAnyNode(pendingData) {
+
+	for i := 0; !sn.s.sendInsertRequestToAnyNode(pendingData); i++ {
+		if *maxInsertRetries > 0 && i >= *maxInsertRetries {
+			sn.addRetryData(pendingData)
+			return false
+		}
+
 		logger.Errorf("cannot send pending data to all storage nodes, since all of them are unavailable; re-trying to send the data in a second")
 
 		t := timerpool.Get(time.Second)
@@ -188,11 +242,13 @@ func (sn *storageNode) mustSendInsertRequest(pendingData *bytesutil.ByteBuffer) 
 		case <-sn.s.stopCh:
 			timerpool.Put(t)
 			logger.Errorf("dropping %d bytes of data, since there are no available storage nodes", pendingData.Len())
-			return
+			return true
 		case <-t.C:
 			timerpool.Put(t)
 		}
 	}
+
+	return true
 }
 
 func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) error {
@@ -272,13 +328,16 @@ var zstdBufPool bytesutil.ByteBufferPool
 // Call MustStop on the returned storage when it is no longer needed.
 func NewStorage(addrs []string, authCfgs []*promauth.Config, isTLSs []bool, concurrency int, disableCompression bool) *Storage {
 	pendingDataBuffers := make(chan *bytesutil.ByteBuffer, concurrency*len(addrs))
-	for i := 0; i < cap(pendingDataBuffers); i++ {
+	for range cap(pendingDataBuffers) {
 		pendingDataBuffers <- &bytesutil.ByteBuffer{}
 	}
+
+	retryDataBuffers := []*bytesutil.ByteBuffer{}
 
 	s := &Storage{
 		disableCompression: disableCompression,
 		pendingDataBuffers: pendingDataBuffers,
+		retryDataBuffers:   retryDataBuffers,
 		stopCh:             make(chan struct{}),
 	}
 
@@ -305,6 +364,12 @@ func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
 	idx := s.srt.getNodeIdx(streamHash)
 	sn := s.sns[idx]
 	sn.addRow(r)
+}
+
+// IsBroken returns true if the storage is in a broken state where retry data needs to be drained first.
+// When true, it indicates that all storage nodes are temporarily unavailable and data is being buffered for retry.
+func (s *Storage) IsBroken() bool {
+	return s.needDrainRetryData.Load()
 }
 
 func (s *Storage) sendInsertRequestToAnyNode(pendingData *bytesutil.ByteBuffer) bool {

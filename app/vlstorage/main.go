@@ -255,18 +255,24 @@ func processForceFlush(w http.ResponseWriter, r *http.Request) bool {
 
 // CanWriteData returns non-nil error if it cannot write data to vlstorage
 func CanWriteData() error {
-	if localStorage == nil {
-		// The data can be always written in non-local mode.
+	if netstorageInsert != nil {
+		if netstorageInsert.IsBroken() {
+			return &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("cannot write data to vlstorage because all the storage nodes are broken"),
+				StatusCode: http.StatusTooManyRequests,
+			}
+		}
 		return nil
 	}
 
-	if localStorage.IsReadOnly() {
+	if localStorage != nil && localStorage.IsReadOnly() {
 		return &httpserver.ErrorWithStatusCode{
 			Err: fmt.Errorf("cannot add rows into storage in read-only mode; the storage can be in read-only mode "+
 				"because of lack of free disk space at -storageDataPath=%s", *storageDataPath),
 			StatusCode: http.StatusTooManyRequests,
 		}
 	}
+
 	return nil
 }
 

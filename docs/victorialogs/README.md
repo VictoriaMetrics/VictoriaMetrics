@@ -444,6 +444,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -insert.maxQueueDuration duration
     	The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+  -insert.maxRetries int
+    	The maximum number of retry attempts when sending data to storage nodes. After exhausting retries, the data is queued in a retry buffer and new ingestion requests are rejected with HTTP 429 until storage nodes recover. (default 20)
   -internStringCacheExpireDuration duration
     	The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
