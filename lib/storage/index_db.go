@@ -1750,9 +1750,30 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 	return dst, false
 }
 
+func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) ([]uint64, error) {
+	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
+
+	// Unconditionally search global index since a given day in per-day
+	// index may not contain the full set of metricIDs that correspond
+	// to the tfss.
+	metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
+	if err != nil {
+		return nil, err
+	}
+
+	db.deleteMetricIDs(metricIDs)
+	return metricIDs, nil
+}
+
 func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
+	if len(metricIDs) == 0 {
+		return
+	}
+
 	// atomically add deleted metricIDs to an inmemory map.
 	db.updateDeletedMetricIDs(metricIDs)
+
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	db.invalidateTagFiltersCache()
 
