@@ -14,6 +14,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.23.3
+Released: 2025-06-13
+
+- IMPROVEMENT: Added backward-compatible single-dashed form support for `vmanomaly`'s [command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to enhance compatibility with VictoriaMetrics ecosystem and ease devOps experience. For example, `-license.forceOffline` can now be used in addition to `--license.forceOffline` - for the users who prefer the single-dash format or are accustomed to it from other VictoriaMetrics tools.
+
 ## v1.23.2
 Released: 2025-06-09
 

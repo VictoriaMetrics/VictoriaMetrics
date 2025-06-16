@@ -224,7 +224,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.23.2
+    image: victoriametrics/vmanomaly:v1.23.3
     # ...
     ports:
       - "8490:8490"
@@ -259,7 +259,7 @@ With the introduction of [online models](https://docs.victoriametrics.com/anomal
 - **Reduced latency**: Online models update incrementally, which can lead to faster response times for anomaly detection since the model continuously adapts to new data without waiting for a batch `fit`.
 - **Scalability**: Handling smaller data chunks at a time reduces memory and computational overhead, making it easier to scale the anomaly detection system.
 - **Optimized resource utilization**: By spreading the computational load over time and reducing peak demands, online models make more efficient use of resources and inducing less data transfer from VictoriaMetrics TSDB, improving overall system performance.
-- **Faster convergence**: Online models can adapt {{% available_from "v1.23.0" anomaly %}} to changes in data patterns more quickly, which is particularly beneficial in dynamic environments where data characteristics may shift frequently. See `decay` argument descrition [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay).
+- **Faster convergence**: Online models can adapt {{% available_from "v1.23.0" anomaly %}} to changes in data patterns more quickly, which is particularly beneficial in dynamic environments where data characteristics may shift frequently. See `decay` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay).
 
 Here's an example of how we can switch from (offline) [Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score) to [Online Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score):
 
@@ -432,7 +432,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.23.2 && docker image tag victoriametrics/vmanomaly:v1.23.2 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.23.3 && docker image tag victoriametrics/vmanomaly:v1.23.3 vmanomaly
 ```
 
 ```sh

@@ -173,7 +173,7 @@ VictoriaLogs supports `-syslog.decolorizeFields.tcp` and `-syslog.decolorizeFiel
 which can be used for removing ANSI color codes from the provided list fields during ingestion of Syslog logs
 into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.upd` addresses.
 For example, the following command starts VictoriaLogs, which removes ANSI color codes from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-at logs recevied via TCP port 514:
+at logs received via TCP port 514:
 
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.decolorizeFields.tcp='["_msg"]'
