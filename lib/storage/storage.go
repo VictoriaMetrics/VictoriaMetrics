@@ -1316,14 +1316,14 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "search_metric_names")
+	so := getSearchOptions(deadline, maxMetrics, "search_metric_names")
 	defer putSearchOptions(so)
 
 	tr = s.adjustTimeRange(tr)
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, so)
+	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, so)
 	if err != nil {
 		return nil, err
 	}
@@ -1462,10 +1462,10 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(noDeadline, "/api/v1/admin/tsdb/delete_series")
+	so := getSearchOptions(noDeadline, maxMetrics, "/api/v1/admin/tsdb/delete_series")
 	defer putSearchOptions(so)
 
-	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics, so)
+	deletedCount, err := idb.DeleteTSIDs(qt, tfss, so)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
@@ -1490,11 +1490,11 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "/api/v1/labels")
+	so := getSearchOptions(deadline, maxMetrics, "/api/v1/labels")
 	defer putSearchOptions(so)
 
 	tr = s.adjustTimeRange(tr)
-	return idb.SearchLabelNames(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, so)
+	return idb.SearchLabelNames(qt, accountID, projectID, tfss, tr, maxLabelNames, so)
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters
@@ -1511,7 +1511,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "/api/v1/label/{}/values")
+	so := getSearchOptions(deadline, maxMetrics, "/api/v1/label/{}/values")
 	defer putSearchOptions(so)
 
 	tr = s.adjustTimeRange(tr)
@@ -1525,7 +1525,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
 		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 
-		lvs, err := idb.SearchLabelValues(qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics, so)
+		lvs, err := idb.SearchLabelValues(qt, accountID, projectID, labelName, nil, tr, maxMetrics, so)
 		if err != nil {
 			return nil, err
 		}
@@ -1548,7 +1548,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	return idb.SearchLabelValues(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, so)
+	return idb.SearchLabelValues(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, so)
 }
 
 func filterLabelValues(accountID, projectID uint32, lvs []string, tf *tagFilter, key string) []string {
@@ -1811,13 +1811,13 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "/api/v1/status/tsdb")
+	so := getSearchOptions(deadline, maxMetrics, "/api/v1/status/tsdb")
 	defer putSearchOptions(so)
 
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
-	res, err := idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, so)
+	res, err := idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, so)
 	if err != nil {
 		return nil, err
 	}
