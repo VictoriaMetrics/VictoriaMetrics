@@ -27,8 +27,8 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 	synctest.Run(func() {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		idb, putIndexDB := s.getCurrIndexDB()
-		defer putIndexDB()
+		idb := s.tb.MustGetIndexDB(time.Now().UnixMilli())
+		defer s.tb.PutIndexDB(idb)
 
 		const (
 			accountID = 2
@@ -53,12 +53,12 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 			if diff := cmp.Diff(want.missingMetricIDs, missingMetricIDs); diff != "" {
 				t.Fatalf("unexpected tsids (-want, +got):\n%s", diff)
 			}
-			if got, want := idb.extDB.missingTSIDsForMetricID.Load(), want.missingTSIDsForMetricID; got != want {
+			if got, want := idb.missingTSIDsForMetricID.Load(), want.missingTSIDsForMetricID; got != want {
 				t.Fatalf("unexpected missingTSIDsForMetricID metric value: got %d, want %d", got, want)
 			}
 			wantDeletedMetricIDs := &uint64set.Set{}
 			wantDeletedMetricIDs.AddMulti(want.deletedMetricIDs)
-			if !s.getDeletedMetricIDs().Equal(wantDeletedMetricIDs) {
+			if !idb.getDeletedMetricIDs().Equal(wantDeletedMetricIDs) {
 				t.Fatalf("deleted metricIDs set is different from %v", want.deletedMetricIDs)
 			}
 		}

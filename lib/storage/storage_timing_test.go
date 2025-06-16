@@ -140,10 +140,7 @@ func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 		}
 		slices.Sort(want)
 		s := MustOpenStorage(b.Name(), OpenOptions{})
-		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		tfss := NewTagFilters(accountID, projectID)
@@ -225,10 +222,7 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		want = append(want, "__name__")
 		slices.Sort(want)
 		s := MustOpenStorage(b.Name(), OpenOptions{})
-		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		// Reset timer to exclude expensive initialization from measurement.
@@ -298,10 +292,7 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 		}
 		slices.Sort(want)
 		s := MustOpenStorage(b.Name(), OpenOptions{})
-		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		// Reset timer to exclude expensive initialization from measurement.
@@ -364,10 +355,7 @@ func BenchmarkStorageSearchTagValueSuffixes_VariousTimeRanges(b *testing.B) {
 		slices.Sort(want)
 
 		s := MustOpenStorage(b.Name(), OpenOptions{})
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		// Reset timer to exclude expensive initialization from measurement.
@@ -430,10 +418,7 @@ func BenchmarkStorageSearchGraphitePaths_VariousTimeRanges(b *testing.B) {
 		slices.Sort(want)
 
 		s := MustOpenStorage(b.Name(), OpenOptions{})
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		// Reset timer to exclude expensive initialization from measurement.
@@ -586,7 +571,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 		var (
 			rowsAddedTotal int
 			dataSize       int64
-			indexSize      int64
 		)
 
 		path := b.Name()
@@ -608,7 +592,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 			rowsAddedTotal = numBatches * numRowsPerBatch
 			dataSize = benchmarkDirSize(path + "/data")
-			indexSize = benchmarkDirSize(path + "/indexdb")
 
 			s.MustClose()
 			vmfs.MustRemoveAll(path)
@@ -616,7 +599,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
 		b.ReportMetric(float64(dataSize)/(1024*1024), "data-MiB")
-		b.ReportMetric(float64(indexSize)/(1024*1024), "indexdb-MiB")
 	}
 
 	b.Run("HighChurnRate/perDayIndexes", func(b *testing.B) {

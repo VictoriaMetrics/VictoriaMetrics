@@ -44,7 +44,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBAddTSIDs"
 	timestamp := time.Date(2025, 3, 17, 0, 0, 0, 0, time.UTC).UnixMilli()
 	s := MustOpenStorage(path, OpenOptions{})
-	db, putIndexDB := s.getCurrIndexDB()
+	db := s.tb.MustGetIndexDB(timestamp)
 
 	const recordsPerLoop = 1e3
 
@@ -55,7 +55,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var mn MetricName
-		var genTSID generationTSID
+		var tsid TSID
 		mn.AccountID = goroutineID.Add(1)
 
 		// The most common tags.
@@ -70,18 +70,18 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 		startOffset := 0
 		for pb.Next() {
-			benchmarkIndexDBAddTSIDs(db, &genTSID, &mn, timestamp, startOffset, recordsPerLoop)
+			benchmarkIndexDBAddTSIDs(db, &tsid, &mn, timestamp, startOffset, recordsPerLoop)
 			startOffset += recordsPerLoop
 		}
 	})
 	b.StopTimer()
 
-	putIndexDB()
+	s.tb.PutIndexDB(db)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
 
-func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, timestamp int64, startOffset, recordsPerLoop int) {
+func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, timestamp int64, startOffset, recordsPerLoop int) {
 	date := uint64(timestamp) / msecPerDay
 	for i := 0; i < recordsPerLoop; i++ {
 		mn.MetricGroup = strconv.AppendUint(mn.MetricGroup[:0], uint64(i+startOffset), 10)
@@ -90,8 +90,8 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricNa
 		}
 		mn.sortTags()
 
-		generateTSID(&genTSID.TSID, mn)
-		createAllIndexesForMetricName(db, mn, &genTSID.TSID, date)
+		generateTSID(tsid, mn)
+		createAllIndexesForMetricName(db, mn, tsid, date)
 	}
 }
 
@@ -101,13 +101,13 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	const path = "BenchmarkHeadPostingForMatchers"
 	timestamp := int64(0)
 	s := MustOpenStorage(path, OpenOptions{})
-	db, putIndexDB := s.getCurrIndexDB()
+	db := s.tb.MustGetIndexDB(timestamp)
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
 	const accountID = 34327843
 	const projectID = 893433
 	var mn MetricName
-	var genTSID generationTSID
+	var tsid TSID
 	date := uint64(timestamp) / msecPerDay
 	addSeries := func(kvs ...string) {
 		mn.Reset()
@@ -117,8 +117,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		mn.sortTags()
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
-		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
+		generateTSID(&tsid, &mn)
+		createAllIndexesForMetricName(db, &mn, &tsid, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -262,7 +262,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		benchSearch(b, tfs, 88889)
 	})
 
-	putIndexDB()
+	s.tb.PutIndexDB(db)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
@@ -271,7 +271,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBGetTSIDs"
 	timestamp := time.Date(2025, 3, 17, 0, 0, 0, 0, time.UTC).UnixMilli()
 	s := MustOpenStorage(path, OpenOptions{})
-	db, putIndexDB := s.getCurrIndexDB()
+	db := s.tb.MustGetIndexDB(timestamp)
 
 	const recordsPerLoop = 1000
 	const accountsCount = 111
@@ -288,14 +288,14 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	}
 	mn.sortTags()
 
-	var genTSID generationTSID
+	var tsid TSID
 	date := uint64(timestamp) / msecPerDay
 
 	for i := 0; i < recordsCount; i++ {
 		mn.AccountID = uint32(i % accountsCount)
 		mn.ProjectID = uint32(i % projectsCount)
-		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
+		generateTSID(&tsid, &mn)
+		createAllIndexesForMetricName(db, &mn, &tsid, date)
 	}
 	db.s.DebugFlush()
 
@@ -303,7 +303,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var genTSIDLocal generationTSID
+		var tsidLocal TSID
 		var metricNameLocal []byte
 		var mnLocal MetricName
 		mnLocal.CopyFrom(&mn)
@@ -314,7 +314,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 				mnLocal.AccountID = uint32(i % accountsCount)
 				mnLocal.ProjectID = uint32(i % projectsCount)
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				if !is.getTSIDByMetricName(&genTSIDLocal, metricNameLocal, date) {
+				if !is.getTSIDByMetricName(&tsidLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}
@@ -323,7 +323,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	})
 	b.StopTimer()
 
-	putIndexDB()
+	s.tb.PutIndexDB(db)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
