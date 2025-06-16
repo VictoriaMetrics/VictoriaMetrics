@@ -539,11 +539,13 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 		numRowsPerBatch = 10000
 		concurrency     = 1
 		splitBatches    = true
+		accountID       = 12
+		projectID       = 34
 	)
 
 	// Each batch corresponds to a unique date and has a unique set of metric
 	// names.
-	highChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
+	highChurnRateData, _ := testGenerateMetricRowBatches(accountID, projectID, &batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
 		sameBatchMetricNames: false, // Each batch has unique set of metric names.
@@ -554,7 +556,7 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 	// Each batch corresponds to a unique date but has the same set of metric
 	// names.
-	noChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
+	noChurnRateData, _ := testGenerateMetricRowBatches(accountID, projectID, &batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
 		sameBatchMetricNames: true,  // Each batch has the same set of metric names.
@@ -569,7 +571,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 		var (
 			rowsAddedTotal int
 			dataSize       int64
-			indexSize      int64
 		)
 
 		path := b.Name()
@@ -591,7 +592,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 			rowsAddedTotal = numBatches * numRowsPerBatch
 			dataSize = benchmarkDirSize(path + "/data")
-			indexSize = benchmarkDirSize(path + "/indexdb")
 
 			s.MustClose()
 			vmfs.MustRemoveAll(path)
@@ -599,7 +599,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
 		b.ReportMetric(float64(dataSize)/(1024*1024), "data-MiB")
-		b.ReportMetric(float64(indexSize)/(1024*1024), "indexdb-MiB")
 	}
 
 	b.Run("HighChurnRate/perDayIndexes", func(b *testing.B) {

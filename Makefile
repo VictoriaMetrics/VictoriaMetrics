@@ -237,7 +237,7 @@ test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 integration-test: all vmctl vmbackup vmrestore victoria-logs
-	go test ./apptest/... -skip="^TestSingle.*"
+	go test ./apptest/... -skip="^Test(Legacy|Single).*"
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...

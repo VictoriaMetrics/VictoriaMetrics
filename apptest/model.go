@@ -25,6 +25,7 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
+	APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts)
 }
 
 // Writer contains methods for writing new data
@@ -325,6 +326,9 @@ func (t *Trace) stringWithIndent(indent string) string {
 
 // Contains counts how many trace messages contain substring s.
 func (t *Trace) Contains(s string) int {
+	if t == nil {
+		return 0
+	}
 	var times int
 	if strings.Contains(t.Message, s) {
 		times++

@@ -140,20 +140,20 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
-// DeleteSeries sends a query to a /prometheus/api/v1/admin/tsdb/delete_series
+// APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending
+// a request to /api/v1/admin/tsdb/delete_series.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
-func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+func (app *Vmselect) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
 	t.Helper()
 
-	seriesURL := fmt.Sprintf("http://%s/delete/%s/prometheus/api/v1/admin/tsdb/delete_series", app.httpListenAddr, opts.getTenant())
+	queryURL := fmt.Sprintf("http://%s/delete/%s/prometheus/api/v1/admin/tsdb/delete_series", app.httpListenAddr, opts.getTenant())
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	// TODO(@rtm0): Add DeleteSeriesResponse.
-	res, _ := app.cli.PostForm(t, seriesURL, values)
-	if res != "" {
-		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
 }
 
