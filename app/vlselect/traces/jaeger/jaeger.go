@@ -49,7 +49,6 @@ var (
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	httpserver.EnableCORS(w, r)
 	startTime := time.Now()
-
 	path := r.URL.Path
 	if path == "/select/jaeger/api/services" {
 		jaegerServicesRequests.Inc()

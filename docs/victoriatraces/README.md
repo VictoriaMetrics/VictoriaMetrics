@@ -57,76 +57,26 @@ http://<victoria-traces>:<port>/select/jaeger`.
 
 Now everything should be ready!
 
-## Retention by disk space usage
-
-VictoriaTraces can be configured to automatically drop older per-day partitions if the total size of data at [`-storageDataPath` directory](#storage)
-becomes bigger than the given threshold at `-retention.maxDiskSpaceUsageBytes` command-line flag. For example, the following command starts VictoriaTraces,
-which drops old per-day partitions if the total [storage](#storage) size becomes bigger than `100GiB`:
-
-```sh
-/path/to/victoria-traces -retention.maxDiskSpaceUsageBytes=100GiB
-```
-
-VictoriaTraces usually compresses trace data by 10x or more times. This means that VictoriaTraces can store more than a terabyte of uncompressed
-traces when it runs with `-retention.maxDiskSpaceUsageBytes=100GiB`.
-
-VictoriaTraces keeps at least two last days of data in order to guarantee that the traces for the last day can be returned in queries.
-This means that the total disk space usage may exceed the `-retention.maxDiskSpaceUsageBytes` if the size of the last two days of data
-exceeds the `-retention.maxDiskSpaceUsageBytes`.
-
-The [`-retentionPeriod`](#retention) is applied independently to the `-retention.maxDiskSpaceUsageBytes`. This means that
-VictoriaTraces automatically drops trace spans older than 7 days by default if only `-retention.maxDiskSpaceUsageBytes` command-line flag is set.
-Set the `-retentionPeriod` to some big value (e.g. `100y` - 100 years) if trace spans shouldn't be dropped because of some small `-retentionPeriod`.
-For example:
-
-```sh
-/path/to/victoria-traces -retention.maxDiskSpaceUsageBytes=10TiB -retentionPeriod=100y
-```
-
-## Storage
-
-By default VictoriaTraces stores all its data in a single directory - `victoria-traces-data`. The path to the directory can be changed via `-storageDataPath` command-line flag.
-For example, the following command starts VictoriaTraces, which stores the data at `/var/lib/victoria-traces`:
-
-```sh
-/path/to/victoria-traces -storageDataPath=/var/lib/victoria-traces
-```
-
-VictoriaTraces automatically creates the `-storageDataPath` directory on the first run if it is missing.
-
-The ingested trace spans are stored in per-day subdirectories (partitions) at the `<-storageDataPath>/partitions` directory. The per-day subdirectories have `YYYYMMDD` names.
-For example, the directory with the name `20250418` contains trace spans with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) values
-at April 18, 2025 UTC. This allows flexible data management. For example, old per-day data is automatically and quickly deleted according to the provided [retention policy](#retention)
-by removing the corresponding per-day subdirectory (partition).
-
-## Forced merge
-
-VictoriaTraces performs data compactions in background in order to keep good performance characteristics when accepting new data.
-These compactions (merges) are performed independently on per-day partitions.
-This means that compactions are stopped for per-day partitions if no new data is ingested into these partitions.
-Sometimes it is necessary to trigger compactions for old partitions. In this case forced compaction may be initiated on the specified per-day partition
-by sending request to `/internal/force_merge?partition_prefix=YYYYMMDD`,
-where `YYYYMMDD` is per-day partition name. For example, `http://victoria-traces:9428/internal/force_merge?partition_prefix=20240921` would initiate forced
-merge for September 21, 2024 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
-
-Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
-since VictoriaTraces automatically performs optimal merges in background when new data is ingested into it.
-
-## Forced flush
-
-VictoriaTraces puts the recently ingested trace spans into in-memory buffers,
-which aren't available for querying for up to a second.
-If you need querying traces immediately after their ingestion, then the `/internal/force_flush` HTTP endpoint must be requested
-before querying. This endpoint converts in-memory buffers with the recently ingested trace spans into searchable data blocks.
-
-It isn't recommended requesting the `/internal/force_flush` HTTP endpoint on a regular basis, since this increases CPU usage
-and slows down data ingestion. It is expected that the `/internal/force_flush` is requested in automated tests, which need querying
-the recently ingested data.
-
 ## List of command-line flags
 
-See also: [VictoriaLogs - List of Command-line flags](https://docs.victoriametrics.com/victorialogs/#list-of-command-line-flags)
-
 ```shell
-todo
+  -search.traceMaxDurationWindow
+    	The lookbehind/lookahead window of searching for the rest trace spans after finding one span.
+		It allows extending the search start time and end time by `-search.traceMaxDurationWindow` to make sure all spans are included.
+		It affects both Jaeger's `/api/traces` and `/api/traces/<trace_id>` APIs. (default: 10m)
+  -search.traceMaxServiceNameList
+        The maximum number of service name can return in a get service name request.
+        This limit affects Jaeger's `/api/services` API. (default: 1000)
+  -search.traceMaxSpanNameList
+        The maximum number of span name can return in a get span name request.
+        This limit affects Jaeger's `/api/services/*/operations` API. (default: 1000)
+  -search.traceSearchStep
+        Splits the [0, now] time range into many small time ranges by -search.traceSearchStep
+        when searching for spans by `trace_id`. Once it finds spans in a time range, it performs an additional search according to `-search.traceMaxDurationWindow` and then stops.
+        It affects Jaeger's `/api/traces/<trace_id>` API.  (default: 1d)
+  -search.traceServiceAndSpanNameLookbehind
+        The time range of searching for service names and span names. 
+        It affects Jaeger's `/api/services` and `/api/services/*/operations` APIs. (default: 7d)
 ```
+
+See also: [VictoriaLogs - List of Command-line flags](https://docs.victoriametrics.com/victorialogs/#list-of-command-line-flags)
