@@ -3,8 +3,9 @@ package pb
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/VictoriaMetrics/easyproto"
 	"strings"
+
+	"github.com/VictoriaMetrics/easyproto"
 )
 
 type (

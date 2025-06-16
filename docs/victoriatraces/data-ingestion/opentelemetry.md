@@ -38,13 +38,13 @@ traceExporter, err := otlptracehttp.New(ctx,
 )
 ```
 
-VictoriaTraces use `service.name` in **resource attributes** and `name` in **span** as [stream fields]((https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
+VictoriaTraces use `service.name` in **resource attributes** and `name` in **span** as [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
 
 while the remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) are stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
 
 VictoriaTraces supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
 
-The ingested trace entries can be queried according to [these docs](https://docs.victoriametrics.com/victoriatraces/querying/).
+The ingested trace spans can be queried according to [these docs](https://docs.victoriametrics.com/victoriatraces/querying/).
 
 ## Collector configuration
 
