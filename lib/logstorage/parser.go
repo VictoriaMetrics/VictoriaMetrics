@@ -587,6 +587,7 @@ func (q *Query) AddPipeLimit(n uint64) {
 	q.pipes = append(q.pipes, &pipeLimit{
 		limit: n,
 	})
+	q.optimize()
 }
 
 // optimize applies various optimations to q.
