@@ -291,15 +291,13 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 }
 
 // MustStartVmctl is a test helper function that starts an instance of vmctl
-func (tc *TestCase) MustStartVmctl(instance string, flags []string) *Vmctl {
+func (tc *TestCase) MustStartVmctl(instance string, flags []string) {
 	tc.t.Helper()
 
-	app, err := StartVmctl(instance, flags)
+	err := StartVmctl(instance, flags)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(instance, app)
-	return app
 }
 
 func (tc *TestCase) addApp(instance string, app Stopper) {

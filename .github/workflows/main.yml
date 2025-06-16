@@ -91,6 +91,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.txt
+          fail_ci_if_error: false
 
   integration-test:
     name: integration-test
