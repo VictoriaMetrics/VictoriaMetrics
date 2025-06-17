@@ -36,8 +36,7 @@ var (
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#time-field")
 	journaldTenantID = flag.String("journald.tenantID", "0:0", "TenantID for logs ingested via the Journald endpoint. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#multitenancy")
-	journaldIncludeEntryMetadata = flag.Bool("journald.includeEntryMetadata", false, "Include journal entry fields, which with double underscores.")
-	journaldPriorityAsLevel      = flag.Bool("journald.priorityAsLevel", true, "Store Journald priority as level field.")
+	journaldIncludeEntryMetadata = flag.Bool("journald.includeEntryMetadata", false, "Include Journald fields with double underscore prefixes")
 
 	maxRequestSize = flagutil.NewBytes("journald.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single journald request")
 )
@@ -221,11 +220,11 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 			name = "_msg"
 		}
 
-		if *journaldIncludeEntryMetadata || !strings.HasPrefix(name, "__") {
-			if *journaldPriorityAsLevel && name == "PRIORITY" {
+		if !strings.HasPrefix(name, "__") || *journaldIncludeEntryMetadata {
+			if name == "PRIORITY" {
 				fields = append(fields, logstorage.Field{
 					Name:  "level",
-					Value: value,
+					Value: journaldPriorityToLevel(value),
 				})
 			}
 			fields = append(fields, logstorage.Field{
@@ -241,4 +240,23 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 		lmp.AddRow(ts, fields, nil)
 	}
 	return nil
+}
+
+func journaldPriorityToLevel(priority string) string {
+	// See https://wiki.archlinux.org/title/Systemd/Journal#Priority_level
+	// and https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level
+	switch priority {
+	case "0", "1", "2":
+		return "critical"
+	case "3":
+		return "error"
+	case "4":
+		return "warning"
+	case "5", "6":
+		return "info"
+	case "7":
+		return "debug"
+	default:
+		return priority
+	}
 }

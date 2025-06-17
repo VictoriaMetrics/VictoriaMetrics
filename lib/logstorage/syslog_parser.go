@@ -17,12 +17,11 @@ import (
 // the timezone is used for rfc3164 format for setting the desired timezone.
 //
 // Return back the parser to the pool by calling PutSyslogParser when it is no longer needed.
-func GetSyslogParser(currentYear int, timezone *time.Location, severityAsLevel bool) *SyslogParser {
+func GetSyslogParser(currentYear int, timezone *time.Location) *SyslogParser {
 	v := syslogParserPool.Get()
 	if v == nil {
 		v = &SyslogParser{
-			unescaper:       strings.NewReplacer(`\]`, `]`),
-			severityAsLevel: severityAsLevel,
+			unescaper: strings.NewReplacer(`\]`, `]`),
 		}
 	}
 	p := v.(*SyslogParser)
@@ -69,9 +68,6 @@ type SyslogParser struct {
 
 	// unescaper is a replacer, which unescapes \] that is allowed in rfc5424, but breaks strings unquoting
 	unescaper *strings.Replacer
-
-	// severityAsLevel enables adding level alias to severity field
-	severityAsLevel bool
 }
 
 func (p *SyslogParser) reset() {
@@ -130,18 +126,96 @@ func (p *SyslogParser) Parse(s string) {
 	facility := priority / 8
 	severity := priority % 8
 
+	facilityKeyword := syslogFacilityToLevel(facility)
+	p.addField("facility_keyword", facilityKeyword)
+
+	level := syslogSeverityToLevel(severity)
+	p.addField("level", level)
+
 	bufLen := len(p.buf)
 	p.buf = marshalUint64String(p.buf, facility)
 	p.addField("facility", bytesutil.ToUnsafeString(p.buf[bufLen:]))
 
 	bufLen = len(p.buf)
 	p.buf = marshalUint64String(p.buf, severity)
-	if p.severityAsLevel {
-		p.addField("level", bytesutil.ToUnsafeString(p.buf[bufLen:]))
-	}
 	p.addField("severity", bytesutil.ToUnsafeString(p.buf[bufLen:]))
 
 	p.parseNoHeader(s)
+}
+
+func syslogSeverityToLevel(severity uint64) string {
+	// See https://en.wikipedia.org/wiki/Syslog#Severity_level
+	// and https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level
+	switch severity {
+	case 0, 1, 2:
+		return "critical"
+	case 3:
+		return "error"
+	case 4:
+		return "warning"
+	case 5, 6:
+		return "info"
+	case 7:
+		return "debug"
+	default:
+		return "unknown"
+	}
+}
+
+func syslogFacilityToLevel(facitlity uint64) string {
+	// See https://en.wikipedia.org/wiki/Syslog#Facility
+	switch facitlity {
+	case 0:
+		return "kern"
+	case 1:
+		return "user"
+	case 2:
+		return "mail"
+	case 3:
+		return "daemon"
+	case 4:
+		return "auth"
+	case 5:
+		return "syslog"
+	case 6:
+		return "lpr"
+	case 7:
+		return "news"
+	case 8:
+		return "uucp"
+	case 9:
+		return "cron"
+	case 10:
+		return "authpriv"
+	case 11:
+		return "ftp"
+	case 12:
+		return "ntp"
+	case 13:
+		return "security"
+	case 14:
+		return "console"
+	case 15:
+		return "solaris-cron"
+	case 16:
+		return "local0"
+	case 17:
+		return "local1"
+	case 18:
+		return "local2"
+	case 19:
+		return "local3"
+	case 20:
+		return "local4"
+	case 21:
+		return "local5"
+	case 22:
+		return "local6"
+	case 23:
+		return "local7"
+	default:
+		return "unknown"
+	}
 }
 
 func (p *SyslogParser) parseNoHeader(s string) {
