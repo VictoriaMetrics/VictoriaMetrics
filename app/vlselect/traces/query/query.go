@@ -189,7 +189,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 			return nil, err
 		}
 		if missingTimeColumn.Load() {
-			return nil, fmt.Errorf("missing _time column in the result for the query [%s]", q)
+			return nil, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
 		}
 
 		// no hit in this time range, continue with step.
@@ -205,7 +205,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 			return nil, err
 		}
 		if missingTimeColumn.Load() {
-			return nil, fmt.Errorf("missing _time column in the result for the query [%s]", q)
+			return nil, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
 		}
 		break
 	}
