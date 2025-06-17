@@ -22,11 +22,13 @@ Substitute the `localhost:9428` address inside `endpoints` section with the real
 
 ## Time field
 
-By default VictoriaLogs use the `__REALTIME_TIMESTAMP` field as [timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
+VictoriaLogs uses the `__REALTIME_TIMESTAMP` field as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
 for the logs ingested via journald protocol. This can be modified by setting the `-journald.timeField` command-line flag to the log field name,
-which contains the needed timestamp.
+which contains the needed timestamp. See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
 
-See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+## Level field
+
+VictoriaLogs atomatically sets the `level` log field according to the [`PRIORITY` field falue](https://wiki.archlinux.org/title/Systemd/Journal).
 
 ## Dropping fields
 
