@@ -19,7 +19,9 @@ services:
   #  VictoriaTraces instance, a single process responsible for
   #  storing trace span and serving read queries.
   victoriatraces:
-    image: victoriametrics/victoria-traces:todo # todo
+    # todo: use official image when it is released
+    # the current image is built with "make package-victoria-logs"
+    image: 'docker.io/victoriametrics/victoria-logs:heads-feature-otlp-trace-ingestion-0-g1b78edf62-dirty-70dcaeb1'
     ports:
       - "9428:9428"
     command:
@@ -102,5 +104,5 @@ services:
 
 volumes:
   vmdata: {}
-  vldata: {}
+  vtdata: {}
   grafanadata: {}

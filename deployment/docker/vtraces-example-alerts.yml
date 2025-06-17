@@ -1,6 +1,6 @@
 groups:
   - name: trace-rules
-    type: vtraces
+    type: vlogs
     interval: 30s
     rules:
       - alert: AlwaysFiring
