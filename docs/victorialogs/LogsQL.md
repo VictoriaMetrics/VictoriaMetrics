@@ -3362,9 +3362,11 @@ It understands the following Syslog formats:
 
 The following fields are unpacked:
 
-- `priority` - it is obtained from `PRI`.
-- `facility` - it is calculated as `PRI / 8`.
-- `severity` - it is calculated as `PRI % 8`.
+- `level` - optained from `PRI`.
+- `priority` - obtained from `PRI`.
+- `facility` - calculated as `PRI / 8`.
+- `facility_keyword` - string representation of the `facility` field according to [these docs](https://en.wikipedia.org/wiki/Syslog#Facility).
+- `severity` - calculated as `PRI % 8`.
 - `format` - either `rfc3164` or `rfc5424` depending on which Syslog format is unpacked.
 - `timestamp` - timestamp in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601). The `MMM DD hh:mm:ss` timestamp in [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164)
   is automatically converted into [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) by assuming that the timestamp belongs to the last 12 months.

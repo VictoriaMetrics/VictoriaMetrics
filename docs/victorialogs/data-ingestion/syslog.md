@@ -49,6 +49,7 @@ from the received Syslog lines:
   It is possible to change the list of fields for log streams - see [these docs](#stream-fields).
 - `level` - string representation of the log level according to the `<PRI>` field value
 - `priority`, `facility` and `severity` - these fields are extracted from `<PRI>` field
+- `facility_keyword` - string representation of the `facility` field according to [these docs](https://en.wikipedia.org/wiki/Syslog#Facility)
 - `format` - this field is set to either `rfc3164` or `rfc5424` depending on the format of the parsed syslog line
 - `msg_id` - `MSGID` field from log line in `RFC5424` format.
 
