@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -335,7 +336,9 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 	var result []prompbmarshal.TimeSeries
 	holdAlertState := make(map[uint64]*notifier.Alert)
 	qFn := func(_ string) ([]datasource.Metric, error) {
-		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
+		logger.Warnf("`query` template isn't supported in replay mode, mocked data is used")
+		//  mock query results to allow common used template {{ query <$expr> | first | value }}
+		return []datasource.Metric{{Timestamps: []int64{0}, Values: []float64{math.NaN()}}}, nil
 	}
 	for _, s := range res.Data {
 		ls, as, err := ar.expandTemplates(s, qFn, time.Time{})
