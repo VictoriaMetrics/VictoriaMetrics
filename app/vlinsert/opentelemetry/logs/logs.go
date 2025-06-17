@@ -34,7 +34,7 @@ func HandleProtobuf(r *http.Request, w http.ResponseWriter) {
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf", false)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_protobuf", false)
 		useDefaultStreamFields := len(cp.StreamFields) == 0
 		err := pushProtobufRequest(data, lmp, cp.MsgFields, useDefaultStreamFields)
 		lmp.MustClose()

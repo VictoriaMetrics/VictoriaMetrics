@@ -50,7 +50,7 @@ func HandleProtobuf(r *http.Request, w http.ResponseWriter) {
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("opentelelemtry_traces_protobuf", false)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_protobuf", false)
 		err := pushProtobufRequest(data, lmp)
 		lmp.MustClose()
 		return err
@@ -144,7 +144,7 @@ func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp
 		fields = append(fields,
 			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceIDField, Value: link.TraceID},
 			logstorage.Field{Name: linkFieldPrefix + pb.LinkSpanIDField, Value: link.SpanID},
-			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceStateField, Value: pb.LinkTraceStateField},
+			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceStateField, Value: link.TraceState},
 			logstorage.Field{Name: linkFieldPrefix + pb.LinkDroppedAttributesCountField, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
 			logstorage.Field{Name: linkFieldPrefix + pb.LinkFlagsField, Value: strconv.FormatUint(uint64(link.Flags), 10)},
 		)
@@ -165,17 +165,18 @@ func appendKeyValuesWithPrefix(fields []logstorage.Field, kvs []*pb.KeyValue, pa
 
 		if attr.Value.KeyValueList != nil {
 			fields = appendKeyValuesWithPrefix(fields, attr.Value.KeyValueList.Values, fieldName, prefix)
-		} else {
-			v := attr.Value.FormatString(true)
-			if len(v) == 0 {
-				// VictoriaLogs does not support empty string as field value. set it to "-" to preserve the field.
-				v = "-"
-			}
-			fields = append(fields, logstorage.Field{
-				Name:  prefix + fieldName,
-				Value: v,
-			})
+			continue
 		}
+
+		v := attr.Value.FormatString(true)
+		if len(v) == 0 {
+			// VictoriaLogs does not support empty string as field value. set it to "-" to preserve the field.
+			v = "-"
+		}
+		fields = append(fields, logstorage.Field{
+			Name:  prefix + fieldName,
+			Value: v,
+		})
 	}
 	return fields
 }
