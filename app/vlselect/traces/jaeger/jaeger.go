@@ -109,8 +109,14 @@ func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	// extract the `service_name`.
-	// the path must be like `/select/trace/api/services/<service_name>/operations`.
+	// the path must be like `/select/jaeger/api/services/<service_name>/operations`.
 	u := r.URL.Path[len("/select/jaeger/api/services/"):]
+
+	// check for invalid path: /select/jaeger/api/services/operations
+	if !strings.Contains("/", u) {
+		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
+		return
+	}
 	serviceName := u[:len(u)-len("/operations")]
 	if len(serviceName) == 0 {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
@@ -138,7 +144,7 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 
 	// extract the `trace_id`.
-	// the path must be like `/select/trace/api/traces/<trace_id>`.
+	// the path must be like `/select/jaeger/api/traces/<trace_id>`.
 	traceID := r.URL.Path[len("/select/jaeger/api/traces/"):]
 	if len(traceID) == 0 {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
