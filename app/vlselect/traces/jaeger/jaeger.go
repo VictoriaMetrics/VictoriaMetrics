@@ -113,7 +113,7 @@ func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *
 	u := r.URL.Path[len("/select/jaeger/api/services/"):]
 
 	// check for invalid path: /select/jaeger/api/services/operations
-	if !strings.Contains("/", u) {
+	if !strings.Contains(u, "/") {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
 		return
 	}
