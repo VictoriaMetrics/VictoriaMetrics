@@ -142,13 +142,13 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 		case pb.StartTimeUnixNanoField:
 			unixNano, err := strconv.ParseInt(field.Value, 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid start_time_unix_nano field: %s", err)
 			}
 			sp.startTime = unixNano / 1000
 		case pb.DurationField:
 			nano, err := strconv.ParseInt(field.Value, 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid duration field: %s", err)
 			}
 			sp.duration = nano / 1000
 		case pb.StatusCodeField:
