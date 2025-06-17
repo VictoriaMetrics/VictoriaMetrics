@@ -26,7 +26,7 @@ var (
 )
 
 var (
-	defaultStreamFields = []string{pb.ResourceAttrServiceName, pb.NameField}
+	mandatoryStreamFields = []string{pb.ResourceAttrServiceName, pb.NameField}
 )
 
 // HandleProtobuf handles the trace ingestion request.
@@ -39,9 +39,10 @@ func HandleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
-	if len(cp.StreamFields) == 0 {
-		cp.StreamFields = defaultStreamFields
-	}
+	// stream fields must contain the service name and span name.
+	// by using arguments and headers, users can also add other fields as stream fields
+	// for potentially better efficiency.
+	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
 
 	if err := vlstorage.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
