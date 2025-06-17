@@ -159,7 +159,7 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 
 	t := &trace{}
 	processHashIDMap := make(map[uint64]string)      // process name -> process id
-	processIDProcessMap := make(map[string]*process) // map[processID]->process
+	processIDProcessMap := make(map[string]*process) // process id -> process
 	for i := range rows {
 		var sp *span
 		sp, err = fieldsToSpan(rows[i].Fields)
