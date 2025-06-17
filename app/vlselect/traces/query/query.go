@@ -168,7 +168,10 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 				// column could be empty if this span does not contain such field.
 				// only append non-empty columns.
 				if columns[j].Values[i] != "" {
-					fields = append(fields, logstorage.Field{Name: clonedColumnNames[j], Value: strings.Clone(columns[j].Values[i])})
+					fields = append(fields, logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					})
 				}
 			}
 
