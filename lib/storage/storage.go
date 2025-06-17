@@ -1316,7 +1316,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, maxMetrics, "search_metric_names")
+	so := getSearchOptions(deadline, maxMetrics, "/api/v1/series")
 	defer putSearchOptions(so)
 
 	tr = s.adjustTimeRange(tr)
