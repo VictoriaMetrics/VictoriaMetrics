@@ -24,20 +24,20 @@ const (
 
 // Jaeger Query APIs metrics
 var (
-	jaegerServicesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/trace/jaeger/api/services"}`)
-	jaegerServicesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/services"}`)
+	jaegerServicesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/jaeger/api/services"}`)
+	jaegerServicesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/jaeger/api/services"}`)
 
-	jaegerOperationsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/trace/jaeger/api/services/*/operations"}`)
-	jaegerOperationsDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/services/*/operations"}`)
+	jaegerOperationsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/jaeger/api/services/*/operations"}`)
+	jaegerOperationsDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/jaeger/api/services/*/operations"}`)
 
-	jaegerTracesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/trace/jaeger/api/traces"}`)
-	jaegerTracesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/traces"}`)
+	jaegerTracesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/jaeger/api/traces"}`)
+	jaegerTracesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/jaeger/api/traces"}`)
 
-	jaegerTraceRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/trace/jaeger/api/traces/*"}`)
-	jaegerTraceDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/traces/*"}`)
+	jaegerTraceRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/jaeger/api/traces/*"}`)
+	jaegerTraceDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/jaeger/api/traces/*"}`)
 
-	jaegerDependenciesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/trace/jaeger/api/dependencies"}`)
-	jaegerDependenciesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/trace/jaeger/api/dependencies"}`)
+	jaegerDependenciesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/jaeger/api/dependencies"}`)
+	jaegerDependenciesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/jaeger/api/dependencies"}`)
 )
 
 // RequestHandler is the entry point for all Jaeger query APIs.
