@@ -53,17 +53,31 @@ func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
 		}
 		cp.TenantID = tenantID
 	}
-	if len(cp.TimeFields) == 0 {
+
+	if !cp.IsTimeFieldSet {
 		cp.TimeFields = []string{*journaldTimeField}
 	}
 	if len(cp.StreamFields) == 0 {
-		cp.StreamFields = *journaldStreamFields
+		cp.StreamFields = getStreamFields()
 	}
 	if len(cp.IgnoreFields) == 0 {
 		cp.IgnoreFields = *journaldIgnoreFields
 	}
 	cp.MsgFields = []string{"MESSAGE"}
 	return cp, nil
+}
+
+func getStreamFields() []string {
+	if len(*journaldStreamFields) > 0 {
+		return *journaldStreamFields
+	}
+	return defaultStreamFields
+}
+
+var defaultStreamFields = []string{
+	"_MACHINE_ID",
+	"_HOSTNAME",
+	"_SYSTEMD_UNIT",
 }
 
 // RequestHandler processes Journald Export insert requests
@@ -138,8 +152,6 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 	var name, value string
 	var line []byte
 
-	currentTimestamp := time.Now().UnixNano()
-
 	for len(data) > 0 {
 		idx := bytes.IndexByte(data, '\n')
 		switch {
@@ -152,7 +164,7 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 			// double new line is a separator for the next message
 			if len(fields) > 0 {
 				if ts == 0 {
-					ts = currentTimestamp
+					ts = time.Now().UnixNano()
 				}
 				lmp.AddRow(ts, fields, nil)
 				fields = fields[:0]
@@ -235,7 +247,7 @@ func parseJournaldRequest(data []byte, lmp insertutil.LogMessageProcessor, cp *i
 	}
 	if len(fields) > 0 {
 		if ts == 0 {
-			ts = currentTimestamp
+			ts = time.Now().UnixNano()
 		}
 		lmp.AddRow(ts, fields, nil)
 	}

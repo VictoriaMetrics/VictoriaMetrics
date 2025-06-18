@@ -524,7 +524,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []apiGr
                             <thead>
                                 <tr>
                                     <th scope="col" style="width: 60%">Rule</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
+                                    <th scope="col" style="width: 20%" class="text-center" title="How many series were produced by the rule">Series</th>
                                     <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                                 </tr>
                             </thead>
@@ -1697,7 +1697,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule apiRule)
             <thead>
                 <tr>
                     <th scope="col" title="The time when event was created">Updated at</th>
-                    <th scope="col" style="width: 10%" class="text-center" title="How many samples were returned">Samples</th>
+                    <th scope="col" style="width: 10%" class="text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
                     `)
 //line app/vmalert/web.qtpl:598
 	if seriesFetchedEnabled {
