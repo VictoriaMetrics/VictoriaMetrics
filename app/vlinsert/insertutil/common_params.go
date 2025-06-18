@@ -35,6 +35,7 @@ type CommonParams struct {
 	DecolorizeFields []string
 	ExtraFields      []logstorage.Field
 
+	IsTimeFieldSet  bool
 	Debug           bool
 	DebugRequestURI string
 	DebugRemoteAddr string
@@ -48,8 +49,10 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
+	var isTimeFieldSet bool
 	timeFields := []string{"_time"}
 	if tfs := httputil.GetArray(r, "_time_field", "VL-Time-Field"); len(tfs) > 0 {
+		isTimeFieldSet = true
 		timeFields = tfs
 	}
 
@@ -85,9 +88,11 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		IgnoreFields:     ignoreFields,
 		DecolorizeFields: decolorizeFields,
 		ExtraFields:      extraFields,
-		Debug:            debug,
-		DebugRequestURI:  debugRequestURI,
-		DebugRemoteAddr:  debugRemoteAddr,
+
+		IsTimeFieldSet:  isTimeFieldSet,
+		Debug:           debug,
+		DebugRequestURI: debugRequestURI,
+		DebugRemoteAddr: debugRemoteAddr,
 	}
 
 	return cp, nil
