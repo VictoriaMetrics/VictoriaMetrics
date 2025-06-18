@@ -21,7 +21,7 @@ services:
   victoriatraces:
     # todo: use official image when it is released
     # the current image is built with "make package-victoria-logs"
-    image: 'docker.io/victoriametrics/victoria-logs:heads-feature-otlp-trace-ingestion-0-g70bb1c8a6-dirty-3f54b10b'
+    image: 'docker.io/victoriametrics/victoria-logs:heads-feature-otlp-trace-ingestion-0-g7222a7ddd'
     ports:
       - "9428:9428"
     command:
