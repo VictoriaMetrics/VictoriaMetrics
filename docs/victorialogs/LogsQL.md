@@ -3362,9 +3362,11 @@ It understands the following Syslog formats:
 
 The following fields are unpacked:
 
-- `priority` - it is obtained from `PRI`.
-- `facility` - it is calculated as `PRI / 8`.
-- `severity` - it is calculated as `PRI % 8`.
+- `level` - optained from `PRI`.
+- `priority` - obtained from `PRI`.
+- `facility` - calculated as `PRI / 8`.
+- `facility_keyword` - string representation of the `facility` field according to [these docs](https://en.wikipedia.org/wiki/Syslog#Facility).
+- `severity` - calculated as `PRI % 8`.
 - `format` - either `rfc3164` or `rfc5424` depending on which Syslog format is unpacked.
 - `timestamp` - timestamp in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601). The `MMM DD hh:mm:ss` timestamp in [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164)
   is automatically converted into [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) by assuming that the timestamp belongs to the last 12 months.
@@ -3582,7 +3584,7 @@ over the last 5 minutes:
 _time:5m | stats count(username, password) logs_with_username_or_password
 ```
 
-It is possible to caclulate the number of logs with at least a single non-empty field with common prefix with `count(prefix*)` syntax.
+It is possible to calculate the number of logs with at least a single non-empty field with common prefix with `count(prefix*)` syntax.
 For example, the following query returns the number of logs with at least a single non-empty field with `foo` prefix over the last 5 minutes:
 
 ```logsql
@@ -4189,7 +4191,7 @@ Internally duration values are converted into nanoseconds.
 - It is highly recommended specifying [stream filter](#stream-filter) in order to narrow down the search
   to specific [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - It is recommended specifying [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) you need in query results
-  with the [`field` pipe](#fields-pipe), if the selected log entries contain big number of fields, which aren't interesting to you.
+  with the [`fields` pipe](#fields-pipe), if the selected log entries contain big number of fields, which aren't interesting to you.
   This saves disk read IO and CPU time needed for reading and unpacking all the log fields from disk.
 - Move faster filters such as [word filter](#word-filter) and [phrase filter](#phrase-filter) to the beginning of the query.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.

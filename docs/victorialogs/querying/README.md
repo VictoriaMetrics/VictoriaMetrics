@@ -954,6 +954,7 @@ There are three modes of displaying query results:
 - `Group` - results are displayed as a table with rows grouped by [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - `Table` - displays query results as a table.
 - `JSON` - displays raw JSON response from [`/select/logsql/query` HTTP API](#querying-logs).
+- `Live` - displays [live tailing](#live-tailing) results for the given query.
 
 See also [command line interface](#command-line).
 

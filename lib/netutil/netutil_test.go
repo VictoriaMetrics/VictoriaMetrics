@@ -65,4 +65,5 @@ func TestNormalizeAddrError(t *testing.T) {
 	f("http://127.0.0.1:80")
 	f("http://vmstorage-0.svc.cluster.local.")
 	f("http://vmstorage-0.svc.cluster.local.:80")
+	f("/vmstorage-0.svc.cluster.local.:80")
 }

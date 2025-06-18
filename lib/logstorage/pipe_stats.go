@@ -378,8 +378,8 @@ type pipeStatsProcessorShard struct {
 type pipeStatsGroupMapShard struct {
 	pipeStatsGroupMap
 
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeStatsGroupMap{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(pipeStatsGroupMap{})%atomicutil.CacheLineSize]byte
 }
 
 // the maximum number of groups to track in pipeStatsProcessorShard.groupMap before switching to pipeStatsProcessorShard.groupMapShards

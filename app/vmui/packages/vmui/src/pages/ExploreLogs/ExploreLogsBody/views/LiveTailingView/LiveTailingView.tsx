@@ -10,11 +10,15 @@ import { useSearchParams } from "react-router-dom";
 import throttle from "lodash/throttle";
 import GroupLogsItem from "../../../GroupLogs/GroupLogsItem";
 import LiveTailingSettings from "./LiveTailingSettings";
+import Alert from "../../../../../components/Main/Alert/Alert";
+import { isDecreasing } from "../../../../../utils/array";
+import { useLocalStorageBoolean } from "../../../../../hooks/useLocalStorageBoolean";
+import ScrollToTopButton from "../../../../../components/ScrollToTopButton/ScrollToTopButton";
 
 const SCROLL_THRESHOLD = 100;
 const scrollToBottom = () => window.scrollTo({
   top: document.documentElement.scrollHeight,
-  behavior: "instant"
+  behavior: "smooth"
 });
 const throttledScrollToBottom = throttle(scrollToBottom, 200);
 
@@ -26,8 +30,7 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [rowsPerPage, setRowsPerPage] = useStateSearchParams(100, "rows_per_page");
   const [query, _setQuery] = useStateSearchParams("*", "query");
-  const [isCompactTailingStr] = useStateSearchParams(0, "compact_tailing");
-  const isCompactTailingNumber = Boolean(Number(isCompactTailingStr));
+  const [isRawJsonView, setIsRawJsonView] = useLocalStorageBoolean("RAW_JSON_LIVE_VIEW");
   const {
     logs,
     isPaused,
@@ -36,7 +39,8 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
     stopLiveTailing,
     pauseLiveTailing,
     resumeLiveTailing,
-    clearLogs
+    clearLogs,
+    isLimitedLogsPerUpdate
   } = useLiveTailingLogs(query, rowsPerPage);
 
   const displayFieldsString = searchParams.get(LOGS_URL_PARAMS.DISPLAY_FIELDS) || LOGS_DISPLAY_FIELDS;
@@ -51,10 +55,6 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
     setSearchParamsFromKeys({ rows_per_page: limit });
   }, [setRowsPerPage, setSearchParamsFromKeys]);
 
-  const handleSetCompactTailing = useCallback((value: boolean) => {
-    setSearchParamsFromKeys({ compact_tailing: Number(value) });
-  }, [setSearchParamsFromKeys]);
-
   useEffect(() => {
     startLiveTailing();
     return () => stopLiveTailing();
@@ -64,13 +64,17 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
     const container = containerRef.current;
     if (!container) return;
 
+    let prevScrollTop: number[] = [];
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
       const isBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < SCROLL_THRESHOLD;
 
       setIsAtBottom(isBottom);
+      prevScrollTop.push(scrollTop);
+      prevScrollTop = prevScrollTop.slice(-3);
+      const isMoveToTop = isDecreasing(prevScrollTop);
 
-      if (!isBottom && !isPaused) {
+      if (!isBottom && !isPaused && isMoveToTop) {
         pauseLiveTailing();
       }
     };
@@ -89,8 +93,6 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
     handleResumeLiveTailing();
   }, [rowsPerPage]);
 
-
-
   if (error) {
     return <div className="vm-live-tailing-view__error">{error}</div>;
   }
@@ -106,9 +108,10 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
         handleResumeLiveTailing={handleResumeLiveTailing}
         pauseLiveTailing={pauseLiveTailing}
         clearLogs={clearLogs}
-        isCompactTailingNumber={isCompactTailingNumber}
-        handleSetCompactTailing={handleSetCompactTailing}
+        isRawJsonView={isRawJsonView}
+        onRawJsonViewChange={setIsRawJsonView}
       />
+      <ScrollToTopButton />
       <div
         ref={containerRef}
         className="vm-live-tailing-view__container"
@@ -117,27 +120,31 @@ const LiveTailingView: FC<ViewProps> = ({ settingsRef }) => {
           ? (<div className="vm-live-tailing-view__empty">Waiting for logs...</div>)
           : (<div className="vm-live-tailing-view__logs">
             {logs.map(({ _log_id, ...log }, idx) =>
-              isCompactTailingNumber
-                ? (
-                  <GroupLogsItem
-                    key={_log_id}
-                    log={log}
-                    onItemClick={pauseLiveTailing}
-                    hideGroupButton={true}
-                    displayFields={displayFields}
-                  />
-                ) : (
-                  <pre
-                    key={idx}
-                    className="vm-live-tailing-view__log-row"
-                  >
-                    {JSON.stringify(log)}
-                  </pre>
-                )
+              isRawJsonView ? (
+                <pre
+                  key={idx}
+                  className="vm-live-tailing-view__log-row"
+                  onMouseDown={pauseLiveTailing}
+                >
+                  {JSON.stringify(log)}
+                </pre>
+              ) : (
+                <GroupLogsItem
+                  key={_log_id}
+                  log={log}
+                  onItemClick={pauseLiveTailing}
+                  hideGroupButton={true}
+                  displayFields={displayFields}
+                />
+              )
             )}
           </div>
           )}
       </div>
+      {isLimitedLogsPerUpdate && (
+        <Alert variant="warning">Too many logs per second detected. Large volumes of log data are difficult to process
+          and may impact performance. We recommend adding filters to your query for better analysis and system
+          performance.</Alert>)}
     </>
   );
 };

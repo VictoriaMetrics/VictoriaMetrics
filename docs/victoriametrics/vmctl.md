@@ -371,6 +371,30 @@ so we disable it via `--remote-read-use-stream=false`.
 See `./vmctl prometheus --help` for details and full list of flags. Also see Prometheus [related articles](#articles).
 
 To start migration, take [a snapshot of Prometheus data](https://www.robustperception.io/taking-snapshots-of-prometheus-data).
+
+When you create the snapshot be sure that the directory structure look like this:
+
+   ```
+   20250602T205846Z-7e03e43cf46dda03
+   ├── 01JWS713P2E4MQW7T643GYGD69
+   │    ├── chunks
+   │    │    └── 000001
+   │    ├── index
+   │    ├── meta.json
+   │    └── tombstones   
+   ``` 
+   
+   
+If you have multiple blocks, they will be in the same directory, e.g.:
+    
+   ```
+   20250602T205846Z-7e03e43cf46dda03
+      ├── 01JWS713P2E4MQW7T643GYGD69
+      ├── 01JWS713P2E4MQW7T643GYGD70
+      ├── 01JWS713P2E4MQW7T643GYGD71
+      └── ...
+   ```   
+
 vmctl needs to have access to the taken snapshot and to the VictoriaMetrics address to start the migration:
 ```sh
 ./vmctl prometheus \
@@ -594,6 +618,28 @@ then import it into VM using `vmctl` in `prometheus` mode.
     1. Run the `minio/mc` Docker container.
     1. `mc config host add minio http://minio:9000 accessKey secretKey`, substituting appropriate values for the last 3 items.
     1. `mc cp -r minio/prometheus thanos-data`
+    1. When you copy the data from the minio be sure to copy the entire `thanos-data` directory, which contains all the blocks.
+       The directory structure should look like this:
+
+    ```
+      thanos-data
+      ├── 01JWS713P2E4MQW7T643GYGD69
+      │    ├── chunks
+      │    │    └── 000001
+      │    ├── index
+      │    ├── meta.json
+      │    └── tombstones
+   ```
+   If you have multiple blocks, they will be in the same directory, e.g.:
+
+    ```
+      thanos-data
+      ├── 01JWS713P2E4MQW7T643GYGD69
+      ├── 01JWS713P2E4MQW7T643GYGD70
+      ├── 01JWS713P2E4MQW7T643GYGD71
+      └── ...
+    ```
+   1. Import data into VictoriaMetrics with `vmctl`.
 
 1. Import using `vmctl`.
     1. Follow the [instructions](#how-to-build) to compile `vmctl` on your machine.
@@ -602,6 +648,7 @@ then import it into VM using `vmctl` in `prometheus` mode.
     ```
     vmctl prometheus --prom-snapshot thanos-data --vm-addr http://victoria-metrics:8428
     ```
+   1. 
 
 ### Remote read protocol
 

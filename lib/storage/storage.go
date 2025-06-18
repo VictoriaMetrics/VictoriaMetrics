@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -2929,8 +2930,8 @@ func nextIndexDBTableName() string {
 	return fmt.Sprintf("%016X", n)
 }
 
-var indexDBTableIdx = func() *atomic.Uint64 {
-	var x atomic.Uint64
+var indexDBTableIdx = func() *atomicutil.Uint64 {
+	var x atomicutil.Uint64
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()

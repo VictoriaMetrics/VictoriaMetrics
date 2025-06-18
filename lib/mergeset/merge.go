@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -101,10 +102,30 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
 func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *atomic.Uint64) error {
+	// Use local variables for tracking the number of merged items
+	// and periodically propagate the collected stats to the caller, so it could be reflected in the exposed metrics.
+	//
+	// This minimizes expensive updates of itemsMerged var from concurrently running goroutines,
+	// and improves concurrent merge scalability on multi-CPU systems - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8682 .
+	var updateStatsDeadline uint64
+	var localItemsMerged uint64
+	updateStats := func() {
+		itemsMerged.Add(localItemsMerged)
+		localItemsMerged = 0
+	}
+	defer updateStats()
+
 again:
+	ct := fasttime.UnixTimestamp()
+	if ct > updateStatsDeadline {
+		updateStats()
+		// Update the external stats once per second
+		updateStatsDeadline = ct + 1
+	}
+
 	if len(bsm.bsrHeap) == 0 {
 		// Write the last (maybe incomplete) inmemoryBlock to bsw.
-		bsm.flushIB(bsw, ph, itemsMerged)
+		bsm.flushIB(bsw, ph, &localItemsMerged)
 		return nil
 	}
 
@@ -139,7 +160,7 @@ again:
 		}
 		if !bsm.ib.Add(item) {
 			// The bsm.ib is full. Flush it to bsw and continue.
-			bsm.flushIB(bsw, ph, itemsMerged)
+			bsm.flushIB(bsw, ph, &localItemsMerged)
 			continue
 		}
 		bsr.currItemIdx++
@@ -163,14 +184,14 @@ again:
 	goto again
 }
 
-func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *atomic.Uint64) {
+func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *uint64) {
 	items := bsm.ib.items
 	data := bsm.ib.data
 	if len(items) == 0 {
 		// Nothing to flush.
 		return
 	}
-	itemsMerged.Add(uint64(len(items)))
+	*itemsMerged += uint64(len(items))
 	if bsm.prepareBlock != nil {
 		bsm.firstItem = append(bsm.firstItem[:0], items[0].String(data)...)
 		bsm.lastItem = append(bsm.lastItem[:0], items[len(items)-1].String(data)...)

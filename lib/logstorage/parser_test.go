@@ -64,6 +64,8 @@ func TestLexer(t *testing.T) {
 		[]string{"{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}", "def"})
 	f(`_stream:{foo="bar",a=~"baz", b != 'cd',"d,}a"!~abc}`,
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
+
+	f(`foo:~*`, []string{"foo", ":", "~", "*"})
 }
 
 func TestQuery_AddTimeFilter(t *testing.T) {
@@ -140,9 +142,31 @@ func TestQuery_AddTimeFilter(t *testing.T) {
 	f(`* | format if (x:contains_all(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z,2025-01-13T12:45:34Z] * | format if (x:contains_all(options(ignore_global_time_filter=true) y | fields x)) foo`)
 }
 
+func TestParseQuery_OptimizeStarFilters(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, `*`)
+	f(`foo * bar`, `foo bar`)
+	f(`foo or * or bar`, `*`)
+	f(`foo and (bar or *)`, `foo`)
+	f(`foo or (* or (baz and (x and *))) x`, `foo or x`)
+}
+
 func TestParseQuery_OptimizeStreamFilters(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
+
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -1325,6 +1349,10 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`foo bar:~".*"`, `foo`)
 	f(`foo bar:~""`, `foo`)
 	f(`foo bar:~".+"`, `foo bar:*`)
+	f(`x:~.*`, `*`)
+	f(`~.*`, `*`)
+	f(`x:~a*`, `x:~"a*"`)
+	f(`~a*`, `~"a*"`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
@@ -1400,6 +1428,7 @@ func TestParseQuery_Success(t *testing.T) {
 	// field_values pipe
 	f(`* | field_values x`, `* | field_values x`)
 	f(`* | field_values (x)`, `* | field_values x`)
+	f(`* | field_values "\""`, `* | field_values "\""`)
 
 	// block_stats pipe
 	f(`foo | block_stats`, `foo | block_stats`)
@@ -1787,6 +1816,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`"foo`)
 	f(`'foo`)
 	f("`foo")
+	f(`{"foo=bar}`)
 
 	// invalid _stream_id filters
 	f("_stream_id:foo")
@@ -1810,6 +1840,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f("_stream:{foo=bar baz x=y}")
 	f("_stream:{foo=bar,")
 	f("_stream:{foo=bar")
+	f("_stream:{\"foo=bar}")
 	f("_stream:foo")
 	f("_stream:(foo)")
 	f("_stream:[foo]")
@@ -2022,6 +2053,8 @@ func TestParseQuery_Failure(t *testing.T) {
 	f("foo:re(bar")
 	f("re(`ab(`)")
 	f(`re(a b)`)
+	f(`foo:~*`)
+	f(`~*`)
 
 	// invalid seq
 	f(`seq(`)
