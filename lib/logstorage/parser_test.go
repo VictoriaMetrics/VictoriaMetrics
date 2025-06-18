@@ -64,6 +64,8 @@ func TestLexer(t *testing.T) {
 		[]string{"{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}", "def"})
 	f(`_stream:{foo="bar",a=~"baz", b != 'cd',"d,}a"!~abc}`,
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
+
+	f(`foo:~*`, []string{"foo", ":", "~", "*"})
 }
 
 func TestQuery_AddTimeFilter(t *testing.T) {
@@ -1325,6 +1327,10 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`foo bar:~".*"`, `foo`)
 	f(`foo bar:~""`, `foo`)
 	f(`foo bar:~".+"`, `foo bar:*`)
+	f(`x:~.*`, `*`)
+	f(`~.*`, `*`)
+	f(`x:~a*`, `x:~"a*"`)
+	f(`~a*`, `~"a*"`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
@@ -2022,6 +2028,8 @@ func TestParseQuery_Failure(t *testing.T) {
 	f("foo:re(bar")
 	f("re(`ab(`)")
 	f(`re(a b)`)
+	f(`foo:~*`)
+	f(`~*`)
 
 	// invalid seq
 	f(`seq(`)

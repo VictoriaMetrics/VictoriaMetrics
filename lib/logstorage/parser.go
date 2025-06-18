@@ -2014,7 +2014,7 @@ func newFilterRegexp(fieldName, arg string) (filter, error) {
 
 	re, err := regexutil.NewRegex(arg)
 	if err != nil {
-		return nil, fmt.Errorf("invalid regexp %q: %w", arg, err)
+		return nil, fmt.Errorf("invalid regexp %q:%q: %w", getCanonicalColumnName(fieldName), arg, err)
 	}
 	fr := &filterRegexp{
 		fieldName: getCanonicalColumnName(fieldName),
@@ -2025,7 +2025,10 @@ func newFilterRegexp(fieldName, arg string) (filter, error) {
 
 func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
-	arg := getCompoundFuncArg(lex)
+	arg, err := getCompoundToken(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read regexp for field %q: %w", getCanonicalColumnName(fieldName), err)
+	}
 	return newFilterRegexp(fieldName, arg)
 }
 
