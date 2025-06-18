@@ -228,7 +228,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, []*Row, error) {
 	currentTime := time.Now()
 
-	// query 1: filter_confitions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	// query 1: * AND filter_confitions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	traceIDs, startTime, err := getTraceIDList(ctx, cp, param)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get trace id error: %w", err)
@@ -303,8 +303,8 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 // It also returns the earliest start time of these traces, to help reducing the time range for spans search.
 func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
 	currentTime := time.Now()
-	// query: <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
-	qStr := ""
+	// query: * AND <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	qStr := "*"
 	if param.ServiceName != "" {
 		qStr += fmt.Sprintf("AND _stream:{"+pb.ResourceAttrServiceName+"=\"%s\"} ", param.ServiceName)
 	}
@@ -322,7 +322,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 	if param.DurationMax > 0 {
 		qStr += fmt.Sprintf("AND duration:<%d ", param.DurationMax.Nanoseconds())
 	}
-	qStr = strings.TrimLeft(qStr+" | last 1 by (_time) partition by ("+pb.TraceIDField+") | fields _time, "+pb.TraceIDField+" | sort by (_time) desc", "AND ")
+	qStr += " | last 1 by (_time) partition by (" + pb.TraceIDField + ") | fields _time, " + pb.TraceIDField + " | sort by (_time) desc"
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {

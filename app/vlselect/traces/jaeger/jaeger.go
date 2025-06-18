@@ -298,7 +298,10 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 		Limit:        20,
 	}
 	q := r.URL.Query()
-	p.ServiceName = q.Get("service")
+	if p.ServiceName = q.Get("service"); p.ServiceName == "" {
+		// service name is required.
+		return nil, fmt.Errorf("service name is required")
+	}
 	p.SpanName = q.Get("operation")
 	durationMin := q.Get("minDuration")
 	if durationMin != "" {
