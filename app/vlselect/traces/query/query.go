@@ -228,7 +228,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, []*Row, error) {
 	currentTime := time.Now()
 
-	// query 1: * AND filter_confitions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	// query 1: * AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	traceIDs, startTime, err := getTraceIDList(ctx, cp, param)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get trace id error: %w", err)
