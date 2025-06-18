@@ -40,11 +40,18 @@ func TestGetCommonParams_TimeField(t *testing.T) {
 func TestPushJournaldOk(t *testing.T) {
 	f := func(src string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
+
 		tlp := &insertutil.TestLogMessageProcessor{}
-		cp := &insertutil.CommonParams{
-			TimeFields: []string{"__REALTIME_TIMESTAMP"},
-			MsgFields:  []string{"MESSAGE"},
+
+		r, err := http.NewRequest("GET", "https://foo.bar/baz", nil)
+		if err != nil {
+			t.Fatalf("cannot create request: %s", err)
 		}
+		cp, err := getCommonParams(r)
+		if err != nil {
+			t.Fatalf("cannot create commonParams: %s", err)
+		}
+
 		if err := parseJournaldRequest([]byte(src), tlp, cp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -53,6 +60,7 @@ func TestPushJournaldOk(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+
 	// Single event
 	f("__REALTIME_TIMESTAMP=91723819283\nMESSAGE=Test message\n",
 		[]int64{91723819283000},
@@ -60,9 +68,9 @@ func TestPushJournaldOk(t *testing.T) {
 	)
 
 	// Multiple events
-	f("__REALTIME_TIMESTAMP=91723819283\nMESSAGE=Test message\n\n__REALTIME_TIMESTAMP=91723819284\nMESSAGE=Test message2\n",
+	f("__REALTIME_TIMESTAMP=91723819283\nPRIORITY=3\nMESSAGE=Test message\n\n__REALTIME_TIMESTAMP=91723819284\nMESSAGE=Test message2\n",
 		[]int64{91723819283000, 91723819284000},
-		"{\"_msg\":\"Test message\"}\n{\"_msg\":\"Test message2\"}",
+		"{\"level\":\"error\",\"PRIORITY\":\"3\",\"_msg\":\"Test message\"}\n{\"_msg\":\"Test message2\"}",
 	)
 
 	// Parse binary data
@@ -75,11 +83,18 @@ func TestPushJournaldOk(t *testing.T) {
 func TestPushJournald_Failure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
+
 		tlp := &insertutil.TestLogMessageProcessor{}
-		cp := &insertutil.CommonParams{
-			TimeFields: []string{"__REALTIME_TIMESTAMP"},
-			MsgFields:  []string{"MESSAGE"},
+
+		r, err := http.NewRequest("GET", "https://foo.bar/baz", nil)
+		if err != nil {
+			t.Fatalf("cannot create request: %s", err)
 		}
+		cp, err := getCommonParams(r)
+		if err != nil {
+			t.Fatalf("cannot create commonParams: %s", err)
+		}
+
 		if err := parseJournaldRequest([]byte(data), tlp, cp); err == nil {
 			t.Fatalf("expected non nil error")
 		}
