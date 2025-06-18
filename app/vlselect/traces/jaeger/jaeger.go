@@ -158,8 +158,8 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 
 	t := &trace{}
-	processHashIDMap := make(map[uint64]string)      // process name -> process id
-	processIDProcessMap := make(map[string]*process) // process id -> process
+	processHashIDMap := make(map[uint64]string)     // process name -> process id
+	processIDProcessMap := make(map[string]process) // process id -> process
 	for i := range rows {
 		var sp *span
 		sp, err = fieldsToSpan(rows[i].Fields)
@@ -185,7 +185,7 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	for processID, p := range processIDProcessMap {
 		t.processMap = append(t.processMap, processMap{
 			processID: processID,
-			process:   *p,
+			process:   p,
 		})
 	}
 
@@ -235,8 +235,8 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 		tracesMap[traceIDList[i]] = traces[i]
 	}
 
-	processHashMap := make(map[uint64]string)               // process_unique_hash -> pid
-	traceProcessMap := make(map[string]map[string]*process) // trace_id -> map[processID]->process
+	processHashMap := make(map[uint64]string)              // process_unique_hash -> pid
+	traceProcessMap := make(map[string]map[string]process) // trace_id -> map[processID]->process
 	for i := range rows {
 		// 2. convert fields to jaeger spans.
 		var sp *span
@@ -257,7 +257,7 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 
 		// 4. add the process info to this trace (if process not exists).
 		if _, ok := traceProcessMap[sp.traceID]; !ok {
-			traceProcessMap[sp.traceID] = make(map[string]*process)
+			traceProcessMap[sp.traceID] = make(map[string]process)
 		}
 		if _, ok := traceProcessMap[sp.traceID][sp.processID]; !ok {
 			traceProcessMap[sp.traceID][sp.processID] = sp.process
@@ -273,7 +273,7 @@ func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http
 		for processID, process := range traceProcessMap[traceID] {
 			trace.processMap = append(trace.processMap, processMap{
 				processID: processID,
-				process:   *process,
+				process:   process,
 			})
 		}
 
@@ -383,7 +383,7 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 }
 
 // hashProcess generate hash result for a process according to its tags.
-func hashProcess(process *process) uint64 {
+func hashProcess(process process) uint64 {
 	d := hashpool.Get()
 	sort.Slice(process.tags, func(i, j int) bool {
 		return process.tags[i].key < process.tags[j].key

@@ -34,7 +34,7 @@ type span struct {
 	duration  int64
 	tags      []keyValue
 	logs      []log
-	process   *process
+	process   process
 	processID string
 	//warnings      []string // OTLP - jaeger conversion does not use this field, but it exists in jaeger definition.
 }
@@ -90,9 +90,7 @@ var spanKindMap = map[string]string{
 
 // fieldsToSpan convert OTLP spans in fields to Jaeger Spans.
 func fieldsToSpan(fields []logstorage.Field) (*span, error) {
-	sp := &span{
-		process: &process{},
-	}
+	sp := &span{}
 
 	processTagList, spanTagList := make([]keyValue, 0, len(fields)), make([]keyValue, 0, len(fields))
 	logsMap := make(map[string]*log)     // idx -> *Log
@@ -181,13 +179,13 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				spanTagList = append(spanTagList, keyValue{key: "otel.scope.version", vStr: field.Value})
 			}
 		default:
-			if strings.HasPrefix(field.Name, pb.ResourceAttrPrefix) {
+			if strings.HasPrefix(field.Name, pb.ResourceAttrPrefix) { // resource attributes
 				processTagList = append(processTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.ResourceAttrPrefix), vStr: field.Value})
-			} else if strings.HasPrefix(field.Name, pb.SpanAttrPrefixField) {
+			} else if strings.HasPrefix(field.Name, pb.SpanAttrPrefixField) { // span attributes
 				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.SpanAttrPrefixField), vStr: field.Value})
-			} else if strings.HasPrefix(field.Name, pb.InstrumentationScopeAttrPrefix) {
+			} else if strings.HasPrefix(field.Name, pb.InstrumentationScopeAttrPrefix) { // instrumentation scope attributes
 				spanTagList = append(spanTagList, keyValue{key: field.Name, vStr: field.Value})
-			} else if strings.HasPrefix(field.Name, pb.EventPrefix) {
+			} else if strings.HasPrefix(field.Name, pb.EventPrefix) { // event list
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.EventPrefix), ":", 2)
 				if len(fieldSplit) != 2 {
 					return nil, fmt.Errorf("invalid event field: %s", field.Name)
@@ -209,8 +207,8 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				default:
 					log.fields = append(log.fields, keyValue{key: strings.TrimPrefix(fieldName, pb.EventAttrPrefix), vStr: field.Value})
 				}
-			} else if strings.HasPrefix(field.Name, pb.LinkAttrPrefix) {
-				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.LinkAttrPrefix), ":", 2)
+			} else if strings.HasPrefix(field.Name, pb.LinkPrefix) { // link list
+				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.LinkPrefix), ":", 2)
 				if len(fieldSplit) != 2 {
 					return nil, fmt.Errorf("invalid link field: %s", field.Name)
 				}
@@ -228,7 +226,7 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 					ref.spanID = field.Value
 				case pb.LinkTraceStateField, pb.LinkFlagsField, pb.LinkDroppedAttributesCountField:
 				default:
-					if strings.TrimPrefix(field.Name, pb.LinkPrefix) == "opentracing.ref_type" && field.Value == "child_of" {
+					if strings.TrimPrefix(fieldName, pb.LinkAttrPrefix) == "opentracing.ref_type" && field.Value == "child_of" {
 						ref.refType = "CHILD_OF" // CHILD_OF
 					}
 				}
@@ -236,13 +234,23 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 		}
 	}
 
-	sp.tags = spanTagList
-	sp.process.tags = processTagList
+	if sp.spanID == "" || sp.traceID == "" {
+		return nil, fmt.Errorf("invalid fields: %v", fields)
+	}
+
+	if len(spanTagList) > 0 {
+		sp.tags = spanTagList
+	}
+
+	if len(processTagList) > 0 {
+		sp.process.tags = processTagList
+	}
 
 	if parentSpanRef.spanID != "" {
 		parentSpanRef.traceID = sp.traceID
 		sp.references = append(sp.references, parentSpanRef)
 	}
+
 	for i := 0; i < len(refsMap); i++ {
 		idx := strconv.Itoa(i)
 		if len(sp.references) > 0 && parentSpanRef.traceID == refsMap[idx].traceID && parentSpanRef.spanID == refsMap[idx].spanID {
@@ -261,8 +269,5 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 		})
 	}
 
-	if sp.spanID != "" {
-		return sp, nil
-	}
-	return nil, fmt.Errorf("invalid fields: %v", fields)
+	return sp, nil
 }
