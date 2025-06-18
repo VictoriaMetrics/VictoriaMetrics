@@ -45,7 +45,7 @@ const createStreamProcessor = (
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         console.error("Stream processing error:", e);
-        setError(String(e));
+        restartTailing();
       }
     } finally {
       clearInterval(connectionCheckInterval);
