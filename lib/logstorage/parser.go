@@ -1586,6 +1586,10 @@ func (lex *lexer) isInvalidQuotedString() error {
 		return nil
 	}
 
+	if lex.isQuotedToken() {
+		return nil
+	}
+
 	n := strings.Index(lex.s, lex.token)
 	if n < 0 {
 		return fmt.Errorf("missing closing quote for [%s]", lex.token+lex.s)

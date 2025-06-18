@@ -47,6 +47,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [Syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): automatically add `level` log field according to [the `severity` field value](https://en.wikipedia.org/wiki/Syslog#Severity_level). This enables [log level highlighting in Grafana](https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level).
 
 * BUGFIX: [query API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs): properly set storage node authorization in cluster mode when [Basic Auth](https://docs.victoriametrics.com/victorialogs/cluster/#security) is enabled. See [#9080](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9080).
+* BUGFIX: removed redundant quoted string validation, since quotes are already removed in nextToken function call
 
 ## [v1.23.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.3-victorialogs)
 
