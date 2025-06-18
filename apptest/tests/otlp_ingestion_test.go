@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/query"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	otelpb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -35,10 +35,10 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 	traceID := "123456789"
 	spanID := "987654321"
 	testTagValue := "testValue"
-	testTag := []*pb.KeyValue{
+	testTag := []*otelpb.KeyValue{
 		{
 			Key: "testTag",
-			Value: &pb.AnyValue{
+			Value: &otelpb.AnyValue{
 				StringValue: &testTagValue,
 			},
 		},
@@ -52,28 +52,28 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 	}
 	spanTime := time.Now()
 
-	req := &pb.ExportTraceServiceRequest{
-		ResourceSpans: []*pb.ResourceSpans{
+	req := &otelpb.ExportTraceServiceRequest{
+		ResourceSpans: []*otelpb.ResourceSpans{
 			{
-				Resource: pb.Resource{
-					Attributes: []*pb.KeyValue{
+				Resource: otelpb.Resource{
+					Attributes: []*otelpb.KeyValue{
 						{
 							Key: "service.name",
-							Value: &pb.AnyValue{
+							Value: &otelpb.AnyValue{
 								StringValue: &serviceName,
 							},
 						},
 					},
 				},
-				ScopeSpans: []*pb.ScopeSpans{
+				ScopeSpans: []*otelpb.ScopeSpans{
 					{
-						Scope: pb.InstrumentationScope{
+						Scope: otelpb.InstrumentationScope{
 							Name:                   "testInstrumentation",
 							Version:                "1.0",
 							Attributes:             testTag,
 							DroppedAttributesCount: 999,
 						},
-						Spans: []*pb.Span{
+						Spans: []*otelpb.Span{
 							{
 								TraceID:           traceID,
 								SpanID:            spanID,
@@ -81,18 +81,18 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 								ParentSpanID:      spanID,
 								Flags:             1,
 								Name:              spanName,
-								Kind:              pb.SpanKind(1),
+								Kind:              otelpb.SpanKind(1),
 								StartTimeUnixNano: uint64(spanTime.UnixNano()),
 								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
 								Attributes:        testTag,
-								Events: []*pb.SpanEvent{
+								Events: []*otelpb.SpanEvent{
 									{
 										TimeUnixNano: uint64(spanTime.UnixNano()),
 										Name:         "test event",
 										Attributes:   testTag,
 									},
 								},
-								Links: []*pb.SpanLink{
+								Links: []*otelpb.SpanLink{
 									{
 										TraceID:    traceID,
 										SpanID:     spanID,
@@ -101,7 +101,7 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 										Flags:      1,
 									},
 								},
-								Status: pb.Status{
+								Status: otelpb.Status{
 									Message: "success",
 									Code:    0,
 								},

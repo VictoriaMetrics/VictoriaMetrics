@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	otelpb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 // Vtsingle holds the state of a Vtsingle app and provides Vtsingle-specific
@@ -148,7 +148,7 @@ func (app *Vtsingle) JaegerAPIDependencies(_ *testing.T, _ QueryOpts) {}
 // OTLPExportTraces is a test helper function that exports OTLP trace data
 // by sending an HTTP POST request to /insert/opentelemetry/v1/traces
 // Vtsingle endpoint.
-func (app *Vtsingle) OTLPExportTraces(t *testing.T, request *pb.ExportTraceServiceRequest, _ QueryOpts) {
+func (app *Vtsingle) OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
 	t.Helper()
 
 	pbData := request.MarshalProtobuf(nil)

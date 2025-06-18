@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	otelpb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -26,7 +26,7 @@ var (
 )
 
 var (
-	mandatoryStreamFields = []string{pb.ResourceAttrServiceName, pb.NameField}
+	mandatoryStreamFields = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
 )
 
 // HandleProtobuf handles the trace ingestion request.
@@ -68,7 +68,7 @@ func HandleProtobuf(r *http.Request, w http.ResponseWriter) {
 }
 
 func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
-	var req pb.ExportTraceServiceRequest
+	var req otelpb.ExportTraceServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		errorsTotal.Inc()
 		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
@@ -78,7 +78,7 @@ func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error 
 	for _, rs := range req.ResourceSpans {
 		commonFields = commonFields[:0]
 		attributes := rs.Resource.Attributes
-		commonFields = appendKeyValuesWithPrefix(commonFields, attributes, "", pb.ResourceAttrPrefix)
+		commonFields = appendKeyValuesWithPrefix(commonFields, attributes, "", otelpb.ResourceAttrPrefix)
 		commonFieldsLen := len(commonFields)
 		for _, ss := range rs.ScopeSpans {
 			commonFields = pushFieldsFromScopeSpans(ss, commonFields[:commonFieldsLen], lmp)
@@ -87,15 +87,15 @@ func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error 
 	return nil
 }
 
-func pushFieldsFromScopeSpans(ss *pb.ScopeSpans, commonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
+func pushFieldsFromScopeSpans(ss *otelpb.ScopeSpans, commonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
 	commonFields = append(commonFields, logstorage.Field{
-		Name:  pb.InstrumentationScopeName,
+		Name:  otelpb.InstrumentationScopeName,
 		Value: ss.Scope.Name,
 	}, logstorage.Field{
-		Name:  pb.InstrumentationScopeVersion,
+		Name:  otelpb.InstrumentationScopeVersion,
 		Value: ss.Scope.Version,
 	})
-	commonFields = appendKeyValuesWithPrefix(commonFields, ss.Scope.Attributes, "", pb.InstrumentationScopeAttrPrefix)
+	commonFields = appendKeyValuesWithPrefix(commonFields, ss.Scope.Attributes, "", otelpb.InstrumentationScopeAttrPrefix)
 	commonFieldsLen := len(commonFields)
 	for _, span := range ss.Spans {
 		commonFields = pushFieldsFromSpan(span, commonFields[:commonFieldsLen], lmp)
@@ -103,61 +103,61 @@ func pushFieldsFromScopeSpans(ss *pb.ScopeSpans, commonFields []logstorage.Field
 	return commonFields
 }
 
-func pushFieldsFromSpan(span *pb.Span, scopeCommonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
+func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
 	fields := scopeCommonFields
 	fields = append(fields,
-		logstorage.Field{Name: pb.TraceIDField, Value: span.TraceID},
-		logstorage.Field{Name: pb.SpanIDField, Value: span.SpanID},
-		logstorage.Field{Name: pb.TraceStateField, Value: span.TraceState},
-		logstorage.Field{Name: pb.ParentSpanIDField, Value: span.ParentSpanID},
-		logstorage.Field{Name: pb.FlagsField, Value: strconv.FormatUint(uint64(span.Flags), 10)},
-		logstorage.Field{Name: pb.NameField, Value: span.Name},
-		logstorage.Field{Name: pb.KindField, Value: strconv.FormatInt(int64(span.Kind), 10)},
-		logstorage.Field{Name: pb.StartTimeUnixNanoField, Value: strconv.FormatUint(span.StartTimeUnixNano, 10)},
-		logstorage.Field{Name: pb.EndTimeUnixNanoField, Value: strconv.FormatUint(span.EndTimeUnixNano, 10)},
-		logstorage.Field{Name: pb.DurationField, Value: strconv.FormatUint(span.EndTimeUnixNano-span.StartTimeUnixNano, 10)},
+		logstorage.Field{Name: otelpb.TraceIDField, Value: span.TraceID},
+		logstorage.Field{Name: otelpb.SpanIDField, Value: span.SpanID},
+		logstorage.Field{Name: otelpb.TraceStateField, Value: span.TraceState},
+		logstorage.Field{Name: otelpb.ParentSpanIDField, Value: span.ParentSpanID},
+		logstorage.Field{Name: otelpb.FlagsField, Value: strconv.FormatUint(uint64(span.Flags), 10)},
+		logstorage.Field{Name: otelpb.NameField, Value: span.Name},
+		logstorage.Field{Name: otelpb.KindField, Value: strconv.FormatInt(int64(span.Kind), 10)},
+		logstorage.Field{Name: otelpb.StartTimeUnixNanoField, Value: strconv.FormatUint(span.StartTimeUnixNano, 10)},
+		logstorage.Field{Name: otelpb.EndTimeUnixNanoField, Value: strconv.FormatUint(span.EndTimeUnixNano, 10)},
+		logstorage.Field{Name: otelpb.DurationField, Value: strconv.FormatUint(span.EndTimeUnixNano-span.StartTimeUnixNano, 10)},
 
-		logstorage.Field{Name: pb.DroppedAttributesCountField, Value: strconv.FormatUint(uint64(span.DroppedAttributesCount), 10)},
-		logstorage.Field{Name: pb.DroppedEventsCountField, Value: strconv.FormatUint(uint64(span.DroppedEventsCount), 10)},
-		logstorage.Field{Name: pb.DroppedLinksCountField, Value: strconv.FormatUint(uint64(span.DroppedLinksCount), 10)},
+		logstorage.Field{Name: otelpb.DroppedAttributesCountField, Value: strconv.FormatUint(uint64(span.DroppedAttributesCount), 10)},
+		logstorage.Field{Name: otelpb.DroppedEventsCountField, Value: strconv.FormatUint(uint64(span.DroppedEventsCount), 10)},
+		logstorage.Field{Name: otelpb.DroppedLinksCountField, Value: strconv.FormatUint(uint64(span.DroppedLinksCount), 10)},
 
-		logstorage.Field{Name: pb.StatusMessageField, Value: span.Status.Message},
-		logstorage.Field{Name: pb.StatusCodeField, Value: strconv.FormatInt(int64(span.Status.Code), 10)},
+		logstorage.Field{Name: otelpb.StatusMessageField, Value: span.Status.Message},
+		logstorage.Field{Name: otelpb.StatusCodeField, Value: strconv.FormatInt(int64(span.Status.Code), 10)},
 	)
 
 	// append span attributes
-	fields = appendKeyValuesWithPrefix(fields, span.Attributes, "", pb.SpanAttrPrefixField)
+	fields = appendKeyValuesWithPrefix(fields, span.Attributes, "", otelpb.SpanAttrPrefixField)
 
 	for idx, event := range span.Events {
-		eventFieldPrefix := pb.EventPrefix + strconv.Itoa(idx) + ":"
+		eventFieldPrefix := otelpb.EventPrefix + strconv.Itoa(idx) + ":"
 		fields = append(fields,
-			logstorage.Field{Name: eventFieldPrefix + pb.EventTimeUnixNanoField, Value: strconv.FormatUint(event.TimeUnixNano, 10)},
-			logstorage.Field{Name: eventFieldPrefix + pb.EventNameField, Value: event.Name},
-			logstorage.Field{Name: eventFieldPrefix + pb.EventDroppedAttributesCountField, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
+			logstorage.Field{Name: eventFieldPrefix + otelpb.EventTimeUnixNanoField, Value: strconv.FormatUint(event.TimeUnixNano, 10)},
+			logstorage.Field{Name: eventFieldPrefix + otelpb.EventNameField, Value: event.Name},
+			logstorage.Field{Name: eventFieldPrefix + otelpb.EventDroppedAttributesCountField, Value: strconv.FormatUint(uint64(event.DroppedAttributesCount), 10)},
 		)
 		// append event attributes
-		fields = appendKeyValuesWithPrefix(fields, event.Attributes, "", eventFieldPrefix+pb.EventAttrPrefix)
+		fields = appendKeyValuesWithPrefix(fields, event.Attributes, "", eventFieldPrefix+otelpb.EventAttrPrefix)
 	}
 
 	for idx, link := range span.Links {
-		linkFieldPrefix := pb.LinkPrefix + strconv.Itoa(idx) + ":"
+		linkFieldPrefix := otelpb.LinkPrefix + strconv.Itoa(idx) + ":"
 
 		fields = append(fields,
-			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceIDField, Value: link.TraceID},
-			logstorage.Field{Name: linkFieldPrefix + pb.LinkSpanIDField, Value: link.SpanID},
-			logstorage.Field{Name: linkFieldPrefix + pb.LinkTraceStateField, Value: link.TraceState},
-			logstorage.Field{Name: linkFieldPrefix + pb.LinkDroppedAttributesCountField, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
-			logstorage.Field{Name: linkFieldPrefix + pb.LinkFlagsField, Value: strconv.FormatUint(uint64(link.Flags), 10)},
+			logstorage.Field{Name: linkFieldPrefix + otelpb.LinkTraceIDField, Value: link.TraceID},
+			logstorage.Field{Name: linkFieldPrefix + otelpb.LinkSpanIDField, Value: link.SpanID},
+			logstorage.Field{Name: linkFieldPrefix + otelpb.LinkTraceStateField, Value: link.TraceState},
+			logstorage.Field{Name: linkFieldPrefix + otelpb.LinkDroppedAttributesCountField, Value: strconv.FormatUint(uint64(link.DroppedAttributesCount), 10)},
+			logstorage.Field{Name: linkFieldPrefix + otelpb.LinkFlagsField, Value: strconv.FormatUint(uint64(link.Flags), 10)},
 		)
 
 		// append link attributes
-		fields = appendKeyValuesWithPrefix(fields, link.Attributes, "", linkFieldPrefix+pb.LinkAttrPrefix)
+		fields = appendKeyValuesWithPrefix(fields, link.Attributes, "", linkFieldPrefix+otelpb.LinkAttrPrefix)
 	}
 	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
 	return fields
 }
 
-func appendKeyValuesWithPrefix(fields []logstorage.Field, kvs []*pb.KeyValue, parentField, prefix string) []logstorage.Field {
+func appendKeyValuesWithPrefix(fields []logstorage.Field, kvs []*otelpb.KeyValue, parentField, prefix string) []logstorage.Field {
 	for _, attr := range kvs {
 		fieldName := attr.Key
 		if parentField != "" {

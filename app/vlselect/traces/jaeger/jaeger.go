@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/hashpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	otelpb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -371,10 +371,10 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 				v = spanKindMap[v]
 			}
 			attributesFilter[field] = v
-		} else if strings.HasPrefix(k, pb.InstrumentationScopeAttrPrefix) {
+		} else if strings.HasPrefix(k, otelpb.InstrumentationScopeAttrPrefix) {
 			attributesFilter[k] = v
 		} else {
-			attributesFilter[pb.SpanAttrPrefixField+k] = v
+			attributesFilter[otelpb.SpanAttrPrefixField+k] = v
 		}
 	}
 	p.Attributes = attributesFilter

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/query"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	otelpb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 // VictoriaTracesWriteQuerier encompasses the methods for writing, flushing and
@@ -30,7 +30,7 @@ type JaegerQuerier interface {
 
 // OTLPTracesWriter contains methods for writing OTLP trace data.
 type OTLPTracesWriter interface {
-	OTLPExportTraces(t *testing.T, request *pb.ExportTraceServiceRequest, opts QueryOpts)
+	OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts)
 }
 
 // JaegerQueryParam is a helper structure for implementing extra
