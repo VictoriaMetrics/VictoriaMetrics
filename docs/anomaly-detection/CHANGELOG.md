@@ -14,6 +14,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.24.0
+Released: 2025-06-18
+
+- FEATURE: Introduced stateful `vmanomaly` service with job persistence and state restoration capabilities. Added a new [`restore_state`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) setting that enables the service to persist and restore its state between runs, including anomaly detection model instances and training data. This prevents unnecessary model refitting when restarting the service, significantly reducing startup time and computational overhead.
+
 ## v1.23.3
 Released: 2025-06-13
 
