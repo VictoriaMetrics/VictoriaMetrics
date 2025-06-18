@@ -253,7 +253,7 @@ func processForceFlush(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// Storage implements insertutils.LogRowsStorage interface
+// Storage implements insertutil.LogRowsStorage interface
 type Storage struct{}
 
 // CanWriteData returns non-nil error if it cannot write data to vlstorage
