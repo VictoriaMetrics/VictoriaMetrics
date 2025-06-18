@@ -142,9 +142,31 @@ func TestQuery_AddTimeFilter(t *testing.T) {
 	f(`* | format if (x:contains_all(options(ignore_global_time_filter=true) y | keep x)) "foo"`, `_time:[2024-12-25T14:56:43Z,2025-01-13T12:45:34Z] * | format if (x:contains_all(options(ignore_global_time_filter=true) y | fields x)) foo`)
 }
 
+func TestParseQuery_OptimizeStarFilters(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, `*`)
+	f(`foo * bar`, `foo bar`)
+	f(`foo or * or bar`, `*`)
+	f(`foo and (bar or *)`, `foo`)
+	f(`foo or (* or (baz and (x and *))) x`, `foo or x`)
+}
+
 func TestParseQuery_OptimizeStreamFilters(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
+
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)

@@ -666,7 +666,7 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 		}
 		return false
 	}
-	_ = visitFilter(f, callback)
+	_ = visitFilterRecursive(f, callback)
 }
 
 func mergeFiltersStream(f filter) filter {
@@ -982,6 +982,28 @@ func removeStarFilters(f filter) filter {
 		return fn, nil
 	}
 	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error: %s", err)
+	}
+
+	// Replace filterOr with filterNoop if one of its sub-filters are filterNoop
+	visitFunc = func(f filter) bool {
+		fo, ok := f.(*filterOr)
+		if !ok {
+			return false
+		}
+		for _, f := range fo.filters {
+			if _, ok := f.(*filterNoop); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc = func(_ filter) (filter, error) {
+		fn := &filterNoop{}
+		return fn, nil
+	}
+	f, err = copyFilter(f, visitFunc, copyFunc)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error: %s", err)
 	}
