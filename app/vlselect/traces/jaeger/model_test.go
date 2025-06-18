@@ -1,6 +1,8 @@
 package jaeger
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -9,32 +11,32 @@ import (
 )
 
 func TestFieldsToSpan(t *testing.T) {
-	f := func(name string, input []logstorage.Field, want *span, wantErr bool) {
+	f := func(input []logstorage.Field, want *span, wantErr error) {
 		t.Helper()
 		got, err := fieldsToSpan(input)
-		if (err != nil) != wantErr {
-			t.Fatalf("fieldsToSpan() error = %v", err)
+		if !errors.Is(err, wantErr) && !strings.Contains(err.Error(), wantErr.Error()) {
+			t.Fatalf("fieldsToSpan() error = %v, want err: %v", err, wantErr)
 		}
 		cmpOpts := cmp.AllowUnexported(span{}, process{}, spanRef{}, keyValue{}, log{})
 		if !cmp.Equal(got, want, cmpOpts) {
-			t.Fatalf("%s fieldsToSpan() diff = %v", name, cmp.Diff(got, want, cmpOpts))
+			t.Fatalf("fieldsToSpan() diff = %v", cmp.Diff(got, want, cmpOpts))
 		}
 	}
 
 	// case 1: empty
-	f("empty fields", []logstorage.Field{}, nil, true)
+	f([]logstorage.Field{}, nil, errors.New("invalid fields"))
 
 	// case 2: without span_id
 	fields := []logstorage.Field{
 		{Name: otelpb.TraceIDField, Value: "1234567890"},
 	}
-	f("without span_id", fields, nil, true)
+	f(fields, nil, errors.New("invalid fields"))
 
 	// case 3: without trace_id
 	fields = []logstorage.Field{
 		{Name: otelpb.SpanIDField, Value: "12345"},
 	}
-	f("without trace_id", fields, nil, true)
+	f(fields, nil, errors.New("invalid fields"))
 
 	// case 4: with basic fields
 	fields = []logstorage.Field{
@@ -44,7 +46,7 @@ func TestFieldsToSpan(t *testing.T) {
 	sp := &span{
 		traceID: "1234567890", spanID: "12345",
 	}
-	f("with basic fields", fields, sp, false)
+	f(fields, sp, nil)
 
 	// case 5: with all fields
 	// see: lib/protoparser/opentelemetry/pb/trace_fields.go
@@ -155,6 +157,6 @@ func TestFieldsToSpan(t *testing.T) {
 			},
 		},
 	}
-	f("with with all fields", fields, sp, false)
+	f(fields, sp, nil)
 
 }
