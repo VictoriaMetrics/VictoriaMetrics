@@ -1604,11 +1604,12 @@ func getCompoundToken(lex *lexer) (string, error) {
 }
 
 func (lex *lexer) isInvalidQuotedString() error {
-	if lex.token != `"` && lex.token != "`" && lex.token != `'` {
+	if lex.isQuotedToken() {
+		// The string is already properly quoted and parsed.
 		return nil
 	}
 
-	if lex.isQuotedToken() {
+	if lex.token != `"` && lex.token != "`" && lex.token != `'` {
 		return nil
 	}
 
