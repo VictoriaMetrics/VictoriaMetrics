@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func Test_fieldsToSpan(t *testing.T) {
+func TestFieldsToSpan(t *testing.T) {
 	f := func(name string, input []logstorage.Field, want *span, wantErr bool) {
 		t.Helper()
 		got, err := fieldsToSpan(input)

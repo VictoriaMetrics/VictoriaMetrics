@@ -184,6 +184,7 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 			} else if strings.HasPrefix(field.Name, pb.SpanAttrPrefixField) { // span attributes
 				spanTagList = append(spanTagList, keyValue{key: strings.TrimPrefix(field.Name, pb.SpanAttrPrefixField), vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, pb.InstrumentationScopeAttrPrefix) { // instrumentation scope attributes
+				// we have to display `scope_attr:` prefix as there's no way to distinguish these from span attributes.
 				spanTagList = append(spanTagList, keyValue{key: field.Name, vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, pb.EventPrefix) { // event list
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.EventPrefix), ":", 2)
@@ -194,18 +195,18 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				if _, ok := logsMap[idx]; !ok {
 					logsMap[idx] = &log{}
 				}
-				log := logsMap[idx]
+				lg := logsMap[idx]
 				switch fieldName {
 				case pb.EventTimeUnixNanoField:
 					unixNano, _ := strconv.ParseInt(field.Value, 10, 64)
-					log.timestamp = unixNano / 1000
+					lg.timestamp = unixNano / 1000
 				case pb.EventNameField:
-					log.fields = append(log.fields, keyValue{key: "event", vStr: field.Value})
+					lg.fields = append(lg.fields, keyValue{key: "event", vStr: field.Value})
 				case pb.EventDroppedAttributesCountField:
 					//no need to display
-					//log.Fields = append(log.Fields, KeyValue{Key: fieldName, VStr: field.Value})
+					//lg.Fields = append(lg.Fields, KeyValue{Key: fieldName, VStr: field.Value})
 				default:
-					log.fields = append(log.fields, keyValue{key: strings.TrimPrefix(fieldName, pb.EventAttrPrefix), vStr: field.Value})
+					lg.fields = append(lg.fields, keyValue{key: strings.TrimPrefix(fieldName, pb.EventAttrPrefix), vStr: field.Value})
 				}
 			} else if strings.HasPrefix(field.Name, pb.LinkPrefix) { // link list
 				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, pb.LinkPrefix), ":", 2)
