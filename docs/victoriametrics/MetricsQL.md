@@ -1892,6 +1892,13 @@ For example, `label_join(up{instance="xxx",job="yyy"}, "foo", "-", "instance", "
 
 This function is supported by PromQL.
 
+#### label_split
+
+`label_split(q, "dst_label", "separator", "src_label")` is [label manipulation function](#label-manipulation-functions), which separates `src_label` values by the given `separator` and stores the result into `dst_label`.
+This is performed individually per each time series returned by `q`.
+
+For example `label_split(up{instance="xxx-yyy"}, "split", "-", "instance")` would return two time series: `{instance="xxx-yyy",split="xxx"}` and `{instance="xxx-yyy",split="yyy"}`.
+
 #### label_keep
 
 `label_keep(q, "label1", ..., "labelN")` is [label manipulation function](#label-manipulation-functions), which deletes all the labels

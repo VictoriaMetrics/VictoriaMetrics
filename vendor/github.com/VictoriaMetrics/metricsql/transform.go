@@ -48,6 +48,7 @@ var transformFuncs = map[string]bool{
 	"label_del":                  true,
 	"label_graphite_group":       true,
 	"label_join":                 true,
+	"label_split": 				  true,
 	"label_keep":                 true,
 	"label_lowercase":            true,
 	"label_map":                  true,
