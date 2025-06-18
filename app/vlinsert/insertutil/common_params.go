@@ -145,23 +145,25 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 	return cp
 }
 
-// LogRowsStorage is an interface for log rows ingestion into storage
+// LogRowsStorage is an interface for ingesting logs into the storage.
 type LogRowsStorage interface {
-	// MustAddRows must add log rows.
-	MustAddRows(*logstorage.LogRows)
-	// CanWriteData returns non-nil error if data cannot be written
+	// MustAddRows must add lr to the underlying storage.
+	MustAddRows(lr *logstorage.LogRows)
+
+	// CanWriteData must returns non-nil error if logs cannot be added to the underlying storage.
 	CanWriteData() error
 }
 
 var logRowsStorage LogRowsStorage
 
-// SetLogRowsStorage must be called before using LogMessageProcessor
-// and CanWriteData from this package
+// SetLogRowsStorage sets the storage for writing data to via LogMessageProcessor.
+//
+// This function must be called before using LogMessageProcessor and CanWriteData from this package.
 func SetLogRowsStorage(storage LogRowsStorage) {
 	logRowsStorage = storage
 }
 
-// CanWriteData returns non-nil error if data cannot be written
+// CanWriteData returns non-nil error if data cannot be written to the underlying storage.
 func CanWriteData() error {
 	return logRowsStorage.CanWriteData()
 }
