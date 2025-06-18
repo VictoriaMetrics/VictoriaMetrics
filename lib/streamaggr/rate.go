@@ -141,6 +141,9 @@ func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast b
 				rate += state.increase / d
 				countSeries++
 			}
+			// modify prevTimestamp only if current state contains any samples.
+			// otherwise, sv.prevTimestamp=0 would skip the next flush even if state had samples.
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9017
 			sv.prevTimestamp = state.timestamp
 			state.timestamp = 0
 			state.increase = 0
