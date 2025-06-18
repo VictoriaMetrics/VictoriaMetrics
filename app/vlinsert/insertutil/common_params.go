@@ -11,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -141,6 +140,27 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 	return cp
 }
 
+// LogRowsStorage is an interface for log rows ingestion into storage
+type LogRowsStorage interface {
+	// MustAddRows must add log rows.
+	MustAddRows(*logstorage.LogRows)
+	// CanWriteData returns non-nil error if data cannot be written
+	CanWriteData() error
+}
+
+var logRowsStorage LogRowsStorage
+
+// SetLogRowsStorage must be called before using LogMessageProcessor
+// and CanWriteData from this package
+func SetLogRowsStorage(storage LogRowsStorage) {
+	logRowsStorage = storage
+}
+
+// CanWriteData returns non-nil error if data cannot be written
+func CanWriteData() error {
+	return logRowsStorage.CanWriteData()
+}
+
 // LogMessageProcessor is an interface for log message processors.
 type LogMessageProcessor interface {
 	// AddRow must add row to the LogMessageProcessor with the given timestamp and fields.
@@ -264,7 +284,7 @@ func (lmp *logMessageProcessor) AddInsertRow(r *logstorage.InsertRow) {
 // flushLocked must be called under locked lmp.mu.
 func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lastFlushTime = time.Now()
-	vlstorage.MustAddRows(lmp.lr)
+	logRowsStorage.MustAddRows(lmp.lr)
 	lmp.lr.ResetKeepSettings()
 }
 
