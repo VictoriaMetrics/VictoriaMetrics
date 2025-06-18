@@ -17,7 +17,7 @@ func Test_fieldsToSpan(t *testing.T) {
 		}
 		cmpOpts := cmp.AllowUnexported(span{}, process{}, spanRef{}, keyValue{}, log{})
 		if !cmp.Equal(got, want, cmpOpts) {
-			t.Fatalf("fieldsToSpan() diff = %v", cmp.Diff(got, want, cmpOpts))
+			t.Fatalf("%s fieldsToSpan() diff = %v", name, cmp.Diff(got, want, cmpOpts))
 		}
 	}
 
@@ -26,20 +26,20 @@ func Test_fieldsToSpan(t *testing.T) {
 
 	// case 2: without span_id
 	fields := []logstorage.Field{
-		{pb.TraceIDField, "1234567890"},
+		{Name: pb.TraceIDField, Value: "1234567890"},
 	}
 	f("without span_id", fields, nil, true)
 
 	// case 3: without trace_id
 	fields = []logstorage.Field{
-		{pb.SpanIDField, "12345"},
+		{Name: pb.SpanIDField, Value: "12345"},
 	}
 	f("without trace_id", fields, nil, true)
 
 	// case 4: with basic fields
 	fields = []logstorage.Field{
-		{pb.TraceIDField, "1234567890"},
-		{pb.SpanIDField, "12345"},
+		{Name: pb.TraceIDField, Value: "1234567890"},
+		{Name: pb.SpanIDField, Value: "12345"},
 	}
 	sp := &span{
 		traceID: "1234567890", spanID: "12345",
@@ -49,54 +49,54 @@ func Test_fieldsToSpan(t *testing.T) {
 	// case 5: with all fields
 	// see: lib/protoparser/opentelemetry/pb/trace_fields.go
 	fields = []logstorage.Field{
-		{pb.ResourceAttrServiceName, "service_name_1"},
-		{pb.ResourceAttrPrefix + "resource_attr_1", "resource_attr_1"},
-		{pb.ResourceAttrPrefix + "resource_attr_2", "resource_attr_2"},
+		{Name: pb.ResourceAttrServiceName, Value: "service_name_1"},
+		{Name: pb.ResourceAttrPrefix + "resource_attr_1", Value: "resource_attr_1"},
+		{Name: pb.ResourceAttrPrefix + "resource_attr_2", Value: "resource_attr_2"},
 
-		{pb.InstrumentationScopeName, "scope_name_1"},
-		{pb.InstrumentationScopeVersion, "scope_version_1"},
-		{pb.InstrumentationScopeAttrPrefix + "scope_attr_1", "scope_attr_1"},
-		{pb.InstrumentationScopeAttrPrefix + "scope_attr_2", "scope_attr_2"},
+		{Name: pb.InstrumentationScopeName, Value: "scope_name_1"},
+		{Name: pb.InstrumentationScopeVersion, Value: "scope_version_1"},
+		{Name: pb.InstrumentationScopeAttrPrefix + "scope_attr_1", Value: "scope_attr_1"},
+		{Name: pb.InstrumentationScopeAttrPrefix + "scope_attr_2", Value: "scope_attr_2"},
 
-		{pb.TraceIDField, "1234567890"},
-		{pb.SpanIDField, "12345"},
-		{pb.TraceStateField, "trace_state_1"},
-		{pb.ParentSpanIDField, "23456"},
-		{pb.FlagsField, "0"},
-		{pb.NameField, "span_name_1"},
-		{pb.KindField, "1"},
-		{pb.StartTimeUnixNanoField, "0"},
-		{pb.EndTimeUnixNanoField, "123456789"},
-		{pb.SpanAttrPrefixField + "attr_1", "attr_1"},
-		{pb.SpanAttrPrefixField + "attr_2", "attr_2"},
-		{pb.DurationField, "123456789"},
+		{Name: pb.TraceIDField, Value: "1234567890"},
+		{Name: pb.SpanIDField, Value: "12345"},
+		{Name: pb.TraceStateField, Value: "trace_state_1"},
+		{Name: pb.ParentSpanIDField, Value: "23456"},
+		{Name: pb.FlagsField, Value: "0"},
+		{Name: pb.NameField, Value: "span_name_1"},
+		{Name: pb.KindField, Value: "1"},
+		{Name: pb.StartTimeUnixNanoField, Value: "0"},
+		{Name: pb.EndTimeUnixNanoField, Value: "123456789"},
+		{Name: pb.SpanAttrPrefixField + "attr_1", Value: "attr_1"},
+		{Name: pb.SpanAttrPrefixField + "attr_2", Value: "attr_2"},
+		{Name: pb.DurationField, Value: "123456789"},
 
-		{pb.EventPrefix + "0:" + pb.EventTimeUnixNanoField, "0"},
-		{pb.EventPrefix + "0:" + pb.EventNameField, "event_0"},
-		{pb.EventPrefix + "0:" + pb.EventAttrPrefix + "event_attr_1", "event_0_attr_1"},
-		{pb.EventPrefix + "0:" + pb.EventAttrPrefix + "event_attr_2", "event_0_attr_2"},
+		{Name: pb.EventPrefix + "0:" + pb.EventTimeUnixNanoField, Value: "0"},
+		{Name: pb.EventPrefix + "0:" + pb.EventNameField, Value: "event_0"},
+		{Name: pb.EventPrefix + "0:" + pb.EventAttrPrefix + "event_attr_1", Value: "event_0_attr_1"},
+		{Name: pb.EventPrefix + "0:" + pb.EventAttrPrefix + "event_attr_2", Value: "event_0_attr_2"},
 
-		{pb.EventPrefix + "1:" + pb.EventTimeUnixNanoField, "1"},
-		{pb.EventPrefix + "1:" + pb.EventNameField, "event_1"},
-		{pb.EventPrefix + "1:" + pb.EventAttrPrefix + "event_attr_1", "event_1_attr_1"},
-		{pb.EventPrefix + "1:" + pb.EventAttrPrefix + "event_attr_2", "event_1_attr_2"},
+		{Name: pb.EventPrefix + "1:" + pb.EventTimeUnixNanoField, Value: "1"},
+		{Name: pb.EventPrefix + "1:" + pb.EventNameField, Value: "event_1"},
+		{Name: pb.EventPrefix + "1:" + pb.EventAttrPrefix + "event_attr_1", Value: "event_1_attr_1"},
+		{Name: pb.EventPrefix + "1:" + pb.EventAttrPrefix + "event_attr_2", Value: "event_1_attr_2"},
 
-		{pb.LinkPrefix + "0:" + pb.LinkTraceIDField, "1234567890"},
-		{pb.LinkPrefix + "0:" + pb.LinkSpanIDField, "23456"},
-		{pb.LinkPrefix + "0:" + pb.LinkTraceStateField, "link_0_trace_state_1"},
-		{pb.LinkPrefix + "0:" + pb.LinkAttrPrefix + "link_attr_1", "link_0_trace_attr_1"},
-		{pb.LinkPrefix + "0:" + pb.LinkAttrPrefix + "link_attr_2", "link_0_trace_attr_2"},
-		{pb.LinkPrefix + "0:" + pb.LinkAttrPrefix + "opentracing.ref_type", "child_of"},
-		{pb.LinkPrefix + "0:" + pb.LinkFlagsField, "0"},
-		{pb.LinkPrefix + "1:" + pb.LinkTraceIDField, "99999999999"},
-		{pb.LinkPrefix + "1:" + pb.LinkSpanIDField, "98765"},
-		{pb.LinkPrefix + "1:" + pb.LinkTraceStateField, "link_1_trace_state_1"},
-		{pb.LinkPrefix + "1:" + pb.LinkAttrPrefix + "link_attr_1", "link_1_trace_attr_1"},
-		{pb.LinkPrefix + "1:" + pb.LinkAttrPrefix + "link_attr_2", "link_1_trace_attr_2"},
-		{pb.LinkPrefix + "1:" + pb.LinkFlagsField, "1"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkTraceIDField, Value: "1234567890"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkSpanIDField, Value: "23456"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkTraceStateField, Value: "link_0_trace_state_1"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkAttrPrefix + "link_attr_1", Value: "link_0_trace_attr_1"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkAttrPrefix + "link_attr_2", Value: "link_0_trace_attr_2"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkAttrPrefix + "opentracing.ref_type", Value: "child_of"},
+		{Name: pb.LinkPrefix + "0:" + pb.LinkFlagsField, Value: "0"},
+		{Name: pb.LinkPrefix + "1:" + pb.LinkTraceIDField, Value: "99999999999"},
+		{Name: pb.LinkPrefix + "1:" + pb.LinkSpanIDField, Value: "98765"},
+		{Name: pb.LinkPrefix + "1:" + pb.LinkTraceStateField, Value: "link_1_trace_state_1"},
+		{Name: pb.LinkPrefix + "1:" + pb.LinkAttrPrefix + "link_attr_1", Value: "link_1_trace_attr_1"},
+		{Name: pb.LinkPrefix + "1:" + pb.LinkAttrPrefix + "link_attr_2", Value: "link_1_trace_attr_2"},
+		{Name: pb.LinkPrefix + "1:" + pb.LinkFlagsField, Value: "1"},
 
-		{pb.StatusMessageField, "status_message_1"},
-		{pb.StatusCodeField, "2"},
+		{Name: pb.StatusMessageField, Value: "status_message_1"},
+		{Name: pb.StatusCodeField, Value: "2"},
 	}
 
 	sp = &span{
