@@ -149,7 +149,7 @@ monitoring:
 
 The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vmanomaly` service **stateful** by persisting and restoring state between runs. If enabled, the service will save the state of anomaly detection models and their training data to local filesystem, allowing for seamless continuation of operations after service restarts.
 
-By default, `restore_state` is set to `false`, meaning the service will start fresh on each restart, to maintain backward compatibility. When set to `true`.
+By default, `restore_state` is set to `false`, meaning the service will start fresh on each restart, to maintain backward compatibility.
 
 > This feature requires enabling [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq#on-disk-mode) for the models and data. If not enabled, the service will exit with an error when `restore_state` is set to `true`.
 
@@ -167,9 +167,9 @@ This feature improves the experience of using the anomaly detection service in s
 **State restoration**: When the service starts with `restore_state` set to `true`, it will:
 1. Check for the existence of the database file in the specified directory.
 2. If the file does not exist, it will create a new database file and initialize the state with the current configuration, training models as needed. If the file exists, then it compares the loaded state with the current configuration to ensure compatibility - what can be reused and what needs to be retrained (e.g., if the model class or hyperparameters have changed, it will not restore the state for that model, same for schedulers or reader queries). For reusable components, previously saved state, including model configurations, trained model instances, and their training data, will be restored.
-3. Subsequently, it will check for model "staleness" and retrain models if necessary, based on the current configuration and the last training time stored in the database vs next scheduled training time. If the model is **actual**, it will continue to use the previously trained model instances or its training data. If the model is **stale** (e.g. `fit_every` time has passed since the last training), it will retrain the model using the latest data of `fit_every` length from VictoriaMetrics TSDB.
+3. Subsequently, it will check for model "staleness" and retrain models if necessary, based on the current configuration and the last training time stored in the database vs next scheduled training time. If the model is **actual**, it will continue to use the previously trained model instances or its training data. If the model is **stale** (e.g. `fit_every` time has passed since the last training), it will retrain the model using the latest data of `fit_window` length from VictoriaMetrics TSDB.
 
-**State update**: The service periodically saves the updated state after each "atomic" operations, such as (model_alias, query_alias) training or inference. This ensures that the state is always up-to-date and can be restored in case of a service restart. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) are updated after each inference, while [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models) are saved after each training operation.
+**State update**: The service periodically saves the updated state after each "atomic" operations, such as (model_alias, query_alias)-based training or inference. This ensures that the state is always up-to-date and can be restored in case of a service restart. [Online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) are also updated after each inference, while [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models) are only saved after each training operation as they do not change the state during consecutive fit calls.
 
 **Cleanup behavior**: When `restore_state` is switched from `true` to `false`, the database file is automatically removed on the next service startup to prevent inconsistent behavior. All the artifacts (such as model dumps and data dumps) will be removed as well, so the service will start fresh without any previous state.
 
@@ -263,7 +263,7 @@ reader:
 # other components like writer, monitoring, etc.
 ```
 
-if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `prophet` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances and their training data from the database file and continue to produce anomaly scores without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. Please see the what is changed and what is restored in a config below:
+if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `prophet` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances or their training data from disk and continue producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
 
 ```yaml
 settings:
@@ -301,5 +301,5 @@ reader:  # can be partially reused, because its class and datasource URL are unc
 # other components like writer, monitoring, etc. remain unchanged
 ```
 This means that the service upon restart:
-1. Won't restore the state of `zscore_online` model, because its `z_threshold` **has changed**, retraining from scratch is needed on the last 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
-2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but only instances trained on timeseries returned by `q1` query. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (prophet, q2) will be removed from the database file and from the disk.
+1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
+2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
