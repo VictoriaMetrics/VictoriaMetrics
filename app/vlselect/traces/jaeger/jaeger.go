@@ -73,6 +73,7 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	} else if path == "/select/jaeger/api/dependencies" {
 		jaegerDependenciesRequests.Inc()
 		// todo it require additional component to calculate the dependency graph. not implemented yet.
+		httpserver.Errorf(w, r, "/api/dependencies API is not supported yet.")
 		jaegerDependenciesDuration.UpdateDuration(startTime)
 		return true
 	}
