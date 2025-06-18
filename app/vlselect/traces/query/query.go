@@ -332,7 +332,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 
 	traceIDs, maxStartTime, err := findTraceIDsSplitTimeRange(ctx, q, cp, param.StartTimeMin, param.StartTimeMax, param.Limit)
 	if err != nil {
-		return nil, maxStartTime, err
+		return nil, time.Time{}, err
 	}
 
 	return traceIDs, maxStartTime, nil
@@ -347,15 +347,24 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 	step := time.Minute
 	currentStartTime := endTime.Add(-step)
 
+	var traceIDListLock sync.Mutex
 	traceIDList := make([]string, 0, limit)
 	maxStartTimeStr := endTime.Format(time.RFC3339)
 
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.Columns
-		for i := range columns {
-			if columns[i].Name == "trace_id" {
-				traceIDList = append(traceIDList, columns[i].Values...)
-			} else if columns[i].Name == "_time" {
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+		for i := range clonedColumnNames {
+			if clonedColumnNames[i] == "trace_id" {
+				traceIDListLock.Lock()
+				for _, v := range columns[i].Values {
+					traceIDList = append(traceIDList, strings.Clone(v))
+				}
+				traceIDListLock.Unlock()
+			} else if clonedColumnNames[i] == "_time" {
 				for _, v := range columns[i].Values {
 					if v < maxStartTimeStr {
 						maxStartTimeStr = v
