@@ -80,6 +80,15 @@ func TestGetCommonTokensForOrFilters(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error in ParseQuery: %s", err)
 		}
+
+		if _, ok := q.f.(*filterNoop); ok {
+			// The query is noop, so there are no common tokens
+			if len(tokensExpected) > 0 {
+				t.Fatalf("got no tokens, expecting tokens %q", tokensExpected)
+			}
+			return
+		}
+
 		fo, ok := q.f.(*filterOr)
 		if !ok {
 			t.Fatalf("unexpected filter type: %T; want *filterOr", q.f)
@@ -103,7 +112,7 @@ func TestGetCommonTokensForOrFilters(t *testing.T) {
 	// no common tokens
 	f(`foo OR bar`, nil)
 
-	// star filter matches non-empty value; it is skipped, since one of OR filters may contain an empty filter
+	// OR filters with star are reduced to filterNoop
 	f(`* OR foo`, nil)
 	f(`foo or *`, nil)
 	f(`* or *`, nil)
