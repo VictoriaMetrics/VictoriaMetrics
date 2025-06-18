@@ -1428,6 +1428,7 @@ func TestParseQuery_Success(t *testing.T) {
 	// field_values pipe
 	f(`* | field_values x`, `* | field_values x`)
 	f(`* | field_values (x)`, `* | field_values x`)
+	f(`* | field_values "\""`, `* | field_values "\""`)
 
 	// block_stats pipe
 	f(`foo | block_stats`, `foo | block_stats`)
@@ -1815,6 +1816,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`"foo`)
 	f(`'foo`)
 	f("`foo")
+	f(`{"foo=bar}`)
 
 	// invalid _stream_id filters
 	f("_stream_id:foo")
@@ -1838,6 +1840,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f("_stream:{foo=bar baz x=y}")
 	f("_stream:{foo=bar,")
 	f("_stream:{foo=bar")
+	f("_stream:{\"foo=bar}")
 	f("_stream:foo")
 	f("_stream:(foo)")
 	f("_stream:[foo]")
