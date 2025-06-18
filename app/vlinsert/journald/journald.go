@@ -57,13 +57,26 @@ func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
 		cp.TimeFields = []string{*journaldTimeField}
 	}
 	if len(cp.StreamFields) == 0 {
-		cp.StreamFields = *journaldStreamFields
+		cp.StreamFields = getStreamFields()
 	}
 	if len(cp.IgnoreFields) == 0 {
 		cp.IgnoreFields = *journaldIgnoreFields
 	}
 	cp.MsgFields = []string{"MESSAGE"}
 	return cp, nil
+}
+
+func getStreamFields() []string {
+	if len(*journaldStreamFields) > 0 {
+		return *journaldStreamFields
+	}
+	return defaultStreamFields
+}
+
+var defaultStreamFields = []string{
+	"_MACHINE_ID",
+	"_HOSTNAME",
+	"_SYSTEMD_UNIT",
 }
 
 // RequestHandler processes Journald Export insert requests
