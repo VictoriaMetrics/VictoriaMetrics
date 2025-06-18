@@ -45,7 +45,7 @@ func main() {
 
 	vlstorage.Init()
 	vlselect.Init()
-	// init insertutil at package.main instead of vlinsert
+	// init insertutil in package main instead of vlinsert
 	// because vlinsert should not depend on vlstorage
 	insertutil.SetLogRowsStorage(&vlstorage.Storage{})
 	vlinsert.Init()
