@@ -22,6 +22,8 @@ var (
 	vminsertAddrRE              = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
 	vminsertClusterNativeAddrRE = regexp.MustCompile(`started TCP clusternative server at "(.*:\d{1,5})"`)
 	vmselectAddrRE              = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
+
+	logsStorageDataPathRE = regexp.MustCompile(`opening storage at -storageDataPath=(.*)`)
 )
 
 // app represents an instance of some VictoriaMetrics server (such as vmstorage,

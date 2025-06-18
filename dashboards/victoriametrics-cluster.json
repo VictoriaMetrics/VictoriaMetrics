@@ -4859,6 +4859,7 @@
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
+                "axisSoftMin": 0,
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
@@ -4899,7 +4900,8 @@
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unit": "bytes"
             },
             "overrides": []
           },
