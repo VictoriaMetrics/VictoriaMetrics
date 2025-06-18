@@ -519,13 +519,13 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		"\nmax range per request: \t%v\n",
 		g.Name, g.Interval, g.Concurrency, iterations, step)
 	if g.Limit > 0 {
-		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
+		fmt.Printf("\nWarning: `limit: %d` param has no effect during replay.\n",
 			g.Limit)
 	}
 
 	if g.Concurrency > 1 && replayDelay > 0 {
-		fmt.Printf("\nPlease not, concurrency value of %d will be ignored since `-replay.rulesDelay` is %.3f seconds."+
-			"Set -replay.rulesDelay=0 to enable concurrency rule replay", g.Concurrency, replayDelay.Seconds())
+		fmt.Printf("\nWarning: group concurrency %d will be ignored since `-replay.rulesDelay` is %.3f seconds."+
+			"Set -replay.rulesDelay=0 to enable concurrency for replay", g.Concurrency, replayDelay.Seconds())
 	}
 
 	if g.Concurrency == 1 || replayDelay > 0 {
@@ -559,7 +559,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts)
 			<-sem
 			wg.Done()
-		}(r, rangeIterator{start: start, end: end, step: step})
+		}(r, ri)
 	}
 
 	wg.Wait()
@@ -580,7 +580,6 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts int) int {
 	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
 	total := 0
-	ri.reset()
 	for ri.next() {
 		n, err := replayRule(r, ri.s, ri.e, rw, replayRuleRetryAttempts)
 		if err != nil {

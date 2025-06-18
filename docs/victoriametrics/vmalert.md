@@ -818,7 +818,7 @@ max range per request:  8h20m0s
 ```
 
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
-executed per the `concurrency` setting of the group if `-replay.rulesDelay=0` otherwise rules are executed sequentially. 
+executed sequentially as well(`concurrency` setting is ignored unless `-replay.rulesDelay=0`).
 vmalert sends rule's expression to [/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
