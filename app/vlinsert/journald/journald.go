@@ -355,13 +355,19 @@ func journaldPriorityToLevel(priority string) string {
 	// See https://wiki.archlinux.org/title/Systemd/Journal#Priority_level
 	// and https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level
 	switch priority {
-	case "0", "1", "2":
+	case "0":
+		return "emerg"
+	case "1":
+		return "alert"
+	case "2":
 		return "critical"
 	case "3":
 		return "error"
 	case "4":
 		return "warning"
-	case "5", "6":
+	case "5":
+		return "notice"
+	case "6":
 		return "info"
 	case "7":
 		return "debug"
