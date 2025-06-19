@@ -143,12 +143,12 @@ func (app *Vmsingle) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) 
 	app.cli.Write(t, app.graphiteWriteAddr, records)
 }
 
-// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
+// APIV1ImportCSV is a test helper function that inserts a collection
 // of records in CSV format for the given tenant by sending an HTTP POST
 // request to /api/v1/import/csv vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data
-func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vmsingle) APIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/api/v1/import/csv", app.httpListenAddr)
@@ -164,12 +164,12 @@ func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 	}
 }
 
-// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// APIV1ImportNative is a test helper function that inserts a collection
 // of records in native format for the given tenant by sending an HTTP POST
 // request to /api/v1/import/native vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format
-func (app *Vmsingle) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+func (app *Vmsingle) APIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/api/v1/import/native", app.httpListenAddr)
@@ -206,10 +206,10 @@ func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 	}
 }
 
-// PrometheusAPIV1Write is a test helper function that inserts a
+// APIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, _ QueryOpts) {
+func (app *Vmsingle) APIV1Write(t *testing.T, records []pb.TimeSeries, _ QueryOpts) {
 	t.Helper()
 
 	wr := pb.WriteRequest{Timeseries: records}
@@ -220,12 +220,12 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 	}
 }
 
-// PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
+// APIV1ImportPrometheus is a test helper function that inserts a
 // collection of records in Prometheus text exposition format by sending a HTTP
 // POST request to /prometheus/api/v1/import/prometheus vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
-func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vmsingle) APIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	// add extra label
@@ -243,27 +243,27 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	}
 }
 
-// PrometheusAPIV1Export is a test helper function that performs the export of
+// APIV1Export is a test helper function that performs the export of
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export
-func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+func (app *Vmsingle) APIV1Export(t *testing.T, query string, opts QueryOpts) *APIV1QueryResponse {
 	t.Helper()
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
-	return NewPrometheusAPIV1QueryResponse(t, res)
+	return NewAPIV1QueryResponse(t, res)
 }
 
-// PrometheusAPIV1ExportNative is a test helper function that performs the export of
+// APIV1ExportNative is a test helper function that performs the export of
 // raw samples in native binary format by sending an HTTP POST request to
 // /prometheus/api/v1/export/native vmselect endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
-func (app *Vmsingle) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
+func (app *Vmsingle) APIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
 	t.Helper()
 
 	t.Helper()
@@ -275,47 +275,47 @@ func (app *Vmsingle) PrometheusAPIV1ExportNative(t *testing.T, query string, opt
 	return []byte(res)
 }
 
-// PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
+// APIV1Query is a test helper function that performs PromQL/MetricsQL
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query
-func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+func (app *Vmsingle) APIV1Query(t *testing.T, query string, opts QueryOpts) *APIV1QueryResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("query", query)
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values)
-	return NewPrometheusAPIV1QueryResponse(t, res)
+	return NewAPIV1QueryResponse(t, res)
 }
 
-// PrometheusAPIV1QueryRange is a test helper function that performs
+// APIV1QueryRange is a test helper function that performs
 // PromQL/MetricsQL range query by sending a HTTP POST request to
 // /prometheus/api/v1/query_range vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range
-func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+func (app *Vmsingle) APIV1QueryRange(t *testing.T, query string, opts QueryOpts) *APIV1QueryResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values)
-	return NewPrometheusAPIV1QueryResponse(t, res)
+	return NewAPIV1QueryResponse(t, res)
 }
 
-// PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
+// APIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
-func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
+func (app *Vmsingle) APIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *APIV1SeriesResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
-	return NewPrometheusAPIV1SeriesResponse(t, res)
+	return NewAPIV1SeriesResponse(t, res)
 }
 
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint

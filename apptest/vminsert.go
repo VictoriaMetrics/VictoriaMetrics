@@ -127,12 +127,12 @@ func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) 
 	app.cli.Write(t, app.graphiteListenAddr, records)
 }
 
-// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
+// APIV1ImportCSV is a test helper function that inserts a collection
 // of records in CSV format for the given tenant by sending an HTTP POST
 // request to prometheus/api/v1/import/csv vminsert endpoint.
 //
 // See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vminsert) APIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/csv", app.httpListenAddr, opts.getTenant())
@@ -150,12 +150,12 @@ func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 	})
 }
 
-// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// APIV1ImportNative is a test helper function that inserts a collection
 // of records in Native format for the given tenant by sending an HTTP POST
 // request to prometheus/api/v1/import/native vminsert endpoint.
 //
 // See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+func (app *Vminsert) APIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.getTenant())
@@ -195,10 +195,10 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 	})
 }
 
-// PrometheusAPIV1Write is a test helper function that inserts a
+// APIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
-func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
+func (app *Vminsert) APIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
@@ -212,13 +212,13 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 	})
 }
 
-// PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
+// APIV1ImportPrometheus is a test helper function that inserts a
 // collection of records in Prometheus text exposition format for the given
 // tenant by sending a HTTP POST request to
 // /prometheus/api/v1/import/prometheus vminsert endpoint.
 //
 // See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
-func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
+func (app *Vminsert) APIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.getTenant())

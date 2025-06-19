@@ -11,10 +11,10 @@ import (
 )
 
 type testBackupRestoreOpts struct {
-	startSUT           func() at.PrometheusWriteQuerier
+	startSUT           func() at.WriteQuerier
 	stopSUT            func()
 	storageDataPaths   []string
-	snapshotCreateURLs func(at.PrometheusWriteQuerier) []string
+	snapshotCreateURLs func(at.WriteQuerier) []string
 }
 
 func TestSingleBackupRestore(t *testing.T) {
@@ -24,7 +24,7 @@ func TestSingleBackupRestore(t *testing.T) {
 	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
 
 	opts := testBackupRestoreOpts{
-		startSUT: func() at.PrometheusWriteQuerier {
+		startSUT: func() at.WriteQuerier {
 			return tc.MustStartVmsingle("vmsingle", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
@@ -37,7 +37,7 @@ func TestSingleBackupRestore(t *testing.T) {
 		storageDataPaths: []string{
 			storageDataPath,
 		},
-		snapshotCreateURLs: func(sut at.PrometheusWriteQuerier) []string {
+		snapshotCreateURLs: func(sut at.WriteQuerier) []string {
 			return []string{
 				sut.(*at.Vmsingle).SnapshotCreateURL(),
 			}
@@ -55,7 +55,7 @@ func TestClusterBackupRestore(t *testing.T) {
 	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
 
 	opts := testBackupRestoreOpts{
-		startSUT: func() at.PrometheusWriteQuerier {
+		startSUT: func() at.WriteQuerier {
 			return tc.MustStartCluster(&at.ClusterOptions{
 				Vmstorage1Instance: "vmstorage1",
 				Vmstorage1Flags: []string{
@@ -85,7 +85,7 @@ func TestClusterBackupRestore(t *testing.T) {
 			storage1DataPath,
 			storage2DataPath,
 		},
-		snapshotCreateURLs: func(sut at.PrometheusWriteQuerier) []string {
+		snapshotCreateURLs: func(sut at.WriteQuerier) []string {
 			c := sut.(*at.Vmcluster)
 			return []string{
 				c.Vmstorages[0].SnapshotCreateURL(),
@@ -127,18 +127,18 @@ func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 
 	// assertSeries retrieves set of all metric names from the storage and
 	// compares it with the expected set.
-	assertSeries := func(app at.PrometheusQuerier, query string, start, end int64, want []map[string]string) {
+	assertSeries := func(app at.APIQuerier, query string, start, end int64, want []map[string]string) {
 		t.Helper()
 
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, query, at.QueryOpts{
+				return app.APIV1Series(t, query, at.QueryOpts{
 					Start: fmt.Sprintf("%d", start),
 					End:   fmt.Sprintf("%d", end),
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &at.APIV1SeriesResponse{
 				Status: "success",
 				Data:   want,
 			},
@@ -148,18 +148,18 @@ func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 
 	// assertSeries retrieves all data from the storage and compares it with the
 	// expected result.
-	assertQueryResults := func(app at.PrometheusQuerier, query string, start, end int64, want []*at.QueryResult) {
+	assertQueryResults := func(app at.APIQuerier, query string, start, end int64, want []*at.QueryResult) {
 		t.Helper()
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, query, at.QueryOpts{
+				return app.APIV1QueryRange(t, query, at.QueryOpts{
 					Start: fmt.Sprintf("%d", start),
 					End:   fmt.Sprintf("%d", end),
 					Step:  "60s",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -171,7 +171,7 @@ func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 		})
 	}
 
-	createBackup := func(sut at.PrometheusWriteQuerier, name string) {
+	createBackup := func(sut at.WriteQuerier, name string) {
 		for i, storageDataPath := range opts.storageDataPaths {
 			replica := fmt.Sprintf("replica-%d", i)
 			instance := fmt.Sprintf("vmbackup-%s-%s", name, replica)
@@ -216,13 +216,13 @@ func testBackupRestore(tc *at.TestCase, opts testBackupRestoreOpts) {
 
 	sut := opts.startSUT()
 
-	sut.PrometheusAPIV1ImportPrometheus(t, batch1Data, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, batch1Data, at.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSeries(sut, `{__name__=~"batch1.*"}`, start, end, wantBatch1Series)
 	assertQueryResults(sut, `{__name__=~"batch1.*"}`, start, end, wantBatch1QueryResults)
 	createBackup(sut, "batch1")
 
-	sut.PrometheusAPIV1ImportPrometheus(t, batch2Data, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, batch2Data, at.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSeries(sut, `{__name__=~"batch(1|2).*"}`, start, end, wantBatch12Series)
 	assertQueryResults(sut, `{__name__=~"batch(1|2).*"}`, start, end, wantBatch12QueryResults)

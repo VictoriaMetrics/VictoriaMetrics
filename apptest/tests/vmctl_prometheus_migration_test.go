@@ -55,19 +55,19 @@ func TestClusterVmctlPrometheusProtocol(t *testing.T) {
 	testPrometheusProtocol(tc, cluster, vmctlFlags)
 }
 
-func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
+func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.WriteQuerier, vmctlFlags []string) {
 	t := tc.T()
 	t.Helper()
 
-	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	cmpOpt := cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType")
 
 	// test for empty data request
-	got := sut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
+	got := sut.APIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
 		Step: "5m",
 		Time: "2025-06-02T17:14:00Z",
 	})
 
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
+	want := apptest.NewAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -88,7 +88,7 @@ func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQue
 		t.Fatalf("cannot read expected series response file: %s", err)
 	}
 
-	var wantResponse apptest.PrometheusAPIV1QueryResponse
+	var wantResponse apptest.APIV1QueryResponse
 	if err := json.Unmarshal(bytes, &wantResponse); err != nil {
 		t.Fatalf("cannot unmarshal expected series response file: %s", err)
 	}
@@ -99,7 +99,7 @@ func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQue
 		Retries: 300,
 		Msg:     `unexpected metrics stored on vmsingle via the prometheus protocol`,
 		Got: func() any {
-			expected := sut.PrometheusAPIV1Export(t, `{__name__="vm_log_messages_total", location=~"VictoriaMetrics/lib/ingestserver/opentsdb/server.go:(48|59)"}`, apptest.QueryOpts{
+			expected := sut.APIV1Export(t, `{__name__="vm_log_messages_total", location=~"VictoriaMetrics/lib/ingestserver/opentsdb/server.go:(48|59)"}`, apptest.QueryOpts{
 				Start: "2025-06-02T00:00:00Z",
 				End:   "2025-06-02T23:59:59Z",
 			})
@@ -108,7 +108,7 @@ func testPrometheusProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQue
 		},
 		Want: wantResponse.Data.Result,
 		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},
 	})
 }

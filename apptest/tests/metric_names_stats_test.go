@@ -37,7 +37,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 	tsdbMetricNameEntryCmpOpts := cmpopts.IgnoreFields(apptest.TSDBStatusResponseMetricNameEntry{}, "LastRequestTimestamp")
 
-	sut.PrometheusAPIV1ImportPrometheus(t, dataSet, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, dataSet, at.QueryOpts{})
 	sut.ForceFlush(t)
 
 	// verify ingest request correctly registered
@@ -55,7 +55,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 
 	// verify query request correctly registered
-	sut.PrometheusAPIV1Query(t, `{__name__!=""}`, at.QueryOpts{Time: ingestDateTime})
+	sut.APIV1Query(t, `{__name__!=""}`, at.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
@@ -97,7 +97,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 
 	// perform query request for single metric and check counter increase
-	sut.PrometheusAPIV1Query(t, `metric_name_2`, at.QueryOpts{Time: ingestDateTime})
+	sut.APIV1Query(t, `metric_name_2`, at.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
 		Records: []at.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
@@ -187,7 +187,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	// ingest per tenant data and verify it with search
 	tenantIDs := []string{"1:1", "1:15", "15:15"}
 	for _, tenantID := range tenantIDs {
-		vminsert.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: tenantID})
+		vminsert.APIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{Tenant: tenantID})
 		vmstorage1.ForceFlush(t)
 		vmstorage2.ForceFlush(t)
 
@@ -206,7 +206,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		}
 
 		// verify query request registered correctly
-		vmselect.PrometheusAPIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{
+		vmselect.APIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{
 			Tenant: tenantID, Time: ingestDateTime,
 		})
 

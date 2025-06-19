@@ -146,7 +146,7 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 // Vmcluster represents a typical cluster setup: several vmstorage replicas, one
 // vminsert, and one vmselect.
 //
-// Both Vmsingle and Vmcluster implement the PrometheusWriteQuerier used in
+// Both Vmsingle and Vmcluster implement the WriteQuerier used in
 // business logic tests to abstract out the infrasture.
 //
 // This type is not suitable for infrastructure tests where custom cluster
@@ -310,7 +310,7 @@ func (tc *TestCase) StopApp(instance string) {
 }
 
 // StopPrometheusWriteQuerier stop all apps that are a part of the pwq.
-func (tc *TestCase) StopPrometheusWriteQuerier(pwq PrometheusWriteQuerier) {
+func (tc *TestCase) StopPrometheusWriteQuerier(pwq WriteQuerier) {
 	tc.t.Helper()
 	switch t := pwq.(type) {
 	case *Vmsingle:

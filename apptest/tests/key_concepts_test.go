@@ -55,10 +55,10 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 }
 
 // testKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data
-func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
+func testKeyConceptsQueryData(t *testing.T, sut at.WriteQuerier) {
 
 	// Insert example data from documentation.
-	sut.PrometheusAPIV1ImportPrometheus(t, docData, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, docData, at.QueryOpts{})
 	sut.ForceFlush(t)
 
 	testInstantQuery(t, sut)
@@ -69,14 +69,14 @@ func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
 // testInstantQuery verifies the statements made in the `Instant query` section
 // of the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query
-func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
+func testInstantQuery(t *testing.T, q at.APIQuerier) {
 	// Get the value of the foo_bar time series at 2022-05-10T08:03:00Z with the
 	// step of 5m and timeout 5s. There is no sample at exactly this timestamp.
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-5m..time] interval.
-	got := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:03:00.000Z", Step: "5m"})
-	want := at.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
-	opt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	got := q.APIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:03:00.000Z", Step: "5m"})
+	want := at.NewAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
+	opt := cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType")
 	if diff := cmp.Diff(want, got, opt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -86,7 +86,7 @@ func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-1m..time] interval. Since the nearest sample is 2m away and the
 	// step is 1m, then the VictoriaMetrics must return empty response.
-	got = q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:18:00.000Z", Step: "1m"})
+	got = q.APIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:18:00.000Z", Step: "1m"})
 	if len(got.Data.Result) > 0 {
 		t.Errorf("unexpected response: got non-empty result, want empty result:\n%v", got)
 	}
@@ -95,14 +95,14 @@ func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 // testRangeQuery verifies the statements made in the `Range query` section of
 // the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query
-func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
+func testRangeQuery(t *testing.T, q at.APIQuerier) {
 	f := func(start, end, step string, wantSamples []*at.Sample) {
 		t.Helper()
 
-		got := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{Start: start, End: end, Step: step})
-		want := at.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
+		got := q.APIV1QueryRange(t, "foo_bar", at.QueryOpts{Start: start, End: end, Step: step})
+		want := at.NewAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
 		want.Data.Result[0].Samples = wantSamples
-		opt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+		opt := cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType")
 		if diff := cmp.Diff(want, got, opt); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
 		}
@@ -168,11 +168,11 @@ func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
 // will not produce ephemeral points.
 //
 // See: https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query
-func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.PrometheusQuerier) {
+func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.APIQuerier) {
 	f := func(timestamp string, want *at.Sample) {
 		t.Helper()
 
-		gotInstant := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: timestamp, Step: "1m"})
+		gotInstant := q.APIV1Query(t, "foo_bar", at.QueryOpts{Time: timestamp, Step: "1m"})
 		if want == nil {
 			if got, want := len(gotInstant.Data.Result), 0; got != want {
 				t.Errorf("unexpected instant result size: got %d, want %d", got, want)
@@ -185,7 +185,7 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.Prometheu
 		}
 	}
 
-	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{
+	rangeRes := q.APIV1QueryRange(t, "foo_bar", at.QueryOpts{
 		Start: "2022-05-10T07:59:00.000Z",
 		End:   "2022-05-10T08:17:00.000Z",
 		Step:  "1m",
@@ -231,7 +231,7 @@ func TestClusterMillisecondPrecisionInInstantQueries(t *testing.T) {
 	testMillisecondPrecisionInInstantQueries(tc, sut)
 }
 
-func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.WriteQuerier) {
 	t := tc.T()
 
 	type opts struct {
@@ -242,7 +242,7 @@ func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.Prometheus
 		wantSample  *at.Sample
 		wantSamples []*at.Sample
 	}
-	f := func(sut at.PrometheusQuerier, opts *opts) {
+	f := func(sut at.APIQuerier, opts *opts) {
 		t.Helper()
 		wantResult := []*at.QueryResult{}
 		if opts.wantMetric != nil && (opts.wantSample != nil || len(opts.wantSamples) > 0) {
@@ -255,19 +255,19 @@ func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.Prometheus
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
+				return sut.APIV1Query(t, opts.query, at.QueryOpts{
 					Time: opts.qtime,
 					Step: opts.step,
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
+			Want: &at.APIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+				cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 			},
 		})
 	}
 
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+	sut.APIV1ImportPrometheus(t, []string{
 		`series1{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`series1{label="foo"} 20 1707123456800`, // 2024-02-05T08:57:36.800Z
 	}, at.QueryOpts{})
@@ -326,7 +326,7 @@ func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.Prometheus
 
 	// Insert samples with different dates. The difference in ms between the two
 	// timestamps is 4236579304.
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+	sut.APIV1ImportPrometheus(t, []string{
 		`series2{label="foo"} 10 1638564958042`, // 2021-12-03T20:55:58.042Z
 		`series2{label="foo"} 20 1642801537346`, // 2022-01-21T21:45:37.346Z
 	}, at.QueryOpts{})

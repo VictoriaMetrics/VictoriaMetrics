@@ -28,7 +28,7 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 	for i := range numSamples {
 		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
 	}
-	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, samples, at.QueryOpts{})
 	sut.ForceFlush(t)
 
 	// Create several snapshots using VictoriaMetrics and Prometheus endpoints.
@@ -113,7 +113,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	for i := range numSamples {
 		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
 	}
-	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, samples, at.QueryOpts{})
 	sut.ForceFlush(t)
 
 	// Create several snapshots for both vmstorage replicas using

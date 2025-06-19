@@ -46,7 +46,7 @@ func TestClusterInstantQuery(t *testing.T) {
 	testQueryRangeWithAtModifier(t, sut)
 }
 
-func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+func testInstantQueryWithUTFNames(t *testing.T, sut apptest.WriteQuerier) {
 	data := []pb.TimeSeries{
 		{
 			Labels: []pb.Label{
@@ -59,18 +59,18 @@ func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQueri
 		},
 	}
 
-	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
+	sut.APIV1Write(t, data, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	var got, want *apptest.PrometheusAPIV1QueryResponse
+	var got, want *apptest.APIV1QueryResponse
 	cmpOptions := []cmp.Option{
-		cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+		cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 		cmpopts.EquateNaNs(),
 	}
 
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "3fooµ¥", "3👋tfにちは": "漢©®€£"}}]}}`)
+	want = apptest.NewAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "3fooµ¥", "3👋tfにちは": "漢©®€£"}}]}}`)
 	fn := func(query string) {
-		got = sut.PrometheusAPIV1Query(t, query, apptest.QueryOpts{
+		got = sut.APIV1Query(t, query, apptest.QueryOpts{
 			Step: "5m",
 			Time: "2024-01-01T00:01:00.000Z",
 		})
@@ -112,24 +112,24 @@ var staleNaNsData = func() []pb.TimeSeries {
 	}
 }()
 
-func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.WriteQuerier) {
 
-	sut.PrometheusAPIV1Write(t, staleNaNsData, apptest.QueryOpts{})
+	sut.APIV1Write(t, staleNaNsData, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	var got, want *apptest.PrometheusAPIV1QueryResponse
+	var got, want *apptest.APIV1QueryResponse
 	cmpOptions := []cmp.Option{
-		cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+		cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 		cmpopts.EquateNaNs(),
 	}
 
 	// Verify that instant query returns the first point.
 
-	got = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
+	got = sut.APIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:01:00.000Z",
 	})
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}}]}}`)
+	want = apptest.NewAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}}]}}`)
 	want.Data.Result[0].Sample = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -137,11 +137,11 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that instant query does not return stale NaN.
 
-	got = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
+	got = sut.APIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
+	want = apptest.NewAPIV1QueryResponse(t, `{"data": {"result": []}}`)
 	// Empty response, stale NaN is not included into response
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -151,11 +151,11 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	// while it must not.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5806
 
-	got = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
+	got = sut.APIV1Query(t, "metric[2m]", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	want = apptest.NewAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
 	s := make([]*apptest.Sample, 2)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
 	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
@@ -166,11 +166,11 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that exported data contains stale NaN.
 
-	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
+	got = sut.APIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
 		Start: "2024-01-01T00:01:00.000Z",
 		End:   "2024-01-01T00:02:00.000Z",
 	})
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	want = apptest.NewAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
 	s = make([]*apptest.Sample, 2)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
 	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
@@ -184,7 +184,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 // See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444
 // However, conversion of math.NaN to int64 could behave differently depending on platform and Go version.
 // Hence, this test could succeed for some platforms even if fix is rolled back.
-func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+func testQueryRangeWithAtModifier(t *testing.T, sut apptest.WriteQuerier) {
 	data := []pb.TimeSeries{
 		{
 			Labels: []pb.Label{
@@ -204,10 +204,10 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 		},
 	}
 
-	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
+	sut.APIV1Write(t, data, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	resp := sut.PrometheusAPIV1QueryRange(t, `vector(1) @ up`, apptest.QueryOpts{
+	resp := sut.APIV1QueryRange(t, `vector(1) @ up`, apptest.QueryOpts{
 		Start: "2025-01-01T00:00:00Z",
 		End:   "2025-01-01T00:02:00Z",
 		Step:  "10s",
@@ -217,7 +217,7 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 		t.Fatalf("unexpected status: %q", resp.Status)
 	}
 
-	resp = sut.PrometheusAPIV1QueryRange(t, `vector(1) @ metricNaN`, apptest.QueryOpts{
+	resp = sut.APIV1QueryRange(t, `vector(1) @ metricNaN`, apptest.QueryOpts{
 		Start: "2025-01-01T00:00:00Z",
 		End:   "2025-01-01T00:02:00Z",
 		Step:  "10s",

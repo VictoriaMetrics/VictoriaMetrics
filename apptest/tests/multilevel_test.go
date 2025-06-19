@@ -37,7 +37,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 
 	const numMetrics = 1000
 	records := make([]string, numMetrics)
-	want := &apptest.PrometheusAPIV1SeriesResponse{
+	want := &apptest.APIV1SeriesResponse{
 		Status:    "success",
 		IsPartial: false,
 		Data:      make([]map[string]string, numMetrics),
@@ -49,7 +49,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	}
 	want.Sort()
 	qopts := apptest.QueryOpts{Tenant: "0"}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, records, qopts)
+	vminsert.APIV1ImportPrometheus(t, records, qopts)
 	vmstorage.ForceFlush(t)
 
 	// Retrieve all time series and verify that both vmselect (L1) and
@@ -60,7 +60,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
+				res := app.APIV1Series(t, `{__name__=~".*"}`, qopts)
 				res.Sort()
 				return res
 			},

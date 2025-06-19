@@ -77,19 +77,19 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 	testVmctlNativeProtocol(tc, clusterSrc, clusterDst, flags)
 }
 
-func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWriteQuerier, dstSut apptest.PrometheusWriteQuerier, vmctlFlags []string) {
+func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.WriteQuerier, dstSut apptest.WriteQuerier, vmctlFlags []string) {
 	t := tc.T()
 	t.Helper()
 
-	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	cmpOpt := cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType")
 
 	// test for empty data request in the source
-	got := srcSut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
+	got := srcSut.APIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
 		Step: "5m",
 		Time: "2025-05-30T12:45:00Z",
 	})
 
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
+	want := apptest.NewAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -116,14 +116,14 @@ func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWrit
 		dataSet[i] = fmt.Sprintf("%s %d %s", metricsName, i, ingestTimestamp)
 	}
 
-	wantResponse := apptest.PrometheusAPIV1QueryResponse{
+	wantResponse := apptest.APIV1QueryResponse{
 		Status: "success",
 		Data:   &expectedQueryData,
 	}
 
 	wantResponse.Sort()
 
-	srcSut.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
+	srcSut.APIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
 	srcSut.ForceFlush(t)
 
 	tc.MustStartVmctl("vmctl", vmctlFlags)
@@ -134,7 +134,7 @@ func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWrit
 		Retries: 300,
 		Msg:     `unexpected metrics stored on vmsingle via the native protocol`,
 		Got: func() any {
-			exported := dstSut.PrometheusAPIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
+			exported := dstSut.APIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
 				Start: "2025-05-30T16:39:36Z",
 				End:   "2025-05-30T16:39:37Z",
 			})
@@ -143,7 +143,7 @@ func testVmctlNativeProtocol(tc *apptest.TestCase, srcSut apptest.PrometheusWrit
 		},
 		Want: wantResponse.Data.Result,
 		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},
 	})
 }

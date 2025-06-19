@@ -18,22 +18,22 @@ import (
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-// PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
-type PrometheusQuerier interface {
-	PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
-	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
+// APIQuerier contains methods available to Prometheus-like HTTP API for Querying
+type APIQuerier interface {
+	APIV1Export(t *testing.T, query string, opts QueryOpts) *APIV1QueryResponse
+	APIV1Query(t *testing.T, query string, opts QueryOpts) *APIV1QueryResponse
+	APIV1QueryRange(t *testing.T, query string, opts QueryOpts) *APIV1QueryResponse
+	APIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *APIV1SeriesResponse
+	APIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
 }
 
-// Writer contains methods for writing new data
-type Writer interface {
-	// Prometheus APIs
-	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
-	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
-	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
-	PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts)
+// APIWriter contains methods for writing new data
+type APIWriter interface {
+	// Prometheus-like APIs
+	APIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
+	APIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+	APIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+	APIV1ImportNative(t *testing.T, data []byte, opts QueryOpts)
 
 	// Graphit APIs
 	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
@@ -54,11 +54,11 @@ type StorageMerger interface {
 	ForceMerge(t *testing.T)
 }
 
-// PrometheusWriteQuerier encompasses the methods for writing, flushing and
+// WriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
-type PrometheusWriteQuerier interface {
-	Writer
-	PrometheusQuerier
+type WriteQuerier interface {
+	APIWriter
+	APIQuerier
 	StorageFlusher
 	StorageMerger
 }
@@ -138,9 +138,9 @@ func (qos *QueryOptsLogs) asURLValues() url.Values {
 	return uv
 }
 
-// PrometheusAPIV1QueryResponse is an inmemory representation of the
+// APIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
-type PrometheusAPIV1QueryResponse struct {
+type APIV1QueryResponse struct {
 	Status    string
 	Data      *QueryData
 	ErrorType string
@@ -148,12 +148,12 @@ type PrometheusAPIV1QueryResponse struct {
 	IsPartial bool
 }
 
-// NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
-// instance of PrometheusAPIV1QueryResponse by unmarshalling a json string.
-func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1QueryResponse {
+// NewAPIV1QueryResponse is a test helper function that creates a new
+// instance of APIV1QueryResponse by unmarshalling a json string.
+func NewAPIV1QueryResponse(t *testing.T, s string) *APIV1QueryResponse {
 	t.Helper()
 
-	res := &PrometheusAPIV1QueryResponse{}
+	res := &APIV1QueryResponse{}
 	if err := json.Unmarshal([]byte(s), res); err != nil {
 		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", string(s), err)
 	}
@@ -161,7 +161,7 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 }
 
 // Sort performs data.Result sort by metric labels
-func (pqr *PrometheusAPIV1QueryResponse) Sort() {
+func (pqr *APIV1QueryResponse) Sort() {
 	if pqr.Data == nil {
 		return
 	}
@@ -257,9 +257,9 @@ func (s *Sample) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// PrometheusAPIV1SeriesResponse is an inmemory representation of the
+// APIV1SeriesResponse is an inmemory representation of the
 // /prometheus/api/v1/series response.
-type PrometheusAPIV1SeriesResponse struct {
+type APIV1SeriesResponse struct {
 	Status    string
 	IsPartial bool
 	Data      []map[string]string
@@ -268,12 +268,12 @@ type PrometheusAPIV1SeriesResponse struct {
 	Error     string
 }
 
-// NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new
-// instance of PrometheusAPIV1SeriesResponse by unmarshalling a json string.
-func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1SeriesResponse {
+// NewAPIV1SeriesResponse is a test helper function that creates a new
+// instance of APIV1SeriesResponse by unmarshalling a json string.
+func NewAPIV1SeriesResponse(t *testing.T, s string) *APIV1SeriesResponse {
 	t.Helper()
 
-	res := &PrometheusAPIV1SeriesResponse{}
+	res := &APIV1SeriesResponse{}
 	if err := json.Unmarshal([]byte(s), res); err != nil {
 		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
 	}
@@ -281,7 +281,7 @@ func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1Se
 }
 
 // Sort sorts the response data.
-func (r *PrometheusAPIV1SeriesResponse) Sort() *PrometheusAPIV1SeriesResponse {
+func (r *APIV1SeriesResponse) Sort() *APIV1SeriesResponse {
 	str := func(m map[string]string) string {
 		s := []string{}
 		for k, v := range m {

@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestSingleDeduplication_dedulicationIsOff(t *testing.T) {
@@ -80,7 +81,7 @@ func TestClusterDeduplication_deduplicationIsOn(t *testing.T) {
 }
 
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
-func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplicationIsOn bool) {
+func testDeduplication(tc *at.TestCase, sut at.WriteQuerier, deduplicationIsOn bool) {
 	t := tc.T()
 
 	firstDayOfThisMonth := func() time.Time {
@@ -134,11 +135,11 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 		},
 	}
 
-	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
+	sut.APIV1Write(t, data, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	sut.ForceMerge(t)
 
-	wantDuplicates := &at.PrometheusAPIV1QueryResponse{
+	wantDuplicates := &at.APIV1QueryResponse{
 		Status: "success",
 		Data: &at.QueryData{
 			ResultType: "matrix",
@@ -166,7 +167,7 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 			},
 		},
 	}
-	wantDeduped := &at.PrometheusAPIV1QueryResponse{
+	wantDeduped := &at.APIV1QueryResponse{
 		Status: "success",
 		Data: &at.QueryData{
 			ResultType: "matrix",
@@ -207,7 +208,7 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected response",
 		Got: func() any {
-			got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, apptest.QueryOpts{
+			got := sut.APIV1Export(t, `{__name__=~"metric.*"}`, apptest.QueryOpts{
 				ReduceMemUsage: "1",
 				Start:          fmt.Sprintf("%d", start.UnixMilli()),
 				End:            fmt.Sprintf("%d", end.UnixMilli()),

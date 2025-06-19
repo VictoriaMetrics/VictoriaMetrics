@@ -57,7 +57,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		wantMetrics []map[string]string
 		wantSamples []*at.Sample
 	}
-	f := func(sut at.PrometheusQuerier, opts *opts) {
+	f := func(sut at.APIQuerier, opts *opts) {
 		t.Helper()
 		wantResult := []*at.QueryResult{}
 		for idx, wm := range opts.wantMetrics {
@@ -70,19 +70,19 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
+				return sut.APIV1Query(t, opts.query, at.QueryOpts{
 					Time: opts.qtime,
 					Step: opts.step,
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
+			Want: &at.APIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+				cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 			},
 		})
 	}
 
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+	sut.APIV1ImportPrometheus(t, []string{
 		`importprometheus_series{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`must_drop_series{label="foo"} 20 1707123456800`,        // 2024-02-05T08:57:36.800Z
 	}, at.QueryOpts{})
@@ -180,7 +180,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 			},
 		},
 	}
-	sut.PrometheusAPIV1Write(t, pbData, at.QueryOpts{})
+	sut.APIV1Write(t, pbData, at.QueryOpts{})
 	sut.ForceFlush(t)
 	f(sut, &opts{
 		query: `{label="foo2"}[120ms]`,

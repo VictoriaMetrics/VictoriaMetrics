@@ -75,7 +75,7 @@ func TestClusterVmctlRemoteReadProtocol(t *testing.T) {
 	testRemoteReadProtocol(tc, clusterDst, newRemoteReadServer, vmctlFlags)
 }
 
-func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newRemoteReadServer func(t *testing.T) *RemoteReadServer, vmctlFlags []string) {
+func testRemoteReadProtocol(tc *at.TestCase, sut at.WriteQuerier, newRemoteReadServer func(t *testing.T) *RemoteReadServer, vmctlFlags []string) {
 	t := tc.T()
 	t.Helper()
 
@@ -84,14 +84,14 @@ func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newR
 
 	expectedResult := transformSeriesToQueryResult(rrs.storage.store)
 
-	cmpOpt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	cmpOpt := cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType")
 	// test for empty data request
-	got := sut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, at.QueryOpts{
+	got := sut.APIV1Query(t, `{__name__=~".*"}`, at.QueryOpts{
 		Step: "5m",
 		Time: "2025-06-02T17:14:00Z",
 	})
 
-	want := at.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
+	want := at.NewAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -106,7 +106,7 @@ func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newR
 		Retries: 300,
 		Msg:     `unexpected metrics stored on vmsingle via the prometheus protocol`,
 		Got: func() any {
-			expected := sut.PrometheusAPIV1Export(t, `{__name__=~".*"}`, at.QueryOpts{
+			expected := sut.APIV1Export(t, `{__name__=~".*"}`, at.QueryOpts{
 				Start: "2025-06-11T15:31:10Z",
 				End:   "2025-06-11T15:32:20Z",
 			})
@@ -115,7 +115,7 @@ func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newR
 		},
 		Want: expectedResult,
 		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},
 	})
 }

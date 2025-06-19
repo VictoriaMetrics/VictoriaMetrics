@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 type clusterWithReplication struct {
@@ -94,7 +95,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	for i := range numRecs {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify that each storage node has metrics and that total metric count across
@@ -151,7 +152,7 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			ts = ts.Add(1 * time.Minute)
 		}
 	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Check /api/v1/series response.
@@ -164,12 +165,12 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &at.APIV1SeriesResponse{
 				Status:    "success",
 				IsPartial: false,
 				Data: []map[string]string{
@@ -194,12 +195,12 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+				return app.APIV1Query(t, "metric_1", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "vector",
@@ -236,12 +237,12 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+				return app.APIV1Query(t, "metric_1[5m]", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -273,13 +274,13 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+				return app.APIV1QueryRange(t, "metric_1", at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:10:00Z",
 					Step:  "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -309,12 +310,12 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+				return app.APIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:03:00Z",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -360,7 +361,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	for i := range numRecs {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify partial vs full response.
@@ -370,14 +371,14 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+				return app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &at.APIV1SeriesResponse{
 				Status:    "success",
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.APIV1SeriesResponse{}, "Data"),
 			},
 		})
 	}
@@ -437,7 +438,7 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 
 	const numRecs = 1000
 	recs := make([]string, numRecs)
-	wantSeries := &at.PrometheusAPIV1SeriesResponse{
+	wantSeries := &at.APIV1SeriesResponse{
 		Status: "success",
 		Data:   make([]map[string]string, numRecs),
 	}
@@ -447,7 +448,7 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 		wantSeries.Data[i] = map[string]string{"__name__": name}
 	}
 	wantSeries.Sort()
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify skipping slow replicas by counting the number of skipSlowReplicas
@@ -458,12 +459,12 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+				return app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
 			},
 			Want: wantSeries,
 		})
 
-		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
+		res := app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 		if got != want {
 			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, want %d (full trace:\n%v)", got, want, res.Trace)
@@ -654,7 +655,7 @@ func TestClusterGroupReplication(t *testing.T) {
 		numRecs    = numMetrics * numSamples
 	)
 	var recs []string
-	wantSeries := &at.PrometheusAPIV1SeriesResponse{
+	wantSeries := &at.APIV1SeriesResponse{
 		Status: "success",
 		Data:   make([]map[string]string, numMetrics),
 	}
@@ -668,7 +669,7 @@ func TestClusterGroupReplication(t *testing.T) {
 		}
 	}
 	wantSeries.Sort()
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	c.forceFlush(tc)
 
 	opts := &testGroupReplicationOpts{
@@ -694,7 +695,7 @@ type testGroupReplicationOpts struct {
 	numGroups  int
 	numNodes   int
 	numRecs    int
-	wantSeries *at.PrometheusAPIV1SeriesResponse
+	wantSeries *at.APIV1SeriesResponse
 }
 
 // testGroupDataIsWrittenSeveralTimes checks that multiple
@@ -747,7 +748,7 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
@@ -768,12 +769,12 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+				return app.APIV1Query(t, "metric_1", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "vector",
@@ -810,12 +811,12 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+				return app.APIV1Query(t, "metric_1[5m]", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -847,13 +848,13 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+				return app.APIV1QueryRange(t, "metric_1", at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:10:00Z",
 					Step:  "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -883,12 +884,12 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+				return app.APIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:03:00Z",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -929,7 +930,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
@@ -937,7 +938,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 			Want: opts.wantSeries,
 		})
 
-		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
+		res := app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 		if got < wantMin || got > wantMax {
 			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, %d <= want <= %d (full trace:\n%v)", got, wantMin, wantMax, res.Trace)
@@ -973,7 +974,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 
 	// The data is replicated across N groups of M nodes. Replication factor is
 	// globalRF. There is no replication across the nodes within each group or
-	//it is unknown it there is one.
+	// it is unknown it there is one.
 	//
 	// Max number of nodes to skip is M*(globalRF-1). This corresponds to the
 	// case when N-globalRF+1 groups have received the response from all of
@@ -1020,17 +1021,17 @@ func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &at.APIV1SeriesResponse{
 				Status:    "success",
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.APIV1SeriesResponse{}, "Data"),
 			},
 		})
 	}
@@ -1128,10 +1129,10 @@ func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
 
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{
 		Tenant: "0",
 	})
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{
+	c.vminsert.APIV1ImportPrometheus(t, recs, at.QueryOpts{
 		Tenant: "1",
 	})
 	tc.ForceFlush(c.vmstorages...)
@@ -1144,14 +1145,14 @@ func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
 				qo := at.QueryOpts{Tenant: "multitenant", Trace: "1"}
-				return app.PrometheusAPIV1Query(t, `{__name__=~"metric_.*"}`, qo)
+				return app.APIV1Query(t, `{__name__=~"metric_.*"}`, qo)
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status:    "success",
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Data"),
 			},
 		})
 	}

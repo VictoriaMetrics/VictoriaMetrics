@@ -45,12 +45,12 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 	tc.Assert(&at.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+			return vmsingle.APIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &at.APIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "foo_bar", "label1": "value1"}},
 		},
@@ -76,12 +76,12 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 	tc.Assert(&at.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="bar_foo"}`, at.QueryOpts{
+			return vmsingle.APIV1Series(t, `{__name__="bar_foo"}`, at.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &at.APIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "bar_foo", "label1": "value2"}},
 		},
@@ -122,12 +122,12 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 	tc.Assert(&at.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+			return vmsingle.APIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &at.APIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "foo_bar"}},
 		},

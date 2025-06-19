@@ -13,7 +13,7 @@ import (
 func TestClusterRollupResultCache(t *testing.T) {
 	os.RemoveAll(t.Name())
 
-	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	cmpOpt := cmpopts.IgnoreFields(apptest.APIV1QueryResponse{}, "Status", "Data.ResultType")
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
@@ -34,10 +34,10 @@ func TestClusterRollupResultCache(t *testing.T) {
 		`foo_bar{vm_account_id="5",vm_project_id="15"} 3.00 1652169720000`, // 2022-05-10T08:02:00Z
 	}
 
-	vminsert.PrometheusAPIV1ImportPrometheus(t, tenantLabelsSamples, apptest.QueryOpts{Tenant: "multitenant"})
+	vminsert.APIV1ImportPrometheus(t, tenantLabelsSamples, apptest.QueryOpts{Tenant: "multitenant"})
 	vmstorage.ForceFlush(t)
 
-	want := apptest.NewPrometheusAPIV1QueryResponse(t,
+	want := apptest.NewAPIV1QueryResponse(t,
 		`{"data":
 	   {"result":[
 	        {"metric":{"__name__":"foo_bar","vm_account_id":"5","vm_project_id": "0"},"values":[[1652169720,"1"],[1652169780,"1"]]},
@@ -47,7 +47,7 @@ func TestClusterRollupResultCache(t *testing.T) {
 	}`,
 	)
 
-	got := vmselect.PrometheusAPIV1QueryRange(t, `foo_bar{}`, apptest.QueryOpts{
+	got := vmselect.APIV1QueryRange(t, `foo_bar{}`, apptest.QueryOpts{
 		Tenant:       "multitenant",
 		Start:        "2022-05-10T07:59:00.000Z",
 		End:          "2022-05-10T08:05:00.000Z",
@@ -58,13 +58,13 @@ func TestClusterRollupResultCache(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	want = apptest.NewPrometheusAPIV1QueryResponse(t,
+	want = apptest.NewAPIV1QueryResponse(t,
 		`{"data":
 	   {"result":[]}
 	}`,
 	)
 
-	got = vmselect.PrometheusAPIV1QueryRange(t, `foo_bar{}`, apptest.QueryOpts{
+	got = vmselect.APIV1QueryRange(t, `foo_bar{}`, apptest.QueryOpts{
 		Tenant:       "multitenant",
 		Start:        "2022-05-10T07:59:00.000Z",
 		End:          "2022-05-10T08:05:00.000Z",

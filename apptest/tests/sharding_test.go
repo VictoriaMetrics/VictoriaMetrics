@@ -38,7 +38,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 
 	const numMetrics = 1000
 	records := make([]string, numMetrics)
-	want := &apptest.PrometheusAPIV1SeriesResponse{
+	want := &apptest.APIV1SeriesResponse{
 		Status:    "success",
 		IsPartial: false,
 		Data:      make([]map[string]string, numMetrics),
@@ -49,7 +49,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 		want.Data[i] = map[string]string{"__name__": name}
 	}
 	want.Sort()
-	vminsert.PrometheusAPIV1ImportPrometheus(t, records, apptest.QueryOpts{})
+	vminsert.APIV1ImportPrometheus(t, records, apptest.QueryOpts{})
 	vmstorage1.ForceFlush(t)
 	vmstorage2.ForceFlush(t)
 
@@ -74,7 +74,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/series response",
 		Got: func() any {
-			res := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{})
+			res := vmselect.APIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{})
 			res.Sort()
 			return res
 		},

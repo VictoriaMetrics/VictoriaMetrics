@@ -11,7 +11,7 @@ func TestSingleSearchWithDisabledPerDayIndex(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
+	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.WriteQuerier {
 		return tc.MustStartVmsingle("vmsingle-"+name, []string{
 			"-storageDataPath=" + tc.Dir() + "/vmsingle",
 			"-retentionPeriod=100y",
@@ -25,7 +25,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
+	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.WriteQuerier {
 		// Using static ports for vmstorage because random ports may cause
 		// changes in how data is sharded.
 		vmstorage1 := tc.MustStartVmstorage("vmstorage1-"+name, []string{
@@ -59,7 +59,7 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	})
 }
 
-type startSUTFunc func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier
+type startSUTFunc func(name string, disablePerDayIndex bool) at.WriteQuerier
 
 // testDisablePerDayIndex_Search shows what search results to expect when data
 // is first inserted with per-day index enabled and then with per-day index
@@ -78,17 +78,17 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 		wantSeries       []map[string]string
 		wantQueryResults []*at.QueryResult
 	}
-	assertSearchResults := func(sut at.PrometheusQuerier, opts *opts) {
+	assertSearchResults := func(sut at.APIQuerier, opts *opts) {
 		t.Helper()
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return sut.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return sut.APIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: opts.start,
 					End:   opts.end,
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &at.APIV1SeriesResponse{
 				Status: "success",
 				Data:   opts.wantSeries,
 			},
@@ -96,13 +96,13 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return sut.PrometheusAPIV1QueryRange(t, `{__name__=~".*"}`, at.QueryOpts{
+				return sut.APIV1QueryRange(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: opts.start,
 					End:   opts.end,
 					Step:  "1d",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &at.APIV1QueryResponse{
 				Status: "success",
 				Data: &at.QueryData{
 					ResultType: "matrix",
@@ -116,7 +116,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	// is searchable.
 	sut := start("with-per-day-index", false)
 	sample1 := []string{"metric1 111 1704067200000"} // 2024-01-01T00:00:00Z
-	sut.PrometheusAPIV1ImportPrometheus(t, sample1, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, sample1, at.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSearchResults(sut, &opts{
 		start:      "2024-01-01T00:00:00Z",
@@ -135,7 +135,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("without-per-day-index", true)
 	sample2 := []string{"metric2 222 1704067200000"} // 2024-01-01T00:00:00Z
-	sut.PrometheusAPIV1ImportPrometheus(t, sample2, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, sample2, at.QueryOpts{})
 	sut.ForceFlush(t)
 	assertSearchResults(sut, &opts{
 		start: "2024-01-01T00:00:00Z",
@@ -165,7 +165,7 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 	// - sample2 is not searchable when the time range is <= 40 days
 	// - sample2 becomes searchable when the time range is > 40 days
 	sample3 := []string{"metric1 333 1705708800000"} // 2024-01-20T00:00:00Z
-	sut.PrometheusAPIV1ImportPrometheus(t, sample3, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, sample3, at.QueryOpts{})
 	sut.ForceFlush(t)
 	tc.StopPrometheusWriteQuerier(sut)
 	sut = start("with-per-day-index2", false)
@@ -295,14 +295,14 @@ func testClusterActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
 	})
 }
 
-func testActiveTimeseriesMetric(tc *at.TestCase, sut at.PrometheusWriteQuerier, getActiveTimeseries func() int) {
+func testActiveTimeseriesMetric(tc *at.TestCase, sut at.WriteQuerier, getActiveTimeseries func() int) {
 	t := tc.T()
 	const numSamples = 1000
 	samples := make([]string, numSamples)
 	for i := range numSamples {
 		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
 	}
-	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.APIV1ImportPrometheus(t, samples, at.QueryOpts{})
 	sut.ForceFlush(t)
 	tc.Assert(&at.AssertOptions{
 		Msg: `unexpected vm_cache_entries{type="storage/hour_metric_ids"} metric value`,

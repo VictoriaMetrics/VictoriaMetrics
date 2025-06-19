@@ -22,7 +22,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		wantMetrics []map[string]string
 		wantSamples []*at.Sample
 	}
-	f := func(sut at.PrometheusQuerier, opts *opts) {
+	f := func(sut at.APIQuerier, opts *opts) {
 		t.Helper()
 		wantResult := []*at.QueryResult{}
 		for idx, wm := range opts.wantMetrics {
@@ -35,16 +35,16 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /export query response",
 			Got: func() any {
-				got := sut.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
+				got := sut.APIV1Export(t, opts.query, at.QueryOpts{
 					Start: "2024-02-05T08:50:00.700Z",
 					End:   "2024-02-05T09:00:00.700Z",
 				})
 				got.Sort()
 				return got
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
+			Want: &at.APIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+				cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 			},
 		})
 	}
@@ -109,7 +109,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// CSV import
-	sut.PrometheusAPIV1ImportCSV(t, []string{
+	sut.APIV1ImportCSV(t, []string{
 		`GOOG,1.23,4.56,NYSE,1707123457`,
 		`MSFT,23,56,NASDAQ,1707123457`,
 	}, at.QueryOpts{
@@ -158,7 +158,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus text exposition format
-	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+	sut.APIV1ImportPrometheus(t, []string{
 		`importprometheus_series 10 1707123456700`,                               // 2024-02-05T08:57:36.700Z
 		`importprometheus_series2{label="foo",label1="value1"} 20 1707123456800`, // 2024-02-05T08:57:36.800Z
 	}, at.QueryOpts{
@@ -227,7 +227,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 			},
 		},
 	}
-	sut.PrometheusAPIV1Write(t, pbData, at.QueryOpts{})
+	sut.APIV1Write(t, pbData, at.QueryOpts{})
 	sut.ForceFlush(t)
 	f(sut, &opts{
 		query: `{__name__=~"prometheusrw.+"}`,
@@ -282,22 +282,22 @@ func TestClusterIngestionProtocols(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /export query response",
 			Got: func() any {
-				got := vmselect.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
+				got := vmselect.APIV1Export(t, opts.query, at.QueryOpts{
 					Start: "2024-02-05T08:50:00.700Z",
 					End:   "2024-02-05T09:00:00.700Z",
 				})
 				got.Sort()
 				return got
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
+			Want: &at.APIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+				cmpopts.IgnoreFields(at.APIV1QueryResponse{}, "Status", "Data.ResultType"),
 			},
 		})
 	}
 
 	// prometheus text exposition format
-	vminsert.PrometheusAPIV1ImportPrometheus(t, []string{
+	vminsert.APIV1ImportPrometheus(t, []string{
 		`importprometheus_series 10 1707123456700`,                               // 2024-02-05T08:57:36.700Z
 		`importprometheus_series2{label="foo",label1="value1"} 20 1707123456800`, // 2024-02-05T08:57:36.800Z
 	}, at.QueryOpts{
@@ -358,7 +358,7 @@ func TestClusterIngestionProtocols(t *testing.T) {
 	})
 
 	// CSV import
-	vminsert.PrometheusAPIV1ImportCSV(t, []string{
+	vminsert.APIV1ImportCSV(t, []string{
 		`GOOG,1.23,4.56,NYSE,1707123457`, // 2024-02-05T08:57:37.000Z
 		`MSFT,23,56,NASDAQ,1707123457`,   // 2024-02-05T08:57:37.000Z
 	}, at.QueryOpts{
@@ -474,7 +474,7 @@ func TestClusterIngestionProtocols(t *testing.T) {
 			},
 		},
 	}
-	vminsert.PrometheusAPIV1Write(t, pbData, at.QueryOpts{})
+	vminsert.APIV1Write(t, pbData, at.QueryOpts{})
 	vmstorage.ForceFlush(t)
 	f(&opts{
 		query: `{__name__=~"prometheusrw.+"}`,
