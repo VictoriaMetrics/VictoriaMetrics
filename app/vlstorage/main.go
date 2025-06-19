@@ -78,6 +78,8 @@ var localStorage *logstorage.Storage
 var localStorageMetrics *metrics.Set
 
 var netstorageInsert *netinsert.Storage
+var netstorageInsertMetrics *metrics.Set
+
 var netstorageSelect *netselect.Storage
 
 // Init initializes vlstorage.
@@ -141,6 +143,11 @@ func initNetworkStorage() {
 
 	logger.Infof("starting insert service for nodes %s", *storageNodeAddrs)
 	netstorageInsert = netinsert.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *insertConcurrency, *insertDisableCompression)
+	netstorageInsertMetrics = metrics.NewSet()
+	netstorageInsertMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		writeNetstorageInsertMetrics(w, netstorageInsert)
+	})
+	metrics.RegisterSet(netstorageInsertMetrics)
 
 	logger.Infof("initializing select service for nodes %s", *storageNodeAddrs)
 	netstorageSelect = netselect.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *selectDisableCompression)
@@ -402,6 +409,11 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 
 	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_big_timestamp"}`, ss.RowsDroppedTooBigTimestamp)
 	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_small_timestamp"}`, ss.RowsDroppedTooSmallTimestamp)
+}
+
+func writeNetstorageInsertMetrics(w io.Writer, strg *netinsert.Storage) {
+	metrics.WriteGaugeUint64(w, `vl_insert_active_streams`, strg.GetActiveStreams())
+	metrics.WriteCounterUint64(w, `vl_insert_send_failures_total`, strg.SendFailed.Load())
 }
 
 var activeForceMerges = metrics.NewCounter("vl_active_force_merges")

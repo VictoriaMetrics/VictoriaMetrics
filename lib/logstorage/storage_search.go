@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -16,6 +17,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	rowsPerQuery          = metrics.NewHistogram(`vl_storage_rows_per_query`)
+	bytesPerQuery         = metrics.NewHistogram(`vl_storage_bytes_per_query`)
+	fetchedStreamPerQuery = metrics.NewHistogram(`vl_storage_fetched_stream_per_query`)
 )
 
 // genericSearchOptions contain options used for search.
@@ -99,7 +107,15 @@ func (f writeBlockResultFunc) newDataBlockWriter() WriteDataBlockFunc {
 // RunQuery runs the given q and calls writeBlock for results.
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteDataBlockFunc) error {
 	writeBlockResult := writeBlock.newBlockResultWriter()
-	return s.runQuery(ctx, tenantIDs, q, writeBlockResult)
+
+	err := s.runQuery(ctx, tenantIDs, q, writeBlockResult)
+
+	// Update metrics regardless of the error
+	bytesPerQuery.Update(float64(q.searchStats.totalBytesFromDisk.Load()))
+	rowsPerQuery.Update(float64(q.searchStats.totalRows.Load()))
+	fetchedStreamPerQuery.Update(float64(q.searchStats.fetchStreams.Load()))
+
+	return err
 }
 
 // runQueryFunc must run the given q and pass query results to writeBlock
@@ -132,7 +148,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	workersCount := q.GetConcurrency()
 
 	search := func(stopCh <-chan struct{}, writeBlockToPipes writeBlockResultFunc) error {
-		s.search(workersCount, so, stopCh, writeBlockToPipes)
+		s.search(workersCount, q.searchStats, so, stopCh, writeBlockToPipes)
 		return nil
 	}
 
@@ -1030,7 +1046,7 @@ func (db *DataBlock) initFromBlockResult(br *blockResult) {
 // search searches for the matching rows according to so.
 //
 // It calls writeBlock for each matching block.
-func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+func (s *Storage) search(workersCount int, searchStats *searchStats, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
 	// Spin up workers
 	var wgWorkers sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)
@@ -1050,6 +1066,9 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 					}
 
 					bs.search(bsw, bm)
+					searchStats.totalBytesFromDisk.Add(bs.getBytesReadFromDisk())
+					searchStats.totalRows.Add(uint64(bs.br.rowsLen))
+
 					if bs.br.rowsLen > 0 {
 						writeBlock(workerID, &bs.br)
 					}
@@ -1096,7 +1115,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(sf, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(sf, searchStats, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -1125,7 +1144,13 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+type searchStats struct {
+	fetchStreams       atomic.Uint64
+	totalBytesFromDisk atomic.Uint64
+	totalRows          atomic.Uint64
+}
+
+func (pt *partition) search(sf *StreamFilter, stats *searchStats, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -1143,6 +1168,8 @@ func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions
 		streamIDs = getStreamIDsForTenantIDs(so.streamIDs, tenantIDs)
 		tenantIDs = nil
 	}
+	stats.fetchStreams.Add(uint64(len(streamIDs)))
+
 	if hasStreamFilters(f) {
 		f = initStreamFilters(so.tenantIDs, pt.idb, f)
 	}

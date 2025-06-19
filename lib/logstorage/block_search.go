@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -145,6 +146,9 @@ type blockSearch struct {
 	//
 	// It is used for speeding up fetching _stream column.
 	seenStreams map[u128]string
+
+	// bytesReadFromDisk tracks the total bytes read from disk files for this block search
+	bytesReadFromDisk atomic.Uint64
 }
 
 func (bs *blockSearch) reset() {
@@ -197,7 +201,15 @@ func (bs *blockSearch) reset() {
 		bs.cshCache = nil
 	}
 
+	// Reset bytes read from disk counter
+	bs.bytesReadFromDisk.Store(0)
+
 	// Do not reset seenStreams, since its' lifetime is managed by blockResult.addStreamColumn() code.
+}
+
+// getBytesReadFromDisk returns the total number of bytes read from disk files for this block search.
+func (bs *blockSearch) getBytesReadFromDisk() uint64 {
+	return bs.bytesReadFromDisk.Load()
 }
 
 func (bs *blockSearch) partPath() string {
@@ -344,6 +356,9 @@ func (bs *blockSearch) getColumnsHeaderIndex() *columnsHeaderIndex {
 	if bs.cshIndexCache == nil {
 		bs.cshIndexBlockCache = readColumnsHeaderIndexBlock(bs.cshIndexBlockCache[:0], bs.bsw.p, &bs.bsw.bh)
 
+		// Track bytes read from disk
+		bs.bytesReadFromDisk.Add(uint64(len(bs.cshIndexBlockCache)))
+
 		bs.cshIndexCache = getColumnsHeaderIndex()
 		if err := bs.cshIndexCache.unmarshalInplace(bs.cshIndexBlockCache); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal columns header index: %s", bs.bsw.p.path, err)
@@ -376,6 +391,10 @@ func (bs *blockSearch) getColumnsHeader() *columnsHeader {
 func (bs *blockSearch) getColumnsHeaderBlock() []byte {
 	if !bs.cshBlockInitialized {
 		bs.cshBlockCache = readColumnsHeaderBlock(bs.cshBlockCache[:0], bs.bsw.p, &bs.bsw.bh)
+
+		// Track bytes read from disk
+		bs.bytesReadFromDisk.Add(uint64(len(bs.cshBlockCache)))
+
 		bs.cshBlockInitialized = true
 	}
 	return bs.cshBlockCache
@@ -425,6 +444,10 @@ func (bs *blockSearch) getBloomFilterForColumn(ch *columnHeader) *bloomFilter {
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, int(bloomFilterSize))
 
 	bloomValuesFile.bloom.MustReadAt(bb.B, int64(ch.bloomFilterOffset))
+
+	// Track bytes read from disk
+	bs.bytesReadFromDisk.Add(uint64(len(bb.B)))
+
 	bf = getBloomFilter()
 	if err := bf.unmarshal(bb.B); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal bloom filter: %s", bs.partPath(), err)
@@ -457,6 +480,9 @@ func (bs *blockSearch) getValuesForColumn(ch *columnHeader) []string {
 	}
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, int(valuesSize))
 	bloomValuesFile.values.MustReadAt(bb.B, int64(ch.valuesOffset))
+
+	// Track bytes read from disk
+	bs.bytesReadFromDisk.Add(uint64(len(bb.B)))
 
 	values = getStringBucket()
 	var err error
@@ -492,6 +518,9 @@ func (bs *blockSearch) getTimestamps() []int64 {
 	}
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, int(blockSize))
 	p.timestampsFile.MustReadAt(bb.B, int64(th.blockOffset))
+
+	// Track bytes read from disk
+	bs.bytesReadFromDisk.Add(uint64(len(bb.B)))
 
 	rowsCount := int(bs.bsw.bh.rowsCount)
 	timestamps = encoding.GetInt64s(rowsCount)
