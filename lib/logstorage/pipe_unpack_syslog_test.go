@@ -67,7 +67,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
-			{"level", "info"},
+			{"level", "notice"},
 			{"foo", "321"},
 			{"priority", "165"},
 			{"facility", "20"},
@@ -94,7 +94,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
-			{"level", "info"},
+			{"level", "notice"},
 			{"foo", "321"},
 			{"priority", "165"},
 			{"facility", "20"},
@@ -118,7 +118,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
-			{"level", "info"},
+			{"level", "notice"},
 			{"priority", "165"},
 			{"facility", "20"},
 			{"facility_keyword", "local4"},
@@ -141,7 +141,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
-			{"level", "info"},
+			{"level", "notice"},
 			{"priority", "165"},
 			{"facility", "20"},
 			{"facility_keyword", "local4"},
@@ -175,7 +175,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
-			{"level", "info"},
+			{"level", "notice"},
 			{"priority", "165"},
 			{"facility", "20"},
 			{"facility_keyword", "local4"},
@@ -226,7 +226,7 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
-			{"qwe_level", "info"},
+			{"qwe_level", "notice"},
 			{"qwe_priority", "165"},
 			{"qwe_facility", "20"},
 			{"qwe_facility_keyword", "local4"},
