@@ -82,7 +82,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, startOffset, recordsPerLoop int) {
 	date := uint64(0)
-	is := db.getIndexSearch(0, 0, noDeadline)
+	is := db.getIndexSearch(0, 0)
 	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
 		mn.MetricGroup = strconv.AppendUint(mn.MetricGroup[:0], uint64(i+startOffset), 10)
@@ -106,7 +106,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
 	const accountID = 34327843
 	const projectID = 893433
-	is := db.getIndexSearch(0, 0, noDeadline)
+	is := db.getIndexSearch(0, 0)
 	defer db.putIndexSearch(is)
 	var mn MetricName
 	var genTSID generationTSID
@@ -141,13 +141,12 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 
 	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
 		tfss := []*TagFilters{tfs}
-		// Use special globalIndexTimeRange to instruct indexDB to search global
-		// index instead of per-day index.
 		tr := globalIndexTimeRange
+		sc, so, done := getCommonSearchOptions(nil, noDeadline, 2e9, "test")
+		defer done()
 		for i := 0; i < b.N; i++ {
-			is := db.getIndexSearch(tfs.accountID, tfs.projectID, noDeadline)
-			so := getSearchOptions(noDeadline, 2e9, "test")
-			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, so)
+			is := db.getIndexSearch(tfs.accountID, tfs.projectID)
+			metricIDs, err := is.searchMetricIDs(sc, tfss, tr, so)
 			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
@@ -293,7 +292,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	var genTSID generationTSID
 	date := uint64(12345)
 
-	is := db.getIndexSearch(0, 0, noDeadline)
+	is := db.getIndexSearch(0, 0)
 	defer db.putIndexSearch(is)
 
 	for i := 0; i < recordsCount; i++ {
@@ -314,7 +313,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.CopyFrom(&mn)
 		mnLocal.sortTags()
 		for pb.Next() {
-			is := db.getIndexSearch(0, 0, noDeadline)
+			is := db.getIndexSearch(0, 0)
 			for i := 0; i < recordsPerLoop; i++ {
 				mnLocal.AccountID = uint32(i % accountsCount)
 				mnLocal.ProjectID = uint32(i % projectsCount)

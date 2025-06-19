@@ -66,17 +66,17 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 		}
 		tfssAll := []*TagFilters{tfsAll}
-		so := getSearchOptions(noDeadline, 1e9, "test")
-
+		sc, so, done := getCommonSearchOptions(nil, noDeadline, 1e9, "test")
+		defer done()
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, so)
+			metricIDs, err := idb.searchMetricIDs(sc, tfssAll, tr, so)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs
 		}
 		searchMetricNames := func() []string {
-			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, so.maxMetrics, noDeadline)
+			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, so.maxMetrics, sc.deadline)
 			if err != nil {
 				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 			}

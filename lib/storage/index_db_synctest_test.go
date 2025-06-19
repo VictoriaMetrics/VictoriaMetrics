@@ -42,7 +42,8 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 		}
 		assertGetTSIDsFromMetricIDs := func(metricIDs []uint64, want want) {
 			t.Helper()
-			tsids, err := idb.getTSIDsFromMetricIDs(nil, accountID, projectID, metricIDs, noDeadline)
+			sc := getSearchContext(noDeadline, "test", nil)
+			tsids, err := idb.getTSIDsFromMetricIDs(sc, accountID, projectID, metricIDs)
 			if err != nil {
 				t.Fatalf("getTSIDsFromMetricIDs() failed unexpectedly: %v", err)
 			}
