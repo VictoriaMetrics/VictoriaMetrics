@@ -100,7 +100,7 @@ var defaultStreamFields = []string{
 // RequestHandler processes Journald Export insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
-	case "/upload":
+	case "/insert/journald/upload":
 		if r.Header.Get("Content-Type") != "application/vnd.fdo.journal" {
 			httpserver.Errorf(w, r, "only application/vnd.fdo.journal encoding is supported for Journald")
 			return true
