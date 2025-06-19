@@ -273,30 +273,28 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			fb.name = append(fb.name[:0], line...)
 			name = bytesutil.ToUnsafeString(fb.name)
 
-			fb.value = fb.value[:0]
-			for len(fb.value) < 8 {
-				if !lr.NextLine() {
-					if err := lr.Err(); err != nil {
-						return fmt.Errorf("cannot read value size: %w", err)
-					}
-					return fmt.Errorf("unexpected end of stream while reading value size")
+			if !lr.NextLine() {
+				if err := lr.Err(); err != nil {
+					return fmt.Errorf("cannot read value size: %w", err)
 				}
-				fb.value = append(fb.value, lr.Line...)
-				fb.value = append(fb.value, '\n')
+				return fmt.Errorf("unexpected end of stream while reading value size")
 			}
+			fb.value = append(fb.value[:0], lr.Line...)
+			fb.value = append(fb.value, '\n')
 			size := binary.LittleEndian.Uint64(fb.value[:8])
+			fb.value = fb.value[8:]
 
-			for size > uint64(len(fb.value[8:])) {
+			for size >= uint64(len(fb.value)) {
 				if !lr.NextLine() {
 					if err := lr.Err(); err != nil {
-						return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value[8:]), err)
+						return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value), err)
 					}
-					return fmt.Errorf("unexpected end of stream while reading %q value with size %d bytes; read only %d bytes", fb.name, size, len(fb.value[8:]))
+					return fmt.Errorf("unexpected end of stream while reading %q value with size %d bytes; read only %d bytes", fb.name, size, len(fb.value))
 				}
 				fb.value = append(fb.value, lr.Line...)
 				fb.value = append(fb.value, '\n')
 			}
-			value = bytesutil.ToUnsafeString(fb.value[8 : len(fb.value)-1])
+			value = bytesutil.ToUnsafeString(fb.value[:len(fb.value)-1])
 			if uint64(len(value)) != size {
 				return fmt.Errorf("unexpected %q value size; got %d bytes; want %d bytes; value: %q", fb.name, len(value), size, value)
 			}
