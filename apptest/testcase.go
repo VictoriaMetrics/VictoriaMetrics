@@ -441,8 +441,6 @@ func (tc *TestCase) MustStartDefaultVtsingle() *Vtsingle {
 	return tc.MustStartVtsingle("vtsingle", []string{
 		"-storageDataPath=" + tc.Dir() + "/vtsingle",
 		"-retentionPeriod=100y",
-		"-opentelemetry.enableTracesSearch=true",
-		"-opentelemetry.enableTracesIngestion=true",
 	})
 }
 
