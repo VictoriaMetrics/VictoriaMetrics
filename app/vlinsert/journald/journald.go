@@ -286,7 +286,7 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			}
 			size := binary.LittleEndian.Uint64(fb.value[:8])
 
-			for size > uint64(len(fb.value[8:])) {
+			for size >= uint64(len(fb.value[8:])) {
 				if !lr.NextLine() {
 					if err := lr.Err(); err != nil {
 						return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value[8:]), err)
