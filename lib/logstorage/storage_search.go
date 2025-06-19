@@ -698,7 +698,7 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 			return false
 		}
 	}
-	return visitFilter(f, visitFunc)
+	return visitFilterRecursive(f, visitFunc)
 }
 
 func hasFilterInWithQueryForPipes(pipes []pipe) bool {
@@ -1192,7 +1192,7 @@ func hasStreamFilters(f filter) bool {
 		_, ok := f.(*filterStream)
 		return ok
 	}
-	return visitFilter(f, visitFunc)
+	return visitFilterRecursive(f, visitFunc)
 }
 
 func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {

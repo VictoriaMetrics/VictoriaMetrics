@@ -156,6 +156,14 @@ func TestRemoveCounterResets(t *testing.T) {
 	removeCounterResets(values, timestamps, 10)
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 
+	// verify that staleNaNs are respected
+	// it is important to have counter reset in values below to trigger correction logic
+	values = []float64{2, 4, 2, decimal.StaleNaN}
+	timestamps = []int64{10, 20, 30, 40}
+	valuesExpected = []float64{2, 4, 6, decimal.StaleNaN}
+	removeCounterResets(values, timestamps, 10)
+	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
+
 	// verify results always increase monotonically with possible float operations precision error
 	values = []float64{34.094223, 2.7518, 2.140669, 0.044878, 1.887095, 2.546569, 2.490149, 0.045, 0.035684, 0.062454, 0.058296}
 	timestampsExpected = []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
@@ -648,6 +656,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("irate", 0)
 	f("outlier_iqr_over_time", nan)
 	f("rate", 2200)
+	f("rate_prometheus", 2200)
 	f("resets", 5)
 	f("range_over_time", 111)
 	f("avg_over_time", 47.083333333333336)
@@ -1525,16 +1534,31 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 				i, ts, tsExpected, timestamps, timestampsExpected)
 		}
 		vExpected := valuesExpected[i]
+		if decimal.IsStaleNaN(v) {
+			if !decimal.IsStaleNaN(vExpected) {
+				t.Fatalf("unexpected stale NaN value at values[%d]; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
+					i, vExpected, values, valuesExpected)
+			}
+			continue
+		}
+		// staleNaNBits == math.NaN(), but decimal.IsStaleNaN(math.NaN()) == false
+		// so we check for decimal.IsStaleNaN first.
+		if decimal.IsStaleNaN(vExpected) {
+			if !decimal.IsStaleNaN(v) {
+				t.Fatalf("unexpected value at values[%d]; got %f; want stale NaN\nvalues=\n%v\nvaluesExpected=\n%v",
+					i, v, values, valuesExpected)
+			}
+		}
 		if math.IsNaN(v) {
 			if !math.IsNaN(vExpected) {
-				t.Fatalf("unexpected nan value at values[%d]; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
+				t.Fatalf("unexpected NaN value at values[%d]; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
 					i, vExpected, values, valuesExpected)
 			}
 			continue
 		}
 		if math.IsNaN(vExpected) {
 			if !math.IsNaN(v) {
-				t.Fatalf("unexpected value at values[%d]; got %f; want nan\nvalues=\n%v\nvaluesExpected=\n%v",
+				t.Fatalf("unexpected value at values[%d]; got %f; want NaN\nvalues=\n%v\nvaluesExpected=\n%v",
 					i, v, values, valuesExpected)
 			}
 			continue
@@ -1606,6 +1630,33 @@ func TestRollupDelta(t *testing.T) {
 	// Empty values
 	f(1, nan, nan, nil, 0)
 	f(100, nan, nan, nil, 0)
+}
+
+func TestRollupDerivFastPrometheus(t *testing.T) {
+	f := func(values []float64, window int64, resultExpected float64) {
+		t.Helper()
+		rfa := &rollupFuncArg{
+			values: values,
+			window: window,
+		}
+		result := rollupDerivFastPrometheus(rfa)
+		if math.IsNaN(result) {
+			if !math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+			}
+			return
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+	f(nil, 0, nan)
+	f(nil, 10, nan)
+	f([]float64{0, 10}, 0, nan)
+	f([]float64{10}, 10, nan)
+
+	f([]float64{0, 20}, 10e3, 2)
+	f([]float64{0, 10, 20}, 10e3, 2)
 }
 
 func TestRollupDeltaWithStaleness(t *testing.T) {
@@ -1746,6 +1797,28 @@ func TestRollupDeltaWithStaleness(t *testing.T) {
 		timestampsExpected := []int64{0, 30e3, 60e3, 90e3}
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
+
+	// the last sample is stale NaN
+	timestamps = []int64{0, 10000, 20000, 30000, 40000}
+	values = []float64{0, 0, 0, 10, decimal.StaleNaN}
+	t.Run("last point is stale nan", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupDelta,
+			Start:              40001,
+			End:                40001,
+			Step:               50000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 10 {
+			t.Fatalf("expecting 10 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{nan}
+		timestampsExpected := []int64{40001}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
 }
 
 func TestRollupIncreasePureWithStaleness(t *testing.T) {
@@ -1857,6 +1930,51 @@ func TestRollupIncreasePureWithStaleness(t *testing.T) {
 		}
 		valuesExpected := []float64{1, 0, 0, nan, 1}
 		timestampsExpected := []int64{0, 10e3, 20e3, 30e3, 40e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+}
+
+func TestRollupDerivFastWithStaleness(t *testing.T) {
+	timestamps := []int64{0, 10000, 20000, 30000, 40000}
+	values := []float64{0, 0, 0, 0, 10}
+	t.Run("no stale marker", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupDerivFast,
+			Start:              40001,
+			End:                40001,
+			Step:               50000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 10 {
+			t.Fatalf("expecting 10 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{0.25}
+		timestampsExpected := []int64{40001}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+
+	// the last sample is stale NaN
+	timestamps = []int64{0, 10000, 20000, 30000, 40000}
+	values = []float64{0, 0, 0, 10, decimal.StaleNaN}
+	t.Run("last point is stale nan", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupDerivFast,
+			Start:              40001,
+			End:                40001,
+			Step:               50000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 10 {
+			t.Fatalf("expecting 10 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{nan}
+		timestampsExpected := []int64{40001}
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 }

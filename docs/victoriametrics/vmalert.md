@@ -905,8 +905,8 @@ Rows in the section represent ordered rule evaluations and their results.
 Every state has the following attributes:
 1. `Updated at` - the real time when this rule was executed by vmalert.
 1. `Executed at` - `time` param that was sent within the evaluation request to datasource.
-1. `Samples` - the amount of data samples returned during at this evaluation. Recording rule that has 0 samples produces
-    no results. Alerting rule that has 0 samples means `expr` condition is false and rule is in inactive state.
+1. `Series returned` - the amount of series returned during at this evaluation. Recording rule that has 0 series produces
+    no results. Alerting rule that has 0 series means `expr` condition is false and rule is in inactive state.
 1. `Series fetched` - the amount of series scanned during query evaluation. See [never-firing alerts](#never-firing-alerts).
 1. `Duration` - the time it took to evaluate the rule. If `Duration` is close or bigger to evaluation interval, then this
     rule can skip evaluations. See how to deal with [slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries). 
@@ -914,10 +914,10 @@ Every state has the following attributes:
     The command can be used for debugging purposes to see what vmalert receives in response from datasource. 
     _Sensitive info is stripped from the `curl` examples - see [security](#security) section for more details._
 
-If a specific state shows that there were **no samples returned** and executed **cURL command returns some data**,
+If a specific state shows that there were **no series returned** and executed **cURL command returns some data**,
 then it is likely there was no data in datasource on the moment when rule was evaluated. See about [data delay](#data-delay).
 
-vmalert exposes `vmalert_recording_rules_last_evaluation_samples` for recording rules to represent the amount of samples
+vmalert exposes `vmalert_recording_rules_last_evaluation_samples` for recording rules to represent the amount of series
 returned during evaluations. The following alerting rule can be used to detect those recording rules that produce no data:
 ```yaml
       - alert: RecordingRulesNoData
@@ -984,9 +984,9 @@ vmalert allows configuring more detailed logging for specific alerting or record
 Or for all rules within the [group](#groups) {{% available_from "v1.117.0" %}}.
 Just set `debug: true` in configuration and vmalert will start printing additional log messages:
 ```sh
-2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms, isPartial: false)
+2022-09-15T13:35:41.155Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 series (elapsed: 5.896041ms, isPartial: false)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
-2022-09-15T13:35:56.178Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms, isPartial: false)
+2022-09-15T13:35:56.178Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 series (elapsed: 28.368208ms, isPartial: false)
 2022-09-15T13:35:56.178Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29&step=15s&time=1663248945"
 2022-09-15T13:35:56.179Z  DEBUG alerting rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} created in state PENDING
 ...
