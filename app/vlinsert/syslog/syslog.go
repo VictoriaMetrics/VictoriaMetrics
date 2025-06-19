@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -89,7 +88,6 @@ var (
 		"at the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
 	useLocalTimestampUDP = flagutil.NewArrayBool("syslog.useLocalTimestamp.udp", "Whether to use local timestamp instead of the original timestamp for the ingested syslog messages "+
 		"at the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
-	severityAsLevel = flag.Bool("syslog.severityAsLevel", true, "Store Syslog severity as level field.")
 )
 
 // MustInit initializes syslog parser at the given -syslog.listenAddr.tcp and -syslog.listenAddr.udp ports
@@ -386,7 +384,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, encoding string, us
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
 func processStream(protocol string, r io.Reader, encoding string, useLocalTimestamp bool, cp *insertutil.CommonParams) error {
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		return err
 	}
 
@@ -545,7 +543,7 @@ func putSyslogLineReader(slr *syslogLineReader) {
 var syslogLineReaderPool sync.Pool
 
 func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutil.LogMessageProcessor) error {
-	p := logstorage.GetSyslogParser(currentYear, timezone, *severityAsLevel)
+	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
 

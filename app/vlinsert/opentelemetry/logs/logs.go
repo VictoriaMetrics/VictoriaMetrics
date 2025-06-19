@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -27,7 +26,7 @@ func HandleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}

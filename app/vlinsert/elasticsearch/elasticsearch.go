@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -95,7 +94,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		if err := vlstorage.CanWriteData(); err != nil {
+		if err := insertutil.CanWriteData(); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}

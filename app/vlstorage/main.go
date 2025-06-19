@@ -252,8 +252,11 @@ func processForceFlush(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+// Storage implements insertutil.LogRowsStorage interface
+type Storage struct{}
+
 // CanWriteData returns non-nil error if it cannot write data to vlstorage
-func CanWriteData() error {
+func (*Storage) CanWriteData() error {
 	if localStorage == nil {
 		// The data can be always written in non-local mode.
 		return nil
@@ -272,7 +275,7 @@ func CanWriteData() error {
 // MustAddRows adds lr to vlstorage
 //
 // It is advised to call CanWriteData() before calling MustAddRows()
-func MustAddRows(lr *logstorage.LogRows) {
+func (*Storage) MustAddRows(lr *logstorage.LogRows) {
 	if localStorage != nil {
 		// Store lr in the local storage.
 		localStorage.MustAddRows(lr)

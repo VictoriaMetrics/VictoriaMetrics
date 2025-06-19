@@ -81,7 +81,7 @@ func (pu *pipeUnpackSyslog) visitSubqueries(visitFunc func(q *Query)) {
 func (pu *pipeUnpackSyslog) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackSyslog := func(uctx *fieldsUnpackerContext, s string) {
 		year := currentYear.Load()
-		p := GetSyslogParser(int(year), pu.offsetTimezone, false)
+		p := GetSyslogParser(int(year), pu.offsetTimezone)
 
 		p.Parse(s)
 		for _, f := range p.Fields {
