@@ -214,6 +214,18 @@ func (fb *fieldsBuf) addField(name, value string) {
 	})
 }
 
+func (fb *fieldsBuf) appendNextLineToValue(lr *insertutil.LineReader) error {
+	if !lr.NextLine() {
+		if err := lr.Err(); err != nil {
+			return err
+		}
+		return fmt.Errorf("unexpected end of stream")
+	}
+	fb.value = append(fb.value, lr.Line...)
+	fb.value = append(fb.value, '\n')
+	return nil
+}
+
 func getFieldsBuf() *fieldsBuf {
 	fb := fieldsBufPool.Get()
 	if fb == nil {
@@ -259,42 +271,35 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			return nil
 		}
 
-		// line could be either "key=value\n" or "key\n<little_endian_size_64>value\n"
+		// line could be either "key=value" or "key"
 		// according to https://systemd.io/JOURNAL_EXPORT_FORMATS/#journal-export-format
 		if n := bytes.IndexByte(line, '='); n >= 0 {
-			// "key=value\n"
+			// line = "key=value"
 			fb.name = append(fb.name[:0], line[:n]...)
 			name = bytesutil.ToUnsafeString(fb.name)
 
 			fb.value = append(fb.value[:0], line[n+1:]...)
 			value = bytesutil.ToUnsafeString(fb.value)
 		} else {
-			// "key\n<little_endian_size_64>value\n"
+			// line = "key"
+			// Parse the binary-encoded value from the next line according to "key\n<little_endian_size_64>value\n" format
 			fb.name = append(fb.name[:0], line...)
 			name = bytesutil.ToUnsafeString(fb.name)
 
 			fb.value = fb.value[:0]
 			for len(fb.value) < 8 {
-				if !lr.NextLine() {
-					if err := lr.Err(); err != nil {
-						return fmt.Errorf("cannot read value size: %w", err)
-					}
-					return fmt.Errorf("unexpected end of stream while reading value size")
+				if err := fb.appendNextLineToValue(lr); err != nil {
+					return fmt.Errorf("cannot read value size: %w", err)
 				}
-				fb.value = append(fb.value, lr.Line...)
-				fb.value = append(fb.value, '\n')
 			}
 			size := binary.LittleEndian.Uint64(fb.value[:8])
 
-			for size >= uint64(len(fb.value[8:])) {
-				if !lr.NextLine() {
-					if err := lr.Err(); err != nil {
-						return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value[8:]), err)
-					}
-					return fmt.Errorf("unexpected end of stream while reading %q value with size %d bytes; read only %d bytes", fb.name, size, len(fb.value[8:]))
+			// Read the value until its lenth exceeds the given size - the last char in the read value will always be '\n'
+			// because it is appended by appendNextLineToValue().
+			for uint64(len(fb.value[8:])) <= size {
+				if err := fb.appendNextLineToValue(lr); err != nil {
+					return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value[8:]), err)
 				}
-				fb.value = append(fb.value, lr.Line...)
-				fb.value = append(fb.value, '\n')
 			}
 			value = bytesutil.ToUnsafeString(fb.value[8 : len(fb.value)-1])
 			if uint64(len(value)) != size {
