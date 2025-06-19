@@ -26,6 +26,7 @@ var (
 
 var (
 	mandatoryStreamFields = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
+	msgFieldValue         = "-"
 )
 
 // HandleProtobuf handles the trace ingestion request.
@@ -152,6 +153,10 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 		// append link attributes
 		fields = appendKeyValuesWithPrefix(fields, link.Attributes, "", linkFieldPrefix+otelpb.LinkAttrPrefix)
 	}
+	fields = append(fields, logstorage.Field{
+		Name:  "_msg",
+		Value: msgFieldValue,
+	})
 	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
 	return fields
 }
