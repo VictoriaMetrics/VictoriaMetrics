@@ -11,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -36,6 +35,7 @@ type CommonParams struct {
 	DecolorizeFields []string
 	ExtraFields      []logstorage.Field
 
+	IsTimeFieldSet  bool
 	Debug           bool
 	DebugRequestURI string
 	DebugRemoteAddr string
@@ -49,8 +49,10 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
+	var isTimeFieldSet bool
 	timeFields := []string{"_time"}
 	if tfs := httputil.GetArray(r, "_time_field", "VL-Time-Field"); len(tfs) > 0 {
+		isTimeFieldSet = true
 		timeFields = tfs
 	}
 
@@ -86,9 +88,11 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		IgnoreFields:     ignoreFields,
 		DecolorizeFields: decolorizeFields,
 		ExtraFields:      extraFields,
-		Debug:            debug,
-		DebugRequestURI:  debugRequestURI,
-		DebugRemoteAddr:  debugRemoteAddr,
+
+		IsTimeFieldSet:  isTimeFieldSet,
+		Debug:           debug,
+		DebugRequestURI: debugRequestURI,
+		DebugRemoteAddr: debugRemoteAddr,
 	}
 
 	return cp, nil
@@ -139,6 +143,29 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 	}
 
 	return cp
+}
+
+// LogRowsStorage is an interface for ingesting logs into the storage.
+type LogRowsStorage interface {
+	// MustAddRows must add lr to the underlying storage.
+	MustAddRows(lr *logstorage.LogRows)
+
+	// CanWriteData must returns non-nil error if logs cannot be added to the underlying storage.
+	CanWriteData() error
+}
+
+var logRowsStorage LogRowsStorage
+
+// SetLogRowsStorage sets the storage for writing data to via LogMessageProcessor.
+//
+// This function must be called before using LogMessageProcessor and CanWriteData from this package.
+func SetLogRowsStorage(storage LogRowsStorage) {
+	logRowsStorage = storage
+}
+
+// CanWriteData returns non-nil error if data cannot be written to the underlying storage.
+func CanWriteData() error {
+	return logRowsStorage.CanWriteData()
 }
 
 // LogMessageProcessor is an interface for log message processors.
@@ -264,7 +291,7 @@ func (lmp *logMessageProcessor) AddInsertRow(r *logstorage.InsertRow) {
 // flushLocked must be called under locked lmp.mu.
 func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lastFlushTime = time.Now()
-	vlstorage.MustAddRows(lmp.lr)
+	logRowsStorage.MustAddRows(lmp.lr)
 	lmp.lr.ResetKeepSettings()
 }
 
