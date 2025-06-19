@@ -3,12 +3,13 @@ package elasticsearch
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"testing"
+
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
 	"github.com/klauspost/compress/zstd"
-	"io"
-	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )

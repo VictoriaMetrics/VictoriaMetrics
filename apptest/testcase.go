@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestCase holds the state and defines clean-up procedure common for all test
@@ -427,6 +426,30 @@ func (tc *TestCase) MustStartVlsingle(instance string, flags []string) *Vlsingle
 	tc.t.Helper()
 
 	app, err := StartVlsingle(instance, flags, tc.cli)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
+
+// MustStartDefaultVtsingle is a test helper function that starts an instance of
+// vtsingle with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVtsingle() *Vtsingle {
+	tc.t.Helper()
+
+	return tc.MustStartVtsingle("vtsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vtsingle",
+		"-retentionPeriod=100y",
+	})
+}
+
+// MustStartVtsingle is a test helper function that starts an instance of
+// vtsingle and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVtsingle(instance string, flags []string) *Vtsingle {
+	tc.t.Helper()
+
+	app, err := StartVtsingle(instance, flags, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
