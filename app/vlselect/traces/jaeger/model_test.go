@@ -11,8 +11,14 @@ import (
 )
 
 func TestFieldsToSpan(t *testing.T) {
-	f := func(input []logstorage.Field, want *span, wantErr error) {
+	f := func(input []logstorage.Field, want *span, errorStr string) {
 		t.Helper()
+
+		var wantErr error
+		if errorStr != "" {
+			wantErr = errors.New(errorStr)
+		}
+
 		got, err := fieldsToSpan(input)
 		if !errors.Is(err, wantErr) && !strings.Contains(err.Error(), wantErr.Error()) {
 			t.Fatalf("fieldsToSpan() error = %v, want err: %v", err, wantErr)
@@ -24,19 +30,19 @@ func TestFieldsToSpan(t *testing.T) {
 	}
 
 	// case 1: empty
-	f([]logstorage.Field{}, nil, errors.New("invalid fields"))
+	f([]logstorage.Field{}, nil, "invalid fields")
 
 	// case 2: without span_id
 	fields := []logstorage.Field{
 		{Name: otelpb.TraceIDField, Value: "1234567890"},
 	}
-	f(fields, nil, errors.New("invalid fields"))
+	f(fields, nil, "invalid fields")
 
 	// case 3: without trace_id
 	fields = []logstorage.Field{
 		{Name: otelpb.SpanIDField, Value: "12345"},
 	}
-	f(fields, nil, errors.New("invalid fields"))
+	f(fields, nil, "invalid fields")
 
 	// case 4: with basic fields
 	fields = []logstorage.Field{
@@ -46,7 +52,7 @@ func TestFieldsToSpan(t *testing.T) {
 	sp := &span{
 		traceID: "1234567890", spanID: "12345",
 	}
-	f(fields, sp, nil)
+	f(fields, sp, "")
 
 	// case 5: with all fields
 	// see: lib/protoparser/opentelemetry/pb/trace_fields.go
@@ -157,6 +163,5 @@ func TestFieldsToSpan(t *testing.T) {
 			},
 		},
 	}
-	f(fields, sp, nil)
-
+	f(fields, sp, "")
 }
