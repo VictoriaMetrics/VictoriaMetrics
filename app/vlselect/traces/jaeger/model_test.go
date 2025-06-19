@@ -1,8 +1,6 @@
 package jaeger
 
 import (
-	"errors"
-	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -11,17 +9,16 @@ import (
 )
 
 func TestFieldsToSpan(t *testing.T) {
-	f := func(input []logstorage.Field, want *span, errorStr string) {
+	f := func(input []logstorage.Field, want *span, errorMsg string) {
 		t.Helper()
 
-		var wantErr error
-		if errorStr != "" {
-			wantErr = errors.New(errorStr)
-		}
-
+		var errMsgGot string
 		got, err := fieldsToSpan(input)
-		if !errors.Is(err, wantErr) && !strings.Contains(err.Error(), wantErr.Error()) {
-			t.Fatalf("fieldsToSpan() error = %v, want err: %v", err, wantErr)
+		if err != nil {
+			errMsgGot = err.Error()
+		}
+		if errMsgGot != errorMsg {
+			t.Fatalf("fieldsToSpan() error = %v, want err: %v", err, errorMsg)
 		}
 		cmpOpts := cmp.AllowUnexported(span{}, process{}, spanRef{}, keyValue{}, log{})
 		if !cmp.Equal(got, want, cmpOpts) {
@@ -30,19 +27,19 @@ func TestFieldsToSpan(t *testing.T) {
 	}
 
 	// case 1: empty
-	f([]logstorage.Field{}, nil, "invalid fields")
+	f([]logstorage.Field{}, nil, "invalid fields: []")
 
 	// case 2: without span_id
 	fields := []logstorage.Field{
 		{Name: otelpb.TraceIDField, Value: "1234567890"},
 	}
-	f(fields, nil, "invalid fields")
+	f(fields, nil, "invalid fields: [{trace_id 1234567890}]")
 
 	// case 3: without trace_id
 	fields = []logstorage.Field{
 		{Name: otelpb.SpanIDField, Value: "12345"},
 	}
-	f(fields, nil, "invalid fields")
+	f(fields, nil, "invalid fields: [{span_id 12345}]")
 
 	// case 4: with basic fields
 	fields = []logstorage.Field{
