@@ -37,10 +37,10 @@ type Vtsingle struct {
 func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, error) {
 	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-logs", flags, &appOptions{
 		defaultFlags: map[string]string{
-			"-storageDataPath":                    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
-			"-httpListenAddr":                     "127.0.0.1:0",
-			"-opentelemetry.enableTracesSearch":   "true",
-			"-opentelemetry.enableTracsIngestion": "true",
+			"-storageDataPath":                     fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
+			"-httpListenAddr":                      "127.0.0.1:0",
+			"-opentelemetry.enableTracesSearch":    "true",
+			"-opentelemetry.enableTracesIngestion": "true",
 		},
 		extractREs: []*regexp.Regexp{
 			logsStorageDataPathRE,
