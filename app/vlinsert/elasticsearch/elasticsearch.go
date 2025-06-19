@@ -129,7 +129,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
-	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
+	bulkRequestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
 func readBulkRequest(streamName string, r io.Reader, encoding string, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (int, error) {
