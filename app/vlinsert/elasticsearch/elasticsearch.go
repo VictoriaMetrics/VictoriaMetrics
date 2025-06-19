@@ -30,36 +30,38 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	// This header is needed for Logstash
 	w.Header().Set("X-Elastic-Product", "Elasticsearch")
 
-	if strings.HasPrefix(path, "/_ilm/policy") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_ilm/policy") {
 		// Return fake response for Elasticsearch ilm request.
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/_index_template") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_index_template") {
 		// Return fake response for Elasticsearch index template request.
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/_ingest") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_ingest") {
 		// Return fake response for Elasticsearch ingest pipeline request.
 		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/put-pipeline-api.html
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/_nodes") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_nodes") {
 		// Return fake response for Elasticsearch nodes discovery request.
 		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/cluster.html
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/logstash") || strings.HasPrefix(path, "/_logstash") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/logstash") || strings.HasPrefix(path, "/insert/elasticsearch/_logstash") {
 		// Return fake response for Logstash APIs requests.
 		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/logstash-apis.html
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
 	switch path {
-	case "/", "":
+	// some clients may omit trailing slash
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
+	case "/insert/elasticsearch/", "/insert/elasticsearch":
 		switch r.Method {
 		case http.MethodGet:
 			// Return fake response for Elasticsearch ping request.
@@ -74,7 +76,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		return true
-	case "/_license":
+	case "/insert/elasticsearch/_license":
 		// Return fake response for Elasticsearch license request.
 		fmt.Fprintf(w, `{
 			"license": {
@@ -85,7 +87,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			}
 		}`)
 		return true
-	case "/_bulk":
+	case "/insert/elasticsearch/_bulk":
 		startTime := time.Now()
 		bulkRequestsTotal.Inc()
 
