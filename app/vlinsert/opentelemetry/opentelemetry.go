@@ -27,7 +27,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	// use the same path as opentelemetry collector
 	// https://opentelemetry.io/docs/specs/otlp/#otlphttp-request
 	case "/v1/traces":
-		if *enableTracesSupport == false {
+		if !*enableTracesSupport {
 			return false
 		}
 		if r.Header.Get("Content-Type") == "application/json" {
