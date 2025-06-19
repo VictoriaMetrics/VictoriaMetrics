@@ -174,7 +174,6 @@ func processStreamInternal(streamName string, r io.Reader, lmp insertutil.LogMes
 
 	for {
 		err := readJournaldLogEntry(streamName, lr, lmp, cp)
-		wcr.DecConcurrency()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
@@ -296,7 +295,7 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 				fb.value = append(fb.value, lr.Line...)
 				fb.value = append(fb.value, '\n')
 			}
-			value = bytesutil.ToUnsafeString(fb.value[8 : len(fb.value)-1])
+			value = bytesutil.ToUnsafeString(fb.value[8 : 8+size])
 			if uint64(len(value)) != size {
 				return fmt.Errorf("unexpected %q value size; got %d bytes; want %d bytes; value: %q", fb.name, len(value), size, value)
 			}
