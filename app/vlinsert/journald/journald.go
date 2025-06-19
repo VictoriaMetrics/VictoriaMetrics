@@ -282,7 +282,6 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 					return fmt.Errorf("unexpected end of stream while reading value size")
 				}
 				fb.value = append(fb.value, lr.Line...)
-				fb.value = append(fb.value, '\n')
 			}
 			size := binary.LittleEndian.Uint64(fb.value[:8])
 
