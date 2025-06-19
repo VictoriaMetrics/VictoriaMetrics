@@ -163,7 +163,7 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 var (
 	requestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/journald/upload"}`)
 	errorsTotal     = metrics.NewCounter(`vl_http_errors_total{path="/insert/journald/upload"}`)
-	requestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/journald/upload"}`)
+	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/journald/upload"}`)
 )
 
 func processStreamInternal(streamName string, r io.Reader, lmp insertutil.LogMessageProcessor, cp *insertutil.CommonParams) error {
