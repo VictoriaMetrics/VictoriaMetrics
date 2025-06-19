@@ -241,13 +241,6 @@ docker-vl-cluster-up:
 docker-vl-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
 
-# VT single
-docker-vt-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vt-single.yml up -d
-
-docker-vt-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vt-single.yml down -v
-
 # Command aliases to keep backward-compatibility, as they could have been mentioned on the Internet before the rename.
 docker-single-up: docker-vm-single-up
 docker-single-down: docker-vm-single-down
