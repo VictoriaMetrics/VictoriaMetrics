@@ -152,9 +152,9 @@ func (app *Vtsingle) OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceS
 	t.Helper()
 
 	pbData := request.MarshalProtobuf(nil)
-	_, code := app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
+	body, code := app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
 	if code != 200 {
-		t.Fatalf("got %d, expected 200", code)
+		t.Fatalf("got %d, expected 200. body: %s", code, body)
 	}
 }
 
