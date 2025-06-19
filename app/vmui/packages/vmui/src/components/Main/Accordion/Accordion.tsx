@@ -1,7 +1,6 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import { FC, useState, useEffect, ReactNode } from "react";
 import { ArrowDownIcon } from "../Icons";
 import "./style.scss";
-import { ReactNode } from "react";
 
 interface AccordionProps {
   title: ReactNode

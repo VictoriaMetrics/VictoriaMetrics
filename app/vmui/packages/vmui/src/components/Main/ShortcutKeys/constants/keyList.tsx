@@ -1,4 +1,3 @@
-import React from "preact/compat";
 import { isMacOs } from "../../../../utils/detect-device";
 import { VisibilityIcon } from "../../Icons";
 import GraphTips from "../../../Chart/GraphTips/GraphTips";

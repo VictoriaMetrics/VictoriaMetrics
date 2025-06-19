@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState, JSX } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useRef, useState, JSX, RefObject } from "react";
 import classNames from "classnames";
 import Popper from "../Popper/Popper";
 import "./style.scss";
@@ -17,7 +17,7 @@ export interface AutocompleteOptions {
 interface AutocompleteProps {
   value: string
   options: AutocompleteOptions[]
-  anchor: React.RefObject<HTMLElement>
+  anchor: RefObject<HTMLElement | null>
   disabled?: boolean
   minLength?: number
   fullWidth?: boolean
@@ -31,7 +31,7 @@ interface AutocompleteProps {
   onSelect: (val: string, item: AutocompleteOptions) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
-  onChangeWrapperRef?: (elementRef: React.RefObject<HTMLElement>) => void
+  onChangeWrapperRef?: (elementRef: RefObject<HTMLElement | null>) => void
 }
 
 enum FocusType {

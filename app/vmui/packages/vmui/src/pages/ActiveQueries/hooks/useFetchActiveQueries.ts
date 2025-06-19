@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "preact/compat";
+import { useEffect, useMemo, useState } from "react";
 import { getActiveQueries } from "../../../api/active-queries";
 import { useAppState } from "../../../state/common/StateContext";
 import { ActiveQueriesType, ErrorTypes } from "../../../types";

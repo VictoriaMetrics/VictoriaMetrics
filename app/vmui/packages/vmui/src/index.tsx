@@ -1,4 +1,4 @@
-import React, { render } from "preact/compat";
+import { createRoot } from "react-dom/client";
 import "./constants/dayjsPlugins";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
@@ -18,8 +18,11 @@ const getAppComponent = () => {
   }
 };
 
-const root = document.getElementById("root");
-if (root) render(getAppComponent(), root);
+const domNode = document.getElementById("root");
+if (domNode) {
+  const root = createRoot(domNode);
+  root.render(getAppComponent());
+}
 
 
 // If you want to start measuring performance in your app, pass a function

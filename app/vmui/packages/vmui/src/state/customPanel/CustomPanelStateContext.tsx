@@ -1,7 +1,5 @@
-import React, { createContext, FC, useContext, useMemo, useReducer } from "preact/compat";
+import { createContext, FC, ReactNode, useContext, useMemo, useReducer, Dispatch } from "react";
 import { CustomPanelAction, CustomPanelState, initialCustomPanelState, reducer } from "./reducer";
-
-import { Dispatch } from "react";
 
 type CustomPanelStateContextType = { state: CustomPanelState, dispatch: Dispatch<CustomPanelAction> };
 
@@ -10,7 +8,11 @@ export const CustomPanelStateContext = createContext<CustomPanelStateContextType
 export const useCustomPanelState = (): CustomPanelState => useContext(CustomPanelStateContext).state;
 export const useCustomPanelDispatch = (): Dispatch<CustomPanelAction> => useContext(CustomPanelStateContext).dispatch;
 
-export const CustomPanelStateProvider: FC = ({ children }) => {
+type Props = {
+  children: ReactNode;
+}
+
+export const CustomPanelStateProvider: FC<Props> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialCustomPanelState);
 
   const contextValue = useMemo(() => {

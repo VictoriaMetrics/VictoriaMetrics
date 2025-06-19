@@ -100,15 +100,15 @@ export const getHideSeries = ({ hideSeries, legend, metaKey, series, isAnomalyVi
 
   // if anomalyView is true, always return all series except the one specified by `label`
   if (isAnomalyView) {
-    return labels.filter(l => l !== label);
+    return labels.filter(l => l !== label) as string[];
   }
 
   if (metaKey) {
     return include ? hideSeries.filter(l => l !== label) : [...hideSeries, label];
   } else if (hideSeries.length) {
-    return include ? [...labels.filter(l => l !== label)] : [];
+    return include ? [...labels.filter(l => l !== label)] as string[] : [];
   } else {
-    return [...labels.filter(l => l !== label)];
+    return [...labels.filter(l => l !== label)] as string[];
   }
 };
 

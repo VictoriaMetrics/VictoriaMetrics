@@ -1,5 +1,5 @@
 import Header from "../Header/Header";
-import React, { FC, useEffect } from "preact/compat";
+import { FC, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import "../MainLayout/style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";

@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef, Dispatch, SetStateAction } from "preact/compat";
+import { useEffect, useState, useRef, useCallback, Dispatch, SetStateAction } from "react";
 import { useAppState } from "../state/common/StateContext";
 import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplete";
 import { LabelIcon, MetricIcon, ValueIcon } from "../components/Main/Icons";
 import { useTimeState } from "../state/time/TimeStateContext";
-import { useCallback } from "react";
 import debounce from "lodash.debounce";
 import { useQueryDispatch, useQueryState } from "../state/query/QueryStateContext";
 import { QueryContextType } from "../types";

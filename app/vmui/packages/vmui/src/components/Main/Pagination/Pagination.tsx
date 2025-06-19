@@ -1,6 +1,5 @@
-import React from "react";
 import { ArrowDownIcon } from "../Icons";
-import { useMemo } from "preact/compat";
+import { FC, useMemo } from "react";
 import classNames from "classnames";
 import "./style.scss";
 
@@ -12,7 +11,7 @@ interface PaginationProps {
   maxVisiblePages?: number;
 }
 
-const Pagination: React.FC<PaginationProps> = ({
+const Pagination: FC<PaginationProps> = ({
   currentPage,
   totalItems,
   itemsPerPage,

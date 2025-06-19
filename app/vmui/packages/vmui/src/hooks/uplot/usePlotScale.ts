@@ -1,7 +1,6 @@
-import { MinMax } from "../../types";
+import { MinMax, TimeParams } from "../../types";
 import { limitsDurations } from "../../utils/time";
-import { useEffect, useState } from "preact/compat";
-import { TimeParams } from "../../types";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
 interface PlotScaleHook {

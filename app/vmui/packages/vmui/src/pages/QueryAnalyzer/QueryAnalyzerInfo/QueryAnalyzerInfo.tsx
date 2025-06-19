@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "react";
 import { DataAnalyzerType } from "../index";
 import {
   ClockIcon,

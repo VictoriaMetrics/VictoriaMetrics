@@ -15,12 +15,12 @@ export type StorageKeys = "AUTOCOMPLETE"
   | "LOGS_LIMIT"
   | "LOGS_MARKDOWN"
   | "LOGS_DISABLED_HOVERS"
+  | "LOGS_ANSI"
   | "EXPLORE_METRICS_TIPS"
   | "LOGS_QUERY_HISTORY"
   | "METRICS_QUERY_HISTORY"
   | "SERVER_URL"
   | DeprecatedStorageKeys;
-
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
@@ -29,7 +29,6 @@ export const saveToStorage = (key: StorageKeys, value: string | boolean | Record
   } else {
     removeFromStorage([key]);
   }
-  window.dispatchEvent(new Event("storage"));
 };
 
 // TODO: make this aware of data type that is stored

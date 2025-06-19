@@ -1,9 +1,8 @@
-import React, { FC, useCallback, useState } from "preact/compat";
+import { FC, useRef, MouseEvent as ReactMouseEvent, useCallback } from "react";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import Button from "../Main/Button/Button";
 import { DownloadIcon } from "../Main/Icons";
 import Popper from "../Main/Popper/Popper";
-import { useRef } from "react";
 import "./style.scss";
 import useBoolean from "../../hooks/useBoolean";
 
@@ -34,7 +33,7 @@ const DownloadButton: FC<DownloadButtonProps> = ({ title, downloadFormatOptions,
     }
   }, [onDownload, onClosePopup, isPopupOpen, onOpenPopup]);
 
-  const onDownloadFormatClick = useCallback((event: Event) => {
+  const onDownloadFormatClick = useCallback((event: ReactMouseEvent) => {
     const button = event.currentTarget as HTMLButtonElement;
     onDownload(button.textContent ?? undefined);
   }, [onDownload]);

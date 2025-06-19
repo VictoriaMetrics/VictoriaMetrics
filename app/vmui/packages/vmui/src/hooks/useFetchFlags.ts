@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppState } from "../state/common/StateContext";
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { ErrorTypes } from "../types";
 import { APP_TYPE_VM } from "../constants/appType";
 import { getUrlWithoutTenant } from "../utils/tenants";

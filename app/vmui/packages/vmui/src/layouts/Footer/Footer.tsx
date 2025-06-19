@@ -1,4 +1,4 @@
-import React, { FC, memo } from "preact/compat";
+import { FC, memo } from "react";
 import { LogoShortIcon } from "../../components/Main/Icons";
 import "./style.scss";
 import { footerLinksByDefault } from "../../constants/footerLinks";
@@ -41,5 +41,7 @@ const Footer: FC<Props> = memo(({ links = footerLinksByDefault }) => {
     </div>
   </footer>;
 });
+
+Footer.displayName = "Footer";
 
 export default Footer;

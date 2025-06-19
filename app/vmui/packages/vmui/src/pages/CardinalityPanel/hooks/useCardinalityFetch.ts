@@ -1,6 +1,6 @@
 import { ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
-import { useEffect, useRef, useState } from "preact/compat";
+import { useEffect, useRef, useState } from "react";
 import { CardinalityRequestsParams, getCardinalityInfo, getMetricNamesStats } from "../../../api/tsdb";
 import { MetricNameStats, TSDBStatus } from "../types";
 import AppConfigurator from "../appConfigurator";
@@ -25,7 +25,7 @@ export const useFetchQuery = (): {
   const topN = +(searchParams.get("topN") || 10);
   const date = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
   const prevDate = usePrevious(date);
-  const prevTotal = useRef<{ data: TSDBStatus }>();
+  const prevTotal = useRef<{ data: TSDBStatus }>(null);
 
   const { serverUrl } = useAppState();
   const [isLoading, setIsLoading] = useState(false);

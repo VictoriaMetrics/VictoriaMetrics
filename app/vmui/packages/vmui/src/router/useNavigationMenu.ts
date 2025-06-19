@@ -1,7 +1,7 @@
 import { getAppModeEnable } from "../utils/app-mode";
 import { useDashboardsState } from "../state/dashboards/DashboardsStateContext";
 import { useAppState } from "../state/common/StateContext";
-import { useMemo } from "preact/compat";
+import { useMemo } from "react";
 import { processNavigationItems } from "./utils";
 import { getAnomalyNavigation, getDefaultNavigation, getLogsNavigation } from "./navigation";
 import { APP_TYPE, AppType } from "../constants/appType";

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef } from "preact/compat";
+import { FC, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import ShortcutKeys from "../../../components/Main/ShortcutKeys/ShortcutKeys";
 import classNames from "classnames";

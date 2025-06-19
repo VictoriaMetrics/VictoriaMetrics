@@ -1,7 +1,7 @@
-import React, { FC, useEffect, useMemo, useRef, useState, Fragment, createPortal } from "preact/compat";
+import { Children, cloneElement, FC, isValidElement, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import "./style.scss";
-import { ReactNode } from "react";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { createPortal } from "react-dom";
 
 interface TooltipProps {
   children: ReactNode
@@ -23,7 +23,7 @@ const Tooltip: FC<TooltipProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
 
-  const buttonRef = useRef<ReactNode>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
   const popperRef = useRef<HTMLDivElement>(null);
 
   const onScrollWindow = () => setIsOpen(false);
@@ -42,9 +42,7 @@ const Tooltip: FC<TooltipProps> = ({
   }, [isOpen, title]);
 
   const popperStyle = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const buttonEl = buttonRef?.current?.base as HTMLElement;
+    const buttonEl = buttonRef?.current;
 
     if (!buttonEl|| !isOpen) return {};
     const buttonPos = buttonEl.getBoundingClientRect();
@@ -97,9 +95,7 @@ const Tooltip: FC<TooltipProps> = ({
   }, [open]);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const nodeEl = buttonRef?.current?.base as HTMLElement;
+    const nodeEl = buttonRef?.current;
     if (!nodeEl) return;
     nodeEl.addEventListener("mouseenter", handleMouseEnter);
     nodeEl.addEventListener("mouseleave", handleMouseLeave);
@@ -110,13 +106,14 @@ const Tooltip: FC<TooltipProps> = ({
     };
   }, [buttonRef]);
 
+  const rawChild = Children.only(children);
+  const childWithRef = isValidElement(rawChild)
+    ? cloneElement(rawChild as never, { ref: buttonRef })
+    : rawChild;
+
   return (
     <>
-      <Fragment
-        ref={buttonRef}
-      >
-        {children}
-      </Fragment>
+      {childWithRef}
 
       {!isMobile && isOpen && createPortal((
         <div

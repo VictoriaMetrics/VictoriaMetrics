@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useMemo } from "preact/compat";
+import { FC, useCallback, useMemo } from "react";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";

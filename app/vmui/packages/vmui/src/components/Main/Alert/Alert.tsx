@@ -1,5 +1,4 @@
-import React, { FC } from "preact/compat";
-import { ReactNode } from "react";
+import { FC, ReactNode } from "react";
 import classNames from "classnames";
 import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "../Icons";
 import "./style.scss";

@@ -1,5 +1,5 @@
-import { FC, RefObject, useCallback, useRef } from "preact/compat";
-import { createPortal } from "preact/compat";
+import { FC, RefObject, useCallback } from "react";
+import { createPortal } from "react-dom";
 import DownloadLogsButton from "../../../DownloadLogsButton/DownloadLogsButton";
 import Button from "../../../../../components/Main/Button/Button";
 import SelectLimit from "../../../../../components/Main/Pagination/SelectLimit/SelectLimit";
@@ -11,7 +11,7 @@ import useBoolean from "../../../../../hooks/useBoolean";
 import { Logs } from "../../../../../api/types";
 
 interface LiveTailingSettingsProps {
-  settingsRef: RefObject<HTMLDivElement>;
+  settingsRef: RefObject<HTMLDivElement | null>;
   rowsPerPage: number;
   handleSetRowsPerPage: (limit: number) => void;
   logs: Logs[];
@@ -35,7 +35,6 @@ const LiveTailingSettings: FC<LiveTailingSettingsProps> = ({
   isCompactTailingNumber,
   handleSetCompactTailing
 }) => {
-  const settingButtonRef = useRef<HTMLDivElement>(null);
   const { value: isSettingsOpen, setFalse: closeSettings, setTrue: openSettings } = useBoolean(false);
 
   const getLogs = useCallback(() => logs.map(({ _log_id, ...log }) => log), [logs]);
@@ -91,7 +90,6 @@ const LiveTailingSettings: FC<LiveTailingSettingsProps> = ({
           title={"Settings"}
         >
           <Button
-            ref={settingButtonRef}
             variant="text"
             color="secondary"
             onClick={openSettings}

@@ -1,11 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "preact/compat";
+import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { getLogHitsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { LogHits } from "../../../api/types";
 import { getHitsTimeParams } from "../../../utils/logs";
 import { LOGS_GROUP_BY, LOGS_LIMIT_HITS } from "../../../constants/logs";
 import { isEmptyObject } from "../../../utils/object";
-import { useEffect } from "react";
 import { useTenant } from "../../../hooks/useTenant";
 
 export const useFetchLogHits = (server: string, query: string) => {

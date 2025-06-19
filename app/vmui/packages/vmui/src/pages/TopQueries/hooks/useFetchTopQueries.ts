@@ -1,8 +1,7 @@
-import { ErrorTypes, TopQuery } from "../../../types";
+import { ErrorTypes, TopQuery, TopQueriesData } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
-import { useMemo, useState } from "preact/compat";
+import { useMemo, useState } from "react";
 import { getTopQueries } from "../../../api/top-queries";
-import { TopQueriesData } from "../../../types";
 import { getDurationFromMilliseconds, relativeTimeOptions } from "../../../utils/time";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 import router from "../../../router";

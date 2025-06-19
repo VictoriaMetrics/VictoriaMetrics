@@ -1,6 +1,6 @@
-import React, { FC } from "react";
+import { FC, RefObject, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { InstantMetricResult } from "../../../api/types";
-import { createPortal, useMemo, useState } from "preact/compat";
 import TableView from "../../../components/Views/TableView/TableView";
 import TableSettings from "../../../components/Table/TableSettings/TableSettings";
 import { getColumns } from "../../../hooks/useSortedCategories";
@@ -8,7 +8,7 @@ import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/cust
 
 type Props = {
   liveData: InstantMetricResult[];
-  controlsRef: React.RefObject<HTMLDivElement>;
+  controlsRef: RefObject<HTMLDivElement | null>;
 }
 
 const TableTab: FC<Props> = ({ liveData, controlsRef }) => {

@@ -1,4 +1,3 @@
-import React from "react";
 import { getCssVariable } from "../../../utils/theme";
 
 export const LogoIcon = () => (

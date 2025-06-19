@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import Autocomplete, { AutocompleteOptions } from "../../../Main/Autocomplete/Autocomplete";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "../QueryEditor";

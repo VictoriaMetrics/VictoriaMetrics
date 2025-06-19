@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "react";
 import LegendItem from "../LegendItem/LegendItem";
 import { LegendProps } from "../LegendGroup";
 

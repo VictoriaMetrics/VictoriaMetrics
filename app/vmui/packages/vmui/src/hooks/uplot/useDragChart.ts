@@ -1,4 +1,4 @@
-import { useRef } from "preact/compat";
+import { useRef } from "react";
 import uPlot from "uplot";
 import { SetMinMax } from "../../types";
 

@@ -1,4 +1,4 @@
-import { FC, useRef } from "preact/compat";
+import { FC, useRef } from "react";
 import { CodeIcon, ListIcon, TableIcon, PlayIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import "./style.scss";

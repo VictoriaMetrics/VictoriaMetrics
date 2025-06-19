@@ -1,4 +1,4 @@
-import { FC, memo, useCallback, useEffect, useState } from "preact/compat";
+import { FC, memo, useCallback, useEffect, useState } from "react";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import Button from "../../../components/Main/Button/Button";
 import { CopyIcon, StorageIcon, VisibilityIcon } from "../../../components/Main/Icons";

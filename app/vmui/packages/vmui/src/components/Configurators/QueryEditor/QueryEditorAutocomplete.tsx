@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useMemo, useCallback } from "preact/compat";
+import { FC, useState, useEffect, useMemo, useCallback } from "react";
 import Autocomplete from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";

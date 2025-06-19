@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "react";
 import { LegendLogHits } from "../../../../api/types";
 
 interface Props {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "preact/compat";
+import { Dispatch, RefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { ErrorTypes } from "../../../../../types";
 import { Logs } from "../../../../../api/types";
 import { useAppState } from "../../../../../state/common/StateContext";
@@ -25,8 +25,8 @@ const CONNECTION_TIMEOUT_MS = 5000;
 const PROCESSING_INTERVAL_MS = 1000;
 
 const createStreamProcessor = (
-  bufferRef: React.MutableRefObject<string>,
-  bufferLinesRef: React.MutableRefObject<string[]>,
+  bufferRef: RefObject<string>,
+  bufferLinesRef: RefObject<string[]>,
   setError: (error: string) => void,
   restartTailing: () => Promise<boolean>
 ) => {
@@ -49,7 +49,7 @@ const createStreamProcessor = (
         lastDataTime = Date.now();
 
         const chunk = new TextDecoder().decode(value);
-        const lines = (bufferRef.current + chunk).split("\n");
+        const lines = (bufferRef?.current + chunk).split("\n");
         bufferRef.current = lines.pop() || "";
         bufferLinesRef.current = [...bufferLinesRef.current, ...lines];
       }
@@ -66,8 +66,8 @@ const createStreamProcessor = (
 
 const updateLimitModeTracking = (
   linesCount: number,
-  attemptsFetchLimitRef: React.MutableRefObject<number>,
-  attemptsFetchLowRef: React.MutableRefObject<number>,
+  attemptsFetchLimitRef: RefObject<number>,
+  attemptsFetchLowRef: RefObject<number>,
   isLimitedLogsPerUpdate: boolean,
 ) => {
   if (linesCount > LOGS_THRESHOLD) {
@@ -89,7 +89,7 @@ const updateLimitModeTracking = (
   return isLimitedLogsPerUpdate;
 };
 
-const parseLogLines = (lines: string[], counterRef: React.MutableRefObject<bigint>): Logs[] => {
+const parseLogLines = (lines: string[], counterRef: RefObject<bigint>): Logs[] => {
   return lines
     .map(line => {
       try {
@@ -107,12 +107,12 @@ const parseLogLines = (lines: string[], counterRef: React.MutableRefObject<bigin
 interface ProcessBufferedLogsParams {
   lines: string[];
   limit: number;
-  counterRef: React.MutableRefObject<bigint>;
-  attemptsFetchLimitRef: React.MutableRefObject<number>;
-  attemptsFetchLowRef: React.MutableRefObject<number>;
+  counterRef: RefObject<bigint>;
+  attemptsFetchLimitRef: RefObject<number>;
+  attemptsFetchLowRef: RefObject<number>;
   setIsLimitedLogsPerUpdate: (isLimited: boolean) => void;
-  setLogs: React.Dispatch<React.SetStateAction<Logs[]>>;
-  bufferLinesRef: React.MutableRefObject<string[]>;
+  setLogs: Dispatch<SetStateAction<Logs[]>>;
+  bufferLinesRef: RefObject<string[]>;
   isLimitedLogsPerUpdate: boolean;
 }
 
@@ -266,4 +266,4 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
     clearLogs,
     isLimitedLogsPerUpdate
   };
-}; 
+};

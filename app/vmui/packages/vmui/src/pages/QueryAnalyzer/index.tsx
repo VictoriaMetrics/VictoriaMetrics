@@ -1,5 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
-import { ChangeEvent } from "react";
+import { FC, useEffect, useMemo, useState, ChangeEvent } from "react";
 import Button from "../../components/Main/Button/Button";
 import Alert from "../../components/Main/Alert/Alert";
 import { CloseIcon } from "../../components/Main/Icons";

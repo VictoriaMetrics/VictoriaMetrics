@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
+import { FC, useCallback, useEffect, useRef, useState } from "react";
 import { DownloadIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { DashboardSettings, ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
 import { useDashboardsDispatch } from "../../../state/dashboards/DashboardsStateContext";

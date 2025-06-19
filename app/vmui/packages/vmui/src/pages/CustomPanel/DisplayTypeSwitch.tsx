@@ -1,9 +1,8 @@
-import React, { FC } from "preact/compat";
+import { FC, ReactNode } from "react";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { ChartIcon, CodeIcon, TableIcon } from "../../components/Main/Icons";
 import Tabs from "../../components/Main/Tabs/Tabs";
 import { DisplayType } from "../../types";
-import { ReactNode } from "react";
 
 type DisplayTab = {
   value: DisplayType

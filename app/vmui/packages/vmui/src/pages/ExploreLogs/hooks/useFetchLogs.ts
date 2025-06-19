@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import { FC, RefObject } from "react";
 import GraphView from "../../../components/Views/GraphView/GraphView";
 import GraphTips from "../../../components/Chart/GraphTips/GraphTips";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
@@ -8,12 +8,12 @@ import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphState
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { useQueryState } from "../../../state/query/QueryStateContext";
 import { MetricResult } from "../../../api/types";
-import { createPortal } from "preact/compat";
+import { createPortal } from "react-dom";
 
 type Props = {
   isHistogram: boolean;
   graphData: MetricResult[];
-  controlsRef: React.RefObject<HTMLDivElement>;
+  controlsRef: RefObject<HTMLDivElement | null>;
   isAnomalyView?: boolean;
 }
 

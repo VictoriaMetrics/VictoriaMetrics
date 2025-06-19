@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import { FC, useState } from "react";
 import "./style.scss";
 import "uplot/dist/uPlot.min.css";
 import { AlignedData } from "uplot";

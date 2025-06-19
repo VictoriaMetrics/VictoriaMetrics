@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
@@ -6,7 +6,6 @@ import { useQueryDispatch, useQueryState } from "../../../state/query/QueryState
 import { displayTypeTabs } from "../DisplayTypeSwitch";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import { useSearchParams } from "react-router-dom";
-import { useCallback } from "preact/compat";
 import { getInitialDisplayType } from "../../../state/customPanel/reducer";
 import { getInitialTimeState } from "../../../state/time/reducer";
 import useEventListener from "../../../hooks/useEventListener";

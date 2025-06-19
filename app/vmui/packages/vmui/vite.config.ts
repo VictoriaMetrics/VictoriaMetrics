@@ -1,7 +1,7 @@
 import * as path from "path";
 
 import { defineConfig, ProxyOptions } from "vite";
-import preact from "@preact/preset-vite";
+import react from "@vitejs/plugin-react";
 import dynamicIndexHtmlPlugin from "./config/plugins/dynamicIndexHtml";
 
 const getProxy = (): Record<string, ProxyOptions> | undefined => {
@@ -58,8 +58,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: "",
     plugins: [
-      preact(),
-      dynamicIndexHtmlPlugin({ mode })
+      react(),
+      dynamicIndexHtmlPlugin({ mode }),
     ],
     assetsInclude: ["**/*.md"],
     server: {

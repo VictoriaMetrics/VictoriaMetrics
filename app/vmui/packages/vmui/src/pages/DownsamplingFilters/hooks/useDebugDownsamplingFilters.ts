@@ -1,9 +1,8 @@
 import { useAppState } from "../../../state/common/StateContext";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ErrorTypes } from "../../../types";
 import { useSearchParams } from "react-router-dom";
 import { getDownsamplingFiltersDebug } from "../../../api/downsampling-filters-debug";
-import { useCallback } from "preact/compat";
 
 export const useDebugDownsamplingFilters = () => {
   const { serverUrl } = useAppState();

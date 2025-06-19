@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import { FC, useState, useRef } from "react";
 import LineLoader from "../../components/Main/LineLoader/LineLoader";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
@@ -6,7 +6,6 @@ import "../CustomPanel/style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
-import { useRef } from "react";
 import CustomPanelTabs from "../CustomPanel/CustomPanelTabs";
 import { DisplayTypeSwitch } from "../CustomPanel/DisplayTypeSwitch";
 import QueryConfigurator from "../CustomPanel/QueryConfigurator/QueryConfigurator";

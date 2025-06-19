@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import { FC, useMemo, useState } from "react";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import classNames from "classnames";

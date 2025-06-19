@@ -18,6 +18,7 @@ export interface SeriesItemStatsFormatted {
 }
 
 export interface SeriesItem extends Series {
+    label: string;
     freeFormFields: {[key: string]: string};
     statsFormatted: SeriesItemStatsFormatted;
     median: number;

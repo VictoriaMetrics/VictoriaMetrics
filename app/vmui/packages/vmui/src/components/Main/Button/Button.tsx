@@ -1,37 +1,37 @@
-import React, { FC } from "preact/compat";
+import { forwardRef, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import classNames from "classnames";
-import { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import "./style.scss";
 
 interface ButtonProps {
-  variant?: "contained" | "outlined" | "text"
-  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning" | "white"
-  size?: "small" | "medium" | "large"
-  ariaLabel?: string // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-label
-  endIcon?: ReactNode
-  startIcon?: ReactNode
-  fullWidth?: boolean
-  disabled?: boolean
-  children?: ReactNode
-  className?: string
-  onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void
-  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement>) => void
+  variant?: "contained" | "outlined" | "text";
+  color?: "primary" | "secondary" | "success" | "error" | "gray" | "warning" | "white";
+  size?: "small" | "medium" | "large";
+  ariaLabel?: string; // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-label
+  endIcon?: ReactNode;
+  startIcon?: ReactNode;
+  fullWidth?: boolean;
+  disabled?: boolean;
+  children?: ReactNode;
+  className?: string;
+  onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement>) => void;
 }
 
-const Button: FC<ButtonProps> = ({
-  variant = "contained",
-  color = "primary",
-  size = "medium",
-  ariaLabel,
-  children,
-  endIcon,
-  startIcon,
-  fullWidth = false,
-  className,
-  disabled,
-  onClick,
-  onMouseDown,
-}) => {
+const Button = forwardRef<HTMLButtonElement, ButtonProps>((props, ref) => {
+  const {
+    variant = "contained",
+    color = "primary",
+    size = "medium",
+    ariaLabel,
+    children,
+    endIcon,
+    startIcon,
+    fullWidth = false,
+    className,
+    disabled,
+    onClick,
+    onMouseDown,
+  } = props;
 
   const classesButton = classNames({
     "vm-button": true,
@@ -45,6 +45,7 @@ const Button: FC<ButtonProps> = ({
 
   return (
     <button
+      ref={ref}
       className={classesButton}
       disabled={disabled}
       aria-label={ariaLabel}
@@ -54,6 +55,8 @@ const Button: FC<ButtonProps> = ({
       {startIcon}{children}{endIcon}
     </button>
   );
-};
+});
+
+Button.displayName = "Button";
 
 export default Button;

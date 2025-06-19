@@ -1,4 +1,4 @@
-import React, { FC, useState, useMemo } from "react";
+import { FC, useState, useMemo } from "react";
 import { TopQuery } from "../../../types";
 import { getComparator, stableSort } from "../../../components/Table/helpers";
 import { TopQueryPanelProps } from "../TopQueryPanel/TopQueryPanel";
@@ -55,7 +55,9 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
               </div>
             </th>
           ))}
-          <th className="vm-table-cell vm-table-cell_header"/> {/* empty cell for actions */}
+          <th className="vm-table-cell vm-table-cell_header">
+            {/* empty cell for actions */}
+          </th>
         </tr>
       </thead>
       <tbody className="vm-table-body">

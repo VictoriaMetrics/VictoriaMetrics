@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "react";
 import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
 

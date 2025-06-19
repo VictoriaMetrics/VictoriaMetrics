@@ -1,11 +1,11 @@
-import React, { FC } from "react";
+import { FC } from "react";
 import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
 import { Data } from "./Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import MetricsContent from "./MetricsContent/MetricsContent";
-import { Tabs, TSDBStatus, Containers } from "./types";
+import { Tabs, TSDBStatus } from "./types";
 import Alert from "../../components/Main/Alert/Alert";
 import "./style.scss";
 import classNames from "classnames";
@@ -77,21 +77,20 @@ const CardinalityPanel: FC = () => {
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {appConfigurator.keys(match, focusLabel).map((keyName) => {
-        return <MetricsContent
+      {appConfigurator.keys(match, focusLabel).map((keyName) => (
+        <MetricsContent
           key={keyName}
           sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}
           tip={sectionsTips[keyName]}
           rows={tsdbStatusData[keyName as keyof TSDBStatus] as unknown as Data[]}
           onActionClick={handleFilterClick(keyName)}
           tabs={defaultState.tabs[keyName as keyof Tabs]}
-          chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
           isPrometheus={appConfigurator.isPrometheusData}
-        />;
-      })}
+        />
+      ))}
     </div>
   );
 };

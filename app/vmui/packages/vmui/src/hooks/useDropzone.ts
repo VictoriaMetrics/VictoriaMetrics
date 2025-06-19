@@ -1,6 +1,5 @@
-import { useState } from "preact/compat";
+import { useState, useRef } from "react";
 import useEventListener from "./useEventListener";
-import { useRef } from "react";
 
 const useDropzone = (): { dragging: boolean, files: File[] } => {
   const [files, setFiles] = useState<File[]>([]);

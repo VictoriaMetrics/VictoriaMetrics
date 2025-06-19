@@ -1,4 +1,4 @@
-import { useMemo } from "preact/compat";
+import { useMemo } from "react";
 import { LegendItemType } from "../../../../../types";
 import { QueryGroup } from "../Legend";
 

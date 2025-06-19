@@ -1,9 +1,8 @@
-import React, { createContext, FC, useContext, useEffect, useState } from "preact/compat";
+import { createContext, FC, useContext, useEffect, useState, ReactNode } from "react";
 import Alert from "../components/Main/Alert/Alert";
 import useDeviceDetect from "../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { CloseIcon } from "../components/Main/Icons";
-import { ReactNode } from "react";
 
 interface SnackbarItem {
   text: string | ReactNode,
@@ -28,7 +27,11 @@ export const SnackbarContext = createContext<SnackbarContextType>({
 
 export const useSnack = (): SnackbarContextType => useContext(SnackbarContext);
 
-export const SnackbarProvider: FC = ({ children }) => {
+type Props = {
+  children: ReactNode;
+}
+
+export const SnackbarProvider: FC<Props> = ({ children }) => {
   const { isMobile } = useDeviceDetect();
 
   const [snack, setSnack] = useState<SnackModel>({ text: "", type: "info" });

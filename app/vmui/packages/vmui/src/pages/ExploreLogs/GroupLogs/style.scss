@@ -261,6 +261,7 @@ $font-size-logs: var(--font-size-logs, $font-size-small);
       }
 
       &__sub-msg {
+        display: inline-block;
         padding-right: $padding-global;
       }
     }

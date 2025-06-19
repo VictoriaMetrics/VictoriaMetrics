@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, RefObject, useEffect, useRef, useState } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
 import "./style.scss";
@@ -11,7 +11,7 @@ import debounce from "lodash.debounce";
 
 export interface QueryEditorAutocompleteProps {
   value: string;
-  anchorEl: React.RefObject<HTMLInputElement>;
+  anchorEl: RefObject<HTMLInputElement | null>;
   caretPosition: [number, number]; // [start, end]
   hasHelperText: boolean;
   includeFunctions: boolean;

@@ -1,8 +1,7 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo, MouseEvent } from "react";
 import { LegendProps } from "../LegendGroup";
 import "./style.scss";
 import { LegendItemType } from "../../../../../types";
-import { MouseEvent } from "react";
 import classNames from "classnames";
 import get from "lodash.get";
 import { STATS_ORDER } from "../../../../../constants/graph";

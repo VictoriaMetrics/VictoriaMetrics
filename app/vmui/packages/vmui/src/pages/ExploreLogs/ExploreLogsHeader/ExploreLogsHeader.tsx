@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import { InfoIcon, PlayIcon, SpinnerIcon, WikiIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";

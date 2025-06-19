@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "react";
 import LegendHitsMenuRow from "./LegendHitsMenuRow";
 import useCopyToClipboard from "../../../../hooks/useCopyToClipboard";
 import { CopyIcon, FilterIcon, FilterOffIcon } from "../../../Main/Icons";

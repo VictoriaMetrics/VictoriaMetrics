@@ -1,5 +1,5 @@
 import { parseAnsiToHtml, getAnsiColor } from "./ansiParser";
-import { render } from "@testing-library/preact";
+import { render } from "@testing-library/react";
 
 describe("ANSI Parser", () => {
   // Test getAnsiColor for standard color values.

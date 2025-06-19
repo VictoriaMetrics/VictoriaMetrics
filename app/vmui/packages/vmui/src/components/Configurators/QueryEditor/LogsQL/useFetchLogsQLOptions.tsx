@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useRef, Dispatch, SetStateAction } from "preact/compat";
+import { useEffect, useState, useRef, useCallback, Dispatch, SetStateAction } from "react";
 import dayjs from "dayjs";
 import { ContextData, ContextType } from "./types";
 import { FunctionIcon, LabelIcon, MetricIcon, ValueIcon } from "../../../Main/Icons";
 import { AutocompleteOptions } from "../../../Main/Autocomplete/Autocomplete";
 import { useAppState } from "../../../../state/common/StateContext";
 import { useTimeState } from "../../../../state/time/TimeStateContext";
-import { useCallback } from "react";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { LogsFiledValues } from "../../../../api/types";
 import { useLogsDispatch, useLogsState } from "../../../../state/logsPanel/LogsStateContext";

@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useEffect, useRef, useState, createPortal } from "preact/compat";
-import { MouseEvent as ReactMouseEvent } from "react";
+import { FC, useCallback, useEffect, useRef, useState, MouseEvent as ReactMouseEvent } from "react";
 import useEventListener from "../../../hooks/useEventListener";
 import classNames from "classnames";
 import uPlot from "uplot";
@@ -7,6 +6,7 @@ import Button from "../../Main/Button/Button";
 import { CloseIcon, DragIcon } from "../../Main/Icons";
 import { SeriesItemStatsFormatted } from "../../../types";
 import { STATS_ORDER } from "../../../constants/graph";
+import { createPortal } from "react-dom";
 
 export interface ChartTooltipProps {
   u?: uPlot;
@@ -159,7 +159,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
         </p>
       </div>
       {statsFormatted && (
-        <table className="vm-chart-tooltip-stats">
+        <div className="vm-chart-tooltip-stats">
           {STATS_ORDER.map((key, i) => (
             <div
               className="vm-chart-tooltip-stats-row"
@@ -169,7 +169,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
               <span className="vm-chart-tooltip-stats-row__value">{statsFormatted[key]}</span>
             </div>
           ))}
-        </table>
+        </div>
       )}
       {info && <p className="vm-chart-tooltip__info">{info}</p>}
     </div>
