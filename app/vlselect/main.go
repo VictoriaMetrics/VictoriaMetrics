@@ -68,6 +68,9 @@ var (
 	})
 )
 
+var enableTracesSupport = flag.Bool("opentelemetry.enableTracesSearch", false, "Whether to enable traces query support on VictoriaLogs. "+
+	"By setting this flag, VictoriaLogs can accept Jaeger query requests at /select/jaeger/api/... endpoints. (default: false)")
+
 //go:embed vmui
 var vmuiFiles embed.FS
 
@@ -149,6 +152,9 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	}
 
 	if strings.HasPrefix(path, "/select/jaeger/") {
+		if !*enableTracesSupport {
+			return false
+		}
 		// Jaeger HTTP APIs for distributed tracing.
 		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
 		return jaeger.RequestHandler(ctxWithTimeout, w, r)
