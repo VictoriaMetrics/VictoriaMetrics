@@ -615,11 +615,6 @@ type rangeIterator struct {
 	s, e time.Time
 }
 
-func (ri *rangeIterator) reset() {
-	ri.iter = 0
-	ri.s, ri.e = time.Time{}, time.Time{}
-}
-
 func (ri *rangeIterator) next() bool {
 	ri.s = ri.start.Add(ri.step * time.Duration(ri.iter))
 	if !ri.end.After(ri.s) {
