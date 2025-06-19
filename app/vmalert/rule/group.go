@@ -515,20 +515,21 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	fmt.Printf("\nGroup %q"+
 		"\ninterval: \t%v"+
 		"\nconcurrency: \t %d"+
-		"\nrequests to make: \t%d"+
+		"\nrequests to make per rule: \t%d"+
 		"\nmax range per request: \t%v\n",
 		g.Name, g.Interval, g.Concurrency, iterations, step)
 	if g.Limit > 0 {
 		fmt.Printf("\nWarning: `limit: %d` param has no effect during replay.\n",
 			g.Limit)
 	}
-
+	concurrency := g.Concurrency
 	if g.Concurrency > 1 && replayDelay > 0 {
 		fmt.Printf("\nWarning: group concurrency %d will be ignored since `-replay.rulesDelay` is %.3f seconds."+
 			" Set -replay.rulesDelay=0 to enable concurrency for replay.\n", g.Concurrency, replayDelay.Seconds())
+		concurrency = 1
 	}
 
-	if g.Concurrency == 1 || replayDelay > 0 {
+	if concurrency == 1 {
 		for _, rule := range g.Rules {
 			var bar *pb.ProgressBar
 			if !disableProgressBar {
