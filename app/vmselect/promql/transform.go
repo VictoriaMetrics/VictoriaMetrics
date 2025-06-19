@@ -1991,7 +1991,14 @@ func transformLabelSplit(tfa *transformFuncArg) ([]*timeseries, error) {
 			continue
 		}
 		parts := strings.Split(string(srcValue), separator)
+		partDup := make(map[string]bool)
 		for i, p := range parts {
+			//avoid duplicate series
+			if v, ok := partDup[p]; ok && v {
+				continue
+			}
+			partDup[p] = true
+
 			//modify the first one in place, skip a copy
 			if i == 0 {
 				dstValue := getDstValue(mn, dstLabel)

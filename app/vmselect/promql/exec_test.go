@@ -2484,6 +2484,33 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run("label_split(duplicate)", func(t *testing.T) {
+		t.Parallel()
+		q := `with (
+			x = (
+				label_set(vector(time()), "foo", "a,a,a,a"),
+			)
+		)
+		label_split(x, "split", ",", "foo")
+		`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("a,a,a,a"),
+			},
+			{
+				Key:   []byte("split"),
+				Value: []byte("a"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 
 	t.Run(`label_value()`, func(t *testing.T) {
 		t.Parallel()
