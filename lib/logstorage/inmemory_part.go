@@ -96,7 +96,7 @@ func (mp *inmemoryPart) mustInitFromRows(lr *logRows) {
 		fields := rows[i]
 		trs.timestamps = append(trs.timestamps, timestamps[i])
 		trs.rows = append(trs.rows, fields)
-		uncompressedBlockSizeBytes += uncompressedRowSizeBytes(fields)
+		uncompressedBlockSizeBytes += uint64(EstimatedJSONRowLen(fields))
 	}
 	bsw.MustWriteRows(sidPrev, trs.timestamps, trs.rows)
 	putTmpRows(trs)
