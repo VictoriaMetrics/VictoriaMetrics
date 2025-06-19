@@ -61,11 +61,13 @@ Now everything should be ready!
 
 ```shell
   -opentelemetry.enableTracesSearch
-        Whether to enable traces query support on VictoriaLogs. 
-	    By setting this flag, VictoriaLogs can accept Jaeger query requests at /select/jaeger/api/... endpoints. (default: false)
+        (experimental) Whether to enable traces query support on VictoriaLogs. 
+	    By setting this flag, VictoriaLogs can accept Jaeger query requests at /select/jaeger/api/... endpoints. 
+	    This feature is experimental and subject to change, including potential data incompatibility. (default: false)
   -opentelemetry.enableTracesIngestion
-        Whether to enable traces ingestion support on VictoriaLogs.
-	    By setting this flag, VictoriaLogs can accept OTLP traces requests at /insert/opentelemetry/v1/traces endpoint. (default: false)
+        (experimental) Whether to enable traces ingestion support on VictoriaLogs.
+	    By setting this flag, VictoriaLogs can accept OTLP traces requests at /insert/opentelemetry/v1/traces endpoint. 
+	    This feature is experimental and subject to change, including potential data incompatibility. (default: false)
   -search.traceMaxDurationWindow
     	The lookbehind/lookahead window of searching for the rest trace spans after finding one span.
 		It allows extending the search start time and end time by `-search.traceMaxDurationWindow` to make sure all spans are included.

@@ -9,8 +9,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 )
 
-var enableTracesSupport = flag.Bool("opentelemetry.enableTracesIngestion", false, "Whether to enable traces ingestion support on VictoriaLogs. "+
-	"By setting this flag, VictoriaLogs can accept OTLP traces requests at /insert/opentelemetry/v1/traces endpoint. (default: false)")
+var enableTracesSupport = flag.Bool("opentelemetry.enableTracesIngestion", false, "(experimental) Whether to enable traces ingestion support on VictoriaLogs. "+
+	"By setting this flag, VictoriaLogs can accept OTLP traces requests at /insert/opentelemetry/v1/traces endpoint. "+
+	"This feature is experimental and subject to change, including potential data incompatibility. (default: false)")
 
 // RequestHandler processes Opentelemetry insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {

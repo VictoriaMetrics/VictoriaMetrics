@@ -68,8 +68,9 @@ var (
 	})
 )
 
-var enableTracesSupport = flag.Bool("opentelemetry.enableTracesSearch", false, "Whether to enable traces query support on VictoriaLogs. "+
-	"By setting this flag, VictoriaLogs can accept Jaeger query requests at /select/jaeger/api/... endpoints. (default: false)")
+var enableTracesSupport = flag.Bool("opentelemetry.enableTracesSearch", false, "(experimental) Whether to enable traces query support on VictoriaLogs. "+
+	"By setting this flag, VictoriaLogs can accept Jaeger query requests at /select/jaeger/api/... endpoints. "+
+	"This feature is experimental and subject to change, including potential data incompatibility. (default: false)")
 
 //go:embed vmui
 var vmuiFiles embed.FS
