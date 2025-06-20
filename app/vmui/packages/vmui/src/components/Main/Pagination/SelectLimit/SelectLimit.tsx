@@ -1,4 +1,4 @@
-import { FC, useMemo, useRef } from "preact/compat";
+import { FC, useMemo, useRef } from "react";
 import { ArrowDropDownIcon } from "../../Icons";
 import useBoolean from "../../../../hooks/useBoolean";
 import Popper from "../../Popper/Popper";

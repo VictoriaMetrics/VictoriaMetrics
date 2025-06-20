@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { ErrorTypes } from "../types";
 import { useAppState } from "../state/common/StateContext";
 import { useTimeDispatch } from "../state/time/TimeStateContext";

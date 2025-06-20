@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LegendQueryParams } from "../types";
 import { WITHOUT_GROUPING } from "../../../../../constants/logs";

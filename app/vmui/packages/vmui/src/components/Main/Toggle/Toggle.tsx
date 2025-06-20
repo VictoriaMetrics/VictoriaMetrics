@@ -1,6 +1,5 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState, ReactNode } from "react";
 import classNames from "classnames";
-import { ReactNode } from "react";
 import "./style.scss";
 
 interface ToggleProps {

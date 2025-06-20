@@ -1,4 +1,5 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { FC, RefObject, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import "./style.scss";
 import { Logs } from "../../../api/types";
 import Accordion from "../../../components/Main/Accordion/Accordion";
@@ -23,7 +24,7 @@ import { hasSortPipe } from "../../../components/Configurators/QueryEditor/LogsQ
 
 interface Props {
   logs: Logs[];
-  settingsRef: React.RefObject<HTMLElement>;
+  settingsRef: RefObject<HTMLElement | null>;
 }
 
 const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
@@ -144,7 +145,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
       </div>
 
 
-      {settingsRef.current && React.createPortal((
+      {settingsRef.current && createPortal((
         <div className="vm-group-logs-header">
           <div className="vm-explore-logs-body-header__log-info">
             Total groups: <b>{groupData.length}</b>

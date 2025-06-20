@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import { getContrastColor } from "../../../utils/color";
 import { getCssVariable, isSystemDark, setCssVariable } from "../../../utils/theme";
 import { AppParams, getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";

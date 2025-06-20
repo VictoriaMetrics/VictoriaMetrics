@@ -1,5 +1,4 @@
-import { Containers, MetricNameStats, Tabs, TSDBStatus } from "./types";
-import { useRef } from "preact/compat";
+import { MetricNameStats, Tabs, TSDBStatus } from "./types";
 import { HeadCell } from "./Table/types";
 
 import {
@@ -12,7 +11,6 @@ import {
 
 interface AppState {
   tabs: Tabs;
-  containerRefs: Containers<HTMLDivElement>;
 }
 
 export default class AppConfigurator {
@@ -99,14 +97,9 @@ export default class AppConfigurator {
           ...acc.tabs,
           [cur]: this.tabsNames,
         },
-        containerRefs: {
-          ...acc.containerRefs,
-          [cur]: useRef<HTMLDivElement>(null),
-        },
       };
     }, {
       tabs: {} as Tabs,
-      containerRefs: {} as Containers<HTMLDivElement>,
     } as AppState);
   }
 

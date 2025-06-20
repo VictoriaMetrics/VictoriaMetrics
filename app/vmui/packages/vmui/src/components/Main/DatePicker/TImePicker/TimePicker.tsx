@@ -1,6 +1,5 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useRef, useState, FormEvent, FocusEvent } from "react";
 import { Dayjs } from "dayjs";
-import { FormEvent, FocusEvent } from "react";
 import classNames from "classnames";
 import { useAppState } from "../../../../state/common/StateContext";
 

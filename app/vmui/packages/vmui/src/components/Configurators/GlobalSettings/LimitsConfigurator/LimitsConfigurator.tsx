@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useState } from "preact/compat";
+import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { DisplayType, ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
@@ -100,5 +100,7 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
     </div>
   );
 });
+
+LimitsConfigurator.displayName = "LimitsConfigurator";
 
 export default LimitsConfigurator;

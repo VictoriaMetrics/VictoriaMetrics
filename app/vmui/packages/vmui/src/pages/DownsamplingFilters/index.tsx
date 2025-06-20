@@ -1,7 +1,6 @@
-import React, { FC, useEffect } from "preact/compat";
+import { FC, useEffect, useCallback, useState } from "react";
 import "./style.scss";
 import TextField from "../../components/Main/TextField/TextField";
-import { useCallback, useState } from "react";
 import Button from "../../components/Main/Button/Button";
 import { PlayIcon, WikiIcon } from "../../components/Main/Icons";
 import { useDebugDownsamplingFilters } from "./hooks/useDebugDownsamplingFilters";

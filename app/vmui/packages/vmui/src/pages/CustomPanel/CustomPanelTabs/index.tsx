@@ -1,4 +1,4 @@
-import React, { FC, RefObject } from "react";
+import { FC, RefObject } from "react";
 import GraphTab from "./GraphTab";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import TableTab from "./TableTab";
@@ -10,7 +10,7 @@ type Props = {
   liveData?: InstantMetricResult[];
   isHistogram: boolean;
   displayType: DisplayType;
-  controlsRef: RefObject<HTMLDivElement>;
+  controlsRef: RefObject<HTMLDivElement | null>;
 }
 
 const CustomPanelTabs: FC<Props> = ({

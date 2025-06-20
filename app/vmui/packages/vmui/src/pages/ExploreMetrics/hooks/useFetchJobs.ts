@@ -1,5 +1,5 @@
 import { useTimeState } from "../../../state/time/TimeStateContext";
-import { useEffect, useMemo, useState } from "preact/compat";
+import { useEffect, useMemo, useState } from "react";
 import { getJobsUrl } from "../../../api/explore-metrics";
 import { useAppState } from "../../../state/common/StateContext";
 import { ErrorTypes } from "../../../types";

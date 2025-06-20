@@ -1,11 +1,10 @@
-import { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
+import { FC, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ViewProps } from "../../types";
 import useStateSearchParams from "../../../../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../../../../hooks/useSearchParamsFromObject";
 import "./style.scss";
 import { useLiveTailingLogs } from "./useLiveTailingLogs";
 import { LOGS_DISPLAY_FIELDS, LOGS_URL_PARAMS } from "../../../../../constants/logs";
-import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import throttle from "lodash/throttle";
 import GroupLogsItem from "../../../GroupLogs/GroupLogsItem";

@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/preact";
+import { act, renderHook } from "@testing-library/react";
 import { useLiveTailingLogs } from "./useLiveTailingLogs";
 import { vi } from "vitest";
 

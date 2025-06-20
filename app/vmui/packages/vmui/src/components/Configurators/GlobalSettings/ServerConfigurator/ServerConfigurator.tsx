@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "preact/compat";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import { isValidHttpUrl } from "../../../../utils/url";
@@ -101,5 +101,7 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
     </div>
   );
 });
+
+ServerConfigurator.displayName = "ServerConfigurator";
 
 export default ServerConfigurator;

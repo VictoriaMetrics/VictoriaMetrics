@@ -1,4 +1,4 @@
-import React, { FC, useRef } from "preact/compat";
+import { FC, useRef, useEffect } from "react";
 import AxesLimitsConfigurator from "./AxesLimitsConfigurator/AxesLimitsConfigurator";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { SettingsIcon } from "../../Main/Icons";
@@ -13,7 +13,6 @@ import { isHistogramData } from "../../../utils/metric";
 import LegendConfigs from "../../Chart/Line/Legend/LegendConfigs/LegendConfigs";
 import Modal from "../../Main/Modal/Modal";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
-import { useEffect } from "react";
 
 const title = "Graph & Legend Settings";
 

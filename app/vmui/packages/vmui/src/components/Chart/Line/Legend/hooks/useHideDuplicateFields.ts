@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "preact/compat";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LegendQueryParams } from "../types";
 import { LegendItemType } from "../../../../../types";

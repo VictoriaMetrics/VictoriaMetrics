@@ -1,8 +1,8 @@
-import React, { Dispatch, FC, SetStateAction, useEffect, useState } from "preact/compat";
+import { Dispatch, FC, SetStateAction, useEffect, useState, MouseEvent as ReactMouseEvent } from "react";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
-import { MAX_QUERIES_HISTORY, MAX_QUERY_FIELDS } from "../../../constants/graph";
+import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import {
@@ -18,7 +18,6 @@ import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
-import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";

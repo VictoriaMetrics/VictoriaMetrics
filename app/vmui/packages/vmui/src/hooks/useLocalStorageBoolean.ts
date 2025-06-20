@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/compat";
+import { useMemo, useState } from "react";
 import { getFromStorage, saveToStorage, StorageKeys } from "../utils/storage";
 import useEventListener from "./useEventListener";
 import { useCallback } from "react";

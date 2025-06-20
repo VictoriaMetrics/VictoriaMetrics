@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { isSystemDark } from "../utils/theme";
 
 const useThemeDetector = () => {

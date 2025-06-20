@@ -1,6 +1,5 @@
-import React, { FC, useEffect } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import "./style.scss";
-import { useState } from "react";
 import Tooltip from "../Tooltip/Tooltip";
 import Button from "../Button/Button";
 import { CopyIcon } from "../Icons";

@@ -1,7 +1,6 @@
-import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import { FC, useMemo, useRef, useState, MouseEvent } from "react";
 import classNames from "classnames";
 import { Series } from "uplot";
-import { MouseEvent } from "react";
 import { LegendLogHits } from "../../../../api/types";
 import { getStreamPairs } from "../../../../utils/logs";
 import { formatNumberShort } from "../../../../utils/math";

@@ -1,5 +1,4 @@
-import React, { Component, FC, useRef, useState } from "preact/compat";
-import { ReactNode, useEffect } from "react";
+import { FC, useRef, useState, useEffect, ReactNode } from "react";
 import { getCssVariable } from "../../../utils/theme";
 import TabItem from "./TabItem";
 import "./style.scss";
@@ -30,12 +29,12 @@ const Tabs: FC<TabsProps> = ({
   isNavLink,
 }) => {
   const windowSize = useWindowSize();
-  const activeNavRef = useRef<Component>(null);
+  const activeNavRef = useRef<HTMLDivElement>(null);
   const [indicatorPosition, setIndicatorPosition] = useState({ left: 0, width: 0, bottom: 0 });
 
   useEffect(() => {
-    if(activeNavRef.current?.base instanceof HTMLElement) {
-      const { offsetLeft: left, offsetWidth: width, offsetHeight: height } = activeNavRef.current.base;
+    if(activeNavRef.current instanceof HTMLElement) {
+      const { offsetLeft: left, offsetWidth: width, offsetHeight: height } = activeNavRef.current;
       const positionTop = indicatorPlacement === "top";
       setIndicatorPosition({ left, width, bottom: positionTop ? height - 2 : 0 });
     }

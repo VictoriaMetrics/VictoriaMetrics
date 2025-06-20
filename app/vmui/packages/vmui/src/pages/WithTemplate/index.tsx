@@ -1,7 +1,6 @@
-import React, { FC } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import "./style.scss";
 import TextField from "../../components/Main/TextField/TextField";
-import { useEffect, useState } from "react";
 import Button from "../../components/Main/Button/Button";
 import { PlayIcon } from "../../components/Main/Icons";
 import WithTemplateTutorial from "./WithTemplateTutorial/WithTemplateTutorial";

@@ -1,4 +1,3 @@
-import React from "react";
 import { ContextType } from "./types";
 import { FunctionIcon } from "../../../Main/Icons";
 

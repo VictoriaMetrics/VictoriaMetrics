@@ -1,5 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
-import { MouseEvent } from "react";
+import { FC, useEffect, useRef, useState, MouseEvent } from "react";
 import LineProgress from "../../Main/LineProgress/LineProgress";
 import Trace from "../Trace";
 import { ArrowDownIcon } from "../../Main/Icons";

@@ -1,10 +1,8 @@
-import React, { FC } from "react";
+import { FC, useMemo, useState } from "react";
 import EnhancedTable from "../Table/Table";
 import TableCells from "../Table/TableCells/TableCells";
 import { Data, HeadCell } from "../Table/types";
-import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
-import { useMemo, useState } from "preact/compat";
 import { ChartIcon, InfoIcon, InfoOutlinedIcon, TableIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
@@ -16,7 +14,6 @@ interface MetricsProperties {
   rows: Data[];
   onActionClick: (name: string) => void;
   tabs: string[];
-  chartContainer: MutableRef<HTMLDivElement> | undefined;
   totalSeries: number,
   totalSeriesPrev: number,
   sectionTitle: string;
@@ -28,7 +25,6 @@ interface MetricsProperties {
 const MetricsContent: FC<MetricsProperties> = ({
   rows,
   tabs: tabsProps = [],
-  chartContainer,
   totalSeries,
   totalSeriesPrev,
   onActionClick,
@@ -111,7 +107,6 @@ const MetricsContent: FC<MetricsProperties> = ({
       )}
       {!noDataPrometheus && activeTab === "table" && (
         <div
-          ref={chartContainer}
           className={classNames({
             "vm-metrics-content__table": true,
             "vm-metrics-content__table_mobile": isMobile

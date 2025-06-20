@@ -1,9 +1,9 @@
-import React, { FC } from "preact/compat";
+import { FC, memo } from "react";
 import GroupLogs from "../../../GroupLogs/GroupLogs";
 import { ViewProps } from "../../types";
 import EmptyLogs from "../components/EmptyLogs/EmptyLogs";
 
-const MemoizedGroupLogs = React.memo(GroupLogs);
+const MemoizedGroupLogs = memo(GroupLogs);
 
 const GroupView: FC<ViewProps> = ({ data, settingsRef }) => {
   if (!data.length) return <EmptyLogs />;
@@ -18,4 +18,4 @@ const GroupView: FC<ViewProps> = ({ data, settingsRef }) => {
   );
 };
 
-export default GroupView; 
+export default GroupView;

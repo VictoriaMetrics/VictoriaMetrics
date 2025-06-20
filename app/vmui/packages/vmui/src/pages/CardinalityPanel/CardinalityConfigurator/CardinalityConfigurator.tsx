@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "react";
+import { FC, useMemo, useEffect } from "react";
 import { PlayIcon, QuestionIcon, RestartIcon, TipIcon, WikiIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
@@ -6,7 +6,6 @@ import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
-import { useEffect } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
 import CardinalityTotals, { CardinalityTotalsProps } from "../CardinalityTotals/CardinalityTotals";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";

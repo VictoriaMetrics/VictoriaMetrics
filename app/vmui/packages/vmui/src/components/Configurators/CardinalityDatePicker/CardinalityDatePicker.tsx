@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef } from "preact/compat";
+import { FC, useEffect, useMemo, useRef } from "react";
 import dayjs from "dayjs";
 import Button from "../../Main/Button/Button";
 import { ArrowDownIcon, CalendarIcon } from "../../Main/Icons";

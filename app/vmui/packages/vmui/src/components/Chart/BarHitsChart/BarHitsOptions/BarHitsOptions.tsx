@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef } from "preact/compat";
+import { FC, useEffect, useMemo, useRef } from "react";
 import { GraphOptions, GRAPH_STYLES } from "../types";
 import Switch from "../../../Main/Switch/Switch";
 import "./style.scss";

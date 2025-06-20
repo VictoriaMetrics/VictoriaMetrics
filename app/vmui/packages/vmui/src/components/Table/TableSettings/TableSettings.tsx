@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useMemo } from "preact/compat";
+import { FC, useEffect, useRef, useMemo, useState } from "react";
 import Button from "../../Main/Button/Button";
 import { SearchIcon, SettingsIcon } from "../../Main/Icons";
 import "./style.scss";
@@ -9,7 +9,6 @@ import { arrayEquals } from "../../../utils/array";
 import classNames from "classnames";
 import useBoolean from "../../../hooks/useBoolean";
 import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
-import { useState } from "react";
 import Modal from "../../Main/Modal/Modal";
 import { useSearchParams } from "react-router-dom";
 

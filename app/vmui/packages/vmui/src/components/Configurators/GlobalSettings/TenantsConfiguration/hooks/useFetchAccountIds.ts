@@ -1,5 +1,5 @@
 import { useAppState } from "../../../../../state/common/StateContext";
-import { useEffect, useMemo, useState } from "preact/compat";
+import { useEffect, useMemo, useState } from "react";
 import { ErrorTypes } from "../../../../../types";
 import { getAccountIds } from "../../../../../api/accountId";
 import { getAppModeEnable, getAppModeParams } from "../../../../../utils/app-mode";

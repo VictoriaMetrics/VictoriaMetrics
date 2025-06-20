@@ -1,4 +1,4 @@
-import { useCallback, useState } from "preact/compat";
+import { useCallback, useState } from "react";
 import useEventListener from "../useEventListener";
 import { MinMax, SetMinMax } from "../../types";
 

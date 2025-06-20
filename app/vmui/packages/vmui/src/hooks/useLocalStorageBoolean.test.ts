@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/preact";
+import { act, renderHook } from "@testing-library/react";
 import { useLocalStorageBoolean } from "./useLocalStorageBoolean";
 import * as storageUtils from "../utils/storage";
 import { Mock } from "vitest";

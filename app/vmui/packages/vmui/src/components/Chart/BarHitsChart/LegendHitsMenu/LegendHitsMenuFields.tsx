@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "react";
 import LegendHitsMenuRow from "./LegendHitsMenuRow";
 import { CopyIcon, FilterIcon, FilterOffIcon } from "../../../Main/Icons";
 import { convertToFieldFilter } from "../../../../utils/logs";

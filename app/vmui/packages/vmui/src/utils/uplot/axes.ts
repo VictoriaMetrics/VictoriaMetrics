@@ -3,9 +3,8 @@ import { getMaxFromArray, getMinFromArray } from "../math";
 import { getSecondsFromDuration, roundToMilliseconds } from "../time";
 import { AxisRange } from "../../state/graph/reducer";
 import { formatTicks, getTextWidth } from "./helpers";
-import { TimeParams } from "../../types";
+import { TimeParams, AxisExtend } from "../../types";
 import { getCssVariable } from "../theme";
-import { AxisExtend } from "../../types";
 
 // see https://github.com/leeoniya/uPlot/tree/master/docs#axis--grid-opts
 const timeValues = [

@@ -1,7 +1,6 @@
-import React, { FC, useCallback } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useElementSize from "../../../../hooks/useElementSize";
-import { useEffect, useMemo, useRef, useState } from "react";
-import uPlot, { AlignedData, Series } from "uplot";
+import uPlot, { AlignedData } from "uplot";
 import { GraphOptions } from "../types";
 import usePlotScale from "../../../../hooks/uplot/usePlotScale";
 import useReadyChart from "../../../../hooks/uplot/useReadyChart";

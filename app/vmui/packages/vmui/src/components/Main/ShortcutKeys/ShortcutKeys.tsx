@@ -1,4 +1,4 @@
-import React, { FC, useCallback } from "preact/compat";
+import { FC, useCallback } from "react";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";
@@ -35,20 +35,22 @@ const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
 
   return <>
     <Tooltip
-      open={showTitle === true ? false : undefined}
+      open={showTitle ? false : undefined}
       title={`${title} (${keyOpenHelp})`}
       placement="bottom-center"
     >
-      <Button
-        className={appModeEnable ? "" : "vm-header-button"}
-        variant="contained"
-        color="primary"
-        startIcon={<KeyboardIcon/>}
-        onClick={handleOpen}
-        ariaLabel={title}
-      >
-        {showTitle && title}
-      </Button>
+      <div>
+        <Button
+          className={appModeEnable ? "" : "vm-header-button"}
+          variant="contained"
+          color="primary"
+          startIcon={<KeyboardIcon/>}
+          onClick={handleOpen}
+          ariaLabel={title}
+        >
+          {showTitle && title}
+        </Button>
+      </div>
     </Tooltip>
 
     {openList && (

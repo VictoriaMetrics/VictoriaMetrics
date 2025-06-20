@@ -1,10 +1,9 @@
-import React from "react";
 import "./style.scss";
 import { Theme } from "../../../types";
 import Toggle from "../../Main/Toggle/Toggle";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
-import { FC } from "preact/compat";
+import { FC } from "react";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 
 const options = Object.values(Theme).map(value => ({ title: value, value }));

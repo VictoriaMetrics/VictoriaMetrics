@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "preact/compat";
+import { FC, useMemo, useState } from "react";
 import useBoolean from "../../../hooks/useBoolean";
 import { RestartIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";

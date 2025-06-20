@@ -1,5 +1,4 @@
-import { ReactNode } from "react";
-import React, { FC } from "preact/compat";
+import { FC, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 interface TabItemWrapperProps {

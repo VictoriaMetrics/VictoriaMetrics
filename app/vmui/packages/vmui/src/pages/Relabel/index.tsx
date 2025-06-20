@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect } from "preact/compat";
+import { FC, useCallback, useEffect } from "react";
 import "./style.scss";
 import Button from "../../components/Main/Button/Button";
 import { InfoIcon, PlayIcon, WikiIcon } from "../../components/Main/Icons";

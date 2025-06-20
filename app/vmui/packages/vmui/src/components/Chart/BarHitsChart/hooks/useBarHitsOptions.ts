@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/compat";
+import { useMemo, useState } from "react";
 import { getAxes, getMinMaxBuffer, handleDestroy, setSelect } from "../../../../utils/uplot";
 import dayjs from "dayjs";
 import { dateFromSeconds, formatDateForNativeInput } from "../../../../utils/time";

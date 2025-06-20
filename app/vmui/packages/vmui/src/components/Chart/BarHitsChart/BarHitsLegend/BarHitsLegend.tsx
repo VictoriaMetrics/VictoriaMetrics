@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import uPlot, { Series } from "uplot";
 import "./style.scss";
 import "../../Line/Legend/style.scss";

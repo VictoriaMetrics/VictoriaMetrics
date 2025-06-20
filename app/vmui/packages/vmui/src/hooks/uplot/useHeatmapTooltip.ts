@@ -1,5 +1,5 @@
 import uPlot from "uplot";
-import { useCallback, useState } from "preact/compat";
+import { useCallback, useState } from "react";
 import { ChartTooltipProps } from "../../components/Chart/ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
 import { DATE_FULL_TIMEZONE_FORMAT } from "../../constants/date";

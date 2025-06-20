@@ -1,4 +1,3 @@
-import { MutableRef } from "preact/hooks";
 
 export interface TSDBStatus {
   totalSeries: number;
@@ -45,12 +44,4 @@ export interface Tabs {
   seriesCountByFocusLabelValue: string[];
   seriesCountByLabelValuePair: string[];
   labelValueCountByLabelName: string[];
-}
-
-export interface Containers<T> {
-  seriesCountByMetricName: MutableRef<T>;
-  seriesCountByLabelName: MutableRef<T>;
-  seriesCountByFocusLabelValue: MutableRef<T>;
-  seriesCountByLabelValuePair: MutableRef<T>;
-  labelValueCountByLabelName: MutableRef<T>;
 }

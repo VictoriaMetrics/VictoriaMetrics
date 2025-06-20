@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import "./style.scss";
 
@@ -39,10 +39,10 @@ const SimpleBarChart: FC<SimpleBarChartProps> = ({ data }) => {
   return (
     <div className="vm-simple-bar-chart">
       <div className="vm-simple-bar-chart-y-axis">
-        {yAxis.map(v => (
+        {yAxis.map((v, i) => (
           <div
             className="vm-simple-bar-chart-y-axis__tick"
-            key={v}
+            key={`y_axis_${v}_${i}`}
           >{v}</div>
         ))}
       </div>

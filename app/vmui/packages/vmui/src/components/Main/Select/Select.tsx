@@ -1,7 +1,6 @@
-import React, { FC, useEffect, useMemo, useRef, useState, } from "preact/compat";
+import { FC, RefObject, useEffect, useMemo, useRef, useState, FormEvent, MouseEvent } from "react";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
-import { FormEvent, MouseEvent } from "react";
 import Autocomplete from "../Autocomplete/Autocomplete";
 import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
@@ -40,7 +39,7 @@ const Select: FC<SelectProps> = ({
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
-  const [wrapperRef, setWrapperRef] = useState<React.RefObject<HTMLElement> | null>(null);
+  const wrapperRef = useRef<HTMLElement>(null);
   const [openList, setOpenList] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +100,10 @@ const Select: FC<SelectProps> = ({
     if (inputRef.current !== e.target) {
       setOpenList(false);
     }
+  };
+
+  const handleChangeWrapperRef = (ref: RefObject<HTMLElement | null>) => {
+    wrapperRef.current = ref.current;
   };
 
   useEffect(() => {
@@ -181,7 +184,7 @@ const Select: FC<SelectProps> = ({
         noOptionsText={noOptionsText}
         onSelect={handleSelected}
         onOpenAutocomplete={setOpenList}
-        onChangeWrapperRef={setWrapperRef}
+        onChangeWrapperRef={handleChangeWrapperRef}
       />
     </div>
   );

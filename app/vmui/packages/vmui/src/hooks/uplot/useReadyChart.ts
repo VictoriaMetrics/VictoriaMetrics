@@ -1,4 +1,4 @@
-import { useState } from "preact/compat";
+import { useState } from "react";
 import uPlot from "uplot";
 import useDragChart from "./useDragChart";
 import { SetMinMax } from "../../types";

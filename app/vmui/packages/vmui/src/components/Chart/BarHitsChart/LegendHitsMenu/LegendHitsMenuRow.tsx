@@ -1,6 +1,5 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import { FC, useRef, useState, useEffect, ReactNode } from "react";
 import classNames from "classnames";
-import { ReactNode, useEffect } from "react";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { LegendLogHitsMenu } from "../../../../api/types";
 import { ArrowDropDownIcon } from "../../../Main/Icons";

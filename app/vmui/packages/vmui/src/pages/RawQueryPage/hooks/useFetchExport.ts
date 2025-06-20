@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MetricBase, MetricResult, ExportMetricResult } from "../../../api/types";
 import { ErrorTypes, SeriesLimits } from "../../../types";
 import { useQueryState } from "../../../state/query/QueryStateContext";

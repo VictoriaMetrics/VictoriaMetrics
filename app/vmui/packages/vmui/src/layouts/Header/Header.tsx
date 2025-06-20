@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo, ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
@@ -12,7 +12,6 @@ import SidebarHeader from "./SidebarNav/SidebarHeader";
 import HeaderControls, { ControlsProps } from "./HeaderControls/HeaderControls";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import useWindowSize from "../../hooks/useWindowSize";
-import { ComponentType } from "react";
 import { APP_TYPE, AppType } from "../../constants/appType";
 
 export interface HeaderProps {

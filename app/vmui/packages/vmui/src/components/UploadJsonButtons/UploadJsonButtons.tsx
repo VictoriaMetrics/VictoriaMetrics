@@ -1,5 +1,4 @@
-import React, { FC } from "preact/compat";
-import { ChangeEvent } from "react";
+import { FC, ChangeEvent } from "react";
 import Button from "../Main/Button/Button";
 import "./style.scss";
 

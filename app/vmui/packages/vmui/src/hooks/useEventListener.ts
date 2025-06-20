@@ -31,7 +31,7 @@ function useEventListener<
 function useEventListener<K extends keyof DocumentEventMap>(
     eventName: K,
     handler: (event: DocumentEventMap[K]) => void,
-    element: RefObject<Document>,
+    element: RefObject<Element | null>,
     options?: boolean | AddEventListenerOptions,
 ): void
 

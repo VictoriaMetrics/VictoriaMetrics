@@ -1,4 +1,4 @@
-import React, { useEffect } from "preact/compat";
+import { useEffect } from "react";
 import { FunctionIcon } from "../components/Main/Icons";
 import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplete";
 import { marked } from "marked";

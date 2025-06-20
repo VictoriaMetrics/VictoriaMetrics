@@ -1,8 +1,7 @@
-import React, { FC, useEffect } from "preact/compat";
+import { FC, useEffect, useState, MouseEvent } from "react";
 import { useAppState } from "../../../state/common/StateContext";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
-import { MouseEvent, useState } from "react";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { useSearchParams } from "react-router-dom";
 import { LOGS_GROUP_BY, LOGS_URL_PARAMS } from "../../../constants/logs";

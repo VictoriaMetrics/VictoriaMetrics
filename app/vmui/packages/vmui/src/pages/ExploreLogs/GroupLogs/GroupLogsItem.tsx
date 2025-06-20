@@ -1,4 +1,4 @@
-import React, { FC, memo, useMemo } from "preact/compat";
+import { FC, memo, ReactNode, useMemo, MouseEvent } from "react";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
@@ -25,7 +25,7 @@ interface Props {
   onItemClick?: (log: Logs) => void;
 }
 
-const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, hideGroupButton }) => {
+const GroupLogsItem: FC<Props> = ({ log, displayFields = [], onItemClick, hideGroupButton }) => {
   const {
     value: isOpenFields,
     toggle: toggleOpenFields,
@@ -46,14 +46,14 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
   }, [log._time, timezone, dateFormat]);
 
   const formattedMarkdown = useMemo(() => {
-    if (!markdownParsing || !log._msg) return "";
+    if (!markdownParsing || !log._msg || !displayFields.includes("_msg")) return "";
     return marked(log._msg.replace(/```/g, "\n```\n")) as string;
-  }, [log._msg, markdownParsing]);
+  }, [log._msg, markdownParsing, displayFields]);
 
   const hasFields = Object.keys(log).length > 0;
 
   const displayMessage = useMemo(() => {
-    const values: (string | React.ReactNode)[] = [];
+    const values: (string | ReactNode)[] = [];
 
     if (!hasFields) {
       values.push("-");
@@ -61,8 +61,19 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
 
     if (displayFields.some(field => log[field])) {
       displayFields.filter(field => log[field]).forEach((field) => {
-        const value = field === "_msg" && ansiParsing ? parseAnsiToHtml(log[field]) : log[field];
-        values.push(value);
+        let value: string | ReactNode[] = log[field];
+
+        const isMessageField = field === "_msg";
+
+        if (isMessageField && ansiParsing) {
+          value = parseAnsiToHtml(log[field]);
+        }
+
+        if (isMessageField && markdownParsing) {
+          value = "";
+        }
+
+        value && values.push(value);
       });
     } else {
       Object.entries(log).forEach(([key, value]) => {
@@ -71,7 +82,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
     }
 
     return values;
-  }, [log, hasFields, displayFields, ansiParsing]);
+  }, [log, hasFields, displayFields, ansiParsing, markdownParsing]);
 
   const [disabledHovers] = useLocalStorageBoolean("LOGS_DISABLED_HOVERS");
 
@@ -80,7 +91,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
     onItemClick?.(log);
   };
 
-  const handleCopy = useCallback(async (e: Event) => {
+  const handleCopy = useCallback(async (e: MouseEvent) => {
     e.stopPropagation();
     if (copied) return;
     try {
@@ -142,15 +153,15 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
             "vm-group-logs-row-content__msg_missing": !displayMessage,
             "vm-group-logs-row-content__msg_single-line": noWrapLines,
           })}
-          dangerouslySetInnerHTML={formattedMarkdown ? { __html: formattedMarkdown } : undefined}
         >
+          {formattedMarkdown && <div dangerouslySetInnerHTML={{ __html: formattedMarkdown }}/>}
           {displayMessage.map((msg, i) => (
-            <span
+            <p
               className="vm-group-logs-row-content__sub-msg"
               key={`${msg}_${i}`}
             >
               {msg}
-            </span>
+            </p>
           ))}
         </div>
       </div>

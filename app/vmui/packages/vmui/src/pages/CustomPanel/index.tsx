@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState, useRef } from "react";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import { DisplayTypeSwitch } from "./DisplayTypeSwitch";
@@ -12,7 +12,6 @@ import Alert from "../../components/Main/Alert/Alert";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
-import { useRef } from "react";
 import CustomPanelTraces from "./CustomPanelTraces/CustomPanelTraces";
 import WarningLimitSeries from "./WarningLimitSeries/WarningLimitSeries";
 import CustomPanelTabs from "./CustomPanelTabs";

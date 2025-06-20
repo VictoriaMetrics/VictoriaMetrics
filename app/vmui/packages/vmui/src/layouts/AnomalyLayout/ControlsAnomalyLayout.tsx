@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "react";
 import classNames from "classnames";
 import TenantsConfiguration
   from "../../components/Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";

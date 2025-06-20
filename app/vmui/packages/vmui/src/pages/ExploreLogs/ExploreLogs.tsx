@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "react";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";

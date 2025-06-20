@@ -1,4 +1,4 @@
-import React, { FC, Fragment, useMemo } from "preact/compat";
+import { FC, ReactNode, useMemo } from "react";
 import Switch from "../../../../Main/Switch/Switch";
 import { LegendDisplayType, useLegendView } from "../hooks/useLegendView";
 import { useHideDuplicateFields } from "../hooks/useHideDuplicateFields";
@@ -65,7 +65,8 @@ const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
     }
   ];
 
-  const SwitcherWrapper = isCompact ? Tooltip : Fragment;
+  const SwitcherWrapper: FC<{title: string, children: ReactNode}> = ({ title, children }) =>
+    isCompact ? <Tooltip title={title}>{children}</Tooltip> : <>{children}</>;
 
   return (
     <div

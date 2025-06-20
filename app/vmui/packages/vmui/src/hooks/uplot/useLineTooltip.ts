@@ -1,5 +1,5 @@
 import uPlot, { Series as uPlotSeries } from "uplot";
-import { useCallback, useEffect, useState } from "preact/compat";
+import { useCallback, useEffect, useState } from "react";
 import { ChartTooltipProps } from "../../components/Chart/ChartTooltip/ChartTooltip";
 import { SeriesItem } from "../../types";
 import get from "lodash.get";

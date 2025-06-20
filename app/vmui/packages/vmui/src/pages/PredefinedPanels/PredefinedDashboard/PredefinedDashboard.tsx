@@ -1,5 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
-import { MouseEvent as ReactMouseEvent, useCallback } from "react";
+import { FC, useEffect, useMemo, useState, useCallback, MouseEvent as ReactMouseEvent } from "react";
 import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";
 import Accordion from "../../../components/Main/Accordion/Accordion";

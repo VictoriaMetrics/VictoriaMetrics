@@ -1,4 +1,4 @@
-import { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "react";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import classNames from "classnames";

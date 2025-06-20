@@ -1,10 +1,9 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
-import { ChangeEvent, KeyboardEvent } from "react";
+import { FC, RefObject, useEffect, useRef, useState, KeyboardEvent } from "react";
 import { CalendarIcon } from "../../Icons";
 import DatePicker from "../DatePicker";
 import Button from "../../Button/Button";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
-import InputMask from "react-input-mask";
+import { IMaskInput } from "react-imask";
 import dayjs from "dayjs";
 import classNames from "classnames";
 import "./style.scss";
@@ -17,7 +16,7 @@ interface DateTimeInputProps {
   value?:  string;
   label: string;
   pickerLabel: string;
-  pickerRef: React.RefObject<HTMLDivElement>;
+  pickerRef: RefObject<HTMLDivElement | null>;
   onChange: (date: string) => void;
   onEnter: () => void;
 }
@@ -38,8 +37,8 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
   const [awaitChangeForEnter, setAwaitChangeForEnter] = useState(false);
   const error = dayjs(maskedValue).isValid() ? "" : "Invalid date format";
 
-  const handleMaskedChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setMaskedValue(e.currentTarget.value);
+  const handleMaskedChange = (value: string) => {
+    setMaskedValue(value);
   };
 
   const handleBlur = () => {
@@ -86,16 +85,15 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
       })}
     >
       <label>{label}</label>
-      <InputMask
+      <IMaskInput
         tabIndex={1}
         inputRef={setInputRef}
-        mask="9999-99-99 99:99:99"
+        mask="0000-00-00 00:00:00"
         placeholder="YYYY-MM-DD HH:mm:ss"
         value={maskedValue}
         autoCapitalize={"none"}
         inputMode={"numeric"}
-        maskChar={null}
-        onChange={handleMaskedChange}
+        onAccept={handleMaskedChange}
         onBlur={handleBlur}
         onKeyUp={handleKeyUp}
       />

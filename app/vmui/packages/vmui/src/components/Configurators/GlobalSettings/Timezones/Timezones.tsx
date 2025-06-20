@@ -1,4 +1,4 @@
-import React, { FC, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "preact/compat";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { getBrowserTimezone, getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
 import { ArrowDropDownIcon } from "../../../Main/Icons";
 import classNames from "classnames";
@@ -11,6 +11,7 @@ import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import useBoolean from "../../../../hooks/useBoolean";
 import WarningTimezone from "./WarningTimezone";
 import { useTimeDispatch, useTimeState } from "../../../../state/time/TimeStateContext";
+import { ChildComponentHandle } from "../GlobalSettings";
 
 interface PinnedTimezone extends Timezone {
   title: string;
@@ -19,7 +20,7 @@ interface PinnedTimezone extends Timezone {
 
 const browserTimezone = getBrowserTimezone();
 
-const Timezones: FC = forwardRef((props, ref) => {
+const Timezones = forwardRef<ChildComponentHandle>((_props, ref) => {
   const { isMobile } = useDeviceDetect();
   const timezones = getTimezoneList();
 
@@ -179,5 +180,7 @@ const Timezones: FC = forwardRef((props, ref) => {
     </div>
   );
 });
+
+Timezones.displayName = "Timezones";
 
 export default Timezones;

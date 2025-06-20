@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "preact/compat";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorTypes } from "../../../../../types";
 import { Logs } from "../../../../../api/types";
 import { useAppState } from "../../../../../state/common/StateContext";
@@ -222,4 +222,4 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
     clearLogs,
     isLimitedLogsPerUpdate
   };
-}; 
+};

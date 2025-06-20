@@ -1,12 +1,11 @@
-import React, { FC } from "preact/compat";
+import { FC, memo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import DownloadLogsButton from "../../../DownloadLogsButton/DownloadLogsButton";
-import { createPortal } from "preact/compat";
 import JsonViewComponent from "../../../../../components/Views/JsonView/JsonView";
 import { ViewProps } from "../../types";
 import EmptyLogs from "../components/EmptyLogs/EmptyLogs";
-import { useCallback } from "react";
 
-const MemoizedJsonView = React.memo(JsonViewComponent);
+const MemoizedJsonView = memo(JsonViewComponent);
 
 const JsonView: FC<ViewProps> = ({ data, settingsRef }) => {
   const getLogs = useCallback(() => data, [data]);
@@ -30,4 +29,4 @@ const JsonView: FC<ViewProps> = ({ data, settingsRef }) => {
   );
 };
 
-export default JsonView; 
+export default JsonView;

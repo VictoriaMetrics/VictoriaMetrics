@@ -1,5 +1,4 @@
-import React, { FC } from "preact/compat";
-import { CSSProperties } from "react";
+import { FC, CSSProperties } from "react";
 import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";

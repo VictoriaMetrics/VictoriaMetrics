@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState } from "react";
 import uPlot, { Options as uPlotOptions } from "uplot";
 import { BarChartProps } from "./types";
 import "./style.scss";

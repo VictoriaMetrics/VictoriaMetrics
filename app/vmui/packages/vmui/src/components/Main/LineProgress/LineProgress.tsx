@@ -1,4 +1,3 @@
-import React from "preact/compat";
 import "./style.scss";
 
 type Props = {

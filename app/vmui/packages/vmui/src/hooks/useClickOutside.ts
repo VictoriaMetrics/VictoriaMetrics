@@ -1,13 +1,12 @@
-import { RefObject } from "react";
+import { RefObject, useCallback } from "react";
 import useEventListener from "./useEventListener";
-import { useCallback } from "preact/compat";
 
 type Event = MouseEvent | TouchEvent;
 
 const useClickOutside = <T extends HTMLElement = HTMLElement>(
-  ref: RefObject<T>,
+  ref: RefObject<T | null>,
   handler: (event: Event) => void,
-  preventRef?: RefObject<T> | null
+  preventRef?: RefObject<T | null> | null
 ) => {
   const listener = useCallback((event: Event) => {
     const el = ref?.current;
