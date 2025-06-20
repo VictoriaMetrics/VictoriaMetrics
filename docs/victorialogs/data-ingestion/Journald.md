@@ -36,7 +36,14 @@ VictoriaLogs uses `(_MACHINE_ID, _HOSTNAME, _SYSTEMD_UNIT)` as [stream fields](h
 for logs ingested via jorunald protocol. The list of log stream fields can be changed via `-journald.streamFields` command-line flag if needed,
 by providing comma-separated list of journald fields form [this list](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
 
-See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+Please make sure that the log stream fields passed to `-journlad.streamFields` do not contain fields with high number or unbound number of unique values,
+since this may lead to [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+
+The following Journald fields are also good candidates for stream fields:
+
+- `_TRANSPORT`
+- `_SYSTEMD_USER_UNIT`
+
 
 ## Dropping fields
 
