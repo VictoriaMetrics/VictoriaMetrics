@@ -1143,7 +1143,7 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		idb := idbs[0]
 		searchTR := s.adjustTimeRange(tr, idb.tr)
 		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		defer qt.Done()
+		defer qtChild.Done()
 		data, err := search(qtChild, idb, searchTR)
 		if err != nil {
 			var zeroValue T
