@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: add `-http.disableKeepAlive` to disable HTTP keep-alives for incoming connections. The flag could improve load balancing among replicas behind HTTP load balancers. See [#9125](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9125) and [#2395](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2395) for details.
 * FEATURE: [`delete` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe): allow deleting all the fields with common prefix via `... | delete prefix*` syntax.
 * FEATURE: [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe): allow keeping all the fields with common prefix via `... | fields prefix*` syntax.
 * FEATURE: [`copy` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#copy-pipe): allow copying all the fields with common prefix to fields with another common prefix via `... | copy old_prefix* as new_prefix*` syntax.
