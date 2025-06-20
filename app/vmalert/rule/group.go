@@ -445,11 +445,17 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 
 			g.infof("re-started")
 		case <-t.C:
-			missed := (time.Since(evalTS) / g.Interval) - 1
+			// calculate the real wall clock offset by stripping the monotonic clock first,
+			// then evalTS can be corrected when wall clock is adjusted.
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8790#issuecomment-2986541829
+			offset := time.Now().Round(0).Sub(evalTS.Round(0))
+			missed := (offset / g.Interval) - 1
 			if missed < 0 {
 				// missed can become < 0 due to irregular delays during evaluation
-				// which can result in time.Since(evalTS) < g.Interval
+				// which can result in time.Since(evalTS) < g.Interval;
+				// or the system wall clock was changed backward
 				missed = 0
+				evalTS = time.Now()
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
