@@ -817,9 +817,11 @@ max range per request:  8h20m0s
 2021-06-07T09:59:12.098Z        info    app/vmalert/replay.go:68        replay finished! Imported 511734 samples
 ```
 
-In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
-executed sequentially as well (`concurrency` setting is ignored). vmalert sends rule's expression
-to [/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) endpoint
+> In replay mode, groups are executed one after another in sequence. Within each group, rules are also executed sequentially, 
+regardless of the `concurrency` setting. This ensures that any potential chaining between rules is preserved (see `-replay.rulesDelay`).
+If you want rules to run concurrently based on the `concurrency` setting, set `-replay.rulesDelay=0`.
+
+vmalert sends rule's expression to [/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
@@ -853,7 +855,8 @@ There are following non-required `replay` flags:
 * `-replay.rulesDelay` - delay between sequential rules execution. Important in cases if there are chaining
   (rules which depend on each other) rules. It is expected, that remote storage will be able to persist
   previously accepted data during the delay, so data will be available for the subsequent queries.
-  Keep it equal or bigger than `-remoteWrite.flushInterval`.
+  Keep it equal or bigger than `-remoteWrite.flushInterval`. When set to `0`, allows executing rules within
+  the group concurrently.
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
@@ -1492,7 +1495,7 @@ The shortlist of configuration flags is the following:
   -replay.ruleRetryAttempts int
      Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
-     Delay between rules evaluation within the group. Could be important if there are chained rules inside the group and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
+     Delay before evaluating the next rule within the group. Is important for chained rules. Keep it equal or bigger than -remoteWrite.flushInterval. When set to >0, replay ignores group's concurrency setting. (default 1s)
   -replay.timeFrom string
      The time filter in RFC3339 format to start the replay from. E.g. '2020-01-01T20:07:00Z'
   -replay.timeTo string
