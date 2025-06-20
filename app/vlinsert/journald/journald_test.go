@@ -102,6 +102,24 @@ func TestPushJournald_Success(t *testing.T) {
 		"{\"E\":\"JobStateChanged\",\"_BOOT_ID\":\"f778b6e2f7584a77b991a2366612a7b5\",\"_UID\":\"0\",\"_GID\":\"0\",\"_MACHINE_ID\":\"a4a970370c30a925df02a13c67167847\",\"_HOSTNAME\":\"ecd5e4555787\",\"_RUNTIME_SCOPE\":\"system\",\"_TRANSPORT\":\"journal\",\"_CAP_EFFECTIVE\":\"1ffffffffff\",\"_SYSTEMD_CGROUP\":\"/init.scope\",\"_SYSTEMD_UNIT\":\"init.scope\",\"_SYSTEMD_SLICE\":\"-.slice\",\"CODE_FILE\":\"\\u003cstdin>\",\"CODE_LINE\":\"1\",\"CODE_FUNC\":\"\\u003cmodule>\",\"SYSLOG_IDENTIFIER\":\"python3\",\"_COMM\":\"python3\",\"_EXE\":\"/usr/bin/python3.12\",\"_CMDLINE\":\"python3\",\"_msg\":\"foo\\nbar\\n\\n\\nasda\\nasda\",\"_PID\":\"2763\",\"_SOURCE_REALTIME_TIMESTAMP\":\"1729698775704375\"}",
 	)
 
+	// Parse binary data with trailing newline
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x14\x00\x00\x00\x00\x00\x00\x00foo\nbar\n\n\nasda\nasda\n\n_PID=2763\n\n",
+		[]int64{1729698775704404000},
+		`{"_CMDLINE":"python3","_msg":"foo\nbar\n\n\nasda\nasda\n","_PID":"2763"}`,
+	)
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x00\x00\x00\x00\x00\x00\x00\x00\n_PID=2763\n\n",
+		[]int64{1729698775704404000},
+		`{"_CMDLINE":"python3","_PID":"2763"}`,
+	)
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x0A\x00\x00\x00\x00\x00\x00\x00123456789\n\n_PID=2763\n\n",
+		[]int64{1729698775704404000},
+		`{"_CMDLINE":"python3","_msg":"123456789\n","_PID":"2763"}`,
+	)
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x0A\x00\x00\x00\x00\x00\x00\x001234567890\n_PID=2763\n\n",
+		[]int64{1729698775704404000},
+		`{"_CMDLINE":"python3","_msg":"1234567890","_PID":"2763"}`,
+	)
+
 	// Empty field name must be ignored
 	f("__REALTIME_TIMESTAMP=91723819283\na=b\n=Test message", nil, "")
 	f("__REALTIME_TIMESTAMP=91723819284\nMESSAGE=Test message2\n\n__REALTIME_TIMESTAMP=91723819283\n=Test message\n", []int64{91723819284000}, `{"_msg":"Test message2"}`)
@@ -138,7 +156,10 @@ func TestPushJournald_Failure(t *testing.T) {
 	}
 
 	// too short binary encoded message
-	f("__CURSOR=s=e0afe8412a6a49d2bfcf66aa7927b588;i=1f06;b=f778b6e2f7584a77b991a2366612a7b5;m=300bdfd420;t=62526e1182354;x=930dc44b370963b7\n__REALTIME_TIMESTAMP=1729698775704404\nMESSAGE\n\x13\x00\x00\x00\x00\x00\x00\x00foo\nbar\n\n\nasdaasda")
+	f("__CURSOR=s=e0afe8412a6a49d2bfcf66aa7927b588;i=1f06;b=f778b6e2f7584a77b991a2366612a7b5;m=300bdfd420;t=62526e1182354;x=930dc44b370963b7\n__REALTIME_TIMESTAMP=1729698775704404\nMESSAGE\n\x13\x00\x00\x00\x00\x00\x00\x00foo\nbar\n\n\nasdaasd")
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x00\x00\x00\x00\x00\x00\x00\x00_PID=2763\n\n")
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x0A\x00\x00\x00\x00\x00\x00\x001234567890_PID=2763\n\n")
+	f("__REALTIME_TIMESTAMP=1729698775704404\n_CMDLINE=python3\nMESSAGE\n\x0A\x00\x00\x00\x00\x00\x00\x00123456789\n_PID=2763\n\n")
 
 	// too long binary encoded message
 	f("__CURSOR=s=e0afe8412a6a49d2bfcf66aa7927b588;i=1f06;b=f778b6e2f7584a77b991a2366612a7b5;m=300bdfd420;t=62526e1182354;x=930dc44b370963b7\n__REALTIME_TIMESTAMP=1729698775704404\nMESSAGE\n\x13\x00\x00\x00\x00\x00\x00\x00foo\nbar\n\n\nasdaasdakljlsfd")

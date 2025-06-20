@@ -119,5 +119,5 @@ var (
 	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
 	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/jsonline"}`)
 
-	requestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
+	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
 )

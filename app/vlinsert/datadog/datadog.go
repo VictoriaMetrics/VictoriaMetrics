@@ -32,10 +32,10 @@ var parserPool fastjson.ParserPool
 // RequestHandler processes Datadog insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
-	case "/api/v1/validate":
+	case "/insert/datadog/api/v1/validate":
 		fmt.Fprintf(w, `{}`)
 		return true
-	case "/api/v2/logs":
+	case "/insert/datadog/api/v2/logs":
 		return datadogLogsIngestion(w, r)
 	default:
 		return false
@@ -101,7 +101,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	v2LogsRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/datadog/api/v2/logs"}`)
-	v2LogsRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/datadog/api/v2/logs"}`)
+	v2LogsRequestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/datadog/api/v2/logs"}`)
 )
 
 // datadog message field has two formats:
