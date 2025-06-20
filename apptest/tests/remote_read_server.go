@@ -1,4 +1,4 @@
-package remote_read_integration
+package tests
 
 import (
 	"context"
@@ -12,32 +12,29 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
-	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/remote"
-	"github.com/prometheus/prometheus/tsdb/chunkenc"
 	"github.com/prometheus/prometheus/tsdb/chunks"
-	"github.com/prometheus/prometheus/util/annotations"
 )
 
 const (
 	maxBytesInFrame = 1024 * 1024
 )
 
+// RemoteReadServer is a mock server that implements the Prometheus remote read protocol.
 type RemoteReadServer struct {
 	server  *httptest.Server
-	series  []*prompb.TimeSeries
-	storage *MockStorage
+	storage *PrometheusMockStorage
 }
 
 // NewRemoteReadServer creates a remote read server. It exposes a single endpoint and responds with the
 // passed series based on the request to the read endpoint. It returns a server which should be closed after
 // being used.
-func NewRemoteReadServer(t *testing.T) *RemoteReadServer {
+func NewRemoteReadServer(t *testing.T, series []*prompb.TimeSeries) *RemoteReadServer {
+	mockStorage := NewPrometheusMockStorage(series)
 	rrs := &RemoteReadServer{
-		series: make([]*prompb.TimeSeries, 0),
+		storage: mockStorage,
 	}
 	rrs.server = httptest.NewServer(rrs.getReadHandler(t))
 	return rrs
@@ -48,12 +45,9 @@ func (rrs *RemoteReadServer) Close() {
 	rrs.server.Close()
 }
 
-func (rrs *RemoteReadServer) URL() string {
+// HTTPAddr returns the HTTP address of the server.
+func (rrs *RemoteReadServer) HTTPAddr() string {
 	return rrs.server.URL
-}
-
-func (rrs *RemoteReadServer) SetRemoteReadSeries(series []*prompb.TimeSeries) {
-	rrs.series = append(rrs.series, series...)
 }
 
 func (rrs *RemoteReadServer) getReadHandler(t *testing.T) http.Handler {
@@ -84,8 +78,8 @@ func (rrs *RemoteReadServer) getReadHandler(t *testing.T) http.Handler {
 		for i, r := range req.Queries {
 			startTs := r.StartTimestampMs
 			endTs := r.EndTimestampMs
-			ts := make([]*prompb.TimeSeries, len(rrs.series))
-			for i, s := range rrs.series {
+			ts := make([]*prompb.TimeSeries, len(rrs.storage.store))
+			for i, s := range rrs.storage.store {
 				var samples []prompb.Sample
 				for _, sample := range s.Samples {
 					if sample.Timestamp >= startTs && sample.Timestamp < endTs {
@@ -119,16 +113,16 @@ func (rrs *RemoteReadServer) getReadHandler(t *testing.T) http.Handler {
 	})
 }
 
-func NewRemoteReadStreamServer(t *testing.T) *RemoteReadServer {
+// NewRemoteReadStreamServer creates a remote read server that supports streaming responses.
+// passed series based on the request to the read endpoint. It returns a server which should be closed after
+// being used.
+func NewRemoteReadStreamServer(t *testing.T, series []*prompb.TimeSeries) *RemoteReadServer {
+	mockStorage := NewPrometheusMockStorage(series)
 	rrs := &RemoteReadServer{
-		series: make([]*prompb.TimeSeries, 0),
+		storage: mockStorage,
 	}
 	rrs.server = httptest.NewServer(rrs.getStreamReadHandler(t))
 	return rrs
-}
-
-func (rrs *RemoteReadServer) InitMockStorage(series []*prompb.TimeSeries) {
-	rrs.storage = NewMockStorage(series)
 }
 
 func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
@@ -180,10 +174,10 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 			for ss.Next() {
 				series := ss.At()
 				iter = series.Iterator(iter)
-				labels := remote.MergeLabels(labelsToLabelsProto(series.Labels()), nil)
+				lbls := remote.MergeLabels(labelsToLabelsProto(series.Labels()), nil)
 
 				frameBytesLeft := maxBytesInFrame
-				for _, lb := range labels {
+				for _, lb := range lbls {
 					frameBytesLeft -= lb.Size()
 				}
 
@@ -213,7 +207,7 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 
 					resp := &prompb.ChunkedReadResponse{
 						ChunkedSeries: []*prompb.ChunkedSeries{
-							{Labels: labels, Chunks: chks},
+							{Labels: lbls, Chunks: chks},
 						},
 						QueryIndex: int64(idx),
 					}
@@ -280,6 +274,7 @@ func validateStreamReadHeaders(t *testing.T, r *http.Request) bool {
 	return true
 }
 
+// GenerateRemoteReadSeries generates a set of remote read series with the given parameters.
 func GenerateRemoteReadSeries(start, end, numOfSeries, numOfSamples int64) []*prompb.TimeSeries {
 	var ts []*prompb.TimeSeries
 	j := 0
@@ -320,141 +315,6 @@ func generateRemoteReadSamples(idx int, startTime, endTime, numOfSamples int64) 
 	}
 
 	return samples
-}
-
-type MockStorage struct {
-	query *prompb.Query
-	store []*prompb.TimeSeries
-}
-
-func NewMockStorage(series []*prompb.TimeSeries) *MockStorage {
-	return &MockStorage{store: series}
-}
-
-func (ms *MockStorage) Read(_ context.Context, query *prompb.Query, sortSeries bool) (storage.SeriesSet, error) {
-	if sortSeries {
-		return nil, fmt.Errorf("unexpected sortSeries=true")
-	}
-	if ms.query != nil {
-		return nil, fmt.Errorf("expected only one call to remote client got: %v", query)
-	}
-	ms.query = query
-
-	tss := make([]*prompb.TimeSeries, 0, len(ms.store))
-	for _, s := range ms.store {
-		var samples []prompb.Sample
-		for _, sample := range s.Samples {
-			if sample.Timestamp >= query.StartTimestampMs && sample.Timestamp < query.EndTimestampMs {
-				samples = append(samples, sample)
-			}
-		}
-		var series prompb.TimeSeries
-		if len(samples) > 0 {
-			series.Labels = s.Labels
-			series.Samples = samples
-		}
-
-		tss = append(tss, &series)
-	}
-	return &mockSeriesSet{
-		tss: tss,
-	}, nil
-}
-
-func (ms *MockStorage) Reset() {
-	ms.query = nil
-}
-
-type mockSeriesSet struct {
-	tss  []*prompb.TimeSeries
-	next int
-}
-
-func (ss *mockSeriesSet) Next() bool {
-	if ss.next >= len(ss.tss) {
-		return false
-	}
-	ss.next++
-	return true
-}
-
-func (ss *mockSeriesSet) At() storage.Series {
-	return &mockSeries{
-		s: ss.tss[ss.next-1],
-	}
-}
-
-func (ss *mockSeriesSet) Err() error {
-	return nil
-}
-
-func (ss *mockSeriesSet) Warnings() annotations.Annotations {
-	return nil
-}
-
-type mockSeries struct {
-	s *prompb.TimeSeries
-}
-
-func (s *mockSeries) Labels() labels.Labels {
-	a := make(labels.Labels, len(s.s.Labels))
-	for i, label := range s.s.Labels {
-		a[i] = labels.Label{
-			Name:  label.Name,
-			Value: label.Value,
-		}
-	}
-	return a
-}
-
-func (s *mockSeries) Iterator(chunkenc.Iterator) chunkenc.Iterator {
-	return &mockSamplesIterator{
-		samples: s.s.Samples,
-	}
-}
-
-type mockSamplesIterator struct {
-	samples []prompb.Sample
-	next    int
-}
-
-func (si *mockSamplesIterator) Next() chunkenc.ValueType {
-	if si.next >= len(si.samples) {
-		return chunkenc.ValNone
-	}
-	si.next++
-	return chunkenc.ValFloat
-}
-
-func (si *mockSamplesIterator) Seek(t int64) chunkenc.ValueType {
-	for i := range si.samples {
-		if si.samples[i].Timestamp >= t {
-			si.next = i + 1
-			return chunkenc.ValFloat
-		}
-	}
-	return chunkenc.ValNone
-}
-
-func (si *mockSamplesIterator) At() (int64, float64) {
-	s := si.samples[si.next-1]
-	return s.Timestamp, s.Value
-}
-
-func (si *mockSamplesIterator) AtHistogram(*histogram.Histogram) (int64, *histogram.Histogram) {
-	panic("BUG: mustn't be called")
-}
-
-func (si *mockSamplesIterator) AtFloatHistogram(*histogram.FloatHistogram) (int64, *histogram.FloatHistogram) {
-	panic("BUG: mustn't be called")
-}
-
-func (si *mockSamplesIterator) AtT() int64 {
-	return si.samples[si.next-1].Timestamp
-}
-
-func (si *mockSamplesIterator) Err() error {
-	return nil
 }
 
 func labelsToLabelsProto(labels labels.Labels) []prompb.Label {

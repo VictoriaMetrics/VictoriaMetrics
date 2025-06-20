@@ -14,6 +14,20 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.24.0
+Released: 2025-06-18
+
+- FEATURE: Introduced stateful `vmanomaly` service with job persistence and state restoration capabilities. Added a new [`restore_state`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) setting that enables the service to persist and restore its state between runs, including anomaly detection model instances and training data. This prevents unnecessary model refitting when restarting the service, significantly reducing startup time and computational overhead.
+
+- IMPROVEMENT: More informative log messages for fit and infer stages and for sub-optimal configurations used in the [sharded mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability).
+
+- BUGFIX: Now system interrupt signals are properly handled and lead to expected graceful shutdown if for some reason new background scheduler, introduced in [v1.23.0](#v1230) was already stopped in the middle of the fit or infer call. Previously, this could lead to a service crash with an unhandled exception.
+
+## v1.23.3
+Released: 2025-06-13
+
+- IMPROVEMENT: Added backward-compatible single-dashed form support for `vmanomaly`'s [command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to enhance compatibility with VictoriaMetrics ecosystem and ease devOps experience. For example, `-license.forceOffline` can now be used in addition to `--license.forceOffline` - for the users who prefer the single-dash format or are accustomed to it from other VictoriaMetrics tools.
+
 ## v1.23.2
 Released: 2025-06-09
 
