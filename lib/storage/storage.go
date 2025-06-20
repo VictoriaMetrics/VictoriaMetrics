@@ -2031,6 +2031,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	hmPrev := s.prevHourMetricIDs.Load()
 	hmCurr := s.currHourMetricIDs.Load()
 	var pendingHourEntries []uint64
+	addToPendingHourEntries := func(hour, metricID uint64) {
+		if hour == hmCurr.hour && !hmCurr.m.Has(metricID) {
+			pendingHourEntries = append(pendingHourEntries, metricID)
+		}
+	}
 
 	mn := GetMetricName()
 	defer PutMetricName(mn)
@@ -2134,9 +2139,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				seriesRepopulated++
 				slowInsertsCount++
 			}
-			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-				pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
-			}
+			addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 			continue
 		}
 
@@ -2182,9 +2185,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 
-			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-				pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
-			}
+			addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 
 			continue
 		}
@@ -2207,9 +2208,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		prevTSID = r.TSID
 		prevMetricNameRaw = mr.MetricNameRaw
 
-		if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-			pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
-		}
+		addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 
 		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())

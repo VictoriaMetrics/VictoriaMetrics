@@ -58,35 +58,29 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
-	path = strings.TrimPrefix(path, "/insert")
-
 	switch path {
-	case "/jsonline":
+	case "/insert/jsonline":
 		jsonline.RequestHandler(w, r)
 		return true
-	case "/ready":
+	case "/insert/ready":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	}
 	switch {
-	case strings.HasPrefix(path, "/elasticsearch"):
-		// some clients may omit trailing slash
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
-		path = strings.TrimPrefix(path, "/elasticsearch")
+	// some clients may omit trailing slash at elasticsearch protocol.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
+	case strings.HasPrefix(path, "/insert/elasticsearch"):
 		return elasticsearch.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/loki/"):
-		path = strings.TrimPrefix(path, "/loki")
+
+	case strings.HasPrefix(path, "/insert/loki/"):
 		return loki.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/opentelemetry/"):
-		path = strings.TrimPrefix(path, "/opentelemetry")
+	case strings.HasPrefix(path, "/insert/opentelemetry/"):
 		return opentelemetry.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/journald/"):
-		path = strings.TrimPrefix(path, "/journald")
+	case strings.HasPrefix(path, "/insert/journald/"):
 		return journald.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/datadog/"):
-		path = strings.TrimPrefix(path, "/datadog")
+	case strings.HasPrefix(path, "/insert/datadog/"):
 		return datadog.RequestHandler(path, w, r)
 	}
 
