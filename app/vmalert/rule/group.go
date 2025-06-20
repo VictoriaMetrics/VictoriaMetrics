@@ -535,6 +535,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 			if !disableProgressBar {
 				bar = pb.StartNew(iterations)
 			}
+			// pass ri as a copy, so it can be modified within the replayRuleRange
 			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts)
 			if bar != nil {
 				bar.Finish()
@@ -557,6 +558,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		sem <- struct{}{}
 		wg.Add(1)
 		go func(r Rule, ri rangeIterator) {
+			// pass ri as a copy, so it can be modified within the replayRuleRange
 			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts)
 			<-sem
 			wg.Done()
@@ -616,6 +618,10 @@ type rangeIterator struct {
 	s, e time.Time
 }
 
+// next iterates with given step between start and end
+// by modifying iter, s and e.
+// Returns true until it reaches end.
+// next modifies ri and isn't thread-safe.
 func (ri *rangeIterator) next() bool {
 	ri.s = ri.start.Add(ri.step * time.Duration(ri.iter))
 	if !ri.end.After(ri.s) {
