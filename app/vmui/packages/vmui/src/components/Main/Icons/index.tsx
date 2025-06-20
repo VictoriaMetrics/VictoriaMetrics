@@ -642,3 +642,17 @@ export const PauseIcon = () => (
     <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
   </svg>
 );
+
+export const ScrollToTopIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path
+      d="M8 12l4-4 4 4m-4-4v12"
+      strokeWidth="2"
+      stroke="currentColor"
+      fill="none"
+    />
+  </svg>
+);
