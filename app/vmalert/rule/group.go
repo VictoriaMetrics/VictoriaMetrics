@@ -447,7 +447,7 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 		case <-t.C:
 			// calculate the real wall clock offset by stripping the monotonic clock first,
 			// then evalTS can be corrected when wall clock is adjusted.
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8790
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8790#issuecomment-2986541829
 			offset := time.Now().Round(0).Sub(evalTS.Round(0))
 			missed := (offset / g.Interval) - 1
 			if missed < 0 {
