@@ -2127,6 +2127,16 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	hmPrev := s.prevHourMetricIDs.Load()
 	hmCurr := s.currHourMetricIDs.Load()
 	var pendingHourEntries []pendingHourMetricIDEntry
+	addToPendingHourEntries := func(hour uint64, accountID, projectID uint32, metricID uint64) {
+		if hour == hmCurr.hour && !hmCurr.m.Has(metricID) {
+			e := pendingHourMetricIDEntry{
+				AccountID: accountID,
+				ProjectID: projectID,
+				MetricID:  metricID,
+			}
+			pendingHourEntries = append(pendingHourEntries, e)
+		}
+	}
 
 	mn := GetMetricName()
 	defer PutMetricName(mn)
@@ -2230,14 +2240,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				seriesRepopulated++
 				slowInsertsCount++
 			}
-			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-				e := pendingHourMetricIDEntry{
-					AccountID: genTSID.TSID.AccountID,
-					ProjectID: genTSID.TSID.ProjectID,
-					MetricID:  genTSID.TSID.MetricID,
-				}
-				pendingHourEntries = append(pendingHourEntries, e)
-			}
+			addToPendingHourEntries(hour, genTSID.TSID.AccountID, genTSID.TSID.ProjectID, genTSID.TSID.MetricID)
 			continue
 		}
 
@@ -2283,15 +2286,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 
-			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-				e := pendingHourMetricIDEntry{
-					AccountID: genTSID.TSID.AccountID,
-					ProjectID: genTSID.TSID.ProjectID,
-					MetricID:  genTSID.TSID.MetricID,
-				}
-				pendingHourEntries = append(pendingHourEntries, e)
-			}
-
+			addToPendingHourEntries(hour, genTSID.TSID.AccountID, genTSID.TSID.ProjectID, genTSID.TSID.MetricID)
 			continue
 		}
 
@@ -2313,14 +2308,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		prevTSID = r.TSID
 		prevMetricNameRaw = mr.MetricNameRaw
 
-		if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-			e := pendingHourMetricIDEntry{
-				AccountID: genTSID.TSID.AccountID,
-				ProjectID: genTSID.TSID.ProjectID,
-				MetricID:  genTSID.TSID.MetricID,
-			}
-			pendingHourEntries = append(pendingHourEntries, e)
-		}
+		addToPendingHourEntries(hour, genTSID.TSID.AccountID, genTSID.TSID.ProjectID, genTSID.TSID.MetricID)
 
 		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())
