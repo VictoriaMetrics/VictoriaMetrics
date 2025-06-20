@@ -30,10 +30,10 @@ Released at 2025-06-20
 * FEATURE: [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
 * FEATURE: [`unpack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
 * FEATURE: [`avg` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the average value over all the fields with common prefix via `avg(prefix*)` syntax.
-* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
-* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
-* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
-* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
+* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
+* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
+* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#median-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
+* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#quantile-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
 * FEATURE: [`sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum-stats): allow calculating the sum for all the fields with common prefix via `sum(prefix*)` syntax.
 * FEATURE: [`sum_len` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum_len-stats): allow calculating the sum of byte lengths for all the fields with common prefix via `sum_len(prefix*)` syntax.
 * FEATURE: [`count` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count-stats): allow calculating the number of logs with at least a single non-empty field across fields with common prefix via `count(prefix*)` syntax.
