@@ -14,6 +14,16 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.24.1
+Released: 2025-06-20
+
+- BUGFIX: Resolved the issue first seen in [v1.23.0](#v1230) where some fit and infer jobs were silently skipped at task submission time (due to a bug in the new background scheduler behind [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)) followed by similar warnings in the logs later on, such as:
+  ```shellhelp
+  2025-06-19 14:32:50,568 - apscheduler.executors.default - WARNING - Run time of job "{job_name}" (trigger: interval[1 day, 0:00:00], next run at: 2025-06-20 14:32:50 UTC)" was missed by 0:00:01.024753
+  ```
+
+- BUGFIX: Resolved the issue where `vmanomaly` service on [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where `start_from` argument was set and [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) was enabled, didn't resume infer jobs after respective fitted models were restored from the previous run. This could lead to a situation where the service, *if restore happened in-between fit calls*, would not produce any anomaly scores and stay idle until the next `fit_every` happens, which is *expected in stateless mode*, but not in *stateful* mode with `restore_state` enabled.
+
 ## v1.24.0
 Released: 2025-06-18
 
@@ -44,6 +54,13 @@ Released: 2025-06-08
 
 ## v1.23.0
 Released: 2025-06-05
+
+> There is a known bug that can cause some fit and infer jobs to be silently skipped at task submission time (due to a bug in the new background scheduler behind [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)) followed by similar warnings in the logs later on, such as:
+>  ```shellhelp
+>  2025-06-19 14:32:50,568 - apscheduler.executors.default - WARNING - Run time of job "{job_name}" (trigger: interval[1 day, 0:00:00], next run at: 2025-06-20 14:32:50 UTC)" was missed by 0:00:01.024753
+>  ```
+> Releases affected: [v1.23.0](#v1230) - [v1.23.3](#v1233).
+> **The issue has been resolved in patch [v1.24.1](#v1241), upgrade is recommended.**
 
 - FEATURE: Added `decay` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) to [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models). This parameters allows for newer data to be weighted more heavily in online models. By default this is set to 1 which means all data points are weighted the same to maintain backward compatibility with existing configs. The closer this value is to 0 the more important new data is.
 
