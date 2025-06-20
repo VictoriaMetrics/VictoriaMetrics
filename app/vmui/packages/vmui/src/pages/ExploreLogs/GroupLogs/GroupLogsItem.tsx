@@ -1,4 +1,4 @@
-import { FC, memo, ReactNode, useMemo } from "react";
+import { FC, memo, ReactNode, useMemo, MouseEvent } from "react";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
@@ -91,7 +91,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = [], onItemClick, hideGr
     onItemClick?.(log);
   };
 
-  const handleCopy = useCallback(async (e: Event) => {
+  const handleCopy = useCallback(async (e: MouseEvent) => {
     e.stopPropagation();
     if (copied) return;
     try {

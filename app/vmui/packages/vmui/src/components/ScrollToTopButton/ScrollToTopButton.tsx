@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import Button from "../Main/Button/Button";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import { ScrollToTopIcon } from "../Main/Icons";
@@ -30,7 +30,7 @@ const ScrollToTopButton: FC<ScrollToTopButtonProps> = ({ className }) => {
   useEffect(() => {
     window.addEventListener("scroll", checkScrollPosition);
     checkScrollPosition();
-    
+
     return () => {
       window.removeEventListener("scroll", checkScrollPosition);
     };
