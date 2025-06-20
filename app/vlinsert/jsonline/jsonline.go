@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -33,7 +32,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
@@ -120,5 +119,5 @@ var (
 	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
 	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/jsonline"}`)
 
-	requestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
+	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
 )

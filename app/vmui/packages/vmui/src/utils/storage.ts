@@ -14,11 +14,13 @@ export type StorageKeys = "AUTOCOMPLETE"
   | "THEME"
   | "LOGS_LIMIT"
   | "LOGS_MARKDOWN"
+  | "LOGS_ANSI"
   | "LOGS_DISABLED_HOVERS"
   | "EXPLORE_METRICS_TIPS"
   | "LOGS_QUERY_HISTORY"
   | "METRICS_QUERY_HISTORY"
   | "SERVER_URL"
+  | "RAW_JSON_LIVE_VIEW"
   | DeprecatedStorageKeys;
 
 
