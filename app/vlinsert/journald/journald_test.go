@@ -8,11 +8,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 )
 
-func TestIsValidJournaldFieldName(t *testing.T) {
+func TestIsValidFieldName(t *testing.T) {
 	f := func(name string, resultExpected bool) {
 		t.Helper()
 
-		result := isValidJournaldFieldName(name)
+		result := isValidFieldName(name)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for isValidJournaldFieldName(%q); got %v; want %v", name, result, resultExpected)
 		}
