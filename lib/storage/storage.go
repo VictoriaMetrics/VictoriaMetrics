@@ -174,8 +174,8 @@ type Storage struct {
 
 	metricsTracker *metricnamestats.Tracker
 
-	// logNewSeriesEndTime is used for logging the new series
-	logNewSeriesEndTime time.Time
+	// logNewSeriesUntil is used for logging the new series
+	logNewSeriesUntil time.Time
 }
 
 // OpenOptions optional args for MustOpenStorage
@@ -198,11 +198,11 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		retention = retentionMax
 	}
 	s := &Storage{
-		path:                path,
-		cachePath:           filepath.Join(path, cacheDirname),
-		retentionMsecs:      retention.Milliseconds(),
-		stopCh:              make(chan struct{}),
-		logNewSeriesEndTime: time.Now(),
+		path:              path,
+		cachePath:         filepath.Join(path, cacheDirname),
+		retentionMsecs:    retention.Milliseconds(),
+		stopCh:            make(chan struct{}),
+		logNewSeriesUntil: time.Now(),
 	}
 	fs.MustMkdirIfNotExist(path)
 
@@ -2201,7 +2201,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
 		}
 
-		if logNewSeries || (s.logNewSeriesEndTime.After(time.Now())) {
+		if logNewSeries || (s.logNewSeriesUntil.After(time.Now())) {
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
@@ -2251,8 +2251,8 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
-func (s *Storage) SetLogNewSeriesEndTime(t time.Time) {
-	s.logNewSeriesEndTime = t
+func (s *Storage) SetLogNewSeriesUntil(t time.Time) {
+	s.logNewSeriesUntil = t
 }
 
 func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
