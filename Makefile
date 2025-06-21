@@ -528,8 +528,6 @@ vet:
 
 check-all: fmt vet golangci-lint govulncheck
 
-clean-checkers: remove-golangci-lint remove-govulncheck
-
 test:
 	GOEXPERIMENT=synctest go test ./lib/... ./app/...
 
@@ -574,12 +572,11 @@ app-local-goos-goarch:
 app-local-windows-goarch:
 	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
 
-quicktemplate-gen: install-qtc
-	qtc
+quicktemplate-gen:
+	go tool qtc
 
-install-qtc:
-	which qtc || go install github.com/valyala/quicktemplate/qtc@latest
-
+golangci-lint:
+	GOEXPERIMENT=synctest go tool golangci-lint run
 
 golangci-lint: install-golangci-lint
 	GOEXPERIMENT=synctest golangci-lint run
