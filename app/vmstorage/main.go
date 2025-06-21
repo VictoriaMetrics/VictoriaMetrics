@@ -261,7 +261,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return true
 	}
 	if path == "/internal/logNewSeries" {
-		logger.Infof("enable logging new series during the next minute")
+		logger.Infof("enabling logging of new series for the next minute. This may increase resource usage during this period.")
 		endTime := fasttime.UnixTimestamp() + 60 // end time is one minute from now
 		strg.SetLogNewSeriesUntil(endTime)
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%d}}`, endTime)
