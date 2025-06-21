@@ -320,9 +320,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if path == "/internal/logNewSeries" {
 		logger.Infof("enabling logging of new series for the next minute. This may increase resource usage during this period.")
-		endTime := time.Now().Add(1 * time.Minute)
+		endTime := fasttime.UnixTimestamp() + 60 // log new series for the next minute
 		Storage.SetLogNewSeriesUntil(endTime)
-		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":"%s"}}`, endTime.Format(time.RFC3339))
+		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%d}}`, endTime)
 		return true
 	}
 	prometheusCompatibleResponse := false
