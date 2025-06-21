@@ -1552,6 +1552,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
      Disable CORS for all origins (*)
+  -http.disableKeepAlive
+     Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
