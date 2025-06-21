@@ -28,24 +28,6 @@ import (
 // See https://github.com/systemd/systemd/blob/main/src/libsystemd/sd-journal/journal-file.c#L1703
 const maxFieldNameLen = 64
 
-func isValidJournaldFieldName(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	c := s[0]
-	if !(c >= 'A' && c <= 'Z' || c == '_') {
-		return false
-	}
-
-	for i := 1; i < len(s); i++ {
-		c := s[i]
-		if !(c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') {
-			return false
-		}
-	}
-	return true
-}
-
 var (
 	journaldStreamFields = flagutil.NewArrayString("journald.streamFields", "Comma-separated list of fields to use as log stream fields for logs ingested over journald protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#stream-fields")
@@ -319,7 +301,7 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			logger.Errorf("%s: field name size should not exceed %d bytes; got %d bytes: %q; skipping this field", streamName, maxFieldNameLen, len(name), name)
 			continue
 		}
-		if !isValidJournaldFieldName(name) {
+		if !isValidFieldName(name) {
 			logger.Errorf("%s: invalid field name %q; it must consist of `A-Z0-9_` chars and must start from non-digit char; skipping this field", streamName, name)
 			continue
 		}
@@ -374,4 +356,22 @@ func journaldPriorityToLevel(priority string) string {
 	default:
 		return priority
 	}
+}
+
+func isValidFieldName(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	c := s[0]
+	if !(c >= 'A' && c <= 'Z' || c == '_') {
+		return false
+	}
+
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if !(c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') {
+			return false
+		}
+	}
+	return true
 }
