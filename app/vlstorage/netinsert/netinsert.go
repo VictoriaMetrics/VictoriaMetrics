@@ -33,6 +33,8 @@ const ProtocolVersion = "v1"
 
 // Storage is a network storage for sending data to remote storage nodes in the cluster.
 type Storage struct {
+	SendFailed atomic.Uint64
+
 	sns []*storageNode
 
 	disableCompression bool
@@ -235,9 +237,7 @@ func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) erro
 
 	resp, err := sn.c.Do(req)
 	if err != nil {
-		// Disable sn for data writing for 10 seconds.
-		sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
-
+		sn.setDisableTemporarily()
 		return fmt.Errorf("cannot send data block with the length %d to %q: %s", pendingData.Len(), reqURL, err)
 	}
 	defer resp.Body.Close()
@@ -251,14 +251,18 @@ func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) erro
 		respBody = []byte(fmt.Sprintf("%s", err))
 	}
 
-	// Disable sn for data writing for 10 seconds.
-	sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
+	sn.setDisableTemporarily()
 
 	return fmt.Errorf("unexpected status code returned when sending data block to %q: %d; want 2xx; response body: %q", reqURL, resp.StatusCode, respBody)
 }
 
 func (sn *storageNode) getRequestURL(path string) string {
 	return fmt.Sprintf("%s://%s%s?version=%s", sn.scheme, sn.addr, path, url.QueryEscape(ProtocolVersion))
+}
+
+func (sn *storageNode) setDisableTemporarily() {
+	sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
+	sn.s.SendFailed.Add(1)
 }
 
 var zstdBufPool bytesutil.ByteBufferPool
@@ -307,6 +311,11 @@ func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
 	sn.addRow(r)
 }
 
+// GetActiveStreams returns the total number of active streams being tracked.
+func (s *Storage) GetActiveStreams() uint64 {
+	return s.srt.totalStreamCount.Load()
+}
+
 func (s *Storage) sendInsertRequestToAnyNode(pendingData *bytesutil.ByteBuffer) bool {
 	startIdx := int(fastrand.Uint32n(uint32(len(s.sns))))
 	for i := range s.sns {
@@ -328,8 +337,9 @@ var errTemporarilyDisabled = fmt.Errorf("writing to the node is temporarily disa
 type streamRowsTracker struct {
 	mu sync.Mutex
 
-	nodesCount    int64
-	rowsPerStream map[uint64]uint64
+	nodesCount       int64
+	totalStreamCount atomic.Uint64
+	rowsPerStream    map[uint64]uint64
 }
 
 func newStreamRowsTracker(nodesCount int) *streamRowsTracker {
@@ -352,6 +362,7 @@ func (srt *streamRowsTracker) getNodeIdx(streamHash uint64) uint64 {
 	srt.rowsPerStream[streamHash] = streamRows
 
 	if streamRows <= 1000 {
+		srt.totalStreamCount.Store(uint64(len(srt.rowsPerStream)))
 		// Write the initial rows for the stream to a single storage node for better locality.
 		// This should work great for log streams containing small number of logs, since will be distributed
 		// evenly among available storage nodes because they have different streamHash.
