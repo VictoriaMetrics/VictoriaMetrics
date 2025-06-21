@@ -311,6 +311,10 @@ func (a *ArrayDuration) Set(value string) error {
 	return nil
 }
 
+func (a *ArrayDuration) Size() int {
+	return len(a.a)
+}
+
 // GetOptionalArg returns optional arg under the given argIdx, or default value, if argIdx not found.
 func (a *ArrayDuration) GetOptionalArg(argIdx int) time.Duration {
 	x := a.a
