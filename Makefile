@@ -546,7 +546,19 @@ test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore victoria-logs
-	go test ./apptest/... -skip="^TestCluster.*"
+	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
+
+integration-test-legacy: victoria-metrics vmbackup vmrestore
+	VERSION=v1.118.0; \
+	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
+	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
+	DIR=/tmp/$${VERSION}; \
+	BINARY=$${DIR}/victoria-metrics-prod; \
+	ARCHIVE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
+	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}/$${ARCHIVE}; \
+	mkdir -p $${DIR}; \
+	test -f $${BINARY} || curl --output-dir /tmp -LO $${URL} && tar xzf /tmp/$${ARCHIVE} -C $${DIR}; \
+	VM_LEGACY_VMSINGLE_PATH=$${BINARY} go test ./apptest/tests -run="^TestLegacySingle.*"
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...
