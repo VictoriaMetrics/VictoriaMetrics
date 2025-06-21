@@ -97,6 +97,9 @@ func putBlockSearch(bs *blockSearch) {
 var blockSearchPool sync.Pool
 
 type blockSearch struct {
+	// bytesReadFromDisk tracks the total bytes read from disk files for this block search
+	bytesReadFromDisk atomic.Uint64
+
 	// bsw is the actual work to perform on the given block pointed by bsw.ph
 	bsw *blockSearchWork
 
@@ -141,9 +144,6 @@ type blockSearch struct {
 	//
 	// It is initialized lazily by calling getColumnsHeader().
 	cshCache *columnsHeader
-
-	// bytesReadFromDisk tracks the total bytes read from disk files for this block search
-	bytesReadFromDisk atomic.Uint64
 
 	// seenStreams contains seen streamIDs for the recent searches.
 	//

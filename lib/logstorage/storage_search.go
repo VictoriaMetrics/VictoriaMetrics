@@ -23,6 +23,7 @@ import (
 var (
 	rowsPerQuery          = metrics.NewHistogram(`vl_storage_rows_per_query`)
 	bytesPerQuery         = metrics.NewHistogram(`vl_storage_bytes_per_query`)
+	blocksPerQuery        = metrics.NewHistogram(`vl_storage_blocks_per_query`)
 	fetchedStreamPerQuery = metrics.NewHistogram(`vl_storage_fetched_stream_per_query`)
 )
 
@@ -113,6 +114,7 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	// Update metrics regardless of the error
 	bytesPerQuery.Update(float64(q.searchStats.totalBytesFromDisk.Load()))
 	rowsPerQuery.Update(float64(q.searchStats.totalRows.Load()))
+	blocksPerQuery.Update(float64(q.searchStats.totalBlocks.Load()))
 	fetchedStreamPerQuery.Update(float64(q.searchStats.fetchStreams.Load()))
 
 	return err
@@ -1046,13 +1048,17 @@ func (db *DataBlock) initFromBlockResult(br *blockResult) {
 // search searches for the matching rows according to so.
 //
 // It calls writeBlock for each matching block.
-func (s *Storage) search(workersCount int, searchStats *searchStats, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+func (s *Storage) search(workersCount int, ss *searchStats, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
 	// Spin up workers
 	var wgWorkers sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)
 	wgWorkers.Add(workersCount)
+
 	for i := 0; i < workersCount; i++ {
 		go func(workerID uint) {
+			var totalBytesFromDisk uint64
+			var totalRows, totalBlocks int
+
 			bs := getBlockSearch()
 			bm := getBitmap(0)
 			for bswb := range workCh {
@@ -1066,8 +1072,9 @@ func (s *Storage) search(workersCount int, searchStats *searchStats, so *generic
 					}
 
 					bs.search(bsw, bm)
-					searchStats.totalBytesFromDisk.Add(bs.bytesReadFromDisk.Load())
-					searchStats.totalRows.Add(uint64(bs.br.rowsLen))
+					totalBytesFromDisk += bs.bytesReadFromDisk.Load()
+					totalRows += bs.br.rowsLen
+					totalBlocks++
 
 					if bs.br.rowsLen > 0 {
 						writeBlock(workerID, &bs.br)
@@ -1077,6 +1084,11 @@ func (s *Storage) search(workersCount int, searchStats *searchStats, so *generic
 				bswb.bsws = bswb.bsws[:0]
 				putBlockSearchWorkBatch(bswb)
 			}
+
+			ss.totalBytesFromDisk.Add(totalBytesFromDisk)
+			ss.totalRows.Add(uint64(totalRows))
+			ss.totalBlocks.Add(uint64(totalBlocks))
+
 			putBlockSearch(bs)
 			putBitmap(bm)
 			wgWorkers.Done()
@@ -1115,7 +1127,7 @@ func (s *Storage) search(workersCount int, searchStats *searchStats, so *generic
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(sf, searchStats, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(sf, ss, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -1148,9 +1160,10 @@ type searchStats struct {
 	fetchStreams       atomic.Uint64
 	totalBytesFromDisk atomic.Uint64
 	totalRows          atomic.Uint64
+	totalBlocks        atomic.Uint64
 }
 
-func (pt *partition) search(sf *StreamFilter, stats *searchStats, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+func (pt *partition) search(sf *StreamFilter, ss *searchStats, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -1168,7 +1181,7 @@ func (pt *partition) search(sf *StreamFilter, stats *searchStats, f filter, so *
 		streamIDs = getStreamIDsForTenantIDs(so.streamIDs, tenantIDs)
 		tenantIDs = nil
 	}
-	stats.fetchStreams.Add(uint64(len(streamIDs)))
+	ss.fetchStreams.Add(uint64(len(streamIDs)))
 
 	if hasStreamFilters(f) {
 		f = initStreamFilters(so.tenantIDs, pt.idb, f)

@@ -193,7 +193,7 @@ type logMessageProcessor struct {
 
 	rowsIngestedTotal  *metrics.Counter
 	bytesIngestedTotal *metrics.Counter
-	flushedDuration    *metrics.Summary
+	flushDuration      *metrics.Summary
 }
 
 func (lmp *logMessageProcessor) initPeriodicFlush() {
@@ -295,7 +295,7 @@ func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lastFlushTime = time.Now()
 	logRowsStorage.MustAddRows(lmp.lr)
 	lmp.lr.ResetKeepSettings()
-	lmp.flushedDuration.UpdateDuration(lmp.lastFlushTime)
+	lmp.flushDuration.UpdateDuration(lmp.lastFlushTime)
 }
 
 // MustClose flushes the remaining data to the underlying storage and closes lmp.
@@ -323,7 +323,7 @@ func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode
 
 		rowsIngestedTotal:  rowsIngestedTotal,
 		bytesIngestedTotal: bytesIngestedTotal,
-		flushedDuration:    flushedDuration,
+		flushDuration:      flushedDuration,
 
 		stopCh: make(chan struct{}),
 	}
