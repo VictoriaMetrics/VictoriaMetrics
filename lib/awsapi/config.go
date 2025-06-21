@@ -200,13 +200,32 @@ func (cfg *Config) getFreshAPICredentials() (*credentials, error) {
 	return ac, nil
 }
 
+func (cfg *Config) maybeAssumeRole(ac *credentials) (*credentials, error) {
+	// read credentials from sts api, if role_arn is defined
+	if len(cfg.roleARN) > 0 {
+		c, err := cfg.getRoleARNCredentials(ac, cfg.roleARN)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get credentials for role_arn %q: %w", cfg.roleARN, err)
+		}
+		ac = c
+	}
+	if len(ac.AccessKeyID) == 0 {
+		return nil, fmt.Errorf("missing AWS access_key; it may be set via env var AWS_ACCESS_KEY_ID or use instance iam role")
+	}
+	if len(ac.SecretAccessKey) == 0 {
+		return nil, fmt.Errorf("missing AWS secret_key; it may be set via env var AWS_SECRET_ACCESS_KEY or use instance iam role")
+	}
+	return ac, nil
+}
+
 // getAPICredentials obtains new EC2 API credentials from instance metadata and role_arn.
 func (cfg *Config) getAPICredentials() (*credentials, error) {
-	acNew := &credentials{
-		AccessKeyID:     cfg.defaultAccessKey,
-		SecretAccessKey: cfg.defaultSecretKey,
-	}
-	if len(cfg.webTokenPath) > 0 {
+	if len(cfg.defaultAccessKey) > 0 && len(cfg.defaultSecretKey) > 0 {
+		return cfg.maybeAssumeRole(&credentials{
+			AccessKeyID:     cfg.defaultAccessKey,
+			SecretAccessKey: cfg.defaultSecretKey,
+		})
+	} else if len(cfg.webTokenPath) > 0 {
 		token, err := os.ReadFile(cfg.webTokenPath)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read webToken from path: %q, err: %w", cfg.webTokenPath, err)
@@ -230,33 +249,15 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		if err != nil {
 			return nil, err
 		}
-		acNew = ac
+		return cfg.maybeAssumeRole(ac)
 	}
 
 	// we need instance credentials if we do not have access keys
-	if len(acNew.AccessKeyID) == 0 && len(acNew.SecretAccessKey) == 0 {
-		ac, err := getInstanceRoleCredentials(cfg.client)
-		if err != nil {
-			return nil, fmt.Errorf("cannot obtain instance role credentials: %w", err)
-		}
-		acNew = ac
+	ac, err := getInstanceRoleCredentials(cfg.client)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain instance role credentials: %w", err)
 	}
-
-	// read credentials from sts api, if role_arn is defined
-	if len(cfg.roleARN) > 0 {
-		ac, err := cfg.getRoleARNCredentials(acNew, cfg.roleARN)
-		if err != nil {
-			return nil, fmt.Errorf("cannot get credentials for role_arn %q: %w", cfg.roleARN, err)
-		}
-		acNew = ac
-	}
-	if len(acNew.AccessKeyID) == 0 {
-		return nil, fmt.Errorf("missing AWS access_key; it may be set via env var AWS_ACCESS_KEY_ID or use instance iam role")
-	}
-	if len(acNew.SecretAccessKey) == 0 {
-		return nil, fmt.Errorf("missing AWS secret_key; it may be set via env var AWS_SECRET_ACCESS_KEY or use instance iam role")
-	}
-	return acNew, nil
+	return cfg.maybeAssumeRole(ac)
 }
 
 // getCredentialsByPath makes request to metadata service and retrieves container credentials
@@ -373,7 +374,7 @@ func (cfg *Config) getRoleWebIdentityCredentials(token, roleARN string) (*creden
 	if err != nil {
 		return nil, err
 	}
-	if roleARN != cfg.roleARN {
+	if len(cfg.roleARN) > 0 && roleARN != cfg.roleARN {
 		// need to assume a different role
 		assumeCreds, err := cfg.getRoleARNCredentials(creds, cfg.roleARN)
 		if err != nil {
