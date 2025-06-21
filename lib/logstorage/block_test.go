@@ -1,9 +1,11 @@
 package logstorage
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestBlockMustInitFromRows(t *testing.T) {
@@ -204,4 +206,74 @@ func TestBlockMustInitFromRows_Overflow(t *testing.T) {
 	f(10, 10, 10)
 	f(15, 30, 15)
 	f(maxColumnsPerBlock+1000, 1, maxColumnsPerBlock)
+}
+
+func TestBlockUncompressedSizeBytes(t *testing.T) {
+	f := func(timestamps []int64, rows [][]Field) {
+		t.Helper()
+
+		// Build expected JSON and calculate actual serialized size
+		var totalSize int
+		for _, fields := range rows {
+			m := make(map[string]string)
+			m["_time"] = time.RFC3339Nano
+
+			for _, f := range fields {
+				if f.Value == "" {
+					continue // skip empty values
+				}
+				key := f.Name
+				if key == "_msg" || key == "" {
+					key = "_msg" // normalize empty names
+				}
+				m[key] = f.Value
+			}
+
+			b, err := json.Marshal(m)
+			if err != nil {
+				t.Fatalf("failed to marshal JSON: %v", err)
+			}
+			totalSize += len(b) + 1 // +1 for newline if expected
+		}
+
+		b := &block{}
+		b.MustInitFromRows(timestamps, rows)
+
+		actualSize := b.uncompressedSizeBytes()
+		if actualSize != totalSize {
+			t.Fatalf("unexpected uncompressed size;\n got  %d\n want %d, testcase: %v", actualSize, totalSize, rows)
+		}
+	}
+
+	// Empty block
+	f(nil, nil)
+
+	// Single row with one field
+	f([]int64{1234}, [][]Field{
+		{{"msg", "hello"}},
+	})
+
+	// Multiple rows with constant columns
+	f([]int64{1000, 2000}, [][]Field{
+		{{"level", "info"}},
+		{{"level", "info"}},
+	})
+
+	// Multiple rows with variable columns
+	f([]int64{1000, 2000}, [][]Field{
+		{{"msg", "first"}},
+		{{"msg", "second"}},
+	})
+
+	// Mixed constant and variable columns
+	f([]int64{1000, 2000}, [][]Field{
+		{{"service", "api"}, {"msg", "start"}},
+		{{"service", "api"}, {"msg", "end"}},
+	})
+
+	// Empty values ignored
+	f([]int64{1000, 2000}, [][]Field{
+		{{"msg", "hello"}, {"empty", ""}},
+		{{"msg", ""}, {"empty", "world"}},
+	})
 }

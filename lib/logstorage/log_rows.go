@@ -353,7 +353,7 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 			return
 		}
 	}
-	rowLen := uncompressedRowSizeBytes(fields)
+	rowLen := EstimatedJSONRowLen(fields)
 	if rowLen > maxUncompressedBlockSize {
 		line := MarshalFieldsToJSON(nil, fields)
 		logger.Warnf("ignoring too long log entry with the estimated length of %d bytes, since it exceeds the limit %d bytes; "+
@@ -608,12 +608,18 @@ func EstimatedJSONRowLen(fields []Field) int {
 	n := len("{}\n")
 	n += len(`"_time":""`) + len(time.RFC3339Nano)
 	for _, f := range fields {
-		nameLen := len(f.Name)
-		if nameLen == 0 {
-			nameLen = len("_msg")
-		}
-		n += len(`,"":""`) + nameLen + len(f.Value)
+		n += estimatedJSONField(f.Name, f.Value)
 	}
+	return n
+}
+
+// estimatedJSONField returns an approximate length of the field with the given name and value if represented as JSON.
+func estimatedJSONField(name, value string) int {
+	nameLen := len(name)
+	if nameLen == 0 {
+		nameLen = len("_msg")
+	}
+	n := len(`,"":""`) + nameLen + len(value)
 	return n
 }
 
