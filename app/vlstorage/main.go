@@ -361,6 +361,10 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)
 
+	if maxDiskSpaceUsageBytes.N > 0 {
+		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_max_disk_space_usage_bytes{path=%q}`, *storageDataPath), uint64(maxDiskSpaceUsageBytes.N))
+	}
+
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
 
 	isReadOnly := uint64(0)
@@ -376,6 +380,10 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/inmemory"}`, ss.InmemoryMergesTotal)
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/small"}`, ss.SmallPartMergesTotal)
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/big"}`, ss.BigPartMergesTotal)
+
+	metrics.WriteCounterUint64(w, `vl_rows_merge_total{type="storage/inmemory"}`, ss.InmemoryMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merge_total{type="storage/small"}`, ss.SmallPartMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merge_total{type="storage/big"}`, ss.BigPartMergeRowsTotal)
 
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/inmemory"}`, ss.InmemoryRowsCount)
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/small"}`, ss.SmallPartRowsCount)

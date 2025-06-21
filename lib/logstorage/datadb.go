@@ -55,14 +55,22 @@ type datadb struct {
 	// mergeIdx is used for generating unique directory names for parts
 	mergeIdx atomic.Uint64
 
-	inmemoryMergesTotal  atomic.Uint64
-	inmemoryActiveMerges atomic.Int64
+	inmemoryMergesTotal    atomic.Uint64
+	inmemoryActiveMerges   atomic.Int64
+	inmemoryMergeRowsTotal atomic.Uint64
 
-	smallPartMergesTotal  atomic.Uint64
-	smallPartActiveMerges atomic.Int64
+	smallPartMergesTotal    atomic.Uint64
+	smallPartActiveMerges   atomic.Int64
+	smallPartMergeRowsTotal atomic.Uint64
 
-	bigPartMergesTotal  atomic.Uint64
-	bigPartActiveMerges atomic.Int64
+	bigPartMergesTotal    atomic.Uint64
+	bigPartActiveMerges   atomic.Int64
+	bigPartMergeRowsTotal atomic.Uint64
+
+	// metrics that need to be updated directly
+	inmemoryPartMergeDuration *metrics.Summary
+	smallPartMergeDuration    *metrics.Summary
+	bigPartMergeDuration      *metrics.Summary
 
 	// pt is the partition the datadb belongs to
 	pt *partition
@@ -189,10 +197,15 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 	ddb := &datadb{
 		pt:            pt,
 		flushInterval: flushInterval,
-		path:          path,
-		smallParts:    smallParts,
-		bigParts:      bigParts,
-		stopCh:        make(chan struct{}),
+
+		inmemoryPartMergeDuration: metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/inmemory"}`),
+		smallPartMergeDuration:    metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/small"}`),
+		bigPartMergeDuration:      metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/big"}`),
+
+		path:       path,
+		smallParts: smallParts,
+		bigParts:   bigParts,
+		stopCh:     make(chan struct{}),
 	}
 	ddb.rb.init(&ddb.wg, ddb.mustFlushLogRows)
 	ddb.mergeIdx.Store(uint64(time.Now().UnixNano()))
@@ -380,9 +393,7 @@ func (ddb *datadb) inmemoryPartsMerger() {
 		}
 
 		inmemoryPartsConcurrencyCh <- struct{}{}
-		startTime := time.Now()
 		ddb.mustMergeParts(pws, false)
-		metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/inmemory"}`).UpdateDuration(startTime)
 		<-inmemoryPartsConcurrencyCh
 	}
 }
@@ -404,9 +415,7 @@ func (ddb *datadb) smallPartsMerger() {
 		}
 
 		smallPartsConcurrencyCh <- struct{}{}
-		startTime := time.Now()
 		ddb.mustMergeParts(pws, false)
-		metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/small"}`).UpdateDuration(startTime)
 		<-smallPartsConcurrencyCh
 	}
 }
@@ -428,9 +437,7 @@ func (ddb *datadb) bigPartsMerger() {
 		}
 
 		bigPartsConcurrencyCh <- struct{}{}
-		startTime := time.Now()
 		ddb.mustMergeParts(pws, false)
-		metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/big"}`).UpdateDuration(startTime)
 		<-bigPartsConcurrencyCh
 	}
 }
@@ -600,6 +607,18 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 
 	ddb.swapSrcWithDstParts(pws, pwNew, dstPartType)
 
+	switch dstPartType {
+	case partInmemory:
+		ddb.inmemoryMergeRowsTotal.Add(srcRowsCount)
+		ddb.inmemoryPartMergeDuration.UpdateDuration(startTime)
+	case partSmall:
+		ddb.smallPartMergeRowsTotal.Add(srcRowsCount)
+		ddb.smallPartMergeDuration.UpdateDuration(startTime)
+	case partBig:
+		ddb.bigPartMergeRowsTotal.Add(srcRowsCount)
+		ddb.bigPartMergeDuration.UpdateDuration(startTime)
+	}
+
 	d := time.Since(startTime)
 	if d <= time.Minute {
 		return
@@ -686,7 +705,9 @@ func (rb *rowsBuffer) Len() uint64 {
 	for i := range shards {
 		shard := &shards[i]
 		shard.mu.Lock()
-		len += uint64(shard.lr.Len())
+		if shard.lr != nil {
+			len += uint64(shard.lr.Len())
+		}
 		shard.mu.Unlock()
 	}
 
@@ -794,17 +815,26 @@ type DatadbStats struct {
 	// InmemoryActiveMerges is the number of currently active inmemory merges performed by the given datadb.
 	InmemoryActiveMerges uint64
 
+	// InmemoryMergeRowsTotal is the number of rows merged to inmemory parts.
+	InmemoryMergeRowsTotal uint64
+
 	// SmallPartMergesTotal is the number of small file merges performed in the given datadb.
 	SmallPartMergesTotal uint64
 
 	// SmallPartActiveMerges is the number of currently active small file merges performed by the given datadb.
 	SmallPartActiveMerges uint64
 
+	// SmallPartMergeRowsTotal is the number of rows merged to small parts.
+	SmallPartMergeRowsTotal uint64
+
 	// BigPartMergesTotal is the number of big file merges performed in the given datadb.
 	BigPartMergesTotal uint64
 
 	// BigPartActiveMerges is the number of currently active big file merges performed by the given datadb.
 	BigPartActiveMerges uint64
+
+	// BigPartMergeRowsTotal is the number of rows merged to big parts.
+	BigPartMergeRowsTotal uint64
 
 	// PendingRows is the number of rows, which weren't flushed to searchable part yet.
 	PendingRowsCount uint64
@@ -868,10 +898,13 @@ func (s *DatadbStats) RowsCount() uint64 {
 func (ddb *datadb) updateStats(s *DatadbStats) {
 	s.InmemoryMergesTotal += ddb.inmemoryMergesTotal.Load()
 	s.InmemoryActiveMerges += uint64(ddb.inmemoryActiveMerges.Load())
+	s.InmemoryMergeRowsTotal += ddb.inmemoryMergeRowsTotal.Load()
 	s.SmallPartMergesTotal += ddb.smallPartMergesTotal.Load()
 	s.SmallPartActiveMerges += uint64(ddb.smallPartActiveMerges.Load())
+	s.SmallPartMergeRowsTotal += ddb.smallPartMergeRowsTotal.Load()
 	s.BigPartMergesTotal += ddb.bigPartMergesTotal.Load()
 	s.BigPartActiveMerges += uint64(ddb.bigPartActiveMerges.Load())
+	s.BigPartMergeRowsTotal += ddb.bigPartMergeRowsTotal.Load()
 
 	s.PendingRowsCount = ddb.rb.Len()
 
