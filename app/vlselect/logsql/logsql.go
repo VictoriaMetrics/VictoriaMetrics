@@ -972,6 +972,60 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 }
 
+// ProcessAdminTenantsRequest processes /select/admin/tenants request.
+func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	start, okStart, err := getTimeNsec(r, "start")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	end, okEnd, err := getTimeNsec(r, "end")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if !okStart {
+		start = math.MinInt64
+	}
+	if !okEnd {
+		end = math.MaxInt64
+	}
+
+	if start > end {
+		httpserver.Errorf(w, r, "'start' time must be less than 'end' time")
+		return
+	}
+
+	sw := &syncWriter{
+		w: w,
+	}
+
+	var bwShards atomicutil.Slice[bufferedWriter]
+	bwShards.Init = func(shard *bufferedWriter) {
+		shard.sw = sw
+	}
+	defer func() {
+		shards := bwShards.All()
+		for _, shard := range shards {
+			shard.FlushIgnoreErrors()
+		}
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+
+	tenants, err := vlstorage.GetTenantIDs(ctx, start, end)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain tenantIDs: %s", err)
+		return
+	}
+
+	_, err = fmt.Fprintf(w, "{\"status\":\"success\",\"data\":%s}\n", tenants)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain tenantIDs: %s", err)
+		return
+	}
+}
+
 type syncWriter struct {
 	mu sync.Mutex
 	w  io.Writer
