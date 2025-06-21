@@ -19,6 +19,32 @@ and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaM
 or any other storage systems via Prometheus `remote_write` protocol
 or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-protocol).
 
+```mermaid
+graph LR
+    subgraph "Data Sources"
+        A1[Prometheus Exporters] -->|Scrape| V
+        A2[InfluxDB Data] -->|Push| V
+        A3[Graphite Metrics] -->|Push| V
+        A4[DataDog Metrics] -->|Push| V
+        A5[OpenTSDB Data] -->|Push| V
+    end
+
+    subgraph "vmagent"
+        V[vmagent] -->|Process| R[Relabeling & Filtering]
+        R -->|Buffer| B[Disk Buffer]
+    end
+
+    subgraph "Storage Systems"
+        B -->|Forward| S1[VictoriaMetrics]
+        B -->|Forward| S2[Prometheus Storage]
+        B -->|Forward| S3[Other Remote Storage]
+    end
+    
+    style V fill:#f96,stroke:#333,stroke-width:2px
+    style B fill:#6af,stroke:#333,stroke-width:1px
+    style R fill:#9f6,stroke:#333,stroke-width:1px
+```
+
 See [Quick Start](#quick-start) for details.
 
 ![vmagent](vmagent.webp)
@@ -32,6 +58,71 @@ to `vmagent` such as the ability to [accept metrics via popular push protocols](
 additionally to [discovering Prometheus-compatible targets and scraping metrics from them](#how-to-collect-metrics-in-prometheus-format).
 
 ## Features
+
+```mermaid
+graph TD
+
+subgraph "🎨 Data Sources"
+    direction LR
+    prom[/"📄 Prometheus Targets <br> (e.g., node_exporter)"/]
+    kafka_in[("📥 Kafka In")]
+    pubsub_in[("📥 Google PubSub In")]
+end
+
+
+subgraph "✨ vmagent Core ✨"
+    direction TB 
+    vmagent_node(("⚙️<br><b>vmagent</b>"))
+
+    subgraph "🛠️ Key Features"
+        direction LR 
+        discover["🔍 Discover<br>& Scrape"]
+        relabel["✏️ Relabel<br>& Filter"]
+        aggregate["📊 Aggregate<br>Data"]
+        buffer["📦 Buffer <br>(if remote down)"]
+        distribute["🔗 Distribute<br>Scrapes"]
+    end
+end
+
+
+subgraph "🚀 Remote Storage & Destinations 🚀"
+    vm[("💾 VictoriaMetrics")]
+    prom_remote[/"📒 Prometheus-compatible <br> Remote Storage"/]
+    kafka_out[("📤 Kafka Out")]
+    pubsub_out[("📤 Google PubSub Out")]
+
+    %% invisible arrows to stack vertically
+    vm --> prom_remote --> kafka_out --> pubsub_out
+end
+
+
+
+prom --> vmagent_node
+kafka_in --> vmagent_node
+pubsub_in --> vmagent_node
+
+
+
+vmagent_node --> discover
+discover --> relabel
+relabel --> aggregate
+aggregate --> buffer
+
+
+vmagent_node -.-> distribute 
+
+
+vmagent_node -.-> vm
+vmagent_node -.-> prom_remote
+vmagent_node -.-> kafka_out
+vmagent_node -.-> pubsub_out
+
+
+
+style prom fill:#FFE0B2,stroke:#FB8C00,stroke-width:2px,color:black
+style kafka_in fill:#B3E5FC,stroke:#03A9F4,stroke-width:2px,color:black
+style pubsub_in fill:#B3E5FC,stroke:#03A9F4,stroke-width:2px,color:black_
+```
 
 * Can be used as a drop-in replacement for Prometheus for discovering and scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
   Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way as `vmagent` does -
