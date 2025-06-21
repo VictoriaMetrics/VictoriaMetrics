@@ -142,13 +142,13 @@ type blockSearch struct {
 	// It is initialized lazily by calling getColumnsHeader().
 	cshCache *columnsHeader
 
+	// bytesReadFromDisk tracks the total bytes read from disk files for this block search
+	bytesReadFromDisk atomic.Uint64
+
 	// seenStreams contains seen streamIDs for the recent searches.
 	//
 	// It is used for speeding up fetching _stream column.
 	seenStreams map[u128]string
-
-	// bytesReadFromDisk tracks the total bytes read from disk files for this block search
-	bytesReadFromDisk atomic.Uint64
 }
 
 func (bs *blockSearch) reset() {
@@ -205,11 +205,6 @@ func (bs *blockSearch) reset() {
 	bs.bytesReadFromDisk.Store(0)
 
 	// Do not reset seenStreams, since its' lifetime is managed by blockResult.addStreamColumn() code.
-}
-
-// getBytesReadFromDisk returns the total number of bytes read from disk files for this block search.
-func (bs *blockSearch) getBytesReadFromDisk() uint64 {
-	return bs.bytesReadFromDisk.Load()
 }
 
 func (bs *blockSearch) partPath() string {

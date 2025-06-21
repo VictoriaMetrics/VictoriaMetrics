@@ -339,6 +339,6 @@ func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode
 var (
 	rowsDroppedTotalDebug         = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
 	rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
-	_                             = metrics.NewGauge(`vl_insert_processors_count{type=""}`, func() float64 { return float64(messageProcessorCount.Load()) })
+	_                             = metrics.NewGauge(`vl_insert_processors_count{}`, func() float64 { return float64(messageProcessorCount.Load()) })
 	messageProcessorCount         atomic.Int64
 )

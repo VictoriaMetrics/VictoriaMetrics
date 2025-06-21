@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // The maximum size of big part.
@@ -379,7 +380,9 @@ func (ddb *datadb) inmemoryPartsMerger() {
 		}
 
 		inmemoryPartsConcurrencyCh <- struct{}{}
+		startTime := time.Now()
 		ddb.mustMergeParts(pws, false)
+		metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/inmemory"}`).UpdateDuration(startTime)
 		<-inmemoryPartsConcurrencyCh
 	}
 }
@@ -401,7 +404,9 @@ func (ddb *datadb) smallPartsMerger() {
 		}
 
 		smallPartsConcurrencyCh <- struct{}{}
+		startTime := time.Now()
 		ddb.mustMergeParts(pws, false)
+		metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/small"}`).UpdateDuration(startTime)
 		<-smallPartsConcurrencyCh
 	}
 }
@@ -423,7 +428,9 @@ func (ddb *datadb) bigPartsMerger() {
 		}
 
 		bigPartsConcurrencyCh <- struct{}{}
+		startTime := time.Now()
 		ddb.mustMergeParts(pws, false)
+		metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/big"}`).UpdateDuration(startTime)
 		<-bigPartsConcurrencyCh
 	}
 }
@@ -673,6 +680,19 @@ type rowsBuffer struct {
 	nextIdx atomic.Uint64
 }
 
+func (rb *rowsBuffer) Len() uint64 {
+	shards := rb.shards
+	len := uint64(0)
+	for i := range shards {
+		shard := &shards[i]
+		shard.mu.Lock()
+		len += uint64(shard.lr.Len())
+		shard.mu.Unlock()
+	}
+
+	return len
+}
+
 func (rb *rowsBuffer) init(wg *sync.WaitGroup, flushFunc func(lr *logRows)) {
 	shards := make([]rowsBufferShard, cgroup.AvailableCPUs())
 	for i := range shards {
@@ -684,7 +704,7 @@ func (rb *rowsBuffer) init(wg *sync.WaitGroup, flushFunc func(lr *logRows)) {
 }
 
 type rowsBufferShard struct {
-	wg        *sync.WaitGroup
+	wg        *sync.WaitGroup // wg is shared with datadb
 	flushFunc func(lr *logRows)
 
 	mu         sync.Mutex
@@ -786,6 +806,9 @@ type DatadbStats struct {
 	// BigPartActiveMerges is the number of currently active big file merges performed by the given datadb.
 	BigPartActiveMerges uint64
 
+	// PendingRows is the number of rows, which weren't flushed to searchable part yet.
+	PendingRowsCount uint64
+
 	// InmemoryRowsCount is the number of rows, which weren't flushed to disk yet.
 	InmemoryRowsCount uint64
 
@@ -849,6 +872,8 @@ func (ddb *datadb) updateStats(s *DatadbStats) {
 	s.SmallPartActiveMerges += uint64(ddb.smallPartActiveMerges.Load())
 	s.BigPartMergesTotal += ddb.bigPartMergesTotal.Load()
 	s.BigPartActiveMerges += uint64(ddb.bigPartActiveMerges.Load())
+
+	s.PendingRowsCount = ddb.rb.Len()
 
 	ddb.partsLock.Lock()
 

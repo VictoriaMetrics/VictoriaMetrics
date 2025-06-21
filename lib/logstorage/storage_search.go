@@ -1066,7 +1066,7 @@ func (s *Storage) search(workersCount int, searchStats *searchStats, so *generic
 					}
 
 					bs.search(bsw, bm)
-					searchStats.totalBytesFromDisk.Add(bs.getBytesReadFromDisk())
+					searchStats.totalBytesFromDisk.Add(bs.bytesReadFromDisk.Load())
 					searchStats.totalRows.Add(uint64(bs.br.rowsLen))
 
 					if bs.br.rowsLen > 0 {

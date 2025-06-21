@@ -413,7 +413,7 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 
 func writeNetstorageInsertMetrics(w io.Writer, strg *netinsert.Storage) {
 	metrics.WriteGaugeUint64(w, `vl_insert_active_streams`, strg.GetActiveStreams())
-	metrics.WriteCounterUint64(w, `vl_insert_send_failures_total`, strg.SendFailed.Load())
+	metrics.WriteCounterUint64(w, `vl_insert_send_errors_total`, strg.SendFailed.Load())
 }
 
 var activeForceMerges = metrics.NewCounter("vl_active_force_merges")
