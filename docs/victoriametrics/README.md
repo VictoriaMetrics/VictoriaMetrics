@@ -1545,7 +1545,7 @@ There are two gauge metrics to monitor the retention filters process:
 - `vm_retention_filters_partitions_scheduled` shows the total number of partitions scheduled for retention filters 
 - `vm_retention_filters_partitions_scheduled_size_bytes` shows the total size of scheduled partitions.
 
-Additionally, a log message with the filter expression and the paritition name is written to the log on the start and completion of the operation.
+Additionally, a log message with the filter expression and the partition name is written to the log on the start and completion of the operation.
 
 Important notes:
 
@@ -1768,8 +1768,6 @@ _Please note, never use loadbalancer address for scraping metrics. All the monit
 
 Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229)
 and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics.
-See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831)
-created by community.
 
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
@@ -1814,6 +1812,11 @@ During querying, VictoriaMetrics tracks how many times the requested metric name
 when was the last time it happened. In this way, it is possible to identify metric names that were never queried. 
 Or if metric was queried occasionally - when the last time it happened. 
 
+The usage stats for a metric won't update in these two cases:
+* Querying a metric with non-matching filters. For example, querying for `vm_log_messages_total{level!="info"}` won't update usage stats 
+  for `vm_log_messages_total` if there is no `{level!="info"}` series yet.
+* The query response is fully cached in the [rollup result cache](https://docs.victoriametrics.com/#rollup-result-cache).
+
 To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for 
 a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)). 
 It accepts the following query parameters:
@@ -1850,9 +1853,7 @@ The API endpoint returns the following `JSON` response:
 * `records`:
   * `metricName` a metric name; 
   * `queryRequests` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
-    then one read query `foo` will increment counter by 10. Querying a metric with non-matching filters doesn't increase
-    the counter for this particular metric name. For example, querying for `vm_log_messages_total{level!="info"}` won't 
-    increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
+    then one read query `foo` will increment counter by 10.
   * `lastRequestTimestamp` a timestamp when last time this statistic was updated.
 
 _VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls._
@@ -2458,6 +2459,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
      Disable CORS for all origins (*)
+  -http.disableKeepAlive
+     Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string

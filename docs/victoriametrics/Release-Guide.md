@@ -116,6 +116,9 @@ Bumping the limits may significantly improve build speed.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
+1. Run `TAG=v1.xx.y make publish-latest`. This command publishes the `latest` Docker image tag for the given `TAG`.
+   This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
+   [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
 1. Bump VictoriaMetrics version at `deployment/docker/*.yml`. For example:
 
@@ -124,7 +127,7 @@ Bumping the limits may significantly improve build speed.
    ```
 
 1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
-1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
+1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md).
 
 ## Operator
 

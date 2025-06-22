@@ -53,35 +53,42 @@ to categorize GitHub issues. We have the following labels:
   Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, remove the label, and close the issue.
 1. `vmui`, assigned to issues related to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui or https://docs.victoriametrics.com/victorialogs/querying/#web-ui
 
-## Pull request checklist
+## Pull Request checklist
 
 Implementing a bugfix or enhancement requires sending a pull request to the [corresponding repository](https://github.com/orgs/VictoriaMetrics/repositories).
 
-A pull request should contain the following attributes:
-1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the change.
+Pull requests requirements are the following:
+1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the changes.
 1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
-1. A clear and concise description of what was done and for what purpose. Use the imperative, present tense: "change" not "changed" nor "changes". 
-   Read your commit message as "This commit will ..", don't capitalize the first letter
-1. A link to the issue related to this change, if any.
+1. A commit message should contain clear and concise description of what was done and for what purpose.
+   Use the imperative, present tense: "change" not "changed" nor "changes". Read your commit message as "This commit will ..", don't capitalize the first letter.
+   Message should be prefixed with `<dir>/<component>:` to show what component has been changed, i.e. `app/vmalert: fix...`.
+1. A link to the issue(s) related to the change, if any. Use `Fixes [issue link]` if the PR resolves the issue, or `Related to [issue link]` for reference.
 1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
    To run tests and code checks locally execute commands `make test-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
-1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
+1. Update [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs), if needed. For example, adding a new flag or changing behavior of existing flags or features 
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
    to the documentation. It will be later automatically replaced with an actual release version.
 1. A line in the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/#tip) mentioning the change and related issue in a way
-  that would be clear to other readers even if they don't have the full context. Use the same guidelines as for commit message.
+  that would be clear to other readers even if they don't have the full context.
 1. Reviewers who you think have the best expertise on the matter.
 
 See good example of pull request [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
 
-To merge the PR it should be approved by at least one reviewer, all CI checks should be green.
+## Merging Pull Request
 
-Once the PR is merged, check if related issues are still opened (GitHub may close it on PR merge).
-The issue should be closed only when the change gets included into an actual release.
-
-Label `waiting for release` is added to issues related to the merged PR. It makes easier for the person who makes the release 
-to track the related tickets and update them once release is published.
+The person who merges the Pull Request is responsible for satisfying requirements below:
+1. Make sure that PR satisfies [Pull Request checklist](https://docs.victoriametrics.com/victoriametrics/contributing/#pull-request-checklist),
+   it is approved by at least one reviewer, all CI checks are green.
+1. Try doing your best at assessing the changes. If possible, test them locally.
+1. Once merged, make sure to cherry-pick the changes across all related branches.
+1. If applicable, cherry-pick the change to [LTS release lines](https://docs.victoriametrics.com/victoriametrics/lts-releases/)
+   and mention in the PR comment what was or wasn't cherry-picked.
+1. Update related issues with a meaningful message of what has changed and when it will be
+   released. _This helps users to understand the change without reading PR._
+1. Add label `waiting for release` to related issues.
+1. Do not close related tickets until release is made. If ticket was auto-closed by GitHub or user - re-open it.
 
 ## KISS principle
 

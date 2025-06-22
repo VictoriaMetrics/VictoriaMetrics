@@ -150,7 +150,7 @@ Additional configuration options may be found under `Advanced Settings`  where t
 
 ## Adding a payment method
 
-VictoriaMetrics Cloud supports different payment options. You can found more information under the [Billing](/victoriametrics-cloud/billing/) section.
+VictoriaMetrics Cloud supports different payment options. You can found more information under the [Billing](https://docs.victoriametrics.com/victoriametrics-cloud/billing/) section.
 
 To add your payment method, navigate to the VictoriaMetrics Cloud [Billing](https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart)
 page, and go to the `Payment methods` tab. There, you'll be able to add a payment method by:

@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -85,6 +86,12 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 // listening for connections from other vminsert apps.
 func (app *Vminsert) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
+}
+
+// HTTPAddr returns the address at which the vminsert process is
+// listening for incoming HTTP requests.
+func (app *Vminsert) HTTPAddr() string {
+	return app.httpListenAddr
 }
 
 // InfluxWrite is a test helper function that inserts a

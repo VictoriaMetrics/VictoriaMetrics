@@ -1,7 +1,6 @@
 package internalinsert
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage/netinsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -18,17 +16,11 @@ import (
 )
 
 var (
-	disableInsert  = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint")
 	maxRequestSize = flagutil.NewBytes("internalinsert.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single request, which can be accepted at /internal/insert HTTP endpoint")
 )
 
 // RequestHandler processes /internal/insert requests.
 func RequestHandler(w http.ResponseWriter, r *http.Request) {
-	if *disableInsert {
-		httpserver.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable command-line flag")
-		return
-	}
-
 	startTime := time.Now()
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -47,7 +39,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
@@ -92,5 +84,5 @@ var (
 	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/internal/insert"}`)
 	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/internal/insert"}`)
 
-	requestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/internal/insert"}`)
+	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/internal/insert"}`)
 )

@@ -189,9 +189,11 @@ reader:
 
 ### Minimal deviation from expected
 
-`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it behaves as `min_dev_from_expected=0` to maintain backward compatibility.
+`min_dev_from_expected`{{% available_from "v1.13.0" anomaly %}} argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it is set to `0` to maintain backward compatibility.
 
-> `min_dev_from_expected` must be >= 0. The higher the value of `min_dev_from_expected`, the fewer data points will be available for anomaly detection, and vice versa.
+> {{% available_from "v1.23.0" anomaly %}} The `min_dev_from_expected` argument can be a list of two float values, allowing separate thresholds for upper and lower deviations. This is useful when the acceptable deviation varies in different directions (e.g., `min_dev_from_expected: [0.01, 0.02]` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is `0.02` when `y` is greater than `yhat`). If only one value is provided, it is broadcasted to both directions, meaning that the same threshold is applied for both upper and lower deviations (e.g., `min_dev_from_expected: 0.01` means that the lower bound is `0.01` when `y` is less than `yhat` and the upper bound is also `0.01` when `y` is greater than `yhat`).
+
+> `min_dev_from_expected` must be >= 0. The higher the value of `min_dev_from_expected`, the more significant the deviation must be to generate an anomaly score > 1. This helps in filtering out small deviations that may not be meaningful in the context of the monitored metric.
 
 *Example*: Consider a scenario where CPU utilization is low and oscillates around 0.3% (0.003). A sudden spike to 1.3% (0.013) represents a +333% increase in **relative** terms, but only a +1 percentage point (0.01) increase in **absolute** terms, which may be negligible and not warrant an alert. Setting the `min_dev_from_expected` argument to `0.01` (1%) will ensure that all anomaly scores for deviations <= `0.01` are set to 0.
 
@@ -220,12 +222,13 @@ models:
   zscore_with_min_dev:
     class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3
-    min_dev_from_expected: 5.0
+    min_dev_from_expected: [5.0, 5.0]
     queries: ['need_to_include_min_dev']  # use such models on queries where domain experience confirm usefulness
   zscore_wo_min_dev:
     class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3
-    # if not set, equals to setting min_dev_from_expected == 0
+    # if not set, equals to setting min_dev_from_expected == 0 (meaning no filtering is applied)
+    # min_dev_from_expected: [0.0, 0.0]
     queries: ['normal_behavior']  # use the default where it's not needed
 ```
 
@@ -360,7 +363,7 @@ The `anomaly_score_outside_data_range` {{% available_from "v1.20.0" anomaly %}} 
 
 **How it works**
 - If **not set**, the **default value (`1.01`)** is used for backward compatibility.
-- If defined at the **service level** (`settings`), it applies to all models **unless overridden at the model level**.
+- If defined at the **service level** (`settings` [section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#anomaly-score-outside-data-range)), it applies to all models **unless overridden at the model level**.
 - If set **per model**, it takes **priority over the global setting**.
 
 **Example (override)**
@@ -394,6 +397,38 @@ models:
     class: 'zscore_online'
     # explicitly set, takes priority over `settings`'s value
     anomaly_score_outside_data_range: 3.0  
+```
+
+### Decay
+
+> The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
+
+The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a float value between `0.0` and `1.0`, where:
+- `1.0` means no decay (the model treats all data equally, without giving more weight to recent data). This is the default value for backward compatibility.
+- Less than `1.0` means that the model will give more weight to recent data, effectively "forgetting" older data over time.
+
+Roughly speaking, for the recent N datapoints model processes `decay` = `d` means that these datapoints will contribute to the model as [1 - d^X] percent of total importance, for example decay of
+- `0.99` means that 100 recent datapoints will contribute as [1 - 0.99^100] = 63.23% of total importance
+- `0.999` means that 1000 recent datapoints will contribute as [1 - 0.999^1000] = 63.23% of total importance
+
+For example, if the model is updated every 5 minutes (`scheduler.infer_every`), on five 1-minute datapoints and there is a need to keep the last 1 day of data as the most impactful, setting `decay: 0.996` will ensure that the model has the last (86400/60) = 1440 datapoints contributing as [1 - 0.996^1440] = 99.6% of total importance, without the need to re-train the model on all 1440 datapoints every day with `fit_every: 1d` (which would be the limitation for [offline models](#offline-models)).
+
+Example config:
+
+```yaml
+# other components like writer, schedulers, monitoring ...
+reader:
+  # ...
+  queries:
+    q1: metricsql_expression1
+    # ...
+
+models:
+  online_zscore:
+    class: 'zscore_online'
+    z_threshold: 3.0
+    decay: 0.996  # decay factor for online model, default is 1.0
+    queries: ['q1']
 ```
 
 
@@ -478,17 +513,19 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 ### Online Models
 
-Online (incremental) models{{% available_from "v1.15.0" anomaly %}} allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
+> Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{% available_from "v1.24.0" anomaly %}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints.
+
+Online (incremental) models {{% available_from "v1.15.0" anomaly %}} allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
 If the model doesn't support online mode, it's called **offline** (its parameters are only updated during `fit` calls).
 
 Main differences between offline and online:
 
-Fit stage
+**Fit stage**
 - Both types have a `fit` stage, run on the `fit_window` data frame.
 - For offline models, `fit_window` should contain enough data to train the model (e.g., 2 seasonal periods).
 - For online models, training can start gradually from smaller chunks (e.g., 1 hour).
 
-Infer stage
+**Infer stage**
 - Both types have an `infer` stage, run on new datapoints (timestamps > last seen timestamp of the previous `infer` call).
 - Offline models use a pre-trained (during `fit` call) *static* model to make every `infer` call until the next `fit` call, when the model is completely re-trained.
 - Online models use a pre-trained (during `fit` call) *dynamic* model, which is gradually updated during each `infer` call with new datapoints. However, to prevent the model from accumulating outdated behavior, each `fit` call resets the model from scratch.
@@ -626,7 +663,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -656,7 +693,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -703,7 +740,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -739,7 +776,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -795,7 +832,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -831,7 +868,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -871,7 +908,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -907,7 +944,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -962,7 +999,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -999,7 +1036,7 @@ models:
     # schedulers: [all scheduler aliases defined in `scheduler` section]
     # queries: [all query aliases defined in `reader.queries` section]
     # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
     # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
     # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
@@ -1241,7 +1278,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.21.0
+docker pull victoriametrics/vmanomaly:v1.24.1
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1255,7 +1292,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.21.0 /config.yaml \
+victoriametrics/vmanomaly:v1.24.1 /config.yaml \
 --licenseFile=/license
 ```
 

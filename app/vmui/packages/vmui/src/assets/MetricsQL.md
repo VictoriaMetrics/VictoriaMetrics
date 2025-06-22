@@ -742,7 +742,23 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 
 This function is supported by PromQL.
 
-See also [irate](#irate) and [rollup_rate](#rollup_rate).
+See also [irate](#irate), [rollup_rate](#rollup_rate) and [rate_prometheus](#rate_prometheus).
+
+#### rate_prometheus
+
+`rate_prometheus(series_selector[d])` {{% available_from "#" %}} is a [rollup function](#rollup-functions), which calculates the average per-second
+increase rate over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
+The resulting calculation is equivalent to `increase_prometheus(series_selector[d]) / d`.
+
+It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does.
+See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
+
+See also [increase_prometheus](#increase_prometheus) and [rate](#rate).
+
 
 #### rate_over_sum
 

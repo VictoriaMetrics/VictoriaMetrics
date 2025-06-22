@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -44,6 +45,8 @@ func main() {
 
 	vlstorage.Init()
 	vlselect.Init()
+
+	insertutil.SetLogRowsStorage(&vlstorage.Storage{})
 	vlinsert.Init()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{

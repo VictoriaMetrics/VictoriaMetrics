@@ -18,6 +18,11 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.24.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.24.0-victorialogs)
+
+Released at 2025-06-20
+
+* FEATURE: add `-http.disableKeepAlive` to disable HTTP keep-alives for incoming connections. The flag could improve load balancing among replicas behind HTTP load balancers. See [#9125](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9125) and [#2395](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2395) for details.
 * FEATURE: [`delete` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe): allow deleting all the fields with common prefix via `... | delete prefix*` syntax.
 * FEATURE: [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe): allow keeping all the fields with common prefix via `... | fields prefix*` syntax.
 * FEATURE: [`copy` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#copy-pipe): allow copying all the fields with common prefix to fields with another common prefix via `... | copy old_prefix* as new_prefix*` syntax.
@@ -25,10 +30,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
 * FEATURE: [`unpack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
 * FEATURE: [`avg` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the average value over all the fields with common prefix via `avg(prefix*)` syntax.
-* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
-* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
-* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
-* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
+* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
+* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
+* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#median-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
+* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#quantile-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
 * FEATURE: [`sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum-stats): allow calculating the sum for all the fields with common prefix via `sum(prefix*)` syntax.
 * FEATURE: [`sum_len` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum_len-stats): allow calculating the sum of byte lengths for all the fields with common prefix via `sum_len(prefix*)` syntax.
 * FEATURE: [`count` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count-stats): allow calculating the number of logs with at least a single non-empty field across fields with common prefix via `count(prefix*)` syntax.
@@ -40,6 +45,25 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [`uniq_values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#uniq_values-stats): allow fetching unique values for all the fields with common prefix via `uniq_values(prefix*)` syntax.
 * FEATURE: [`values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#values-stats): allow fetching values for all the fields with common prefix via `values(prefix*)` syntax.
 * FEATURE: [`json_values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#json_values-stats): allow fetching values for all the fields with common prefix via `json_values(prefix*)` syntax.
+* FEATURE: [`-insert.maxLineSizeBytes`](https://docs.victoriametrics.com/victorialogs/faq/#what-length-a-log-record-is-expected-to-have): add logging of the number of bytes skipped for oversize lines.
+* FEATURE: add `-insert.disable` and `-select.disable` command-line flags for disabling both public and internal HTTP endpoints (`/insert/*` + `/internal/insert` and `/select/*` + `/internal/select/*` respectively). See [#9061](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9061).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): enhance autocomplete with parsed field suggestions from unpack pipe. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8806).
+* FEATURE: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): automatically add `level` log field according to [the `PRIORITY` field value](https://wiki.archlinux.org/title/Systemd/Journal#Priority_level). This enables [log level highlighting in Grafana](https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level). See [#8535](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8535).
+* FEATURE: [Syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): automatically add `level` log field according to [the `severity` field value](https://en.wikipedia.org/wiki/Syslog#Severity_level). This enables [log level highlighting in Grafana](https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level).
+* FEATURE: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): use `(_MACHINE_ID, _HOSTNAME, _SYSTEMD_UNIT)` fields as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default. See [#9143](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9143).
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): optimize `(any_filter or *)` filters to `*`. This avoids executing the `any_filter`. Such filters are frequently generated by Grafana.
+* FEATURE: [`/select/logsql/query` endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs): optimize the input query after adding the `limit` to it. This improves performance and reduces memory usage for queries ending with [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). See [#9200](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9200). Thanks to @vadimalekseev for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9201).
+
+* BUGFIX: [query API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs): properly set storage node authorization in cluster mode when [Basic Auth](https://docs.victoriametrics.com/victorialogs/cluster/#security) is enabled. See [#9080](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9080).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): live tailing tab automatically reconnects when the connection is lost. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9129).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix issue with hits chart ignoring selected AccountID and ProjectID. See [#9157](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9157).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix missing field values in auto-complete. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8749)
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): remove the compact mode of the table tab and add field sorting capabilities to the JSON tab. See [#7047](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7047).
+* BUGFIX: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): properly read log timestamp from `__REALTIME_TIMESTAMP` field according to [the docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#time-field). See [#9144](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9144). The bug has been introduced in [v1.22.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.0-victorialogs).
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support `-` as a timestamp value, as described in [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.3).
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly handle quotes inside quoted strings such as `"\""`. Previously this could lead to panics. See [#9219](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9219).
+* BUGFIX: [LogsQL regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter): properly parse unquoted filter ending with `*`, such as `foo:~bar.*`. It must be parsed as `foo:~"bar.*"`, while previously it was incorrectly parsed as `foo:~"bar."`.
+* BUGFIX: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): properly read large Journald requests in streaming manner. See [#9070](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9070). Deprecate `-journald.maxRequestSize` command-line flag, since it is no longer used.
 
 ## [v1.23.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.23.3-victorialogs)
 
