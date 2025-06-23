@@ -746,7 +746,7 @@ See also [irate](#irate), [rollup_rate](#rollup_rate) and [rate_prometheus](#rat
 
 #### rate_prometheus
 
-`rate_prometheus(series_selector[d])` {{% available_from "#" %}} is a [rollup function](#rollup-functions), which calculates the average per-second
+`rate_prometheus(series_selector[d])` {{% available_from "v1.120.0" %}} is a [rollup function](#rollup-functions), which calculates the average per-second
 increase rate over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
 The resulting calculation is equivalent to `increase_prometheus(series_selector[d]) / d`.
 
