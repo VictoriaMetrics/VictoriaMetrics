@@ -206,7 +206,7 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 	var results []result
 
 	const workersCount = 3
-	s.search(workersCount, so, nil, func(_ uint, br *blockResult) {
+	s.search(workersCount, &searchStats{}, so, nil, func(_ uint, br *blockResult) {
 		// Verify columns
 		cs := br.getColumns()
 		if len(cs) != 2 {

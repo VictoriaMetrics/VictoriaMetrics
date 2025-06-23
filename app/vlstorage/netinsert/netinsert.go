@@ -33,6 +33,8 @@ const ProtocolVersion = "v1"
 
 // Storage is a network storage for sending data to remote storage nodes in the cluster.
 type Storage struct {
+	RemoteSendFailed atomic.Uint64 // Number of failed requests sent to remote storage nodes.
+
 	sns []*storageNode
 
 	disableCompression bool
@@ -235,9 +237,7 @@ func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) erro
 
 	resp, err := sn.c.Do(req)
 	if err != nil {
-		// Disable sn for data writing for 10 seconds.
-		sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
-
+		sn.setDisableTemporarily()
 		return fmt.Errorf("cannot send data block with the length %d to %q: %s", pendingData.Len(), reqURL, err)
 	}
 	defer resp.Body.Close()
@@ -251,14 +251,18 @@ func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) erro
 		respBody = []byte(fmt.Sprintf("%s", err))
 	}
 
-	// Disable sn for data writing for 10 seconds.
-	sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
+	sn.setDisableTemporarily()
 
 	return fmt.Errorf("unexpected status code returned when sending data block to %q: %d; want 2xx; response body: %q", reqURL, resp.StatusCode, respBody)
 }
 
 func (sn *storageNode) getRequestURL(path string) string {
 	return fmt.Sprintf("%s://%s%s?version=%s", sn.scheme, sn.addr, path, url.QueryEscape(ProtocolVersion))
+}
+
+func (sn *storageNode) setDisableTemporarily() {
+	sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
+	sn.s.RemoteSendFailed.Add(1)
 }
 
 var zstdBufPool bytesutil.ByteBufferPool
@@ -305,6 +309,15 @@ func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
 	idx := s.srt.getNodeIdx(streamHash)
 	sn := s.sns[idx]
 	sn.addRow(r)
+}
+
+// GetActiveStreams returns the number of log streams being tracked since the Storage start.
+func (s *Storage) GetActiveStreams() uint64 {
+	s.srt.mu.Lock()
+	n := uint64(len(s.srt.rowsPerStream))
+	s.srt.mu.Unlock()
+
+	return n
 }
 
 func (s *Storage) sendInsertRequestToAnyNode(pendingData *bytesutil.ByteBuffer) bool {

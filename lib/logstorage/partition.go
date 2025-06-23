@@ -8,6 +8,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	streamIDCacheHits   = metrics.NewCounter(`vl_cache_hits_total{type="stream_id"}`)
+	streamIDCacheMisses = metrics.NewCounter(`vl_cache_misses_total{type="stream_id"}`)
 )
 
 // PartitionStats contains stats for the partition.
@@ -118,18 +124,23 @@ func mustClosePartition(pt *partition) {
 }
 
 func (pt *partition) mustAddRows(lr *LogRows) {
+	var cacheMisses uint64
+	var cacheHits uint64
+
 	// Register rows in indexdb
 	var pendingRows []int
 	streamIDs := lr.streamIDs
 	for i := range lr.timestamps {
 		streamID := &streamIDs[i]
 		if pt.hasStreamIDInCache(streamID) {
+			cacheHits++
 			continue
 		}
 		if len(pendingRows) == 0 || !streamIDs[pendingRows[len(pendingRows)-1]].equal(streamID) {
 			pendingRows = append(pendingRows, i)
 		}
 	}
+
 	if len(pendingRows) > 0 {
 		logNewStreams := pt.s.logNewStreams
 		streamTagsCanonicals := lr.streamTagsCanonicals
@@ -142,11 +153,14 @@ func (pt *partition) mustAddRows(lr *LogRows) {
 				continue
 			}
 			if pt.hasStreamIDInCache(streamID) {
+				cacheHits++
 				continue
 			}
+			cacheMisses++
 			if !pt.idb.hasStreamID(streamID) {
 				streamTagsCanonical := streamTagsCanonicals[rowIdx]
 				pt.idb.mustRegisterStream(streamID, streamTagsCanonical)
+
 				if logNewStreams {
 					pt.logNewStream(streamTagsCanonical, lr.rows[rowIdx])
 				}
@@ -154,6 +168,9 @@ func (pt *partition) mustAddRows(lr *LogRows) {
 			pt.putStreamIDToCache(streamID)
 		}
 	}
+
+	streamIDCacheMisses.Add(int(cacheMisses))
+	streamIDCacheHits.Add(int(cacheHits))
 
 	// Add rows to datadb
 	pt.ddb.mustAddRows(lr)

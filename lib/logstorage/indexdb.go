@@ -46,6 +46,9 @@ type IndexdbStats struct {
 
 	// IndexdbPartsCount is the number of parts in indexdb.
 	IndexdbPartsCount uint64
+
+	// IndexdbPendingItems is the number of pending items in IndexedDB before they are merged into the part.
+	IndexdbPendingItems uint64
 }
 
 type indexdb struct {
@@ -107,6 +110,7 @@ func (idb *indexdb) updateStats(d *IndexdbStats) {
 
 	d.IndexdbSizeBytes += tm.InmemorySizeBytes + tm.FileSizeBytes
 	d.IndexdbItemsCount += tm.InmemoryItemsCount + tm.FileItemsCount
+	d.IndexdbPendingItems += tm.PendingItems
 	d.IndexdbPartsCount += tm.InmemoryPartsCount + tm.FilePartsCount
 	d.IndexdbBlocksCount += tm.InmemoryBlocksCount + tm.FileBlocksCount
 }

@@ -78,6 +78,8 @@ var localStorage *logstorage.Storage
 var localStorageMetrics *metrics.Set
 
 var netstorageInsert *netinsert.Storage
+var netstorageInsertMetrics *metrics.Set
+
 var netstorageSelect *netselect.Storage
 
 // Init initializes vlstorage.
@@ -141,6 +143,11 @@ func initNetworkStorage() {
 
 	logger.Infof("starting insert service for nodes %s", *storageNodeAddrs)
 	netstorageInsert = netinsert.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *insertConcurrency, *insertDisableCompression)
+	netstorageInsertMetrics = metrics.NewSet()
+	netstorageInsertMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		writeNetstorageInsertMetrics(w, netstorageInsert)
+	})
+	metrics.RegisterSet(netstorageInsertMetrics)
 
 	logger.Infof("initializing select service for nodes %s", *storageNodeAddrs)
 	netstorageSelect = netselect.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *selectDisableCompression)
@@ -354,6 +361,10 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)
 
+	if maxDiskSpaceUsageBytes.N > 0 {
+		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_max_disk_space_usage_bytes{path=%q}`, *storageDataPath), uint64(maxDiskSpaceUsageBytes.N))
+	}
+
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
 
 	isReadOnly := uint64(0)
@@ -370,6 +381,10 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/small"}`, ss.SmallPartMergesTotal)
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/big"}`, ss.BigPartMergesTotal)
 
+	metrics.WriteCounterUint64(w, `vl_rows_merge_total{type="storage/inmemory"}`, ss.InmemoryMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merge_total{type="storage/small"}`, ss.SmallPartMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merge_total{type="storage/big"}`, ss.BigPartMergeRowsTotal)
+
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/inmemory"}`, ss.InmemoryRowsCount)
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/small"}`, ss.SmallPartRowsCount)
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/big"}`, ss.BigPartRowsCount)
@@ -381,6 +396,9 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/inmemory"}`, ss.InmemoryBlocks)
 	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/small"}`, ss.SmallPartBlocks)
 	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/big"}`, ss.BigPartBlocks)
+
+	metrics.WriteGaugeUint64(w, `vl_pending_rows{type="storage"}`, ss.PendingRowsCount)
+	metrics.WriteGaugeUint64(w, `vl_pending_rows{type="indexdb"}`, ss.IndexdbPendingItems)
 
 	metrics.WriteGaugeUint64(w, `vl_partitions`, ss.PartitionsCount)
 	metrics.WriteCounterUint64(w, `vl_streams_created_total`, ss.StreamsCreatedTotal)
@@ -402,6 +420,11 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 
 	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_big_timestamp"}`, ss.RowsDroppedTooBigTimestamp)
 	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_small_timestamp"}`, ss.RowsDroppedTooSmallTimestamp)
+}
+
+func writeNetstorageInsertMetrics(w io.Writer, strg *netinsert.Storage) {
+	metrics.WriteGaugeUint64(w, `vl_insert_active_streams`, strg.GetActiveStreams())
+	metrics.WriteCounterUint64(w, `vl_insert_remote_send_errors_total`, strg.RemoteSendFailed.Load())
 }
 
 var activeForceMerges = metrics.NewCounter("vl_active_force_merges")
