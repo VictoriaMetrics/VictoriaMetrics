@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add `vm_series_read_per_query` metric to expose number of series matched per query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7029) for the details.
+ 
 ## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
 
 Released at 2025-06-20
@@ -33,7 +35,6 @@ Released at 2025-06-20
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): correct the rule evaluation timestamp if the system clock is changed during runtime. See [#8790](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8790).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): respect [group](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) `concurrency` setting in [replay mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) when `-replay.rulesDelay=0`. See this [#7387](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7387) for details. Thanks to @BenNF for the [PR #9214](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9214).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): allow overriding default limits for in-memory cache `storage/metricName` via flag `-storage.cacheSizeStorageMetricName`.
-* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add `vm_series_read_per_query` metric to expose number of series matched per query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7029) for the details.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix server-side copying of objects for Azure Blob Storage when using managed identity for authentication. Previously, it wasn't possible to use [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy for `vmbackup` as server-side copy would fail. See [#9131](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9131).
