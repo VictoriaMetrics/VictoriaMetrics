@@ -144,10 +144,10 @@ graph TD
 
 In this HA solution:
 
-- A log shipper at the top receives logs and replicates them in parallel to two VictoriaLogs nodes. 
-  - If one storage node fails, the log shipper continues to send logs to the remaining healthy node and buffers logs that couldn’t be delivered to the failed node.
-- On the read path, a load balancer (e.g. vmauth) sits in front of the VictoriaLogs nodes and routes query requests to any healthy replica. 
-  - If one storage node fails, the load balancer detects this and automatically redirects all query traffic to the surviving node.
+- A log shipper at the top receives logs and replicates them in parallel to two VictoriaLogs clusters.
+  - If one cluster fails completely (i.e., **all** of its storage nodes become unavailable), the log shipper continues to send logs to the remaining healthy cluster and buffers any logs that cannot be delivered. When the failed cluster becomes available again, the log shipper resumes sending both buffered and new logs to it.
+- On the read path, a load balancer (e.g., vmauth) sits in front of the VictoriaLogs clusters and routes query requests to any healthy cluster.
+  - If one cluster fails (i.e., **at least one** of its storage nodes is unavailable), the load balancer detects this and automatically redirects all query traffic to the remaining healthy cluster.
 
 There's no hidden coordination logic or consensus algorithm. You can scale it horizontally and operate it safely, even in bare-metal Kubernetes clusters using local PVs, as long as the log shipper handles reliable replication and buffering.
   
