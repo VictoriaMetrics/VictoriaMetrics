@@ -3,7 +3,6 @@ import DownloadLogsButton from "../../../DownloadLogsButton/DownloadLogsButton";
 import { createPortal } from "preact/compat";
 import "./style.scss";
 import { ViewProps } from "../../types";
-import useBoolean from "../../../../../hooks/useBoolean";
 import useStateSearchParams from "../../../../../hooks/useStateSearchParams";
 import TableLogs from "../../TableLogs";
 import SelectLimit from "../../../../../components/Main/Pagination/SelectLimit/SelectLimit";
@@ -18,7 +17,6 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
   const [rowsPerPage, setRowsPerPage] = useStateSearchParams(100, "rows_per_page");
-  const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
   const columns = useMemo(() => {
     const keys = new Set<string>();
@@ -52,8 +50,6 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
             columns={columns}
             selectedColumns={displayColumns}
             onChangeColumns={setDisplayColumns}
-            tableCompact={tableCompact}
-            toggleTableCompact={toggleTableCompact}
           />
         </div>
       </div>,
@@ -69,7 +65,7 @@ const TableView: FC<ViewProps> = ({ data, settingsRef }) => {
       <MemoizedTableView
         logs={data}
         displayColumns={displayColumns}
-        tableCompact={tableCompact}
+        tableCompact={false}
         columns={columns}
         rowsPerPage={Number(rowsPerPage)}
       />

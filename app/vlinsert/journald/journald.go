@@ -28,24 +28,6 @@ import (
 // See https://github.com/systemd/systemd/blob/main/src/libsystemd/sd-journal/journal-file.c#L1703
 const maxFieldNameLen = 64
 
-func isValidJournaldFieldName(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	c := s[0]
-	if !(c >= 'A' && c <= 'Z' || c == '_') {
-		return false
-	}
-
-	for i := 1; i < len(s); i++ {
-		c := s[i]
-		if !(c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') {
-			return false
-		}
-	}
-	return true
-}
-
 var (
 	journaldStreamFields = flagutil.NewArrayString("journald.streamFields", "Comma-separated list of fields to use as log stream fields for logs ingested over journald protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#stream-fields")
@@ -100,7 +82,7 @@ var defaultStreamFields = []string{
 // RequestHandler processes Journald Export insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
-	case "/upload":
+	case "/insert/journald/upload":
 		if r.Header.Get("Content-Type") != "application/vnd.fdo.journal" {
 			httpserver.Errorf(w, r, "only application/vnd.fdo.journal encoding is supported for Journald")
 			return true
@@ -163,7 +145,7 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 var (
 	requestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/journald/upload"}`)
 	errorsTotal     = metrics.NewCounter(`vl_http_errors_total{path="/insert/journald/upload"}`)
-	requestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/journald/upload"}`)
+	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/journald/upload"}`)
 )
 
 func processStreamInternal(streamName string, r io.Reader, lmp insertutil.LogMessageProcessor, cp *insertutil.CommonParams) error {
@@ -214,6 +196,18 @@ func (fb *fieldsBuf) addField(name, value string) {
 	})
 }
 
+func (fb *fieldsBuf) appendNextLineToValue(lr *insertutil.LineReader) error {
+	if !lr.NextLine() {
+		if err := lr.Err(); err != nil {
+			return err
+		}
+		return fmt.Errorf("unexpected end of stream")
+	}
+	fb.value = append(fb.value, lr.Line...)
+	fb.value = append(fb.value, '\n')
+	return nil
+}
+
 func getFieldsBuf() *fieldsBuf {
 	fb := fieldsBufPool.Get()
 	if fb == nil {
@@ -259,42 +253,35 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			return nil
 		}
 
-		// line could be either "key=value\n" or "key\n<little_endian_size_64>value\n"
+		// line could be either "key=value" or "key"
 		// according to https://systemd.io/JOURNAL_EXPORT_FORMATS/#journal-export-format
 		if n := bytes.IndexByte(line, '='); n >= 0 {
-			// "key=value\n"
+			// line = "key=value"
 			fb.name = append(fb.name[:0], line[:n]...)
 			name = bytesutil.ToUnsafeString(fb.name)
 
 			fb.value = append(fb.value[:0], line[n+1:]...)
 			value = bytesutil.ToUnsafeString(fb.value)
 		} else {
-			// "key\n<little_endian_size_64>value\n"
+			// line = "key"
+			// Parse the binary-encoded value from the next line according to "key\n<little_endian_size_64>value\n" format
 			fb.name = append(fb.name[:0], line...)
 			name = bytesutil.ToUnsafeString(fb.name)
 
 			fb.value = fb.value[:0]
 			for len(fb.value) < 8 {
-				if !lr.NextLine() {
-					if err := lr.Err(); err != nil {
-						return fmt.Errorf("cannot read value size: %w", err)
-					}
-					return fmt.Errorf("unexpected end of stream while reading value size")
+				if err := fb.appendNextLineToValue(lr); err != nil {
+					return fmt.Errorf("cannot read value size: %w", err)
 				}
-				fb.value = append(fb.value, lr.Line...)
-				fb.value = append(fb.value, '\n')
 			}
 			size := binary.LittleEndian.Uint64(fb.value[:8])
 
-			for size > uint64(len(fb.value[8:])) {
-				if !lr.NextLine() {
-					if err := lr.Err(); err != nil {
-						return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value[8:]), err)
-					}
-					return fmt.Errorf("unexpected end of stream while reading %q value with size %d bytes; read only %d bytes", fb.name, size, len(fb.value[8:]))
+			// Read the value until its lenth exceeds the given size - the last char in the read value will always be '\n'
+			// because it is appended by appendNextLineToValue().
+			for uint64(len(fb.value[8:])) <= size {
+				if err := fb.appendNextLineToValue(lr); err != nil {
+					return fmt.Errorf("cannot read %q value with size %d bytes; read only %d bytes: %w", fb.name, size, len(fb.value[8:]), err)
 				}
-				fb.value = append(fb.value, lr.Line...)
-				fb.value = append(fb.value, '\n')
 			}
 			value = bytesutil.ToUnsafeString(fb.value[8 : len(fb.value)-1])
 			if uint64(len(value)) != size {
@@ -314,7 +301,7 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			logger.Errorf("%s: field name size should not exceed %d bytes; got %d bytes: %q; skipping this field", streamName, maxFieldNameLen, len(name), name)
 			continue
 		}
-		if !isValidJournaldFieldName(name) {
+		if !isValidFieldName(name) {
 			logger.Errorf("%s: invalid field name %q; it must consist of `A-Z0-9_` chars and must start from non-digit char; skipping this field", streamName, name)
 			continue
 		}
@@ -350,17 +337,41 @@ func journaldPriorityToLevel(priority string) string {
 	// See https://wiki.archlinux.org/title/Systemd/Journal#Priority_level
 	// and https://grafana.com/docs/grafana/latest/explore/logs-integration/#log-level
 	switch priority {
-	case "0", "1", "2":
+	case "0":
+		return "emerg"
+	case "1":
+		return "alert"
+	case "2":
 		return "critical"
 	case "3":
 		return "error"
 	case "4":
 		return "warning"
-	case "5", "6":
+	case "5":
+		return "notice"
+	case "6":
 		return "info"
 	case "7":
 		return "debug"
 	default:
 		return priority
 	}
+}
+
+func isValidFieldName(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	c := s[0]
+	if !(c >= 'A' && c <= 'Z' || c == '_') {
+		return false
+	}
+
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if !(c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') {
+			return false
+		}
+	}
+	return true
 }
