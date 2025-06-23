@@ -305,6 +305,23 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.12)
+
+Released at 2025-06-20
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.24.3 to Go1.24.4. See [the list of issues addressed in Go1.24.4](https://github.com/golang/go/issues?q=milestone%3AGo1.24.4+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.3 to 3.22.0. See [Alpine 3.22.0 release notes](https://alpinelinux.org/posts/Alpine-3.22.0-released.html).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [#8836](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix server-side copying of objects for Azure Blob Storage when using managed identity for authentication. Previously, it wasn't possible to use [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy for `vmbackup` as server-side copy would fail. See [#9131](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9131).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): increase startup healthcheck delay for storage reachability from 30 seconds to 3 minutes. This is required to avoid vmbackupmanager restarts when storage node startup take more than 30 seconds (e.g. when storage nodes stores more than 5Tb of data).
+
 ## [v1.110.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.11)
 
 Released at 2025-06-09
@@ -567,6 +584,22 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
+
+## [v1.102.24](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.24)
+
+Released at 2025-06-20
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.21.3 to 3.22.0. See [Alpine 3.22.0 release notes](https://alpinelinux.org/posts/Alpine-3.22.0-released.html).
+* SECURITY: upgrade Go builder from Go1.23.9 to Go1.23.10. See [the list of issues addressed in Go1.23.10](https://github.com/golang/go/issues?q=milestone%3AGo1.23.10+label%3ACherryPickApproved).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix server-side copying of objects for Azure Blob Storage when using managed identity for authentication. Previously, it wasn't possible to use [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy for `vmbackup` as server-side copy would fail. See [#9131](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9131).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): increase startup healthcheck delay for storage reachability from 30 seconds to 3 minutes. This is required to avoid vmbackupmanager restarts when storage node startup take more than 30 seconds (e.g. when storage nodes stores more than 5Tb of data).
 
 ## [v1.102.23](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.23)
 
