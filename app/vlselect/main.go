@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/internalselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/logsql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/traces/jaeger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -139,6 +140,19 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		return true
 	}
 	defer decRequestConcurrency()
+
+	if strings.HasPrefix(path, "/internal/select/") {
+		// Process internal request from vlselect without timeout (e.g. use ctx instead of ctxWithTimeout),
+		// since the timeout must be controlled by the vlselect.
+		internalselect.RequestHandler(ctx, w, r)
+		return true
+	}
+
+	if strings.HasPrefix(path, "/select/jaeger/") {
+		// Jaeger HTTP APIs for distributed tracing.
+		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
+		return jaeger.RequestHandler(ctxWithTimeout, w, r)
+	}
 
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {

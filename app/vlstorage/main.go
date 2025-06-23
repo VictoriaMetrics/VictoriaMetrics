@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage/netinsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage/netselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -18,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -114,9 +113,9 @@ func initLocalStorage() {
 
 	var ss logstorage.StorageStats
 	localStorage.UpdateStats(&ss)
-	logger.Infof("successfully opened storage in %.3f seconds; smallParts: %d; bigParts: %d; smallPartBlocks: %d; bigPartBlocks: %d; smallPartRows: %d; bigPartRows: %d; "+
+	logger.Infof("successfully opened storage %q in %.3f seconds; smallParts: %d; bigParts: %d; smallPartBlocks: %d; bigPartBlocks: %d; smallPartRows: %d; bigPartRows: %d; "+
 		"smallPartSize: %d bytes; bigPartSize: %d bytes",
-		time.Since(startTime).Seconds(), ss.SmallParts, ss.BigParts, ss.SmallPartBlocks, ss.BigPartBlocks, ss.SmallPartRowsCount, ss.BigPartRowsCount,
+		*storageDataPath, time.Since(startTime).Seconds(), ss.SmallParts, ss.BigParts, ss.SmallPartBlocks, ss.BigPartBlocks, ss.SmallPartRowsCount, ss.BigPartRowsCount,
 		ss.CompressedSmallPartSize, ss.CompressedBigPartSize)
 
 	// register local storage metrics

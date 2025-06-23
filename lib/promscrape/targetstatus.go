@@ -13,13 +13,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/hashpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 10000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
@@ -410,21 +409,15 @@ func (dt *droppedTargets) getTotalTargets() int {
 }
 
 func labelsHash(labels *promutil.Labels) uint64 {
-	d := xxhashPool.Get().(*xxhash.Digest)
+	d := hashpool.Get()
 	for _, label := range labels.GetLabels() {
 		_, _ = d.WriteString(label.Name)
 		_, _ = d.WriteString(label.Value)
 	}
 	h := d.Sum64()
 	d.Reset()
-	xxhashPool.Put(d)
+	hashpool.Put(d)
 	return h
-}
-
-var xxhashPool = &sync.Pool{
-	New: func() any {
-		return xxhash.New()
-	},
 }
 
 // WriteDroppedTargetsJSON writes `droppedTargets` contents to w according to https://prometheus.io/docs/prometheus/latest/querying/api/#targets
