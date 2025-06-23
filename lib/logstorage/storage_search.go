@@ -21,10 +21,10 @@ import (
 )
 
 var (
-	rowsPerQuery          = metrics.NewHistogram(`vl_storage_rows_read_per_query`)
-	bytesPerQuery         = metrics.NewHistogram(`vl_storage_bytes_read_per_query`)
-	blocksPerQuery        = metrics.NewHistogram(`vl_storage_blocks_read_per_query`)
-	fetchedStreamPerQuery = metrics.NewHistogram(`vl_storage_streams_used_per_query`)
+	rowsPerQuery        = metrics.NewHistogram(`vl_storage_rows_read_per_query`)
+	bytesPerQuery       = metrics.NewHistogram(`vl_storage_bytes_read_per_query`)
+	blocksPerQuery      = metrics.NewHistogram(`vl_storage_blocks_read_per_query`)
+	streamsUsedPerQuery = metrics.NewHistogram(`vl_storage_streams_used_per_query`)
 )
 
 // genericSearchOptions contain options used for search.
@@ -116,7 +116,7 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	bytesPerQuery.Update(float64(q.searchStats.totalBytesFromDisk.Load()))
 	rowsPerQuery.Update(float64(q.searchStats.totalRows.Load()))
 	blocksPerQuery.Update(float64(q.searchStats.totalBlocks.Load()))
-	fetchedStreamPerQuery.Update(float64(q.searchStats.fetchStreams.Load()))
+	streamsUsedPerQuery.Update(float64(q.searchStats.fetchStreams.Load()))
 
 	return err
 }
