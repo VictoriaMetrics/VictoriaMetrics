@@ -69,8 +69,11 @@ type datadb struct {
 
 	// metrics that need to be updated directly
 	inmemoryPartMergeDuration *metrics.Summary
+	inmemoryPartMergeBytes    *metrics.Summary
 	smallPartMergeDuration    *metrics.Summary
+	smallPartMergeBytes       *metrics.Summary
 	bigPartMergeDuration      *metrics.Summary
+	bigPartMergeBytes         *metrics.Summary
 
 	// pt is the partition the datadb belongs to
 	pt *partition
@@ -199,8 +202,11 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		flushInterval: flushInterval,
 
 		inmemoryPartMergeDuration: metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/inmemory"}`),
+		inmemoryPartMergeBytes:    metrics.GetOrCreateSummary(`vl_merge_bytes{type="storage/inmemory"}`),
 		smallPartMergeDuration:    metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/small"}`),
+		smallPartMergeBytes:       metrics.GetOrCreateSummary(`vl_merge_bytes{type="storage/small"}`),
 		bigPartMergeDuration:      metrics.GetOrCreateSummary(`vl_merge_duration_seconds{type="storage/big"}`),
+		bigPartMergeBytes:         metrics.GetOrCreateSummary(`vl_merge_bytes{type="storage/big"}`),
 
 		path:       path,
 		smallParts: smallParts,
@@ -611,12 +617,15 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	case partInmemory:
 		ddb.inmemoryMergeRowsTotal.Add(srcRowsCount)
 		ddb.inmemoryPartMergeDuration.UpdateDuration(startTime)
+		ddb.inmemoryPartMergeBytes.Update(float64(dstSize))
 	case partSmall:
 		ddb.smallPartMergeRowsTotal.Add(srcRowsCount)
 		ddb.smallPartMergeDuration.UpdateDuration(startTime)
+		ddb.smallPartMergeBytes.Update(float64(dstSize))
 	case partBig:
 		ddb.bigPartMergeRowsTotal.Add(srcRowsCount)
 		ddb.bigPartMergeDuration.UpdateDuration(startTime)
+		ddb.bigPartMergeBytes.Update(float64(dstSize))
 	}
 
 	d := time.Since(startTime)
