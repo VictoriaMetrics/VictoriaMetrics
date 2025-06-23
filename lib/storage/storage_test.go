@@ -16,10 +16,11 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestReplaceAlternateRegexpsWithGraphiteWildcards(t *testing.T) {
@@ -1063,7 +1064,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
 	}
 	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if got, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
+	sc := getSearchContext(noDeadline, "test", nil)
+	if got, ok := idb.getMetricIDsFromTagFiltersCache(sc, tfssKey); ok {
 		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
 	}
 	if got := s.getDeletedMetricIDs().Len(); got != 0 {
@@ -1089,7 +1091,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	}
 	metricID := genTSID.TSID.MetricID
 	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if _, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); !ok {
+	if _, ok := idb.getMetricIDsFromTagFiltersCache(sc, tfssKey); !ok {
 		t.Fatalf("tagFiltersToMetricIDsCache was expected to contain a record but it did not")
 	}
 	if got := s.getDeletedMetricIDs().Len(); got != 0 {
@@ -1110,7 +1112,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
 	}
 	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if got, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
+	if got, ok := idb.getMetricIDsFromTagFiltersCache(sc, tfssKey); ok {
 		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
 	}
 	if got, want := s.getDeletedMetricIDs().AppendTo(nil), []uint64{metricID}; !reflect.DeepEqual(got, want) {
@@ -1564,9 +1566,9 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		idbCurr, putIndexDB := s.getCurrIndexDB()
 		defer putIndexDB()
 		idbPrev := idbCurr.extDB
-		isCurr := idbCurr.getIndexSearch(accountID, projectID, noDeadline)
+		isCurr := idbCurr.getIndexSearch(accountID, projectID)
 		defer idbCurr.putIndexSearch(isCurr)
-		isPrev := idbPrev.getIndexSearch(accountID, projectID, noDeadline)
+		isPrev := idbPrev.getIndexSearch(accountID, projectID)
 		defer idbPrev.putIndexSearch(isPrev)
 
 		tfss := NewTagFilters(accountID, projectID)
@@ -1594,7 +1596,9 @@ func testCountAllMetricNamesNoExtDB(tfss *TagFilters, is *indexSearch, tr TimeRa
 	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9)
+	sc, so, done := getCommonSearchOptions(nil, noDeadline, 1e9, "test")
+	defer done()
+	metricIDs, err := is.searchMetricIDs(sc, []*TagFilters{tfss}, tr, so)
 	if err != nil {
 		panic(fmt.Sprintf("searchMetricIDs failed unexpectedly: %v", err))
 	}
@@ -2268,7 +2272,9 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	}
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
-	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	sc, so, done := getCommonSearchOptions(nil, noDeadline, 1e9, "test")
+	defer done()
+	ids, err := idb.searchMetricIDs(sc, []*TagFilters{tfsAll}, tr, so)
 	if err != nil {
 		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
 	}

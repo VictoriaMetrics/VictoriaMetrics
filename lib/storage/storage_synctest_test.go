@@ -8,8 +8,9 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
@@ -65,16 +66,17 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 		}
 		tfssAll := []*TagFilters{tfsAll}
-
+		sc, so, done := getCommonSearchOptions(nil, noDeadline, 1e9, "test")
+		defer done()
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(sc, tfssAll, tr, so)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
 			return metricIDs
 		}
 		searchMetricNames := func() []string {
-			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
+			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, so.maxMetrics, sc.deadline)
 			if err != nil {
 				panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 			}

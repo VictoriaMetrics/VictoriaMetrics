@@ -15,6 +15,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -31,8 +34,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 const (
@@ -1312,13 +1313,17 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 // time range is ignored and the metrics are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	tr = s.adjustTimeRange(tr)
-	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
-	defer qt.Done()
-
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
-	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+
+	sc, so, cleanup := getCommonSearchOptions(qt, deadline, maxMetrics, "/api/v1/series")
+	defer cleanup()
+
+	tr = s.adjustTimeRange(tr)
+	sc = sc.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
+	defer sc.Done()
+
+	metricIDs, err := idb.searchMetricIDs(sc, tfss, tr, so)
 	if err != nil {
 		return nil, err
 	}
@@ -1328,7 +1333,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 
 	accountID := tfss[0].accountID
 	projectID := tfss[0].projectID
-	if err = s.prefetchMetricNames(qt, idb, accountID, projectID, metricIDs, deadline); err != nil {
+	if err = s.prefetchMetricNames(sc, idb, accountID, projectID, metricIDs); err != nil {
 		return nil, err
 	}
 	metricNames := make([]string, 0, len(metricIDs))
@@ -1336,7 +1341,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	var metricName []byte
 	for i, metricID := range metricIDs {
 		if i&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+			if err := sc.checkSearchDeadlineAndPace(); err != nil {
 				return nil, err
 			}
 		}
@@ -1354,7 +1359,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 		metricNames = append(metricNames, string(metricName))
 		metricNamesSeen[metricNames[len(metricNames)-1]] = struct{}{}
 	}
-	qt.Printf("loaded %d metric names", len(metricNames))
+	sc.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
 }
 
@@ -1365,12 +1370,12 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 // This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
 //
 // It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, accountID, projectID uint32, srcMetricIDs []uint64, deadline uint64) error {
-	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
-	defer qt.Done()
+func (s *Storage) prefetchMetricNames(sc *searchContext, idb *indexDB, accountID, projectID uint32, srcMetricIDs []uint64) error {
+	sc = sc.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
+	defer sc.Done()
 
 	if len(srcMetricIDs) < 500 {
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
+		sc.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
 		return nil
 	}
 
@@ -1385,10 +1390,10 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, acco
 	}
 	s.prefetchedMetricIDsLock.Unlock()
 
-	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
+	sc.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
+		sc.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
 		return nil
 	}
 	s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
@@ -1397,11 +1402,11 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, acco
 	var missingMetricIDs []uint64
 	var metricName []byte
 	var err error
-	is := idb.getIndexSearch(accountID, projectID, deadline)
+	is := idb.getIndexSearch(accountID, projectID)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
 		if loops&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+			if err := sc.checkSearchDeadlineAndPace(); err != nil {
 				return err
 			}
 		}
@@ -1413,11 +1418,11 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, acco
 		}
 	}
 	idb.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		is := extDB.getIndexSearch(accountID, projectID)
 		defer extDB.putIndexSearch(is)
 		for loops, metricID := range missingMetricIDs {
 			if loops&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+				if err = sc.checkSearchDeadlineAndPace(); err != nil {
 					return
 				}
 			}
@@ -1427,7 +1432,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, acco
 	if err != nil && err != io.EOF {
 		return err
 	}
-	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
+	sc.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	s.prefetchedMetricIDsLock.Lock()
@@ -1441,7 +1446,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, acco
 	s.prefetchedMetricIDs.AddMulti(metricIDs)
 	s.prefetchedMetricIDsLock.Unlock()
 
-	qt.Printf("cache metric ids for pre-fetched metric names")
+	sc.Printf("cache metric ids for pre-fetched metric names")
 	return nil
 }
 
@@ -1457,7 +1462,10 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics)
+	sc, so, cleanup := getCommonSearchOptions(qt, noDeadline, maxMetrics, "/api/v1/admin/tsdb/delete_series")
+	defer cleanup()
+
+	deletedCount, err := idb.DeleteTSIDs(sc, tfss, so)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
@@ -1481,8 +1489,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
+
+	sc, so, cleanup := getCommonSearchOptions(qt, deadline, maxMetrics, "/api/v1/labels")
+	defer cleanup()
+
 	tr = s.adjustTimeRange(tr)
-	return idb.SearchLabelNames(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
+	return idb.SearchLabelNames(sc, accountID, projectID, tfss, tr, maxLabelNames, so)
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters
@@ -1498,6 +1510,10 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID 
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
+
+	sc, so, cleanup := getCommonSearchOptions(qt, deadline, maxMetrics, "/api/v1/label/{}/values")
+	defer cleanup()
+
 	tr = s.adjustTimeRange(tr)
 
 	key := labelName
@@ -1509,7 +1525,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
 		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 
-		lvs, err := idb.SearchLabelValues(qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
+		lvs, err := idb.SearchLabelValues(sc, accountID, projectID, labelName, nil, tr, maxMetrics, so)
 		if err != nil {
 			return nil, err
 		}
@@ -1532,7 +1548,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	return idb.SearchLabelValues(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	return idb.SearchLabelValues(sc, accountID, projectID, labelName, tfss, tr, maxLabelValues, so)
 }
 
 func filterLabelValues(accountID, projectID uint32, lvs []string, tf *tagFilter, key string) []string {
@@ -1576,7 +1592,12 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, proj
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
-	return idb.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+
+	// TODO: check url
+	sc := getSearchContext(deadline, "/api/v1/graphite/tag_value_suffixes", qt)
+	defer putSearchContext(sc)
+
+	return idb.SearchTagValueSuffixes(sc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
@@ -1594,7 +1615,12 @@ func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, accountID, project
 	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
-	return s.searchGraphitePaths(qt, idb, accountID, projectID, tr, nil, query, maxPaths, deadline)
+
+	// TODO: verify path
+	sc := getSearchContext(deadline, "/api/v1/graphite/paths", qt)
+	defer putSearchContext(sc)
+
+	return s.searchGraphitePaths(sc, idb, accountID, projectID, tr, nil, query, maxPaths)
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -1639,12 +1665,12 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 	}
 }
 
-func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, idb *indexDB, accountID, projectID uint32, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
+func (s *Storage) searchGraphitePaths(sc *searchContext, idb *indexDB, accountID, projectID uint32, tr TimeRange, qHead, qTail []byte, maxPaths int) ([]string, error) {
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
-		suffixes, err := idb.SearchTagValueSuffixes(qt, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
+		suffixes, err := idb.SearchTagValueSuffixes(sc, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1)
 		if err != nil {
 			return nil, err
 		}
@@ -1659,7 +1685,7 @@ func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, idb *indexDB, acco
 		return []string{string(qHead)}, nil
 	}
 	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := idb.SearchTagValueSuffixes(qt, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
+	suffixes, err := idb.SearchTagValueSuffixes(sc, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -1696,7 +1722,7 @@ func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, idb *indexDB, acco
 			continue
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := s.searchGraphitePaths(qt, idb, accountID, projectID, tr, qHead, qTail, maxPaths, deadline)
+		ps, err := s.searchGraphitePaths(sc, idb, accountID, projectID, tr, qHead, qTail, maxPaths)
 		if err != nil {
 			return nil, err
 		}
@@ -1774,7 +1800,10 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
-	return idb.GetSeriesCount(accountID, projectID, deadline)
+
+	sc := getSearchContext(deadline, "/api/v1/series/count", nil)
+
+	return idb.GetSeriesCount(sc, accountID, projectID)
 }
 
 // SearchTenants returns list of registered tenants on the given tr.
@@ -1794,10 +1823,14 @@ func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline u
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
+
+	sc, so, cleanup := getCommonSearchOptions(qt, deadline, maxMetrics, "/api/v1/status/tsdb")
+	defer cleanup()
+
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
-	res, err := idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	res, err := idb.GetTSDBStatus(sc, accountID, projectID, tfss, date, focusLabel, topN, so)
 	if err != nil {
 		return nil, err
 	}
@@ -2010,6 +2043,9 @@ func (s *Storage) adjustTimeRange(tr TimeRange) TimeRange {
 // The the MetricRow.Timestamp is used for registering the metric name at the given day according to the timestamp.
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
+	sc := getSearchContext(noDeadline, "register_metric_names", qt)
+	defer putSearchContext(sc)
+
 	qt = qt.NewChild("registering %d series", len(mrs))
 	defer qt.Done()
 	var metricNameBuf []byte
@@ -2023,7 +2059,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 	generation := idb.generation
-	is := idb.getIndexSearch(0, 0, noDeadline)
+	is := idb.getIndexSearch(0, 0)
 	defer idb.putIndexSearch(is)
 	var firstWarn error
 	for i := range mrs {
@@ -2135,7 +2171,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	idb, idbNext, putIndexDBs := s.getCurrAndNextIndexDBs()
 	defer putIndexDBs()
 	generation := idb.generation
-	is := idb.getIndexSearch(0, 0, noDeadline)
+	is := idb.getIndexSearch(0, 0)
 	defer idb.putIndexSearch(is)
 
 	hmPrev := s.prevHourMetricIDs.Load()
@@ -2439,7 +2475,7 @@ func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*Met
 	pMin := float64(d) / 3600
 
 	generation := idbNext.generation
-	isNext := idbNext.getIndexSearch(0, 0, noDeadline)
+	isNext := idbNext.getIndexSearch(0, 0)
 	defer idbNext.putIndexSearch(isNext)
 
 	var firstError error
@@ -2610,7 +2646,7 @@ func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRo
 		return a.tsid.MetricID < b.tsid.MetricID
 	})
 
-	is := idb.getIndexSearch(0, 0, noDeadline)
+	is := idb.getIndexSearch(0, 0)
 	defer idb.putIndexSearch(is)
 
 	var firstError error
