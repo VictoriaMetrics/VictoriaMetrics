@@ -3,11 +3,11 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.21.3
+ROOT_IMAGE ?= alpine:3.22.0
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.21.3
+CERTS_IMAGE := alpine:3.22.0
 
-GO_BUILDER_IMAGE := golang:1.24.3-alpine
+GO_BUILDER_IMAGE := golang:1.24.4-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -95,7 +95,7 @@ publish-via-docker:
 		--label "org.opencontainers.image.version=$(PKG_TAG)" \
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_TAG_SUFFIX) \
 		) \
 		-o type=image \
 		--provenance=false \
@@ -115,7 +115,7 @@ publish-via-docker:
 		--label "org.opencontainers.image.version=$(PKG_TAG)" \
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_TAG_SUFFIX)-scratch \
 		) \
 		-o type=image \
 		--provenance=false \

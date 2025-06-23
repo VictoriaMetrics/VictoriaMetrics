@@ -20,9 +20,8 @@ var (
 		"The time filter in RFC3339 format to finish the replay by. E.g. '2020-01-01T20:07:00Z'. "+
 			"By default, is set to the current time.")
 	replayRulesDelay = flag.Duration("replay.rulesDelay", time.Second,
-		"Delay between rules evaluation within the group. Could be important if there are chained rules inside the group "+
-			"and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule."+
-			"Keep it equal or bigger than -remoteWrite.flushInterval.")
+		"Delay before evaluating the next rule within the group. Is important for chained rules. "+
+			"Keep it equal or bigger than -remoteWrite.flushInterval. When set to >0, replay ignores group's concurrency setting.")
 	replayMaxDatapoints = flag.Int("replay.maxDatapointsPerQuery", 1e3,
 		"Max number of data points expected in one request. It affects the max time range for every '/query_range' request during the replay. The higher the value, the less requests will be made during replay.")
 	replayRuleRetryAttempts = flag.Int("replay.ruleRetryAttempts", 5,
