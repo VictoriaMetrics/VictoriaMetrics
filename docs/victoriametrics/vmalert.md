@@ -860,6 +860,9 @@ There are following non-required `replay` flags:
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
+* `replay.singleRuleEvaluationConcurrency` - concurrency to evaluate requests within a single rule replay. 
+  This is useful for rules with long evaluation time, so that they can be evaluated in parallel.
+  The default value is `1`, which means that each rule is evaluated sequentially.
 
 See full description for these flags in `./vmalert -help`.
 
