@@ -95,7 +95,7 @@ Both [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [P
 Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data
 and new data is available for querying via Prometheus as usual.
 
-It is recommended using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for scraping Prometheus targets
+Enabling remote write is recommended when using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
 
 ## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
@@ -140,7 +140,7 @@ VictoriaMetrics is similar to Cortex in the following aspects:
 * Both systems accept data from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or Prometheus
   via the standard [remote_write API](https://prometheus.io/docs/practices/remote_write/), so there is no need to run sidecars,
   unlike in [Thanos](https://github.com/thanos-io/thanos)' case.
-* Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
+* Both systems support multitenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 * Both systems support data replication. See [replication in Cortex](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#hashing) and [replication in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 * Both systems scale horizontally to multiple nodes. See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability) for details.
 * Both systems support alerting and recording rules via corresponding tools such as [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
@@ -153,10 +153,10 @@ The main differences between Cortex and VictoriaMetrics:
   This may increase operational complexity and reduce system reliability compared to VictoriaMetrics' case,
   which doesn't use any external services. Compare [Cortex' Architecture](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md)
   to [VictoriaMetrics' architecture](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
-* VictoriaMetrics provides [production-ready single-node solution](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
+* VictoriaMetrics provides a [production-ready single-node solution](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
   which is much easier to set up and operate than a Cortex cluster.
-* Cortex may lose up to 12 hours of recent data on Ingestor failure – see [the corresponding docs](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#ingesters-failure-and-data-loss).
-  VictoriaMetrics may lose only a few seconds of recent data, which isn't synced to persistent storage yet.
+* Cortex can lose up to 12 hours of recent data on Ingestor failure – see [the corresponding docs](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#ingesters-failure-and-data-loss).
+  VictoriaMetrics may lose only a few seconds of recent data, which hasn't been synced to persistent storage yet.
   See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 * Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
@@ -169,16 +169,16 @@ The main differences between Cortex and VictoriaMetrics:
 * Thanos reuses Prometheus source code, while VictoriaMetrics is written from scratch.
 * VictoriaMetrics accepts data via the [standard remote_write API for Prometheus](https://prometheus.io/docs/practices/remote_write/),
   while Thanos uses a non-standard [sidecar](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md) which must run alongside each Prometheus instance.
-* The Thanos sidecar requires disabling data compaction in Prometheus, which may hurt Prometheus performance and increase RAM usage. See [these docs](https://thanos.io/tip/components/sidecar.md/) for more details.
+* To use the Thanos sidecar, Prometheus data compaction must be disabled — this may degrade performance and increase RAM usage. See [these docs](https://thanos.io/tip/components/sidecar.md/) for more details.
 * Thanos stores data in object storage (Amazon S3 or Google GCS), while VictoriaMetrics stores data in block storage
   ([GCP persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs), Amazon EBS or bare metal HDD).
   While object storage is usually less expensive, block storage provides much lower latencies and higher throughput.
-  VictoriaMetrics works perfectly with HDD-based block storage – there is no need for using more expensive SSD or NVMe disks in most cases.
-* Thanos may lose up to 2 hours of recent data, which wasn't uploaded yet to object storage. VictoriaMetrics may lose only a few seconds of recent data,
+  VictoriaMetrics works perfectly with HDD-based block storage – which eliminates the need for more expensive SSD or NVMe disks in most cases.
+* Thanos can lose up to 2 hours of recent data, which hasn't been uploaded to object storage yet. VictoriaMetrics may lose only a few seconds of recent data,
   which hasn't been synced to persistent storage yet. See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 * VictoriaMetrics provides a [production-ready single-node solution](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/),
   which is much easier to set up and operate than Thanos components.
-* Thanos may be harder to set up and operate compared to VictoriaMetrics, since it has more moving parts, which can be connected with fewer reliable networks.
+* Compared to VictoriaMetrics, Thanos has more moving parts and relies more heavily on stable network connections, which can make it trickier to set up and operate.
   See [this article for details](https://medium.com/faun/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
 * Thanos is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
 * VictoriaMetrics accepts data via multiple popular data ingestion protocols in addition to the Prometheus remote_write protocol – InfluxDB, OpenTSDB, Graphite, CSV, JSON, native binary.
@@ -189,8 +189,8 @@ The main differences between Cortex and VictoriaMetrics:
 ## How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
 
 * VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [works faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-* VictoriaMetrics needs lower amounts of storage space than InfluxDB for production data.
-* VictoriaMetrics doesn't support InfluxQL or Flux but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
+* VictoriaMetrics uses less storage space than InfluxDB for production data.
+* VictoriaMetrics doesn't support InfluxQL or Flux, but provides a better query language – [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [this tutorial](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols in addition to InfluxDB – Prometheus remote_write, OpenTSDB, Graphite, CSV, JSON, native binary.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data) for details.
 * VictoriaMetrics can be queried via [Graphite's API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage).
@@ -198,7 +198,7 @@ The main differences between Cortex and VictoriaMetrics:
 ## How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
 
 * TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical usages of a TSDB. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
-* VictoriaMetrics requires [up to 70x less storage space compared to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be lowered from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/use-timescale/latest/compression/) (it isn't an easy task in general :)).
+* VictoriaMetrics requires [up to 70x less storage space compared to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be decreased from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/use-timescale/latest/compression/) (it isn't an easy task in general :)).
 * VictoriaMetrics requires up to 10x less CPU and RAM resources than TimescaleDB for processing production data. See [this article](https://abiosgaming.com/press/high-cardinality-aggregations/) for details.
 * TimescaleDB is [harder to set up, configure and operate](https://docs.timescale.com/timescaledb/latest/how-to-guides/install-timescaledb/self-hosted/ubuntu/installation-apt-ubuntu/) than VictoriaMetrics (see [how to run VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-start-victoriametrics)).
 * VictoriaMetrics accepts data in multiple popular data ingestion protocols – InfluxDB, OpenTSDB, Graphite, CSV – while TimescaleDB supports only SQL inserts.
@@ -216,7 +216,7 @@ The following versions are open source and free:
 * [Single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
 * [Cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
-We provide commercial support for both versions. [Contact us](mailto:info@victoriametrics.com) for the pricing.
+We provide commercial support for both versions. [Contact us](mailto:info@victoriametrics.com) for pricing.
 
 The following commercial versions of VictoriaMetrics are available:
 
@@ -230,12 +230,12 @@ The following commercial versions of VictoriaMetrics are planned:
 
 ## Why doesn't VictoriaMetrics support the [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_read%3E)?
 
-The remote read API requires transferring all the raw data for all the requested metrics over the given time range. For instance,
+The remote read API requires transferring all of the raw data for all of the requested metrics over the given time range. For instance,
 if a query covers 1000 metrics with 10K values each, then the remote read API has to return `1000*10K`=10M metric values to Prometheus.
 This is slow and expensive.
 Prometheus' remote read API isn't intended for querying foreign data – aka `global query view`. See [this issue](https://github.com/prometheus/prometheus/issues/4456) for details.
 
-So just query VictoriaMetrics directly via [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui), the [Prometheus Querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
+Instead, you can query VictoriaMetrics directly via [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui), the [Prometheus Querying API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 or via [Prometheus datasource in Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
 ## Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
@@ -244,7 +244,7 @@ Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-se
 
 ## Where is the source code of VictoriaMetrics?
 
-Source code for the following versions is available in the following places:
+You can find the source code for the versions below in these locations:
 
 * [Single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics)
 * [Cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster)
@@ -258,25 +258,22 @@ and scales horizontally to multiple nodes.
 
 ## What is the difference between single-node and cluster versions of VictoriaMetrics?
 
-Both [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
-[cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) versions of VictoriaMetrics
-share the core source code, so they have many common features. They have the following differences though:
+Both the [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
+[cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) versions of VictoriaMetrics are built on the same core code, so they share many features. That said, here are the key differences between them:
 
-* [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) runs on a single host,
-  while [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can scale to many hosts.
-  Single-node VictoriaMetrics scales vertically though, e.g. its capacity and performance scales almost linearly when increasing
+* The [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) runs on a single host,
+  while the [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can scale to many hosts.
+  The single-node version of VictoriaMetrics can scale vertically, e.g. its capacity and performance scales almost linearly when increasing
   available CPU, RAM, disk IO and disk space. See [an article about vertical scalability of a single-node VictoriaMetrics](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
-* Cluster version of VictoriaMetrics supports [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy),
-  while single-node VictoriaMetrics doesn't support it.
+* The cluster version of VictoriaMetrics supports [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy),
+  but single-node VictoriaMetrics does not.
 
-* Cluster version of VictoriaMetrics supports data replication, while single-node VictoriaMetrics relies on the durability
-  of the persistent storage pointed by `-storageDataPath` command-line flag.
+* The cluster version of VictoriaMetrics supports data replication, while single-node VictoriaMetrics relies on the durability
+  of the persistent storage pointed by the `-storageDataPath` command-line flag.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for details.
 
-* Single-node VictoriaMetrics provides higher capacity and performance comparing to cluster version of VictoriaMetrics
-  when running on the same hardware with the same amounts of CPU and RAM, since it has no overhead on data transfer
-  between cluster components over the network.
+* The single-node version of VictoriaMetrics delivers higher capacity and performance than the cluster version when running on the same hardware with equal CPU and RAM, as it avoids the overhead of network data transfers between cluster components.
 
 See also [which type of VictoriaMetrics is recommended to use](#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
 
@@ -293,13 +290,13 @@ See the full list of [community channels](https://docs.victoriametrics.com/victo
 
 File bugs and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
-## Where can I find information about multi-tenancy?
+## Where can I find information about multitenancy?
 
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). Multitenancy is supported only by the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) of VictoriaMetrics.
 
 ## How to set a memory limit for VictoriaMetrics components?
 
-All the VictoriaMetrics components provide command-line flags to control the size of internal buffers and caches: `-memory.allowedPercent` and `-memory.allowedBytes` (pass `-help` to any VictoriaMetrics component in order to see the description for these flags). These limits don't take into account additional memory, which may be needed for processing incoming queries. Hard limits may be enforced only by the OS via [cgroups](https://en.wikipedia.org/wiki/Cgroups), Docker (see [these docs](https://docs.docker.com/config/containers/resource_constraints)) or Kubernetes (see [these docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
+All VictoriaMetrics components provide command-line flags to control the size of internal buffers and caches: `-memory.allowedPercent` and `-memory.allowedBytes` (pass `-help` to any VictoriaMetrics component in order to see the description for these flags). These limits don't take into account additional memory, which may be needed for processing incoming queries. Hard limits may be enforced only by the OS via [cgroups](https://en.wikipedia.org/wiki/Cgroups), Docker (see [these docs](https://docs.docker.com/config/containers/resource_constraints)) or Kubernetes (see [these docs](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers)).
 
 Memory usage for VictoriaMetrics components can be tuned according to the following docs:
 
@@ -311,7 +308,7 @@ Memory usage for VictoriaMetrics components can be tuned according to the follow
 ## How can I run VictoriaMetrics on FreeBSD/OpenBSD?
 
 VictoriaMetrics is included in [OpenBSD](https://github.com/openbsd/ports/blob/c1bfea520bbb30d6e5f8d0f09115ace341f820d6/infrastructure/db/user.list#L383)
-and [FreeBSD](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) ports so just install it from there
+and [FreeBSD](https://www.freebsd.org/cgi/ports.cgi?query=victoria&stype=all) ports. You can install it from there
 or use pre-built binaries from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 
 ## Does VictoriaMetrics support the Graphite query language?
@@ -320,8 +317,8 @@ Yes. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrati
 
 ## What is an active time series?
 
-A time series is uniquely identified by its name plus a set of its labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}`
-are two distinct series, since they differ by the `city` label. A time series is considered active if it received at least a single sample during the last hour.
+A time series is uniquely defined by its name and associated set of labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}`
+are two distinct series, since they differ by the `city` label. A time series is considered active if it has received at least a single sample during the last hour.
 The number of active time series is displayed on the official Grafana dashboard for VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
 
 ## What is high churn rate?
@@ -339,23 +336,22 @@ The main reason for high churn rate is a metric label with frequently changed va
 * A label derived from the current time such as `timestamp`, `minute` or `hour`.
 * A `hash` or `uuid` label, which changes frequently.
 
-The solution against high churn rate is to identify and eliminate labels with frequently changed values.
-[Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can help determining these labels. If labels can't be removed, try pre-aggregating data
-before it gets ingested into database with [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
+To reduce high churn rates, identify and remove labels with frequently changing values.
+[Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can help determine these labels. If labels can't be removed, try pre-aggregating data
+before it gets ingested into the database with [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 The official Grafana dashboards for VictoriaMetrics contain graphs for churn rate - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
 
 ## What is high cardinality?
 
 High cardinality usually means a high number of [active time series](#what-is-an-active-time-series). High cardinality may lead to high memory usage
-and/or to a high percentage of [slow inserts](#what-is-a-slow-insert). The source of high cardinality is usually a label with
-a large number of unique values, which presents a big share of the ingested time series. Examples of such labels:
+and/or to a high percentage of [slow inserts](#what-is-a-slow-insert). The main cause of high cardinality is usually a label with a high number of distinct values, which makes up a large share of the ingested time series. Examples of such labels:
 
 * `user_id`
 * `url`
 * `ip`
 
-The solution is to identify and remove the source of high cardinality with the help of [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
+To reduce high cardinality, identify and remove it's source with the help of [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer).
 
 The official Grafana dashboards for VictoriaMetrics contain graphs, which show the number of active time series -
 see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) for details.
@@ -363,15 +359,15 @@ see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-
 ## What is a slow insert?
 
 VictoriaMetrics maintains in-memory cache for mapping of [active time series](#what-is-an-active-time-series) into internal series ids.
-The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all the active time series doesn't fit the cache,
-then VictoriaMetrics needs to read and unpack the information from disk on every incoming sample for time series missing in the cache.
-This operation is much slower than the cache lookup, so such an insert is named a `slow insert`.
+The cache size depends on the available memory for VictoriaMetrics in the host system. If the information about all active time series doesn't fit the cache,
+then VictoriaMetrics needs to read and unpack the information from the disk on every incoming sample for each time series missing in the cache.
+Because this operation is significantly slower than a cache lookup, it’s referred to as a `slow insert`.
 A high percentage of slow inserts on the [official dashboard for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) indicates
 a memory shortage for the current number of [active time series](#what-is-an-active-time-series). Such a condition usually leads
 to a significant slowdown for data ingestion and to significantly increased disk IO and CPU usage.
-The solution is to add more memory or to reduce the number of [active time series](#what-is-an-active-time-series).
+To resolve the issue, you can either increase available memory or reduce the number of [active time series](#what-is-an-active-time-series).
 
-[Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can be helpful for locating the source of high number of active time series.
+[Cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) can be helpful for locating the source of a high number of active time series.
 
 ## How to optimize MetricsQL query?
 
@@ -384,25 +380,22 @@ See also [troubleshooting slow queries](https://docs.victoriametrics.com/victori
 
 ## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
 
-Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
-[VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
+Both the [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and the
+[cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
 
-Single-node VictoriaMetrics is able to handle quite big workloads in production
-with tens of millions of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
-at the ingestion rate of million of samples per second. See [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#wixcom).
+The single-node version of VictoriaMetrics can efficiently handle large-scale production workloads, supporting tens of millions of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+and ingesting millions of samples per second. See [this case study](https://docs.victoriametrics.com/victoriametrics/casestudies/#wixcom).
 
-Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
-to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
-between [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
+The single-node version of VictoriaMetrics requires less CPU and RAM to handle the same workload compared to the cluster version, since it doesn't need to transfer encoded data between [cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 
 The performance of a single-node VictoriaMetrics scales almost perfectly with the available CPU, RAM and disk IO resources on the host where it runs -
 see [this article](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
-Single-node VictoriaMetrics is easier to setup and operate comparing to cluster version of VictoriaMetrics.
+The single-node version of VictoriaMetrics is easier to setup and operate compared to the cluster version of VictoriaMetrics.
 
-Given the facts above **it is recommended to use single-node VictoriaMetrics in the majority of cases**.
+Given the considerations outlined above, **it is recommended to use single-node VictoriaMetrics in the majority of cases**.
 
-Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMetrics in the following relatively rare cases:
+While rare, the following situations may favor using the cluster version of VictoriaMetrics over the single-node alternative:
 
 - If [multitenancy support](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is needed,
   since single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
@@ -410,14 +403,14 @@ Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMet
   via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/).
 
 - If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
-  at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics,
+  at ingestion rates exceeding a million samples per second, then it is better to use the cluster version of VictoriaMetrics,
   since its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-resizing-and-scalability).
 
-## How to migrate data from single-node VictoriaMetrics to cluster version?
+## How to migrate data from single-node VictoriaMetrics to the cluster version?
 
-Single-node VictoriaMetrics stores data on disk in slightly different format comparing to cluster version of VictoriaMetrics.
-So it is impossible to just copy the on-disk data from `-storageDataPath` directory from single-node VictoriaMetrics to a `vmstorage` node in VictoriaMetrics cluster.
-If you need migrating data from single-node VictoriaMetrics to cluster version, then [follow these instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
+The single-node version of VictoriaMetrics stores data on disk in a slightly different format compared to the cluster version of VictoriaMetrics.
+This makes it impossible to copy the on-disk data from `-storageDataPath` directory from a single-node VictoriaMetrics to a `vmstorage` node in VictoriaMetrics cluster.
+If you need to migrate data from a single-node VictoriaMetrics to the cluster version, then [follow these instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
 
 ## Why isn't MetricsQL 100% compatible with PromQL?
 
@@ -437,61 +430,59 @@ Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/#
 
 ## How to migrate data from Graphite to VictoriaMetrics?
 
-Please use the [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading data from Graphite and pushing them to VictoriaMetrics via [Graphite's import API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
+Please use the [whisper-to-graphite](https://github.com/bzed/whisper-to-graphite) tool for reading data from Graphite and pushing it to VictoriaMetrics via [Graphite's import API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
 
-## Why do the same metrics have differences in VictoriaMetrics' and Prometheus' dashboards?
+## Why do the same metrics show differences in VictoriaMetrics' and Prometheus' dashboards?
 
-There could be a slight difference in stored values for time series. Due to different compression algorithms, VM may reduce the precision for float values with more than 12 significant decimal digits. Please see [this article](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87).
+There may be a slight difference in stored values for time series. Due to different compression algorithms, VM may reduce the precision for float values with more than 12 significant decimal digits. Please see [this article](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87).
 
 The query engine may behave differently for some functions. Please see [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e).
 
 ## If downsampling and deduplication are enabled how will this work?
 
-[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
+[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling.
 
 ## How to upgrade or downgrade VictoriaMetrics without downtime?
 
-Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
+The single-node version of VictoriaMetrics requires downtime for restarts, upgrades, or downgrades, as it must be gracefully shut down and restarted. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
 
-[Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes).
+The [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) can be restarted, upgraded, or downgraded without downtime by following [these instructions](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes).
 
-## Why VictoriaMetrics misses automatic data re-balancing between vmstorage nodes?
+## Why VictoriaMetrics misses automatic data rebalancing between vmstorage nodes?
 
 VictoriaMetrics doesn't rebalance data between `vmstorage` nodes when new `vmstorage` nodes are added to the cluster.
-This means that newly added `vmstorage` nodes will have less data at `-storageDataPath` comparing to the old `vmstorage` nodes
+This means that newly added `vmstorage` nodes will have less data at `-storageDataPath` compared to the older `vmstorage` nodes
 until the historical data is removed from the old `vmstorage` nodes when it goes outside the configured [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
 
-The automatic rebalancing is the process of moving data between `vmstorage` nodes, so every node has the same amounts of data eventually.
-It is disabled by default because it may consume additional CPU, network bandwidth and disk IO at `vmstorage` nodes for long periods of time,
+Automatic rebalancing is the process of moving data between `vmstorage` nodes, so every node eventually contains the same amount of data.
+This is disabled by default because it may consume additional CPU, network bandwidth and disk IO at `vmstorage` nodes for long periods of time,
 which, in turn, can negatively impact VictoriaMetrics cluster availability.
 
-Additionally, it is unclear how to handle the automatic re-balancing if cluster configuration changes when the re-balancing is in progress.
+Additionally, it is unclear how to handle automatic rebalancing if a cluster configuration changes while the rebalancing is in progress.
 
 The amounts of data stored in `vmstorage` becomes equal among old `vmstorage` nodes and new `vmstorage` nodes
 after historical data is removed from the old `vmstorage` nodes because it goes outside of configured [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
 
 The data ingestion load becomes even between old `vmstorage` nodes and new `vmstorage` nodes almost immediately
 after adding new `vmstorage` nodes to the cluster, since `vminsert` nodes evenly distribute incoming time series
-among the nodes specified in `-storageNode` command-line flag. The newly added `vmstorage` nodes may experience
+among the nodes specified in the `-storageNode` command-line flag. The newly added `vmstorage` nodes may experience
 increased load during the first couple of minutes because they need to register [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
-The query load becomes even between old `vmstorage` nodes and new `vmstorage` nodes after most of queries are executed
-over time ranges with data covered by new `vmstorage` nodes. Usually the most of queries are received
-from [alerting and recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/), which query data on limited time ranges
+The query load becomes even between old `vmstorage` nodes and new `vmstorage` nodes after most of the queries are executed
+over time ranges with data covered by new `vmstorage` nodes. Usually most of the queries are received
+from [alerting and recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/), which query data on limited time ranges,
 such as a few hours or few days at max. This means that the query load between old `vmstorage` nodes and new `vmstorage` nodes
-should become even in a few hours / days after adding new `vmstorage` nodes.
+should become even within a few hours / days after adding new `vmstorage` nodes.
 
 ## Why VictoriaMetrics misses automatic recovery of replication factor?
 
 VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 when some of `vmstorage` nodes are removed from the cluster because of the following reasons:
 
-- Automatic replication factor recovery needs copying non-trivial amounts of data between the remaining `vmstorage` nodes.
-  This copying takes additional CPU, disk IO and network bandwidth at `vmstorage` nodes. This may negatively impact
+- Automatic replication factor recovery needs to copy non-trivial amounts of data between the remaining `vmstorage` nodes.
+  This additional copying takes increased CPU, disk IO and network bandwidth at `vmstorage` nodes. This may negatively impact
   VictoriaMetrics cluster availability during extended periods of time.
 
-- It is unclear when the automatic replication factor recovery must be started. How to distinguish the expected temporary
-  `vmstorage` node unavailability because of maintenance, upgrade or config changes from permanent loss of data at the `vmstorage` node?
-
-It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
+- It is unclear when the automatic replication factor recovery must be started. To distinguish between the expected temporary
+  `vmstorage` node unavailability because of maintenance, upgrade or config changes from permanent loss of data at the `vmstorage` node see [replication and data safety docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 for more details.
