@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,6 +29,10 @@ var (
 		"This limit affects Jaeger's `/api/services` API.")
 	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
 		"This limit affects Jaeger's `/api/services/*/operations` API.")
+)
+
+var (
+	traceIDRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-.:]*$`)
 )
 
 // CommonParams common query params that shared by all requests.
@@ -313,7 +318,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
-			qStr += fmt.Sprintf(`AND "%s":="%s" `, k, v)
+			qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
 		}
 	}
 	if param.DurationMin > 0 {
@@ -409,5 +414,17 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 	if err != nil {
 		return nil, maxStartTime, err
 	}
-	return traceIDList, maxStartTime, nil
+
+	return checkTraceIDList(traceIDList), maxStartTime, nil
+}
+
+// checkTraceIDList removes invalid `trace_id`. It helps prevent query injection.
+func checkTraceIDList(traceIDList []string) []string {
+	result := make([]string, 0, len(traceIDList))
+	for i := range traceIDList {
+		if traceIDRegex.MatchString(traceIDList[i]) {
+			result = append(result, traceIDList[i])
+		}
+	}
+	return result
 }
