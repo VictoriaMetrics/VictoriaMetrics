@@ -17,11 +17,11 @@ aliases:
 
 ## Data model
 
-[VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) works with the trace data that meets [OpenTelemetry specification](https://opentelemetry.io/docs/specs/otel/) and transferred in [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
-
-**Every trace span must contain `service.name` in its resource attributes and a span `name`**. They will be used as the [stream fields](#stream-fields). All other data of the span will be mapped as the ordinary fields.
+**Every [trace span](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/trace/v1/trace.proto) must contain `service.name` in its resource attributes and a span `name`**. They will be used as the [stream fields](#stream-fields). All other data of the span will be mapped as the ordinary fields.
 
 For example, here's how a trace span looks like in an OTLP export request:
+
+{{% collapse name="OTLP trace span" %}}
 
 ```json
 {
@@ -97,7 +97,12 @@ For example, here's how a trace span looks like in an OTLP export request:
 }
 ```
 
+{{% /collapse %}}
+
 And here's how this trace span looks like in VictoriaTraces:
+
+{{% collapse name="span in VictoriaTraces" %}}
+
 ```json
   {
   "_time": "2025-06-16T03:26:48.796828584Z",
@@ -147,6 +152,8 @@ And here's how this trace span looks like in VictoriaTraces:
   "trace_id": "769d28c4b8633dc9de2cc421d1a1616f"
 }
 ```
+
+{{% /collapse %}}
 
 ### Special mappings
 
