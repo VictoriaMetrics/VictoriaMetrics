@@ -3,6 +3,7 @@ title : "Grafana"
 menu:
   docs:
     parent: "integrations"
+    identifier: "cloud-integrations-grafana"
 ---
 
 [Grafana](https://grafana.com/) is a popular open-source visualization and dashboarding tool. You can
