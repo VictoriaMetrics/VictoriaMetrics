@@ -159,7 +159,7 @@ type MetricMetadata struct {
 	Unit             string
 }
 
-func (m *MetricMetadata) MarshalToSizedBuffer(dst []byte) (int, error) {
+func (m *MetricMetadata) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	if len(m.Unit) > 0 {
 		i -= len(m.Unit)

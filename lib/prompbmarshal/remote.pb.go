@@ -12,7 +12,7 @@ type WriteRequest struct {
 func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
 	for j := len(m.Metadata) - 1; j >= 0; j-- {
-		size, err := m.Metadata[j].MarshalToSizedBuffer(dst[:i])
+		size, err := m.Metadata[j].marshalToSizedBuffer(dst[:i])
 		if err != nil {
 			return 0, err
 		}
