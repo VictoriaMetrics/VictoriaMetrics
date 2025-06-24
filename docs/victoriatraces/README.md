@@ -4,18 +4,16 @@ from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 VictoriaTraces provides the following features:
 - It is resource-efficient and fast. It uses up to 3.7x less RAM and up to 2.6x less CPU than other solutions such as Grafana Tempo.
 - VictoriaTraces' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
-- It accepts trace spans in the popular [OpenTelemetry protocol](https://opentelemetry.io/docs/specs/otel/protocol/)(OTLP), 
-  which can be exported from applications, OpenTelemetry and various other collectors.
+- It accepts trace spans in the popular [OpenTelemetry protocol](https://opentelemetry.io/docs/specs/otel/protocol/)(OTLP).
 - It provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) 
-  which allows you to visualize trace with [Grafana](https://grafana.com/docs/grafana/latest/datasources/jaeger/) or [Jaeger Frontend](https://www.jaegertracing.io/docs/2.6/frontend-ui/).
+  to integrate with [Grafana](https://grafana.com/docs/grafana/latest/datasources/jaeger/) or [Jaeger Frontend](https://www.jaegertracing.io/docs/2.6/frontend-ui/).
 
 ![Visualization with Grafana](grafana-ui.webp)
 
 ## How does it work
 
 VictoriaTraces is built on top of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), which is a log database. 
-VictoriaTraces transforms trace spans into structured logs, ingests them, and uses LogsQL for querying to construct the data structure 
-required by the trace query APIs.
+VictoriaTraces receives trace spans in OTLP format, transforms them into structured logs, and provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) for querying.
 
 ![How does VictoriaTraces work](how-does-it-work.webp)
 
@@ -36,7 +34,7 @@ Once it's running, it will listen to port `9428` (`-httpListenAddr`) and provide
 http://<victoria-traces>:<port>/insert/opentelemetry/v1/traces
 ```
 
-Now, config your applications or trace collectors to export data to VictoriaTraces. Here's an example config for the OpenTelemetry Collector:
+Configure applications or trace collectors to export data to VictoriaTraces. Here's an example config for the OpenTelemetry Collector:
 ```yaml
 exporters:
   otlphttp/victoriatraces:

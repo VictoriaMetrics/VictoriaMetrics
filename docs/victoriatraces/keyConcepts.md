@@ -151,15 +151,15 @@ And here's how this trace span looks like in VictoriaTraces:
 ### Special mappings
 
 There are some special mappings when transforming a trace span into VictoriaTraces data model:
-1. In order to preserve trace span attribute whose value is empty, the value will be re-written as `-`.
-2. For different attributes (resource attributes, scope attributes, span attributes), a corresponding prefix (such as `span_attr:` and `resource_attr:`) will be added. 
-3. For some attributes within a list (event list, link list in span), a corresponding prefix and index (such as `event:0:` and `event:0:event_attr:`) will be added.
-4. The `duration` field is not exist in the OTLP request, but for query efficiency, it's calculated during ingestion and stored as a separated field.
+1. Empty attribute values in trace spans are replaced with `-`.
+2. Resource, scope and span attributes are stored with corresponding prefixes `resource_attr`, `scope_attr` and `span_attr:` accordingly. 
+3. For some attributes within a list (event list, link list in span), a corresponding prefix and index (such as `event:0:` and `event:0:event_attr:`) is added.
+4. The `duration` field does not exist in the OTLP request, but for query efficiency, it's calculated during ingestion and stored as a separated field.
 
-VictoriaTraces automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/victoriatraces/data-ingestion/) trace spans.
+VictoriaTraces automatically indexes all the fields for ingested trace spans.
 This enables [full-text search](https://docs.victoriametrics.com/victorialogs/logsql/) across all the fields.
 
-VictoriaTraces store data in different fields. There are some special fields additionally to arbitrary [other fields](#other-fields):
+VictoriaTraces stores data in different fields. There are some special fields in addition to [arbitrary fields](#other-fields):
 
 * [`_time` field](#time-field)
 * [`_stream` and `_stream_id` fields](#stream-fields)
