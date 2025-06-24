@@ -10,7 +10,7 @@ menu:
 
 GrafanaLabs Mimir supports [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
 `vmctl` in [remote-read mode](https://docs.victoriametrics.com/victoriametrics/vmctl/remoteread/) can be used
-for historical data migration from Cortex.
+for historical data migration from Mimir.
 
 By default, Mimir uses the `prometheus` path prefix so specifying the source
 should be as simple as `--remote-read-src-addr=http://<mimir>:9009/prometheus`.

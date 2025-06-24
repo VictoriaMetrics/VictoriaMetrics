@@ -104,7 +104,7 @@ Found 2 blocks to import. Continue? [Y/n] y
 ## Configuration
 
 In Prometheus mode, vmctl reads data from the given snapshot using Prometheus library. Its performance for is limited
-by the library performance, by the disk IO, and by `--otsdb-concurrency` - the number of concurrent readers. Prefer
+by the library performance, by the disk IO, and by `--prom-concurrency` - the number of concurrent readers. Prefer
 setting `--prom-concurrency` to the number of available to vmctl CPU cores.
 
 See general [vmctl migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips).
