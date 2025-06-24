@@ -2,7 +2,7 @@ VictoriaTraces is open source user-friendly database for distributed tracing dat
 from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 
 VictoriaTraces provides the following features:
-- It is resource-efficient and fast. It uses up to 3.7x less RAM and up to 2.6x less CPU than other solutions such as Grafana Tempo.
+- It is resource-efficient and fast. It uses up to [**3.7x less RAM and up to 2.6x less CPU**](https://victoriametrics.com/blog/dev-note-distributed-tracing-with-victorialogs/) than other solutions such as Grafana Tempo.
 - VictoriaTraces' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
 - It accepts trace spans in the popular [OpenTelemetry protocol](https://opentelemetry.io/docs/specs/otel/protocol/)(OTLP).
 - It provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) 
@@ -19,49 +19,79 @@ VictoriaTraces receives trace spans in OTLP format, transforms them into structu
 
 ## Quick Start
 
-Currently, VictoriaTraces is under actively developing. It can be built from VictoriaMetrics repository with:
-```shell
-make victoria-logs-prod
+Currently, VictoriaTraces is under actively developing. It provides [binary releases](https://github.com/VictoriaMetrics/VictoriaTraces/releases/latest) and
+docker images ([Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces/) and [Quay](https://quay.io/repository/victoriametrics/victoria-traces?tab=tags)). 
+It can also be built from VictoriaTraces repository. See: [How to build from sources](#how-to-build-from-sources).
+
+### How to build from sources
+
+Building from sources is reasonable when developing additional features specific to your needs or when testing bugfixes.
+
+#### Development build
+
+1. [Install Go](https://golang.org/doc/install).
+1. Run `make victoria-traces` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces).
+   It builds `victoria-traces` binary and puts it into the `bin` folder.
+
+#### Production build
+
+1. [Install docker](https://docs.docker.com/install/).
+1. Run `make victoria-traces-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces).
+   It builds `victoria-traces-prod` binary and puts it into the `bin` folder.
+
+#### Building docker images
+
+Run `make package-victoria-traces`. It builds `victoriametrics/victoria-traces:<PKG_TAG>` docker image locally.
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-traces`.
+
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+by setting it via `<ROOT_IMAGE>` environment variable.
+For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
+
+```sh
+ROOT_IMAGE=scratch make package-victoria-traces
 ```
 
-The `make` command generates a binary in `/bin` folder. It can be run with:
-```shell
-./victoria-logs-prod -storageDataPath=victoria-traces-data
+### Configure and run VictoriaTraces
+
+VictoriaTraces is configured via command-line flags. All the command-line flags have sane defaults, so there is no need in tuning them in general case. VictoriaTraces runs smoothly in most environments without additional configuration.
+
+Pass `-help` to VictoriaTraces in order to see the list of supported command-line flags with their description and default values:
+
+```
+/path/to/victoria-traces -help
 ```
 
-Once it's running, it will listen to port `9428` (`-httpListenAddr`) and provide the following API for ingestion:
+The following command-line flags are used the most:
+
+* `-storageDataPath` - VictoriaTraces stores all the data in this directory. The default path is `victoria-traces-data` in the current working directory.
+* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 7 days.
+
+VictoriaTraces can be run with:
+```shell
+/path/to/victoria-traces -storageDataPath=victoria-traces-data -retentionPeriod=7d
+```
+
+Once it's running, it will listen to port `9428` (`-httpListenAddr`) and provide the following APIs:
+1. for ingestion:
 ```
 http://<victoria-traces>:<port>/insert/opentelemetry/v1/traces
 ```
-
-Configure applications or trace collectors to export data to VictoriaTraces. Here's an example config for the OpenTelemetry Collector:
-```yaml
-exporters:
-  otlphttp/victoriatraces:
-    traces_endpoint: http://<victoria-traces>:<port>/insert/opentelemetry/v1/traces
-
-service:
-  pipelines:
-    traces:
-      exporters: [otlphttp/victoriatraces]
+2. for querying:
+```
+http://<victoria-traces>:<port>/select/jaeger/<endpoints>
 ```
 
-You can browse `http://<victoria-traces>:<port>/select/vmui` to verify the data ingestion, as trace spans should be displayed as logs.
-
-And finally, to search and visualize traces with Grafana, add a new jaeger data source the following URL:
-```
-http://<victoria-traces>:<port>/select/jaeger`.
-```
-
-Now everything should be ready!
+See [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/) and [querying](https://docs.victoriametrics.com/VictoriaTraces/querying/) for more details.
 
 ## List of command-line flags
 
 ```shell
   -search.traceMaxDurationWindow
     	The lookbehind/lookahead window of searching for the rest trace spans after finding one span.
-		It allows extending the search start time and end time by `-search.traceMaxDurationWindow` to make sure all spans are included.
-		It affects both Jaeger's `/api/traces` and `/api/traces/<trace_id>` APIs. (default: 10m)
+        It allows extending the search start time and end time by `-search.traceMaxDurationWindow` to make sure all spans are included.
+        It affects both Jaeger's `/api/traces` and `/api/traces/<trace_id>` APIs. (default: 10m)
   -search.traceMaxServiceNameList
         The maximum number of service name can return in a get service name request.
         This limit affects Jaeger's `/api/services` API. (default: 1000)
