@@ -982,7 +982,7 @@ func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, times
 		dst = appendRow(dst, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
 	}
 	if labelLimit := sw.Config.LabelLimit; labelLimit > 0 {
-		dst = appendRow(dst, "scrape_label_limit", float64(labelLimit), timestamp)
+		dst = appendRow(dst, "scrape_labels_limit", float64(labelLimit), timestamp)
 	}
 	dst = appendRow(dst, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	dst = appendRow(dst, "up", float64(am.up), timestamp)
