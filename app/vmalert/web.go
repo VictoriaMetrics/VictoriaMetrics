@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
@@ -27,6 +28,7 @@ var (
 		// such as Grafana, and proxied via vmselect.
 		{"api/v1/rules", "list all loaded groups and rules"},
 		{"api/v1/alerts", "list all active alerts"},
+		{"api/v1/notifiers", "list all notifiers"},
 		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
 	}
 	systemLinks = [][2]string{
@@ -41,6 +43,10 @@ var (
 		{Name: "Alerts", URL: "alerts"},
 		{Name: "Notifiers", URL: "notifiers"},
 		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
+	}
+	ruleTypeMap = map[string]string{
+		"alert":  ruleTypeAlerting,
+		"record": ruleTypeRecording,
 	}
 )
 
@@ -89,10 +95,13 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
+		rf, err := newRulesFilter(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		data := rh.groups(rf)
-		WriteListGroups(w, r, data, filter)
+		WriteListGroups(w, r, data, rf.filter)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -102,23 +111,35 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	// served without `vmalert` prefix:
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
-		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		var data []apiGroup
-		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
+		// handler in addition to `/api/v1/rules` calls in alerts UI
+		var data []*apiGroup
+		rf, err := newRulesFilter(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		data = rh.groups(rf)
-		WriteListGroups(w, r, data, filter)
+		WriteListGroups(w, r, data, rf.filter)
 		return true
 
+	case "/vmalert/api/v1/notifiers", "/api/v1/notifiers":
+		data, err := rh.listNotifiers()
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
 		// path used by Grafana for ng alerting
 		var data []byte
-		var err error
-
-		filter := r.URL.Query().Get("filter")
-		rf := extractRulesFilter(r, filter)
+		rf, err := newRulesFilter(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		data, err = rh.listGroups(rf)
-
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -129,7 +150,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
-		data, err := rh.listAlerts()
+		rf, err := newRulesFilter(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, err := rh.listAlerts(rf)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -218,7 +244,7 @@ func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []apiGroup `json:"groups"`
+		Groups []*apiGroup `json:"groups"`
 	} `json:"data"`
 }
 
@@ -229,82 +255,102 @@ type rulesFilter struct {
 	ruleNames     []string
 	ruleType      string
 	excludeAlerts bool
-	onlyUnhealthy bool
-	onlyNoMatch   bool
+	filter        string
+	dsType        config.Type
 }
 
-func extractRulesFilter(r *http.Request, filter string) rulesFilter {
-	rf := rulesFilter{}
+func newRulesFilter(r *http.Request) (*rulesFilter, error) {
+	rf := &rulesFilter{}
+	query := r.URL.Query()
 
-	var ruleType string
-	ruleTypeParam := r.URL.Query().Get("type")
-	// for some reason, `type` in filter doesn't match `type` in response,
-	// so we use this matching here
-	if ruleTypeParam == "alert" {
-		ruleType = ruleTypeAlerting
-	} else if ruleTypeParam == "record" {
-		ruleType = ruleTypeRecording
+	ruleTypeParam := query.Get("type")
+	if len(ruleTypeParam) > 0 {
+		if ruleType, ok := ruleTypeMap[ruleTypeParam]; ok {
+			rf.ruleType = ruleType
+		} else {
+			return nil, errResponse(fmt.Errorf(`invalid parameter "type": not supported value %q`, ruleTypeParam), http.StatusBadRequest)
+		}
 	}
-	rf.ruleType = ruleType
+
+	dsType := query.Get("datasource_type")
+	if len(dsType) > 0 {
+		if config.SupportedType(dsType) {
+			rf.dsType = config.NewRawType(dsType)
+		} else {
+			return nil, errResponse(fmt.Errorf(`invalid parameter "datasource_type": not supported value %q`, dsType), http.StatusBadRequest)
+		}
+	}
+
+	filter := strings.ToLower(query.Get("filter"))
+	if len(filter) > 0 {
+		if filter == "nomatch" || filter == "unhealthy" {
+			rf.filter = filter
+		} else {
+			return nil, errResponse(fmt.Errorf(`invalid parameter "filter": not supported value %q`, filter), http.StatusBadRequest)
+		}
+	}
 
 	rf.excludeAlerts = httputil.GetBool(r, "exclude_alerts")
 	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
 	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
 	rf.files = append([]string{}, r.Form["file[]"]...)
-	switch filter {
-	case "unhealthy":
-		rf.onlyUnhealthy = true
-	case "noMatch":
-		rf.onlyNoMatch = true
-	}
-	return rf
+	return rf, nil
 }
 
-func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
+func (rf *rulesFilter) matchesGroup(group *rule.Group) bool {
+	if len(rf.groupNames) > 0 && !slices.Contains(rf.groupNames, group.Name) {
+		return false
+	}
+	if len(rf.files) > 0 && !slices.Contains(rf.files, group.File) {
+		return false
+	}
+	if len(rf.dsType.Name) > 0 && rf.dsType.String() != group.Type.String() {
+		return false
+	}
+	return true
+}
+
+func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	groups := make([]apiGroup, 0)
+	groups := make([]*apiGroup, 0)
 	for _, group := range rh.m.groups {
-		if len(rf.groupNames) > 0 && !slices.Contains(rf.groupNames, group.Name) {
+		if !rf.matchesGroup(group) {
 			continue
 		}
-		if len(rf.files) > 0 && !slices.Contains(rf.files, group.File) {
-			continue
-		}
-
 		g := groupToAPI(group)
 		// the returned list should always be non-nil
 		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
 		filteredRules := make([]apiRule, 0)
-		for _, r := range g.Rules {
-			if rf.ruleType != "" && rf.ruleType != r.Type {
+		for _, rule := range g.Rules {
+			if rf.ruleType != "" && rf.ruleType != rule.Type {
 				continue
 			}
-			if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, r.Name) {
+			if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, rule.Name) {
+				continue
+			}
+			if (rule.LastError == "" && rf.filter == "unhealthy") || (!isNoMatch(rule) && rf.filter == "nomatch") {
 				continue
 			}
 			if rf.excludeAlerts {
-				r.Alerts = nil
+				rule.Alerts = nil
 			}
-			if (r.LastError == "" && rf.onlyUnhealthy) || (!isNoMatch(r) && rf.onlyNoMatch) {
-				continue
-			}
-			if r.LastError != "" {
+			if rule.LastError != "" {
 				g.Unhealthy++
 			} else {
 				g.Healthy++
 			}
-			if isNoMatch(r) {
+			if isNoMatch(rule) {
 				g.NoMatch++
 			}
-			filteredRules = append(filteredRules, r)
+			filteredRules = append(filteredRules, rule)
 		}
 		g.Rules = filteredRules
 		groups = append(groups, g)
 	}
 	// sort list of groups for deterministic output
-	slices.SortFunc(groups, func(a, b apiGroup) int {
+	slices.SortFunc(groups, func(a, b *apiGroup) int {
 		if a.Name != b.Name {
 			return strings.Compare(a.Name, b.Name)
 		}
@@ -313,7 +359,7 @@ func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 	return groups
 }
 
-func (rh *requestHandler) listGroups(rf rulesFilter) ([]byte, error) {
+func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
 	lr.Data.Groups = rh.groups(rf)
 	b, err := json.Marshal(lr)
@@ -360,14 +406,17 @@ func (rh *requestHandler) groupAlerts() []groupAlerts {
 	return gAlerts
 }
 
-func (rh *requestHandler) listAlerts() ([]byte, error) {
+func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
 	lr := listAlertsResponse{Status: "success"}
 	lr.Data.Alerts = make([]*apiAlert, 0)
-	for _, g := range rh.m.groups {
-		for _, r := range g.Rules {
+	for _, group := range rh.m.groups {
+		if !rf.matchesGroup(group) {
+			continue
+		}
+		for _, r := range group.Rules {
 			a, ok := r.(*rule.AlertingRule)
 			if !ok {
 				continue
@@ -385,6 +434,42 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	return b, nil
+}
+
+type listNotifiersResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		Notifiers []*apiNotifier `json:"notifiers"`
+	} `json:"data"`
+}
+
+func (rh *requestHandler) listNotifiers() ([]byte, error) {
+	targets := notifier.GetTargets()
+
+	lr := listNotifiersResponse{Status: "success"}
+	lr.Data.Notifiers = make([]*apiNotifier, 0)
+	for protoName, protoTargets := range targets {
+		notifier := &apiNotifier{
+			Kind:    string(protoName),
+			Targets: make([]*apiTarget, 0, len(protoTargets)),
+		}
+		for _, target := range protoTargets {
+			notifier.Targets = append(notifier.Targets, &apiTarget{
+				Address: target.Notifier.Addr(),
+				Labels:  target.Labels.ToMap(),
+			})
+		}
+		lr.Data.Notifiers = append(lr.Data.Notifiers, notifier)
+	}
+
+	b, err := json.Marshal(lr)
+	if err != nil {
+		return nil, &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf(`error encoding list of notifiers: %w`, err),
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
