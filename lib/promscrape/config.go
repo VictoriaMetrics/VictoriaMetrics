@@ -883,7 +883,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	labelLimit := sc.LabelLimit
 	if labelLimit <= 0 {
 		labelLimit = globalCfg.LabelLimit
-		if labelLimit < 0 {
+		if labelLimit <= 0 {
 			labelLimit = defaultLabelLimit
 		}
 	}
