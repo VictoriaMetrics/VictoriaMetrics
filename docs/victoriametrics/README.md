@@ -2173,7 +2173,7 @@ Things to consider when copying data:
 1. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
 
 For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
-of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
+of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ### From other systems
 
