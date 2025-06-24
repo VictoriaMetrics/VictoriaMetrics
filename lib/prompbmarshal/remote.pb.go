@@ -54,7 +54,7 @@ func (m *WriteRequest) size() (n int) {
 		n += 1 + l + sov(uint64(l))
 	}
 	for _, e := range m.Metadata {
-		l := e.Size()
+		l := e.size()
 		n += 1 + l + sov(uint64(l))
 	}
 	return n

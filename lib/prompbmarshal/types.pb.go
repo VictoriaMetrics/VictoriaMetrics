@@ -190,7 +190,7 @@ func (m *MetricMetadata) marshalToSizedBuffer(dst []byte) (int, error) {
 	return len(dst) - i, nil
 }
 
-func (m *MetricMetadata) Size() (n int) {
+func (m *MetricMetadata) size() (n int) {
 	if m == nil {
 		return 0
 	}
