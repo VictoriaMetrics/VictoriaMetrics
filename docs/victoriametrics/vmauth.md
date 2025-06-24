@@ -604,7 +604,7 @@ unauthorized_user:
 
 There are the following solutions for this issue:
 
-- To enumerate every `vmselect` hosname or IP in the `url_prefix` list:
+- To enumerate every `vmselect` hostname or IP in the `url_prefix` list:
 
   ```yaml
   unauthorized_user:
