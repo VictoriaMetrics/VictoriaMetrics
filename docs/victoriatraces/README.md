@@ -13,9 +13,13 @@ VictoriaTraces provides the following features:
 ## How does it work
 
 VictoriaTraces is built on top of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), which is a log database. 
-VictoriaTraces receives trace spans in OTLP format, transforms them into structured logs, and provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) for querying.
+It receives trace spans in OTLP format, transforms them into structured logs, and provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) for querying.
+
+For detailed data model and example, see: [Key Concepts](https://docs.victoriametrics.com/victoriatraces/keyConcepts).
 
 ![How does VictoriaTraces work](how-does-it-work.webp)
+
+Building VictoriaTraces in this way enables it to scale easily and linearly with the available resources, like VictoriaLogs.
 
 ## Quick Start
 
