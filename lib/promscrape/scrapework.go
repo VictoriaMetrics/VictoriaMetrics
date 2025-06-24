@@ -624,9 +624,12 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		}()
 
 		samplesScraped.Add(int64(len(rows)))
-		err := wc.tryAddRows(cfg, rows, scrapeTimestamp, true)
-		if err != nil {
-			scrapesSkippedByLabelLimit.Inc()
+		if err := wc.tryAddRows(cfg, rows, scrapeTimestamp, true); err != nil {
+			if errors.Is(err, errLabelsLimitExceeded) {
+				scrapesSkippedByLabelLimit.Inc()
+				return fmt.Errorf("the response from %q exceeds label_limit=%d; "+
+					"either reduce the labels count for the target or increase label_limit", cfg.ScrapeURL, cfg.LabelLimit)
+			}
 			return err
 		}
 		n := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
@@ -858,7 +861,10 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
-			_ = wc.tryAddRows(sw.Config, rows, timestamp, true)
+			if err := wc.tryAddRows(sw.Config, rows, timestamp, true); err != nil {
+				sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
+				return err
+			}
 
 			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
@@ -1010,7 +1016,7 @@ func appendRow(dst []parser.Row, metric string, value float64, timestamp int64) 
 	})
 }
 
-func (wc *writeRequestCtx) tryAddRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) (err error) {
+func (wc *writeRequestCtx) tryAddRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) error {
 	// pre-allocate buffers
 	labelsLen := 0
 	for i := range rows {
@@ -1027,14 +1033,14 @@ func (wc *writeRequestCtx) tryAddRows(cfg *ScrapeWork, rows []parser.Row, timest
 
 	// add rows
 	for i := range rows {
-		err = wc.tryAddRow(cfg, &rows[i], timestamp, needRelabel)
-		if err != nil {
-			scrapesSkippedByLabelLimit.Inc()
+		if err := wc.tryAddRow(cfg, &rows[i], timestamp, needRelabel); err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
+var errLabelsLimitExceeded = errors.New("label_limit exceeded")
 
 // tryAddRow adds r with the given timestamp to wc.
 //
@@ -1078,8 +1084,7 @@ func (wc *writeRequestCtx) tryAddRow(cfg *ScrapeWork, r *parser.Row, timestamp i
 	labelLimit := cfg.LabelLimit
 	if needRelabel && labelLimit > 0 && len(wc.labels)-labelsLen > labelLimit {
 		wc.labels = wc.labels[:labelsLen]
-		return fmt.Errorf("the response from %q exceeds label_limit=%d; "+
-			"either reduce the labels count for exceeding series or increase label_limit", cfg.ScrapeURL, labelLimit)
+		return errLabelsLimitExceeded
 	}
 	sampleTimestamp := r.Timestamp
 	if !cfg.HonorTimestamps || sampleTimestamp == 0 {
