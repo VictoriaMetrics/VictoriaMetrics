@@ -69,6 +69,14 @@ var benchWriteRequest = func() *WriteRequest {
 	}
 	wr := &WriteRequest{
 		Timeseries: tss,
+		Metadata: []MetricMetadata{
+			{
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
+			},
+		},
 	}
 	return wr
 }()
