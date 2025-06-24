@@ -1164,6 +1164,8 @@ scrape_configs:
         replacement: 1234
       - target_label: __sample_limit__
         replacement: 5678
+      - target_label: __label_limit__
+        replacement: 42
       - target_label: __stream_parse__
         replacement: true
 `, []*ScrapeWork{
@@ -1177,6 +1179,7 @@ scrape_configs:
 				"job":      "snmp",
 			}),
 			SampleLimit:         5678,
+			LabelLimit:          42,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,
 			StreamParse:         true,

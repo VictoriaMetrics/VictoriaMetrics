@@ -2005,12 +2005,17 @@ scrape_configs:
   # label during target relabeling phase.
   # See https://docs.victoriametrics.com/victoriametrics/relabeling/
   #
-  # series_limit: ...
+  # series_limit: <int>
 
   # label_limit is an optional limit on the number of labels per each sample
   # exposed by a target. It can be set globally for a whole scrape configuration and for each scrape job
   #
-  # label_limit: ...
+  # By default, the limit is disabled.
+  # The label_limit can be set on a per-target basis by specifying `__label_limit__`
+  # label during target relabeling phase. Available starting from v1.121.0.
+  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
+  #
+  # label_limit: <int>
 
   # no_stale_markers allows disabling staleness tracking.
   # By default, staleness tracking is enabled for all the discovered scrape targets.

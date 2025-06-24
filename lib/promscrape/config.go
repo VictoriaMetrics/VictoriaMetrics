@@ -1266,6 +1266,16 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		sampleLimit = n
 	}
+	// Read label_limit option from __label_limit__ label.
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
+	labelLimit := swc.labelLimit
+	if s := labels.Get("__label_limit__"); len(s) > 0 {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __label_limit__=%q: %w", s, err)
+		}
+		labelLimit = n
+	}
 	// Read stream_parse option from __stream_parse__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode
 	streamParse := swc.streamParse
@@ -1318,7 +1328,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeOffset:         swc.scrapeOffset,
 		SampleLimit:          sampleLimit,
 		SeriesLimit:          seriesLimit,
-		LabelLimit:           swc.labelLimit,
+		LabelLimit:           labelLimit,
 		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
 
