@@ -19,6 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove duplicate kubernetes targets from [service-discovery-debug](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) page. See [8626](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626) issue for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): support `label_limit` scrape parameter. It sets labels limit for each scraped sample from a target. If limit is exceeded, the scrape will be rejected and target marked with corresponding scrape error. The `label_limit` can be defined on global level, per job or during relabeling via `__label_limit__` label. See [scrape configs doc](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) for details. See [#7660](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7660) and [#3233](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3233) issues.
 
 ## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
 
