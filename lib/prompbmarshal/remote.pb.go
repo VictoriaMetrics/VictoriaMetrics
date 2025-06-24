@@ -4,6 +4,7 @@ import (
 	"math/bits"
 )
 
+// WriteRequest represents Remote Write request
 type WriteRequest struct {
 	Timeseries []TimeSeries
 	Metadata   []MetricMetadata
