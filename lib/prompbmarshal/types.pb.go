@@ -7,6 +7,7 @@ import (
 	"strconv"
 )
 
+// Sample is a metric sample
 type Sample struct {
 	Value     float64
 	Timestamp int64
@@ -18,6 +19,7 @@ type TimeSeries struct {
 	Samples []Sample
 }
 
+// Label is a key-value label pair
 type Label struct {
 	Name  string
 	Value string
