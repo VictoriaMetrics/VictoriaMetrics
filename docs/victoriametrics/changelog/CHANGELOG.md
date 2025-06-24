@@ -18,16 +18,29 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove duplicate kubernetes targets from [service-discovery-debug](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) page. See [8626](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626) issue for details.
+
+## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
+
+Released at 2025-06-20
+
 * SECURITY: upgrade Go builder from Go1.24.3 to Go1.24.4. See [the list of issues addressed in Go1.24.4](https://github.com/golang/go/issues?q=milestone%3AGo1.24.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.3 to 3.22.0. See [Alpine 3.22.0 release notes](https://alpinelinux.org/posts/Alpine-3.22.0-released.html).
 
+* FEATURE: all the VictoriaMetrics components: add `-http.disableKeepAlive` to disable HTTP keep-alives for incoming connections. The flag could improve load balancing among replicas behind HTTP load balancers. See [#9125](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9125) and [#2395](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2395) for details.
 * FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Partitions scheduled for re-processing` to `Troubleshooting` row. It shows the amount of data scheduled for [downsampling](https://docs.victoriametrics.com/#downsampling) or [retention filters](https://docs.victoriametrics.com/#retention-filters). The new panel should help to correlate resource usage with background re-processing of partitions. 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): support [rate_prometheus](https://docs.victoriametrics.com/victoriametrics/metricsql/#rate_prometheus) function, an equivalent to `increase_prometheus(series_selector[d]) / d`. See [#8901](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8901) and [#8891](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891) for details.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): respect staleness markers when calculating `rate` and `increase` functions. The new behavior will interrupt rate/increase calculation if last sample on the selected time window is a [staleness marker](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers), making the series to disappear immediately instead of slowly fading away. See more details in [#8891-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891#issuecomment-2875542721).
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove duplicate kubernetes targets from [service-discovery-debug](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) page. See [8626](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626) issue for details.
-
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): do not break vmalert process under replay mode when rule uses `query` template, but only logging a warning.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): correct the rule evaluation timestamp if the system clock is changed during runtime. See [#8790](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8790).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): respect [group](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) `concurrency` setting in [replay mode](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) when `-replay.rulesDelay=0`. See this [#7387](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7387) for details. Thanks to @BenNF for the [PR #9214](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9214).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): allow overriding default limits for in-memory cache `storage/metricName` via flag `-storage.cacheSizeStorageMetricName`.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix server-side copying of objects for Azure Blob Storage when using managed identity for authentication. Previously, it wasn't possible to use [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy for `vmbackup` as server-side copy would fail. See [#9131](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9131).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): increase startup healthcheck delay for storage reachability from 30 seconds to 3 minutes. This is required to avoid vmbackupmanager restarts when storage node startup take more than 30 seconds (e.g. when storage nodes stores more than 5Tb of data).
+* BUGFIX: [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) cluster: properly include FIPS binaries in release artifacts for platforms other than windows. Previously, FIPS binaries were only included in windows release artifacts. See [#9188](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9188).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): properly calculate `rate_sum` and `rate_avg` aggregations if aggregation `interval` is smaller than distance between samples timestamps. See [#9017](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9017).
 
 ## [v1.119.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.119.0)
 
@@ -294,6 +307,23 @@ Released at 2025-02-10
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
+## [v1.110.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.12)
+
+Released at 2025-06-20
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.24.3 to Go1.24.4. See [the list of issues addressed in Go1.24.4](https://github.com/golang/go/issues?q=milestone%3AGo1.24.4+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.3 to 3.22.0. See [Alpine 3.22.0 release notes](https://alpinelinux.org/posts/Alpine-3.22.0-released.html).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [#8836](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix server-side copying of objects for Azure Blob Storage when using managed identity for authentication. Previously, it wasn't possible to use [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy for `vmbackup` as server-side copy would fail. See [#9131](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9131).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): increase startup healthcheck delay for storage reachability from 30 seconds to 3 minutes. This is required to avoid vmbackupmanager restarts when storage node startup take more than 30 seconds (e.g. when storage nodes stores more than 5Tb of data).
+
 ## [v1.110.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.11)
 
 Released at 2025-06-09
@@ -556,6 +586,22 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2024/#v11030)
+
+## [v1.102.24](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.24)
+
+Released at 2025-06-20
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.21.3 to 3.22.0. See [Alpine 3.22.0 release notes](https://alpinelinux.org/posts/Alpine-3.22.0-released.html).
+* SECURITY: upgrade Go builder from Go1.23.9 to Go1.23.10. See [the list of issues addressed in Go1.23.10](https://github.com/golang/go/issues?q=milestone%3AGo1.23.10+label%3ACherryPickApproved).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix incorrect sorting of tag filters, which led to suboptimal tag filter evaluation order and potentially degraded query performance in rare cases. See [#9127](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9127) for details.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix server-side copying of objects for Azure Blob Storage when using managed identity for authentication. Previously, it wasn't possible to use [smart backups](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy for `vmbackup` as server-side copy would fail. See [#9131](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9131).
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): increase startup healthcheck delay for storage reachability from 30 seconds to 3 minutes. This is required to avoid vmbackupmanager restarts when storage node startup take more than 30 seconds (e.g. when storage nodes stores more than 5Tb of data).
 
 ## [v1.102.23](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.23)
 

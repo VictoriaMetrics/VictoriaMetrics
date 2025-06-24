@@ -1,7 +1,7 @@
 services:
   # meta service will be ignored by compose
   .victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - -storageDataPath=/vlogs
       - -loggerFormat=json
@@ -19,7 +19,7 @@ services:
       retries: 10
 
   dd-proxy:
-    image: docker.io/victoriametrics/vmauth:v1.119.0
+    image: docker.io/victoriametrics/vmauth:v1.120.0
     restart: on-failure
     volumes:
       - ./:/etc/vmauth

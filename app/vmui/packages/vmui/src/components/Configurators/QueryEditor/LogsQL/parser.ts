@@ -9,6 +9,7 @@ export const splitLogicalParts = (expr: string) => {
   const input = expr; //.replace(/\s*:\s*/g, ":");
   const parts: LogicalPart[] = [];
   let currentPart = "";
+  let separator: undefined | " " | "|" = undefined;
   let isPipePart = false;
 
   const quotes = ["'", "\"", "`"];
@@ -43,8 +44,9 @@ export const splitLogicalParts = (expr: string) => {
       isPipePart = true;
       const countStartSpaces = currentPart.match(/^ */)?.[0].length || 0;
       const countEndSpaces = currentPart.match(/ *$/)?.[0].length || 0;
-      pushPart(currentPart, true, [startIndex + countStartSpaces, i - countEndSpaces - 1], parts);
+      pushPart(currentPart, true, [startIndex + countStartSpaces, i - countEndSpaces - 1], parts, separator);
       currentPart = "";
+      separator = "|";
       startIndex = i + 1;
       continue;
     }
@@ -54,7 +56,8 @@ export const splitLogicalParts = (expr: string) => {
       const nextStr = input.slice(i).replace(/^\s*/, "");
       const prevStr = input.slice(0, i).replace(/\s*$/, "");
       if (!nextStr.startsWith(":") && !prevStr.endsWith(":")) {
-        pushPart(currentPart, false, [startIndex, i - 1], parts);
+        pushPart(currentPart, false, [startIndex, i - 1], parts, separator);
+        separator = " ";
         currentPart = "";
         startIndex = i + 1;
         continue;
@@ -65,26 +68,35 @@ export const splitLogicalParts = (expr: string) => {
   }
 
   // push the last part
-  pushPart(currentPart, isPipePart, [startIndex, input.length], parts);
+  pushPart(currentPart, isPipePart, [startIndex, input.length], parts, separator);
 
   return parts;
 };
 
-const pushPart = (currentPart: string, isPipePart: boolean, position: LogicalPartPosition, parts: LogicalPart[]) => {
+const pushPart = (currentPart: string, isPipePart: boolean, position: LogicalPartPosition, parts: LogicalPart[], separator: LogicalPart["separator"]) => {
   const trimmedPart = currentPart.trim();
   if (!trimmedPart) return;
   const isOperator = BUILDER_OPERATORS.includes(trimmedPart.toUpperCase());
+  const pipesTypes = [LogicalPartType.Pipe, LogicalPartType.FilterOrPipe];
+  const isPreviousPartPipe = parts.length > 0 && pipesTypes.includes(parts[parts.length - 1].type);
+
+  const getType = () => {
+    if (isPreviousPartPipe) return LogicalPartType.FilterOrPipe;
+    if (isPipePart) return LogicalPartType.Pipe;
+    if (isOperator) return LogicalPartType.Operator;
+    return LogicalPartType.Filter;
+  };
+
   parts.push({
     id: parts.length,
     value: trimmedPart,
     position,
-    type: isPipePart
-      ? LogicalPartType.Pipe
-      : isOperator ? LogicalPartType.Operator : LogicalPartType.Filter,
+    type: getType(),
+    separator,
   });
 };
 
-export const getContextData = (part: LogicalPart, cursorPos: number) => {
+export const getContextData = (part: LogicalPart, cursorPos: number): ContextData => {
   const valueBeforeCursor = part.value.substring(0, cursorPos);
   const valueAfterCursor = part.value.substring(cursorPos);
 
@@ -95,23 +107,91 @@ export const getContextData = (part: LogicalPart, cursorPos: number) => {
     contextType: ContextType.Unknown,
   };
 
-  if (part.type === LogicalPartType.Filter) {
-    const noColon = !valueBeforeCursor.includes(":") && !valueAfterCursor.includes(":");
-    if (noColon) {
-      metaData.contextType = ContextType.FilterUnknown;
-    } else if (valueBeforeCursor.includes(":")) {
-      const [filterName, filterValue] = valueBeforeCursor.split(":");
-      metaData.contextType = ContextType.FilterValue;
-      metaData.filterName = filterName;
-      metaData.valueContext = filterValue;
-    } else {
-      metaData.contextType = ContextType.FilterName;
-    }
-  } else if (part.type === LogicalPartType.Pipe) {
-    const valueStartWithPipe = PIPE_NAMES.some(p => part.value.startsWith(p));
-    metaData.contextType = valueStartWithPipe ? ContextType.PipeValue : ContextType.PipeName;
-  }
+  // Determine context type based on logical part type
+  determineContextType(part, valueBeforeCursor, valueAfterCursor, metaData);
 
+  // Clean up quotes in valueContext
   metaData.valueContext = metaData.valueContext.replace(/^["']|["']$/g, "");
+
   return metaData;
+};
+
+/** Helper function to determine if a string starts with any of the pipe names */
+const startsWithPipe = (value: string): boolean => {
+  return PIPE_NAMES.some(p => value.startsWith(p));
+};
+
+/** Helper function to check for colon presence */
+const hasNoColon = (before: string, after: string): boolean => {
+  return !before.includes(":") && !after.includes(":");
+};
+
+/** Helper function to extract filter name and update metadata for filter values */
+const handleFilterValue = (valueBeforeCursor: string, metaData: ContextData): void => {
+  const [filterName, ...filterValue] = valueBeforeCursor.split(":");
+  metaData.contextType = ContextType.FilterValue;
+  metaData.filterName = filterName;
+  const enhanceOperators = ["=", "-", "!", "~", "<", ">", "<=", ">="] as const;
+  const enhanceOperator = enhanceOperators.find(op => op === filterValue[0]);
+  if (enhanceOperator) {
+    metaData.valueContext = filterValue.slice(1).join(":");
+    metaData.operator = `:${enhanceOperator}`;
+  } else {
+    metaData.valueContext = filterValue.join(":");
+    metaData.operator = ":";
+  }
+};
+
+/** Function to determine context type based on part type and value */
+const determineContextType = (
+  part: LogicalPart,
+  valueBeforeCursor: string,
+  valueAfterCursor: string,
+  metaData: ContextData
+): void => {
+  switch (part.type) {
+    case LogicalPartType.Filter:
+      handleFilterType(valueBeforeCursor, valueAfterCursor, metaData);
+      break;
+
+    case LogicalPartType.Pipe:
+      metaData.contextType = startsWithPipe(part.value)
+        ? ContextType.PipeValue
+        : ContextType.PipeName;
+      break;
+
+    case LogicalPartType.FilterOrPipe:
+      handleFilterOrPipeType(part.value, valueBeforeCursor, metaData);
+      break;
+  }
+};
+
+/** Handle filter type context determination */
+const handleFilterType = (
+  valueBeforeCursor: string,
+  valueAfterCursor: string,
+  metaData: ContextData
+): void => {
+  if (hasNoColon(valueBeforeCursor, valueAfterCursor)) {
+    metaData.contextType = ContextType.FilterUnknown;
+  } else if (valueBeforeCursor.includes(":")) {
+    handleFilterValue(valueBeforeCursor, metaData);
+  } else {
+    metaData.contextType = ContextType.FilterName;
+  }
+};
+
+/** Handle FilterOrPipeType context determination */
+const handleFilterOrPipeType = (
+  value: string,
+  valueBeforeCursor: string,
+  metaData: ContextData
+): void => {
+  if (startsWithPipe(value)) {
+    metaData.contextType = ContextType.PipeValue;
+  } else if (valueBeforeCursor.includes(":")) {
+    handleFilterValue(valueBeforeCursor, metaData);
+  } else {
+    metaData.contextType = ContextType.FilterOrPipeName;
+  }
 };
