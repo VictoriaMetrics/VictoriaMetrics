@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/cespare/xxhash/v2"
 )
@@ -77,6 +78,12 @@ func (c *Cache) GetBlock(k Key) Block {
 	if len(c.shards) > 1 {
 		h := k.hashUint64()
 		idx = h % uint64(len(c.shards))
+		defer func(idx uint64, shardLen int) {
+			if r := recover(); r != nil {
+				logger.Errorf("panic at GetBlock, \nidx=%d\nshardLen=%d\nshardLen64=%d\nh=%d", idx, shardLen, uint64(shardLen), h)
+				panic(r)
+			}
+		}(idx, len(c.shards))
 	}
 	shard := c.shards[idx]
 	return shard.GetBlock(k)
