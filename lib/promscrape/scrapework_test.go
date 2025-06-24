@@ -503,7 +503,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
                 scrape_samples_post_metric_relabeling 0 123
                 scrape_series_added 0 123
                 scrape_timeout_seconds 42 123
-		scrape_label_limit 2 123
+		scrape_labels_limit 2 123
         `)
 	// Scrape success with the given SeriesLimit.
 	f(`
