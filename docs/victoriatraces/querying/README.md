@@ -113,7 +113,9 @@ Here's a response example:
 
 [Grafana Jaeger Datasource](https://grafana.com/docs/grafana/latest/datasources/jaeger/) allows you to query and visualize VictoriaTraces data in Grafana.
 
-The URL format is:
+![Visualization with Grafana](grafana-jaeger.webp)
+
+Simply click "Add new data source" on Grafana, and then fill your VictoriaTraces URL to "Connection.URL". The URL format is:
 ```
 http://<victoriatraces>:9428/select/jaeger
 ```
