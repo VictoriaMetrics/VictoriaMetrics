@@ -28,7 +28,10 @@ type Item struct {
 //
 // The returned bytes representation belongs to data.
 func (it Item) Bytes(data []byte) []byte {
-	n := int(it.End - it.Start)
+	n := it.End - it.Start
+	if n == 0 {
+		return nil
+	}
 	return unsafe.Slice((*byte)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(data)), it.Start)), n)
 }
 
@@ -36,7 +39,10 @@ func (it Item) Bytes(data []byte) []byte {
 //
 // The returned string representation belongs to data.
 func (it Item) String(data []byte) string {
-	n := int(it.End - it.Start)
+	n := it.End - it.Start
+	if n == 0 {
+		return ""
+	}
 	return unsafe.String((*byte)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(data)), it.Start)), n)
 }
 
