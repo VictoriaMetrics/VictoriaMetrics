@@ -18,6 +18,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: proxy requests to `/api/v1/notifiers`, `/api/v1/alerts` and `/api/v1/rules` to VMAlert, when `-vmalert.proxyURL` flag is set. See [#8272](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8272).
+
 ## [v1.24.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.24.0-victorialogs)
 
 Released at 2025-06-20
