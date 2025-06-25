@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	streamIDCacheHits   = metrics.NewCounter(`vl_cache_hits_total{type="stream_id"}`)
-	streamIDCacheMisses = metrics.NewCounter(`vl_cache_misses_total{type="stream_id"}`)
+	streamIDCacheHitRate = metrics.NewSummary(`vl_cache_hit_rate{type="stream_id"}`)
 )
 
 // PartitionStats contains stats for the partition.
@@ -169,8 +168,7 @@ func (pt *partition) mustAddRows(lr *LogRows) {
 		}
 	}
 
-	streamIDCacheMisses.Add(int(cacheMisses))
-	streamIDCacheHits.Add(int(cacheHits))
+	streamIDCacheHitRate.Update(float64(cacheHits) / float64(cacheHits+cacheMisses))
 
 	// Add rows to datadb
 	pt.ddb.mustAddRows(lr)
