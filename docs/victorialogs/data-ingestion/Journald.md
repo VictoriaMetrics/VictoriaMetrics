@@ -38,12 +38,13 @@ by providing comma-separated list of journald fields form [this list](https://ww
 
 Please make sure that the log stream fields passed to `-journlad.streamFields` do not contain fields with high number or unbound number of unique values,
 since this may lead to [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+This can happen with `_SYSTEMD_UNIT` if you have templated units with non-static instances
+such as `systemd-coredump@.service` or if you have a `.socket` unit with `Accept=yes`.
 
 The following Journald fields are also good candidates for stream fields:
 
-- `_TRANSPORT`
+- `_TRANSPORT` (to separate out kernel and audit logs which are not associated with a `_SYSTEMD_UNIT`)
 - `_SYSTEMD_USER_UNIT`
-
 
 ## Dropping fields
 
