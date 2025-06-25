@@ -3534,7 +3534,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 
 `avg(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the average value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Non-numeric values are ignored.
+Non-numeric values are ignored. If all the values are non-numeric, then `NaN` is returned.
 
 For example, the following query returns the average value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -3972,6 +3972,7 @@ See also:
 
 `sum(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of numeric values across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+Non-numeric values are skipped. If all the values across `field1`, ..., `fieldN` are non-numeric, then `NaN` is returned.
 
 For example, the following query returns the sum of numeric values for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
