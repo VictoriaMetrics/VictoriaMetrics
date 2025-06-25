@@ -180,7 +180,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or vector(0)",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -445,7 +445,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\"} < 1) or 0",
+          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\"} < 1) or vector(0)",
           "interval": "",
           "legendFormat": "",
           "range": true,
@@ -786,7 +786,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Top $topk groups by evaluation duration. Shows groups that take the most of time during the evaluation across all instances.\n\nThe panel uses MetricsQL functions and may not work with Prometheus.",
+      "description": "Top $topk groups by evaluation duration. Shows groups that take the most of time during the evaluation across all instances.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -878,7 +878,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
+          "expr": "topk($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
           "interval": "",
           "legendFormat": "({{job}}) {{group}}({{file}})",
           "range": true,
@@ -2855,7 +2855,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows top $topk current active (firing) alerting rules.\n\nThe panel uses MetricsQL functions and may not work with Prometheus.",
+          "description": "Shows top $topk current active (firing) alerting rules.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2942,7 +2942,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
+              "expr": "topk($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
               "interval": "",
               "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
@@ -3375,7 +3375,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.\n\nThe panel uses MetricsQL functions and may not work with Prometheus.",
+          "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3462,7 +3462,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
+              "expr": "topk($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
               "interval": "",
               "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
@@ -4224,10 +4224,9 @@
         "type": "custom"
       },
       {
-        "baseFilters": [],
         "datasource": {
           "type": "prometheus",
-          "uid": "$ds"
+          "uid": "${ds}"
         },
         "filters": [],
         "name": "adhoc",
