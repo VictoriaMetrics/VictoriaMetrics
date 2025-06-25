@@ -32,9 +32,6 @@ func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to ti
 		return res, fmt.Errorf("unexpected time range received: %q", key)
 	}
 	delete(dps, key)
-	if len(fr.registry[q]) < 1 {
-		delete(fr.registry, q)
-	}
 	return res, nil
 }
 
@@ -58,6 +55,11 @@ func TestReplay(t *testing.T) {
 		*replayMaxDatapoints = maxDP
 		if err := replay(cfg, qb, rwb); err != nil {
 			t.Fatalf("replay failed: %s", err)
+		}
+		for q := range qb.registry {
+			if len(qb.registry[q]) < 1 {
+				delete(qb.registry, q)
+			}
 		}
 		if len(qb.registry) > 0 {
 			t.Fatalf("not all requests were sent: %#v", qb.registry)
