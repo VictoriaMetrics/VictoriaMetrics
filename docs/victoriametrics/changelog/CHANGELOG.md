@@ -22,6 +22,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `/api/v1/notifiers` API endpoint for returning list of configured or discovered notifiers.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `datasource_type` query argument for `/api/v1/rules` and `/api/v1/alerts` endpoints to filter response by rule's datasource [type](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups). See [#8537](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8537).
 
+* BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683) and [dashboards/vmalert](https://grafana.com/grafana/dashboards/14950): fix ad-hoc filters auto-complete and filtering on panels that use MetricsQL specific expressions. See [#8657](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8657). 
+
 ## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
 
 Released at 2025-06-20
