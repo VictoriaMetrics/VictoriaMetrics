@@ -8,34 +8,23 @@ VictoriaTraces provides the following features:
 - It provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) 
   to integrate with [Grafana](https://grafana.com/docs/grafana/latest/datasources/jaeger/) or [Jaeger Frontend](https://www.jaegertracing.io/docs/2.6/frontend-ui/).
 
-## How does it work
-
-VictoriaTraces is built on top of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), which is a log database. 
-It receives trace spans in OTLP format, transforms them into structured logs, and provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) for querying.
-
-For detailed data model and example, see: [Key Concepts](https://docs.victoriametrics.com/victoriatraces/keyConcepts).
-
-![How does VictoriaTraces work](how-does-it-work.webp)
-
-Building VictoriaTraces in this way enables it to scale easily and linearly with the available resources, like VictoriaLogs.
-
 ## Quick Start
 
-Currently, VictoriaTraces is under actively developing. It provides [binary releases](https://github.com/VictoriaMetrics/VictoriaTraces/releases/latest) and
-docker images ([Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces/) and [Quay](https://quay.io/repository/victoriametrics/victoria-traces?tab=tags)). 
-It can also be built from VictoriaTraces repository. See: [How to build from sources](#how-to-build-from-sources).
+Currently, VictoriaTraces is under actively developing. It can be built from VictoriaTraces repository. See: [How to build from sources](#how-to-build-from-sources).
 
 ### How to build from sources
 
 Building from sources is reasonable when developing additional features specific to your needs or when testing bugfixes.
 
-#### Development build
+{{% collapse name="How to build from sources" %}}
+
+#### Build binary with go build
 
 1. [Install Go](https://golang.org/doc/install).
 1. Run `make victoria-traces` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces).
    It builds `victoria-traces` binary and puts it into the `bin` folder.
 
-#### Production build
+#### Build binary with Docker
 
 1. [Install docker](https://docs.docker.com/install/).
 1. Run `make victoria-traces-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces).
@@ -55,7 +44,20 @@ For example, the following command builds the image on top of [scratch](https://
 ROOT_IMAGE=scratch make package-victoria-traces
 ```
 
+{{% /collapse %}}
+
 ### Configure and run VictoriaTraces
+
+VictoriaTraces can be run with:
+```shell
+/path/to/victoria-traces -storageDataPath=victoria-traces-data -retentionPeriod=7d
+```
+
+or with Docker:
+```shell
+docker run --rm -it -p 9428:9428 -v ./victoria-traces-data:/victoria-traces-data \
+  docker.io/victoriametrics/victoria-traces:latest -storageDataPath=victoria-traces-data
+```
 
 VictoriaTraces is configured via command-line flags. All the command-line flags have sane defaults, so there is no need in tuning them in general case. VictoriaTraces runs smoothly in most environments without additional configuration.
 
@@ -70,11 +72,6 @@ The following command-line flags are used the most:
 * `-storageDataPath` - VictoriaTraces stores all the data in this directory. The default path is `victoria-traces-data` in the current working directory.
 * `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 7 days.
 
-VictoriaTraces can be run with:
-```shell
-/path/to/victoria-traces -storageDataPath=victoria-traces-data -retentionPeriod=7d
-```
-
 Once it's running, it will listen to port `9428` (`-httpListenAddr`) and provide the following APIs:
 1. for ingestion:
 ```
@@ -86,6 +83,17 @@ http://<victoria-traces>:<port>/select/jaeger/<endpoints>
 ```
 
 See [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/) and [querying](https://docs.victoriametrics.com/VictoriaTraces/querying/) for more details.
+
+## How does it work
+
+VictoriaTraces was initially built on top of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), a log database.
+It receives trace spans in OTLP format, transforms them into structured logs, and provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) for querying.
+
+For detailed data model and example, see: [Key Concepts](https://docs.victoriametrics.com/victoriatraces/keyConcepts).
+
+![How does VictoriaTraces work](how-does-it-work.webp)
+
+Building VictoriaTraces in this way enables it to scale easily and linearly with the available resources, like VictoriaLogs.
 
 ## List of command-line flags
 
