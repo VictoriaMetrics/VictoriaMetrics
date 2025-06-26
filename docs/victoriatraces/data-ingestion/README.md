@@ -57,7 +57,7 @@ See also [HTTP Query string parameters](#http-query-string-parameters).
 The following command can be used for verifying whether the data is successfully ingested into VictoriaTraces:
 
 ```sh
-curl http://localhost:9428/select/logsql/query -d 'query=*' | head
+curl http://<victoria-traces>:9428/select/logsql/query -d 'query=*' | head
 ```
 
 This command selects all the data ingested into VictoriaTraces via [HTTP query API](https://docs.victoriametrics.com/victoriatraces/querying/#http-api)

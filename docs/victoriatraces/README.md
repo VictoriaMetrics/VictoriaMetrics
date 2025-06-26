@@ -75,11 +75,11 @@ The following command-line flags are used the most:
 Once it's running, it will listen to port `9428` (`-httpListenAddr`) and provide the following APIs:
 1. for ingestion:
 ```
-http://<victoria-traces>:<port>/insert/opentelemetry/v1/traces
+http://<victoria-traces>:9428/insert/opentelemetry/v1/traces
 ```
 2. for querying:
 ```
-http://<victoria-traces>:<port>/select/jaeger/<endpoints>
+http://<victoria-traces>:9428/select/jaeger/<endpoints>
 ```
 
 See [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/) and [querying](https://docs.victoriametrics.com/VictoriaTraces/querying/) for more details.
