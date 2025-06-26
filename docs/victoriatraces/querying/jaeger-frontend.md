@@ -19,7 +19,7 @@ and visualizes the response trace data.
 
 You can get Jaeger UI from [release page](https://github.com/jaegertracing/jaeger-ui/releases/tag/v1.70.0). 
 
-As it provides only assets and source code, an HTTP server might be needed request handling. 
+As it provides only assets and source code, an HTTP server is needed for serving requests. 
 
 ### Nginx Example
 
@@ -41,17 +41,17 @@ server {
     server_name  localhost;
 
     location / {
-        root   /path/to/jaeger-ui/build;
+        root   /path/to/jaeger-ui/build; # change this path to your asserts location.
         try_files $uri $uri/ /index.html;
     }
 
     location /api {
-        proxy_pass http://127.0.0.1:9428/select/jaeger/api;
+        proxy_pass http://127.0.0.1:9428/select/jaeger/api; # change this address to VictoriaTraces' address.
     }
 }
 ```
 
-Some common paths of Nginx config folder:
+Here are some common paths of Nginx config folder:
 ```sh
 # Ubuntu & Install with apt
 cd /etc/nginx/sites-available/
