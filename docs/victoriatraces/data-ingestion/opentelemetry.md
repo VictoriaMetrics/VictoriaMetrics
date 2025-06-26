@@ -28,7 +28,7 @@ The OpenTelemetry provides detailed document and examples for various programmin
 - [Rust](https://opentelemetry.io/docs/languages/rust/)
 - [Swift](https://opentelemetry.io/docs/languages/swift/)
 
-Specify `EndpointURL` for http-exporter builder to `/insert/opentelemetry/v1/traces`.
+To send data to VictoriaTraces, specifying the `EndpointURL` for http-exporter builder to `http://victoriatraces:9428/insert/opentelemetry/v1/traces`.
 
 Consider the following example for Go SDK:
 
@@ -38,9 +38,9 @@ traceExporter, err := otlptracehttp.New(ctx,
 )
 ```
 
-VictoriaTraces use `service.name` in **resource attributes** and `name` in **span** as [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
+VictoriaTraces automatically use `service.name` in **resource attributes** and `name` in **span** as [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
 
-while the remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) are stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
+While the remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) are stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
 
 VictoriaTraces supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
 
@@ -54,13 +54,12 @@ VictoriaTraces supports receiving traces from the following OpenTelemetry collec
 
 ### OpenTelemetry
 
-Specify traces endpoint for [OTLP/HTTP exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md) in configuration file
-for sending the collected traces to VictoriaTraces:
+To send the collected traces to VictoriaTraces, specify traces endpoint for [OTLP/HTTP exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md) in configuration file:
 
 ```yaml
 exporters:
   otlphttp:
-    traces_endpoint: http://localhost:9428/insert/opentelemetry/v1/traces
+    traces_endpoint: http://victoriatraces:9428/insert/opentelemetry/v1/traces
 ```
 
 VictoriaTraces supports various HTTP headers, which can be used during data ingestion - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
@@ -69,7 +68,7 @@ These headers can be passed to OpenTelemetry exporter config via `headers` optio
 ```yaml
 exporters:
   otlphttp:
-    traces_endpoint: http://localhost:9428/insert/opentelemetry/v1/traces
+    traces_endpoint: http://victoriatraces:9428/insert/opentelemetry/v1/traces
     headers:
       VL-Extra-Fields: foo=bar
 ```
