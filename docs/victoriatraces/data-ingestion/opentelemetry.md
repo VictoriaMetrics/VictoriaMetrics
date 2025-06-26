@@ -28,7 +28,7 @@ The OpenTelemetry provides detailed document and examples for various programmin
 - [Rust](https://opentelemetry.io/docs/languages/rust/)
 - [Swift](https://opentelemetry.io/docs/languages/swift/)
 
-To send data to VictoriaTraces, specifying the `EndpointURL` for http-exporter builder to `http://<victoria-traces>:9428/insert/opentelemetry/v1/traces`.
+To send data to VictoriaTraces, specify the `EndpointURL` for http-exporter builder to `http://<victoria-traces>:9428/insert/opentelemetry/v1/traces`.
 
 Consider the following example for Go SDK:
 
@@ -39,7 +39,6 @@ traceExporter, err := otlptracehttp.New(ctx,
 ```
 
 VictoriaTraces automatically use `service.name` in **resource attributes** and `name` in **span** as [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
-
 While the remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) are stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
 
 VictoriaTraces supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).

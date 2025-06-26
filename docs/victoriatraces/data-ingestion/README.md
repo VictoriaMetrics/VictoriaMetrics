@@ -1,24 +1,21 @@
-> Currently, VictoriaTraces is in the development version and built on VictoriaLogs. Therefore, they will share some flags and APIs. These flags and APIs will be completely separated once VictoriaTraces reaches a beta/stable version.
+> Currently, VictoriaTraces is in the development version and built on VictoriaLogs. Therefore, they will share some flags and APIs. These flags and APIs will be completely separated once VictoriaTraces reaches a stable version.
 
 [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) can accept trace spans via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
 
 ## HTTP APIs
 
-VictoriaTraces supports the following data ingestion HTTP API:
-
-- OpenTelemetry API. See [these docs](#opentelemetry-api).
-
-VictoriaTraces accepts optional [HTTP parameters](#http-parameters) at data ingestion HTTP APIs.
-
 ### Opentelemetry API
 
-VictoriaTraces accepts trace spans in [OpenTelemetry format](https://opentelemetry.io/docs/specs/otel/traces/data-model/) at the `/insert/opentelemetry/v1/traces` HTTP endpoint.
-See more details [in these docs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
+VictoriaTraces provides the following API for OpenTelemetry data ingestion:
+
+- `/insert/opentelemetry/v1/traces`
+
+See more details [in this docs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
 ### HTTP parameters
 
-VictoriaTraces accepts the following configuration parameters via [HTTP headers](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields)
-or via [HTTP query string args](https://en.wikipedia.org/wiki/Query_string) at [data ingestion HTTP APIs](#http-apis).
+VictoriaTraces accepts optional HTTP parameters at data ingestion HTTP APIs via [HTTP query string parameters](https://en.wikipedia.org/wiki/Query_string), or via [HTTP headers](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields).
+
 HTTP query string parameters have priority over HTTP Headers.
 
 #### HTTP Query string parameters
