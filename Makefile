@@ -11,6 +11,8 @@ ifeq ($(PKG_TAG),)
 PKG_TAG := $(BUILDINFO_TAG)
 endif
 
+EXTRA_TAG_SUFFIX ?= EXTRA_TAG_SUFFIX
+
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
@@ -194,6 +196,31 @@ vmutils-crossbuild: \
 	vmutils-freebsd-amd64 \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
+
+publish-final-images:
+	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmagent $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert-tool $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmauth $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmbackup $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmrestore $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmctl $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vminsert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmselect $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmstorage $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=victoria-metrics $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmagent $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmalert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmauth $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackup $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmrestore $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise-cluster APP_NAME=vminsert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise-cluster APP_NAME=vmselect $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise-cluster APP_NAME=vmstorage $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmgateway $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackupmanager $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) $(MAKE) publish-latest
 
 publish-latest:
 	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-latest && \
