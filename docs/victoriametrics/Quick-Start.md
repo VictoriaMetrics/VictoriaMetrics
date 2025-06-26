@@ -377,11 +377,14 @@ Migrating data from other TSDBs to VictoriaMetrics is as simple as importing dat
 
 The migration might get easier when using [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:
-* [Prometheus using snapshot API](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-prometheus);
-* [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-thanos);
-* [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x);
-* [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-opentsdb);
-* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
+* [Prometheus using snapshot API](https://docs.victoriametrics.com/victoriametrics/vmctl/prometheus/);
+* [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/thanos/);
+* [Mimir](https://docs.victoriametrics.com/victoriametrics/vmctl/mimir/);
+* [Promscale](https://docs.victoriametrics.com/victoriametrics/vmctl/promscale/);
+* [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/);
+* [OpenTSDB](https://docs.victoriametrics.com/victoriametrics/vmctl/opentsdb/);
+* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+* [Migrate data via Prometheus Remote Read protocol](https://docs.victoriametrics.com/victoriametrics/vmctl/remoteread/).
 
 ## Productionization
 

@@ -32,13 +32,13 @@ var (
 		"Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`.")
 )
 
-func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) error {
+func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) (totalRows, droppedRows int, err error) {
 	if *replayMaxDatapoints < 1 {
-		return fmt.Errorf("replay.maxDatapointsPerQuery can't be lower than 1")
+		return 0, 0, fmt.Errorf("replay.maxDatapointsPerQuery can't be lower than 1")
 	}
 	tFrom, err := time.Parse(time.RFC3339, *replayFrom)
 	if err != nil {
-		return fmt.Errorf("failed to parse replay.timeFrom=%q: %w", *replayFrom, err)
+		return 0, 0, fmt.Errorf("failed to parse replay.timeFrom=%q: %w", *replayFrom, err)
 	}
 
 	// use tFrom location for default value, otherwise filters could have different locations
@@ -46,12 +46,12 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 	if *replayTo != "" {
 		tTo, err = time.Parse(time.RFC3339, *replayTo)
 		if err != nil {
-			return fmt.Errorf("failed to parse replay.timeTo=%q: %w", *replayTo, err)
+			return 0, 0, fmt.Errorf("failed to parse replay.timeTo=%q: %w", *replayTo, err)
 		}
 	}
 
 	if !tTo.After(tFrom) {
-		return fmt.Errorf("replay.timeTo=%v must be bigger than replay.timeFrom=%v", tTo, tFrom)
+		return 0, 0, fmt.Errorf("replay.timeTo=%v must be bigger than replay.timeFrom=%v", tTo, tFrom)
 	}
 	labels := make(map[string]string)
 	for _, s := range *externalLabels {
@@ -60,7 +60,7 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 		}
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
-			return fmt.Errorf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
+			return 0, 0, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
 		}
 		labels[s[:n]] = s[n+1:]
 	}
@@ -71,18 +71,14 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 		"\nmax data points per request: %d\n",
 		tFrom, tTo, *replayMaxDatapoints)
 
-	var total int
 	for _, cfg := range groupsCfg {
 		ng := rule.NewGroup(cfg, qb, *evaluationInterval, labels)
-		total += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar, *ruleEvaluationConcurrency)
+		totalRows += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar, *ruleEvaluationConcurrency)
 	}
-	logger.Infof("replay evaluation finished, generated %d samples", total)
+	logger.Infof("replay evaluation finished, generated %d samples", totalRows)
 	if err := rw.Close(); err != nil {
-		return err
+		return 0, 0, err
 	}
-	droppedRows := remotewrite.GetDroppedRows()
-	if droppedRows > 0 {
-		return fmt.Errorf("failed to push all generated samples to remote write url, dropped %d samples out of %d", droppedRows, total)
-	}
-	return nil
+	droppedRows = remotewrite.GetDroppedRows()
+	return totalRows, droppedRows, nil
 }
