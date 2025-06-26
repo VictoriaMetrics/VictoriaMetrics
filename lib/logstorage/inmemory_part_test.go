@@ -113,10 +113,10 @@ func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
 	}
 
 	// check block overflow with unique tag rows
-	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.5)
-	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.6)
-	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.7)
-	f(newTestLogRowsUniqTags(15, 20, 250), 15, 0.6)
+	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.6)
+	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.7)
+	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 2.0)
+	f(newTestLogRowsUniqTags(15, 20, 250), 15, 0.8)
 }
 
 func checkCompressionRate(t *testing.T, ph *partHeader, compressionRateExpected float64) {
@@ -187,7 +187,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		ph := &mpDst.ph
 		checkCompressionRate(t, ph, compressionRateExpected)
 		if ph.UncompressedSizeBytes != uncompressedSizeBytesExpected {
-			t.Fatalf("unexpected uncompressedSizeBytes in partHeader; got %d; want %d", ph.UncompressedSizeBytes, uncompressedSizeBytesExpected)
+			t.Fatalf("unexpected UncompressedSizeBytes in partHeader; got %d; want %d", ph.UncompressedSizeBytes, uncompressedSizeBytesExpected)
 		}
 		if ph.RowsCount != uint64(rowsCountExpected) {
 			t.Fatalf("unexpected number of entries in partHeader; got %d; want %d", ph.RowsCount, rowsCountExpected)
@@ -224,14 +224,14 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 	f([]*LogRows{GetLogRows(nil, nil, nil, nil, ""), GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
-	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.3)
+	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.4)
 	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 4.6)
 	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 12.0)
 	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 17.1)
 	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 3, 17.2)
 	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 2.1)
 	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 2.3)
-	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2.2)
+	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2.4)
 	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 5.5)
 	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 12.4)
 
@@ -243,7 +243,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 	f([]*LogRows{
 		newTestLogRows(2, 2, 0),
 		newTestLogRows(2, 2, 0),
-	}, 2, 3.8)
+	}, 2, 4.2)
 	f([]*LogRows{
 		newTestLogRows(1, 20, 0),
 		newTestLogRows(1, 10, 1),
