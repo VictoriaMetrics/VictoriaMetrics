@@ -85,12 +85,12 @@ func (cw *configWatcher) reload(path string) error {
 }
 
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn getLabels) error {
-	targets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
+	targets, errors := targetsFromLabels(labelsFn, cw.cfg)
 	for _, err := range errors {
 		return fmt.Errorf("failed to init notifier for %q: %w", typeK, err)
 	}
 
-	cw.setTargets(typeK, targets)
+	cw.updateTargets(typeK, targets, cw.cfg, cw.genFn)
 
 	cw.wg.Add(1)
 	go func() {
@@ -105,22 +105,22 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 				return
 			case <-ticker.C:
 			}
-			updateTargets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
+			updateTargets, errors := targetsFromLabels(labelsFn, cw.cfg)
 			for _, err := range errors {
 				logger.Errorf("failed to init notifier for %q: %w", typeK, err)
 			}
-			cw.setTargets(typeK, updateTargets)
+			cw.updateTargets(typeK, updateTargets, cw.cfg, cw.genFn)
 		}
 	}()
 	return nil
 }
 
-func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator) ([]Target, []error) {
+func targetsFromLabels(labelsFn getLabels, cfg *Config) (map[string]*promutil.Labels, []error) {
 	metaLabels, err := labelsFn()
 	if err != nil {
 		return nil, []error{fmt.Errorf("failed to get labels: %w", err)}
 	}
-	var targets []Target
+	targets := make(map[string]*promutil.Labels, len(metaLabels))
 	var errors []error
 	duplicates := make(map[string]struct{})
 	for _, labels := range metaLabels {
@@ -143,16 +143,7 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 			continue
 		}
 		duplicates[u] = struct{}{}
-
-		am, err := NewAlertManager(u, genFn, cfg.HTTPClientConfig, cfg.parsedAlertRelabelConfigs, cfg.Timeout.Duration())
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		targets = append(targets, Target{
-			Notifier: am,
-			Labels:   processedLabels,
-		})
+		targets[u] = processedLabels
 	}
 	return targets, errors
 }
@@ -241,19 +232,38 @@ func (cw *configWatcher) mustStop() {
 
 func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 	cw.targetsMu.Lock()
-	newT := make(map[string]Target)
-	for _, t := range targets {
-		newT[t.Addr()] = t
-	}
-	oldT := cw.targets[key]
-
-	for _, ot := range oldT {
-		if _, ok := newT[ot.Addr()]; !ok {
-			ot.Notifier.Close()
-		}
-	}
 	cw.targets[key] = targets
 	cw.targetsMu.Unlock()
+}
+
+func (cw *configWatcher) updateTargets(key TargetType, currentTargets map[string]*promutil.Labels, cfg *Config, genFn AlertURLGenerator) {
+	cw.targetsMu.Lock()
+	defer cw.targetsMu.Unlock()
+	oldTargets := cw.targets[key]
+	var updatedTargets []Target
+	for _, ot := range oldTargets {
+		if _, ok := currentTargets[ot.Addr()]; !ok {
+			// if target not exists in currentTargets, close it
+			ot.Notifier.Close()
+		} else {
+			updatedTargets = append(updatedTargets, ot)
+			delete(currentTargets, ot.Addr())
+		}
+	}
+	// create new resources for the new targets
+	for addr, labels := range currentTargets {
+		am, err := NewAlertManager(addr, genFn, cfg.HTTPClientConfig, cfg.parsedAlertRelabelConfigs, cfg.Timeout.Duration())
+		if err != nil {
+			logger.Errorf("failed to init %s notifier with addr %q: %w", key, addr, err)
+			continue
+		}
+		updatedTargets = append(updatedTargets, Target{
+			Notifier: am,
+			Labels:   labels,
+		})
+	}
+
+	cw.targets[key] = updatedTargets
 }
 
 // mergeHTTPClientConfigs merges fields between child and parent params
