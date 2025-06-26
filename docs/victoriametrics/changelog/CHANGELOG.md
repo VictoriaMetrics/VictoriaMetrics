@@ -18,7 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add `replay.singleRuleEvaluationConcurrency` to allow concurrency execution of chunks during rule replay. This can significantly speed up the rule replay process, especially for large datasets. See this [#7387](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7387) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add `-replay.ruleEvaluationConcurrency` to allow concurrent `/query_range` requests for a single rule. Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`. See this [#7387](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7387) for details.
 
 ## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
 
