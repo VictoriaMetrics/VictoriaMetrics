@@ -536,6 +536,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		}
 	}
 	if scrapeErr != nil {
+		if errors.Is(err, errLabelsLimitExceeded) {
+			scrapesSkippedByLabelLimit.Inc()
+			scrapeErr = fmt.Errorf("the response from %q contains samples with a number of labels exceeding label_limit=%d; "+
+				"either reduce the labels count for the target or increase label_limit", cfg.ScrapeURL, cfg.LabelLimit)
+		}
 		err = scrapeErr
 		// use wc.writeRequest.Reset() instead of wc.reset()
 		// in order to keep the len(wc.labels), which is used for initializing sw.prevLabelsLen below.
@@ -627,7 +632,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		if err := wc.tryAddRows(cfg, rows, scrapeTimestamp, true); err != nil {
 			if errors.Is(err, errLabelsLimitExceeded) {
 				scrapesSkippedByLabelLimit.Inc()
-				return fmt.Errorf("the response from %q  contains samples with a number of labels exceeding label_limit=%d; "+
+				return fmt.Errorf("the response from %q contains samples with a number of labels exceeding label_limit=%d; "+
 					"either reduce the labels count for the target or increase label_limit", cfg.ScrapeURL, cfg.LabelLimit)
 			}
 			return err
