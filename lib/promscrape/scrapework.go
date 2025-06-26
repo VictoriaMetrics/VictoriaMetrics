@@ -627,7 +627,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		if err := wc.tryAddRows(cfg, rows, scrapeTimestamp, true); err != nil {
 			if errors.Is(err, errLabelsLimitExceeded) {
 				scrapesSkippedByLabelLimit.Inc()
-				return fmt.Errorf("the response from %q exceeds label_limit=%d; "+
+				return fmt.Errorf("the response from %q  contains samples with a number of labels exceeding label_limit=%d; "+
 					"either reduce the labels count for the target or increase label_limit", cfg.ScrapeURL, cfg.LabelLimit)
 			}
 			return err
