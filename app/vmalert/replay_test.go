@@ -39,7 +39,7 @@ func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to ti
 }
 
 func TestReplay(t *testing.T) {
-	f := func(from, to string, maxDP, singleConcurrency int, ruleDelay time.Duration, cfg []config.Group, qb *fakeReplayQuerier) {
+	f := func(from, to string, maxDP, ruleConcurrency int, ruleDelay time.Duration, cfg []config.Group, qb *fakeReplayQuerier) {
 		t.Helper()
 
 		fromOrig, toOrig, maxDatapointsOrig := *replayFrom, *replayTo, *replayMaxDatapoints
@@ -55,7 +55,7 @@ func TestReplay(t *testing.T) {
 		rwb := &remotewrite.DebugClient{}
 		*replayFrom = from
 		*replayTo = to
-		*singleRuleConcurrency = singleConcurrency
+		*ruleEvaluationConcurrency = ruleConcurrency
 		*replayMaxDatapoints = maxDP
 		if err := replay(cfg, qb, rwb); err != nil {
 			t.Fatalf("replay failed: %s", err)

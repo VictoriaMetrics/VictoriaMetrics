@@ -513,7 +513,7 @@ func (g *Group) infof(format string, args ...any) {
 }
 
 // Replay performs group replay
-func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, singleRuleConcurrency int) int {
+func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, ruleEvaluationConcurrency int) int {
 	var total int
 	step := g.Interval * time.Duration(maxDataPoint)
 	ri := rangeIterator{start: start, end: end, step: step}
@@ -541,7 +541,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 			if !disableProgressBar {
 				bar = pb.StartNew(iterations)
 			}
-			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, singleRuleConcurrency)
+			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
 			if bar != nil {
 				bar.Finish()
 			}
@@ -564,7 +564,7 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 		wg.Add(1)
 		go func(r Rule, ri rangeIterator) {
 			// pass ri as a copy, so it can be modified within the replayRuleRange
-			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts, singleRuleConcurrency)
+			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
 			<-sem
 			wg.Done()
 		}(r, ri)
@@ -585,9 +585,9 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	return total
 }
 
-func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, singleRuleConcurrency int) int {
+func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int) int {
 	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
-	sem := make(chan struct{}, singleRuleConcurrency)
+	sem := make(chan struct{}, ruleEvaluationConcurrency)
 	wg := sync.WaitGroup{}
 	res := make(chan int, int(ri.end.Sub(ri.start)/ri.step)+1)
 	for ri.next() {
