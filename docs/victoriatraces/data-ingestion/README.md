@@ -14,7 +14,7 @@ See more details [in this docs](https://docs.victoriametrics.com/victoriatraces/
 
 ### HTTP parameters
 
-VictoriaTraces accepts optional HTTP parameters at data ingestion HTTP APIs via [HTTP query string parameters](https://en.wikipedia.org/wiki/Query_string), or via [HTTP headers](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields).
+VictoriaTraces accepts optional HTTP parameters at data ingestion HTTP API via [HTTP query string parameters](https://en.wikipedia.org/wiki/Query_string), or via [HTTP headers](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields).
 
 HTTP query string parameters have priority over HTTP Headers.
 
