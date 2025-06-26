@@ -78,14 +78,14 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 	f(GetLogRows(nil, nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
-	f(newTestLogRows(1, 1, 0), 1, 1.3)
+	f(newTestLogRows(1, 1, 0), 1, 1.5)
 	f(newTestLogRows(1, 2, 0), 1, 1.7)
 	f(newTestLogRows(1, 10, 0), 1, 4.6)
 	f(newTestLogRows(1, 1000, 0), 1, 17.1)
-	f(newTestLogRows(1, 20000, 0), 5, 16.8)
+	f(newTestLogRows(1, 20000, 0), 6, 16.8)
 
 	// Check how inmemoryPart works with multiple streams
-	f(newTestLogRows(2, 1, 0), 2, 1.6)
+	f(newTestLogRows(2, 1, 0), 2, 1.8)
 	f(newTestLogRows(10, 1, 0), 10, 2.1)
 	f(newTestLogRows(100, 1, 0), 100, 2.3)
 	f(newTestLogRows(10, 5, 0), 10, 3.6)
@@ -224,43 +224,43 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 	f([]*LogRows{GetLogRows(nil, nil, nil, nil, ""), GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
-	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1)
-	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 5)
-	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 13)
-	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 18)
-	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 3, 18)
-	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 2)
-	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 2)
-	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2)
-	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 6)
-	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 13)
+	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.5)
+	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 4.6)
+	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 12.0)
+	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 17.1)
+	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 3, 17.2)
+	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 2.1)
+	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 2.3)
+	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2.4)
+	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 5.5)
+	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 12.4)
 
 	//Check merge with multiple readers
 	f([]*LogRows{
 		newTestLogRows(1, 1, 0),
 		newTestLogRows(1, 1, 1),
-	}, 2, 1)
+	}, 2, 1.7)
 	f([]*LogRows{
 		newTestLogRows(2, 2, 0),
 		newTestLogRows(2, 2, 0),
-	}, 2, 4)
+	}, 2, 4.2)
 	f([]*LogRows{
 		newTestLogRows(1, 20, 0),
 		newTestLogRows(1, 10, 1),
 		newTestLogRows(1, 5, 2),
-	}, 3, 5)
+	}, 3, 5.5)
 	f([]*LogRows{
 		newTestLogRows(10, 20, 0),
 		newTestLogRows(20, 10, 1),
 		newTestLogRows(30, 5, 2),
-	}, 60, 5)
+	}, 60, 5.2)
 	f([]*LogRows{
 		newTestLogRows(10, 20, 0),
 		newTestLogRows(20, 10, 1),
 		newTestLogRows(30, 5, 2),
 		newTestLogRows(20, 7, 3),
 		newTestLogRows(10, 9, 4),
-	}, 90, 5)
+	}, 90, 5.0)
 }
 
 func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
