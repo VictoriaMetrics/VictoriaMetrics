@@ -222,10 +222,7 @@ func TestBlockUncompressedSizeBytes(t *testing.T) {
 				if f.Value == "" {
 					continue // skip empty values
 				}
-				key := f.Name
-				if key == "_msg" || key == "" {
-					key = "_msg" // normalize empty names
-				}
+				key := getRawFieldName(f.Name)
 				m[key] = f.Value
 			}
 
