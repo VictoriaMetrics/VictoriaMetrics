@@ -3,7 +3,7 @@ via the following ways:
 - [Web UI](#web-ui) - a web-based UI for querying trace spans
 - [HTTP API](#http-api)
 
-And on top of the LogsQL, VictoriaTraces also implemented [Jaeger HTTP APIs](https://www.jaegertracing.io/docs/1.70/architecture/apis/#http-json-internal).
+And on top of the LogsQL, VictoriaTraces also implemented [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json).
 These APIs can be used with:
 - [Grafana Jaeger datasource](#visualization-in-grafana)
 - [Jaeger UI](https://github.com/jaegertracing/jaeger-ui)
