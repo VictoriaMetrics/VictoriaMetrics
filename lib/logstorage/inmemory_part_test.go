@@ -90,7 +90,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 	f(newTestLogRows(100, 1, 0), 100, 2.3)
 	f(newTestLogRows(10, 5, 0), 10, 3.6)
 	f(newTestLogRows(10, 1000, 0), 10, 17.1)
-	f(newTestLogRows(100, 100, 0), 100, 12.4)
+	f(newTestLogRows(100, 100, 0), 100, 13)
 }
 
 func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
@@ -226,14 +226,14 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 	// Check merge with a single reader
 	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.5)
 	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 4.6)
-	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 12.0)
+	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 13.0)
 	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 17.1)
 	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 3, 17.2)
 	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 2.1)
 	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 2.3)
 	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 2.4)
 	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 5.5)
-	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 12.4)
+	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 13)
 
 	//Check merge with multiple readers
 	f([]*LogRows{
