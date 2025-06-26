@@ -148,8 +148,12 @@ func main() {
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}
-		if err := replay(groupsCfg, q, rw); err != nil {
+		totalRows, droppedRows, err := replay(groupsCfg, q, rw)
+		if err != nil {
 			logger.Fatalf("replay failed: %s", err)
+		}
+		if droppedRows > 0 {
+			logger.Fatalf("failed to push all generated samples to remote write url, dropped %d samples out of %d", droppedRows, totalRows)
 		}
 		logger.Infof("replay succeed!")
 		return
