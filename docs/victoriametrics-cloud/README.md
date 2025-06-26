@@ -1,6 +1,6 @@
 VictoriaMetrics Cloud is a managed, easy to use monitoring solution that integrates seamlessly with
 other tools and frameworks in the Observability ecosystem such as OpenTelemetry, Grafana, Prometheus, Graphite,
-InfluxDB, OpenTSDB and DataDog - see [these docs](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+InfluxDB, OpenTSDB and DataDog - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
 for further details about importing time series data into VictoriaMetrics.
 
 <br>
@@ -9,7 +9,7 @@ for further details about importing time series data into VictoriaMetrics.
 <br>
 
 ## Get Started
-* [Quick Start](/victoriametrics-cloud/quickstart/) documentation.
+* [Quick Start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/) documentation.
 * [Try it now](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_overview) with a free trial.
 
 
@@ -21,7 +21,7 @@ VictoriaMetrics Cloud is designed for teams and organizations that handle any vo
 * Efficient replacement for InfluxDB and OpenTSDB by consuming lower amounts of RAM, CPU and disk.
 * Cost-efficient alternative for other Observability services like DataDog or Grafana Cloud.
 
-Discover VictoriaMetrics Cloud Features and Benefits [here](/victoriametrics-cloud/get-started/features).
+Discover VictoriaMetrics Cloud Features and Benefits [here](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features/).
 
 ## Learn more
 * [VictoriaMetrics Cloud announcement](https://victoriametrics.com/blog/introduction-to-managed-monitoring/).

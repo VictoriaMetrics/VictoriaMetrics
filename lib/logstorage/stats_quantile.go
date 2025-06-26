@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"unsafe"
@@ -12,10 +11,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsQuantile struct {
-	fields []string
+	fieldFilters []string
 
 	phi    float64
 	phiStr string
@@ -23,15 +23,15 @@ type statsQuantile struct {
 
 func (sq *statsQuantile) String() string {
 	s := "quantile(" + sq.phiStr
-	if len(sq.fields) > 0 {
-		s += ", " + fieldNamesString(sq.fields)
+	if !prefixfilter.MatchAll(sq.fieldFilters) {
+		s += ", " + fieldNamesString(sq.fieldFilters)
 	}
 	s += ")"
 	return s
 }
 
-func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sq.fields)
+func (sq *statsQuantile) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(sq.fieldFilters)
 }
 
 func (sq *statsQuantile) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -44,41 +44,30 @@ type statsQuantileProcessor struct {
 
 func (sqp *statsQuantileProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sq := sf.(*statsQuantile)
+
 	stateSizeIncrease := 0
 
-	fields := sq.fields
-	if len(fields) == 0 {
-		for _, c := range br.getColumns() {
-			stateSizeIncrease += sqp.updateStateForColumn(br, c)
-		}
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			stateSizeIncrease += sqp.updateStateForColumn(br, c)
-		}
+	mc := getMatchingColumns(br, sq.fieldFilters)
+	for _, c := range mc.cs {
+		stateSizeIncrease += sqp.updateStateForColumn(br, c)
 	}
+	putMatchingColumns(mc)
 
 	return stateSizeIncrease
 }
 
 func (sqp *statsQuantileProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	sq := sf.(*statsQuantile)
+
 	h := &sqp.h
 	stateSizeIncrease := 0
 
-	fields := sq.fields
-	if len(fields) == 0 {
-		for _, c := range br.getColumns() {
-			v := c.getValueAtRow(br, rowIdx)
-			stateSizeIncrease += h.update(v)
-		}
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			v := c.getValueAtRow(br, rowIdx)
-			stateSizeIncrease += h.update(v)
-		}
+	mc := getMatchingColumns(br, sq.fieldFilters)
+	for _, c := range mc.cs {
+		v := c.getValueAtRow(br, rowIdx)
+		stateSizeIncrease += h.update(v)
 	}
+	putMatchingColumns(mc)
 
 	return stateSizeIncrease
 }
@@ -208,21 +197,16 @@ func (sqp *statsQuantileProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-c
 }
 
 func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
-	if !lex.isKeyword("quantile") {
-		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "quantile")
-	}
-	lex.nextToken()
-
-	fields, err := parseFieldNamesInParens(lex)
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "quantile")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'quantile' args: %w", err)
+		return nil, err
 	}
-	if len(fields) < 1 {
-		return nil, fmt.Errorf("'quantile' must have at least phi arg")
+	if len(fieldFilters) == 0 {
+		return nil, fmt.Errorf("missing phi arg at 'quantile'")
 	}
 
 	// Parse phi
-	phiStr := fields[0]
+	phiStr := fieldFilters[0]
 	phi, ok := tryParseFloat64(phiStr)
 	if !ok {
 		return nil, fmt.Errorf("phi arg in 'quantile' must be floating point number; got %q", phiStr)
@@ -232,13 +216,13 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 	}
 
 	// Parse fields
-	fields = fields[1:]
-	if slices.Contains(fields, "*") {
-		fields = nil
+	fieldFilters = fieldFilters[1:]
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	sq := &statsQuantile{
-		fields: fields,
+		fieldFilters: fieldFilters,
 
 		phi:    phi,
 		phiStr: phiStr,

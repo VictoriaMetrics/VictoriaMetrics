@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -37,7 +38,7 @@ func (pd *pipeDropEmptyFields) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pd *pipeDropEmptyFields) updateNeededFields(_, _ fieldsSet) {
+func (pd *pipeDropEmptyFields) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 

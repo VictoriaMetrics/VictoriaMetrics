@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 func TestStorageRunQuery(t *testing.T) {
@@ -47,7 +48,7 @@ func TestStorageRunQuery(t *testing.T) {
 		for j := 0; j < streamsPerTenant; j++ {
 			streamIDValue := fmt.Sprintf("stream_id=%d", j)
 			for k := 0; k < blocksPerStream; k++ {
-				lr := GetLogRows(streamTags, nil, nil, "")
+				lr := GetLogRows(streamTags, nil, nil, nil, "")
 				for m := 0; m < rowsPerBlock; m++ {
 					timestamp := baseTimestamp + int64(m)*1e9 + int64(k)
 					// Append stream fields
@@ -876,7 +877,7 @@ func TestStorageSearch(t *testing.T) {
 		allTenantIDs = append(allTenantIDs, tenantID)
 		for j := 0; j < streamsPerTenant; j++ {
 			for k := 0; k < blocksPerStream; k++ {
-				lr := GetLogRows(streamTags, nil, nil, "")
+				lr := GetLogRows(streamTags, nil, nil, nil, "")
 				for m := 0; m < rowsPerBlock; m++ {
 					timestamp := baseTimestamp + int64(m)*1e9 + int64(k)
 					// Append stream fields
@@ -1153,12 +1154,15 @@ func TestParseStreamFieldsSuccess(t *testing.T) {
 }
 
 func newTestGenericSearchOptions(tenantIDs []TenantID, f filter, neededColumns []string) *genericSearchOptions {
+	var pf prefixfilter.Filter
+	pf.AddAllowFilters(neededColumns)
+
 	return &genericSearchOptions{
-		tenantIDs:         tenantIDs,
-		minTimestamp:      math.MinInt64,
-		maxTimestamp:      math.MaxInt64,
-		filter:            f,
-		neededColumnNames: neededColumns,
+		tenantIDs:    tenantIDs,
+		minTimestamp: math.MinInt64,
+		maxTimestamp: math.MaxInt64,
+		filter:       f,
+		fieldsFilter: &pf,
 	}
 }
 

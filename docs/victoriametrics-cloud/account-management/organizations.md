@@ -44,7 +44,7 @@ Organization `Admins` can perform the following `Actions` on other existing user
 {{% collapse name="API Keys" %}}
 
 [API Keys](https://docs.victoriametrics.com/victoriametrics-cloud/api/) are needed to enforce
-authentication in programatic actions (for example, in scripts) to interact with VictoriaMetrics Cloud.
+authentication in programmatic actions (for example, in scripts) to interact with VictoriaMetrics Cloud.
 The API itself is documented in the [api-docs](https://console.victoriametrics.cloud/api-docs) page.
 
 In the [API Keys](https://console.victoriametrics.cloud/api_keys) page, Organization Admins can:

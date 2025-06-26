@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"path/filepath"
@@ -13,9 +14,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
+	objectMetadata = flag.String("objectMetadata", "", `Metadata to be set for uploaded objects to object storage. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}. Is ignored for local filesystem.`)
+
 	credsFilePath = flag.String("credsFilePath", "", "Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.\n"+
 		"See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html")
 	configFilePath = flag.String("configFilePath", "", "Path to file with S3 configs. Configs are loaded from default location if not set.\n"+
@@ -28,6 +32,7 @@ var (
 		"DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.\n"+
 		"See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html")
 	s3TLSInsecureSkipVerify = flag.Bool("s3TLSInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to the S3 endpoint.")
+	s3Tags                  = flag.String("s3ObjectTags", "", `S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.`)
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -38,15 +43,15 @@ func runParallel(concurrency int, parts []common.Part, f func(p common.Part) err
 	return err
 }
 
-func runParallelPerPath(concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error, progress func(elapsed time.Duration)) error {
+func runParallelPerPath(ctx context.Context, concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error, progress func(elapsed time.Duration)) error {
 	var err error
 	runWithProgress(progress, func() {
-		err = runParallelPerPathInternal(concurrency, perPath, f)
+		err = runParallelPerPathInternal(ctx, concurrency, perPath, f)
 	})
 	return err
 }
 
-func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error) error {
+func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath map[string][]common.Part, f func(parts []common.Part) error) error {
 	if concurrency <= 0 {
 		concurrency = 1
 	}
@@ -57,7 +62,8 @@ func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Par
 	// len(perPath) capacity guarantees non-blocking behavior below.
 	resultCh := make(chan error, len(perPath))
 	workCh := make(chan []common.Part, len(perPath))
-	stopCh := make(chan struct{})
+	ctxLocal, cancelLocal := context.WithCancel(ctx)
+	defer cancelLocal()
 
 	// Start workers
 	var wg sync.WaitGroup
@@ -67,7 +73,7 @@ func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Par
 			defer wg.Done()
 			for parts := range workCh {
 				select {
-				case <-stopCh:
+				case <-ctxLocal.Done():
 					return
 				default:
 				}
@@ -88,7 +94,7 @@ func runParallelPerPathInternal(concurrency int, perPath map[string][]common.Par
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.
-			close(stopCh)
+			cancelLocal()
 			break
 		}
 	}
@@ -183,7 +189,11 @@ func getPartsSize(parts []common.Part) uint64 {
 }
 
 // NewRemoteFS returns new remote fs from the given path.
-func NewRemoteFS(path string) (common.RemoteFS, error) {
+func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
+	m, err := flagutil.ParseJSONMap(*objectMetadata)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse s3 objectMetadata %q: %w", *objectMetadata, err)
+	}
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
@@ -213,8 +223,9 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			CredsFilePath: *credsFilePath,
 			Bucket:        bucket,
 			Dir:           dir,
+			Metadata:      m,
 		}
-		if err := fs.Init(); err != nil {
+		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to gcs: %w", err)
 		}
 		return fs, nil
@@ -228,8 +239,9 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		fs := &azremote.FS{
 			Container: bucket,
 			Dir:       dir,
+			Metadata:  m,
 		}
-		if err := fs.Init(); err != nil {
+		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to AZBlob: %w", err)
 		}
 		return fs, nil
@@ -240,6 +252,11 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		}
 		bucket := dir[:n]
 		dir = dir[n:]
+		tags, err := flagutil.ParseJSONMap(*s3Tags)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse s3 tags %q: %w", *s3Tags, err)
+		}
+
 		fs := &s3remote.FS{
 			CredsFilePath:         *credsFilePath,
 			ConfigFilePath:        *configFilePath,
@@ -250,8 +267,10 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			ProfileName:           *configProfile,
 			Bucket:                bucket,
 			Dir:                   dir,
+			Metadata:              m,
+			Tags:                  tags,
 		}
-		if err := fs.Init(); err != nil {
+		if err := fs.Init(ctx); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)
 		}
 		return fs, nil

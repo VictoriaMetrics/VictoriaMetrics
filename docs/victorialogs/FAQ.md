@@ -36,7 +36,9 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
   Just run VictoriaLogs on the most suitable hardware, ingest logs into it via [supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
   and get the best available performance out of the box.
-- Up to 30x less RAM usage than Elasticsearch for the same workload. See [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
+- Up to 30x less RAM usage than Elasticsearch for the same workload.
+  See [the post from a user, who replaced 27-node Elasticsearch cluster with a single-node VictoriaLogs](https://aus.social/@phs/114583927679254536).
+  See also [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for technical details.
 - Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
 - Ability to work efficiently with hundreds of terabytes of logs on a single node.
 - Easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
@@ -149,8 +151,6 @@ for limiting the amounts of exported logs.
 VictoriaLogs [accepts](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs without [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 In this case the `_msg` field is set to the default value, which can be configured via `-defaultMsgValue` command-line flag.
 
-Please note that the `_msg` field is **crucial** for VictoriaLogs, so it is highly recommended to fill it with meaningful content.
-
 ## What if my logs have multiple message fields candidates?
 
 If you [ingest](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs into VictoriaLogs
@@ -207,7 +207,7 @@ via `-insert.maxLineSizeBytes` command-line flag.
 VictoriaLogs limits [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) name length to 128 bytes -
 Log entries with longer field names are ignored during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
-The maximum length of a field name is hardcoded and is unikely to increase, since this may increase RAM and CPU usage.
+The maximum length of a field name is hardcoded and is unlikely to increase, since this may increase RAM and CPU usage.
 
 ## How many fields a single log entry may contain
 
@@ -243,7 +243,7 @@ is returned in the `total_bytes` field.
 
 If you use [VictoriaLogs web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
 or [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/),
-then make sure the selected time range covers the last day. Otherwise the query above returns
+then make sure the selected time range covers the last day. Otherwise, the query above returns
 results on the intersection of the last day and the selected time range.
 
 See [why the log field occupies a lot of disk space](#why-the-log-field-occupies-a-lot-of-disk-space).
@@ -334,7 +334,7 @@ The query works in the following way:
 
 The needed storage space depends on the following factors:
 
-- Data compressibility. VictoraLogs compresses the ingested logs before storing them to disk. The compression ratio depends on the "randomness" of the ingested logs.
+- Data compressibility. VictoriaLogs compresses the ingested logs before storing them to disk. The compression ratio depends on the "randomness" of the ingested logs.
   Less "random" logs with many repeated field values and small differences between log messages compress the best (up to 100x and more).
   More "random" logs with many unique field values may have very low compression rate.
 

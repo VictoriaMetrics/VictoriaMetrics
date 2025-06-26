@@ -117,7 +117,7 @@ const DownsamplingFilters: FC = () => {
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/#downsampling"
+            href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling"
             rel="help noreferrer"
           >
             <WikiIcon/>

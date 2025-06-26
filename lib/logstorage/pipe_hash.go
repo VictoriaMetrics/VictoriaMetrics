@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeHash processes '| hash ...' pipe.
@@ -34,17 +35,10 @@ func (ph *pipeHash) canLiveTail() bool {
 	return true
 }
 
-func (ph *pipeHash) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if !unneededFields.contains(ph.resultField) {
-			unneededFields.add(ph.resultField)
-			unneededFields.remove(ph.fieldName)
-		}
-	} else {
-		if neededFields.contains(ph.resultField) {
-			neededFields.remove(ph.resultField)
-			neededFields.add(ph.fieldName)
-		}
+func (ph *pipeHash) updateNeededFields(pf *prefixfilter.Filter) {
+	if pf.MatchString(ph.resultField) {
+		pf.AddDenyFilter(ph.resultField)
+		pf.AddAllowFilter(ph.fieldName)
 	}
 }
 

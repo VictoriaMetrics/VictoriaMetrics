@@ -15,7 +15,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
@@ -34,7 +33,16 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
+	// Metadata to be set for uploaded objects.
+	Metadata map[string]string
+
+	// Metadata converted to representation required by azure sdk.
+	metadata map[string]*string
+
 	client *container.Client
+
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// envLoookupFunc is used for looking up environment variables in tests.
 	envLookupFunc func(name string) (string, bool)
@@ -43,10 +51,12 @@ type FS struct {
 // Init initializes fs.
 //
 // The returned fs must be stopped when no long needed with MustStop call.
-func (fs *FS) Init() error {
+func (fs *FS) Init(ctx context.Context) error {
 	if fs.client != nil {
 		logger.Panicf("BUG: fs.Init has been already called")
 	}
+
+	fs.ctx, fs.cancel = context.WithCancel(ctx)
 
 	fs.Dir = cleanDirectory(fs.Dir)
 
@@ -57,6 +67,12 @@ func (fs *FS) Init() error {
 
 	containerClient := sc.NewContainerClient(fs.Container)
 	fs.client = containerClient
+
+	meta := make(map[string]*string, len(fs.Metadata))
+	for k, v := range fs.Metadata {
+		meta[k] = &v
+	}
+	fs.metadata = meta
 
 	return nil
 }
@@ -128,6 +144,9 @@ func (fs *FS) getServiceURL(accountName string) string {
 
 // MustStop stops fs.
 func (fs *FS) MustStop() {
+	if fs.cancel != nil {
+		fs.cancel()
+	}
 	fs.client = nil
 }
 
@@ -139,7 +158,6 @@ func (fs *FS) String() string {
 // ListParts returns all the parts for fs.
 func (fs *FS) ListParts() ([]common.Part, error) {
 	dir := fs.Dir
-	ctx := context.Background()
 
 	opts := &azblob.ListBlobsFlatOptions{
 		Prefix: &dir,
@@ -148,7 +166,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	pager := fs.client.NewListBlobsFlatPager(opts)
 	var parts []common.Part
 	for pager.More() {
-		resp, err := pager.NextPage(ctx)
+		resp, err := pager.NextPage(fs.ctx)
 		if err != nil {
 			return nil, fmt.Errorf("cannot list blobs at %s (remote path %q): %w", fs, fs.Container, err)
 		}
@@ -197,26 +215,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	sbc := src.client.NewBlobClient(p.RemotePath(src.Dir))
 	dbc := fs.clientForPart(p)
 
-	ssCopyPermission := sas.BlobPermissions{
-		Read:   true,
-		Create: true,
-		Write:  true,
-	}
-
-	startTime := time.Now().Add(-10 * time.Minute)
-	o := &blob.GetSASURLOptions{
-		StartTime: &startTime,
-	}
-	t, err := sbc.GetSASURL(ssCopyPermission, time.Now().Add(30*time.Minute), o)
-	if err != nil {
-		return fmt.Errorf("failed to generate SAS token of src %q: %w", p.Path, err)
-	}
-
-	ctx := context.Background()
-
 	// In order to support copy of files larger than 256MB, we need to use the async copy
 	// Ref: https://learn.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url
-	_, err = dbc.StartCopyFromURL(ctx, t, &blob.StartCopyFromURLOptions{})
+	_, err := dbc.StartCopyFromURL(fs.ctx, sbc.URL(), &blob.StartCopyFromURLOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot start async copy %q from %s to %s: %w", p.Path, src, fs, err)
 	}
@@ -224,7 +225,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	var copyStatus *blob.CopyStatusType
 	var copyStatusDescription *string
 	for {
-		r, err := dbc.GetProperties(ctx, nil)
+		r, err := dbc.GetProperties(fs.ctx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to check copy status, cannot get properties of %q at %s: %w", p.Path, fs, err)
 		}
@@ -236,7 +237,16 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 			copyStatusDescription = r.CopyStatusDescription
 			break
 		}
-		time.Sleep(5 * time.Second)
+
+		select {
+		case <-fs.ctx.Done():
+			return fs.ctx.Err()
+		case <-time.After(5 * time.Second):
+			// Continue checking
+		}
+	}
+	if err := fs.maybeSetMetadata(dbc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", p.Path, fs, err)
 	}
 
 	if *copyStatus != blob.CopyStatusTypeSuccess {
@@ -250,13 +260,12 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	bc := fs.clientForPart(p)
 
-	ctx := context.Background()
-	r, err := bc.DownloadStream(ctx, &blob.DownloadStreamOptions{})
+	r, err := bc.DownloadStream(fs.ctx, &blob.DownloadStreamOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot open reader for %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
 
-	body := r.NewRetryReader(ctx, &azblob.RetryReaderOptions{})
+	body := r.NewRetryReader(fs.ctx, &azblob.RetryReaderOptions{})
 	n, err := io.Copy(w, body)
 	if err1 := body.Close(); err1 != nil && err == nil {
 		err = err1
@@ -274,12 +283,13 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	bc := fs.clientForPart(p)
 
-	ctx := context.Background()
-	_, err := bc.UploadStream(ctx, r, &blockblob.UploadStreamOptions{})
+	_, err := bc.UploadStream(fs.ctx, r, &blockblob.UploadStreamOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
-
+	if err := fs.maybeSetMetadata(bc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", p.Path, fs, err)
+	}
 	return nil
 }
 
@@ -325,9 +335,8 @@ func (fs *FS) deleteObjectWithGenerations(path string) error {
 		},
 	})
 
-	ctx := context.Background()
 	for pager.More() {
-		resp, err := pager.NextPage(ctx)
+		resp, err := pager.NextPage(fs.ctx)
 		if err != nil {
 			return fmt.Errorf("cannot list blobs at %s (remote path %q): %w", path, fs.Container, err)
 		}
@@ -344,7 +353,7 @@ func (fs *FS) deleteObjectWithGenerations(path string) error {
 				}
 			}
 
-			if _, err := c.Delete(ctx, nil); err != nil {
+			if _, err := c.Delete(fs.ctx, nil); err != nil {
 				return fmt.Errorf("cannot delete %q at %s: %w", path, fs.Container, err)
 			}
 		}
@@ -356,8 +365,7 @@ func (fs *FS) deleteObjectWithGenerations(path string) error {
 func (fs *FS) deleteObject(path string) error {
 	bc := fs.clientForPath(path)
 
-	ctx := context.Background()
-	if _, err := bc.Delete(ctx, nil); err != nil {
+	if _, err := bc.Delete(fs.ctx, nil); err != nil {
 		return fmt.Errorf("cannot delete %q at %s: %w", bc.URL(), fs, err)
 	}
 	return nil
@@ -370,12 +378,14 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	path := path.Join(fs.Dir, filePath)
 	bc := fs.clientForPath(path)
 
-	ctx := context.Background()
-	_, err := bc.UploadBuffer(ctx, data, &blockblob.UploadBufferOptions{
+	_, err := bc.UploadBuffer(fs.ctx, data, &blockblob.UploadBufferOptions{
 		Concurrency: 1,
 	})
 	if err != nil {
 		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, bc.URL(), err)
+	}
+	if err := fs.maybeSetMetadata(bc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", path, fs, err)
 	}
 
 	return nil
@@ -386,8 +396,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	path := path.Join(fs.Dir, filePath)
 	bc := fs.clientForPath(path)
 
-	ctx := context.Background()
-	_, err := bc.GetProperties(ctx, nil)
+	_, err := bc.GetProperties(fs.ctx, nil)
 	var azerr *azcore.ResponseError
 	if errors.As(err, &azerr) {
 		if azerr.ErrorCode == "BlobNotFound" {
@@ -402,7 +411,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 
 // ReadFile returns the content of filePath at fs.
 func (fs *FS) ReadFile(filePath string) ([]byte, error) {
-	resp, err := fs.clientForPath(fs.Dir+filePath).DownloadStream(context.Background(), &blob.DownloadStreamOptions{})
+	resp, err := fs.clientForPath(fs.Dir+filePath).DownloadStream(fs.ctx, &blob.DownloadStreamOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("cannot download %q at %s (remote dir %q): %w", filePath, fs, fs.Dir, err)
 	}
@@ -428,4 +437,16 @@ func cleanDirectory(dir string) string {
 	}
 
 	return dir
+}
+
+// maybeSetMetadata sets metadata for the blob if metadata is not empty.
+func (fs *FS) maybeSetMetadata(bc *blockblob.Client) error {
+	if len(fs.metadata) == 0 {
+		return nil
+	}
+	_, err := bc.SetMetadata(fs.ctx, fs.metadata, &blob.SetMetadataOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", bc.URL(), fs, err)
+	}
+	return nil
 }

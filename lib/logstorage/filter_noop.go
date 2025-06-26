@@ -1,5 +1,9 @@
 package logstorage
 
+import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
+)
+
 // filterNoop does nothing
 type filterNoop struct {
 }
@@ -8,7 +12,7 @@ func (fn *filterNoop) String() string {
 	return "*"
 }
 
-func (fn *filterNoop) updateNeededFields(_ fieldsSet) {
+func (fn *filterNoop) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 

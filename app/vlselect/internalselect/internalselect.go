@@ -2,7 +2,6 @@ package internalselect
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"math"
 	"net/http"
@@ -24,15 +23,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
-var disableSelect = flag.Bool("internalselect.disable", false, "Whether to disable /internal/select/* HTTP endpoints")
-
 // RequestHandler processes requests to /internal/select/*
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	if *disableSelect {
-		httpserver.Errorf(w, r, "requests to /internal/select/* are disabled with -internalselect.disable command-line flag")
-		return
-	}
-
 	startTime := time.Now()
 
 	path := r.URL.Path

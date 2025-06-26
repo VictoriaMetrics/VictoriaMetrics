@@ -24,6 +24,11 @@ func TestParsePipeLenFailure(t *testing.T) {
 	f(`len(`)
 	f(`len()`)
 	f(`len(x) y z`)
+	f(`len(x,y)`)
+	f(`len(*)`)
+	f(`len(x*)`)
+	f(`len(x) as *`)
+	f(`len(x) as y*`)
 }
 
 func TestPipeLen(t *testing.T) {
@@ -63,9 +68,9 @@ func TestPipeLen(t *testing.T) {
 }
 
 func TestPipeLenUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s string, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

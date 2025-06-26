@@ -21,6 +21,9 @@ func TestParseStatsHistogramFailure(t *testing.T) {
 	}
 
 	f(`histogram`)
+	f(`histogram()`)
+	f(`histogram(*)`)
+	f(`histogram(a*)`)
 	f(`histogram(a, b)`)
 	f(`histogram(a) abc`)
 }

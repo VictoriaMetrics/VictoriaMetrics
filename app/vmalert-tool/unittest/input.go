@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-var numReg = regexp.MustCompile(`\D?\d*\.?\d*\D?`)
+var numReg = regexp.MustCompile(`(?i)[+x-]?(?:\d+(?:\.\d*)?|\.\d+|inf|nan|_)(?:e[+-]?\d+)?[+x-]?`)
 
 // series holds input_series defined in the test file
 type series struct {
@@ -94,11 +94,17 @@ func parseInputSeries(input []series, interval *promutil.Duration, startStamp ti
 // parseInputValue support input like "1", "1+1x1 _ -4 3+20x1", see more examples in test.
 func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 	var res []sequenceValue
-	items := strings.Split(input, " ")
+	items := strings.Fields(input)
+	if len(items) == 0 {
+		return nil, fmt.Errorf("values cannot be an empty string")
+	}
 	for _, item := range items {
 		if item == "stale" {
 			res = append(res, sequenceValue{Value: decimal.StaleNaN})
 			continue
+		}
+		if strings.Contains(item, "stale") {
+			return nil, fmt.Errorf("stale metric doesn't support operations")
 		}
 		vals := numReg.FindAllString(item, -1)
 		switch len(vals) {

@@ -4,7 +4,8 @@ from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 VictoriaLogs provides the following features:
 
 - It is resource-efficient and fast. It uses up to 30x less RAM and up to 15x less disk space than other solutions such as Elasticsearch and Grafana Loki.
-  See [benchmarks](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
+  See [these benchmarks](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
+  See also [the post from a happy user, who replaced 27-node Elasticsearch with a single-node VictoriaLogs](https://aus.social/@phs/114583927679254536).
 - VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
   It can scale horizontally to many nodes in [cluster mode](https://docs.victoriametrics.com/victorialogs/cluster/).
@@ -27,15 +28,14 @@ VictoriaLogs provides the following features:
 - It supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
 - It supports alerting - see [these docs](https://docs.victoriametrics.com/victorialogs/vmalert/).
 
-You can play with VictoriaLogs web UI at [this playground](https://play-vmlogs.victoriametrics.com/).
-
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
 See [quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
 
-If you want playing with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query language, then go to [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/).
+If you want playing with VictoriaLogs web UI and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query language,
+then go to [VictoriaLogs demo playground](https://play-vmlogs.victoriametrics.com/).
 
 ## Tuning
 
@@ -55,11 +55,10 @@ If you want playing with [LogsQL](https://docs.victoriametrics.com/victorialogs/
 
 VictoriaLogs exposes internal metrics in Prometheus exposition format at `http://localhost:9428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
-(see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
+(see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
-We recommend installing Grafana dashboard for [VictoriaLogs single-node](https://grafana.com/grafana/dashboards/22084) 
-or [cluster](https://grafana.com/grafana/dashboards/23274) (if link is unavailable use [source link](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victorialogs-cluster.json)).
+We recommend installing Grafana dashboard for [VictoriaLogs single-node](https://grafana.com/grafana/dashboards/22084) or [cluster](https://grafana.com/grafana/dashboards/23274).
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
 via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via Prometheus.
@@ -326,7 +325,7 @@ It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/vic
 log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as Elasticsearch or Grafana Loki.
 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
-via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
+via [VictoriaMetrics community channels](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#community-and-contributions).
 
 ## Profiling
 
@@ -378,7 +377,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-    	Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+    	Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -filestream.disableFadvise
@@ -399,6 +398,10 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
   -http.connTimeout duration
     	Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+    	Disable CORS for all origins (*)
+  -http.disableKeepAlive
+    	Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
     	Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -432,6 +435,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The interval for guaranteed saving of in-memory data to disk. The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). Smaller intervals increase disk IO load. Minimum supported value is 1s (default 5s)
   -insert.concurrency int
     	The average number of concurrent data ingestion requests, which can be sent to every -storageNode (default 2)
+  -insert.disable
+    	Whether to disable /insert/* HTTP endpoints
   -insert.disableCompression
     	Whether to disable compression when sending the ingested data to -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
   -insert.maxFieldsPerLine int
@@ -460,9 +465,6 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -journald.includeEntryMetadata
     	Include journal entry fields, which with double underscores.
-  -journald.maxRequestSize size
-    	The maximum size in bytes of a single journald request
-    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -journald.streamFields array
     	Comma-separated list of fields to use as log stream fields for logs ingested over journald protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#stream-fields
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -499,7 +501,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The maximum size in bytes of a single Loki request
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -maxConcurrentInserts int
-    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 28)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -511,11 +513,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-    	Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
     	Supports array of values separated by comma or specified via multiple flags.
     	Empty values are set to false.
   -mtlsCAFile array
-    	Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -opentelemetry.maxRequestSize size
@@ -537,7 +539,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -pushmetrics.interval duration
     	Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-    	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+    	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retention.maxDiskSpaceUsageBytes size
@@ -547,11 +549,13 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.maxConcurrentRequests int
-    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
+    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 14)
   -search.maxQueryDuration duration
     	The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -select.disable
+    	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
     	Whether to disable compression for select query responses received from -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
   -storage.minFreeDiskSpaceBytes size
@@ -613,6 +617,14 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.compressMethod.udp array
     	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.decolorizeFields.tcp array
+    	Fields to remove ANSI color codes across logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#decolorizing-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.decolorizeFields.udp array
+    	Fields to remove ANSI color codes across logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#decolorizing-fields
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.extraFields.tcp array
@@ -688,11 +700,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Supports array of values separated by comma or specified via multiple flags.
     	Empty values are set to false.
   -tlsAutocertCacheDir string
-    	Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-    	Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-    	Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+    	Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array

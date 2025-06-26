@@ -134,9 +134,9 @@ func TestPipeFacets(t *testing.T) {
 }
 
 func TestPipeFacetsUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields

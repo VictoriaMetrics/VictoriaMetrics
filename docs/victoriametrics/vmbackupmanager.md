@@ -15,7 +15,7 @@ aliases:
 ---
 ## vmbackupmanager
 
-***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/).
+***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
@@ -27,7 +27,7 @@ which represent the backup intervals (hourly, daily, weekly and monthly)
 
 The required flags for running the service are as follows:
 
-* `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/enterprise/#running-victoriametrics-enterprise).
+* `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/#running-victoriametrics-enterprise).
 * `-storageDataPath` - path to VictoriaMetrics or vmstorage data path to make backup from.
 * `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create
 * `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/victoriametrics/vmbackup/#supported-storage-types).
@@ -53,8 +53,15 @@ The backup manager creates the following directory hierarchy at `-dst`:
 * `/monthly/` - contains monthly backups. Each backup is named as `YYYY-MM`
 
 The `vmbackupmanager` takes backups every hour if hourly backups are not disabled; otherwise, 
-it defaults to taking backups every 24 hours. You can control the schedule using the `-backupInterval` flag. 
-For example, if you want to take backups three times per day, set `-backupInterval=8h`.
+it defaults to taking backups every 24 hours at 00:00 in UTC timezone. 
+You can control the schedule using the `-backupInterval` and `-backupScheduleTimezone` command-line flags. 
+The `-backupScheduleTimezone` flag specifies the timezone to use for scheduling daily, weekly, and monthly backups. 
+Note that overriding `-backupInterval` means daily, weekly, and monthly backups will be taken at specified intervals
+and not daily at midnight.
+
+For example:
+- if you want to take backups three times per day, set `-backupInterval=8h`
+- if you want to take backups daily at midnight in `Europe/Paris` timezone, set `-backupScheduleTimezone="Europe/Paris"`
 
 To get the full list of supported flags please run the following command:
 
@@ -237,7 +244,7 @@ For example:
   ```
   Example response:
   ```json
-  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00", "locked": true}
+  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00", "locked": true, "state": "incomplete"}
   ```
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
@@ -296,7 +303,7 @@ It can be changed by using flag:
 `vmbackupmanager backup list` lists backups in remote storage:
 ```sh
 $ ./vmbackupmanager backup list
-[{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+[{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
 ```
 
 #### Restore commands
@@ -334,16 +341,16 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 1. Run `vmbackupmanager backup list` to get list of available backups:
   ```sh
   $ /vmbackupmanager-prod backup list
-  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+  [{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
   ```
 1. Run `vmbackupmanager restore create` to create restore mark:
     - Use relative path to backup to restore from currently used remote storage:
       ```sh
-      $ /vmbackupmanager-prod restore create daily/2023-04-07
+      $ /vmbackupmanager-prod restore create weekly/2025-17
       ```
     - Use full path to backup to restore from any remote storage:
       ```sh
-      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+      $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/weekly/2025-17
       ```
 1. Stop `vmstorage` or `vmsingle` node
 1. Run `vmbackupmanager restore` to restore backup:
@@ -368,16 +375,16 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
   $ /vmbackupmanager-prod backup list
-  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+  [{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark:
 - Use relative path to backup to restore from currently used remote storage:
   ```sh
-  $ /vmbackupmanager-prod restore create daily/2023-04-07
+  $ /vmbackupmanager-prod restore create weekly/2025-17
   ```
 - Use full path to backup to restore from any remote storage:
   ```sh
-  $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
+  $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/weekly/2025-17
   ```
 1. Restart pod
 
@@ -400,13 +407,13 @@ Clusters here are referred to as `source` and `destination`.
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
   $ /vmbackupmanager-prod backup list
-  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
+  [{"name":"latest","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"},{"name":"weekly/2025-17","size_bytes":466996,"size":"456.1ki","created_at":"2025-04-25T15:48:49Z","locked":false,"state":"complete"}]
   ```
 1. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
   ```sh
-  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
+  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/weekly/2025-17
   ```
 1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.
 
@@ -441,6 +448,8 @@ command-line flags:
      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
   -backupInterval duration
      Interval between backups. If set to 0 interval is set to 1h if hourly backups are enabled and 24h otherwise
+  -backupScheduleTimezone string
+     Timezone to use for scheduling daily, weekly and monthly backups. Example: 'America/New_York', 'Europe/London', 'Asia/Tokyo' (default "UTC")
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -468,11 +477,11 @@ command-line flags:
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
@@ -482,6 +491,10 @@ command-line flags:
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
+  -http.disableCORS
+     Disable CORS for all origins (*)
+  -http.disableKeepAlive
+     Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -557,12 +570,14 @@ command-line flags:
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -objectMetadata string
+     Metadata to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}. Note that it is is not supported for local filesystem destinations.
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
@@ -581,13 +596,17 @@ command-line flags:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -restore.disableSourceBackupValidation
+     Disable validation of source backup presence and completeness when creating a restore mark.
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3ObjectTags string
+     S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
@@ -604,11 +623,11 @@ command-line flags:
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array

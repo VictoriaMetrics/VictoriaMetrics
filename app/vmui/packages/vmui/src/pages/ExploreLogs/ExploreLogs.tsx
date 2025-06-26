@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
@@ -17,6 +17,8 @@ import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time"
 import { useSearchParams } from "react-router-dom";
 import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
 import { getUpdatedHistory } from "../../components/QueryHistory/utils";
+import { useDebounceCallback } from "../../hooks/useDebounceCallback";
+import usePrevious from "../../hooks/usePrevious";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
@@ -29,6 +31,7 @@ const ExploreLogs: FC = () => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [searchParams] = useSearchParams();
   const hideChart = useMemo(() => searchParams.get("hide_chart"), [searchParams]);
+  const prevHideChart = usePrevious(hideChart);
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
@@ -43,7 +46,7 @@ const ExploreLogs: FC = () => {
       }
     });
   };
-  
+
   const [isUpdatingQuery, setIsUpdatingQuery] = useState(false);
   const [period, setPeriod] = useState<TimeParams>(periodState);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
@@ -51,12 +54,20 @@ const ExploreLogs: FC = () => {
   const { logs, isLoading, error, fetchLogs, abortController } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
 
-  const getPeriod = useCallback(() => {
+  const fetchData = (p: TimeParams, hits: boolean) => {
+    fetchLogs(p).then((isSuccess) => {
+      if (isSuccess && hits) fetchLogHits(p);
+    }).catch(() => {/* error handled elsewhere */});
+  };
+
+  const debouncedFetchLogs = useDebounceCallback(fetchData, 300);
+
+  const getPeriod = () => {
     const relativeTimeOpts = relativeTimeOptions.find(d => d.id === relativeTime);
     if (!relativeTimeOpts) return periodState;
     const { duration, until } = relativeTimeOpts;
     return getTimeperiodForDuration(duration, until());
-  }, [periodState, relativeTime]);
+  };
 
   const handleRunQuery = () => {
     if (!query) {
@@ -67,9 +78,7 @@ const ExploreLogs: FC = () => {
 
     const newPeriod = getPeriod();
     setPeriod(newPeriod);
-    fetchLogs(newPeriod).then((isSuccess) => {
-      isSuccess && !hideChart && fetchLogHits(newPeriod);
-    }).catch(e => e);
+    debouncedFetchLogs(newPeriod, !hideChart);
     setSearchParamsFromKeys({
       query,
       "g0.range_input": duration,
@@ -92,8 +101,8 @@ const ExploreLogs: FC = () => {
 
   const handleUpdateQuery = () => {
     if (isLoading || dataLogHits.isLoading) {
-      abortController.abort && abortController.abort();
-      dataLogHits.abortController.abort && dataLogHits.abortController.abort();
+      abortController.abort?.();
+      dataLogHits.abortController.abort?.();
     } else {
       handleRunQuery();
     }
@@ -111,8 +120,10 @@ const ExploreLogs: FC = () => {
   }, [query, isUpdatingQuery]);
 
   useEffect(() => {
-    !hideChart && fetchLogHits(period);
-  }, [hideChart]);
+    if (!hideChart && prevHideChart) {
+      fetchLogHits(period);
+    }
+  }, [hideChart, prevHideChart, period]);
 
   return (
     <div className="vm-explore-logs">

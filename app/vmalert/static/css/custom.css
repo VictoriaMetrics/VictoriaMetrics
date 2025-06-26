@@ -2,6 +2,18 @@ html {
   scroll-padding-top: 60px;
 }
 
+.nav-link svg {
+  fill: var(--bs-navbar-color);
+}
+
+.nav-link.active svg {
+  fill: var(--bs-navbar-active-color);
+}
+
+.nav-link:not(.active):hover svg {
+  fill: var(--bs-nav-link-hover-color);
+}
+
 .dropdown-menu {
   --bs-dropdown-link-active-color: #000;
   --bs-dropdown-link-active-bg: #e9e9e9;
@@ -19,7 +31,6 @@ html {
 }
 
 body {
-  min-height: 75rem;
   padding-top: 4.5rem;
 }
 

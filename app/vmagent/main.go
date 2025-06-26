@@ -165,7 +165,9 @@ func main() {
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	})
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()

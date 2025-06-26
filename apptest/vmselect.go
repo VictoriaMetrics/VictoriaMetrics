@@ -55,11 +55,17 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// HTTPAddr returns the address at which the vmselect process is
+// listening for incoming HTTP requests.
+func (app *Vmselect) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // PrometheusAPIV1Export is a test helper function that performs the export of
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1export
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export
 func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -71,11 +77,27 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
+// PrometheusAPIV1ExportNative is a test helper function that performs the export of
+// raw samples in native binary format by sending an HTTP POST request to
+// /prometheus/api/v1/export/native vmselect endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
+func (app *Vmselect) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
+	t.Helper()
+
+	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export/native", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	values.Add("match[]", query)
+	values.Add("format", "promapi")
+	res, _ := app.cli.PostForm(t, exportURL, values)
+	return []byte(res)
+}
+
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query
 func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -91,7 +113,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 // PromQL/MetricsQL range query by sending a HTTP POST request to
 // /prometheus/api/v1/query_range vmselect endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1query_range
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1query_range
 func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -106,7 +128,7 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
 func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
@@ -120,7 +142,7 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 // DeleteSeries sends a query to a /prometheus/api/v1/admin/tsdb/delete_series
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
 func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
 	t.Helper()
 
@@ -138,7 +160,7 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 // MetricNamesStats sends a query to a /select/tenant/prometheus/api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //
-// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
 func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
 	t.Helper()
 
@@ -161,7 +183,7 @@ func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern stri
 
 // MetricNamesStatsReset sends a query to a /admin/api/v1/status/metric_names_stats/reset endpoint
 //
-// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
 func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 	t.Helper()
 
@@ -176,7 +198,7 @@ func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
 
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
 // //
-// See https://docs.victoriametrics.com/#tsdb-stats
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
 func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date string, topN string, opts QueryOpts) TSDBStatusResponse {
 	t.Helper()
 
@@ -203,6 +225,24 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	}
 	status.Sort()
 	return status
+}
+
+// APIV1AdminTenants sends a query to a /admin/tenants endpoint
+func (app *Vmselect) APIV1AdminTenants(t *testing.T) *AdminTenantsResponse {
+	t.Helper()
+
+	tenantsURL := fmt.Sprintf("http://%s/admin/tenants", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, tenantsURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var tenants *AdminTenantsResponse
+	if err := json.Unmarshal([]byte(res), tenants); err != nil {
+		t.Fatalf("could not unmarshal tenants response data:\n%s\n err: %v", res, err)
+	}
+
+	return tenants
 }
 
 // String returns the string representation of the vmselect app state.

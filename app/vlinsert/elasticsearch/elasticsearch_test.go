@@ -19,7 +19,7 @@ func TestReadBulkRequest_Failure(t *testing.T) {
 
 		tlp := &insertutil.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest("test", r, "", "_time", []string{"_msg"}, tlp)
+		rows, err := readBulkRequest("test", r, "", []string{"_time"}, []string{"_msg"}, tlp)
 		if err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
@@ -40,12 +40,13 @@ func TestReadBulkRequest_Success(t *testing.T) {
 	f := func(data, encoding, timeField, msgField string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
+		timeFields := []string{"non_existing_foo", timeField, "non_existing_bar"}
 		msgFields := []string{"non_existing_foo", msgField, "non_exiting_bar"}
 		tlp := &insertutil.TestLogMessageProcessor{}
 
 		// Read the request without compression
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest("test", r, "", timeField, msgFields, tlp)
+		rows, err := readBulkRequest("test", r, "", timeFields, msgFields, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -62,7 +63,7 @@ func TestReadBulkRequest_Success(t *testing.T) {
 			data = compressData(data, encoding)
 		}
 		r = bytes.NewBufferString(data)
-		rows, err = readBulkRequest("test", r, encoding, timeField, msgFields, tlp)
+		rows, err = readBulkRequest("test", r, encoding, timeFields, msgFields, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -111,7 +112,7 @@ func compressData(s string, encoding string) string {
 	case "zstd":
 		zw, _ = zstd.NewWriter(&bb)
 	case "snappy":
-		zw = snappy.NewBufferedWriter(&bb)
+		return string(snappy.Encode(nil, []byte(s)))
 	case "deflate":
 		zw = zlib.NewWriter(&bb)
 	default:

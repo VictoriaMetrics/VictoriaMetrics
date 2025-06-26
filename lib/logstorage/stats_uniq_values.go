@@ -12,23 +12,24 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type statsUniqValues struct {
-	fields []string
-	limit  uint64
+	fieldFilters []string
+	limit        uint64
 }
 
 func (su *statsUniqValues) String() string {
-	s := "uniq_values(" + statsFuncFieldsToString(su.fields) + ")"
+	s := "uniq_values(" + fieldNamesString(su.fieldFilters) + ")"
 	if su.limit > 0 {
 		s += fmt.Sprintf(" limit %d", su.limit)
 	}
 	return s
 }
 
-func (su *statsUniqValues) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, su.fields)
+func (su *statsUniqValues) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilters(su.fieldFilters)
 }
 
 func (su *statsUniqValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
@@ -52,23 +53,20 @@ type statsUniqValuesProcessor struct {
 
 func (sup *statsUniqValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	su := sf.(*statsUniqValues)
+
 	if sup.limitReached(su) {
 		// Limit on the number of unique values has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-	fields := su.fields
-	if len(fields) == 0 {
-		for _, c := range br.getColumns() {
-			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
-		}
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
-		}
+
+	mc := getMatchingColumns(br, su.fieldFilters)
+	for _, c := range mc.cs {
+		stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
 	}
+	putMatchingColumns(mc)
+
 	return stateSizeIncrease
 }
 
@@ -102,23 +100,20 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 
 func (sup *statsUniqValuesProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	su := sf.(*statsUniqValues)
+
 	if sup.limitReached(su) {
 		// Limit on the number of unique values has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-	fields := su.fields
-	if len(fields) == 0 {
-		for _, c := range br.getColumns() {
-			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
-		}
-	} else {
-		for _, field := range fields {
-			c := br.getColumnByName(field)
-			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
-		}
+
+	mc := getMatchingColumns(br, su.fieldFilters)
+	for _, c := range mc.cs {
+		stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
 	}
+	putMatchingColumns(mc)
+
 	return stateSizeIncrease
 }
 
@@ -396,12 +391,12 @@ func marshalJSONArray(dst []byte, items []string) []byte {
 }
 
 func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
-	fields, err := parseStatsFuncFields(lex, "uniq_values")
+	fieldFilters, err := parseStatsFuncFieldFilters(lex, "uniq_values")
 	if err != nil {
 		return nil, err
 	}
 	su := &statsUniqValues{
-		fields: fields,
+		fieldFilters: fieldFilters,
 	}
 	if lex.isKeyword("limit") {
 		lex.nextToken()

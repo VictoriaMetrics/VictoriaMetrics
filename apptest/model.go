@@ -1,8 +1,11 @@
 package apptest
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/url"
 	"slices"
@@ -21,12 +24,22 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
 }
 
-// PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
-type PrometheusWriter interface {
+// Writer contains methods for writing new data
+type Writer interface {
+	// Prometheus APIs
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
+	PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts)
+
+	// Graphit APIs
+	GraphiteWrite(t *testing.T, records []string, opts QueryOpts)
+
+	// OpenTSDB APIs
+	OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts)
 }
 
 // StorageFlusher defines a method that forces the flushing of data inserted
@@ -44,7 +57,7 @@ type StorageMerger interface {
 // PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
 type PrometheusWriteQuerier interface {
-	PrometheusWriter
+	Writer
 	PrometheusQuerier
 	StorageFlusher
 	StorageMerger
@@ -62,6 +75,9 @@ type QueryOpts struct {
 	ExtraLabels    []string
 	Trace          string
 	ReduceMemUsage string
+	MaxLookback    string
+	LatencyOffset  string
+	Format         string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -83,6 +99,9 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
 	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
+	addNonEmpty("max_lookback", qos.MaxLookback)
+	addNonEmpty("latency_offset", qos.LatencyOffset)
+	addNonEmpty("format", qos.Format)
 
 	return uv
 }
@@ -93,6 +112,30 @@ func (qos *QueryOpts) getTenant() string {
 		return "0"
 	}
 	return qos.Tenant
+}
+
+// QueryOptsLogs contains various params used for VictoriaLogs querying or ingesting data
+type QueryOptsLogs struct {
+	MessageField string
+	StreamFields string
+	TimeField    string
+}
+
+func (qos *QueryOptsLogs) asURLValues() url.Values {
+	uv := make(url.Values)
+	addNonEmpty := func(name string, values ...string) {
+		for _, value := range values {
+			if len(value) == 0 {
+				continue
+			}
+			uv.Add(name, value)
+		}
+	}
+	addNonEmpty("_time_field", qos.TimeField)
+	addNonEmpty("_stream_fields", qos.StreamFields)
+	addNonEmpty("_msg_field", qos.MessageField)
+
+	return uv
 }
 
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
@@ -305,14 +348,14 @@ type MetricNamesStatsRecord struct {
 	QueryRequestsCount uint64
 }
 
-// SnapshotCreateResponse is an in-memory reprensentation of the json response
+// SnapshotCreateResponse is an in-memory representation of the json response
 // returned by the /snapshot/create endpoint.
 type SnapshotCreateResponse struct {
 	Status   string
 	Snapshot string
 }
 
-// APIV1AdminTSDBSnapshotResponse is an in-memory reprensentation of the json
+// APIV1AdminTSDBSnapshotResponse is an in-memory representation of the json
 // response returned by the /api/v1/admin/tsdb/snapshot endpoint.
 type APIV1AdminTSDBSnapshotResponse struct {
 	Status string
@@ -325,31 +368,38 @@ type SnapshotData struct {
 	Name string
 }
 
-// SnapshotListResponse is an in-memory reprensentation of the json response
+// SnapshotListResponse is an in-memory representation of the json response
 // returned by the /snapshot/list endpoint.
 type SnapshotListResponse struct {
 	Status    string
 	Snapshots []string
 }
 
-// SnapshotDeleteResponse is an in-memory reprensentation of the json response
+// SnapshotDeleteResponse is an in-memory representation of the json response
 // returned by the /snapshot/delete endpoint.
 type SnapshotDeleteResponse struct {
 	Status string
 	Msg    string
 }
 
-// SnapshotDeleteAllResponse is an in-memory reprensentation of the json response
+// SnapshotDeleteAllResponse is an in-memory representation of the json response
 // returned by the /snapshot/delete_all endpoint.
 type SnapshotDeleteAllResponse struct {
 	Status string
 }
 
-// TSDBStatusResponse is an in-memory reprensentation of the json response
+// TSDBStatusResponse is an in-memory representation of the json response
 // returned by the /prometheus/api/v1/status/tsdb endpoint.
 type TSDBStatusResponse struct {
 	IsPartial bool
 	Data      TSDBStatusResponseData
+}
+
+// AdminTenantsResponse is an in-memory representation of the json response
+// returned by the /api/v1/admin/tenants endpoint.
+type AdminTenantsResponse struct {
+	Status string
+	Data   []string
 }
 
 // Sort performs sorting of stats entries
@@ -393,4 +443,45 @@ func sortTSDBStatusResponseEntries(entries []TSDBStatusResponseEntry) {
 		}
 		return left.Count < right.Count
 	})
+}
+
+// LogsQLQueryResponse is an in-memory representation of the
+// /select/logsql/query response.
+type LogsQLQueryResponse struct {
+	LogLines []string
+}
+
+// NewLogsQLQueryResponse is a test helper function that creates a new
+// instance of LogsQLQueryResponse by unmarshalling a json string.
+func NewLogsQLQueryResponse(t *testing.T, s string) *LogsQLQueryResponse {
+	t.Helper()
+	res := &LogsQLQueryResponse{}
+	if len(s) == 0 {
+		return res
+	}
+	bs := bytes.NewBufferString(s)
+	for {
+		logLine, err := bs.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if len(logLine) > 0 {
+					t.Fatalf("BUG: unexpected non-empty line=%q with io.EOF", logLine)
+				}
+				break
+			}
+			t.Fatalf("BUG: cannot read logline from buffer: %s", err)
+		}
+		var lv map[string]any
+		if err := json.Unmarshal([]byte(logLine), &lv); err != nil {
+			t.Fatalf("cannot parse log line=%q: %s", logLine, err)
+		}
+		delete(lv, "_stream_id")
+		normalizedLine, err := json.Marshal(lv)
+		if err != nil {
+			t.Fatalf("cannot marshal parsed logline=%q: %s", logLine, err)
+		}
+		res.LogLines = append(res.LogLines, string(normalizedLine))
+	}
+
+	return res
 }

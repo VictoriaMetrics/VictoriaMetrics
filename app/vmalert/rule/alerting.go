@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -124,6 +125,10 @@ func (arm *alertingRuleMetrics) close() {
 
 // NewAlertingRule creates a new AlertingRule
 func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
+	debug := group.Debug
+	if cfg.Debug != nil {
+		debug = *cfg.Debug
+	}
 	ar := &AlertingRule{
 		Type:          group.Type,
 		RuleID:        cfg.ID,
@@ -137,14 +142,14 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupName:     group.Name,
 		File:          group.File,
 		EvalInterval:  group.Interval,
-		Debug:         cfg.Debug,
+		Debug:         debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
 			EvaluationInterval:        group.Interval,
 			QueryParams:               group.Params,
 			Headers:                   group.Headers,
-			Debug:                     cfg.Debug,
+			Debug:                     debug,
 		}),
 		alerts: make(map[uint64]*notifier.Alert),
 	}
@@ -331,7 +336,9 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 	var result []prompbmarshal.TimeSeries
 	holdAlertState := make(map[uint64]*notifier.Alert)
 	qFn := func(_ string) ([]datasource.Metric, error) {
-		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
+		logger.Warnf("`query` template isn't supported in replay mode, mocked data is used")
+		//  mock query results to allow common used template {{ query <$expr> | first | value }}
+		return []datasource.Metric{{Timestamps: []int64{0}, Values: []float64{math.NaN()}}}, nil
 	}
 	for _, s := range res.Data {
 		ls, as, err := ar.expandTemplates(s, qFn, time.Time{})
@@ -409,7 +416,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
-	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
+	ar.logDebugf(ts, nil, "query returned %d series (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err
@@ -537,6 +544,7 @@ func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.Query
 
 	tplData := notifier.AlertTplData{
 		Value:    m.Values[0],
+		Type:     ar.Type.String(),
 		Labels:   ls.origin,
 		Expr:     ar.Expr,
 		AlertID:  hash(ls.processed),
@@ -597,6 +605,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, labels, a
 	return &notifier.Alert{
 		GroupID:     ar.GroupID,
 		Name:        ar.Name,
+		Type:        ar.Type.String(),
 		Expr:        ar.Expr,
 		For:         ar.For,
 		ActiveAt:    start,

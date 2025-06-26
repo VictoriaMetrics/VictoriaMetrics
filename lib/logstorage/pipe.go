@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 type pipe interface {
@@ -24,8 +25,8 @@ type pipe interface {
 	// See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
 	canLiveTail() bool
 
-	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
-	updateNeededFields(neededFields, unneededFields fieldsSet)
+	// updateNeededFields must update pf with fields it needs and not needs at the input.
+	updateNeededFields(pf *prefixfilter.Filter)
 
 	// newPipeProcessor must return new pipeProcessor, which writes data to the given ppNext.
 	//
@@ -140,6 +141,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
 		}
 		return pc, nil
+	case lex.isKeyword("decolorize"):
+		pd, err := parsePipeDecolorize(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'decolorize' pipe: %w", err)
+		}
+		return pd, nil
 	case lex.isKeyword("delete", "del", "rm", "drop"):
 		pd, err := parsePipeDelete(lex)
 		if err != nil {
@@ -401,6 +408,7 @@ var pipeNames = func() map[string]struct{} {
 		"blocks_count",
 		"collapse_nums",
 		"copy", "cp",
+		"decolorize",
 		"delete", "del", "rm", "drop",
 		"drop_empty_fields",
 		"extract",

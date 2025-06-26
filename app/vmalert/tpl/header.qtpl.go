@@ -77,7 +77,7 @@ func StreamHeader(qw422016 *qt422016.Writer, r *http.Request, navItems []NavItem
 	streamprintNavItems(qw422016, r, title, navItems, userErr)
 //line app/vmalert/tpl/header.qtpl:21
 	qw422016.N().S(`
-    <main class="px-2">
+    <main class="px-4 py-2">
     `)
 //line app/vmalert/tpl/header.qtpl:23
 	streamerrorBody(qw422016, userErr)
@@ -117,114 +117,134 @@ func Header(r *http.Request, navItems []NavItem, title string, userErr error) st
 type NavItem struct {
 	Name string
 	URL  string
+	Icon string
 }
 
-//line app/vmalert/tpl/header.qtpl:34
+//line app/vmalert/tpl/header.qtpl:35
 func streamprintNavItems(qw422016 *qt422016.Writer, r *http.Request, current string, items []NavItem, userErr error) {
-//line app/vmalert/tpl/header.qtpl:34
+//line app/vmalert/tpl/header.qtpl:35
 	qw422016.N().S(`
 `)
-//line app/vmalert/tpl/header.qtpl:35
+//line app/vmalert/tpl/header.qtpl:36
 	prefix := vmalertutil.Prefix(r.URL.Path)
 
-//line app/vmalert/tpl/header.qtpl:35
+//line app/vmalert/tpl/header.qtpl:36
 	qw422016.N().S(`
 <nav class="navbar navbar-expand navbar-dark fixed-top bg-dark">
   <div class="container-fluid">
     <div class="collapse navbar-collapse" id="navbarCollapse">
-        <ul class="navbar-nav me-auto mb-0">
+        <ul class="navbar-nav me-auto mb-0 align-items-center">
             `)
-//line app/vmalert/tpl/header.qtpl:40
+//line app/vmalert/tpl/header.qtpl:41
 	for _, item := range items {
-//line app/vmalert/tpl/header.qtpl:40
+//line app/vmalert/tpl/header.qtpl:41
 		qw422016.N().S(`
                 <li class="nav-item">
                     `)
-//line app/vmalert/tpl/header.qtpl:43
+//line app/vmalert/tpl/header.qtpl:44
 		u, _ := url.Parse(item.URL)
 
-//line app/vmalert/tpl/header.qtpl:44
+//line app/vmalert/tpl/header.qtpl:45
 		qw422016.N().S(`
-                    <a class="nav-link`)
-//line app/vmalert/tpl/header.qtpl:45
+                    <a class="d-flex gap-2 align-items-center nav-link`)
+//line app/vmalert/tpl/header.qtpl:46
 		if current == item.Name {
-//line app/vmalert/tpl/header.qtpl:45
+//line app/vmalert/tpl/header.qtpl:46
 			qw422016.N().S(` active`)
-//line app/vmalert/tpl/header.qtpl:45
+//line app/vmalert/tpl/header.qtpl:46
 		}
-//line app/vmalert/tpl/header.qtpl:45
+//line app/vmalert/tpl/header.qtpl:46
 		qw422016.N().S(`"
                        href="`)
-//line app/vmalert/tpl/header.qtpl:46
+//line app/vmalert/tpl/header.qtpl:47
 		if u.IsAbs() {
-//line app/vmalert/tpl/header.qtpl:46
+//line app/vmalert/tpl/header.qtpl:47
 			qw422016.E().S(item.URL)
-//line app/vmalert/tpl/header.qtpl:46
+//line app/vmalert/tpl/header.qtpl:47
 		} else {
-//line app/vmalert/tpl/header.qtpl:46
+//line app/vmalert/tpl/header.qtpl:47
 			qw422016.E().S(path.Join(prefix, item.URL))
-//line app/vmalert/tpl/header.qtpl:46
+//line app/vmalert/tpl/header.qtpl:47
 		}
-//line app/vmalert/tpl/header.qtpl:46
+//line app/vmalert/tpl/header.qtpl:47
 		qw422016.N().S(`">
                         `)
-//line app/vmalert/tpl/header.qtpl:47
+//line app/vmalert/tpl/header.qtpl:48
+		if item.Icon != "" {
+//line app/vmalert/tpl/header.qtpl:48
+			qw422016.N().S(`
+                        <svg width="40" height="40"><use href="`)
+//line app/vmalert/tpl/header.qtpl:49
+			qw422016.E().S(prefix)
+//line app/vmalert/tpl/header.qtpl:49
+			qw422016.N().S(`static/icons/icons.svg#`)
+//line app/vmalert/tpl/header.qtpl:49
+			qw422016.E().S(item.Icon)
+//line app/vmalert/tpl/header.qtpl:49
+			qw422016.N().S(`"></svg>
+                        `)
+//line app/vmalert/tpl/header.qtpl:50
+		}
+//line app/vmalert/tpl/header.qtpl:50
+		qw422016.N().S(`
+                        `)
+//line app/vmalert/tpl/header.qtpl:51
 		qw422016.E().S(item.Name)
-//line app/vmalert/tpl/header.qtpl:47
+//line app/vmalert/tpl/header.qtpl:51
 		qw422016.N().S(`
                     </a>
                 </li>
             `)
-//line app/vmalert/tpl/header.qtpl:50
+//line app/vmalert/tpl/header.qtpl:54
 	}
-//line app/vmalert/tpl/header.qtpl:50
+//line app/vmalert/tpl/header.qtpl:54
 	qw422016.N().S(`
         </ul>
   </div>
   `)
-//line app/vmalert/tpl/header.qtpl:53
+//line app/vmalert/tpl/header.qtpl:57
 	streamerrorIcon(qw422016, userErr)
-//line app/vmalert/tpl/header.qtpl:53
+//line app/vmalert/tpl/header.qtpl:57
 	qw422016.N().S(`
 </nav>
 `)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 }
 
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 func writeprintNavItems(qq422016 qtio422016.Writer, r *http.Request, current string, items []NavItem, userErr error) {
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	streamprintNavItems(qw422016, r, current, items, userErr)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 }
 
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 func printNavItems(r *http.Request, current string, items []NavItem, userErr error) string {
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	writeprintNavItems(qb422016, r, current, items, userErr)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:55
+//line app/vmalert/tpl/header.qtpl:59
 }
 
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:61
 func streamerrorIcon(qw422016 *qt422016.Writer, err error) {
-//line app/vmalert/tpl/header.qtpl:57
+//line app/vmalert/tpl/header.qtpl:61
 	qw422016.N().S(`
 `)
-//line app/vmalert/tpl/header.qtpl:58
+//line app/vmalert/tpl/header.qtpl:62
 	if err != nil {
-//line app/vmalert/tpl/header.qtpl:58
+//line app/vmalert/tpl/header.qtpl:62
 		qw422016.N().S(`
 <div class="d-flex" data-bs-toggle="tooltip" data-bs-placement="left" title="Configuration file failed to reload! Click to see more details.">
   <a type="button" data-bs-toggle="collapse" href="#reload-groups-error">
@@ -236,89 +256,89 @@ func streamerrorIcon(qw422016 *qt422016.Writer, err error) {
   </a>
 </div>
 `)
-//line app/vmalert/tpl/header.qtpl:68
+//line app/vmalert/tpl/header.qtpl:72
 	}
-//line app/vmalert/tpl/header.qtpl:68
+//line app/vmalert/tpl/header.qtpl:72
 	qw422016.N().S(`
 `)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 }
 
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 func writeerrorIcon(qq422016 qtio422016.Writer, err error) {
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	streamerrorIcon(qw422016, err)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 }
 
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 func errorIcon(err error) string {
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	writeerrorIcon(qb422016, err)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:69
+//line app/vmalert/tpl/header.qtpl:73
 }
 
-//line app/vmalert/tpl/header.qtpl:71
+//line app/vmalert/tpl/header.qtpl:75
 func streamerrorBody(qw422016 *qt422016.Writer, err error) {
-//line app/vmalert/tpl/header.qtpl:71
+//line app/vmalert/tpl/header.qtpl:75
 	qw422016.N().S(`
 `)
-//line app/vmalert/tpl/header.qtpl:72
+//line app/vmalert/tpl/header.qtpl:76
 	if err != nil {
-//line app/vmalert/tpl/header.qtpl:72
+//line app/vmalert/tpl/header.qtpl:76
 		qw422016.N().S(`
 <div class="collapse mt-2 mb-2" id="reload-groups-error">
   <div class="card card-body">
     `)
-//line app/vmalert/tpl/header.qtpl:75
+//line app/vmalert/tpl/header.qtpl:79
 		qw422016.E().S(err.Error())
-//line app/vmalert/tpl/header.qtpl:75
+//line app/vmalert/tpl/header.qtpl:79
 		qw422016.N().S(`
   </div>
 </div>
 `)
-//line app/vmalert/tpl/header.qtpl:78
+//line app/vmalert/tpl/header.qtpl:82
 	}
-//line app/vmalert/tpl/header.qtpl:78
+//line app/vmalert/tpl/header.qtpl:82
 	qw422016.N().S(`
 `)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 }
 
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 func writeerrorBody(qq422016 qtio422016.Writer, err error) {
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	streamerrorBody(qw422016, err)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 }
 
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 func errorBody(err error) string {
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	writeerrorBody(qb422016, err)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:83
 }

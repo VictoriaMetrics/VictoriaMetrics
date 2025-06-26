@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestCase holds the state and defines clean-up procedure common for all test
@@ -27,6 +28,7 @@ type Stopper interface {
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
+	t.Parallel()
 	return &TestCase{t, NewClient(), make(map[string]Stopper)}
 }
 
@@ -187,9 +189,39 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 	return app
 }
 
+// MustStartVmbackup is a test helper that starts an instance of vmbackup
+// and waits until the app exits. It fails the test if the app fails to start or
+// exits with non zero code.
+func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, dst string) {
+	tc.t.Helper()
+
+	if err := StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst); err != nil {
+		tc.t.Fatalf("vmbackup %q failed to start or exited with non-zero code: %v", instance, err)
+	}
+
+	// Do not add the process to the list of running apps using
+	// tc.addApp(instance, app), because the method blocks until the process
+	// exits.
+}
+
+// MustStartVmrestore is a test helper that starts an instance of vmrestore
+// and waits until the app exits. It fails the test if the app fails to start or
+// exits with non zero code.
+func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string) {
+	tc.t.Helper()
+
+	if err := StartVmrestore(instance, src, storageDataPath); err != nil {
+		tc.t.Fatalf("vmrestore %q failed to start or exited with non-zero code: %v", instance, err)
+	}
+
+	// Do not add the process to the list of running apps using
+	// tc.addApp(instance, app), because the method blocks until the process
+	// exits.
+}
+
 // MustStartDefaultCluster starts a typical cluster configuration with default
 // flags.
-func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 	tc.t.Helper()
 
 	return tc.MustStartCluster(&ClusterOptions{
@@ -223,7 +255,7 @@ type ClusterOptions struct {
 }
 
 // MustStartCluster starts a typical cluster configuration with custom flags.
-func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerier {
+func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
 	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
@@ -249,6 +281,16 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerie
 	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
 
 	return &Vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
+}
+
+// MustStartVmctl is a test helper function that starts an instance of vmctl
+func (tc *TestCase) MustStartVmctl(instance string, flags []string) {
+	tc.t.Helper()
+
+	err := StartVmctl(instance, flags)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
 }
 
 func (tc *TestCase) addApp(instance string, app Stopper) {
@@ -366,4 +408,28 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 	} else {
 		tc.t.Error(msg)
 	}
+}
+
+// MustStartDefaultVlsingle is a test helper function that starts an instance of
+// vlsingle with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVlsingle() *Vlsingle {
+	tc.t.Helper()
+
+	return tc.MustStartVlsingle("vlsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vlsingle",
+		"-retentionPeriod=100y",
+	})
+}
+
+// MustStartVlsingle is a test helper function that starts an instance of
+// vlsingle and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVlsingle(instance string, flags []string) *Vlsingle {
+	tc.t.Helper()
+
+	app, err := StartVlsingle(instance, flags, tc.cli)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
 }

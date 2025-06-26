@@ -11,7 +11,7 @@ tags:
 ---
 
 Loki provides [LogQL](https://grafana.com/docs/loki/latest/query/) query language, while VictoriaLogs provides [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
-query language. Both langauges are optimized for querying logs. The docs below show how to convert typical LogQL queries to LogsQL queries.
+query language. Both languages are optimized for querying logs. The docs below show how to convert typical LogQL queries to LogsQL queries.
 
 ## Data model
 
@@ -23,7 +23,7 @@ Hundreds of labels per every log entry is OK for VictoriaLogs.
 
 VictoriaLogs is also optimized for log labels with big number of unique values such as `trace_id`, `user_id`, `duration` and `ip` (aka high-cardinality labels).
 It is highly recommended storing all the labels as is without the need to pack them into a JSON and storing it into the log line (message).
-Sotring labels separately results in much faster filtering on such labels (1000x faster and more).
+Storing labels separately results in much faster filtering on such labels (1000x faster and more).
 This also results in storage space savings because of better compression for per-label values.
 
 It is recommended reading [VictoriaLogs key concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/) in order to understand VictoriaLogs data model.
@@ -73,7 +73,7 @@ Loki allows filtering log lines (log messages) with the following filters:
   * [Regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter), which matches the given regexp at any position of the log line.
 
 * Negative substring filter - `{...} != "some_text"`. It selects logs with lines without the `some_text` substring.
-  This query can be written as `{...} -"some_text"` in VictoriaLogs, e.g. just pre-pend the `"some_text"` with `-`.
+  This query can be written as `{...} -"some_text"` in VictoriaLogs, e.g. just prepend the `"some_text"` with `-`.
   See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for details.
 
 * Regexp filter - `{...} |~ "regexp"`. It selects logs with lines matching the given `regexp`.
@@ -94,7 +94,7 @@ Loki allows applying filters to log labels with `{...} | label op value` syntax:
   according to [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
 
 * `{...} | label > value`, `{...} label >= value`, `{...} label < value` and `{...} label <= value`.
-  This is eqvalent to `{...} label:>value`, `{...} label:>=value`, `{...} label:<value` and `{...} label:<=value`
+  This is equivalent to `{...} label:>value`, `{...} label:>=value`, `{...} label:<value` and `{...} label:<=value`
   in VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#range-comparison-filter).
 
 * `{...} | label ~= value`. This is equivalent to `{...} label:~value` in VictoriaLogs.
@@ -167,7 +167,7 @@ See [JSON parser](#json-parser) docs for more details.
 Loki supports parsing log lines according to the provided pattern with the `{...} | pattern "..."` syntax according to [these docs](https://grafana.com/docs/loki/latest/query/log_queries/#pattern).
 Such a query can be replaced with `{...} | extract "..."` at VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe).
 
-## Regluar expression parser
+## Regular expression parser
 
 Loki supports parsing log lines according to the provided regexp with the `{...} | regexp "..."` syntax.
 Such a query can be replaced with `{...} | extract_regexp "..."` at VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#extract_regexp-pipe).
@@ -192,7 +192,7 @@ Loki provides the ability to drop log labels with the `{...} | drop label1, ...,
 according to [these docs](https://grafana.com/docs/loki/latest/query/log_queries/#drop-labels-expression).
 The similar syntax is also supported by VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe).
 
-Lokis supports conditional dropping of labels with the `{...} | drop label="value"` syntax.
+Loki supports conditional dropping of labels with the `{...} | drop label="value"` syntax.
 This can be replaced with [conditional format](https://docs.victoriametrics.com/victorialogs/logsql/#conditional-format) at VictoriaLogs:
 
 ```logsql
@@ -266,7 +266,7 @@ can be substituted with the simple `{...} | count()` query at VictoriaLogs.
 
 ### Unwrapped range aggregations
 
-Loki allows calculating metrics from label values by using the `func_name({...} | unwrap label_name)` syntax. There is no need in unrapping any labels in VictoriaLogs -
+Loki allows calculating metrics from label values by using the `func_name({...} | unwrap label_name)` syntax. There is no need in unwrapping any labels in VictoriaLogs -
 just pass the needed label names into the needed [`stats` pipe function](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions).
 
 VictoriaLogs aggregates all the selected logs by default, while Loki groups stats by log stream. Use `... | stats by (_stream) ...`
@@ -277,11 +277,11 @@ for obtaining results grouped by log stream in VictoriaLogs. See [these docs](ht
 Loki allows selecting top K metrics with the biggest values via `topk(K, (func_name({...} | unwrap label_name))` syntax.
 This query can be translated to `... | first K (label_name desc)` at VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe).
 
-The `bottomk(K, func_name({...} | unwrap label_name))` query at Loki can be translated to `... | fisrt K (label_name)` at VictoriaLogs.
+The `bottomk(K, func_name({...} | unwrap label_name))` query at Loki can be translated to `... | first K (label_name)` at VictoriaLogs.
 
 ### Approximate calculations
 
-Loki provides [`approx_topk(K, ...)`](https://grafana.com/docs/loki/latest/query/metric_queries/#probabilistic-aggregation) for probabalistic
+Loki provides [`approx_topk(K, ...)`](https://grafana.com/docs/loki/latest/query/metric_queries/#probabilistic-aggregation) for probabilistic
 selecting up to K metrics with the biggest values. VictoriaLogs provides [`sample` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sample-pipe),
 which can be used for probabilistic calculations.
 

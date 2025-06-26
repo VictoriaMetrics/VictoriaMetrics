@@ -5,11 +5,12 @@ import (
 	"regexp"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
+
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-// snapshotNameRE convers years 1970-2099.
+// snapshotNameRE covers years 1970-2099.
 // Corner case examples:
 // - 19700101000000-0000000000000000
 // - 20991231235959-38EECC8925ED5FFF
@@ -104,7 +105,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartDefaultCluster().(*at.Vmcluster)
+	sut := tc.MustStartDefaultCluster()
 
 	// Insert some data.
 	const numSamples = 1000

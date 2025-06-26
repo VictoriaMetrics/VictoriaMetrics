@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -40,8 +39,8 @@ var (
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
 		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
-		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
-		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
+		"https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
+		"according to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data ."+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details")
 
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url. "+
@@ -197,13 +196,7 @@ func Init() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	rcs, err := loadRelabelConfigs()
-	if err != nil {
-		logger.Fatalf("cannot load relabel configs: %s", err)
-	}
-	allRelabelConfigs.Store(rcs)
-	relabelConfigSuccess.Set(1)
-	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
+	initRelabelConfigs()
 
 	initStreamAggrConfigGlobal()
 
@@ -268,29 +261,6 @@ func dropDanglingQueues() {
 		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxsGlobal))
 	}
 }
-
-func reloadRelabelConfigs() {
-	relabelConfigReloads.Inc()
-	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
-	rcs, err := loadRelabelConfigs()
-	if err != nil {
-		relabelConfigReloadErrors.Inc()
-		relabelConfigSuccess.Set(0)
-		logger.Errorf("cannot reload relabel configs; preserving the previous configs; error: %s", err)
-		return
-	}
-	allRelabelConfigs.Store(rcs)
-	relabelConfigSuccess.Set(1)
-	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
-	logger.Infof("successfully reloaded relabel configs")
-}
-
-var (
-	relabelConfigReloads      = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
-	relabelConfigReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
-	relabelConfigSuccess      = metrics.NewGauge(`vmagent_relabel_config_last_reload_successful`, nil)
-	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
-)
 
 func initRemoteWriteCtxs(urls []string) {
 	if len(urls) == 0 {

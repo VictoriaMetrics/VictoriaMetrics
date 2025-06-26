@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -33,8 +34,8 @@ func (fp *filterAnyCasePhrase) String() string {
 	return fmt.Sprintf("%si(%s)", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.phrase))
 }
 
-func (fp *filterAnyCasePhrase) updateNeededFields(neededFields fieldsSet) {
-	neededFields.add(fp.fieldName)
+func (fp *filterAnyCasePhrase) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter(fp.fieldName)
 }
 
 func (fp *filterAnyCasePhrase) getTokensHashes() []uint64 {

@@ -1,6 +1,7 @@
 package vlinsert
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,6 +14,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/syslog"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+)
+
+var (
+	disableInsert   = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
+	disableInternal = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint")
 )
 
 // Init initializes vlinsert
@@ -27,49 +34,55 @@ func Stop() {
 
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+
+	if strings.HasPrefix(path, "/insert/") {
+		if *disableInsert {
+			httpserver.Errorf(w, r, "requests to /insert/* are disabled with -insert.disable command-line flag")
+			return true
+		}
+
+		return insertHandler(w, r, path)
+	}
 
 	if path == "/internal/insert" {
+		if *disableInternal || *disableInsert {
+			httpserver.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable or -insert.disable command-line flag")
+			return true
+		}
 		internalinsert.RequestHandler(w, r)
 		return true
 	}
 
-	if !strings.HasPrefix(path, "/insert/") {
-		// Skip requests, which do not start with /insert/, since these aren't our requests.
-		return false
-	}
-	path = strings.TrimPrefix(path, "/insert")
-	path = strings.ReplaceAll(path, "//", "/")
+	return false
+}
 
+func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch path {
-	case "/jsonline":
+	case "/insert/jsonline":
 		jsonline.RequestHandler(w, r)
 		return true
-	case "/ready":
+	case "/insert/ready":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	}
 	switch {
-	case strings.HasPrefix(path, "/elasticsearch"):
-		// some clients may omit trailing slash
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
-		path = strings.TrimPrefix(path, "/elasticsearch")
+	// some clients may omit trailing slash at elasticsearch protocol.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
+	case strings.HasPrefix(path, "/insert/elasticsearch"):
 		return elasticsearch.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/loki/"):
-		path = strings.TrimPrefix(path, "/loki")
+
+	case strings.HasPrefix(path, "/insert/loki/"):
 		return loki.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/opentelemetry/"):
-		path = strings.TrimPrefix(path, "/opentelemetry")
+	case strings.HasPrefix(path, "/insert/opentelemetry/"):
 		return opentelemetry.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/journald/"):
-		path = strings.TrimPrefix(path, "/journald")
+	case strings.HasPrefix(path, "/insert/journald/"):
 		return journald.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/datadog/"):
-		path = strings.TrimPrefix(path, "/datadog")
+	case strings.HasPrefix(path, "/insert/datadog/"):
 		return datadog.RequestHandler(path, w, r)
-	default:
-		return false
 	}
+
+	return false
 }

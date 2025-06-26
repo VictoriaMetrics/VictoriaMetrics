@@ -75,7 +75,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		}
 	}
 
-	f(GetLogRows(nil, nil, nil, ""), 0, 0)
+	f(GetLogRows(nil, nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
 	f(newTestLogRows(1, 1, 0), 1, 1.3)
@@ -220,8 +220,8 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 
 	// Check empty readers
 	f(nil, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil, nil, "")}, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil, nil, ""), GetLogRows(nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, nil, ""), GetLogRows(nil, nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
 	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 1.3)
@@ -268,7 +268,7 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil, nil, "")
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	rng := rand.New(rand.NewSource(seed))
 	var fields []Field
 	for i := 0; i < streams; i++ {
@@ -330,11 +330,6 @@ func checkEqualRows(lrResult, lrOrig *logRows) error {
 	sort.Sort(lrResult)
 	sort.Sort(lrOrig)
 
-	sortFieldNames := func(fields []Field) {
-		sort.Slice(fields, func(i, j int) bool {
-			return fields[i].Name < fields[j].Name
-		})
-	}
 	for i := range lrOrig.timestamps {
 		if !lrOrig.streamIDs[i].equal(&lrResult.streamIDs[i]) {
 			return fmt.Errorf("unexpected streamID for log entry %d\ngot\n%s\nwant\n%s", i, &lrResult.streamIDs[i], &lrOrig.streamIDs[i])
@@ -347,8 +342,8 @@ func checkEqualRows(lrResult, lrOrig *logRows) error {
 		if len(fieldsOrig) != len(fieldsResult) {
 			return fmt.Errorf("unexpected number of fields at log entry %d\ngot\n%s\nwant\n%s", i, fieldsResult, fieldsOrig)
 		}
-		sortFieldNames(fieldsOrig)
-		sortFieldNames(fieldsResult)
+		sortFieldsByName(fieldsOrig)
+		sortFieldsByName(fieldsResult)
 		if !reflect.DeepEqual(fieldsOrig, fieldsResult) {
 			return fmt.Errorf("unexpected fields for log entry %d\ngot\n%s\nwant\n%s", i, fieldsResult, fieldsOrig)
 		}
@@ -385,7 +380,7 @@ func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRo
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil, nil, "")
+	lr := GetLogRows(streamTags, nil, nil, nil, "")
 	var fields []Field
 	for i := 0; i < streams; i++ {
 		tenantID := TenantID{

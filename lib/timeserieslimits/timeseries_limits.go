@@ -1,11 +1,11 @@
 package timeserieslimits
 
 import (
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -54,13 +54,13 @@ var (
 
 var (
 	// ignoredSeriesWithTooManyLabels is the number of ignored series with too many labels
-	ignoredSeriesWithTooManyLabels atomic.Uint64
+	ignoredSeriesWithTooManyLabels atomicutil.Uint64
 
 	// ignoredSeriesWithTooLongLabelName is the number of ignored series which contain labels with too long names
-	ignoredSeriesWithTooLongLabelName atomic.Uint64
+	ignoredSeriesWithTooLongLabelName atomicutil.Uint64
 
 	// ignoredSeriesWithTooLongLabelValue is the number of ignored series which contain labels with too long values
-	ignoredSeriesWithTooLongLabelValue atomic.Uint64
+	ignoredSeriesWithTooLongLabelValue atomicutil.Uint64
 )
 
 func trackIgnoredSeriesWithTooManyLabels(labels []prompbmarshal.Label) {

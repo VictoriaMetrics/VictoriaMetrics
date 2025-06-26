@@ -197,11 +197,11 @@ func TestMustCreatePartition(t *testing.T) {
 	ts := time.Date(2025, 3, 23, 14, 07, 56, 999_999_999, time.UTC).UnixMilli()
 	smallPath := filepath.Join(t.Name(), "small")
 	if fs.IsPathExist(smallPath) {
-		t.Errorf("small parition directory must not exist: %s", smallPath)
+		t.Errorf("small partition directory must not exist: %s", smallPath)
 	}
 	bigPath := filepath.Join(t.Name(), "big")
 	if fs.IsPathExist(bigPath) {
-		t.Errorf("big parition directory must not exist: %s", bigPath)
+		t.Errorf("big partition directory must not exist: %s", bigPath)
 	}
 	s := &Storage{}
 

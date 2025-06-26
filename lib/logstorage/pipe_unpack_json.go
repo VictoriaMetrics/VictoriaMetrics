@@ -3,9 +3,9 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUnpackJSON processes '| unpack_json ...' pipe.
@@ -15,10 +15,8 @@ type pipeUnpackJSON struct {
 	// fromField is the field to unpack json fields from
 	fromField string
 
-	// fields is an optional list of fields to extract from json.
-	//
-	// if it is empty, then all the fields are extracted.
-	fields []string
+	// fieldFilters is a list of field filters to extract from json.
+	fieldFilters []string
 
 	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
@@ -38,8 +36,8 @@ func (pu *pipeUnpackJSON) String() string {
 	if !isMsgFieldName(pu.fromField) {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
-	if len(pu.fields) > 0 {
-		s += " fields (" + fieldsToString(pu.fields) + ")"
+	if !prefixfilter.MatchAll(pu.fieldFilters) {
+		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -61,8 +59,8 @@ func (pu *pipeUnpackJSON) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
+func (pu *pipeUnpackJSON) updateNeededFields(pf *prefixfilter.Filter) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }
 
 func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
@@ -92,27 +90,34 @@ func (pu *pipeUnpackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), p
 		p := GetJSONParser()
 		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), math.MaxInt)
 		if err != nil {
-			for _, fieldName := range pu.fields {
-				uctx.addField(fieldName, "")
+			for _, filter := range pu.fieldFilters {
+				if !prefixfilter.IsWildcardFilter(filter) {
+					uctx.addField(filter, "")
+				}
 			}
 		} else {
-			if len(pu.fields) == 0 {
-				for _, f := range p.Fields {
-					uctx.addField(f.Name, f.Value)
+			for _, f := range p.Fields {
+				if !prefixfilter.MatchFilters(pu.fieldFilters, f.Name) {
+					continue
 				}
-			} else {
-				for _, fieldName := range pu.fields {
-					addedField := false
-					for _, f := range p.Fields {
-						if f.Name == fieldName {
-							uctx.addField(f.Name, f.Value)
-							addedField = true
-							break
-						}
+
+				uctx.addField(f.Name, f.Value)
+			}
+
+			for _, filter := range pu.fieldFilters {
+				if prefixfilter.IsWildcardFilter(filter) {
+					continue
+				}
+
+				addEmptyField := true
+				for _, f := range p.Fields {
+					if f.Name == filter {
+						addEmptyField = false
+						break
 					}
-					if !addedField {
-						uctx.addField(fieldName, "")
-					}
+				}
+				if addEmptyField {
+					uctx.addField(filter, "")
 				}
 			}
 		}
@@ -148,17 +153,17 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 		fromField = f
 	}
 
-	var fields []string
+	var fieldFilters []string
 	if lex.isKeyword("fields") {
 		lex.nextToken()
-		fs, err := parseFieldNamesInParens(lex)
+		fs, err := parseFieldFiltersInParens(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'fields': %w", err)
 		}
-		fields = fs
-		if slices.Contains(fields, "*") {
-			fields = nil
-		}
+		fieldFilters = fs
+	}
+	if len(fieldFilters) == 0 {
+		fieldFilters = []string{"*"}
 	}
 
 	resultPrefix := ""
@@ -184,7 +189,7 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 
 	pu := &pipeUnpackJSON{
 		fromField:          fromField,
-		fields:             fields,
+		fieldFilters:       fieldFilters,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
 		skipEmptyResults:   skipEmptyResults,

@@ -109,7 +109,7 @@ const RetentionFilters: FC = () => {
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/#retention-filters"
+            href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters"
             rel="help noreferrer"
           >
             <WikiIcon/>

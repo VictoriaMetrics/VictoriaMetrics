@@ -16,10 +16,10 @@ var disableMessageParsing = flag.Bool("loki.disableMessageParsing", false, "Whet
 // RequestHandler processes Loki insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
-	case "/api/v1/push":
+	case "/insert/loki/api/v1/push":
 		handleInsert(r, w)
 		return true
-	case "/ready":
+	case "/insert/loki/ready":
 		// See https://grafana.com/docs/loki/latest/api/#identify-ready-loki-instance
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ready"))

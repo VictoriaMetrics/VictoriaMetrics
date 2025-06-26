@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
+import { FC, useEffect, useRef, useMemo } from "preact/compat";
 import Button from "../../Main/Button/Button";
 import { SearchIcon, SettingsIcon } from "../../Main/Icons";
 import "./style.scss";
@@ -18,8 +18,8 @@ const title = "Table settings";
 interface TableSettingsProps {
   columns: string[];
   selectedColumns?: string[];
-  tableCompact: boolean;
-  toggleTableCompact: () => void;
+  tableCompact?: boolean;
+  toggleTableCompact?: () => void;
   onChangeColumns: (arr: string[]) => void
 }
 
@@ -49,8 +49,8 @@ const TableSettings: FC<TableSettingsProps> = ({
 
   const filteredColumns = useMemo(() => {
     const allColumns = customColumns.concat(columns);
-    if (!searchColumn) return allColumns;
-    return allColumns.filter(col => col.includes(searchColumn));
+    const result = searchColumn ? allColumns.filter(col => col.includes(searchColumn)) : allColumns;
+    return result.sort((a, b) => a.localeCompare(b));
   }, [columns, customColumns, searchColumn]);
 
   const isAllChecked = useMemo(() => {
@@ -195,18 +195,20 @@ const TableSettings: FC<TableSettingsProps> = ({
               </div>
             </div>
           </div>
-          <div className="vm-table-settings-modal-section">
-            <div className="vm-table-settings-modal-section__title">
+          {toggleTableCompact && tableCompact !== undefined && (
+            <div className="vm-table-settings-modal-section">
+              <div className="vm-table-settings-modal-section__title">
               Table view
+              </div>
+              <div className="vm-table-settings-modal-columns-list__item">
+                <Switch
+                  label={"Compact view"}
+                  value={tableCompact}
+                  onChange={toggleTableCompact}
+                />
+              </div>
             </div>
-            <div className="vm-table-settings-modal-columns-list__item">
-              <Switch
-                label={"Compact view"}
-                value={tableCompact}
-                onChange={toggleTableCompact}
-              />
-            </div>
-          </div>
+          )}
         </Modal>)}
     </div>
   );

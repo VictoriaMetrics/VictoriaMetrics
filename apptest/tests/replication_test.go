@@ -79,7 +79,7 @@ func newClusterWithReplication(tc *at.TestCase, replicationFactor int) *clusterW
 // TestClusterReplication_DataIsWrittenSeveralTimes verifies that with
 // replication enabled, several copies of data are stored in the database.
 //
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -128,7 +128,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 // It can be instructed to remove duplicates by setting -dedup.minScrapeInterval
 // flag. See mergeSortBlocks() in app/vmselect/netstorage/netstorage.go.
 //
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_Deduplication(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -345,7 +345,7 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 // not mark responses as partial if less than -replicationFactor vmstorage
 // nodes are unavailable during the query.
 //
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_PartialResponse(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -425,7 +425,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 // least N-R+1 nodes to construct the full response. The responses from the rest
 // of the nodes (R-1) can be skipped.
 //
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -623,8 +623,8 @@ func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF in
 // TestClusterGroupReplication checks the behavior of the cluster when the data
 // is replicated both across and within the storage groups.
 //
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
-// and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmstorage-groups-at-vmselect
+// and https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterGroupReplication(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -1112,7 +1112,7 @@ func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
 // not mark responses as partial if less than -replicationFactor vmstorage
 // nodes are unavailable during the query.
 //
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()

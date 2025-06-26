@@ -53,7 +53,7 @@ Although this mode is designed to be as flexible as possible, it includes a pre-
 
 ### Grafana Dashboard
 
-> Note: [For additional benefits](https://docs.victoriametrics.com/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics-datasource/#installation) to enable datasource in Grafana.
+> [For additional benefits](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation) to enable datasource in Grafana.
 
 You can find the Grafana dashboard `.json` file either [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default/dashboard.json) or, for already running `vmanomaly` instance: `http://localhost:8490/presets/dashboard.json`. 
 
@@ -113,10 +113,12 @@ This section provides anomaly score statistics at the individual time series lev
 
 - A time series graph visualizing anomaly scores over time, allowing you to pinpoint when and where anomalies occurred.
 
-- A time series graph with respective raw metric values over time. **Note**: this panel has data if these conditions were met:
-  - [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) were used under respective `model_alias` label
-  - The `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) explicitly or implicitly included `y` <br>(input data of original timeseries, observed by the model at prediction time).
-  - In `writer.metric_format` special label `for` was configured to point out to query alias used in `reader.queries` section. <br>See `metric_format` argument description on [writer page](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters) for the details.
+- A time series graph with respective raw metric values over time. 
+
+> This panel **has data if these conditions were met**:
+>  - [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) were used under respective `model_alias` label
+>  - The `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) explicitly or implicitly included `y` <br>(input data of original timeseries, observed by the model at prediction time).
+>  - In `writer.metric_format` special label `for` was configured to point out to query alias used in `reader.queries` section. <br>See `metric_format` argument description on [writer page](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters) for the details.
 
 Use **`Show series`** dashboard variable to specify what [vmanomaly output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) series to plot on [Local Anomaly Score Statistics](#local-anomaly-score-statistics) dashboard section corresponding to raw metrics scale. Defaults to `y` - raw metric values model saw during prediction phase. Setting it to (`y`, `yhat`, `yhat_lower`, `yhat_upper`) may ease the debugging of produced anomaly scores.
 
@@ -162,7 +164,7 @@ To focus on the most significant anomalies, set the `Min anomaly %` dashboard co
 To further refine the results, you can:  
 
 - **(Global effect)** Filter table columns (e.g., by a specific `instance`).  
-  **Note:** This applies an additional ad-hoc filter at the dashboard level, so remember to remove it after your investigation.  
+  > This applies an additional ad-hoc filter at the dashboard level, so remember to remove it after your investigation.  
   ![dashboard-as-example-step-4](vmanomaly-default-dashboard-example-step-3.webp)  
 
 - **(Local effect)** Click on legend values to isolate specific series (`CTRL` or `CMD` + click to select multiple items).  
@@ -192,9 +194,9 @@ Further investigation is needed to determine the exact cause.
 
 The Node-Exporter preset simplifies the monitoring and anomaly detection of key system metrics collected by [`node_exporter`](https://github.com/prometheus/node_exporter). This preset reduces the need for manual configuration and detects anomalies in metrics such as CPU usage, network errors, and disk latency, ensuring timely identification of potential issues. Below are detailed instructions on enabling and using the Node-Exporter preset, along with a list of included assets like alerting rules and Grafana dashboard.
 
-> **Note: Node-Exporter preset assets can be also found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/)**
+> **Node-Exporter preset assets can be also found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/)**
 
-For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)) in `reader` and `writer` sections, like that:
+For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)) in `reader` and `writer` sections, like that:
 
 ```yaml
 preset: "node-exporter"
@@ -209,7 +211,7 @@ writer:
 Run a service using such config file with one of the [available options](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
 
 ### Generated anomaly scores
-Machine learning models will be fit for each timeseries, returned by underlying [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries.
+Machine learning models will be fit for each timeseries, returned by underlying [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries.
 In addition to preset label, anomaly score metric labels will also contain [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) aliases for labelset uniqueness (`preset`, `model_alias`, `scheduler_alias` labels, respectively).
 
 Here's an example of produced metrics:

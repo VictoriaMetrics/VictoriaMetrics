@@ -84,7 +84,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options, alias string) (
 
 	as, err := loadFromData(data, path, pushFunc, opts, alias)
 	if err != nil {
-		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config", path, err)
+		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config", path, err)
 	}
 
 	return as, nil
@@ -539,7 +539,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	by := sortAndRemoveDuplicates(cfg.By)
 	without := sortAndRemoveDuplicates(cfg.Without)
 	if len(by) > 0 && len(without) > 0 {
-		return nil, fmt.Errorf("`by: %s` and `without: %s` lists cannot be set simultaneously; see https://docs.victoriametrics.com/stream-aggregation/", by, without)
+		return nil, fmt.Errorf("`by: %s` and `without: %s` lists cannot be set simultaneously; see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/", by, without)
 	}
 	aggregateOnlyByTime := (len(by) == 0 && len(without) == 0)
 	if !aggregateOnlyByTime && len(without) == 0 {
@@ -558,11 +558,11 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		}
 		if len(cfg.Outputs) != 1 {
 			return nil, fmt.Errorf("`outputs` list must contain only a single entry if `keep_metric_names` is set; got %q; "+
-				"see https://docs.victoriametrics.com/stream-aggregation/#output-metric-names", cfg.Outputs)
+				"see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#output-metric-names", cfg.Outputs)
 		}
 		if cfg.Outputs[0] == "histogram_bucket" || strings.HasPrefix(cfg.Outputs[0], "quantiles(") && strings.Contains(cfg.Outputs[0], ",") {
 			return nil, fmt.Errorf("`keep_metric_names` cannot be applied to `outputs: %q`, since they can generate multiple time series; "+
-				"see https://docs.victoriametrics.com/stream-aggregation/#output-metric-names", cfg.Outputs)
+				"see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#output-metric-names", cfg.Outputs)
 		}
 	}
 
@@ -593,7 +593,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	// initialize aggrOutputs
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
-			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
+			"see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/", supportedOutputs)
 	}
 	useInputKey := dedupInterval <= 0
 	useSharedState := enableWindows && useInputKey
@@ -788,7 +788,7 @@ func newOutputConfig(output string, outputsSeen map[string]struct{}, useSharedSt
 	case "unique_samples":
 		return newUniqueSamplesAggrConfig(), nil
 	default:
-		return nil, fmt.Errorf("unsupported output=%q; supported values: %s; see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+		return nil, fmt.Errorf("unsupported output=%q; supported values: %s; see https://docs.victoriametrics.com/victoriametrics/stream-aggregation/", output, supportedOutputs)
 	}
 }
 

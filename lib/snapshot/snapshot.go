@@ -48,6 +48,8 @@ func Create(createSnapshotURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -86,13 +88,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
 	if err != nil {
 		return fmt.Errorf("failed to create transport for -snapshot.deleteURL=%q: %s", deleteSnapshotURL, err)
-
 	}
 	hc := &http.Client{Transport: tr}
 	resp, err := hc.PostForm(u.String(), formData)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err

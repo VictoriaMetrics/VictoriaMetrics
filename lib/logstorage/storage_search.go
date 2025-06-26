@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -36,16 +37,8 @@ type genericSearchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// neededColumnNames contains names of columns to return in the result
-	neededColumnNames []string
-
-	// unneededColumnNames contains names of columns, which mustn't be returned in the result.
-	//
-	// This list is consulted if needAllColumns=true
-	unneededColumnNames []string
-
-	// needAllColumns is set to true when all the columns except of unneededColumnNames must be returned in the result
-	needAllColumns bool
+	// fieldsFilter is the filter of fields to return in the result
+	fieldsFilter *prefixfilter.Filter
 }
 
 type searchOptions struct {
@@ -66,21 +59,14 @@ type searchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// neededColumnNames contains names of columns to return in the result
-	neededColumnNames []string
-
-	// unneededColumnNames contains names of columns, which mustn't be returned in the result.
-	//
-	// This list is consulted when needAllColumns=true.
-	unneededColumnNames []string
-
-	// needAllColumns is set to true when all the columns except of unneededColumnNames must be returned in the result
-	needAllColumns bool
+	// fieldsFilter is the filter of fields to return in the result
+	fieldsFilter *prefixfilter.Filter
 }
 
 // WriteDataBlockFunc must process the db.
 //
-// WriteDataBlockFunc cannot hold references to db after returning.
+// WriteDataBlockFunc cannot hold references to db or any of its fields after the function returns.
+// If you need BlockColumn names or values after the function returns, copy them using strings.Clone.
 type WriteDataBlockFunc func(workerID uint, db *DataBlock)
 
 func (f WriteDataBlockFunc) newBlockResultWriter() writeBlockResultFunc {
@@ -134,17 +120,15 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	})
 
 	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
-	neededColumnNames, unneededColumnNames := getNeededColumns(q.pipes)
+	fieldsFilter := getNeededColumns(q.pipes)
 
 	so := &genericSearchOptions{
-		tenantIDs:           tenantIDs,
-		streamIDs:           streamIDs,
-		minTimestamp:        minTimestamp,
-		maxTimestamp:        maxTimestamp,
-		filter:              q.f,
-		neededColumnNames:   neededColumnNames,
-		unneededColumnNames: unneededColumnNames,
-		needAllColumns:      slices.Contains(neededColumnNames, "*"),
+		tenantIDs:    tenantIDs,
+		streamIDs:    streamIDs,
+		minTimestamp: minTimestamp,
+		maxTimestamp: maxTimestamp,
+		filter:       q.f,
+		fieldsFilter: fieldsFilter,
 	}
 
 	workersCount := q.GetConcurrency()
@@ -666,10 +650,10 @@ func initStreamContextPipes(q *Query, runQuery runQueryFunc) (*Query, error) {
 	}
 
 	if pc, ok := pipes[0].(*pipeStreamContext); ok {
-		neededColumnNames, unneededColumnNames := getNeededColumns(pipes)
+		fieldsFilter := getNeededColumns(pipes)
 
 		pipesNew := append([]pipe{}, pipes...)
-		pipesNew[0] = pc.withRunQuery(runQuery, neededColumnNames, unneededColumnNames)
+		pipesNew[0] = pc.withRunQuery(runQuery, fieldsFilter)
 		qNew := q.cloneShallow()
 		qNew.pipes = pipesNew
 		return qNew, nil
@@ -799,7 +783,7 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 			return false
 		}
 	}
-	return visitFilter(f, visitFunc)
+	return visitFilterRecursive(f, visitFunc)
 }
 
 func hasFilterInWithQueryForPipes(pipes []pipe) bool {
@@ -980,18 +964,19 @@ func (db *DataBlock) RowsCount() int {
 	return 0
 }
 
-// GetTimestamps returns _time column values from db.
+// GetTimestamps appends _time column values from db to dst and returns the result.
 //
-// It returns false if db doesn't have _time column.
-func (db *DataBlock) GetTimestamps() ([]string, bool) {
+// It returns false if db doesn't have _time column or this column has invalid timestamps.
+func (db *DataBlock) GetTimestamps(dst []int64) ([]int64, bool) {
 	columns := db.Columns
 	for i := range columns {
 		c := &columns[i]
-		if c.Name == "_time" {
-			return c.Values, true
+		if c.Name != "_time" {
+			continue
 		}
+		return tryParseTimestamps(dst, c.Values)
 	}
-	return nil, false
+	return dst, false
 }
 
 // Marshal appends marshaled db to dst and returns the result.
@@ -1247,14 +1232,12 @@ func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions
 		f = initStreamFilters(so.tenantIDs, pt.idb, f)
 	}
 	soInternal := &searchOptions{
-		tenantIDs:           tenantIDs,
-		streamIDs:           streamIDs,
-		minTimestamp:        so.minTimestamp,
-		maxTimestamp:        so.maxTimestamp,
-		filter:              f,
-		neededColumnNames:   so.neededColumnNames,
-		unneededColumnNames: so.unneededColumnNames,
-		needAllColumns:      so.needAllColumns,
+		tenantIDs:    tenantIDs,
+		streamIDs:    streamIDs,
+		minTimestamp: so.minTimestamp,
+		maxTimestamp: so.maxTimestamp,
+		filter:       f,
+		fieldsFilter: so.fieldsFilter,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)
 }
@@ -1294,7 +1277,7 @@ func hasStreamFilters(f filter) bool {
 		_, ok := f.(*filterStream)
 		return ok
 	}
-	return visitFilter(f, visitFunc)
+	return visitFilterRecursive(f, visitFunc)
 }
 
 func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {

@@ -17,7 +17,7 @@ aliases:
 
 vmagent can receive data via the same protocols as VictoriaMetrics Single or Cluster versions,
 as well as scrape Prometheus endpoints. In other words, 
-it supports both [Push](https://docs.victoriametrics.com/keyconcepts/#push-model) and [Pull](https://docs.victoriametrics.com/keyconcepts/#pull-model) models.
+it supports both [Push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [Pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model) models.
 
 This section of the documentation only covers forwarding data from vmagent to another destination.
 For extra information about vmagent as well as quickstart guide please refer to the [vmagent documentation](https://docs.victoriametrics.com/victoriametrics/vmagent/).
@@ -30,13 +30,13 @@ configure the `-remoteWrite.url` cmd-line flag:
 ```
 
 For pushing data to VictoriaMetrics cluster the `-remoteWrite.url` should point to vminsert and include
-the [tenantID](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format):
+the [tenantID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format):
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<vminsert-addr>/insert/<tenant_id>/prometheus/api/v1/write
 ```
 
-> Note: read more about [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
-> or [multitenancy via labels](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
+> Note: read more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+> or [multitenancy via labels](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels).
 
 Please note, `-remoteWrite.url` cmd-line flag can be specified multiple times with different values. In this case,
 vmagent will [replicate](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability) data to each 

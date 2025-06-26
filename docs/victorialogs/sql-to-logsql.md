@@ -56,7 +56,7 @@ FROM <table>
 ```
 
 The `<filters>` part selects the needed logs (rows) according to the provided [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters).
-Then the provided [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) are executed sequentlially.
+Then the provided [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) are executed sequentially.
 Every such pipe receives all the rows from the previous stage, performs some calculations and/or transformations,
 and then pushes the resulting rows to the next stage. This simplifies reading and understanding the query - just read it from the beginning
 to the end in order to understand what does it do at every stage.
@@ -116,4 +116,4 @@ It is equivalent to the longer LogsQL query:
 
 [LogsQL pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) support much wider functionality comparing to SQL,
 so spend your spare time by reading [pipe docs](https://docs.victoriametrics.com/victorialogs/logsql/) and playing with them
-at [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/).
+at [VictoriaLogs demo playground](https://play-vmlogs.victoriametrics.com/).

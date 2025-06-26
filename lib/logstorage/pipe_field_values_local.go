@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -32,14 +33,13 @@ func (pf *pipeFieldValuesLocal) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFieldValuesLocal) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (pf *pipeFieldValuesLocal) updateNeededFields(f *prefixfilter.Filter) {
+	f.Reset()
 
-	neededFields.add(pf.pf.field)
+	f.AddAllowFilter(pf.pf.field)
 
 	hitsFieldName := pf.pf.getHitsFieldName()
-	neededFields.add(hitsFieldName)
+	f.AddAllowFilter(hitsFieldName)
 }
 
 func (pf *pipeFieldValuesLocal) hasFilterInWithQuery() bool {
@@ -87,7 +87,7 @@ func (pfp *pipeFieldValuesLocalProcessor) writeBlock(workerID uint, br *blockRes
 	for i, value := range values {
 		hits64, ok := tryParseUint64(hits[i])
 		if !ok {
-			logger.Panicf("BUG: unexpected hits recevied from the remote storage for %q: %q; it must be uint64", value, hits[i])
+			logger.Panicf("BUG: unexpected hits received from the remote storage for %q: %q; it must be uint64", value, hits[i])
 		}
 		shard.vhs = append(shard.vhs, ValueWithHits{
 			Value: strings.Clone(value),

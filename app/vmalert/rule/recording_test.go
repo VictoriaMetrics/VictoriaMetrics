@@ -168,6 +168,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 	}, [][]datasource.Metric{{
 		metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
 		metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar", "source", "origin"),
+		metricWithValueAndLabels(t, 1, "__name__", "baz", "job", "baz", "source", "test"),
 	}}, [][]prompbmarshal.TimeSeries{{
 		newTimeSeries([]float64{2}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
 			{
@@ -200,6 +201,21 @@ func TestRecordingRule_Exec(t *testing.T) {
 				{
 					Name:  "exported_source",
 					Value: "origin",
+				},
+			}),
+		newTimeSeries([]float64{1}, []int64{ts.UnixNano()},
+			[]prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: "job:foo",
+				},
+				{
+					Name:  "job",
+					Value: "baz",
+				},
+				{
+					Name:  "source",
+					Value: "test",
 				},
 			}),
 	}})

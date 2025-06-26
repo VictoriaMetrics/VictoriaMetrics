@@ -9,4 +9,5 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8427
 ENTRYPOINT ["/vmauth-prod"]
 ARG TARGETARCH
-COPY vmauth-linux-${TARGETARCH}-prod ./vmauth-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vmauth-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vmauth-prod

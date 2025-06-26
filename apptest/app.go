@@ -17,9 +17,13 @@ import (
 var (
 	storageDataPathRE           = regexp.MustCompile(`successfully opened storage "(.*)"`)
 	httpListenAddrRE            = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
+	graphiteListenAddrRE        = regexp.MustCompile(`started TCP Graphite server at "(.*:\d{1,5})"`)
+	openTSDBListenAddrRE        = regexp.MustCompile(`started TCP OpenTSDB collector at "(.*:\d{1,5})"`)
 	vminsertAddrRE              = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
 	vminsertClusterNativeAddrRE = regexp.MustCompile(`started TCP clusternative server at "(.*:\d{1,5})"`)
 	vmselectAddrRE              = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
+
+	logsStorageDataPathRE = regexp.MustCompile(`opening storage at -storageDataPath=(.*)`)
 )
 
 // app represents an instance of some VictoriaMetrics server (such as vmstorage,
@@ -29,6 +33,7 @@ type app struct {
 	binary   string
 	flags    []string
 	process  *os.Process
+	wait     bool
 }
 
 // appOptions holds the optional configuration of an app, such as default flags
@@ -36,6 +41,7 @@ type app struct {
 type appOptions struct {
 	defaultFlags map[string]string
 	extractREs   []*regexp.Regexp
+	wait         bool
 }
 
 // startApp starts an instance of an app using the app binary file path and
@@ -71,6 +77,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		binary:   binary,
 		flags:    flags,
 		process:  cmd.Process,
+		wait:     opts.wait,
 	}
 
 	go app.processOutput("stdout", stdout, app.writeToStderr)
@@ -90,7 +97,11 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
-	return app, extracts, nil
+	if app.wait {
+		err = cmd.Wait()
+	}
+
+	return app, extracts, err
 }
 
 // setDefaultFlags adds flags with default values to `flags` if it does not
@@ -110,9 +121,12 @@ func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
 	return flags
 }
 
-// stop sends the app process a SIGINT signal and waits until it terminates
+// Stop sends the app process a SIGINT signal and waits until it terminates
 // gracefully.
 func (app *app) Stop() {
+	if app.wait {
+		return
+	}
 	if err := app.process.Signal(os.Interrupt); err != nil {
 		log.Fatalf("Could not send SIGINT signal to %s process: %v", app.instance, err)
 	}

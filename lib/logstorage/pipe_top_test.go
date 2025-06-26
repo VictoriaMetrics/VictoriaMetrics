@@ -10,10 +10,6 @@ func TestParsePipeTopSuccess(t *testing.T) {
 		expectParsePipeSuccess(t, pipeStr)
 	}
 
-	f(`top`)
-	f(`top rank`)
-	f(`top 5`)
-	f(`top 5 rank as foo`)
 	f(`top by (x)`)
 	f(`top 5 by (x)`)
 	f(`top by (x, y)`)
@@ -38,6 +34,11 @@ func TestParsePipeTopFailure(t *testing.T) {
 	f(`top by`)
 	f(`top (x) rank a b`)
 	f(`top (x) hits`)
+	f(`top`)
+	f(`top rank`)
+	f(`top ()`)
+	f(`top (*)`)
+	f(`top (a*)`)
 }
 
 func TestPipeTop(t *testing.T) {
@@ -45,86 +46,6 @@ func TestPipeTop(t *testing.T) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
-
-	f("top", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-			{"hits", "2"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-			{"hits", "1"},
-		},
-	})
-
-	f("top rank", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-			{"hits", "2"},
-			{"rank", "1"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-			{"hits", "1"},
-			{"rank", "2"},
-		},
-	})
-
-	f("top 1 hits foo", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", "2"},
-			{"b", "3"},
-			{"foo", "2"},
-		},
-	})
 
 	f("top by (a)", [][]Field{
 		{
@@ -147,7 +68,7 @@ func TestPipeTop(t *testing.T) {
 		},
 	})
 
-	f("top b", [][]Field{
+	f("top b hits abc", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},
@@ -164,11 +85,11 @@ func TestPipeTop(t *testing.T) {
 	}, [][]Field{
 		{
 			{"b", "3"},
-			{"hits", "2"},
+			{"abc", "2"},
 		},
 		{
 			{"b", "54"},
-			{"hits", "1"},
+			{"abc", "1"},
 		},
 	})
 
@@ -348,31 +269,29 @@ func TestPipeTop(t *testing.T) {
 }
 
 func TestPipeTopUpdateNeededFields(t *testing.T) {
-	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected string) {
 		t.Helper()
-		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, allowFilters, denyFilters, allowFiltersExpected, denyFiltersExpected)
 	}
 
 	// all the needed fields
-	f("top", "*", "", "*", "")
-	f("top by()", "*", "", "*", "")
-	f("top by(*)", "*", "", "*", "")
-	f("top by(f1,f2)", "*", "", "f1,f2", "")
+	f("top by(x)", "*", "", "x", "")
 	f("top by(f1,f2)", "*", "", "f1,f2", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("top by(s1, s2)", "*", "f1,f2", "s1,s2", "")
-	f("top", "*", "f1,f2", "*", "")
+	f("top by(s1, s2)", "*", "f*", "s1,s2", "")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("top by(s1, s2)", "*", "s1,f1,f2", "s1,s2", "")
-	f("top by(*)", "*", "s1,f1,f2", "*", "")
 	f("top by(s1, s2)", "*", "s1,s2,f1", "s1,s2", "")
+	f("top by(s1, s2)", "*", "s*,f*", "s1,s2", "")
 
 	// needed fields do not intersect with src
 	f("top by (s1, s2)", "f1,f2", "", "s1,s2", "")
+	f("top by (s1, s2)", "f*", "", "s1,s2", "")
 
 	// needed fields intersect with src
 	f("top by (s1, s2)", "s1,f1,f2", "", "s1,s2", "")
-	f("top by (*)", "s1,f1,f2", "", "*", "")
+	f("top by (s1, s2)", "s*,f*", "", "s1,s2", "")
 }

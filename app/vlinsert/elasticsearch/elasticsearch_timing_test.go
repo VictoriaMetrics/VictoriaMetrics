@@ -40,7 +40,7 @@ func benchmarkReadBulkRequest(b *testing.B, encoding string) {
 	}
 	dataBytes := bytesutil.ToUnsafeBytes(data)
 
-	timeField := "@timestamp"
+	timeFields := []string{"@timestamp"}
 	msgFields := []string{"message"}
 	blp := &insertutil.BenchmarkLogMessageProcessor{}
 
@@ -50,7 +50,7 @@ func benchmarkReadBulkRequest(b *testing.B, encoding string) {
 		r := &bytes.Reader{}
 		for pb.Next() {
 			r.Reset(dataBytes)
-			_, err := readBulkRequest("test", r, encoding, timeField, msgFields, blp)
+			_, err := readBulkRequest("test", r, encoding, timeFields, msgFields, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}

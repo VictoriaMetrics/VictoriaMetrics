@@ -47,7 +47,9 @@ from the received Syslog lines:
 - [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) - the `MESSAGE` field from the supported syslog formats above
 - `hostname`, `app_name` and `proc_id` - for unique identification of [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
   It is possible to change the list of fields for log streams - see [these docs](#stream-fields).
+- `level` - string representation of the log level according to the `<PRI>` field value
 - `priority`, `facility` and `severity` - these fields are extracted from `<PRI>` field
+- `facility_keyword` - string representation of the `facility` field according to [these docs](https://en.wikipedia.org/wiki/Syslog#Facility)
 - `format` - this field is set to either `rfc3164` or `rfc5424` depending on the format of the parsed syslog line
 - `msg_id` - `MSGID` field from log line in `RFC5424` format.
 
@@ -77,6 +79,7 @@ See also:
 - [Multitenancy](#multitenancy)
 - [Stream fields](#stream-fields)
 - [Dropping fields](#dropping-fields)
+- [Decolorizing fields](#decolorizing-fields)
 - [Adding extra fields](#adding-extra-fields)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
@@ -165,6 +168,18 @@ For example, the following command starts VictoriaLogs, which drops `proc_id` an
 
 The list may contain field name prefixes ending with `*` such as `some-prefix*`. In this case all the log fields starting with this prefix
 are ignored during data ingestion.
+
+## Decolorizing fields
+
+VictoriaLogs supports `-syslog.decolorizeFields.tcp` and `-syslog.decolorizeFields.udp` command-line flags,
+which can be used for removing ANSI color codes from the provided list fields during ingestion of Syslog logs
+into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.upd` addresses.
+For example, the following command starts VictoriaLogs, which removes ANSI color codes from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+at logs received via TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.decolorizeFields.tcp='["_msg"]'
+```
 
 ## Adding extra fields
 
