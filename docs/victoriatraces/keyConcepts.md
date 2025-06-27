@@ -13,9 +13,11 @@ aliases:
 - /victoriatraces/keyConcepts.html
 ---
 
-> VictoriaTraces is built on VictoriaLogs. It's recommended to go through [the data model of VictoriaLogs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) as well.
+> Currently, VictoriaTraces is in the development version and built on VictoriaLogs. Therefore, they will share some flags and APIs. These flags and APIs will be completely separated once VictoriaTraces reaches a stable version.
 
 ## Data model
+
+VictoriaTraces is built on VictoriaLogs. It's recommended to go through [the data model of VictoriaLogs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) first.
 
 **Every [trace span](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/trace/v1/trace.proto) must contain `service.name` in its resource attributes and a span `name`**. They will be used as the [stream fields](#stream-fields). All other data of the span will be mapped as the ordinary fields.
 

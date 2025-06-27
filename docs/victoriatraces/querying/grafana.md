@@ -12,6 +12,8 @@ aliases:
   - /victoriatraces/querying/grafana.html
 ---
 
+> Currently, VictoriaTraces is in the development version and built on VictoriaLogs. Therefore, they will share some flags and APIs. These flags and APIs will be completely separated once VictoriaTraces reaches a stable version.
+
 [Grafana Jaeger Datasource](https://grafana.com/docs/grafana/latest/datasources/jaeger/) allows you to query and visualize VictoriaTraces data in Grafana.
 
 ![Visualization with Grafana](grafana-jaeger.webp)

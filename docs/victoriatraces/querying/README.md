@@ -1,3 +1,5 @@
+> Currently, VictoriaTraces is in the development version and built on VictoriaLogs. Therefore, they will share some flags and APIs. These flags and APIs will be completely separated once VictoriaTraces reaches a stable version.
+
 [VictoriaTraces](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) 
 via the following ways:
 - [Web UI](#web-ui) - a web-based UI for querying trace spans
