@@ -23,6 +23,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `datasource_type` query argument for `/api/v1/rules` and `/api/v1/alerts` endpoints to filter response by rule's datasource [type](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups). See [#8537](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8537).
 
 * BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683) and [dashboards/vmalert](https://grafana.com/grafana/dashboards/14950): fix ad-hoc filters auto-complete and filtering on panels that use MetricsQL specific expressions. See [#8657](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8657). 
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix negative increase result when `-search.maxLookback` or `-search.maxStalenessInterval` are set and data contains gap. See [#8935 (comment)](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-2978728661).
 
 ## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
 
