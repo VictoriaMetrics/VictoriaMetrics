@@ -53,7 +53,6 @@ func (cw *configWatcher) notifiers() []Notifier {
 		for _, n := range ns {
 			notifiers = append(notifiers, n.Notifier)
 		}
-
 	}
 	return notifiers
 }
@@ -85,12 +84,12 @@ func (cw *configWatcher) reload(path string) error {
 }
 
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn getLabels) error {
-	targets, errors := targetsFromLabels(labelsFn, cw.cfg)
+	targetMetadata, errors := getTargetMetadata(labelsFn, cw.cfg)
 	for _, err := range errors {
 		return fmt.Errorf("failed to init notifier for %q: %w", typeK, err)
 	}
 
-	cw.updateTargets(typeK, targets, cw.cfg, cw.genFn)
+	cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 
 	cw.wg.Add(1)
 	go func() {
@@ -105,22 +104,22 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 				return
 			case <-ticker.C:
 			}
-			updateTargets, errors := targetsFromLabels(labelsFn, cw.cfg)
+			targetMetadata, errors := getTargetMetadata(labelsFn, cw.cfg)
 			for _, err := range errors {
 				logger.Errorf("failed to init notifier for %q: %w", typeK, err)
 			}
-			cw.updateTargets(typeK, updateTargets, cw.cfg, cw.genFn)
+			cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 		}
 	}()
 	return nil
 }
 
-func targetsFromLabels(labelsFn getLabels, cfg *Config) (map[string]*promutil.Labels, []error) {
+func getTargetMetadata(labelsFn getLabels, cfg *Config) (map[string]*promutil.Labels, []error) {
 	metaLabels, err := labelsFn()
 	if err != nil {
 		return nil, []error{fmt.Errorf("failed to get labels: %w", err)}
 	}
-	targets := make(map[string]*promutil.Labels, len(metaLabels))
+	targetMetadata := make(map[string]*promutil.Labels, len(metaLabels))
 	var errors []error
 	duplicates := make(map[string]struct{})
 	for _, labels := range metaLabels {
@@ -143,9 +142,9 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config) (map[string]*promutil.La
 			continue
 		}
 		duplicates[u] = struct{}{}
-		targets[u] = processedLabels
+		targetMetadata[u] = processedLabels
 	}
-	return targets, errors
+	return targetMetadata, errors
 }
 
 type getLabels func() ([]*promutil.Labels, error)
@@ -236,22 +235,22 @@ func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 	cw.targetsMu.Unlock()
 }
 
-func (cw *configWatcher) updateTargets(key TargetType, currentTargets map[string]*promutil.Labels, cfg *Config, genFn AlertURLGenerator) {
+func (cw *configWatcher) updateTargets(key TargetType, targetMetadata map[string]*promutil.Labels, cfg *Config, genFn AlertURLGenerator) {
 	cw.targetsMu.Lock()
 	defer cw.targetsMu.Unlock()
 	oldTargets := cw.targets[key]
 	var updatedTargets []Target
 	for _, ot := range oldTargets {
-		if _, ok := currentTargets[ot.Addr()]; !ok {
+		if _, ok := targetMetadata[ot.Addr()]; !ok {
 			// if target not exists in currentTargets, close it
 			ot.Notifier.Close()
 		} else {
 			updatedTargets = append(updatedTargets, ot)
-			delete(currentTargets, ot.Addr())
+			delete(targetMetadata, ot.Addr())
 		}
 	}
 	// create new resources for the new targets
-	for addr, labels := range currentTargets {
+	for addr, labels := range targetMetadata {
 		am, err := NewAlertManager(addr, genFn, cfg.HTTPClientConfig, cfg.parsedAlertRelabelConfigs, cfg.Timeout.Duration())
 		if err != nil {
 			logger.Errorf("failed to init %s notifier with addr %q: %w", key, addr, err)

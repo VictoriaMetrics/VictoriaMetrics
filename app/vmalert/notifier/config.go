@@ -195,7 +195,7 @@ func mergeLabels(target string, metaLabels *promutil.Labels, cfg *Config) *promu
 		address = address[:n]
 	}
 	m.AddFrom(metaLabels)
-	// override the __address__ with processed value
+	// force labels
 	m.Set("__address__", address)
 	m.Set("__scheme__", scheme)
 	m.Set("__alerts_path__", alertsPath)
