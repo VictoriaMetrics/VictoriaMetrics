@@ -7,7 +7,7 @@ via the following ways:
 
 And on top of the LogsQL, VictoriaTraces also implemented [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json).
 These APIs can be used with:
-- [Grafana Jaeger datasource](#visualization-in-grafana)
+- [Grafana Jaeger datasource](https://docs.victoriametrics.com/victoriatraces/querying/grafana/)
 - [Jaeger UI](https://github.com/jaegertracing/jaeger-ui)
 
 ## Web UI
