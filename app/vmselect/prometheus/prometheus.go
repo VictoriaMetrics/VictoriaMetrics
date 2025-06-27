@@ -112,6 +112,8 @@ func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer federateDuration.UpdateDuration(startTime)
 
+	escapingScheme := ParseEscapingScheme(r.Header)
+
 	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
 		return err
@@ -141,7 +143,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 			return err
 		}
 		bb := sw.getBuffer(workerID)
-		WriteFederate(bb, rs)
+		WriteFederate(bb, rs, escapingScheme)
 		return sw.maybeFlushBuffer(bb)
 	})
 	if err == nil {
