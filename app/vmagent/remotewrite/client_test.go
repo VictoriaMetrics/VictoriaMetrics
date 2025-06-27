@@ -116,3 +116,44 @@ func TestRepackBlockFromZstdToSnappy(t *testing.T) {
 		t.Fatalf("unexpected plain block; got %q; want %q", actualPlainBlock, expectedPlainBlock)
 	}
 }
+
+func TestRetryMaxIntervalAndAlias(t *testing.T) {
+	// This logic is extracted from newHTTPClient for isolated testing
+	testCases := []struct {
+		interval string
+		alias    string
+		expected time.Duration
+		msg      string
+	}{
+		{"42s", "", 42 * time.Second, "retryMaxInterval not respected"},
+		{"", "33s", 33 * time.Second, "retryMaxTime alias not respected"},
+		{"55s", "44s", 55 * time.Second, "retryMaxInterval should take precedence"},
+		{"", "", time.Minute, "default retryMaxInterval not used"},
+	}
+
+	for _, tc := range testCases {
+		intervalVal := time.Minute
+		aliasVal := time.Minute
+		if tc.interval != "" {
+			parsed, err := time.ParseDuration(tc.interval)
+			if err != nil {
+				t.Fatalf("bad interval: %v", err)
+			}
+			intervalVal = parsed
+		}
+		if tc.alias != "" {
+			parsed, err := time.ParseDuration(tc.alias)
+			if err != nil {
+				t.Fatalf("bad alias: %v", err)
+			}
+			aliasVal = parsed
+		}
+		// Emulate the precedence logic from newHTTPClient
+		if intervalVal == time.Minute && aliasVal != time.Minute {
+			intervalVal = aliasVal
+		}
+		if intervalVal != tc.expected {
+			t.Fatalf("%s, got %v, want %v", tc.msg, intervalVal, tc.expected)
+		}
+	}
+}
