@@ -7539,7 +7539,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the max number of concurrent selects across instances.\n* `max` limit can be configured via `search.maxConcurrentRequests` flag\n* `current` shows the current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded with number of requests. If you observe that CPU for vmselects is saturated, consider adding more vmselect replicas or increase CPU resources. If CPU panel shows a plenty of free resources - try increasing `search.maxConcurrentRequests`.",
+          "description": "Shows the max number of concurrent selects across instances.\n* `max` limit can be configured via `search.maxConcurrentRequests` flag\n* `current` shows the current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded with number of requests. If you observe that CPU for vmselects is saturated, consider adding more vmselect replicas or increase CPU resources. If CPU and Memory panels show a plenty of free resources - try increasing `-search.maxConcurrentRequests`. Please note, the higher is `-search.maxConcurrentRequests`, the higher could be [peak memory usage](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#out-of-memory-errors).",
           "fieldConfig": {
             "defaults": {
               "color": {
