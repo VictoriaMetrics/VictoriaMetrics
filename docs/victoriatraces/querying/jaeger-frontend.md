@@ -12,7 +12,7 @@ aliases:
   - /victoriatraces/querying/jaeger-frontend.html
 ---
 
-> Currently, VictoriaTraces is in the development version and built on VictoriaLogs. Therefore, they will share some flags and APIs. These flags and APIs will be completely separated once VictoriaTraces reaches a stable version.
+> VictoriaTraces is currently under active development and not ready for production use. It is built on top of VictoriaLogs and therefore shares some flags and APIs. These will be fully separated once VictoriaTraces reaches a stable release. Until then, features may change or break without notice.
 
 [Jaeger UI](https://github.com/jaegertracing/jaeger-ui) is the official frontend that ships with Jaeger. It queries [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json)
 and visualizes the response trace data.
