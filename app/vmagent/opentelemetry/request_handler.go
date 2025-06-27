@@ -17,6 +17,7 @@ import (
 
 var (
 	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentelemetry"}`)
+	metadataInserted   = metrics.NewCounter(`vmagent_metadata_inserted_total{type="opentelemetry"}`)
 	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="opentelemetry"}`)
 	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
@@ -36,12 +37,12 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompbmarshal.TimeSeries) error {
-		return insertRows(at, tss, extraLabels)
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompbmarshal.TimeSeries, mms []prompbmarshal.MetricMetadata) error {
+		return insertRows(at, tss, mms, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, mms []prompbmarshal.MetricMetadata, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -63,12 +64,25 @@ func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, extraLabels []pr
 		})
 	}
 	ctx.WriteRequest.Timeseries = tssDst
+
+	var accountID, projectID uint32
+	if at != nil {
+		accountID = at.AccountID
+		projectID = at.ProjectID
+	}
+	for i := range mms {
+		mm := &mms[i]
+		mm.AccountID = accountID
+		mm.ProjectID = projectID
+	}
+	ctx.WriteRequest.Metadata = mms
 	ctx.Labels = labels
 	ctx.Samples = samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(rowsTotal)
+	metadataInserted.Add(len(mms))
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
 	}
