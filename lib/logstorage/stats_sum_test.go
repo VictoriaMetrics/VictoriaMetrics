@@ -54,6 +54,26 @@ func TestStatsSum(t *testing.T) {
 		},
 	})
 
+	f("stats by(b) sum(a)", [][]Field{
+		{
+			{"a", "0.000609"},
+			{"b", "b1"},
+		},
+		{
+			{"a", "0.000731"},
+			{"b", "b2"},
+		},
+	}, [][]Field{
+		{
+			{"b", "b2"},
+			{"sum(a)", "0.000731"},
+		},
+		{
+			{"b", "b1"},
+			{"sum(a)", "0.000609"},
+		},
+	})
+
 	f("stats sum(a) as x", [][]Field{
 		{
 			{"_msg", `abc`},
