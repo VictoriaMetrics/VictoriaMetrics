@@ -10,7 +10,30 @@ VictoriaTraces provides the following features:
 
 ## Quick Start
 
-Currently, VictoriaTraces is under actively developing. It can be built from VictoriaTraces repository. See: [How to build from sources](#how-to-build-from-sources).
+The easiest way to get started with VictoriaTraces is by using the pre-built Docker Compose file.
+It launches VictoriaTraces, Grafana, and HotROD (a sample application that generates tracing data).
+Everything is preconfigured and connected out of the box, so you can start exploring distributed tracing within minutes.
+
+Clone the repository:
+```bash 
+git clone -b victoriatraces --single-branch https://github.com/VictoriaMetrics/VictoriaMetrics.git;
+cd  VictoriaMetrics;
+```
+
+Run VictoriaTraces with Docker Compose:
+```bash
+make docker-vt-single-up;
+```
+
+Now you can open HotROD at [http://localhost:8080](http://localhost:8080) and click around to generate some traces.
+Then, you can open Grafana at [http://localhost:3000/explore](http://localhost:3000/explore) and explore the traces using the Jaeger data source.
+
+To stop the services, run:
+```bash
+make docker-vt-single-down;
+```
+
+You can read more about docker compose and what's available there in the [Docker compose environment for VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/deployment/victoriatraces/deployment/docker/README.md#victoriatraces-server).
 
 ### How to build from sources
 
