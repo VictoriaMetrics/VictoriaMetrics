@@ -122,7 +122,7 @@ func (fs *FS) Init(ctx context.Context) error {
 				o.Retryables = append(retry.DefaultRetryables, retry.RetryableErrorCode{
 					Codes: map[string]struct{}{
 						"IncompleteBody": {},
-						// Tolerate token expiration as it might be handled ty token rotation automatically
+						// Tolerate token expiration as it might be handled by token rotation automatically
 						// when using EKS Pod Identity or similar.
 						// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9280
 						"ExpiredToken": {},
