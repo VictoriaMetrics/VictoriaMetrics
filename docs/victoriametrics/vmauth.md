@@ -176,6 +176,7 @@ unauthorized_user:
     - "http://vminsert-3:8480/"
   - src_paths:
     - "/select/.*"
+    - "/admin/.*"
     url_prefix:
     - "http://vmselect-1:8481/"
     - "http://vmselect-2:8481/"
