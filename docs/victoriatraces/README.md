@@ -41,6 +41,12 @@ Building from sources is reasonable when developing additional features specific
 
 {{% collapse name="How to build from sources" %}}
 
+Clone VictoriaMetrics repository: 
+```bash 
+git clone -b victoriatraces --single-branch https://github.com/VictoriaMetrics/VictoriaMetrics.git;
+cd  VictoriaMetrics;
+```
+
 #### Build binary with go build
 
 1. [Install Go](https://golang.org/doc/install).
@@ -82,11 +88,13 @@ docker run --rm -it -p 9428:9428 -v ./victoria-traces-data:/victoria-traces-data
   docker.io/victoriametrics/victoria-traces:latest -storageDataPath=victoria-traces-data
 ```
 
-VictoriaTraces is configured via command-line flags. All the command-line flags have sane defaults, so there is no need in tuning them in general case. VictoriaTraces runs smoothly in most environments without additional configuration.
+VictoriaTraces is configured via command-line flags. 
+All the command-line flags have sane defaults, so there is no need in tuning them in general case. 
+VictoriaTraces runs smoothly in most environments without additional configuration.
 
 Pass `-help` to VictoriaTraces in order to see the list of supported command-line flags with their description and default values:
 
-```
+```bash
 /path/to/victoria-traces -help
 ```
 
