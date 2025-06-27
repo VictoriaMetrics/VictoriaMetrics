@@ -281,7 +281,6 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		}
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
-		notifiersDuration.UpdateDuration(startTime)
 		return true
 	case "/select/api/v1/alerts":
 		alertsRequests.Inc()
@@ -292,7 +291,6 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		}
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
-		alertsDuration.UpdateDuration(startTime)
 		return true
 	case "/select/api/v1/rules":
 		rulesRequests.Inc()
@@ -303,7 +301,6 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		}
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"rules":[]}}`)
-		rulesDuration.UpdateDuration(startTime)
 		return true
 	default:
 		return false
@@ -393,12 +390,7 @@ var (
 	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
 
-	rulesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/rules"}`)
-	rulesDuration = metrics.NewSummary(`vl_http_requests_duration_seconds{path="/select/api/v1/rules"}`)
-
-	alertsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/alerts"}`)
-	alertsDuration = metrics.NewSummary(`vl_http_requests_duration_seconds{path="/select/api/v1/alerts"}`)
-
+	rulesRequests     = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/rules"}`)
+	alertsRequests    = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/alerts"}`)
 	notifiersRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/api/v1/notifiers"}`)
-	notifiersDuration = metrics.NewSummary(`vl_http_requests_duration_seconds{path="/select/api/v1/notifiers"}`)
 )
