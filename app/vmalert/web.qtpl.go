@@ -523,9 +523,9 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*apiG
                         <table class="table table-striped table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th scope="col" style="width: 60%">Rule</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many series were produced by the rule">Series</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                                    <th scope="col" class="w-60">Rule</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1697,17 +1697,17 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule apiRule)
             <thead>
                 <tr>
                     <th scope="col" title="The time when event was created">Updated at</th>
-                    <th scope="col" style="width: 10%" class="text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
+                    <th scope="col" class="w-10 text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
                     `)
 //line app/vmalert/web.qtpl:598
 	if seriesFetchedEnabled {
 //line app/vmalert/web.qtpl:598
-		qw422016.N().S(`<th scope="col" style="width: 10%" class="text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>`)
+		qw422016.N().S(`<th scope="col" class="w-10 text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>`)
 //line app/vmalert/web.qtpl:598
 	}
 //line app/vmalert/web.qtpl:598
 	qw422016.N().S(`
-                    <th scope="col" style="width: 10%" class="text-center" title="How many seconds request took">Duration</th>
+                    <th scope="col" class="w-10 text-center" title="How many seconds request took">Duration</th>
                     <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
                     <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>
