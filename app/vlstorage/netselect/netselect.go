@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -21,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 const (
@@ -65,6 +67,9 @@ type Storage struct {
 	sns []*storageNode
 
 	disableCompression bool
+
+	// remoteSendErrors is the number of errors when sending request to the remote storage node
+	remoteSendErrors atomic.Uint64
 }
 
 type storageNode struct {
@@ -313,6 +318,10 @@ func (s *Storage) MustStop() {
 	s.sns = nil
 }
 
+func (s *Storage) WriteMetrics(w io.Writer) {
+	metrics.WriteGaugeUint64(w, `vl_select_remote_send_errors_total`, s.remoteSendErrors.Load())
+}
+
 // RunQuery runs the given q and calls writeBlock for the returned data blocks
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock logstorage.WriteDataBlockFunc) error {
 	nqr, err := logstorage.NewNetQueryRunner(ctx, tenantIDs, q, s.RunQuery, writeBlock)
@@ -345,6 +354,9 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, tenantIDs []logstorage.Tenant
 			})
 			if err != nil {
 				// Cancel the remaining parallel queries
+				if !errors.Is(err, context.Canceled) {
+					s.remoteSendErrors.Add(1)
+				}
 				cancel()
 			}
 

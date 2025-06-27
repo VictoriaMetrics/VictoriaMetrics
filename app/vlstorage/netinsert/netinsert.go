@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // the maximum size of a single data block sent to storage node.
@@ -45,6 +46,16 @@ type Storage struct {
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
+}
+
+func (s *Storage) WriteMetrics(w io.Writer) {
+	activeStreams := s.GetActiveStreams()
+	if activeStreams == 0 {
+		return
+	}
+
+	metrics.WriteGaugeUint64(w, `vl_insert_active_streams`, activeStreams)
+	metrics.WriteCounterUint64(w, `vl_insert_remote_send_errors_total`, s.RemoteSendFailed.Load())
 }
 
 type storageNode struct {
