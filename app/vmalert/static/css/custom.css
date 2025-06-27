@@ -99,3 +99,15 @@ textarea.curl-area {
   padding: 0;
   overflow: scroll;
 }
+
+.w-10 {
+  width: 10%;
+}
+
+.w-20 {
+  width: 20%;
+}
+
+.w-60 {
+  width: 60%;
+}
