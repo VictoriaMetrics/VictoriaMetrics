@@ -41,70 +41,51 @@ func (b *block) reset() {
 
 // uncompressedSizeBytes returns the total size of the original log entries stored in b.
 //
-// It is supposed that every log entry has the following format:
+// It uses JSON format to calculate the size as if each log entry were represented as JSON.
 //
-// 2006-01-02T15:04:05.999999999Z07:00 field1=value1 ... fieldN=valueN
-func (b *block) uncompressedSizeBytes() uint64 {
-	rowsCount := uint64(b.Len())
+// The calculation logic must stay in sync with EstimatedJSONRowLen() in log_rows.go.
+// If you change logic here, update EstimatedJSONRowLen() accordingly and vice versa.
+func (b *block) uncompressedSizeBytes() int {
+	rowsCount := b.Len()
+	if rowsCount == 0 {
+		return 0
+	}
 
-	// Take into account timestamps
-	n := rowsCount * uint64(len(time.RFC3339Nano))
+	totalSize := (len("{}\n") + len(`"_time":""`) + len(time.RFC3339Nano)) * rowsCount
 
-	// Take into account columns
-	cs := b.columns
-	for i := range cs {
-		c := &cs[i]
-		nameLen := uint64(len(c.name))
-		if nameLen == 0 {
-			nameLen = uint64(len("_msg"))
-		}
+	// size of constant fields (included in every row)
+	for i := range b.constColumns {
+		cc := &b.constColumns[i]
+		name := getRawFieldName(cc.Name)
+		totalSize += estimatedJSONFieldLen(name, cc.Value) * rowsCount
+	}
+
+	// add size of variable fields
+	for i := range b.columns {
+		c := &b.columns[i]
+		name := getRawFieldName(c.name)
+
 		for _, v := range c.values {
-			if len(v) > 0 {
-				n += nameLen + 2 + uint64(len(v))
+			// VictoriaLogs data model (https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+			// treats empty values as non-existing values
+			if len(v) == 0 {
+				continue
 			}
+
+			totalSize += estimatedJSONFieldLen(name, v)
 		}
 	}
 
-	// Take into account constColumns
-	ccs := b.constColumns
-	for i := range ccs {
-		cc := &ccs[i]
-		nameLen := uint64(len(cc.Name))
-		if nameLen == 0 {
-			nameLen = uint64(len("_msg"))
-		}
-		n += rowsCount * (2 + nameLen + uint64(len(cc.Value)))
-	}
-
-	return n
+	return totalSize
 }
 
 // uncompressedRowsSizeBytes returns the size of the uncompressed rows.
 //
-// It is supposed that every row has the following format:
-//
-// 2006-01-02T15:04:05.999999999Z07:00 field1=value1 ... fieldN=valueN
+// It is assumed that each row is in JSON format.
 func uncompressedRowsSizeBytes(rows [][]Field) uint64 {
 	n := uint64(0)
 	for _, fields := range rows {
-		n += uncompressedRowSizeBytes(fields)
-	}
-	return n
-}
-
-// uncompressedRowSizeBytes returns the size of uncompressed row.
-//
-// It is supposed that the row has the following format:
-//
-// 2006-01-02T15:04:05.999999999Z07:00 field1=value1 ... fieldN=valueN
-func uncompressedRowSizeBytes(fields []Field) uint64 {
-	n := uint64(len(time.RFC3339Nano)) // log timestamp
-	for _, f := range fields {
-		nameLen := len(f.Name)
-		if nameLen == 0 {
-			nameLen = len("_msg")
-		}
-		n += uint64(2 + nameLen + len(f.Value))
+		n += uint64(EstimatedJSONRowLen(fields))
 	}
 	return n
 }
@@ -478,7 +459,7 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	bh.reset()
 
 	bh.streamID = *sid
-	bh.uncompressedSizeBytes = b.uncompressedSizeBytes()
+	bh.uncompressedSizeBytes = uint64(b.uncompressedSizeBytes())
 	bh.rowsCount = uint64(b.Len())
 
 	// Marshal timestamps
