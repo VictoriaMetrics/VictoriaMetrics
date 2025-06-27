@@ -1,0 +1,123 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alert-group {
+  width: 100%;
+  &:has(.vm-accordion-header_open) {
+    border: $border-divider;
+    border-radius: $border-radius-small;
+  }
+}
+
+.circle-container {
+  display: flex;
+  gap: $padding-small;
+  color: $color-white;
+  align-items: center;
+}
+
+.vm-list-item-inner, .circle-container {
+  .circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    &:is(.firing) {
+      background-color: $color-error;
+    }
+    &:is(.inactive) {
+      background-color: $color-success;
+    }
+    &:is(.pending) {
+      background-color: $color-warning;
+    }
+    &:is(.no-match) {
+      background-color: $color-notice;
+    }
+    &:is(.unhealthy) {
+      background-color: $color-broken;
+    }
+    &:is(.ok) {
+      background-color: $color-broken;
+    }
+  }
+}
+
+.vm-list-item-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $padding-global;
+}
+
+.vm-select-input-content__selected:has(> .badge) {
+  &:has(> .firing) {
+    background-color: $color-error;
+    color: $color-white;
+  }
+
+  &:has(> .inactive) {
+    background-color: $color-success;
+    color: $color-white;
+  }
+
+  &:has(> .pending) {
+    background-color: $color-warning;
+    color: $color-white;
+  }
+
+  &:has(> .no-match) {
+    background-color: $color-notice;
+    color: $color-white;
+  }
+
+  &:has(> .unhealthy) {
+    background-color: $color-broken;
+    color: $color-white;
+  }
+
+  &:has(> .ok) {
+    background-color: $color-info;
+    color: $color-white;
+  }
+}
+
+.vm-explore-alerts-rules {
+  flex-direction: column;
+  display: flex;
+  row-gap: 10px;
+  padding: 10px;
+  padding-right: 0;
+}
+
+.vm-explore-alerts-notifier {
+  flex-direction: column;
+  display: flex;
+  row-gap: 10px;
+  padding: $padding-global 0;
+}
+
+.vm-explore-alerts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $padding-medium;
+  max-width: calc(100vw - var(--scrollbar-width));
+
+  @media (max-width: 500px) {
+    gap: $padding-small;
+  }
+
+  &-body {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $padding-medium;
+
+    @media (max-width: 500px) {
+      gap: $padding-small;
+    }
+  }
+}

@@ -6,6 +6,7 @@ import "./styles/style.scss";
 import { APP_TYPE, AppType } from "./constants/appType";
 import AppLogs from "./AppLogs";
 import AppAnomaly from "./AppAnomaly";
+import AppAlert from "./AppAlert";
 
 const getAppComponent = () => {
   switch (APP_TYPE) {
@@ -13,6 +14,8 @@ const getAppComponent = () => {
       return <AppLogs/>;
     case AppType.vmanomaly:
       return <AppAnomaly/>;
+    case AppType.vmalert:
+      return <AppAlert/>;
     default:
       return <App/>;
   }

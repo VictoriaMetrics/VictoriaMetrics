@@ -1,0 +1,41 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-rule-header {
+  display: flex;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: $padding-global;
+  padding-right: 50px;
+
+  &_mobile {
+    grid-template-columns: 1fr auto;
+    padding: $padding-small $padding-global;
+    padding-right: 35px;
+  }
+
+  &__index {
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+  }
+
+  &__name {
+    font-weight: bold;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 130%;
+    word-break: break-word;
+  }
+
+  &__file {
+    color: var(--color-text-disabled);
+  }
+
+  code {
+    padding: 0.2em 0.4em;
+    font-size: 85%;
+    background-color: $color-hover-black;
+    border-radius: 6px;
+  }
+}

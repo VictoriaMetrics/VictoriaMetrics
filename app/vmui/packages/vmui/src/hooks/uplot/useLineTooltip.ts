@@ -2,7 +2,6 @@ import uPlot, { Series as uPlotSeries } from "uplot";
 import { useCallback, useEffect, useState } from "preact/compat";
 import { ChartTooltipProps } from "../../components/Chart/ChartTooltip/ChartTooltip";
 import { SeriesItem } from "../../types";
-import get from "lodash.get";
 import dayjs from "dayjs";
 import { DATE_FULL_TIMEZONE_FORMAT } from "../../constants/date";
 import { formatPrettyNumber, getMetricName } from "../../utils/uplot";
@@ -45,11 +44,11 @@ const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltip
     const groups = new Set(metrics.map(m => m.group));
     const group = metricItem?.group || 0;
 
-    const value = get(u, ["data", seriesIdx, dataIdx], 0);
-    const min = get(u, ["scales", "1", "min"], 0);
-    const max = get(u, ["scales", "1", "max"], 1);
+    const value = u?.data?.[seriesIdx]?.[dataIdx] || 0;
+    const min = u?.scales?.[1]?.min || 0;
+    const max = u?.scales?.[1]?.max || 1;
 
-    const date = get(u, ["data", 0, dataIdx], 0);
+    const date = u?.data?.[0]?.[dataIdx] || 0;
 
     const point = {
       top: u ? u.valToPos((value || 0), seriesItem?.scale || "1") : 0,

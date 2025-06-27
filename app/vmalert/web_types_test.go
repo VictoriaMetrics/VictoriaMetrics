@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -41,10 +40,6 @@ func TestRecordingToApi(t *testing.T) {
 		Type:           ruleTypeRecording,
 		DatasourceType: "prometheus",
 		ID:             "1248",
-		GroupID:        fmt.Sprintf("%d", g.CreateID()),
-		GroupName:      "group",
-		File:           "rules.yaml",
-		MaxUpdates:     44,
 		Updates:        make([]rule.StateEntry, 0),
 	}
 
