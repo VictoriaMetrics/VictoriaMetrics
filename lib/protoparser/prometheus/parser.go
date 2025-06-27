@@ -11,7 +11,64 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
+
+// Unmarshal unmarshals Prometheus exposition text into dstRows and dstMeta.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+// s shouldn't be modified while dstRows and dstMeta are in use.
+func Unmarshal(dstRows Rows, dstMeta MetadataRows, s string, parseMetadata bool, errLogger func(s string)) (Rows, MetadataRows) {
+	rows := dstRows.Rows
+	tags := dstRows.tagsPool
+	mds := dstMeta.Rows
+	rowsLen := len(rows)
+	mdLen := len(mds)
+
+	if errLogger == nil {
+		errLogger = stdErrLogger
+	}
+	noEscapes := strings.IndexByte(s, '\\') < 0
+
+	for len(s) > 0 {
+		n := strings.IndexByte(s, '\n')
+		if n < 0 {
+			// The last line.
+			if isMetadataLine(s) {
+				if parseMetadata {
+					mds = unmarshalMetadata(mds, s, errLogger)
+				}
+				break
+			}
+			rows, tags = unmarshalRow(rows, s, tags, noEscapes, errLogger)
+			break
+		}
+		if isMetadataLine(s[:n]) {
+			if parseMetadata {
+				mds = unmarshalMetadata(mds, s[:n], errLogger)
+			}
+			s = s[n+1:]
+			continue
+		}
+		rows, tags = unmarshalRow(rows, s[:n], tags, noEscapes, errLogger)
+
+		s = s[n+1:]
+	}
+	rowsReadScrape.Add(len(rows) - rowsLen)
+	metadataReadScrape.Add(len(mds) - mdLen)
+
+	dstRows.Rows = rows
+	dstRows.tagsPool = tags
+	dstMeta.Rows = mds
+	return dstRows, dstMeta
+}
+
+func isMetadataLine(s string) bool {
+	s = skipLeadingWhitespace(s)
+	if len(s) > 0 && s[0] == '#' {
+		return true
+	}
+	return false
+}
 
 // Rows contains parsed Prometheus rows.
 type Rows struct {
@@ -31,7 +88,7 @@ func (rs *Rows) Reset() {
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
-// Unmarshal unmarshals Prometheus exposition text rows from s.
+// Unmarshal unmarshals samples from Prometheus exposition text.
 //
 // See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
 //
@@ -180,6 +237,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 }
 
 var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
+var metadataReadScrape = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="promscrape"}`)
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
 	dstLen := len(dst)
@@ -726,4 +784,118 @@ var numericChars = [256]bool{
 	'e': true,
 	'E': true,
 	'.': true,
+}
+
+// Metadata contains HELP or TYPE message in prometheus exposition format.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+//
+// For example:
+// # HELP alertmanager_alerts How many alerts by state.
+// # TYPE alertmanager_alerts gauge
+type Metadata struct {
+	Metric string
+	Type   uint32
+	Help   string
+}
+
+// MetadataRows contains parsed Prometheus metadata rows.
+type MetadataRows struct {
+	Rows []Metadata
+}
+
+// Reset resets ms.
+func (ms *MetadataRows) Reset() {
+	clear(ms.Rows)
+	ms.Rows = ms.Rows[:0]
+}
+
+// unmarshalMetadata parses a single metadata line,
+// and attempts to merge it with the last entry in dst if they belong to the same metric family
+// since TYPE and HELP are usually exposed sequentially.
+// For example,
+// # HELP apiserver_audit_event_total [ALPHA] Counter of audit events generated and sent to the audit backend.
+// # TYPE apiserver_audit_event_total counter
+func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Metadata {
+	fullLine := s
+	if len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[:len(s)-1]
+	}
+	s = skipLeadingWhitespace(s)
+
+	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
+		// Skip non-comment
+		return dst
+	}
+	s = s[2:]
+	idx := strings.IndexByte(s, ' ')
+	if idx < 0 {
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
+		}
+		return dst
+	}
+
+	commentType := s[:idx]
+	var isType, isHelp bool
+	switch commentType {
+	case "HELP":
+		isHelp = true
+	case "TYPE":
+		isType = true
+	default:
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: invalid comment", fullLine))
+		}
+		return dst
+	}
+
+	s = s[idx+1:]
+	idx = strings.IndexByte(s, ' ')
+	if idx < 0 {
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
+		}
+		return dst
+	}
+	metricName := s[:idx]
+	commentData := s[idx+1:]
+
+	// check if the current metadata line has the same metric name as the last entry in dst
+	// if so, then they can be merged into a single Metadata entry
+	if len(dst) == 0 || dst[len(dst)-1].Metric != metricName {
+		if len(dst) < cap(dst) {
+			dst = dst[:len(dst)+1]
+		} else {
+			dst = append(dst, Metadata{})
+		}
+	}
+	md := &dst[len(dst)-1]
+	md.Metric = metricName
+
+	// HELP can have null content, TYPE can't
+	if isType {
+		switch commentData {
+		case "counter":
+			md.Type = uint32(prompb.MetricMetadataCOUNTER)
+		case "gauge":
+			md.Type = uint32(prompb.MetricMetadataGAUGE)
+		case "histogram":
+			md.Type = uint32(prompb.MetricMetadataHISTOGRAM)
+		case "summary":
+			md.Type = uint32(prompb.MetricMetadataSUMMARY)
+		case "untyped":
+			md.Type = uint32(prompb.MetricMetadataUNKNOWN)
+		default:
+			if errLogger != nil {
+				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: TYPE is invalid", fullLine))
+			}
+			dst = dst[:len(dst)-1]
+		}
+		return dst
+	}
+	if isHelp {
+		md.Help = commentData
+	}
+
+	return dst
 }

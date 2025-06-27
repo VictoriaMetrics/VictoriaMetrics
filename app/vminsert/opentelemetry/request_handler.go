@@ -33,7 +33,7 @@ func InsertHandler(req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries) error {
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
 		return insertRows(tss, extraLabels)
 	})
 }

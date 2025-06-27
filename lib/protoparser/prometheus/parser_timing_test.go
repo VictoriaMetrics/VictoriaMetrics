@@ -163,3 +163,50 @@ cpu_usage{mode="irq"} 0.34432
 		}
 	})
 }
+
+func BenchmarkMetadataUnmarshal(b *testing.B) {
+	s := `# HELP aggregator_unavailable_apiservice_total [ALPHA] Counter of APIServices which are marked as unavailable broken down by APIService name and reason.`
+	b.SetBytes(int64(len(s)))
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		dst := []Metadata{
+			{
+				Metric: "aggregator_unavailable_apiservice_total",
+				Type:   1,
+			},
+		}
+		for pb.Next() {
+			dst = unmarshalMetadata(dst, s, nil)
+			if len(dst) != 1 {
+				panic(fmt.Errorf("unexpected number of metadata unmarshaled: got %d; want 1", len(dst)))
+			}
+			if dst[0].Type != 1 || dst[0].Help == "" {
+				panic(fmt.Errorf("unexpected metadata: got %v; want type 1 with non-empty help", dst[0]))
+			}
+		}
+	})
+}
+
+func BenchmarkPromScrapeUnmarshal(b *testing.B) {
+	s := `
+# HELP apiserver_audit_event_total [ALPHA] Counter of audit events generated and sent to the audit backend.
+# TYPE apiserver_audit_event_total counter
+apiserver_audit_event_total 1.18257624e+08
+# HELP apiserver_audit_level_total [ALPHA] Counter of policy levels for audit events (1 per request).
+# TYPE apiserver_audit_level_total counter
+apiserver_audit_level_total{level="Metadata"} 5.4891941e+07
+`
+	b.SetBytes(int64(len(s)))
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			rows, mds := Unmarshal(Rows{}, MetadataRows{}, s, true, nil)
+			if len(rows.Rows) != 2 {
+				panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 2", len(rows.Rows)))
+			}
+			if len(mds.Rows) != 2 {
+				panic(fmt.Errorf("unexpected number of metadata unmarshaled: got %v; want 2", len(mds.Rows)))
+			}
+		}
+	})
+}
