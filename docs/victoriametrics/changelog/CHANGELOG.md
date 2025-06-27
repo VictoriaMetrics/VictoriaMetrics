@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix errors in console about loading of `manifest.json` when accessing UI through vmauth with Basic Auth enabled.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly return results for search requests with `.+|^$` regex filter expression. See [9290](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9290) issue for details.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix negative increase result when `-search.maxLookback` or `-search.maxStalenessInterval` are set and data contains gap. See [#8935 (comment)](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-2978728661).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): removed inline styles from UI, which are not working property with `--http.header.csp=default-src 'self'`. See [#9236](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9236).
 
 ## [v1.120.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.120.0)
 
