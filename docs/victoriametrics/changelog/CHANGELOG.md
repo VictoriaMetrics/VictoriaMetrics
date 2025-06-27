@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add `-replay.ruleEvaluationConcurrency` to allow concurrent `/query_range` requests for a single rule. Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`. See this [#7387](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7387) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove duplicate kubernetes targets from [service-discovery-debug](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) page. See [8626](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626) issue for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `/api/v1/notifiers` API endpoint for returning list of configured or discovered notifiers.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `datasource_type` query argument for `/api/v1/rules` and `/api/v1/alerts` endpoints to filter response by rule's datasource [type](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups). See [#8537](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8537).

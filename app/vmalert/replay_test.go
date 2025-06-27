@@ -46,7 +46,7 @@ func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to ti
 }
 
 func TestReplay(t *testing.T) {
-	f := func(from, to string, maxDP int, ruleDelay time.Duration, cfg []config.Group, qb *fakeReplayQuerier, expectTotalRows int) {
+	f := func(from, to string, maxDP, ruleConcurrency int, ruleDelay time.Duration, cfg []config.Group, qb *fakeReplayQuerier, expectTotalRows int) {
 		t.Helper()
 
 		fromOrig, toOrig, maxDatapointsOrig := *replayFrom, *replayTo, *replayMaxDatapoints
@@ -62,6 +62,7 @@ func TestReplay(t *testing.T) {
 		rwb := &fakeRWClient{}
 		*replayFrom = from
 		*replayTo = to
+		*ruleEvaluationConcurrency = ruleConcurrency
 		*replayMaxDatapoints = maxDP
 		totalRows, _, err := replay(cfg, qb, rwb)
 		if err != nil {
@@ -73,7 +74,7 @@ func TestReplay(t *testing.T) {
 	}
 
 	// one rule + one response
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:00.000Z", 10, time.Millisecond, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:00.000Z", 10, 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
 		registry: map[string]map[string][]datasource.Metric{
@@ -87,7 +88,7 @@ func TestReplay(t *testing.T) {
 	}, 1)
 
 	// one rule + multiple responses
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, time.Millisecond, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
 		registry: map[string]map[string][]datasource.Metric{
@@ -110,7 +111,7 @@ func TestReplay(t *testing.T) {
 	}, 2)
 
 	// datapoints per step
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T15:02:30.000Z", 60, time.Millisecond, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T15:02:30.000Z", 60, 1, time.Millisecond, []config.Group{
 		{Interval: promutil.NewDuration(time.Minute), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
 		registry: map[string]map[string][]datasource.Metric{
@@ -134,7 +135,7 @@ func TestReplay(t *testing.T) {
 	}, 3)
 
 	// multiple recording rules + multiple responses
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, time.Millisecond, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 		{Rules: []config.Rule{{Record: "bar", Expr: "max(up)"}}},
 	}, &fakeReplayQuerier{
@@ -164,7 +165,7 @@ func TestReplay(t *testing.T) {
 
 	// multiple alerting rules + multiple responses
 	// alerting rule generates two series `ALERTS` and `ALERTS_FOR_STATE` when triggered
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, time.Millisecond, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Alert: "foo", Expr: "sum(up) > 1"}}},
 		{Rules: []config.Rule{{Alert: "bar", Expr: "max(up) < 1"}}},
 	}, &fakeReplayQuerier{
@@ -193,7 +194,7 @@ func TestReplay(t *testing.T) {
 	}, 6)
 
 	// multiple recording rules in one group+ multiple responses + concurrency
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 0, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 1, 0, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up) > 1"}, {Record: "bar", Expr: "max(up) < 1"}}, Concurrency: 2}}, &fakeReplayQuerier{
 		registry: map[string]map[string][]datasource.Metric{
 			"sum(up) > 1": {
@@ -215,6 +216,45 @@ func TestReplay(t *testing.T) {
 						Values:     []float64{1},
 					},
 				},
+			},
+			"max(up) < 1": {
+				"12:00:00+12:01:00": {},
+				"12:01:00+12:02:00": {{
+					Timestamps: []int64{1},
+					Values:     []float64{1},
+				}},
+				"12:02:00+12:02:30": {},
+			},
+		},
+	}, 4)
+
+	// single rule + rule concurrency
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 3, time.Millisecond, []config.Group{
+		{Rules: []config.Rule{{Record: "foo-concurrent", Expr: "sum(up)"}}},
+	}, &fakeReplayQuerier{
+		registry: map[string]map[string][]datasource.Metric{
+			"sum(up)": {
+				"12:00:00+12:01:00": {},
+				"12:01:00+12:02:00": {{
+					Timestamps: []int64{1},
+					Values:     []float64{1},
+				}},
+				"12:02:00+12:02:30": {},
+			},
+		},
+	}, 1)
+
+	// multiple rules + rule concurrency + group concurrency
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 3, 0, []config.Group{
+		{Rules: []config.Rule{{Alert: "foo-group-single-concurrent", Expr: "sum(up) > 1"}, {Alert: "bar-group-single-concurrent", Expr: "max(up) < 1"}}, Concurrency: 2}}, &fakeReplayQuerier{
+		registry: map[string]map[string][]datasource.Metric{
+			"sum(up) > 1": {
+				"12:00:00+12:01:00": {},
+				"12:01:00+12:02:00": {{
+					Timestamps: []int64{1},
+					Values:     []float64{1},
+				}},
+				"12:02:00+12:02:30": {},
 			},
 			"max(up) < 1": {
 				"12:00:00+12:01:00": {},
