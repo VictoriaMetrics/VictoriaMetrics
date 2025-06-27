@@ -58,6 +58,10 @@ type Cache struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	ExpireEvictionBytes atomic.Uint64
+	MissEvictionBytes   atomic.Uint64
+	SizeEvictionBytes   atomic.Uint64
 }
 
 // Load loads the cache from filePath and limits its size to maxBytes
@@ -180,6 +184,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		var cs fastcache.Stats
 		prev.UpdateStats(&cs)
 		updateCacheStatsHistory(&c.csHistory, &cs)
+		c.ExpireEvictionBytes.Add(cs.BytesSize)
 		prev.Reset()
 		c.curr.Store(prev)
 		c.mu.Unlock()
@@ -229,6 +234,7 @@ func (c *Cache) prevCacheWatcher() {
 		currGetCalls = csCurr.GetCalls
 		prevGetCalls = csPrev.GetCalls
 		if currRequests >= minCurrRequests && float64(prevRequests)/float64(currRequests) < p {
+			c.MissEvictionBytes.Add(csPrev.BytesSize)
 			// The majority of requests are served from the curr cache,
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
@@ -284,6 +290,7 @@ func (c *Cache) cacheSizeWatcher() {
 	var cs fastcache.Stats
 	prev.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
+	c.SizeEvictionBytes.Add(cs.BytesSize)
 	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.

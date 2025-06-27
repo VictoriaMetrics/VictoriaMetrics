@@ -644,6 +644,15 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexps"}`, storage.RegexpCacheMisses())
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMisses())
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", eviction_reason="cache_size"}`, m.TSIDCacheSizeEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", eviction_reason="miss_percentage"}`, m.TSIDCacheMissEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="expiration"}`, m.TSIDCacheExpireEvictionsBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="cache_size"}`, m.MetricNAmeCacheSizeEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="miss_percentage"}`, m.MetricNameCacheMissEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="expiration"}`, m.MetricNameCacheExpireEvictionsBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="cache_size"}`, m.MetricIDCacheSizeEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="miss_percentage"}`, m.MetricIDCacheMissEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="expiration"}`, m.MetricIDCacheExpireEvictionsBytes)
 
 	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, idbm.DeletedMetricsCount)
 
