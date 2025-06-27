@@ -206,6 +206,7 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 		// Skip empty line
 		return dst, tagsPool
 	}
+	// todo, do not skip comment, but return metadata
 	if s[0] == '#' {
 		// Skip comment
 		return dst, tagsPool
