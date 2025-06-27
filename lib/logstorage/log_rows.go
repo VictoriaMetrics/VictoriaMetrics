@@ -266,6 +266,11 @@ func (lr *LogRows) Reset() {
 	lr.defaultMsgValue = ""
 }
 
+// RowsCount returns current log rows count
+func (lr *LogRows) RowsCount() int {
+	return len(lr.rows)
+}
+
 // ResetKeepSettings resets rows stored in lr, while keeping its settings passed to GetLogRows().
 func (lr *LogRows) ResetKeepSettings() {
 	lr.a.reset()
