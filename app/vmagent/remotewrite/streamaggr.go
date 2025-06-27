@@ -141,7 +141,7 @@ func initStreamAggrConfigGlobal() {
 	}
 	dedupInterval := *streamAggrGlobalDedupInterval
 	if dedupInterval > 0 {
-		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, *streamAggrGlobalEnableWindows, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
+		deduplicatorGlobal = streamaggr.NewDeduplicator(pushTimeSeriesToRemoteStoragesTrackDropped, *streamAggrGlobalEnableWindows, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
 	}
 }
 
@@ -216,7 +216,7 @@ func newStreamAggrConfigGlobal() (*streamaggr.Aggregators, error) {
 		EnableWindows:        *streamAggrGlobalEnableWindows,
 	}
 
-	sas, err := streamaggr.LoadFromFile(path, pushToRemoteStoragesTrackDropped, opts, "global")
+	sas, err := streamaggr.LoadFromFile(path, pushTimeSeriesToRemoteStoragesTrackDropped, opts, "global")
 	if err != nil {
 		return nil, fmt.Errorf("cannot load -streamAggr.config=%q: %w", *streamAggrGlobalConfig, err)
 	}
