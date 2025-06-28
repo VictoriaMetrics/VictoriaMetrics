@@ -34,7 +34,7 @@
       },
       {
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "enable": true,
