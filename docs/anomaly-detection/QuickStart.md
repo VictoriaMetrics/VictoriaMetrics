@@ -25,15 +25,15 @@ The following options are available:
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
-> There is a mode {{% available_from "v1.13.0" anomaly %}} to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be set for data read from VictoriaMetrics TSDB. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
+> Anomaly detection models can be kept {{% available_from "v1.13.0" anomaly %}} **on host filesystem after `fit` stage** (instead of default in-memory option); This will drastically reduce RAM for larger configurations. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be applied to data read from VictoriaMetrics TSDB. See instructions of how to enable it [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 ### Command-line arguments
 
-The `vmanomaly` service supports several command-line arguments to configure its behavior, including options for licensing, logging levels, and more. These arguments can be passed when starting the service via Docker or any other setup. Below is the list of available options:
+The `vmanomaly` service supports a set of command-line arguments to configure its behavior, including options for licensing, logging levels, and more. 
 
 > `vmanomaly` supports {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
-> Single-dashed command-line arguments {{% available_from "v1.23.3" anomaly %}} can be used, e.g. `-license.forceOffline` in addition to `--license.forceOffline`. This now aligns with other VictoriaMetrics ecosystem components in terms of command-line arguments. Mixing the two styles is also supported, e.g. `-license.forceOffline --loggerLevel INFO`.
+> Single-dashed command-line argument {{% available_from "v1.23.3" anomaly %}} format can be used, e.g. `-license.forceOffline` in addition to `--license.forceOffline`. This aligns better with other VictoriaMetrics ecosystem components. Mixing the two styles is also supported, e.g. `-license.forceOffline --loggerLevel INFO`.
 
 ```shellhelp
 usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}] [--watch] [--dryRun] [--outputSpec PATH] config [config ...]
@@ -62,9 +62,9 @@ You can specify these options when running `vmanomaly` to fine-tune logging leve
 
 ### Licensing
 
-The license key can be passed via the following command-line flags: `--license`, `--licenseFile`, `--license.forceOffline`
+The license key can be specified with the help of the following [command-line](#command-line-arguments) arguments: `--license`, `--licenseFile`, `--license.forceOffline`
 
-In order to make it easier to monitor the license expiration date, the following metrics are exposed(see
+In order to make it easier to monitor the license expiration date, the following metrics are exposed (see
 [Monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section for details on how to scrape them):
 
 ```promtextmetric
@@ -120,13 +120,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.23.3
+docker pull victoriametrics/vmanomaly:v1.24.1
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.23.2 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.24.1 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -160,7 +160,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.23.3
+    image: victoriametrics/vmanomaly:v1.24.1
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -191,13 +191,27 @@ You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).
 
 ## How to configure vmanomaly
-To run `vmanomaly` you need to set up configuration file in `yaml` format.
 
-> Before deploying, to check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, logs errors and warnings (if found) and then exit without starting the service or requiring a license.
+To run `vmanomaly`, use YAML files or directories containing YAML files. The configuration files support shallow merge, allowing splitting the configuration into multiple files for better organization.
 
-Here is an example of config file that will run [Facebook Prophet](https://facebook.github.io/prophet/) model, that will be retrained every 2 hours on 14 days of previous data. It will generate [inference metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) (including `anomaly_score`) every 1 minute.
+> If you are using directories, all `.yaml` files inside will be shallow merged, without deeper recursion. If you want to merge multiple YAML files, you can specify them as separate arguments, e.g. 
+> ```shellhelp 
+>     vmanomaly config1.yaml config2.yaml ./config_dir/
+> ```
+
+Before deploying, check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, log errors and warnings (if found) and then exit without starting the service and requiring a license.
+
+### Example
+
+Here is an example of config file that will run [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) model on `vm_cache_entries` metric, with periodic scheduler that runs inference every minute and fits the model every day. The model will be trained on the last 2 weeks of data each time it is (re)fitted. The model will produce `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging purposes. The model will be timezone-aware and will use cyclical encoding for the hour of the day and day of the week seasonality.
 
 ```yaml
+settings:
+  # https://docs.victoriametrics.com/anomaly-detection/components/settings/
+  n_workers: 4  # number of workers to run workload in parallel, set to 0 or negative number to use all available CPU cores
+  anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
+  restore_state: True  # restore state from previous run, available since v1.24.0
+
 schedulers:
   1d_1m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
@@ -225,6 +239,7 @@ models:
       interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
 
 reader:
+  class: 'vm'  # use VictoriaMetrics as a data source
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
   sampling_period: "1m"
@@ -233,11 +248,20 @@ reader:
     cache: "sum(rate(vm_cache_entries))"
 
 writer:
+  class: 'vm'  # use VictoriaMetrics as a data destination
   # https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
   datasource_url:  "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
 ```
 
 ### Recommended steps
+
+For optimal service behavior, consider the following tweaks when configuring `vmanomaly`:
+
+- Set `settings.n_workers` {{% available_from "v1.23.0" anomaly %}} [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) > 1 to utilize more of available CPU cores for parallel workload processing. This can significantly improve performance, especially on larger datasets with a lot of `reader.queries` and longer `scheduler.fit_window` intervals. Setting it to zero or negative number will enable using all available CPU cores.
+
+- Use [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) {{% available_from "v1.13.0" anomaly %}} to reduce RAM usage, especially for larger datasets. This mode allows `vmanomaly` to keep models and the data on the host filesystem after the `fit` stage, rather than in memory.
+
+- Use **state restoration** {{% available_from "v1.24.0" anomaly %}} to resume from the last known state for long-term stability. This is controlled by the `settings.restore_state` boolean [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
 
 **Schedulers**:
 - Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.  
@@ -246,7 +270,8 @@ writer:
 
 **Reader**:
 - Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (`multitenant` value {{% available_from "v1.16.2" anomaly %}} can be also used here).
-- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query timezone, data frequency, data range, etc.
+- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query [timezone](https://docs.victoriametrics.com/anomaly-detection/faq#handling-timezones) or [sampling period](https://docs.victoriametrics.com/anomaly-detection/components/reader/#sampling-period).
+- For longer `fit_window` intervals in scheduler, consider splitting queries into smaller time ranges to avoid excessive memory usage, timeouts and hitting server-side constraints, so they can be queried separately and reconstructed on `vmanomaly` side. Please refer to this [example](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-large-queries-in-vmanomaly) for more details.
 
 **Writer**:
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
@@ -254,17 +279,21 @@ writer:
 - Adding `for` label to `metric_format` argument is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Please refer to `metric_format` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters).
 
 **Models**:
-- Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. Where possible, incorporate [domain knowledge](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge) for optimal results.
+- Configure built-in models hyperparameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. Where possible, incorporate [domain knowledge](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge) for optimal results.
 - (Optional) Develop or integrate your [custom models](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
-- Adding `y` to `provide_series` arg values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) can be used in `provide_series`. 
-  > **Note:** Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output.
+- Adding `y` to `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) series can be specified in `provide_series`, such as `yhat`, `yhat_lower`, `yhat_upper`, etc. This will allow you to visualize the expected values and their confidence intervals in the dashboard.
+  > Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output. Other models, such as [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) or [custom](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide), may not support this feature.
+
+**Visualization**:
+- Set up [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard) to visualize the results of anomaly detection.
+- Set up [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) to monitor the health of `vmanomaly` service and its components.
 
 ## Check also
 
-Here are the links for further deep dive into Anomaly Detection in general and `vmanomaly` in particular:
+Please refer to the following links for a deeper understanding of Anomaly Detection and `vmanomaly`:
 
-- [High Availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability)
-- [Horizontal Scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability)
+- [High Availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability) and [Horizontal Scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability)
+- [State Restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration)
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
 - [CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/changelog/)

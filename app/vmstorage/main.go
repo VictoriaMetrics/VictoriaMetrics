@@ -77,6 +77,8 @@ var (
 
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
+	cacheSizeStorageMetricName = flagutil.NewBytes("storage.cacheSizeStorageMetricName", 0, "Overrides max size for storage/metricName cache. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBDataBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. "+
@@ -126,6 +128,7 @@ func main() {
 	}
 	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
+	storage.SetMetricNameCacheSize(cacheSizeStorageMetricName.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())

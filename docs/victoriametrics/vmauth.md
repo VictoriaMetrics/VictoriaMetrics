@@ -176,6 +176,7 @@ unauthorized_user:
     - "http://vminsert-3:8480/"
   - src_paths:
     - "/select/.*"
+    - "/admin/.*"
     url_prefix:
     - "http://vmselect-1:8481/"
     - "http://vmselect-2:8481/"
@@ -604,7 +605,7 @@ unauthorized_user:
 
 There are the following solutions for this issue:
 
-- To enumerate every `vmselect` hosname or IP in the `url_prefix` list:
+- To enumerate every `vmselect` hostname or IP in the `url_prefix` list:
 
   ```yaml
   unauthorized_user:
@@ -1271,6 +1272,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
      Disable CORS for all origins (*)
+  -http.disableKeepAlive
+     Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string

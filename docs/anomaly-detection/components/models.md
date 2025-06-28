@@ -513,17 +513,19 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 ### Online Models
 
-Online (incremental) models{{% available_from "v1.15.0" anomaly %}} allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
+> Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{% available_from "v1.24.0" anomaly %}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints.
+
+Online (incremental) models {{% available_from "v1.15.0" anomaly %}} allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
 If the model doesn't support online mode, it's called **offline** (its parameters are only updated during `fit` calls).
 
 Main differences between offline and online:
 
-Fit stage
+**Fit stage**
 - Both types have a `fit` stage, run on the `fit_window` data frame.
 - For offline models, `fit_window` should contain enough data to train the model (e.g., 2 seasonal periods).
 - For online models, training can start gradually from smaller chunks (e.g., 1 hour).
 
-Infer stage
+**Infer stage**
 - Both types have an `infer` stage, run on new datapoints (timestamps > last seen timestamp of the previous `infer` call).
 - Offline models use a pre-trained (during `fit` call) *static* model to make every `infer` call until the next `fit` call, when the model is completely re-trained.
 - Online models use a pre-trained (during `fit` call) *dynamic* model, which is gradually updated during each `infer` call with new datapoints. However, to prevent the model from accumulating outdated behavior, each `fit` call resets the model from scratch.
@@ -1276,7 +1278,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.23.3
+docker pull victoriametrics/vmanomaly:v1.24.1
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1290,7 +1292,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.23.2 /config.yaml \
+victoriametrics/vmanomaly:v1.24.1 /config.yaml \
 --licenseFile=/license
 ```
 

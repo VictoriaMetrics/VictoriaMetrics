@@ -91,6 +91,10 @@ To visualize and interact with both [self-monitoring metrics](https://docs.victo
 - For guidance on using the `vmanomaly` Grafana dashboard and drilling down into anomaly score visualizations, refer to the [default preset section](https://docs.victoriametrics.com/anomaly-detection/presets/#default).  
 - To monitor `vmanomaly` health, operational performance, and potential issues in real time, visit the [self-monitoring section](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
 
+## Is vmanomaly stateful?
+By default, `vmanomaly` is **stateless**, meaning it does not retain any state between service restarts. However, it can be configured {{% available_from "v1.24.0" anomaly %}} to be **stateful** by enabling the `restore_state` setting in the [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings). This allows the service to restore its state from a previous run (training data, trained models), ensuring that models continue to produce [anomaly scores](#what-is-anomaly-score) right after restart and without requiring a full retraining process or re-querying training data from VictoriaMetrics. This is particularly useful for long-running services that need to maintain continuity in anomaly detection without losing previously learned patterns, especially when using [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) that continuously adapt to new data and update their internal state.
+
+Please refer to the [state restoration section](https://docs.victoriametrics.com/anomaly-detection/components/settings#state-restoration) for more details on how it works and how to configure it.
 
 ## Choosing the right model for vmanomaly
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models#online-z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet).
@@ -173,10 +177,10 @@ Anomaly scores for historical (backtesting) period can be produced and written b
 schedulers:
   scheduler_alias:
     class: 'backtesting' # or "scheduler.backtesting.BacktestingScheduler" until v1.13.0
-    # define historical period to backtest on
-    # should be bigger than at least (fit_window + fit_every) time range
+    # define historical (inference) period to backtest on
     from_iso: '2024-01-01T00:00:00Z'
     to_iso: '2024-01-15T00:00:00Z'
+    inference_only: True  # to treat from-to as inference period, with automated fit intervals construction
     # copy these from your PeriodicScheduler args
     fit_window: 'P14D'
     fit_every: 'PT1H'
@@ -216,7 +220,9 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 
 ### On-disk mode
 
-> {{% available_from "v1.13.0" anomaly %}} There is an option to save anomaly detection models to the host filesystem after the `fit` stage (instead of keeping them in memory by default). This is particularly useful for **resource-intensive setups** (e.g., many models, many metrics, or larger [`fit_window` argument](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler-config-example)) and for 3rd-party models that store fit data (such as [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models#holt-winters)). This reduces RAM consumption significantly, though at the cost of slightly slower `infer` stages. To enable this, set the environment variable `VMANOMALY_MODEL_DUMPS_DIR` to the desired location. If using [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md), starting from chart version `1.3.0` `.persistentVolume.enabled` should be set to `true` in [values.yaml](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml).  Similar optimization is available for data read from VictoriaMetrics TSDB {{% available_from "v1.16.0" anomaly %}}. To use this, set the environment variable `VMANOMALY_DATA_DUMPS_DIR` to the desired location.
+> {{% available_from "v1.13.0" anomaly %}} There is an option to save anomaly detection models to the host filesystem after the `fit` stage (instead of keeping them in memory by default). This is particularly useful for **resource-intensive setups** (e.g., many models, many metrics, or larger [`fit_window` argument](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler-config-example)) and for 3rd-party models that store fit data (such as [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models#holt-winters)). This reduces RAM consumption significantly, though at the cost of slightly slower `infer` stages. To enable this, set the environment variable `VMANOMALY_MODEL_DUMPS_DIR` to the desired location. If using [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md), starting from chart version `1.3.0` `.persistentVolume.enabled` should be set to `true` in [values.yaml](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml). Similar optimization is available for data read from VictoriaMetrics TSDB {{% available_from "v1.16.0" anomaly %}}. To use this, set the environment variable `VMANOMALY_DATA_DUMPS_DIR` to the desired location.
+
+> {{% available_from "v1.24.0" anomaly %}} This feature is best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings#state-restoration) to ensure that the model state is preserved across service restarts.
 
 Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
@@ -224,7 +230,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.23.3
+    image: victoriametrics/vmanomaly:v1.24.1
     # ...
     ports:
       - "8490:8490"
@@ -261,6 +267,8 @@ With the introduction of [online models](https://docs.victoriametrics.com/anomal
 - **Optimized resource utilization**: By spreading the computational load over time and reducing peak demands, online models make more efficient use of resources and inducing less data transfer from VictoriaMetrics TSDB, improving overall system performance.
 - **Faster convergence**: Online models can adapt {{% available_from "v1.23.0" anomaly %}} to changes in data patterns more quickly, which is particularly beneficial in dynamic environments where data characteristics may shift frequently. See `decay` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay).
 
+> {{% available_from "v1.24.0" anomaly %}} Online models are best used in conjunction with [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings#state-restoration) to preserve the model state across service restarts. This allows the model to continue adapting to new data without losing previously learned patterns, thus avoiding the need for a full `fit` stage to start working again.
+
 Here's an example of how we can switch from (offline) [Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score) to [Online Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score):
 
 ```yaml
@@ -282,6 +290,9 @@ models:
 to something like
 
 ```yaml
+settings:
+  restore_state: True  # to restore model state from previous runs if restarted, available since v1.24.0
+
 schedulers:
   periodic:
     class: 'periodic'
@@ -301,11 +312,11 @@ models:
 
 As a result, switching from the offline Z-score model to the Online Z-score model results in significant data volume reduction, i.e. over one week:
 
-**Old Configuration**: 
+**Old configuration**: 
 - `fit_window`: 2 days
 - `fit_every`: 1 hour
 
-**New Configuration**: 
+**New configuration**: 
 - `fit_window`: 4 hours
 - `fit_every`: 180 days ( >1 week)
 
@@ -315,7 +326,7 @@ The new configuration performs only 1 `fit` call in 180 days, using 4 hours of d
 
 P.s. `infer` data volume will remain the same for both models, so it does not affect the overall calculations.
 
-**Data Volume Reduction**:
+**Data volume reduction**:
 - Old: 8064 hours/week (fit) + 168 hours/week (infer)
 - New:    4 hours/week (fit) + 168 hours/week (infer)
 
@@ -432,7 +443,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.23.3 && docker image tag victoriametrics/vmanomaly:v1.23.3 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.24.1 && docker image tag victoriametrics/vmanomaly:v1.24.1 vmanomaly
 ```
 
 ```sh

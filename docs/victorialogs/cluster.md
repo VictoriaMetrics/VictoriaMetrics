@@ -31,41 +31,126 @@ See [quick start guide](#quick-start) on how to start working with VictoriaLogs 
 
 ## Architecture
 
-VictoriaLogs in cluster mode consists of `vlinsert`, `vlselect` and `vlstorage` components:
+VictoriaLogs in cluster mode is composed of three main components: `vlinsert`, `vlselect`, and `vlstorage`.
 
-- `vlinsert` accepts the ingested logs via [all the supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-  and spreads them evenly among the `vlstorage` nodes listed via the `-storageNode` command-line flag.
+```mermaid
+sequenceDiagram
+    participant LS as Log Sources
+    participant VI as vlinsert
+    participant VS1 as vlstorage-1
+    participant VS2 as vlstorage-2
+    participant VL as vlselect
+    participant QC as Query Client
+    
+    Note over LS,VS2: Log Ingestion Flow
+    LS->>VI: Send logs via supported protocols
+    VI->>VS1: POST /internal/insert (HTTP)
+    VI->>VS2: POST /internal/insert (HTTP)
+    Note right of VI: Distributes logs evenly<br/>across vlstorage nodes
+    
+    Note over VS1,QC: Query Flow
+    QC->>VL: Query via HTTP endpoints
+    VL->>VS1: GET /internal/select/* (HTTP)
+    VL->>VS2: GET /internal/select/* (HTTP)
+    VS1-->>VL: Return local results
+    VS2-->>VL: Return local results
+    VL->>QC: Processed & aggregated results
+```
 
-- `vlselect` accepts incoming queries via [all the supported HTTP querying endpoints](https://docs.victoriametrics.com/victorialogs/querying/),
-  requests the needed data from `vlstorage` nodes listed via the `-storageNode` command-line flag, processes the queries and returns the corresponding responses.
+- `vlinsert` handles log ingestion via [all supported protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/).  
+  It distributes incoming logs evenly across `vlstorage` nodes, as specified by the `-storageNode` command-line flag.
 
-- `vlstorage` is responsible for two tasks:
+- `vlselect` receives queries through [all supported HTTP query endpoints](https://docs.victoriametrics.com/victorialogs/querying/).  
+  It fetches the required data from the configured `vlstorage` nodes, processes the queries, and returns the results.
 
-  - It accepts logs from `vlinsert` nodes and stores them at the directory specified via `-storageDataPath` command-line flag.
-    See [these docs](https://docs.victoriametrics.com/victorialogs/#storage) for details about this flag.
+- `vlstorage` performs two key roles:
+  - It stores logs received from `vlinsert` at the directory defined by the `-storageDataPath` flag.  
+    See [storage configuration docs](https://docs.victoriametrics.com/victorialogs/#storage) for details.
+  - It handles queries from `vlselect` by retrieving and transforming the requested data locally before returning results.
 
-  - It processes requests from `vlselect` nodes. It selects the requested logs and performs all data transformations and calculations,
-    which can be executed locally, before sending the results to `vlselect`.
+Each `vlstorage` node operates as a self-contained VictoriaLogs instance.  
+Refer to the [single-node and cluster mode duality](#single-node-and-cluster-mode-duality) documentation for more information.  
+This design allows you to reuse existing single-node VictoriaLogs instances by listing them in the `-storageNode` flag for `vlselect`, enabling unified querying across all nodes.
 
-`vlstorage` is basically a single-node version of VictoriaLogs. See [these docs](#single-node-and-cluster-mode-duality) for details.
-This means that the existing single-node VictoriaLogs instances can be added to the list of `vlstorage` nodes via `-storageNode` command-line flag at `vlselect`
-in order to get global querying view over all the logs across all the single-node VictoriaLogs instances.
+All VictoriaLogs components are horizontally scalable and can be deployed on hardware best suited to their respective workloads.  
+`vlinsert` and `vlselect` can be run on the same node, which allows the minimal cluster to consist of just one `vlstorage` node and one node acting as both `vlinsert` and `vlselect`.  
+However, for production environments, it is recommended to separate `vlinsert` and `vlselect` roles to avoid resource contention — for example, to prevent heavy queries from interfering with log ingestion.
 
-Every component of the VictoriaLogs cluster can scale from a single node to arbitrary number of nodes and can run on the most suitable hardware for the given workload.
-`vlinsert` nodes can be used as `vlselect` nodes, so the minimum VictoriaLogs cluster must contain a `vlstorage` node plus a node, which plays both `vlinsert` and `vlselect` roles.
-It isn't recommended sharing `vlinsert` and `vlselect` responsibilities in a single node, since this increases chances that heavy queries can negatively affect data ingestion
-and vice versa.
+Communication between `vlinsert` / `vlselect` and `vlstorage` is done via HTTP over the port specified by the `-httpListenAddr` flag:
 
-`vlselect` and `vlinsert` communicate with `vlstorage` via HTTP at the TCP port specified via `-httpListenAddr` command-line flag:
+- `vlinsert` sends data to the `/internal/insert` endpoint on `vlstorage`.
+- `vlselect` sends queries to endpoints under `/internal/select/` on `vlstorage`.
 
-- `vlinsert` sends requests to `/internal/insert` HTTP endpoint at `vlstorage`.
-- `vlselect` sends requests to HTTP endpoints at `vlstorage` starting with `/internal/select/`.
+This HTTP-based communication model allows you to use reverse proxies for authorization, routing, and encryption between components.  
+Use of [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is recommended for managing access control.
 
-This allows using various http proxies for authorization, routing and encryption of requests between these components.
-It is recommended to use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/).
+For advanced setups, refer to the [multi-level cluster setup](#multi-level-cluster-setup) documentation.
 
-See also [multi-level cluster setup](#multi-level-cluster-setup).
+## High availability
 
+In the cluster setup, the following rules apply:
+
+- The `vlselect` component requires **all relevant vlstorage nodes to be available** in order to return complete and correct query results. 
+
+  - If even one of the vlstorage nodes is temporarily unavailable, `vlselect` cannot safely return a full response, since some of the required data may reside on the missing node. Rather than risk delivering partial or misleading query results, which can cause confusion, trigger false alerts, or produce incorrect metrics, VictoriaLogs chooses to return an error instead. 
+
+- The `vlinsert` component continues to function normally when some vlstorage nodes are unavailable. It automatically routes new logs to the remaining available nodes to ensure that data ingestion remains uninterrupted and newly received logs are not lost.
+
+> [!NOTE] Insight  
+> In most real-world cases, `vlstorage` nodes become unavailable during planned maintenance such as upgrades, config changes, or rolling restarts. These are typically infrequent (weekly or monthly) and brief (a few minutes).  
+> A short period of query downtime during such events is acceptable and fits well within most SLAs. For example, 60 minutes of downtime per month still provides around 99.86% availability, which often outperforms complex HA setups that rely on opaque auto-recovery and may fail unpredictably.
+
+VictoriaLogs itself does not handle replication at the storage level. Instead, it relies on an external log shipper, such as [vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/) or [vlagent](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9034), to send the same log stream to multiple independent VictoriaLogs instances:
+
+```mermaid
+graph TD
+    subgraph "HA Solution"
+        subgraph "Ingestion Layer"
+            LS["Log Sources<br/>(Applications)"]
+            VECTOR["Log Collector<br/>• Buffering<br/>• Replication<br/>• Delivery Guarantees"]
+        end
+        
+        subgraph "Storage Layer"
+            subgraph "Zone A"
+                VLA["VictoriaLogs Cluster A"]
+            end
+            
+            subgraph "Zone B"
+                VLB["VictoriaLogs Cluster B"]
+            end
+        end
+        
+        subgraph "Query Layer"
+            LB["Load Balancer<br/>(vmauth)<br/>• Health Checks<br/>• Failover<br/>• Query Distribution"]
+            QC["Query Clients<br/>(Grafana, API)"]
+        end
+        
+        LS --> VECTOR
+        VECTOR -->|"Replicate logs to<br/>Zone A cluster"| VLA
+        VECTOR -->|"Replicate logs to<br/>Zone B cluster"| VLB
+        
+        VLA -->|"Serve queries from<br/>Zone A cluster"| LB
+        VLB -->|"Serve queries from<br/>Zone B cluster"| LB
+        LB --> QC
+        
+        style VECTOR fill:#e8f5e8
+        style VLA fill:#d5e8d4
+        style VLB fill:#d5e8d4
+        style LB fill:#e1f5fe
+        style QC fill:#fff2cc
+        style LS fill:#fff2cc
+    end
+```
+
+In this HA solution:
+
+- A log shipper at the top receives logs and replicates them in parallel to two VictoriaLogs clusters.
+  - If one cluster fails completely (i.e., **all** of its storage nodes become unavailable), the log shipper continues to send logs to the remaining healthy cluster and buffers any logs that cannot be delivered. When the failed cluster becomes available again, the log shipper resumes sending both buffered and new logs to it.
+- On the read path, a load balancer (e.g., vmauth) sits in front of the VictoriaLogs clusters and routes query requests to any healthy cluster.
+  - If one cluster fails (i.e., **at least one** of its storage nodes is unavailable), the load balancer detects this and automatically redirects all query traffic to the remaining healthy cluster.
+
+There's no hidden coordination logic or consensus algorithm. You can scale it horizontally and operate it safely, even in bare-metal Kubernetes clusters using local PVs, as long as the log shipper handles reliable replication and buffering.
+  
 ## Single-node and cluster mode duality
 
 Every `vlstorage` node can be used as a single-node VictoriaLogs instance:
@@ -155,8 +240,8 @@ The following guide covers the following topics for Linux host:
 Download and unpack the latest VictoriaLogs release:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.23.3-victorialogs/victoria-logs-linux-amd64-v1.23.3-victorialogs.tar.gz
-tar xzf victoria-logs-linux-amd64-v1.23.3-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.24.0-victorialogs/victoria-logs-linux-amd64-v1.24.0-victorialogs.tar.gz
+tar xzf victoria-logs-linux-amd64-v1.24.0-victorialogs.tar.gz
 ```
 
 Start the first [`vlstorage` node](#architecture), which accepts incoming requests at the port `9491` and stores the ingested logs at `victoria-logs-data-1` directory:
@@ -189,7 +274,7 @@ Start `vlselect` node, which [accepts incoming queries](https://docs.victoriamet
 
 Note that all the VictoriaLogs cluster components - `vlstorage`, `vlinsert` and `vlselect` - share the same executable - `victoria-logs-prod`.
 Their roles depend on whether the `-storageNode` command-line flag is set - if this flag is set, then the executable runs in `vlinsert` and `vlselect` modes.
-Otherwise it runs in `vlstorage` mode, which is identical to a [single-node VictoriaLogs mode](https://docs.victoriametrics.com/victorialogs/).
+Otherwise, it runs in `vlstorage` mode, which is identical to a [single-node VictoriaLogs mode](https://docs.victoriametrics.com/victorialogs/).
 
 Let's ingest some logs (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/))
 from [GitHub archive](https://www.gharchive.org/) into the VictoriaLogs cluster with the following command:
