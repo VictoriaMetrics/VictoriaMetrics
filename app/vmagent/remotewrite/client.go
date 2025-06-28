@@ -154,7 +154,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
 	maxInterval := retryMaxInterval
-	if retryMaxTime.Size() > 0 && maxInterval.Size() == 0 {
+	if retryMaxTime.String() != "" {
 		maxInterval = retryMaxTime
 	}
 	c := &client{
