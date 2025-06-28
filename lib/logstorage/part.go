@@ -47,6 +47,9 @@ type part struct {
 	oldBloomValues     bloomValuesReaderAt
 
 	bloomValuesShards []bloomValuesReaderAt
+
+	// markerDeletedIdx holds index for marker type=1 (Deleted). May be nil if not present.
+	markerDeletedIdx *markerIndex
 }
 
 type bloomValuesReaderAt struct {
@@ -149,6 +152,13 @@ func mustOpenFilePart(pt *partition, path string) *part {
 
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	p.messageBloomValues.values = fs.MustOpenReaderAt(messageValuesPath)
+
+	// Load delete-marker index (type=1) if present.
+	if fs.IsPathExist(filepath.Join(path, rowmarkerIdxFilename)) {
+		if mi, err := openMarkerIndex(path, 1); err == nil {
+			p.markerDeletedIdx = mi
+		}
+	}
 
 	if p.ph.FormatVersion < 1 {
 		bloomPath := filepath.Join(path, oldBloomFilename)

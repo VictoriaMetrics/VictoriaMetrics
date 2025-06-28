@@ -1,6 +1,8 @@
 package logstorage
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // StorageStats represents stats for the storage. It may be obtained by calling Storage.UpdateStats().
@@ -142,6 +145,12 @@ type Storage struct {
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
 }
+
+// rowsMarkLimiter limits concurrent MarkRows operations to avoid DoS.
+var rowsMarkLimiter = make(chan struct{}, 4) // allow up to 4 concurrent mark requests
+
+// markersWriteLock serializes updates to marker files across parts.
+var markersWriteLock sync.Mutex
 
 type partitionWrapper struct {
 	// refCount is the number of active references to p.
@@ -674,4 +683,106 @@ func (s *Storage) DebugFlush() {
 
 func durationToDays(d time.Duration) int64 {
 	return int64(d / (time.Hour * 24))
+}
+
+// MarkRows marks rows matching the given LogSQL expression with the provided markerType (1=Deleted).
+// The function currently provides a skeleton implementation that will be completed in follow-up steps.
+func (s *Storage) MarkRows(ctx context.Context, tenantIDs []TenantID, qStr string, markerType uint8) error {
+	// Acquire limiter slot
+	select {
+	case rowsMarkLimiter <- struct{}{}:
+		defer func() { <-rowsMarkLimiter }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// Parse query string.
+	q, err := ParseQuery(qStr)
+	if err != nil {
+		return err
+	}
+
+	// We don't need any columns, so filter all columns.
+	q.DropAllPipes()
+
+	// maps part path -> flusher
+	flushers := make(map[string]*markerPartFlusher)
+
+	var flushersLock sync.Mutex
+
+	rowsMarked := uint64(0)
+
+	writeBlockResult := func(_ uint, br *blockResult) {
+		if br == nil || br.rowsLen == 0 {
+			return
+		}
+		bm := br.bm
+		if bm == nil || bm.isZero() {
+			return
+		}
+		bs := br.bs
+		if bs == nil {
+			return
+		}
+		p := bs.bsw.p
+		if p == nil {
+			return
+		}
+		// Skip in-memory parts – they will be flushed later.
+		if p.path == "" {
+			return
+		}
+		partPath := p.path
+		seq := bs.bsw.seq
+
+		// Build or obtain flusher.
+		flushersLock.Lock()
+		pf := flushers[partPath]
+		if pf == nil {
+			pf = newMarkerPartFlusher(partPath, markerType)
+			flushers[partPath] = pf
+		}
+		flushersLock.Unlock()
+
+		// Determine if the whole block is selected.
+		rowsCount := int(bs.bsw.bh.rowsCount)
+		ones := bm.onesCount()
+		rowsMarked += uint64(ones)
+
+		if ones == rowsCount {
+			pf.AddMarker(seq, nil) // full block delete
+			return
+		}
+
+		// Partial rows – encode to RLE.
+		rle := MarshalRLE(nil, bm)
+		pf.AddMarker(seq, rle)
+	}
+
+	// Run the query using internal helper.
+	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_marker_rows_total{marker_type="%d",result="fail"}`, markerType)).Add(int(rowsMarked))
+		return err
+	}
+
+	// Flush all accumulated markers under global lock.
+	markersWriteLock.Lock()
+	flushStart := time.Now()
+	for _, pf := range flushers {
+		pf.FlushMarkers()
+	}
+	markersWriteLock.Unlock()
+
+	metrics.GetOrCreateHistogram(`vm_marker_flush_seconds`).UpdateDuration(flushStart)
+
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_marker_rows_total{marker_type="%d",result="success"}`, markerType)).Add(int(rowsMarked))
+
+	logger.Infof("MarkRows: marked %d rows across %d parts", rowsMarked, len(flushers))
+
+	return nil
+}
+
+func (s *Storage) DeleteRows(ctx context.Context, tenantIDs []TenantID, qStr string) error {
+	// Deleting rows is implemented via generic MarkRows with markerType = 1 (Deleted)
+	return s.MarkRows(ctx, tenantIDs, qStr, 1)
 }
