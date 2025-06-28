@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // mustMergeBlockStreams merges bsrs to bsw and updates ph accordingly.
@@ -20,6 +21,108 @@ func mustMergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*block
 			break
 		}
 		bsr := bsm.readersHeap[0]
+
+		// Determine block sequence index in source part (0-based).
+		seq := uint32(bsr.globalBlocksCount - 1) // globalBlocksCount incremented after read.
+
+		if mi := bsr.markerDeletedIdx; mi != nil {
+			if ent, ok := mi.EntryFor(seq); ok {
+				if ent.Size == 0xFFFF_FFFF {
+					// Full-block delete – skip block completely
+					metrics.GetOrCreateCounter(`vm_marker_merge_skipped_blocks_total`).Inc()
+					if bsr.NextBlock() {
+						heap.Fix(&bsm.readersHeap, 0)
+					} else {
+						heap.Pop(&bsm.readersHeap)
+					}
+					continue
+				}
+
+				// Partial delete – keep only rows not marked for deletion.
+
+				rowsTotal := int(bsr.blockData.rowsCount)
+				if rowsTotal == 0 {
+					if bsr.NextBlock() {
+						heap.Fix(&bsm.readersHeap, 0)
+					} else {
+						heap.Pop(&bsm.readersHeap)
+					}
+					continue
+				}
+
+				// Build keep-bitmap (all 1s minus deleted ones)
+				keepBm := getBitmap(rowsTotal)
+				keepBm.setBits()
+				AndNotRLE(keepBm, ent.Data)
+
+				if keepBm.isZero() {
+					// Nothing survives – skip block
+					metrics.GetOrCreateCounter(`vm_marker_merge_skipped_blocks_total`).Inc()
+					putBitmap(keepBm)
+					if bsr.NextBlock() {
+						heap.Fix(&bsm.readersHeap, 0)
+					} else {
+						heap.Pop(&bsm.readersHeap)
+					}
+					continue
+				}
+
+				// Unmarshal rows from blockData
+				if bsm.sbu == nil {
+					bsm.sbu = getStringsBlockUnmarshaler()
+				}
+				if bsm.vd == nil {
+					bsm.vd = getValuesDecoder()
+				}
+
+				var rs rows
+				if err := bsr.blockData.unmarshalRows(&rs, bsm.sbu, bsm.vd); err != nil {
+					logger.Errorf("cannot unmarshal rows for partial delete pruning: %s", err)
+					putBitmap(keepBm)
+					// fall back to skipping entire block
+					metrics.GetOrCreateCounter(`vm_marker_merge_skipped_blocks_total`).Inc()
+					if bsr.NextBlock() {
+						heap.Fix(&bsm.readersHeap, 0)
+					} else {
+						heap.Pop(&bsm.readersHeap)
+					}
+					continue
+				}
+
+				// Filter rows using keepBm
+				keptTS := make([]int64, 0, keepBm.onesCount())
+				keptRows := make([][]Field, 0, keepBm.onesCount())
+				keepBm.forEachSetBitReadonly(func(i int) {
+					keptTS = append(keptTS, rs.timestamps[i])
+					keptRows = append(keptRows, rs.rows[i])
+				})
+
+				putBitmap(keepBm)
+
+				if len(keptTS) == 0 {
+					metrics.GetOrCreateCounter(`vm_marker_merge_skipped_blocks_total`).Inc()
+					if bsr.NextBlock() {
+						heap.Fix(&bsm.readersHeap, 0)
+					} else {
+						heap.Pop(&bsm.readersHeap)
+					}
+					continue
+				}
+
+				// Flush pending rows in merger to maintain order, then write new compressed block.
+				bsm.mustFlushRows()
+				bsm.bsw.MustWriteRows(&bsr.blockData.streamID, keptTS, keptRows)
+
+				// Advance reader to next block
+				if bsr.NextBlock() {
+					heap.Fix(&bsm.readersHeap, 0)
+				} else {
+					heap.Pop(&bsm.readersHeap)
+				}
+				continue
+			}
+		}
+
 		bsm.mustWriteBlock(&bsr.blockData, bsw)
 		if bsr.NextBlock() {
 			heap.Fix(&bsm.readersHeap, 0)

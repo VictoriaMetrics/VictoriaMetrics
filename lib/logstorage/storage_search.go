@@ -1285,10 +1285,13 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	tenantIDs := so.tenantIDs
 
 	bswb := getBlockSearchWorkBatch()
+	seq := uint32(0)
 	scheduleBlockSearch := func(bh *blockHeader) bool {
-		if bswb.appendBlockSearchWork(p, so, bh) {
+		if bswb.appendBlockSearchWork(p, so, bh, seq) {
+			seq++
 			return true
 		}
+		seq++
 		select {
 		case <-stopCh:
 			return false
@@ -1387,10 +1390,13 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	streamIDs := so.streamIDs
 
 	bswb := getBlockSearchWorkBatch()
+	seq := uint32(0)
 	scheduleBlockSearch := func(bh *blockHeader) bool {
-		if bswb.appendBlockSearchWork(p, so, bh) {
+		if bswb.appendBlockSearchWork(p, so, bh, seq) {
+			seq++
 			return true
 		}
+		seq++
 		select {
 		case <-stopCh:
 			return false

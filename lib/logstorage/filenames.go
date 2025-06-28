@@ -15,6 +15,10 @@ const (
 	messageValuesFilename      = "message_values.bin"
 	messageBloomFilename       = "message_bloom.bin"
 
+	// Filenames for per-row marker index and data (e.g. delete markers).
+	rowmarkerIdxFilename = "rowmarker.idx"
+	rowmarkerDatFilename = "rowmarker.dat"
+
 	metadataFilename = "metadata.json"
 	partsFilename    = "parts.json"
 

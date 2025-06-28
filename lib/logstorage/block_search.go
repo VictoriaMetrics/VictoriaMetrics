@@ -24,12 +24,16 @@ type blockSearchWork struct {
 
 	// bh is the header of the block to search.
 	bh blockHeader
+
+	// seq is the block sequence index inside its part (0..BlocksCount-1).
+	seq uint32
 }
 
 func (bsw *blockSearchWork) reset() {
 	bsw.p = nil
 	bsw.so = nil
 	bsw.bh.reset()
+	bsw.seq = 0
 }
 
 type blockSearchWorkBatch struct {
@@ -61,12 +65,13 @@ func putBlockSearchWorkBatch(bswb *blockSearchWorkBatch) {
 
 var blockSearchWorkBatchPool sync.Pool
 
-func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptions, bh *blockHeader) bool {
+func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptions, bh *blockHeader, seq uint32) bool {
 	bsws := bswb.bsws
 
 	bsws = append(bsws, blockSearchWork{
-		p:  p,
-		so: so,
+		p:   p,
+		so:  so,
+		seq: seq,
 	})
 	bsw := &bsws[len(bsws)-1]
 	bsw.bh.copyFrom(bh)
@@ -213,6 +218,17 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	bm.init(int(bsw.bh.rowsCount))
 	bm.setBits()
 	bs.bsw.so.filter.applyToBlockSearch(bs, bm)
+
+	// Apply row-delete markers (marker type = Deleted) if present.
+	if mi := bs.bsw.p.markerDeletedIdx; mi != nil {
+		if ent, ok := mi.EntryFor(bs.bsw.seq); ok {
+			if ent.Size == 0xFFFF_FFFF {
+				return // whole block deleted
+			}
+			// apply RLE bitmap to query bitmap
+			AndNotRLE(bm, ent.Data)
+		}
+	}
 
 	if bm.isZero() {
 		// The filter doesn't match any logs in the current block.

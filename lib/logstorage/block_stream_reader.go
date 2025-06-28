@@ -228,6 +228,9 @@ type blockStreamReader struct {
 	// ph is the header for the part
 	ph partHeader
 
+	// markerDeletedIdx points to delete marker index for the source part, if present.
+	markerDeletedIdx *markerIndex
+
 	// streamReaders contains data readers in stream mode
 	streamReaders streamReaders
 
@@ -288,6 +291,8 @@ func (bsr *blockStreamReader) reset() {
 	bsr.globalRowsCount = 0
 	bsr.globalBlocksCount = 0
 
+	bsr.markerDeletedIdx = nil
+
 	bsr.sidLast.reset()
 	bsr.minTimestampLast = 0
 }
@@ -303,6 +308,9 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 	bsr.reset()
 
 	bsr.ph = mp.ph
+
+	// propagate delete-marker index
+	bsr.markerDeletedIdx = nil
 
 	// Initialize streamReaders
 	columnNamesReader := mp.columnNames.NewReader()
@@ -336,6 +344,13 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	const nocache = true
 
 	bsr.ph.mustReadMetadata(path)
+
+	// Load delete marker index if present.
+	if fs.IsPathExist(filepath.Join(path, rowmarkerIdxFilename)) {
+		if mi, err := openMarkerIndex(path, 1); err == nil {
+			bsr.markerDeletedIdx = mi
+		}
+	}
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
 	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
