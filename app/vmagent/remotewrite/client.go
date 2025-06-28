@@ -153,9 +153,9 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		Transport: authCfg.NewRoundTripper(tr),
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
-	maxInterval := retryMaxInterval
-	if retryMaxTime.String() != "" {
-		maxInterval = retryMaxTime
+	maxInterval := retryMaxTime
+	if retryMaxInterval.String() != "" {
+		maxInterval = retryMaxInterval
 	}
 	c := &client{
 		sanitizedURL:     sanitizedURL,
