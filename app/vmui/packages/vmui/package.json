@@ -7,6 +7,8 @@
   "dependencies": {
     "@types/lodash.debounce": "^4.0.9",
     "@types/lodash.get": "^4.4.9",
+    "@types/lodash.orderBy": "^4.6.9",
+    "@types/lodash.throttle": "^4.1.9",
     "@types/qs": "^6.9.18",
     "@types/react": "^19.1.2",
     "@types/react-input-mask": "^3.0.6",
@@ -15,6 +17,8 @@
     "dayjs": "^1.11.13",
     "lodash.debounce": "^4.0.8",
     "lodash.get": "^4.4.2",
+    "lodash.orderBy": "^4.6.0",
+    "lodash.throttle": "^4.1.1",
     "marked": "^15.0.8",
     "marked-emoji": "^2.0.0",
     "preact": "^10.26.5",

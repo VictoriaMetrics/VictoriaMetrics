@@ -19,30 +19,34 @@ type filter interface {
 	applyToBlockResult(br *blockResult, bm *bitmap)
 }
 
-// visitFilter sequentially calls visitFunc for filters inside f.
+// visitFilterRecursive recursively calls visitFunc for filters inside f.
 //
 // It stops calling visitFunc on the remaining filters as soon as visitFunc returns true.
 // It returns the result of the last visitFunc call.
-func visitFilter(f filter, visitFunc func(f filter) bool) bool {
+func visitFilterRecursive(f filter, visitFunc func(f filter) bool) bool {
+	return visitFilterInternal(f, visitFunc) || visitFunc(f)
+}
+
+func visitFilterInternal(f filter, visitFunc func(f filter) bool) bool {
 	switch t := f.(type) {
 	case *filterAnd:
-		return visitFilters(t.filters, visitFunc)
+		return visitFiltersRecursive(t.filters, visitFunc)
 	case *filterOr:
-		return visitFilters(t.filters, visitFunc)
+		return visitFiltersRecursive(t.filters, visitFunc)
 	case *filterNot:
-		return visitFilter(t.f, visitFunc)
+		return visitFilterRecursive(t.f, visitFunc)
 	default:
-		return visitFunc(f)
+		return false
 	}
 }
 
-// visitFilters calls visitFunc per each filter in filters.
+// visitFiltersRecursive recursively calls visitFunc per each filter in filters.
 //
 // It stops calling visitFunc on the remaining filters as soon as visitFunc returns true.
 // It returns the result of the last visitFunc call.
-func visitFilters(filters []filter, visitFunc func(f filter) bool) bool {
+func visitFiltersRecursive(filters []filter, visitFunc func(f filter) bool) bool {
 	for _, f := range filters {
-		if visitFilter(f, visitFunc) {
+		if visitFilterRecursive(f, visitFunc) {
 			return true
 		}
 	}
@@ -53,6 +57,11 @@ func visitFilters(filters []filter, visitFunc func(f filter) bool) bool {
 //
 // It doesn't copy other filters by returning them as is.
 func copyFilter(f filter, visitFunc func(f filter) bool, copyFunc func(f filter) (filter, error)) (filter, error) {
+	if !visitFilterRecursive(f, visitFunc) {
+		// Nothing to copy
+		return f, nil
+	}
+
 	f, err := copyFilterInternal(f, visitFunc, copyFunc)
 	if err != nil {
 		return nil, err
@@ -101,12 +110,6 @@ func copyFilterInternal(f filter, visitFunc func(f filter) bool, copyFunc func(f
 //
 // It doesn't copy other filters by returning them as is.
 func copyFilters(filters []filter, visitFunc func(f filter) bool, copyFunc func(f filter) (filter, error)) ([]filter, error) {
-	if !visitFilters(filters, visitFunc) {
-		// Nothing to copy
-		return filters, nil
-	}
-
-	// Copy filters.
 	filtersNew := make([]filter, len(filters))
 	for i, f := range filters {
 		fNew, err := copyFilter(f, visitFunc, copyFunc)

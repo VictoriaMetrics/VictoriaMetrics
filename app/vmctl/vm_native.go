@@ -140,6 +140,15 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 
 	written, err := io.Copy(w, reader)
 	if err != nil {
+		// io.Copy could fail if ImportPipe will fail before and close the pr
+		// so we check if that's the case and to not ignore importErr if it exists.
+		select {
+		case importErr := <-importCh:
+			if importErr != nil {
+				return fmt.Errorf("failed to import %s: %w", p.dst.Addr, importErr)
+			}
+		default:
+		}
 		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
 	}
 

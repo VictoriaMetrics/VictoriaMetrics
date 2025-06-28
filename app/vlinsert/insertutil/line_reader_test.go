@@ -24,6 +24,9 @@ func TestLineReader_Success(t *testing.T) {
 		if lr.NextLine() {
 			t.Fatalf("expecting error on the second call to NextLine()")
 		}
+		if len(lr.Line) > 0 {
+			t.Fatalf("unexpected non-empty line after failed NextLine(): %q", lr.Line)
+		}
 		if !reflect.DeepEqual(lines, linesExpected) {
 			t.Fatalf("unexpected lines\ngot\n%q\nwant\n%q", lines, linesExpected)
 		}

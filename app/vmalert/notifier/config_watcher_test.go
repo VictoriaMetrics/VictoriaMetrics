@@ -8,8 +8,10 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 )
 
 func TestConfigWatcherReload(t *testing.T) {
@@ -59,6 +61,11 @@ static_configs:
 }
 
 func TestConfigWatcherStart(t *testing.T) {
+	oldSDCheckInterval := consul.SDCheckInterval
+	defer func() { consul.SDCheckInterval = oldSDCheckInterval }()
+	consulCheckInterval := 100 * time.Millisecond
+	consul.SDCheckInterval = &consulCheckInterval
+
 	consulSDServer := newFakeConsulServer()
 	defer consulSDServer.Close()
 
@@ -96,6 +103,11 @@ consul_sd_configs:
 	}
 	if n2.Addr() != expAddr2 {
 		t.Fatalf("exp address %q; got %q", expAddr2, n2.Addr())
+	}
+
+	time.Sleep(1 * time.Second)
+	if len(cw.notifiers()) != 1 {
+		t.Fatalf("expected to get 1 notifiers; got %d", len(cw.notifiers()))
 	}
 }
 
@@ -193,6 +205,7 @@ const (
 )
 
 func newFakeConsulServer() *httptest.Server {
+	requestCount := 0
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/agent/self", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte(`{"Config": {"Datacenter": "dc1"}}`))
@@ -207,8 +220,9 @@ func newFakeConsulServer() *httptest.Server {
 }`))
 	})
 	mux.HandleFunc("/v1/health/service/alertmanager", func(rw http.ResponseWriter, _ *http.Request) {
-		rw.Header().Set("X-Consul-Index", "1")
-		rw.Write([]byte(`
+		if requestCount == 0 {
+			rw.Header().Set("X-Consul-Index", "1")
+			rw.Write([]byte(`
 [
     {
         "Node": {
@@ -297,6 +311,56 @@ func newFakeConsulServer() *httptest.Server {
         }
     }
 ]`))
+		} else {
+			rw.Header().Set("X-Consul-Index", "2")
+			rw.Write([]byte(`
+[
+    {
+        "Node": {
+            "ID": "e8e3629a-3f50-9d6e-aaf8-f173b5b05c72",
+            "Node": "machine",
+            "Address": "127.0.0.1",
+            "Datacenter": "dc1",
+            "TaggedAddresses": {
+                "lan": "127.0.0.1",
+                "lan_ipv4": "127.0.0.1",
+                "wan": "127.0.0.1",
+                "wan_ipv4": "127.0.0.1"
+            },
+            "Meta": {
+                "consul-network-segment": ""
+            },
+            "CreateIndex": 13,
+            "ModifyIndex": 14
+        },
+        "Service": {
+            "ID": "am3",
+            "Service": "alertmanager",
+            "Tags": [
+                "alertmanager",
+                "__scheme__=http"
+            ],
+            "Address": "",
+            "Meta": null,
+            "Port": 9097,
+            "Weights": {
+                "Passing": 1,
+                "Warning": 1
+            },
+            "EnableTagOverride": false,
+            "Proxy": {
+                "Mode": "",
+                "MeshGateway": {},
+                "Expose": {}
+            },
+            "Connect": {},
+            "CreateIndex": 16,
+            "ModifyIndex": 16
+        }
+    }
+]`))
+		}
+		requestCount++
 	})
 
 	return httptest.NewServer(mux)

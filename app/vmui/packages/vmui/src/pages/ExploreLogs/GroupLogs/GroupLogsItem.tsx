@@ -1,8 +1,8 @@
-import React, { FC, memo, useMemo, useState } from "preact/compat";
+import React, { FC, memo, useMemo } from "preact/compat";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
-import { ArrowDownIcon } from "../../../components/Main/Icons";
+import { ArrowDownIcon, CopyIcon } from "../../../components/Main/Icons";
 import classNames from "classnames";
 import { useLogsState } from "../../../state/logsPanel/LogsStateContext";
 import dayjs from "dayjs";
@@ -10,10 +10,13 @@ import { useTimeState } from "../../../state/time/TimeStateContext";
 import { marked } from "marked";
 import { useSearchParams } from "react-router-dom";
 import { LOGS_DATE_FORMAT, LOGS_URL_PARAMS } from "../../../constants/logs";
-import useEventListener from "../../../hooks/useEventListener";
-import { getFromStorage } from "../../../utils/storage";
 import { parseAnsiToHtml } from "../../../utils/ansiParser";
 import GroupLogsFields from "./GroupLogsFields";
+import { useLocalStorageBoolean } from "../../../hooks/useLocalStorageBoolean";
+import Button from "../../../components/Main/Button/Button";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import { useCallback, useEffect, useState } from "react";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 
 interface Props {
   log: Logs;
@@ -27,6 +30,8 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
     value: isOpenFields,
     toggle: toggleOpenFields,
   } = useBoolean(false);
+  const [copied, setCopied] = useState<boolean>(false);
+  const copyToClipboard = useCopyToClipboard();
 
   const [searchParams] = useSearchParams();
   const { markdownParsing, ansiParsing } = useLogsState();
@@ -68,21 +73,29 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
     return values;
   }, [log, hasFields, displayFields, ansiParsing]);
 
-  const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
-
-  const handleUpdateStage = () => {
-    const newValDisabledHovers = !!getFromStorage("LOGS_DISABLED_HOVERS");
-    if (newValDisabledHovers !== disabledHovers) {
-      setDisabledHovers(newValDisabledHovers);
-    }
-  };
+  const [disabledHovers] = useLocalStorageBoolean("LOGS_DISABLED_HOVERS");
 
   const handleClick = () => {
     toggleOpenFields();
     onItemClick?.(log);
   };
 
-  useEventListener("storage", handleUpdateStage);
+  const handleCopy = useCallback(async (e: Event) => {
+    e.stopPropagation();
+    if (copied) return;
+    try {
+      await copyToClipboard(JSON.stringify(log, null, 2));
+      setCopied(true);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [copied, copyToClipboard]);
+
+  useEffect(() => {
+    if (copied === null) return;
+    const timeout = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timeout);
+  }, [copied]);
 
   return (
     <div className="vm-group-logs-row">
@@ -93,6 +106,17 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"], onItemClick, 
         })}
         onClick={handleClick}
       >
+        <Tooltip title={copied ? "Copied" : "Copy to clipboard"}>
+          <Button
+            className="vm-group-logs-row-content__copy-row"
+            variant="text"
+            color="gray"
+            size="small"
+            startIcon={<CopyIcon/>}
+            onClick={handleCopy}
+            ariaLabel="copy to clipboard"
+          />
+        </Tooltip>
         {hasFields && (
           <div
             className={classNames({

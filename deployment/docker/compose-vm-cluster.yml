@@ -3,7 +3,7 @@ services:
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
   vmagent:
-    image: victoriametrics/vmagent:v1.119.0
+    image: victoriametrics/vmagent:v1.120.0
     depends_on:
       - "vmauth"
     ports:
@@ -17,7 +17,7 @@ services:
     restart: always
 
   grafana:
-    image: grafana/grafana:11.5.0
+    image: grafana/grafana:12.0.2
     depends_on:
       - "vmauth"
     ports:
@@ -35,14 +35,14 @@ services:
   # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
-    image: victoriametrics/vmstorage:v1.119.0-cluster
+    image: victoriametrics/vmstorage:v1.120.0-cluster
     volumes:
       - strgdata-1:/storage
     command:
       - "--storageDataPath=/storage"
     restart: always
   vmstorage-2:
-    image: victoriametrics/vmstorage:v1.119.0-cluster
+    image: victoriametrics/vmstorage:v1.120.0-cluster
     volumes:
       - strgdata-2:/storage
     command:
@@ -52,7 +52,7 @@ services:
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert-1:
-    image: victoriametrics/vminsert:v1.119.0-cluster
+    image: victoriametrics/vminsert:v1.120.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -61,7 +61,7 @@ services:
       - "--storageNode=vmstorage-2:8400"
     restart: always
   vminsert-2:
-    image: victoriametrics/vminsert:v1.119.0-cluster
+    image: victoriametrics/vminsert:v1.120.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -73,7 +73,7 @@ services:
   # vmselect is a query fronted. It serves read queries in MetricsQL or PromQL.
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
-    image: victoriametrics/vmselect:v1.119.0-cluster
+    image: victoriametrics/vmselect:v1.120.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -83,7 +83,7 @@ services:
       - "--vmalert.proxyURL=http://vmalert:8880"
     restart: always
   vmselect-2:
-    image: victoriametrics/vmselect:v1.119.0-cluster
+    image: victoriametrics/vmselect:v1.120.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -98,7 +98,7 @@ services:
   # read requests from Grafana, vmui, vmalert among vmselects.
   # It can be used as an authentication proxy.
   vmauth:
-    image: victoriametrics/vmauth:v1.119.0
+    image: victoriametrics/vmauth:v1.120.0
     depends_on:
       - "vmselect-1"
       - "vmselect-2"
@@ -112,7 +112,7 @@ services:
 
   # vmalert executes alerting and recording rules
   vmalert:
-    image: victoriametrics/vmalert:v1.119.0
+    image: victoriametrics/vmalert:v1.120.0
     depends_on:
       - "vmauth"
     ports:

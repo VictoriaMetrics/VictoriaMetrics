@@ -15,7 +15,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
@@ -216,24 +215,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	sbc := src.client.NewBlobClient(p.RemotePath(src.Dir))
 	dbc := fs.clientForPart(p)
 
-	ssCopyPermission := sas.BlobPermissions{
-		Read:   true,
-		Create: true,
-		Write:  true,
-	}
-
-	startTime := time.Now().Add(-10 * time.Minute)
-	o := &blob.GetSASURLOptions{
-		StartTime: &startTime,
-	}
-	t, err := sbc.GetSASURL(ssCopyPermission, time.Now().Add(30*time.Minute), o)
-	if err != nil {
-		return fmt.Errorf("failed to generate SAS token of src %q: %w", p.Path, err)
-	}
-
 	// In order to support copy of files larger than 256MB, we need to use the async copy
 	// Ref: https://learn.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url
-	_, err = dbc.StartCopyFromURL(fs.ctx, t, &blob.StartCopyFromURLOptions{})
+	_, err := dbc.StartCopyFromURL(fs.ctx, sbc.URL(), &blob.StartCopyFromURLOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot start async copy %q from %s to %s: %w", p.Path, src, fs, err)
 	}

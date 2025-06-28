@@ -115,13 +115,14 @@
           "mappings": [
             {
               "options": {
-                "0": {
+                "match": "null",
+                "result": {
                   "color": "green",
                   "index": 0,
                   "text": "Ok"
                 }
               },
-              "type": "value"
+              "type": "special"
             },
             {
               "options": {
@@ -140,8 +141,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -173,17 +173,19 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 )",
           "interval": "",
           "legendFormat": "",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -204,8 +206,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -237,7 +238,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -268,8 +269,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -301,7 +301,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -332,8 +332,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -369,17 +368,19 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) or vector(0))",
+          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval]))) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])))",
           "interval": "",
           "legendFormat": "",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -394,14 +395,24 @@
       "description": "Shows number of Recording Rules which produce no data.\n\n Usually it means that such rules are misconfigured, since they give no output during the evaluation.\nPlease check if rule's expression is correct and it is working as expected.",
       "fieldConfig": {
         "defaults": {
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "index": 1,
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            }
+          ],
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -437,7 +448,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -446,7 +457,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\"} < 1) or 0",
+          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\"} < 1)",
           "interval": "",
           "legendFormat": "",
           "range": true,
@@ -479,8 +490,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -535,7 +545,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -605,8 +615,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -642,7 +651,7 @@
           "sort": "asc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -724,8 +733,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -763,7 +771,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -787,7 +795,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Top $topk groups by evaluation duration. Shows groups that take the most of time during the evaluation across all instances.\n\nThe panel uses MetricsQL functions and may not work with VictoriaMetrics.",
+      "description": "Top $topk groups by evaluation duration. Shows groups that take the most of time during the evaluation across all instances.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -831,8 +839,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -870,7 +877,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -879,7 +886,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
+          "expr": "topk($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
           "interval": "",
           "legendFormat": "({{job}}) {{group}}({{file}})",
           "range": true,
@@ -938,8 +945,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -975,7 +981,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1043,8 +1049,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1080,7 +1085,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.5.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1160,8 +1165,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1276,8 +1280,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1394,8 +1397,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1503,8 +1505,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1637,8 +1638,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1754,8 +1754,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1876,8 +1875,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1997,8 +1995,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2106,8 +2103,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2216,8 +2212,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2325,8 +2320,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2434,8 +2428,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2856,7 +2849,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows top $topk current active (firing) alerting rules.\n\nThe panel uses MetricsQL functions and may not work with VictoriaMetrics.",
+          "description": "Shows top $topk current active (firing) alerting rules.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2943,7 +2936,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
+              "expr": "topk($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
               "interval": "",
               "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
@@ -3376,7 +3369,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.\n\nThe panel uses MetricsQL functions and may not work with VictoriaMetrics.",
+          "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3463,7 +3456,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
+              "expr": "topk($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
               "interval": "",
               "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
@@ -4084,7 +4077,7 @@
   ],
   "preload": false,
   "refresh": "",
-  "schemaVersion": 40,
+  "schemaVersion": 41,
   "tags": [
     "victoriametrics"
   ],
@@ -4228,10 +4221,10 @@
         "baseFilters": [],
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
-          "uid": "$ds"
+          "uid": "${ds}"
         },
         "filters": [],
-        "name": "adhoc",
+        "name": "filter",
         "type": "adhoc"
       }
     ]
@@ -4244,6 +4237,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - vmalert (VM)",
   "uid": "LzldHAVnz_vm",
-  "version": 1,
-  "weekStart": ""
+  "version": 1
 }

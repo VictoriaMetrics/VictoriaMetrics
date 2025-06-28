@@ -74,7 +74,7 @@ export const useFetchLogHits = (server: string, query: string) => {
       }
     }
     setIsLoading(prev => ({ ...prev, [id]: false }));
-  }, [url, query]);
+  }, [url, query, tenant]);
 
   useEffect(() => {
     return () => {

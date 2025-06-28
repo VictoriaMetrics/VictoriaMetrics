@@ -8,17 +8,27 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 type fakeReplayQuerier struct {
 	datasource.FakeQuerier
-	registry map[string]map[string]struct{}
+	registry map[string]map[string][]datasource.Metric
 }
 
 func (fr *fakeReplayQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {
 	return fr
+}
+
+type fakeRWClient struct{}
+
+func (fc *fakeRWClient) Push(_ prompbmarshal.TimeSeries) error {
+	return nil
+}
+
+func (fc *fakeRWClient) Close() error {
+	return nil
 }
 
 func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to time.Time) (res datasource.Result, err error) {
@@ -27,19 +37,16 @@ func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to ti
 	if !ok {
 		return res, fmt.Errorf("unexpected query received: %q", q)
 	}
-	_, ok = dps[key]
+	metrics, ok := dps[key]
 	if !ok {
 		return res, fmt.Errorf("unexpected time range received: %q", key)
 	}
-	delete(dps, key)
-	if len(fr.registry[q]) < 1 {
-		delete(fr.registry, q)
-	}
+	res.Data = metrics
 	return res, nil
 }
 
 func TestReplay(t *testing.T) {
-	f := func(from, to string, maxDP int, cfg []config.Group, qb *fakeReplayQuerier) {
+	f := func(from, to string, maxDP int, ruleDelay time.Duration, cfg []config.Group, qb *fakeReplayQuerier, expectTotalRows int) {
 		t.Helper()
 
 		fromOrig, toOrig, maxDatapointsOrig := *replayFrom, *replayTo, *replayMaxDatapoints
@@ -51,90 +58,172 @@ func TestReplay(t *testing.T) {
 		}()
 
 		*replayRuleRetryAttempts = 1
-		*replayRulesDelay = time.Millisecond
-		rwb := &remotewrite.DebugClient{}
+		*replayRulesDelay = ruleDelay
+		rwb := &fakeRWClient{}
 		*replayFrom = from
 		*replayTo = to
 		*replayMaxDatapoints = maxDP
-		if err := replay(cfg, qb, rwb); err != nil {
+		totalRows, _, err := replay(cfg, qb, rwb)
+		if err != nil {
 			t.Fatalf("replay failed: %s", err)
 		}
-		if len(qb.registry) > 0 {
-			t.Fatalf("not all requests were sent: %#v", qb.registry)
+		if totalRows != expectTotalRows {
+			t.Fatalf("unexpected total rows count: got %d, want %d", totalRows, expectTotalRows)
 		}
 	}
 
 	// one rule + one response
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:00.000Z", 10, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:00.000Z", 10, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
-		registry: map[string]map[string]struct{}{
-			"sum(up)": {"12:00:00+12:02:00": {}},
+		registry: map[string]map[string][]datasource.Metric{
+			"sum(up)": {"12:00:00+12:02:00": {
+				{
+					Timestamps: []int64{1},
+					Values:     []float64{1},
+				},
+			}},
 		},
-	})
+	}, 1)
 
 	// one rule + multiple responses
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
-		registry: map[string]map[string]struct{}{
+		registry: map[string]map[string][]datasource.Metric{
 			"sum(up)": {
-				"12:00:00+12:01:00": {},
+				"12:00:00+12:01:00": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
 				"12:01:00+12:02:00": {},
-				"12:02:00+12:02:30": {},
+				"12:02:00+12:02:30": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
 			},
 		},
-	})
+	}, 2)
 
 	// datapoints per step
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T15:02:30.000Z", 60, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T15:02:30.000Z", 60, time.Millisecond, []config.Group{
 		{Interval: promutil.NewDuration(time.Minute), Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 	}, &fakeReplayQuerier{
-		registry: map[string]map[string]struct{}{
+		registry: map[string]map[string][]datasource.Metric{
 			"sum(up)": {
-				"12:00:00+13:00:00": {},
-				"13:00:00+14:00:00": {},
+				"12:00:00+13:00:00": {
+					{
+						Timestamps: []int64{1, 2},
+						Values:     []float64{1, 2},
+					},
+				},
+				"13:00:00+14:00:00": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
 				"14:00:00+15:00:00": {},
 				"15:00:00+15:02:30": {},
 			},
 		},
-	})
+	}, 3)
 
 	// multiple recording rules + multiple responses
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, []config.Group{
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up)"}}},
 		{Rules: []config.Rule{{Record: "bar", Expr: "max(up)"}}},
 	}, &fakeReplayQuerier{
-		registry: map[string]map[string]struct{}{
+		registry: map[string]map[string][]datasource.Metric{
 			"sum(up)": {
-				"12:00:00+12:01:00": {},
+				"12:00:00+12:01:00": {
+					{
+						Timestamps: []int64{1, 2},
+						Values:     []float64{1, 2},
+					},
+				},
 				"12:01:00+12:02:00": {},
 				"12:02:00+12:02:30": {},
 			},
 			"max(up)": {
 				"12:00:00+12:01:00": {},
-				"12:01:00+12:02:00": {},
+				"12:01:00+12:02:00": {
+					{
+						Timestamps: []int64{1, 2},
+						Values:     []float64{1, 2},
+					},
+				},
 				"12:02:00+12:02:30": {},
 			},
 		},
-	})
+	}, 4)
 
 	// multiple alerting rules + multiple responses
-	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, []config.Group{
+	// alerting rule generates two series `ALERTS` and `ALERTS_FOR_STATE` when triggered
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, time.Millisecond, []config.Group{
 		{Rules: []config.Rule{{Alert: "foo", Expr: "sum(up) > 1"}}},
 		{Rules: []config.Rule{{Alert: "bar", Expr: "max(up) < 1"}}},
 	}, &fakeReplayQuerier{
-		registry: map[string]map[string]struct{}{
+		registry: map[string]map[string][]datasource.Metric{
 			"sum(up) > 1": {
-				"12:00:00+12:01:00": {},
+				"12:00:00+12:01:00": {
+					{
+						Timestamps: []int64{1, 2},
+						Values:     []float64{1, 2},
+					},
+				},
 				"12:01:00+12:02:00": {},
 				"12:02:00+12:02:30": {},
 			},
 			"max(up) < 1": {
-				"12:00:00+12:01:00": {},
+				"12:00:00+12:01:00": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
 				"12:01:00+12:02:00": {},
 				"12:02:00+12:02:30": {},
 			},
 		},
-	})
+	}, 6)
+
+	// multiple recording rules in one group+ multiple responses + concurrency
+	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 0, []config.Group{
+		{Rules: []config.Rule{{Record: "foo", Expr: "sum(up) > 1"}, {Record: "bar", Expr: "max(up) < 1"}}, Concurrency: 2}}, &fakeReplayQuerier{
+		registry: map[string]map[string][]datasource.Metric{
+			"sum(up) > 1": {
+				"12:00:00+12:01:00": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
+				"12:01:00+12:02:00": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
+				"12:02:00+12:02:30": {
+					{
+						Timestamps: []int64{1},
+						Values:     []float64{1},
+					},
+				},
+			},
+			"max(up) < 1": {
+				"12:00:00+12:01:00": {},
+				"12:01:00+12:02:00": {{
+					Timestamps: []int64{1},
+					Values:     []float64{1},
+				}},
+				"12:02:00+12:02:30": {},
+			},
+		},
+	}, 4)
 }

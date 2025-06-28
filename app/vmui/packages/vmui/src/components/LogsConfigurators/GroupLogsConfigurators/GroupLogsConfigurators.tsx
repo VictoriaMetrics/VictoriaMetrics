@@ -19,8 +19,8 @@ import {
   LOGS_URL_PARAMS,
   WITHOUT_GROUPING
 } from "../../../constants/logs";
-import { getFromStorage, saveToStorage } from "../../../utils/storage";
 import LogParsingSwitches from "../../Configurators/LogsSettings/LogParsingSwitches";
+import { useLocalStorageBoolean } from "../../../hooks/useLocalStorageBoolean";
 
 const {
   GROUP_BY,
@@ -48,7 +48,7 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
   const [dateFormat, setDateFormat] = useState(searchParams.get(DATE_FORMAT) || LOGS_DATE_FORMAT);
   const [errorFormat, setErrorFormat] = useState("");
 
-  const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
+  const [disabledHovers, handleSetDisabledHovers] = useLocalStorageBoolean("LOGS_DISABLED_HOVERS");
 
   const isGroupChanged = groupBy !== LOGS_GROUP_BY;
   const isDisplayFieldsChanged = displayFields.length !== 1 || displayFields[0] !== LOGS_DISPLAY_FIELDS;
@@ -115,11 +115,6 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
     }
     setSearchParams(searchParams);
     handleClose();
-  };
-
-  const handleSetDisabledHovers = (value: boolean) => {
-    setDisabledHovers(value);
-    saveToStorage("LOGS_DISABLED_HOVERS", value);
   };
 
   const tooltipContent = () => {

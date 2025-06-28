@@ -4,19 +4,8 @@ import { Logs } from "../../../../../api/types";
 import { useAppState } from "../../../../../state/common/StateContext";
 import useBoolean from "../../../../../hooks/useBoolean";
 import { useTenant } from "../../../../../hooks/useTenant";
+import { LogFlowAnalyzer } from "./utils";
 
-/**
- * Defines the maximum number of consecutive times logs can be fetched above the threshold
- * before showing a warning notification, and vice versa:
- * - If logs are fetched above a threshold this many times in a row -> show warning
- * - If warning is shown, it won't disappear until logs are fetched below a threshold
- *   this many times in a row
- *
- * This threshold helps optimize log display performance when dealing with large volumes of logs.
- * If the threshold is consistently exceeded, users will be prompted to add filters to their query
- * for better system performance and more focused log analysis.
- */
-const MAX_ATTEMPTS_FETCH_LOGS_PER_SECOND = 5;
 /**
  * Defines the log's threshold, after which will be shown a warning notification
  */
@@ -56,37 +45,12 @@ const createStreamProcessor = (
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         console.error("Stream processing error:", e);
-        setError(String(e));
+        restartTailing();
       }
     } finally {
       clearInterval(connectionCheckInterval);
     }
   };
-};
-
-const updateLimitModeTracking = (
-  linesCount: number,
-  attemptsFetchLimitRef: React.MutableRefObject<number>,
-  attemptsFetchLowRef: React.MutableRefObject<number>,
-  isLimitedLogsPerUpdate: boolean,
-) => {
-  if (linesCount > LOGS_THRESHOLD) {
-    attemptsFetchLimitRef.current++;
-    attemptsFetchLowRef.current = 0;
-  } else {
-    attemptsFetchLowRef.current++;
-    attemptsFetchLimitRef.current = 0;
-  }
-
-  if (attemptsFetchLimitRef.current > MAX_ATTEMPTS_FETCH_LOGS_PER_SECOND) {
-    return true;
-  }
-
-  if (attemptsFetchLowRef.current > MAX_ATTEMPTS_FETCH_LOGS_PER_SECOND) {
-    return false;
-  }
-
-  return isLimitedLogsPerUpdate;
 };
 
 const parseLogLines = (lines: string[], counterRef: React.MutableRefObject<bigint>): Logs[] => {
@@ -108,27 +72,22 @@ interface ProcessBufferedLogsParams {
   lines: string[];
   limit: number;
   counterRef: React.MutableRefObject<bigint>;
-  attemptsFetchLimitRef: React.MutableRefObject<number>;
-  attemptsFetchLowRef: React.MutableRefObject<number>;
   setIsLimitedLogsPerUpdate: (isLimited: boolean) => void;
   setLogs: React.Dispatch<React.SetStateAction<Logs[]>>;
   bufferLinesRef: React.MutableRefObject<string[]>;
-  isLimitedLogsPerUpdate: boolean;
+  logFlowAnalyzerRef?: React.MutableRefObject<LogFlowAnalyzer>;
 }
 
 const processBufferedLogs = ({
   lines,
   limit,
   counterRef,
-  attemptsFetchLimitRef,
-  attemptsFetchLowRef,
   setIsLimitedLogsPerUpdate,
   setLogs,
   bufferLinesRef,
-  isLimitedLogsPerUpdate
+  logFlowAnalyzerRef
 }: ProcessBufferedLogsParams) => {
-
-  const isLimitLogsMode = updateLimitModeTracking(lines.length, attemptsFetchLimitRef, attemptsFetchLowRef, isLimitedLogsPerUpdate);
+  const isLimitLogsMode = logFlowAnalyzerRef?.current?.update(lines.length) === "high";
   const limitedLines = isLimitLogsMode && lines.length > LOGS_THRESHOLD ? lines.slice(-LOGS_THRESHOLD) : lines;
   const newLogs = parseLogLines(limitedLines, counterRef);
 
@@ -155,8 +114,7 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bufferRef = useRef<string>("");
   const bufferLinesRef = useRef<string[]>([]);
-  const attemptsFetchLimitLogsPerSecondCountRef = useRef<number>(0);
-  const attemptsFetchLowLogsPerSecondCountRef = useRef<number>(0);
+  const logFlowAnalyzerRef = useRef(new LogFlowAnalyzer());
 
   const stopLiveTailing = useCallback(() => {
     if (readerRef.current) {
@@ -239,12 +197,10 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
         lines,
         limit,
         counterRef,
-        attemptsFetchLimitRef: attemptsFetchLimitLogsPerSecondCountRef,
-        attemptsFetchLowRef: attemptsFetchLowLogsPerSecondCountRef,
         setIsLimitedLogsPerUpdate,
-        isLimitedLogsPerUpdate,
         setLogs,
-        bufferLinesRef
+        bufferLinesRef,
+        logFlowAnalyzerRef
       });
     }, PROCESSING_INTERVAL_MS);
 

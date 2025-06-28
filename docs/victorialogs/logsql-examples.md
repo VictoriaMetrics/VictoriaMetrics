@@ -128,7 +128,7 @@ See also:
 
 ## How to select logs with all the given words in log message?
 
-Just enumerate the needed [words](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the query, by deliming them with whitespace.
+Just enumerate the needed [words](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the query, by delimiting them with whitespace.
 For example, the following query selects logs containing both `error` and `kubernetes` [words](https://docs.victoriametrics.com/victorialogs/logsql/#word)
 in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 

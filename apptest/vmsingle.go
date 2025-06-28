@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific

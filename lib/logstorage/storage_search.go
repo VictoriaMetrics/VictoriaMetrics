@@ -64,7 +64,8 @@ type searchOptions struct {
 
 // WriteDataBlockFunc must process the db.
 //
-// WriteDataBlockFunc cannot hold references to db after returning.
+// WriteDataBlockFunc cannot hold references to db or any of its fields after the function returns.
+// If you need BlockColumn names or values after the function returns, copy them using strings.Clone.
 type WriteDataBlockFunc func(workerID uint, db *DataBlock)
 
 func (f WriteDataBlockFunc) newBlockResultWriter() writeBlockResultFunc {
@@ -698,7 +699,7 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 			return false
 		}
 	}
-	return visitFilter(f, visitFunc)
+	return visitFilterRecursive(f, visitFunc)
 }
 
 func hasFilterInWithQueryForPipes(pipes []pipe) bool {
@@ -1192,7 +1193,7 @@ func hasStreamFilters(f filter) bool {
 		_, ok := f.(*filterStream)
 		return ok
 	}
-	return visitFilter(f, visitFunc)
+	return visitFilterRecursive(f, visitFunc)
 }
 
 func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {

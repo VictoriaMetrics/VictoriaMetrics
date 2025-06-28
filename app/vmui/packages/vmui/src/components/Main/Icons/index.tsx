@@ -1,4 +1,3 @@
-import React from "react";
 import { getCssVariable } from "../../../utils/theme";
 
 export const LogoIcon = () => (
@@ -643,3 +642,47 @@ export const PauseIcon = () => (
     <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
   </svg>
 );
+
+export const ScrollToTopIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path
+      d="M8 12l4-4 4 4m-4-4v12"
+      strokeWidth="2"
+      stroke="currentColor"
+      fill="none"
+    />
+  </svg>
+);
+
+export const SortIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M4 3 L4 15 L1.5 15 L5.5 21 L9.5 15 L7 15 L7 3 Z"/>
+    <path d="M13 21 L13 9 L10.5 9 L14.5 3 L18.5 9 L16 9 L16 21 Z"/>
+  </svg>
+);
+
+export const SortArrowDownIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M10.5 3 L10.5 15 L8 15 L12 21 L16 15 L13.5 15 L13.5 3 Z"/>
+  </svg>
+);
+
+export const SortArrowUpIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M10.5 21 L10.5 9 L8 9 L12 3 L16 9 L13.5 9 L13.5 21 Z"/>
+  </svg>
+);
+
+

@@ -56,6 +56,7 @@ func NewLineReader(name string, r io.Reader) *LineReader {
 // Check for Err in this case.
 func (lr *LineReader) NextLine() bool {
 	for {
+		lr.Line = nil
 		if lr.bufOffset >= len(lr.buf) {
 			if lr.err != nil || lr.eofReached {
 				return false

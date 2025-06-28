@@ -133,6 +133,33 @@ func TestExtractTimestampFromFields_Success(t *testing.T) {
 	}, 1718773640000000000)
 }
 
+func TestExtractTimestampFromFields_Now(t *testing.T) {
+	f := func(timeField string, fields []logstorage.Field) {
+		t.Helper()
+
+		nsecs, err := ExtractTimestampFromFields([]string{timeField}, fields)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if nsecs < 1 {
+			t.Fatalf("expected generated timestamp, got error: %s", err)
+		}
+	}
+
+	// RFC5424 allows `-` for nil timestamp (log ingestion time)
+	f("time", []logstorage.Field{
+		{Name: "time", Value: "-"},
+	})
+
+	f("time", []logstorage.Field{
+		{Name: "time", Value: ""},
+	})
+
+	f("time", []logstorage.Field{
+		{Name: "time", Value: "0"},
+	})
+}
+
 func TestExtractTimestampFromFields_Error(t *testing.T) {
 	f := func(s string) {
 		t.Helper()

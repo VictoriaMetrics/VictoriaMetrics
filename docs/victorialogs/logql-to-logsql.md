@@ -94,7 +94,7 @@ Loki allows applying filters to log labels with `{...} | label op value` syntax:
   according to [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
 
 * `{...} | label > value`, `{...} label >= value`, `{...} label < value` and `{...} label <= value`.
-  This is eqvalent to `{...} label:>value`, `{...} label:>=value`, `{...} label:<value` and `{...} label:<=value`
+  This is equivalent to `{...} label:>value`, `{...} label:>=value`, `{...} label:<value` and `{...} label:<=value`
   in VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#range-comparison-filter).
 
 * `{...} | label ~= value`. This is equivalent to `{...} label:~value` in VictoriaLogs.
@@ -192,7 +192,7 @@ Loki provides the ability to drop log labels with the `{...} | drop label1, ...,
 according to [these docs](https://grafana.com/docs/loki/latest/query/log_queries/#drop-labels-expression).
 The similar syntax is also supported by VictoriaLogs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe).
 
-Lokis supports conditional dropping of labels with the `{...} | drop label="value"` syntax.
+Loki supports conditional dropping of labels with the `{...} | drop label="value"` syntax.
 This can be replaced with [conditional format](https://docs.victoriametrics.com/victorialogs/logsql/#conditional-format) at VictoriaLogs:
 
 ```logsql
@@ -266,7 +266,7 @@ can be substituted with the simple `{...} | count()` query at VictoriaLogs.
 
 ### Unwrapped range aggregations
 
-Loki allows calculating metrics from label values by using the `func_name({...} | unwrap label_name)` syntax. There is no need in unrapping any labels in VictoriaLogs -
+Loki allows calculating metrics from label values by using the `func_name({...} | unwrap label_name)` syntax. There is no need in unwrapping any labels in VictoriaLogs -
 just pass the needed label names into the needed [`stats` pipe function](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions).
 
 VictoriaLogs aggregates all the selected logs by default, while Loki groups stats by log stream. Use `... | stats by (_stream) ...`

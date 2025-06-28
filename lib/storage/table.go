@@ -464,7 +464,7 @@ func (tb *table) historicalMergeWatcher() {
 			if ptw.pt.name == currentPartitionName {
 				// Do not run force merge for the current month.
 				// For the current month, the samples are countinously
-				// deduplicated and retention fileters applied by the background in-memory, small, and big part
+				// deduplicated and retention filters applied by the background in-memory, small, and big part
 				// merge tasks. See:
 				// - partition.mergeParts() in paritiont.go and
 				// - Block.deduplicateSamplesDuringMerge() in block.go.

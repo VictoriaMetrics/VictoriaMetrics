@@ -417,7 +417,7 @@ Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMet
 
 Single-node VictoriaMetrics stores data on disk in slightly different format comparing to cluster version of VictoriaMetrics.
 So it is impossible to just copy the on-disk data from `-storageDataPath` directory from single-node VictoriaMetrics to a `vmstorage` node in VictoriaMetrics cluster.
-If you need migrating data from single-node VictoriaMetrics to cluster version, then [follow these instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
+If you need migrating data from single-node VictoriaMetrics to cluster version, then [follow these instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ## Why isn't MetricsQL 100% compatible with PromQL?
 
@@ -425,15 +425,15 @@ If you need migrating data from single-node VictoriaMetrics to cluster version, 
 
 ## How to migrate data from Prometheus to VictoriaMetrics?
 
-Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-prometheus).
+Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/prometheus/).
 
 ## How to migrate data from InfluxDB to VictoriaMetrics?
 
-Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-influxdb-1x).
+Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/).
 
 ## How to migrate data from OpenTSDB to VictoriaMetrics?
 
-Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-opentsdb).
+Please see [these docs](https://docs.victoriametrics.com/victoriametrics/vmctl/opentsdb/).
 
 ## How to migrate data from Graphite to VictoriaMetrics?
 

@@ -4,12 +4,89 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
+
+// TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
+func TestSingleVMAgentReloadConfigs(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	vmsingle := tc.MustStartDefaultVmsingle()
+
+	relabelingRules := `
+- replacement: value1
+  target_label: label1
+  `
+	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), "relabel_config.yaml")
+	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
+		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
+	}
+
+	vmagent := tc.MustStartVmagent("vmagent", []string{
+		`-remoteWrite.flushInterval=50ms`,
+		`-remoteWrite.forcePromProto=true`,
+		"-remoteWrite.tmpDataPath=" + tc.Dir() + "/vmagent",
+		fmt.Sprintf(`-remoteWrite.url=http://%s/api/v1/write`, vmsingle.HTTPAddr()),
+		fmt.Sprintf(`-remoteWrite.urlRelabelConfig=%s`, relabelFilePath),
+	}, ``)
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	vmsingle.ForceFlush(t)
+
+	tc.Assert(&at.AssertOptions{
+		Msg: `unexpected metrics stored on vmagent remote write`,
+		Got: func() any {
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+				Start: "2022-05-10T00:00:00Z",
+				End:   "2022-05-10T23:59:59Z",
+			}).Sort()
+		},
+		Want: &at.PrometheusAPIV1SeriesResponse{
+			Status: "success",
+			Data:   []map[string]string{{"__name__": "foo_bar", "label1": "value1"}},
+		},
+	})
+
+	relabelingRules = `
+- replacement: value2
+  target_label: label1
+  `
+
+	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
+		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
+	}
+
+	vmagent.ReloadRelabelConfigs(t)
+
+	vmagent.APIV1ImportPrometheus(t, []string{
+		"bar_foo 1 1652169600001", // 2022-05-10T08:00:00Z
+	}, apptest.QueryOpts{})
+
+	vmsingle.ForceFlush(t)
+
+	tc.Assert(&at.AssertOptions{
+		Msg: `unexpected metrics stored on vmagent remote write`,
+		Got: func() any {
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="bar_foo"}`, at.QueryOpts{
+				Start: "2022-05-10T00:00:00Z",
+				End:   "2022-05-10T23:59:59Z",
+			}).Sort()
+		},
+		Want: &at.PrometheusAPIV1SeriesResponse{
+			Status: "success",
+			Data:   []map[string]string{{"__name__": "bar_foo", "label1": "value2"}},
+		},
+	})
+}
 
 // TestSingleVMAgentZstdRemoteWrite verifies that vmagent can successfully perform
 // a remote write to vmsingle using VM protocol (zstd).
