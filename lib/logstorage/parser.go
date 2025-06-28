@@ -265,6 +265,9 @@ type queryOptions struct {
 
 	// if ignoreGlobalTimeFilter is set, then Query.AddTimeFilter doesn't add the time filter to the query and to all its subqueries.
 	ignoreGlobalTimeFilter *bool
+
+	// timeOffset is the number of nanoseconds to apply as an offset to all time filters.
+	timeOffset int64
 }
 
 func (opts *queryOptions) String() string {
@@ -1276,6 +1279,12 @@ func parseQuery(lex *lexer) (*Query, error) {
 	lex.pushQueryOptions(opts)
 	defer lex.popQueryOptions()
 
+	lex.currentTimestamp -= opts.timeOffset
+	defer func() {
+		// Restore the original timestamp to avoid overriding the parent query's timestamp.
+		lex.currentTimestamp += opts.timeOffset
+	}()
+
 	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
@@ -1374,6 +1383,12 @@ func parseQueryOptions(lex *lexer) (*queryOptions, error) {
 				return nil, fmt.Errorf("cannot parse 'ignore_global_time_filter=%q' option as boolean: %w", v, err)
 			}
 			opts.ignoreGlobalTimeFilter = &ignoreGlobalTimeFilter
+		case "time_offset":
+			timeOffset, ok := tryParseDuration(v)
+			if !ok {
+				return nil, fmt.Errorf("cannot parse 'time_offset=%q' option as duration", v)
+			}
+			opts.timeOffset = timeOffset
 		default:
 			return nil, fmt.Errorf("unexpected option %q with value %q", k, v)
 		}
