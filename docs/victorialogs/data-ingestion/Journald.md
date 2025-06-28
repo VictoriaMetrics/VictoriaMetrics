@@ -22,24 +22,34 @@ Substitute the `localhost:9428` address inside `endpoints` section with the real
 
 ## Time field
 
-By default VictoriaLogs use the `__REALTIME_TIMESTAMP` field as [timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
-for the logs ingested via journald protocol. This can be modified by setting the `-journald.timeField` command-line flag to the log field name,
-which contains the needed timestamp.
-
+VictoriaLogs uses the `__REALTIME_TIMESTAMP` field as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
+for the logs ingested via journald protocol. Other field can be used instead of `__REALTIME_TIMESTAMP` by specifying it via `-journald.timeField` command-line flag.
 See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+
+## Level field
+
+VictoriaLogs automatically sets the `level` log field according to the [`PRIORITY` field value](https://wiki.archlinux.org/title/Systemd/Journal).
+
+## Stream fields
+
+VictoriaLogs uses `(_MACHINE_ID, _HOSTNAME, _SYSTEMD_UNIT)` as [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+for logs ingested via journald protocol. The list of log stream fields can be changed via `-journald.streamFields` command-line flag if needed,
+by providing comma-separated list of journald fields form [this list](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+
+Please make sure that the log stream fields passed to `-journlad.streamFields` do not contain fields with high number or unbound number of unique values,
+since this may lead to [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+
+The following Journald fields are also good candidates for stream fields:
+
+- `_TRANSPORT`
+- `_SYSTEMD_USER_UNIT`
+
 
 ## Dropping fields
 
 VictoriaLogs can be configured for skipping the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 for logs ingested via journald protocol, via `-journald.ignoreFields` command-line flag, which accepts comma-separated list of log fields to ignore.
 This list can contain log field prefixes ending with `*` such as `some-prefix*`. In this case all the fields starting from `some-prefix` are ignored.
-
-See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
-
-## Stream fields
-
-VictoriaLogs can be configured to use the particular fields as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-for logs ingested via jorunald protocol, via `-journald.streamFields` command-line flag, which accepts comma-separated list of fields to use as log stream fields.
 
 See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
 

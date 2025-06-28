@@ -400,6 +400,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
     	Disable CORS for all origins (*)
+  -http.disableKeepAlive
+    	Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
     	Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -463,9 +465,6 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -journald.includeEntryMetadata
     	Include journal entry fields, which with double underscores.
-  -journald.maxRequestSize size
-    	The maximum size in bytes of a single journald request
-    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -journald.streamFields array
     	Comma-separated list of fields to use as log stream fields for logs ingested over journald protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#stream-fields
     	Supports an array of values separated by comma or specified via multiple flags.

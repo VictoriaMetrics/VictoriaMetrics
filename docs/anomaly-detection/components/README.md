@@ -25,6 +25,7 @@ Here's a minimalistic full config example, demonstrating many-to-many configurat
 settings:
   n_workers: 4  # number of workers to run models in parallel
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
+  restore_state: True  # restore state from previous run, if available
 
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/

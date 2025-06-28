@@ -1,8 +1,9 @@
 package streamaggr
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 var rateAggrSharedValuePool sync.Pool
@@ -134,14 +135,19 @@ func (av *rateAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast b
 			continue
 		}
 		state = sv.getState(av.isGreen)
-		d := float64(state.timestamp-sv.prevTimestamp) / 1000
-		if d > 0 {
-			rate += state.increase / d
-			countSeries++
+		if state.timestamp > 0 {
+			d := float64(state.timestamp-sv.prevTimestamp) / 1000
+			if d > 0 {
+				rate += state.increase / d
+				countSeries++
+			}
+			// modify prevTimestamp only if current state contains any samples.
+			// otherwise, sv.prevTimestamp=0 would skip the next flush even if state had samples.
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9017
+			sv.prevTimestamp = state.timestamp
+			state.timestamp = 0
+			state.increase = 0
 		}
-		sv.prevTimestamp = state.timestamp
-		state.timestamp = 0
-		state.increase = 0
 		if isLast {
 			delete(av.shared, sk)
 			putRateAggrSharedValue(sv)

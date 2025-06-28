@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -385,7 +384,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, encoding string, us
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
 func processStream(protocol string, r io.Reader, encoding string, useLocalTimestamp bool, cp *insertutil.CommonParams) error {
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		return err
 	}
 

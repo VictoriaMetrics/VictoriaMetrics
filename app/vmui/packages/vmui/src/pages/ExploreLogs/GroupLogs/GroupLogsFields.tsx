@@ -1,10 +1,9 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import classNames from "classnames";
 import GroupLogsFieldRow from "./GroupLogsFieldRow";
-import useEventListener from "../../../hooks/useEventListener";
-import { getFromStorage } from "../../../utils/storage";
+import { useLocalStorageBoolean } from "../../../hooks/useLocalStorageBoolean";
 
 interface Props {
   log: Logs;
@@ -17,16 +16,7 @@ const GroupLogsFields: FC<Props> = ({ log, hideGroupButton }) => {
       .sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
   }, [log]);
 
-  const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
-
-  const handleUpdateStage = () => {
-    const newValDisabledHovers = !!getFromStorage("LOGS_DISABLED_HOVERS");
-    if (newValDisabledHovers !== disabledHovers) {
-      setDisabledHovers(newValDisabledHovers);
-    }
-  };
-
-  useEventListener("storage", handleUpdateStage);
+  const [disabledHovers] = useLocalStorageBoolean("LOGS_DISABLED_HOVERS");
 
   return (
     <div

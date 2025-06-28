@@ -20,6 +20,16 @@ const (
 	paramRuleID = "rule_id"
 )
 
+type apiNotifier struct {
+	Kind    string       `json:"kind"`
+	Targets []*apiTarget `json:"targets"`
+}
+
+type apiTarget struct {
+	Address string            `json:"address"`
+	Labels  map[string]string `json:"labels"`
+}
+
 // apiAlert represents a notifier.AlertingRule state
 // for WEB view
 // https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
@@ -108,7 +118,7 @@ type apiGroup struct {
 
 // groupAlerts represents a group of alerts for WEB view
 type groupAlerts struct {
-	Group  apiGroup
+	Group  *apiGroup
 	Alerts []*apiAlert
 }
 
@@ -327,7 +337,7 @@ func newAlertAPI(ar *rule.AlertingRule, a *notifier.Alert) *apiAlert {
 	return aa
 }
 
-func groupToAPI(g *rule.Group) apiGroup {
+func groupToAPI(g *rule.Group) *apiGroup {
 	g = g.DeepCopy()
 	ag := apiGroup{
 		// encode as string to avoid rounding
@@ -353,7 +363,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, ruleToAPI(r))
 	}
-	return ag
+	return &ag
 }
 
 func urlValuesToStrings(values url.Values) []string {

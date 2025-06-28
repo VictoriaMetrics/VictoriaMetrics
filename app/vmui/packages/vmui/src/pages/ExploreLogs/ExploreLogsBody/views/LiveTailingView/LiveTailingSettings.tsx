@@ -19,8 +19,8 @@ interface LiveTailingSettingsProps {
   handleResumeLiveTailing: () => void;
   pauseLiveTailing: () => void;
   clearLogs: () => void;
-  isCompactTailingNumber: boolean;
-  handleSetCompactTailing: (value: boolean) => void;
+  isRawJsonView: boolean;
+  onRawJsonViewChange: (value: boolean) => void;
 }
 
 const LiveTailingSettings: FC<LiveTailingSettingsProps> = ({
@@ -32,8 +32,8 @@ const LiveTailingSettings: FC<LiveTailingSettingsProps> = ({
   handleResumeLiveTailing,
   pauseLiveTailing,
   clearLogs,
-  isCompactTailingNumber,
-  handleSetCompactTailing
+  isRawJsonView,
+  onRawJsonViewChange
 }) => {
   const settingButtonRef = useRef<HTMLDivElement>(null);
   const { value: isSettingsOpen, setFalse: closeSettings, setTrue: openSettings } = useBoolean(false);
@@ -106,12 +106,12 @@ const LiveTailingSettings: FC<LiveTailingSettingsProps> = ({
           <div className="vm-live-tailing-view__settings-modal">
             <div className={"vm-live-tailing-view__settings-modal-item"}>
               <Switch
-                label={"Expandable Properties View"}
-                value={isCompactTailingNumber}
-                onChange={handleSetCompactTailing}
+                label={"Raw JSON View"}
+                value={isRawJsonView}
+                onChange={onRawJsonViewChange}
               />
               <span className="vm-group-logs-configurator-item__info">
-                Switches log display to expandable properties view with additional visualization settings. Please note: when processing large volumes of data, it may increase system response time.
+                When this option is enabled, logs will be displayed in raw JSON format. This improves performance and uses less CPU and memory.
               </span>
             </div>
           </div>

@@ -1,7 +1,7 @@
 services:
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    image: grafana/grafana:11.5.0
+    image: grafana/grafana:12.0.2
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -38,7 +38,7 @@ services:
   #  VictoriaLogs instance, a single process responsible for
   #  storing logs and serving read queries.
   victorialogs:
-    image: victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: victoriametrics/victoria-logs:v1.24.0-victorialogs
     ports:
       - "9428:9428"
     command:
@@ -49,7 +49,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.119.0
+    image: victoriametrics/victoria-metrics:v1.120.0
     ports:
       - "8428:8428"
     volumes:
@@ -64,7 +64,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.119.0
+    image: victoriametrics/vmauth:v1.120.0
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -78,7 +78,7 @@ services:
 
   # vmalert executes alerting and recording rules according to the given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.119.0
+    image: victoriametrics/vmalert:v1.120.0
     depends_on:
       - "vmauth"
       - "alertmanager"

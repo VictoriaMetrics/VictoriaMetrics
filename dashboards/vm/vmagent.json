@@ -3409,7 +3409,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max(10, sum(sum_over_time(scrape_series_added[5m])) by (job)) > 0",
+              "expr": "topk(10, sum(sum_over_time(scrape_series_added[5m])) by (job)) > 0",
               "interval": "",
               "legendFormat": "{{ job }}",
               "range": true,

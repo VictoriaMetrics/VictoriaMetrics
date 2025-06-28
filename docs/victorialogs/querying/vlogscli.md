@@ -25,8 +25,8 @@ or from docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/v
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.23.3-victorialogs/vlogscli-linux-amd64-v1.23.3-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v1.23.3-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.24.0-victorialogs/vlogscli-linux-amd64-v1.24.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v1.24.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
@@ -47,7 +47,6 @@ which queries `(AccountID=123, ProjectID=456)` [tenant](https://docs.victoriamet
 ```sh
 ./vlogscli -header='AccountID: 123' -header='ProjectID: 456'
 ```
-
 
 ## Multitenancy
 

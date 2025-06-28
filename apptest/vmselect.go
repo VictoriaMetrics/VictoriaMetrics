@@ -55,6 +55,12 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// HTTPAddr returns the address at which the vmselect process is
+// listening for incoming HTTP requests.
+func (app *Vmselect) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // PrometheusAPIV1Export is a test helper function that performs the export of
 // raw samples in JSON line format by sending a HTTP POST request to
 // /prometheus/api/v1/export vmselect endpoint.
@@ -219,6 +225,24 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	}
 	status.Sort()
 	return status
+}
+
+// APIV1AdminTenants sends a query to a /admin/tenants endpoint
+func (app *Vmselect) APIV1AdminTenants(t *testing.T) *AdminTenantsResponse {
+	t.Helper()
+
+	tenantsURL := fmt.Sprintf("http://%s/admin/tenants", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, tenantsURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var tenants *AdminTenantsResponse
+	if err := json.Unmarshal([]byte(res), tenants); err != nil {
+		t.Fatalf("could not unmarshal tenants response data:\n%s\n err: %v", res, err)
+	}
+
+	return tenants
 }
 
 // String returns the string representation of the vmselect app state.

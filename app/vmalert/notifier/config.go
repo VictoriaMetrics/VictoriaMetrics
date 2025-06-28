@@ -194,9 +194,10 @@ func mergeLabels(target string, metaLabels *promutil.Labels, cfg *Config) *promu
 		alertsPath = address[n:]
 		address = address[:n]
 	}
-	m.Add("__address__", address)
-	m.Add("__scheme__", scheme)
-	m.Add("__alerts_path__", alertsPath)
 	m.AddFrom(metaLabels)
+	// force labels
+	m.Set("__address__", address)
+	m.Set("__scheme__", scheme)
+	m.Set("__alerts_path__", alertsPath)
 	return m
 }

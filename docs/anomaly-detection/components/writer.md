@@ -126,7 +126,7 @@ Metrics to save the output (in metric names or labels). Must have `__name__` key
             </td>
             <td>
 
-`/api/v1/import`
+`/api/v1/import`{{% deprecated_from "v1.19.2" anomaly %}}
             </td>
             <td>
 

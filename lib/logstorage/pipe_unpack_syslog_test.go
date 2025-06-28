@@ -67,9 +67,11 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"level", "notice"},
 			{"foo", "321"},
 			{"priority", "165"},
 			{"facility", "20"},
+			{"facility_keyword", "local4"},
 			{"severity", "5"},
 			{"format", "rfc5424"},
 			{"timestamp", "2023-06-03T17:42:32.123456789Z"},
@@ -92,9 +94,11 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"level", "notice"},
 			{"foo", "321"},
 			{"priority", "165"},
 			{"facility", "20"},
+			{"facility_keyword", "local4"},
 			{"severity", "5"},
 			{"format", "rfc5424"},
 			{"timestamp", "2023-06-03T17:42:32.123456789Z"},
@@ -114,8 +118,10 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"level", "notice"},
 			{"priority", "165"},
 			{"facility", "20"},
+			{"facility_keyword", "local4"},
 			{"severity", "5"},
 			{"format", "rfc5424"},
 			{"timestamp", "2023-06-03T17:42:32.123456789Z"},
@@ -135,8 +141,10 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"level", "notice"},
 			{"priority", "165"},
 			{"facility", "20"},
+			{"facility_keyword", "local4"},
 			{"severity", "5"},
 			{"format", "rfc5424"},
 			{"timestamp", "2023-06-03T17:42:32.123456789Z"},
@@ -167,8 +175,10 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"level", "notice"},
 			{"priority", "165"},
 			{"facility", "20"},
+			{"facility_keyword", "local4"},
 			{"severity", "5"},
 			{"format", "rfc5424"},
 			{"timestamp", "2023-06-03T17:42:32.123456789Z"},
@@ -216,8 +226,10 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"qwe_level", "notice"},
 			{"qwe_priority", "165"},
 			{"qwe_facility", "20"},
+			{"qwe_facility_keyword", "local4"},
 			{"qwe_severity", "5"},
 			{"qwe_format", "rfc5424"},
 			{"qwe_timestamp", "2023-06-03T17:42:32.123456789Z"},
@@ -230,8 +242,10 @@ func TestPipeUnpackSyslog(t *testing.T) {
 		{
 			{"x", `<163>1 2024-12-13T18:21:43Z mymachine.example.com appname2 345 ID7 - foobar`},
 			{"y", `z=bar`},
+			{"qwe_level", "error"},
 			{"qwe_priority", "163"},
 			{"qwe_facility", "20"},
+			{"qwe_facility_keyword", "local4"},
 			{"qwe_severity", "3"},
 			{"qwe_format", "rfc5424"},
 			{"qwe_timestamp", "2024-12-13T18:21:43Z"},

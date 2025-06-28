@@ -132,7 +132,7 @@ $font-size-logs: var(--font-size-logs, $font-size-small);
 
     &-content {
       display: flex;
-      padding: 2px 0;
+      padding: 2px 24px 2px 0;
       cursor: pointer;
 
       &_interactive {
@@ -140,8 +140,23 @@ $font-size-logs: var(--font-size-logs, $font-size-small);
         will-change: background-color;
       }
 
+      &__copy-row {
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 1;
+        visibility: hidden;
+
+        &.vm-button {
+          padding: 2px;
+        }
+      }
+
       &_interactive:hover {
         background-color: $color-hover-black;
+        .vm-group-logs-row-content__copy-row {
+          visibility: visible;
+        }
       }
 
       &__arrow {

@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -31,36 +30,38 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	// This header is needed for Logstash
 	w.Header().Set("X-Elastic-Product", "Elasticsearch")
 
-	if strings.HasPrefix(path, "/_ilm/policy") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_ilm/policy") {
 		// Return fake response for Elasticsearch ilm request.
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/_index_template") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_index_template") {
 		// Return fake response for Elasticsearch index template request.
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/_ingest") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_ingest") {
 		// Return fake response for Elasticsearch ingest pipeline request.
 		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/put-pipeline-api.html
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/_nodes") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/_nodes") {
 		// Return fake response for Elasticsearch nodes discovery request.
 		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/cluster.html
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
-	if strings.HasPrefix(path, "/logstash") || strings.HasPrefix(path, "/_logstash") {
+	if strings.HasPrefix(path, "/insert/elasticsearch/logstash") || strings.HasPrefix(path, "/insert/elasticsearch/_logstash") {
 		// Return fake response for Logstash APIs requests.
 		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/logstash-apis.html
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
 	switch path {
-	case "/", "":
+	// some clients may omit trailing slash
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
+	case "/insert/elasticsearch/", "/insert/elasticsearch":
 		switch r.Method {
 		case http.MethodGet:
 			// Return fake response for Elasticsearch ping request.
@@ -75,7 +76,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		return true
-	case "/_license":
+	case "/insert/elasticsearch/_license":
 		// Return fake response for Elasticsearch license request.
 		fmt.Fprintf(w, `{
 			"license": {
@@ -86,7 +87,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			}
 		}`)
 		return true
-	case "/_bulk":
+	case "/insert/elasticsearch/_bulk":
 		startTime := time.Now()
 		bulkRequestsTotal.Inc()
 
@@ -95,7 +96,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		if err := vlstorage.CanWriteData(); err != nil {
+		if err := insertutil.CanWriteData(); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -128,7 +129,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
-	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
+	bulkRequestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
 func readBulkRequest(streamName string, r io.Reader, encoding string, timeFields, msgFields []string, lmp insertutil.LogMessageProcessor) (int, error) {

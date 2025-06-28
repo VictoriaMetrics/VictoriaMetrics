@@ -18,8 +18,8 @@ const title = "Table settings";
 interface TableSettingsProps {
   columns: string[];
   selectedColumns?: string[];
-  tableCompact: boolean;
-  toggleTableCompact: () => void;
+  tableCompact?: boolean;
+  toggleTableCompact?: () => void;
   onChangeColumns: (arr: string[]) => void
 }
 
@@ -195,18 +195,20 @@ const TableSettings: FC<TableSettingsProps> = ({
               </div>
             </div>
           </div>
-          <div className="vm-table-settings-modal-section">
-            <div className="vm-table-settings-modal-section__title">
+          {toggleTableCompact && tableCompact !== undefined && (
+            <div className="vm-table-settings-modal-section">
+              <div className="vm-table-settings-modal-section__title">
               Table view
+              </div>
+              <div className="vm-table-settings-modal-columns-list__item">
+                <Switch
+                  label={"Compact view"}
+                  value={tableCompact}
+                  onChange={toggleTableCompact}
+                />
+              </div>
             </div>
-            <div className="vm-table-settings-modal-columns-list__item">
-              <Switch
-                label={"Compact view"}
-                value={tableCompact}
-                onChange={toggleTableCompact}
-              />
-            </div>
-          </div>
+          )}
         </Modal>)}
     </div>
   );

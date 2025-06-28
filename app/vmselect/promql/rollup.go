@@ -71,7 +71,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"quantile_over_time":      newRollupQuantile,
 	"quantiles_over_time":     newRollupQuantiles,
 	"range_over_time":         newRollupFuncOneArg(rollupRange),
-	"rate":                    newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
+	"rate":                    newRollupFuncOneArg(rollupDerivFast),           // + rollupFuncsRemoveCounterResets
+	"rate_prometheus":         newRollupFuncOneArg(rollupDerivFastPrometheus), // + rollupFuncsRemoveCounterResets
 	"rate_over_sum":           newRollupFuncOneArg(rollupRateOverSum),
 	"resets":                  newRollupFuncOneArg(rollupResets),
 	"rollup":                  newRollupFuncOneOrTwoArgs(rollupFake),
@@ -195,7 +196,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"zscore_over_time":        rollupZScoreOverTime,
 }
 
-// VictoriaMetrics can extends lookbehind window for these functions
+// VictoriaMetrics can extend lookbehind window for these functions
 // in order to make sure it contains enough points for returning non-empty results.
 //
 // This is needed for returning the expected non-empty graphs when zooming in the graph in Grafana,
@@ -225,6 +226,7 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 	"increase_pure":       true,
 	"irate":               true,
 	"rate":                true,
+	"rate_prometheus":     true,
 	"rollup_increase":     true,
 	"rollup_rate":         true,
 }
@@ -252,6 +254,7 @@ var rollupFuncsSamplesScannedPerCall = map[string]int{
 	"lifetime":            2,
 	"present_over_time":   1,
 	"rate":                2,
+	"rate_prometheus":     2,
 	"scrape_interval":     2,
 	"tfirst_over_time":    1,
 	"timestamp":           1,
@@ -913,15 +916,18 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
+// removeCounterResets removes resets for rollup functions over counters - see rollupFuncsRemoveCounterResets
+// it doesn't remove resets between samples with staleNaNs, or samples that exceed maxStalenessInterval
 func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
-	// There is no need in handling NaNs here, since they are impossible
-	// on values from vmstorage.
 	if len(values) == 0 {
 		return
 	}
 	var correction float64
 	prevValue := values[0]
 	for i, v := range values {
+		if decimal.IsStaleNaN(v) {
+			continue
+		}
 		d := v - prevValue
 		if d < 0 {
 			if (-d * 8) < prevValue {
@@ -1853,8 +1859,13 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 
 func rollupDelta(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
+	// before calling rollup funcs. Only StaleNaNs could remain in values - see dropStaleNaNs().
 	values := rfa.values
+	if len(values) > 0 && decimal.IsStaleNaN(values[len(values)-1]) {
+		// if last sample on interval is staleness marker then the selected series is expected
+		// to stop rendering immediately. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
+		return nan
+	}
 	prevValue := rfa.prevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
@@ -1938,10 +1949,23 @@ func rollupDerivSlow(rfa *rollupFuncArg) float64 {
 	return k
 }
 
+func rollupDerivFastPrometheus(rfa *rollupFuncArg) float64 {
+	delta := rollupDeltaPrometheus(rfa)
+	if math.IsNaN(delta) || rfa.window == 0 {
+		return nan
+	}
+	return delta / (float64(rfa.window) / 1e3)
+}
+
 func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
+	// before calling rollup funcs. Only StaleNaNs could remain in values - see  - see dropStaleNaNs().
 	values := rfa.values
+	if len(values) > 0 && decimal.IsStaleNaN(values[len(values)-1]) {
+		// if last sample on interval is staleness marker then the selected series is expected
+		// to stop rendering immediately. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
+		return nan
+	}
 	timestamps := rfa.timestamps
 	prevValue := rfa.prevValue
 	prevTimestamp := rfa.prevTimestamp
