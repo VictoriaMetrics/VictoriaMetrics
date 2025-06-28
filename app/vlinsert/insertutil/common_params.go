@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -192,6 +193,7 @@ type logMessageProcessor struct {
 
 	rowsIngestedTotal  *metrics.Counter
 	bytesIngestedTotal *metrics.Counter
+	flushDuration      *metrics.Summary
 }
 
 func (lmp *logMessageProcessor) initPeriodicFlush() {
@@ -293,6 +295,7 @@ func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lastFlushTime = time.Now()
 	logRowsStorage.MustAddRows(lmp.lr)
 	lmp.lr.ResetKeepSettings()
+	lmp.flushDuration.UpdateDuration(lmp.lastFlushTime)
 }
 
 // MustClose flushes the remaining data to the underlying storage and closes lmp.
@@ -303,6 +306,7 @@ func (lmp *logMessageProcessor) MustClose() {
 	lmp.flushLocked()
 	logstorage.PutLogRows(lmp.lr)
 	lmp.lr = nil
+	messageProcessorCount.Add(-1)
 }
 
 // NewLogMessageProcessor returns new LogMessageProcessor for the given cp.
@@ -312,12 +316,14 @@ func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *defaultMsgValue)
 	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_rows_ingested_total{type=%q}", protocolName))
 	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
+	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf("vl_insert_flush_duration_seconds{type=%q}", protocolName))
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
 
 		rowsIngestedTotal:  rowsIngestedTotal,
 		bytesIngestedTotal: bytesIngestedTotal,
+		flushDuration:      flushDuration,
 
 		stopCh: make(chan struct{}),
 	}
@@ -326,10 +332,13 @@ func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode
 		lmp.initPeriodicFlush()
 	}
 
+	messageProcessorCount.Add(1)
 	return lmp
 }
 
 var (
 	rowsDroppedTotalDebug         = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
 	rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
+	_                             = metrics.NewGauge(`vl_insert_processors_count`, func() float64 { return float64(messageProcessorCount.Load()) })
+	messageProcessorCount         atomic.Int64
 )
