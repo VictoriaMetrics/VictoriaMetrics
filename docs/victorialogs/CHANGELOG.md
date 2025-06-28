@@ -17,6 +17,7 @@ The following `tip` changes can be tested by building VictoriaLogs from the late
 according to [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/#building-from-source-code)
 
 ## tip
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add support for applying a global time offset to all time-based conditions for the `<q>` [query](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax) via `options(time_offset=<duration>) <q>` syntax. This can be useful when time range is provided via [HTTP parameters](https://docs.victoriametrics.com/victorialogs/querying/#http-api) and needs to be shifted backwards. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) and [#8587](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8587) for details.
 
 * BUGFIX: [`rate_sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats): fix inconsistent per-second rate calculation when time filters are specified via HTTP query parameters instead of LogsQL expression. This affects recording rule results. See [#9303](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9303).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): disabled opening of autocomplete popup on initial page load.

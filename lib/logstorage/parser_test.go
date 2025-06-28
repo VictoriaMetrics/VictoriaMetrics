@@ -38,6 +38,96 @@ func TestMatchingAddTimeFilter_Parsing(t *testing.T) {
 	}
 }
 
+func TestApplyOptionTimeOffsetToAddTime(t *testing.T) {
+	q, err := ParseQueryAtTimestamp("options(time_offset=1h) *", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	q.AddTimeFilter(nsecsPerDay, nsecsPerDay*2)
+	start, end := q.GetFilterTimeRange()
+	expectedStart := int64(nsecsPerDay - nsecsPerHour)
+	if start != expectedStart {
+		t.Fatalf("unexpected start time; got %d; want %d", start, expectedStart)
+	}
+	expectedEnd := int64(nsecsPerDay*2 - nsecsPerHour + nsecsPerSecond - 1)
+	if end != expectedEnd {
+		t.Fatalf("unexpected end time; got %d; want %d", end, expectedEnd)
+	}
+}
+
+func TestApplyOptionTimeOffset(t *testing.T) {
+	f := func(s string, expectedStart, expectedEnd int64) {
+		t.Helper()
+		q, err := ParseQueryAtTimestamp(s, 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		gotStart, gotEnd := q.GetFilterTimeRange()
+		if gotStart != expectedStart {
+			t.Fatalf("unexpected start time; got %d; want %d", gotStart, expectedStart)
+		}
+		if gotEnd != expectedEnd {
+			t.Fatalf("unexpected end time; got %d; want %d", gotEnd, expectedEnd)
+		}
+	}
+
+	// no time filters
+	f("options(time_offset=1h) *", math.MinInt64, math.MaxInt64)
+
+	// relative time filter
+	f("options(time_offset=1h) _time:1h", -nsecsPerHour*2, -nsecsPerHour*1)
+	f("options(time_offset=1h) _time:offset 1h", math.MinInt64, -nsecsPerHour*2)
+
+	// range time filter
+	f("options(time_offset=1d) _time:[2025-07-26T00:00:00Z, 2025-07-29T00:00:00Z)", 1753401600000000000, 1753660799999999999)
+	f("options(time_offset=1h) _time:[2h, 1h)", -nsecsPerHour*3, -nsecsPerHour*2-1)
+	f("options(time_offset=1h) _time:[2h, now)", -nsecsPerHour*3, -nsecsPerHour*1-1)
+
+	// gt time filter
+	f("options(time_offset=1h) _time:>2025-07-25T01:00:00Z", 1753401600000000001, math.MaxInt64)
+	f("options(time_offset=1h) _time:>2h", math.MinInt64, -nsecsPerHour*3-1)
+	f("options(time_offset=1h) _time:>=2h", math.MinInt64, -nsecsPerHour*3)
+
+	// lt time filter
+	f("options(time_offset=1h) _time:<2025-07-25T12:00:00Z", math.MinInt64, 1753441199999999999)
+	f("options(time_offset=1h) _time:<2h", -nsecsPerHour*3+1, -nsecsPerHour)
+	f("options(time_offset=1h) _time:<=2h", -nsecsPerHour*3, -nsecsPerHour)
+}
+
+func TestApplyOptionTimeOffsetToSubqueries(t *testing.T) {
+	assertQueryRange := func(q *Query, expectedStart, expectedEnd int64) {
+		t.Helper()
+		gotStart, gotEnd := q.GetFilterTimeRange()
+		if gotStart != expectedStart {
+			t.Fatalf("unexpected start time; got %d; want %d", gotStart, expectedStart)
+		}
+		if gotEnd != expectedEnd {
+			t.Fatalf("unexpected end time; got %d; want %d", gotEnd, expectedEnd)
+		}
+	}
+
+	// subquery
+	q, err := ParseQueryAtTimestamp(`options(time_offset=2h) _time:1h level:in(_time:6h | fields level)`, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	assertQueryRange(q, -nsecsPerHour*3, -nsecsPerHour*2)
+	visitSubqueriesInFilter(q.f, func(q *Query) {
+		assertQueryRange(q, -nsecsPerHour*8, -nsecsPerHour*2)
+	})
+
+	// subquery has its own time_offset
+	q, err = ParseQueryAtTimestamp(`options(time_offset=2h) _time:1h level:in(options(time_offset=1h) _time:6h | fields level)`, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	assertQueryRange(q, -nsecsPerHour*3, -nsecsPerHour*2)
+	visitSubqueriesInFilter(q.f, func(q *Query) {
+		assertQueryRange(q, -nsecsPerHour*7, -nsecsPerHour*1)
+	})
+}
+
 func TestLexer(t *testing.T) {
 	f := func(s string, tokensExpected []string) {
 		t.Helper()
