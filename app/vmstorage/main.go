@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"io"
 	"net/http"
 	"os"
@@ -260,6 +261,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
 		strg.DebugFlush()
+		return true
+	}
+	if path == "/internal/logNewSeries" {
+		logger.Infof("enabling logging of new series for the next minute. This may increase resource usage during this period.")
+		endTime := fasttime.UnixTimestamp() + 60 // end time is one minute from now
+		strg.SetLogNewSeriesUntil(endTime)
+		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%d}}`, endTime)
 		return true
 	}
 	if !strings.HasPrefix(path, "/snapshot") {
