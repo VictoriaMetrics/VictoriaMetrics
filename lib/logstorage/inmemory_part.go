@@ -24,8 +24,6 @@ type inmemoryPart struct {
 
 	messageBloomValues bloomValuesBuffer
 	fieldBloomValues   bloomValuesBuffer
-
-	bloomValuesShards []bloomValuesReaderAt
 }
 
 type bloomValuesBuffer struct {
@@ -66,8 +64,6 @@ func (mp *inmemoryPart) reset() {
 
 	mp.messageBloomValues.reset()
 	mp.fieldBloomValues.reset()
-
-	mp.bloomValuesShards = nil
 }
 
 // mustInitFromRows initializes mp from lr.
