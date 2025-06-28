@@ -521,6 +521,47 @@ func TestParseTimeRange(t *testing.T) {
 	f(`<2023-03-01+02:20 offset 30m5s`, minTimestamp, maxTimestamp)
 }
 
+func TestParseFilterTimeOffset(t *testing.T) {
+	f := func(s, expected string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got := q.String()
+		if expected != got {
+			t.Fatalf("unexpected string for filterTime; got %q; want %q", got, expected)
+		}
+	}
+
+	// time filter with additional offset
+	f("_time:1h and _time:offset 1h and _msg:'foo bar'", `_time:1h offset 1h "foo bar"`)
+
+	// time offset without additional time filters
+	f("_time:offset 1h", "_time:offset 1h")
+	f("_time:offset 1h and _msg:'foo bar'", `"foo bar" _time:offset 1h`)
+
+	// time filter with own and additional offsets
+	f("_time:1h offset 1h and _time:offset 1h", "_time:1h offset 2h")
+
+	// time offset with filterOr
+	f("_time:offset 1h and (_time:1h or _time:2h)", "(_time:1h offset 1h or _time:2h offset 1h)")
+
+	// isolated time offset
+	f("_time:1h and _time:offset 1h or _time:offset 2h", "_time:1h offset 1h or _time:offset 2h")
+
+	// multiple time filters and offsets
+	f("_time:0s offset 0s and _time:offset 0s and _time:offset 1s and _time:1h offset 1h", "_time:0s offset 1s _time:1h offset 1h1s")
+
+	// subqueries
+	//f(`_time:offset 1h level:in(_time:1h | fields level)`, `_time:offset 1h level:in(_time:1h offset 1h | fields level)`)
+
+	// condition 'not'
+	f(`not _time:1h and _time:offset 1h`, `!_time:1h _time:offset 1h`)
+	// todo: handle 'not' filter
+	// f(`_time:1h and not _time:offset 1h`, `time:1h`)
+}
+
 func TestParseFilterSequence(t *testing.T) {
 	f := func(s, fieldNameExpected string, phrasesExpected []string) {
 		t.Helper()
