@@ -321,6 +321,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		Storage.DebugFlush()
 		return true
 	}
+	if path == "/internal/logNewSeries" {
+		logger.Infof("enabling logging of new series for the next minute. This may increase resource usage during this period.")
+		endTime := fasttime.UnixTimestamp() + 60 // log new series for the next minute
+		Storage.SetLogNewSeriesUntil(endTime)
+		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%d}}`, endTime)
+		return true
+	}
 	prometheusCompatibleResponse := false
 	if path == "/api/v1/admin/tsdb/snapshot" {
 		// Handle Prometheus API - https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot .
