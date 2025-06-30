@@ -592,6 +592,14 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
 	f("01")
+
+	// NaN and Inf isn't supported
+	f("NaN")
+	f("nan")
+	f("inf")
+	f("-inf")
+	f("+inf")
+	f("Inf")
 }
 
 func TestTryParseFloat64Exact_Success(t *testing.T) {
