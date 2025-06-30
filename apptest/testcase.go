@@ -75,11 +75,18 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 }
 
 // MustStartVmsingle is a test helper function that starts an instance of
-// vmsingle and fails the test if the app fails to start.
+// vmsingle located at ../../bin/victoria-metrics and fails the test if the app
+// fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
+	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics", flags)
+}
+
+// MustStartVmsingleAt is a test helper function that starts an instance of
+// vmsingle and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string) *Vmsingle {
 	tc.t.Helper()
 
-	app, err := StartVmsingle(instance, flags, tc.cli)
+	app, err := StartVmsingleAt(instance, binary, flags, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
