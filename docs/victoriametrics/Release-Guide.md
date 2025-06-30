@@ -61,13 +61,13 @@ Bumping the limits may significantly improve build speed.
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
    * `git tag -s v1.xx.y-enterprise` in `enterprise-single-node` branch
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
-1. Run `TAG=v1.xx.y EXTRA_TAG_SUFFIX=-rcY make publish-release`. This command performs the following tasks:
+1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rcY make publish-release`. This command performs the following tasks:
 
    - a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
       This step can be run manually with the command `make release` from the needed git tag.
    - b)  Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
       for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
-      The result docker images have special release candidate suffix for the given `EXTRA_TAG_SUFFIX`.
+      The resulting docker images will have special release candidate suffix for the given `EXTRA_DOCKER_TAG_SUFFIX`.
       The multi-platform Docker image is built for the following platforms:
       * linux/amd64
       * linux/arm64
@@ -116,7 +116,7 @@ Bumping the limits may significantly improve build speed.
 
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 
-1. Run `TAG=v1.xx.y EXTRA_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_TAG_SUFFIX` and updates  `latest` Docker image tag for the given `TAG`.
+1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_DOCKER_TAG_SUFFIX` and updates  `latest` Docker image tag for the given `TAG`.
    This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
    [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
