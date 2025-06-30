@@ -285,10 +285,12 @@ See full list of CRD specifications [here](https://docs.victoriametrics.com/oper
 
 VictoriaMetrics Enterprise components support FIPS 140-3 compatible mode {{% available_from "v1.118.0" %}} using the BoringCrypto module (FIPS 140-3 validated by Google). Binaries and Docker images with the `-fips` suffix are built with BoringCrypto for all cryptographic operations.
 
-Builds are available for amd64 and arm64 (64-bit AMD and ARM architectures).
+Builds are available for amd64 and arm64
 
 Example archive:
-victoria-metrics-linux-amd64-v1.120.0-enterprise.tar.gz
+
+`victoria-metrics-linux-amd64-v1.120.0-enterprise.tar.gz`
+
 Includes:
 
  * `victoria-metrics-prod` (standard)
