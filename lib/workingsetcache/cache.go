@@ -41,6 +41,10 @@ type Cache struct {
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
 
+	ExpireEvictionBytes atomic.Uint64
+	MissEvictionBytes   atomic.Uint64
+	SizeEvictionBytes   atomic.Uint64
+
 	// mode indicates whether to use only curr and skip prev.
 	//
 	// This flag is set to switching if curr is filled for more than 50% space.
@@ -58,10 +62,6 @@ type Cache struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
-
-	ExpireEvictionBytes atomic.Uint64
-	MissEvictionBytes   atomic.Uint64
-	SizeEvictionBytes   atomic.Uint64
 }
 
 // Load loads the cache from filePath and limits its size to maxBytes
@@ -234,11 +234,11 @@ func (c *Cache) prevCacheWatcher() {
 		currGetCalls = csCurr.GetCalls
 		prevGetCalls = csPrev.GetCalls
 		if currRequests >= minCurrRequests && float64(prevRequests)/float64(currRequests) < p {
-			c.MissEvictionBytes.Add(csPrev.BytesSize)
 			// The majority of requests are served from the curr cache,
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
 				updateCacheStatsHistory(&c.csHistory, &csPrev)
+				c.MissEvictionBytes.Add(csPrev.BytesSize)
 				prev.Reset()
 			}
 		}
