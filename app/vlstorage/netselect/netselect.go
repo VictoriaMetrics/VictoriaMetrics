@@ -318,6 +318,7 @@ func (s *Storage) MustStop() {
 	s.sns = nil
 }
 
+// WriteMetrics writes internal storage metrics to the provided writer in Prometheus text exposition format.
 func (s *Storage) WriteMetrics(w io.Writer) {
 	metrics.WriteGaugeUint64(w, `vl_select_remote_send_errors_total`, s.remoteSendErrors.Load())
 }
