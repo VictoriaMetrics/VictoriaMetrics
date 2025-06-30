@@ -1284,6 +1284,9 @@ To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriame
 simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` 
 command-line flag.
 
+By default, `vmagent` uses a single producer per topic. This behaviour can be changed with setting `kafka://localhost:9092/?concurrency=<int>`, which adds additional workers. It could improve throughput in networks with high latency.
+Or if kafka brokers located at different region/availability-zone.
+
 #### Estimating message size and rate
 
 If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly correspond to the message rate and size of Kafka.
