@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // the maximum size of a single data block sent to storage node.
@@ -33,6 +34,8 @@ const ProtocolVersion = "v1"
 
 // Storage is a network storage for sending data to remote storage nodes in the cluster.
 type Storage struct {
+	RemoteSendFailed atomic.Uint64 // Number of failed requests sent to remote storage nodes.
+
 	sns []*storageNode
 
 	disableCompression bool
@@ -43,6 +46,10 @@ type Storage struct {
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
+}
+
+func (s *Storage) WriteMetrics(w io.Writer) {
+	metrics.WriteCounterUint64(w, `vl_insert_remote_send_errors_total`, s.RemoteSendFailed.Load())
 }
 
 type storageNode struct {
@@ -235,9 +242,7 @@ func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) erro
 
 	resp, err := sn.c.Do(req)
 	if err != nil {
-		// Disable sn for data writing for 10 seconds.
-		sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
-
+		sn.setDisableTemporarily()
 		return fmt.Errorf("cannot send data block with the length %d to %q: %s", pendingData.Len(), reqURL, err)
 	}
 	defer resp.Body.Close()
@@ -251,14 +256,18 @@ func (sn *storageNode) sendInsertRequest(pendingData *bytesutil.ByteBuffer) erro
 		respBody = []byte(fmt.Sprintf("%s", err))
 	}
 
-	// Disable sn for data writing for 10 seconds.
-	sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
+	sn.setDisableTemporarily()
 
 	return fmt.Errorf("unexpected status code returned when sending data block to %q: %d; want 2xx; response body: %q", reqURL, resp.StatusCode, respBody)
 }
 
 func (sn *storageNode) getRequestURL(path string) string {
 	return fmt.Sprintf("%s://%s%s?version=%s", sn.scheme, sn.addr, path, url.QueryEscape(ProtocolVersion))
+}
+
+func (sn *storageNode) setDisableTemporarily() {
+	sn.disabledUntil.Store(fasttime.UnixTimestamp() + 10)
+	sn.s.RemoteSendFailed.Add(1)
 }
 
 var zstdBufPool bytesutil.ByteBufferPool

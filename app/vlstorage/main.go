@@ -78,7 +78,10 @@ var localStorage *logstorage.Storage
 var localStorageMetrics *metrics.Set
 
 var netstorageInsert *netinsert.Storage
+var netstorageInsertMetrics *metrics.Set
+
 var netstorageSelect *netselect.Storage
+var netstorageSelectMetrics *metrics.Set
 
 // Init initializes vlstorage.
 //
@@ -141,9 +144,19 @@ func initNetworkStorage() {
 
 	logger.Infof("starting insert service for nodes %s", *storageNodeAddrs)
 	netstorageInsert = netinsert.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *insertConcurrency, *insertDisableCompression)
+	netstorageInsertMetrics = metrics.NewSet()
+	netstorageInsertMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		netstorageInsert.WriteMetrics(w)
+	})
+	metrics.RegisterSet(netstorageInsertMetrics)
 
 	logger.Infof("initializing select service for nodes %s", *storageNodeAddrs)
 	netstorageSelect = netselect.NewStorage(*storageNodeAddrs, authCfgs, isTLSs, *selectDisableCompression)
+	netstorageSelectMetrics = metrics.NewSet()
+	netstorageSelectMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		netstorageSelect.WriteMetrics(w)
+	})
+	metrics.RegisterSet(netstorageSelectMetrics)
 
 	logger.Infof("initialized all the network services")
 }
