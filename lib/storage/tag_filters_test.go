@@ -742,6 +742,8 @@ func TestGetRegexpFromCache(t *testing.T) {
 	f("(?i)foo.*bar", nil, []string{"foobar", "FooBAR", "FOOxxbaR"}, []string{"xfoobar", "foobarx", "xFOObarx"}, "")
 
 	f(".*", nil, []string{"", "a", "foo", "foobar"}, nil, "")
+	f(`.+|`, nil, []string{"", "a", "foo", "foobar"}, nil, "")
+	f(`.+||foo|bar`, nil, []string{"", "a", "foo", "foobar"}, nil, "")
 	f("foo|.*", nil, []string{"", "a", "foo", "foobar"}, nil, "")
 	f(".+", nil, []string{"a", "foo"}, []string{""}, "")
 	f("(.+)*(foo)?", nil, []string{"a", "foo", ""}, nil, "")
