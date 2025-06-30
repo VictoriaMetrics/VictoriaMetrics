@@ -937,7 +937,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 	})
 	t.Run("missing-tenant-bigger-than-existing", func(_ *testing.T) {
 		tenantID := TenantID{
@@ -951,7 +951,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 	})
 	t.Run("missing-tenant-middle", func(_ *testing.T) {
 		tenantID := TenantID{
@@ -965,7 +965,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 	})
 	t.Run("matching-tenant-id", func(t *testing.T) {
 		for i := 0; i < tenantsCount; i++ {
@@ -981,7 +981,7 @@ func TestStorageSearch(t *testing.T) {
 			processBlock := func(_ uint, br *blockResult) {
 				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
-			s.search(workersCount, so, nil, processBlock)
+			s.search(workersCount, &searchStats{}, so, nil, processBlock)
 
 			expectedRowsCount := streamsPerTenant * blocksPerStream * rowsPerBlock
 			if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -998,7 +998,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 
 		expectedRowsCount := tenantsCount * streamsPerTenant * blocksPerStream * rowsPerBlock
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -1014,7 +1014,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 	})
 	t.Run("matching-stream-id", func(t *testing.T) {
 		for i := 0; i < streamsPerTenant; i++ {
@@ -1031,7 +1031,7 @@ func TestStorageSearch(t *testing.T) {
 			processBlock := func(_ uint, br *blockResult) {
 				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
-			s.search(workersCount, so, nil, processBlock)
+			s.search(workersCount, &searchStats{}, so, nil, processBlock)
 
 			expectedRowsCount := blocksPerStream * rowsPerBlock
 			if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -1053,7 +1053,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 
 		expectedRowsCount := streamsPerTenant * blocksPerStream * rowsPerBlock
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -1083,7 +1083,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 
 		expectedRowsCount := streamsPerTenant * blocksPerStream * 2
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -1104,7 +1104,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 
 		expectedRowsCount := blocksPerStream
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -1124,7 +1124,7 @@ func TestStorageSearch(t *testing.T) {
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
-		s.search(workersCount, so, nil, processBlock)
+		s.search(workersCount, &searchStats{}, so, nil, processBlock)
 	})
 
 	s.MustClose()
