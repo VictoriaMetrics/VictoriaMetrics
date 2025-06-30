@@ -50,6 +50,12 @@ type Storage struct {
 
 // WriteMetrics writes internal storage metrics to the provided writer in Prometheus text exposition format.
 func (s *Storage) WriteMetrics(w io.Writer) {
+	activeStreams := s.GetActiveStreams()
+	if activeStreams == 0 {
+		return
+	}
+
+	metrics.WriteGaugeUint64(w, `vl_insert_active_streams`, activeStreams)
 	metrics.WriteCounterUint64(w, `vl_insert_remote_send_errors_total`, s.RemoteSendFailed.Load())
 }
 
@@ -315,6 +321,15 @@ func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
 	idx := s.srt.getNodeIdx(streamHash)
 	sn := s.sns[idx]
 	sn.addRow(r)
+}
+
+// GetActiveStreams returns the number of log streams being tracked since the Storage start.
+func (s *Storage) GetActiveStreams() uint64 {
+	s.srt.mu.Lock()
+	n := uint64(len(s.srt.rowsPerStream))
+	s.srt.mu.Unlock()
+
+	return n
 }
 
 func (s *Storage) sendInsertRequestToAnyNode(pendingData *bytesutil.ByteBuffer) bool {
