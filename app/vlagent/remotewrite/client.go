@@ -26,8 +26,7 @@ import (
 
 var (
 	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", 0, "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
-		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
-		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
+		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data ")
 	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
 	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
 	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
@@ -371,10 +370,6 @@ again:
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vlagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
 	if statusCode == 400 || statusCode == 404 {
 		logBlockRejected(block, c.sanitizedURL, resp)
-
-		// Just drop block on 409 status code like Prometheus does.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
-		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
 		return true

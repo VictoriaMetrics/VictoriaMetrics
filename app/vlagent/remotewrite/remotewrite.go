@@ -23,16 +23,15 @@ import (
 
 var (
 	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support VictoriaLogs native protocol. "+
-		"Example url: http://<victorialogs-host>:9428/internal/insert . "+
-		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
-		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
+		"Example url: http://<victorialogs-host>:9428/internal/insert. "+
+		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems.")
 	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
 
-	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vlagent-remotewritewrite", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
-		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
+	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vlagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
+		"See also -remoteWrite.maxDiskUsagePerURL")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 		"isn't enough for sending high volume of collected data to remote storage. "+
 		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")

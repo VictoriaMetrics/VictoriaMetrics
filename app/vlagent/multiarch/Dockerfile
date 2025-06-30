@@ -6,7 +6,7 @@ RUN apk update && apk upgrade && apk --update --no-cache add ca-certificates
 
 FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-EXPOSE 8429
+EXPOSE 9429
 ENTRYPOINT ["/vlagent-prod"]
 ARG TARGETARCH
 COPY vlagent-linux-${TARGETARCH}-prod ./vlagent-prod

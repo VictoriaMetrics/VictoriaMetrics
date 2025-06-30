@@ -27,18 +27,18 @@ Previous solution was to configure clients to replicate log streams into multipl
 ## Features
 
 - It can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-* Can replicate collected metrics simultaneously to multiple VictoriaLogs instances - see [these docs](#replication-and-high-availability).
-* Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
-  are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
+* Can replicate collected logs simultaneously to multiple VictoriaLogs instances - see [these docs](#replication-and-high-availability).
+* Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected logs
+  are buffered at `-remoteWrite.tmpDataPath`. The buffered logs are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 
 ## Quick Start
 
-Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
+Please download `vlagent` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
 `vlagent` is also available in docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vlagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vlagent?tab=tags)),
 unpack it and pass the following flags to the `vlagent` binary in order to start sending the data to the VictoriaLogs remote storage:
 
-* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, where to send the data to.
+* `-remoteWrite.url` with VictoriaLogs native protocol compatible remote storage endpoint, where to send the data to.
   The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vlagent)
@@ -63,10 +63,6 @@ and then it sends the buffered data to the remote storage in order to prevent da
 We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus-compatible scraper,
 so that the exported metrics may be analyzed later.
 
-If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
-See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
-
 Use official [Grafana dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vlagent.json) for `vlagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
@@ -76,14 +72,14 @@ If you have suggestions for improvements or have found a bug - please open an is
 * It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vlagent`.
 
 * It is recommended increasing `-remoteWrite.queues` if `vlagent_remotewrite_pending_data_bytes` [metric](#monitoring)
-  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
+  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` command-line flags in this case.
   This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
-* If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
-  try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage.
+* If you see gaps in the data pushed by `vlagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
+  try increasing `-remoteWrite.queues`. Such gaps may appear because `vlagent` cannot keep up with sending the collected data to remote storage.
   Therefore, it starts dropping the buffered data if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
 
-* `vlagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses.
+* `vlagent` drops data blocks if remote storage replies with `400 Bad Request` and `404 Not Found` HTTP responses.
   The number of dropped blocks can be monitored via `vlagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
 
 * `vlagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
@@ -169,6 +165,8 @@ See the docs at https://docs.victoriametrics.com/victorialogs/vlagent/ .
     	Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
     	Disable CORS for all origins (*)
+  -http.disableKeepAlive
+    	Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
   -http.disableResponseCompression
     	Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
@@ -354,7 +352,7 @@ See the docs at https://docs.victoriametrics.com/victorialogs/vlagent/ .
   -remoteWrite.queues int
     	The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage (default 20)
   -remoteWrite.rateLimit array
-    	Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage. See also -maxIngestionRate (default 0)
+    	Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data  (default 0)
     	Supports array of values separated by comma or specified via multiple flags.
     	Empty values are set to default value.
   -remoteWrite.retryMaxTime array
@@ -396,9 +394,9 @@ See the docs at https://docs.victoriametrics.com/victorialogs/vlagent/ .
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.tmpDataPath string
-    	Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue (default "vlagent-remotewritewrite")
+    	Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . See also -remoteWrite.maxDiskUsagePerURL (default "vlagent-remotewrite-data")
   -remoteWrite.url array
-    	Remote storage URL to write data to. It must support VictoriaLogs native protocol. Example url: http://<victorialogs-host>:9428/internal/insert . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set
+    	Remote storage URL to write data to. It must support VictoriaLogs native protocol. Example url: http://<victorialogs-host>:9428/internal/insert. Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems.
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.compressMethod.tcp array
