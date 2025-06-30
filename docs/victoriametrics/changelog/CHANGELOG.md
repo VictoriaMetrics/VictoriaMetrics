@@ -49,6 +49,7 @@ Released at 2025-06-20
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): increase startup healthcheck delay for storage reachability from 30 seconds to 3 minutes. This is required to avoid vmbackupmanager restarts when storage node startup take more than 30 seconds (e.g. when storage nodes stores more than 5Tb of data).
 * BUGFIX: [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) cluster: properly include FIPS binaries in release artifacts for platforms other than windows. Previously, FIPS binaries were only included in windows release artifacts. See [#9188](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9188).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): properly calculate `rate_sum` and `rate_avg` aggregations if aggregation `interval` is smaller than distance between samples timestamps. See [#9017](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9017).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fixed static AWS credentials precedence, which could be previously overrridden by IRSA credentials. See [#9168](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9168) for details.
 
 ## [v1.119.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.119.0)
 
