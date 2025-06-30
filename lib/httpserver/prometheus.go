@@ -11,7 +11,12 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview for more details
 func SendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.WarnfSkipframes(1, "error in %q: %s", GetRequestURI(r), err)
+	requestHeader := GetRequestHeader(r)
+	if len(requestHeader) > 0 {
+		logger.WarnfSkipframes(1, "request header: %s, error in %q: %s", requestHeader, GetRequestURI(r), err)
+	} else {
+		logger.WarnfSkipframes(1, "error in %q: %s", GetRequestURI(r), err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
