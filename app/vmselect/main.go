@@ -757,7 +757,16 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
-	case "prometheus/api/v1/metadata":
+	case "/prometheus/api/v1/notifiers", "/notifiers":
+		notifiersRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r, p.Suffix)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
+		return true
+	case "/prometheus/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 		metadataRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -909,9 +918,10 @@ var (
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/expand-with-exprs"}`)
 	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/prettify-query"}`)
 
-	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/vmalert"}`)
-	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
-	alertsRequests  = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
+	notifiersRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/notifiers"}`)
+	vmalertRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/vmalert"}`)
+	rulesRequests     = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
+	alertsRequests    = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
 
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/buildinfo"}`)
