@@ -365,10 +365,20 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	metrics.WriteGaugeUint64(w, `vl_active_merges{type="storage/inmemory"}`, ss.InmemoryActiveMerges)
 	metrics.WriteGaugeUint64(w, `vl_active_merges{type="storage/small"}`, ss.SmallPartActiveMerges)
 	metrics.WriteGaugeUint64(w, `vl_active_merges{type="storage/big"}`, ss.BigPartActiveMerges)
+	metrics.WriteGaugeUint64(w, `vl_active_merges{type="indexdb/inmemory"}`, ss.IndexdbActiveInmemoryMerges)
+	metrics.WriteGaugeUint64(w, `vl_active_merges{type="indexdb/file"}`, ss.IndexdbActiveFileMerges)
 
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/inmemory"}`, ss.InmemoryMergesTotal)
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/small"}`, ss.SmallPartMergesTotal)
 	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/big"}`, ss.BigPartMergesTotal)
+	metrics.WriteCounterUint64(w, `vl_merges_total{type="indexdb/inmemory"}`, ss.IndexdbInmemoryMergesTotal)
+	metrics.WriteCounterUint64(w, `vl_merges_total{type="indexdb/file"}`, ss.IndexdbFileMergesTotal)
+
+	metrics.WriteCounterUint64(w, `vl_rows_merged_total{type="storage/inmemory"}`, ss.InmemoryMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merged_total{type="storage/small"}`, ss.SmallPartMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merged_total{type="storage/big"}`, ss.BigPartMergeRowsTotal)
+	metrics.WriteCounterUint64(w, `vl_rows_merged_total{type="indexdb/inmemory"}`, ss.IndexdbInmemoryItemsMerged)
+	metrics.WriteCounterUint64(w, `vl_rows_merged_total{type="indexdb/file"}`, ss.IndexdbFileItemsMerged)
 
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/inmemory"}`, ss.InmemoryRowsCount)
 	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/small"}`, ss.SmallPartRowsCount)
@@ -381,6 +391,9 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/inmemory"}`, ss.InmemoryBlocks)
 	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/small"}`, ss.SmallPartBlocks)
 	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/big"}`, ss.BigPartBlocks)
+
+	metrics.WriteGaugeUint64(w, `vl_pending_rows{type="storage"}`, ss.PendingRowsCount)
+	metrics.WriteGaugeUint64(w, `vl_pending_rows{type="indexdb"}`, ss.IndexdbPendingItems)
 
 	metrics.WriteGaugeUint64(w, `vl_partitions`, ss.PartitionsCount)
 	metrics.WriteCounterUint64(w, `vl_streams_created_total`, ss.StreamsCreatedTotal)
