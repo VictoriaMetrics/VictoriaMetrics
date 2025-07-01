@@ -12,7 +12,8 @@ aliases:
   - /vmbackup/index.html
   - /vmbackup/
 ---
-`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
+`vmbackup` creates VictoriaMetrics data backups from instant snapshots
+More information how to work with them could be found in [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots) documentation.
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
@@ -183,6 +184,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
+* Please find description how snapshots use disk space and recommendations in [snapshot troubleshooting](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting)
 
 ## Advanced usage
 
