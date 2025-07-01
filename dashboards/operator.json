@@ -150,7 +150,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(operator_controller_objects_count{job=~\"$job\",instance=~\"$instance\"}) by (controller)",
+          "expr": "max(operator_controller_objects_count{job=~\"$job\",instance=~\"$instance\", cluster=~\"$cluster\"}) by (controller)",
           "legendFormat": "{{controller}}",
           "range": true,
           "refId": "A"
@@ -219,7 +219,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "vm_app_uptime_seconds{job=~\"$job\",instance=~\"$instance\"}",
+          "expr": "vm_app_uptime_seconds{job=~\"$job\",instance=~\"$instance\", cluster=~\"$cluster\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -291,7 +291,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(operator_prometheus_converter_active_watchers)",
+          "expr": "sum(operator_prometheus_converter_active_watchers{cluster=~\"$cluster\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -361,7 +361,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(leader_election_master_status{job=~\"$job\"})",
+          "expr": "sum(leader_election_master_status{job=~\"$job\", cluster=~\"$cluster\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -431,7 +431,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(controller_runtime_active_workers{job=~\"$job\"})",
+          "expr": "sum(controller_runtime_active_workers{job=~\"$job\", cluster=~\"$cluster\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -530,7 +530,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(operator_prometheus_converter_watch_events_total{job=~\"$job\"}[$__interval])) by (event_type,object_type_name)",
+          "expr": "sum(rate(operator_prometheus_converter_watch_events_total{job=~\"$job\", cluster=~\"$cluster\"}[$__interval])) by (event_type,object_type_name)",
           "instant": false,
           "legendFormat": "{{object_type_name}} {{event_type}}",
           "range": true,
@@ -630,7 +630,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=~\"requeue_after|requeue|success\"}[$__rate_interval])) by(controller)",
+          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=~\"requeue_after|requeue|success\", cluster=~\"$cluster\"}[$__rate_interval])) by(controller)",
           "legendFormat": "{{controller}}",
           "range": true,
           "refId": "A"
@@ -730,7 +730,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(operator_log_messages_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by (level)",
+          "expr": "sum(rate(operator_log_messages_total{job=~\"$job\",instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (level)",
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
@@ -856,7 +856,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(controller_runtime_reconcile_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by(controller) > 0 ",
+          "expr": "sum(rate(controller_runtime_reconcile_errors_total{job=~\"$job\",instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(controller) > 0 ",
           "instant": false,
           "legendFormat": "{{controller}}",
           "range": true,
@@ -868,7 +868,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=\"error\"}[$__rate_interval])) by(controller) > 0",
+          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=\"error\", cluster=~\"$cluster\"}[$__rate_interval])) by(controller) > 0",
           "hide": false,
           "legendFormat": "result errors: {{controller}}",
           "range": true,
@@ -968,7 +968,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(operator_reconcile_throttled_events_total[$__rate_interval])) by(controller)",
+          "expr": "sum(rate(operator_reconcile_throttled_events_total{cluster=~\"$cluster\"}[$__rate_interval])) by(controller)",
           "legendFormat": "{{controller}}",
           "range": true,
           "refId": "A"
@@ -1067,7 +1067,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(workqueue_depth{job=~\"$job\",instance=~\"$instance\"}) by (name)",
+          "expr": "max(workqueue_depth{job=~\"$job\",instance=~\"$instance\", cluster=~\"$cluster\"}) by (name)",
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
@@ -1168,7 +1168,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99,sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by(le,controller) )",
+          "expr": "histogram_quantile(0.99,sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by(le,controller) )",
           "legendFormat": "q.99 {{controller}}",
           "range": true,
           "refId": "A"
@@ -1265,7 +1265,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(rest_client_requests_total{job=~\"$job\"}[$__interval])) by (method,code)",
+          "expr": "sum(rate(rest_client_requests_total{job=~\"$job\", cluster=~\"$cluster\"}[$__interval])) by (method,code)",
           "instant": false,
           "legendFormat": "{{method}} {{code}}",
           "range": true,
@@ -1380,7 +1380,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(max_over_time(controller_runtime_active_workers{job=~\"$job\"}[$__interval]))",
+          "expr": "max(max_over_time(controller_runtime_active_workers{job=~\"$job\", cluster=~\"$cluster\"}[$__interval]))",
           "instant": false,
           "legendFormat": "Current",
           "range": true,
@@ -1392,7 +1392,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "min(controller_runtime_max_concurrent_reconciles{job=~\"$job\"})",
+          "expr": "min(controller_runtime_max_concurrent_reconciles{job=~\"$job\", cluster=~\"$cluster\"})",
           "hide": false,
           "instant": false,
           "legendFormat": "Max",
@@ -1489,7 +1489,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+          "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job, instance, le))) by(job)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -1588,7 +1588,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99,sum(rate(rest_client_request_duration_seconds_bucket{job=~\"$job\"})) by(le,method,api) )",
+          "expr": "histogram_quantile(0.99,sum(rate(rest_client_request_duration_seconds_bucket{job=~\"$job\", cluster=~\"$cluster\"})) by(le,method,api) )",
           "instant": false,
           "legendFormat": "{{method}} {{api}}",
           "range": true,
@@ -1702,7 +1702,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}) ",
               "legendFormat": "requested from system",
               "range": true,
               "refId": "A"
@@ -1713,7 +1713,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}) ",
               "hide": false,
               "legendFormat": "heap inuse",
               "range": true,
@@ -1725,7 +1725,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
               "hide": false,
               "legendFormat": "stack inuse",
               "range": true,
@@ -1737,7 +1737,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
               "hide": false,
               "legendFormat": "resident",
               "range": true,
@@ -1833,7 +1833,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) ",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) ",
               "legendFormat": "CPU cores used",
               "range": true,
               "refId": "A"
@@ -1928,7 +1928,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
               "legendFormat": "goroutines",
               "range": true,
               "refId": "A"
@@ -2026,7 +2026,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval]))",
               "legendFormat": "avg gc duration",
               "range": true,
               "refId": "A"
@@ -2071,19 +2071,40 @@
         "type": "datasource"
       },
       {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "uid": "${ds}"
+        },
+        "definition": "label_values(operator_log_messages_total,cluster)",
+        "hide": 2,
+        "includeAll": true,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(operator_log_messages_total,cluster)",
+          "refId": "VictoriaMetrics-cluster-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
         "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(operator_log_messages_total,job)",
+        "definition": "label_values(operator_log_messages_total{cluster=~\"$cluster\"},job)",
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "job",
         "options": [],
         "query": {
-          "query": "label_values(operator_log_messages_total,job)",
+          "query": "label_values(operator_log_messages_total{cluster=~\"$cluster\"},job)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -2098,14 +2119,14 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(operator_log_messages_total{job=~\"$job\"},instance)",
+        "definition": "label_values(operator_log_messages_total{job=~\"$job\", cluster=~\"$cluster\"},instance)",
         "hide": 0,
         "includeAll": true,
         "multi": false,
         "name": "instance",
         "options": [],
         "query": {
-          "query": "label_values(operator_log_messages_total{job=~\"$job\"},instance)",
+          "query": "label_values(operator_log_messages_total{job=~\"$job\", cluster=~\"$cluster\"},instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -2120,14 +2141,14 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
+        "definition": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\", cluster=~\"$cluster\"},  version)",
         "hide": 2,
         "includeAll": false,
         "multi": false,
         "name": "version",
         "options": [],
         "query": {
-          "query": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
+          "query": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\", cluster=~\"$cluster\"},  version)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

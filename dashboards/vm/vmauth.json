@@ -209,7 +209,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(min_over_time(vm_app_uptime_seconds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+          "expr": "sum(min_over_time(vm_app_uptime_seconds{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -296,7 +296,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "expr": "count(vmauth_config_last_reload_successful{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -361,7 +361,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) or 0)",
+          "expr": "(sum(rate(vmauth_user_requests_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) or 0)",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -425,7 +425,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "count(vmauth_user_concurrent_requests_capacity{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
           "interval": "",
           "legendFormat": "",
           "range": true,
@@ -491,7 +491,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(vmauth_http_request_errors_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -586,7 +586,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by (job, short_version)",
+          "expr": "sum(vm_app_version{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}) by (job, short_version)",
           "format": "table",
           "instant": true,
           "range": false,
@@ -694,7 +694,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
+          "expr": "sum(rate(vmauth_user_requests_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -706,7 +706,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(vmauth_unauthorized_user_requests_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -809,7 +809,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
+          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
           "hide": false,
           "interval": "5m",
           "legendFormat": "__auto",
@@ -906,7 +906,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
+          "expr": "sum(rate(vmauth_http_request_errors_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -1002,7 +1002,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
+          "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
           "interval": "1m",
           "legendFormat": "__auto",
           "range": true,
@@ -1014,7 +1014,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+          "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
           "hide": false,
           "legendFormat": "unauthorized",
           "range": true,
@@ -1128,7 +1128,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+          "expr": "max(vmauth_user_request_duration_seconds{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
           "hide": false,
           "legendFormat": "user: {{username}} q: {{ quantile}}",
           "range": true,
@@ -1140,7 +1140,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
+          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
           "hide": false,
           "legendFormat": "user: unauthorized q: {{ quantile}}",
           "range": true,
@@ -1256,7 +1256,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    max_over_time(process_resident_memory_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,
@@ -1361,7 +1361,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1467,7 +1467,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_sys_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1479,7 +1479,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_heap_inuse_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1491,7 +1491,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_stack_inuse_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1503,7 +1503,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1517,7 +1517,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_anon_bytes{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1639,7 +1639,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+              "expr": "rate(process_cpu_seconds_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1652,7 +1652,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "process_cpu_cores_available{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1758,7 +1758,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(vm_tcplistener_conns{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1864,7 +1864,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1988,7 +1988,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n/\nprocess_max_fds{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "max_over_time(process_open_fds{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n/\nprocess_max_fds{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2095,7 +2095,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_goroutines{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "gc duration",
@@ -2199,7 +2199,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_num_threads{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "threads",
@@ -2316,7 +2316,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+              "expr": "sum(flag{cluster=~\"$cluster\", is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -2437,7 +2437,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level)",
+              "expr": "sum(increase(vm_log_messages_total{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -2541,7 +2541,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "expr": "sum(changes(vm_app_start_timestamp{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}",
@@ -2583,19 +2583,40 @@
         "type": "datasource"
       },
       {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "uid": "${ds}"
+        },
+        "definition": "label_values(vm_app_version{version=~\"^vmauth.*\"},cluster)",
+        "hide": 2,
+        "includeAll": true,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{version=~\"^vmauth.*\"},cluster)",
+          "refId": "VictoriaMetrics-cluster-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
         "current": {},
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
+        "definition": "label_values(vm_app_version{version=~\"^vmauth.*\", cluster=~\"$cluster\"}, job)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "job",
         "options": [],
         "query": {
-          "query": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
+          "query": "label_values(vm_app_version{version=~\"^vmauth.*\", cluster=~\"$cluster\"}, job)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -2611,14 +2632,14 @@
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "definition": "label_values(vm_app_version{job=~\"$job\", cluster=~\"$cluster\"}, instance)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "instance",
         "options": [],
         "query": {
-          "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+          "query": "label_values(vm_app_version{job=~\"$job\", cluster=~\"$cluster\"}, instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -2633,14 +2654,14 @@
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
-        "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
+        "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}, username)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "user",
         "options": [],
         "query": {
-          "query": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
+          "query": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}, username)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
