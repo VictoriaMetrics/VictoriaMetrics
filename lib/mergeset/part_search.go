@@ -38,6 +38,8 @@ type partSearch struct {
 	ibItemIdx int
 
 	sparse bool
+
+	tmpIB *inmemoryBlock
 }
 
 func (ps *partSearch) reset() {
@@ -52,6 +54,8 @@ func (ps *partSearch) reset() {
 
 	ps.sb.Reset()
 
+	ps.tmpIB.Reset()
+
 	ps.ib = nil
 	ps.ibItemIdx = 0
 	ps.sparse = false
@@ -61,6 +65,9 @@ func (ps *partSearch) reset() {
 //
 // Use Seek for search in p.
 func (ps *partSearch) Init(p *part, sparse bool) {
+	if ps.tmpIB == nil {
+		ps.tmpIB = &inmemoryBlock{}
+	}
 	ps.reset()
 
 	ps.p = p
@@ -276,7 +283,7 @@ func (ps *partSearch) nextBHS() error {
 			return fmt.Errorf("cannot read index block: %w", err)
 		}
 		b = idxb
-		idxbCache.PutBlock(idxbKey, b)
+		idxbCache.TryPutBlock(idxbKey, b)
 	}
 	idxb := b.(*indexBlock)
 	ps.bhs = idxb.bhs
@@ -318,7 +325,9 @@ func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) 
 			return nil, err
 		}
 		b = ib
-		cache.PutBlock(ibKey, b)
+		if cache.TryPutBlock(ibKey, b) {
+			ps.tmpIB = &inmemoryBlock{}
+		}
 	}
 	ib := b.(*inmemoryBlock)
 	return ib, nil
@@ -333,7 +342,8 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 	ps.sb.lensData = bytesutil.ResizeNoCopyMayOverallocate(ps.sb.lensData, int(bh.lensBlockSize))
 	ps.p.lensFile.MustReadAt(ps.sb.lensData, int64(bh.lensBlockOffset))
 
-	ib := &inmemoryBlock{}
+	ps.tmpIB.Reset()
+	ib := ps.tmpIB
 	if err := ib.UnmarshalData(&ps.sb, bh.firstItem, bh.commonPrefix, bh.itemsCount, bh.marshalType); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal storage block with %d items: %w", bh.itemsCount, err)
 	}

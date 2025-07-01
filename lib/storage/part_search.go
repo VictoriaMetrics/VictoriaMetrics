@@ -189,7 +189,7 @@ func (ps *partSearch) nextBHS() bool {
 				return false
 			}
 			b = ib
-			ibCache.PutBlock(indexBlockKey, b)
+			ibCache.TryPutBlock(indexBlockKey, b)
 		}
 		ib := b.(*indexBlock)
 		ps.bhs = ib.bhs

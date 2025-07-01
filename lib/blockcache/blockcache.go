@@ -82,15 +82,17 @@ func (c *Cache) GetBlock(k Key) Block {
 	return shard.GetBlock(k)
 }
 
-// PutBlock puts the given block b under the given key k into c.
-func (c *Cache) PutBlock(k Key, b Block) {
+// TryPutBlock puts the given block b under the given key k into c.
+//
+// returns true if block was added to the cache
+func (c *Cache) TryPutBlock(k Key, b Block) bool {
 	idx := uint64(0)
 	if len(c.shards) > 1 {
 		h := k.hashUint64()
 		idx = h % uint64(len(c.shards))
 	}
 	shard := c.shards[idx]
-	shard.PutBlock(k, b)
+	return shard.TryPutBlock(k, b)
 }
 
 // Len returns the number of blocks in the cache c.
@@ -302,7 +304,7 @@ func (c *cache) GetBlock(k Key) Block {
 	return nil
 }
 
-func (c *cache) PutBlock(k Key, b Block) {
+func (c *cache) TryPutBlock(k Key, b Block) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	misses := c.perKeyMisses[k]
@@ -313,9 +315,12 @@ func (c *cache) PutBlock(k Key, b Block) {
 		// Do not cache the entry if there were up to *missesBeforeCaching unsuccessful attempts to access it.
 		// This may be one-time-wonders entry, which won't be accessed more, so do not cache it
 		// in order to save memory for frequently accessed items.
-		return
+		return false
 	}
 
+	// reset key misses counter
+	// it should help to reduce memory on fast cache eviction
+	c.perKeyMisses[k] = 0
 	// Store b in the cache.
 	pes := c.m[k.Part]
 	if pes == nil {
@@ -323,7 +328,7 @@ func (c *cache) PutBlock(k Key, b Block) {
 		c.m[k.Part] = pes
 	} else if pes[k.Offset] != nil {
 		// The block has been already registered by concurrent goroutine.
-		return
+		return true
 	}
 	e := &cacheEntry{
 		lastAccessTime: fasttime.UnixTimestamp(),
@@ -337,6 +342,7 @@ func (c *cache) PutBlock(k Key, b Block) {
 	for c.SizeBytes() > maxSizeBytes && len(c.lah) > 0 {
 		c.removeLeastRecentlyAccessedItem()
 	}
+	return true
 }
 
 func (c *cache) removeLeastRecentlyAccessedItem() {
