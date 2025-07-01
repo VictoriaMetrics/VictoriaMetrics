@@ -21,6 +21,7 @@ to the Internet.
   * [alertmanager](#alertmanager)
   * [Grafana](#grafana)
 * [Alerts](#alerts)
+* [Troubleshooting](#troubleshooting)
 
 ## VictoriaMetrics single server
 
@@ -55,6 +56,8 @@ To shutdown environment run:
 ```
 make docker-vm-single-down
 ```
+
+See [troubleshooting](#troubleshooting) in case if issues.
 
 ## VictoriaMetrics cluster
 
@@ -91,6 +94,8 @@ To shutdown environment execute the following command:
 ```
 make docker-vm-cluster-down
 ```
+
+See [troubleshooting](#troubleshooting) in case if issues.
 
 ## vmagent
 
@@ -135,6 +140,8 @@ To shutdown environment execute the following command:
 make docker-vl-single-down
 ```
 
+See [troubleshooting](#troubleshooting) in case if issues.
+
 ## VictoriaLogs cluster
 
 To spin-up environment with VictoriaLogs cluster run the following command:
@@ -175,6 +182,8 @@ To shutdown environment execute the following command:
 ```
 make docker-vl-cluster-down
 ```
+
+See [troubleshooting](#troubleshooting) in case if issues.
 
 Please see more examples on integration of VictoriaLogs with other log shippers below:
 * [filebeat](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat) 
@@ -249,3 +258,34 @@ The list of alerting rules is the following:
 
 Please, also see [how to monitor VictoriaMetrics installations](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring) 
 and [how to monitor VictoriaLogs installations](https://docs.victoriametrics.com/victorialogs/#monitoring).
+
+## Troubleshooting
+
+This environment has the following requirements:
+* installed [docker compose](https://docs.docker.com/compose/);
+* access to the Internet for downloading docker images;
+* **All commands should be executed from the root directory of [the VictoriaMetrics repo](https://github.com/VictoriaMetrics/VictoriaMetrics).**
+
+The expected output of running a command like `make docker-vm-single-up` is the following:
+```sh
+ make docker-vm-single-up                                                                                                           :(
+docker compose -f deployment/docker/compose-vm-single.yml up -d
+[+] Running 9/9
+ ✔ Network docker_default              Created                                                                                                                                                                                     0.0s 
+ ✔ Volume "docker_vmagentdata"         Created                                                                                                                                                                                     0.0s 
+ ✔ Container docker-alertmanager-1     Started                                                                                                                                                                                     0.3s 
+ ✔ Container docker-victoriametrics-1  Started                                                                                                                                                                                     0.3s 
+...  
+ ```
+
+> Containers run in [--detach mode](https://docs.docker.com/reference/cli/docker/compose/up/).
+
+In case of issues, read the error message carefully and try following its recommendations. See other troubleshooting steps:
+1. Verify that you run the command from the root directory of [the VictoriaMetrics repo](https://github.com/VictoriaMetrics/VictoriaMetrics).
+2. To list all the containers and their status execute `docker ps -a`. Healthy&running containers should have `STATUS` set to `Up`.
+3. To see the logs of specific container get its ID from p2 and execute `docker logs <containerID>`
+4. Some containers (i.e. Grafana) expose HTTP ports for access. But they won't start if the port is already used by
+  other process (in case if you already have another Grafana running on default :3000 port). In this case, either shutdown
+  the conflicting process, or modify docker-compose manifest to expose container on a different port.
+5. To shut down deployment execute `make <environment>-down` (i.e. `make docker-vm-single-down`). 
+   Note, this command also removes all attached volumes, so all the temporary created data will be removed too (i.e. Grafana dashboards or collected metrics).
