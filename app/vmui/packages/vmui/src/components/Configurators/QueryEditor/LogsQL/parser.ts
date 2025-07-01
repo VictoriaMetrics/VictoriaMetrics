@@ -107,7 +107,7 @@ export const getContextData = (part: LogicalPart, cursorPos: number): ContextDat
     contextType: ContextType.Unknown,
   };
 
-  // Determine context type based on logical part type
+  // Determine a context type based on a logical part type
   determineContextType(part, valueBeforeCursor, valueAfterCursor, metaData);
 
   // Clean up quotes in valueContext
@@ -131,7 +131,7 @@ const handleFilterValue = (valueBeforeCursor: string, metaData: ContextData): vo
   const [filterName, ...filterValue] = valueBeforeCursor.split(":");
   metaData.contextType = ContextType.FilterValue;
   metaData.filterName = filterName;
-  const enhanceOperators = ["=", "-", "!", "~", "<", ">", "<=", ">="] as const;
+  const enhanceOperators = ["=", "-", "!"] as const;
   const enhanceOperator = enhanceOperators.find(op => op === filterValue[0]);
   if (enhanceOperator) {
     metaData.valueContext = filterValue.slice(1).join(":");
@@ -142,7 +142,7 @@ const handleFilterValue = (valueBeforeCursor: string, metaData: ContextData): vo
   }
 };
 
-/** Function to determine context type based on part type and value */
+/** Function to determine a context type based on part type and value */
 const determineContextType = (
   part: LogicalPart,
   valueBeforeCursor: string,

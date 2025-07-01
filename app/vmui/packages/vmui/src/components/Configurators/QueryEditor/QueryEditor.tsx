@@ -15,6 +15,7 @@ export interface QueryEditorAutocompleteProps {
   caretPosition: [number, number]; // [start, end]
   hasHelperText: boolean;
   includeFunctions: boolean;
+  isOpen: boolean;
   onSelect: (val: string, caretPosition: number) => void;
   onFoundOptions: (val: AutocompleteOptions[]) => void;
 }
@@ -150,7 +151,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
         inputmode={"search"}
         caretPosition={caretPositionInput}
       />
-      {showAutocomplete && autocomplete && AutocompleteEl && (
+      {autocomplete && AutocompleteEl && (
         <AutocompleteEl
           value={value}
           anchorEl={autocompleteAnchorEl}
@@ -159,6 +160,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
           includeFunctions={includeFunctions}
           onSelect={handleSelect}
           onFoundOptions={handleChangeFoundOptions}
+          isOpen={showAutocomplete}
         />
       )}
     </div>
