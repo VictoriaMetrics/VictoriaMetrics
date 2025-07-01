@@ -261,6 +261,16 @@ rsync -avh --progress --delete <username>@<host>:<path-to-victorialogs-backup> <
 It is also possible to use **the disk snapshot** in order to perform a backup. This feature could be provided by your operating system,
 cloud provider, or third-party tools. Note that the snapshot must be **consistent** to ensure reliable backup.
 
+## vmalert
+
+VictoriaLogs is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
+when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
+* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+* for accessing vmalerts UI through VictoriaLogs Web interface.
+
+For accessing vmalerts UI through VictoriaLogs configure `-vmalert.proxyURL` flag and visit
+`http://<victorialogs-addr>:9428/vmalert/` link.
+
 ## Multitenancy
 
 VictoriaLogs supports multitenancy. A tenant is identified by `(AccountID, ProjectID)` pair, where `AccountID` and `ProjectID` are arbitrary 32-bit unsigned integers.
@@ -723,6 +733,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -vmalert.proxyURL string
+        Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
   -version
     	Show VictoriaMetrics version
 ```
