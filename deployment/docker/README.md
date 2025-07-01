@@ -278,14 +278,14 @@ docker compose -f deployment/docker/compose-vm-single.yml up -d
 ...  
  ```
 
-> Containers run in [--detach mode](https://docs.docker.com/reference/cli/docker/compose/up/).
+Containers are started in [--detach mode](https://docs.docker.com/reference/cli/docker/compose/up/), meaning they run in the background. 
+As a result, you won't see their logs or exit status directly in the terminal.
 
-In case of issues, read the error message carefully and try following its recommendations. See other troubleshooting steps:
-1. Verify that you run the command from the root directory of [the VictoriaMetrics repo](https://github.com/VictoriaMetrics/VictoriaMetrics).
-2. To list all the containers and their status execute `docker ps -a`. Healthy&running containers should have `STATUS` set to `Up`.
-3. To see the logs of specific container get its ID from p2 and execute `docker logs <containerID>`
-4. Some containers (i.e. Grafana) expose HTTP ports for access. But they won't start if the port is already used by
-  other process (in case if you already have another Grafana running on default :3000 port). In this case, either shutdown
-  the conflicting process, or modify docker-compose manifest to expose container on a different port.
-5. To shut down deployment execute `make <environment>-down` (i.e. `make docker-vm-single-down`). 
+If something isn’t working as expected, try the following troubleshooting steps:
+1. Run from the correct directory. Make sure you're running the command from the root of the [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+2. Check container status. Run `docker ps -a` to list all containers and their status. Healthy and running containers should have `STATUS` set to `Up`.
+3. View container logs. To inspect logs for a specific container, get its container ID from step p2 and run: `docker logs -f <containerID>`.
+4. Read the logs carefully and follow any suggested actions.
+5. Check for port conflicts. Some containers (e.g., Grafana) expose HTTP ports. If a port (like `:3000`) is already in use, the container may fail to start. Stop the conflicting process or change the exposed port in the Docker Compose file.
+6. Shut down the deployment. To tear down the environment, run: `make <environment>-down` (i.e. `make docker-vm-single-down`). 
    Note, this command also removes all attached volumes, so all the temporary created data will be removed too (i.e. Grafana dashboards or collected metrics).
