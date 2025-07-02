@@ -1,7 +1,7 @@
 services:
 
   hotrod:
-    image: jaegertracing/example-hotrod-snapshot:461923b41ff10964d723e8578421710d0ef42c3f
+    image: jaegertracing/example-hotrod:1.70.0
     ports:
       - "8080:8080"
       - "8083:8083"
@@ -13,7 +13,7 @@ services:
 
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    image: grafana/grafana:11.5.0
+    image: grafana/grafana:12.0.2
     depends_on:
       - "victoriametrics"
       - "victoriatraces"
@@ -43,7 +43,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.119.0
+    image: victoriametrics/victoria-metrics:v1.120.0
     ports:
       - "8428:8428"
     volumes:
@@ -58,7 +58,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.119.0
+    image: victoriametrics/vmauth:v1.120.0
     depends_on:
       - "victoriametrics"
       - "victoriatraces"
@@ -72,7 +72,7 @@ services:
 
   # vmalert executes alerting and recording rules according to the given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.119.0
+    image: victoriametrics/vmalert:v1.120.0
     depends_on:
       - "vmauth"
       - "alertmanager"
