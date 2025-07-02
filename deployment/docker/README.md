@@ -191,17 +191,17 @@ Please see more examples on integration of VictoriaLogs with other log shippers 
 
 ## VictoriaTraces server
 
-To spin-up environment with VictoriaTraces run the following command:
+To spin-up environment with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) run the following command:
 ```
 make docker-vt-single-up
 ```
-_See [compose-vt-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/compose-vt-single.yml)_
+_See [compose-vt-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/victoriatraces/deployment/docker/compose-vt-single.yml)_
 
 VictoriaTraces will be accessible on the `--httpListenAddr=:9428` port.
 In addition to VictoriaTraces server, the docker compose contains the following components:
 * [HotROD](https://hub.docker.com/r/jaegertracing/example-hotrod) application to generate trace data.
 * `VictoriaMetrics single-node` to collect metrics from all the components;
-* [Grafana](#grafana) is configured with [VictoriaLogs datasource](https://github.com/VictoriaMetrics/victorialogs-datasource).
+* [Grafana](#grafana) is configured with [VictoriaLogs](https://github.com/VictoriaMetrics/victorialogs-datasource) and Jaeger datasources pointing to VictoriaTraces server.
 * [vmalert](#vmalert) is configured to query `VictoriaLogs single-node`, and send alerts state
   and recording rules results to `VictoriaMetrics single-node`;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
