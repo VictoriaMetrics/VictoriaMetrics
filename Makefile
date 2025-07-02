@@ -22,6 +22,7 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
+include apptest/Makefile
 
 all: \
 	victoria-metrics-prod \
@@ -547,6 +548,8 @@ test-full-386:
 
 integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore victoria-logs
 	go test ./apptest/... -skip="^TestCluster.*"
+
+integration-tsbs-benchmark: victoria-metrics tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...
