@@ -15,6 +15,8 @@ to the Internet.
 * Logs:
   * [VictoriaLogs single server](#victoriaLogs-server)
   * [VictoriaLogs cluster](#victoriaLogs-cluster)
+* Traces:
+  * [VictoriaTraces single server](#victoriaTraces-server)
 * [Common](#common-components)
   * [vmauth](#vmauth)
   * [vmalert](#vmalert)

@@ -4,9 +4,9 @@ datasources:
   - name: VictoriaTraces
     type: jaeger
     access: proxy
-    url:  http://vmauth:8427/select/jaeger/
+    url:  http://victoriatraces:9428/select/jaeger/
 
   - name: VictoriaMetrics
     type: prometheus
     access: proxy
-    url: http://vmauth:8427/
+    url: http://victoriametrics:8428/

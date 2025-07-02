@@ -6,10 +6,6 @@ scrape_configs:
     static_configs:
       - targets:
           - victoriametrics:8428
-  - job_name: vmalert
-    static_configs:
-      - targets:
-          - vmalert:8880
   - job_name: victoriatraces
     static_configs:
       - targets:
