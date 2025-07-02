@@ -62,3 +62,8 @@ func Remaining() int {
 	once.Do(initOnce)
 	return remainingMemory
 }
+
+func Percentage() {
+	once.Do(initOnce)
+
+}

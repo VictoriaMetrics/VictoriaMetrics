@@ -48,6 +48,19 @@ func GetMemoryLimit() int64 {
 	return n
 }
 
+// GetMemoryUsage returns cgroup memory usage
+func GetMemoryUsage() int64 {
+	n, err := getMemStat("memory.usage_in_bytes")
+	if err == nil {
+		return n
+	}
+	n, err = getMemStatV2("memory.current")
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 func getMemStatV2(statName string) (int64, error) {
 	// See https: //www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
 	return getStatGeneric(statName, "/sys/fs/cgroup", "/proc/self/cgroup", "")
@@ -69,6 +82,26 @@ func GetHierarchicalMemoryLimit() int64 {
 }
 
 func getHierarchicalMemoryLimit(sysfsPrefix, cgroupPath string) (int64, error) {
+	data, err := getFileContents("memory.stat", sysfsPrefix, cgroupPath, "memory")
+	if err != nil {
+		return 0, err
+	}
+	memStat, err := grepFirstMatch(data, "hierarchical_memory_limit", 1, " ")
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(memStat, 10, 64)
+}
+
+func GetHierarchicalMemoryUsage() int64 {
+	n, err := getHierarchicalMemoryUsage("/sys/fs/cgroup/memory", "/proc/self/cgroup")
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func getHierarchicalMemoryUsage(sysfsPrefix, cgroupPath string) (int64, error) {
 	data, err := getFileContents("memory.stat", sysfsPrefix, cgroupPath, "memory")
 	if err != nil {
 		return 0, err
