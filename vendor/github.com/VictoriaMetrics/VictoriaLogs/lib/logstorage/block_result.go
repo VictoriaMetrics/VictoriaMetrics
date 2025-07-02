@@ -830,11 +830,12 @@ func truncateTimestamp(ts, bucketSizeInt, bucketOffsetInt int64, bucketSizeStr s
 	}
 
 	ts -= bucketOffsetInt
-	if bucketSizeStr == "month" {
+	switch bucketSizeStr {
+	case "month":
 		ts = truncateTimestampToMonth(ts)
-	} else if bucketSizeStr == "year" {
+	case "year":
 		ts = truncateTimestampToYear(ts)
-	} else {
+	default:
 		r := ts % bucketSizeInt
 		if r < 0 {
 			r += bucketSizeInt

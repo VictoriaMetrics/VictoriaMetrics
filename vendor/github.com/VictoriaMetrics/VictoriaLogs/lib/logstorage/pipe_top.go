@@ -590,7 +590,7 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse N in 'top': %w", err)
 		}
 		if limitF < 1 {
-			return nil, fmt.Errorf("N in 'top %s' must be integer bigger than 0", s)
+			return nil, fmt.Errorf("value N in 'top %s' must be integer bigger than 0", s)
 		}
 		limit = uint64(limitF)
 		limitStr = s

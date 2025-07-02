@@ -514,7 +514,7 @@ func parsePipeFacets(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse N in 'facets': %w", err)
 		}
 		if limitF < 1 {
-			return nil, fmt.Errorf("N in 'facets %s' must be integer bigger than 0", s)
+			return nil, fmt.Errorf("value N in 'facets %s' must be integer bigger than 0", s)
 		}
 		limit = uint64(limitF)
 	}

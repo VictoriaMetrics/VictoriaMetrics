@@ -73,7 +73,7 @@ func Create(ctx context.Context, createSnapshotURL string) (string, error) {
 	if snap.Status == "error" {
 		return "", errors.New(snap.Msg)
 	}
-	return "", fmt.Errorf("Unknown status: %v", snap.Status)
+	return "", fmt.Errorf("unknown status: %v", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -121,7 +121,7 @@ func Delete(ctx context.Context, deleteSnapshotURL string, snapshotName string) 
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("Unknown status: %v", snap.Status)
+	return fmt.Errorf("unknown status: %v", snap.Status)
 }
 
 // GetHTTPClient returns a new HTTP client configured for snapshot operations.
