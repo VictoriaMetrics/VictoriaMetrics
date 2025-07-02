@@ -194,7 +194,12 @@ Please see more examples on integration of VictoriaLogs with other log shippers 
 ## VictoriaTraces server
 
 To spin-up environment with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) run the following command:
-```
+```sh
+# checkout to `victoriametrcs` branch 
+git clone -b victoriametrcs --single-branch https://github.com/VictoriaMetrics/VictoriaMetrics.git
+cd VictoriaMetrics
+
+# start docker compose
 make docker-vt-single-up
 ```
 _See [compose-vt-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/victoriatraces/deployment/docker/compose-vt-single.yml)_
