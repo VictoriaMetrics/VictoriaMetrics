@@ -73,6 +73,7 @@ func initOnce() {
 				currentUsedBytes = sysCurrentMemory()
 				currentMemory.Store(int64(currentUsedBytes))
 				currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
+				logger.Infof("current: %dMiB, total: %dMiB, percent: %d%%", currentUsedBytes/1024/1024, memoryLimit/1024/1024, currentMemoryPercentage.Load())
 			}
 		}
 	}()
