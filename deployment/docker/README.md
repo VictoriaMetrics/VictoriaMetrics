@@ -213,7 +213,7 @@ To generate Trace data, you need to access HotROD at [http://localhost:8080](htt
 To access Grafana, use link [http://localhost:3000](http://localhost:3000).
 
 To access [VictoriaTraces UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui), 
-use link [http://localhost:8427/select/vmui](http://localhost:8427/select/vmui).
+use link [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui).
 
 To shutdown environment execute the following command:
 ```
