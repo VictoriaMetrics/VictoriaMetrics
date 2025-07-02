@@ -34,7 +34,6 @@ import (
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -135,7 +134,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	if *maxMemoryUsage >= 1 && *maxMemoryUsage <= 100 {
 		// todo remove debug logging
-		logger.Infof("memory usage is %d%%", memory.CurrentPercentage())
 		if memory.CurrentPercentage() > *maxMemoryUsage {
 			httpserver.Errorf(w, r, "server overloaded, request rejected by circuit breaker")
 			return true
