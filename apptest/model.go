@@ -25,6 +25,8 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
+
+	GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse
 }
 
 // Writer contains methods for writing new data
@@ -394,6 +396,10 @@ type TSDBStatusResponse struct {
 	IsPartial bool
 	Data      TSDBStatusResponseData
 }
+
+// GraphiteMetricsIndexResponse is an in-memory representation of the json response
+// returned by the /graphite/metrics/index.json endpoint.
+type GraphiteMetricsIndexResponse = []string
 
 // AdminTenantsResponse is an in-memory representation of the json response
 // returned by the /api/v1/admin/tenants endpoint.
