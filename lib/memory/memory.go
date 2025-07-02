@@ -4,9 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -20,11 +23,16 @@ var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
 })
 
 var (
-	allowedMemory   int
-	remainingMemory int
-	memoryLimit     int
+	allowedMemory           int
+	remainingMemory         int
+	memoryLimit             int
+	currentMemory           atomic.Int64
+	currentMemoryPercentage atomic.Int32
 )
-var once sync.Once
+var (
+	once        sync.Once
+	watcherOnce sync.Once
+)
 
 func initOnce() {
 	if !flag.Parsed() {
@@ -45,6 +53,29 @@ func initOnce() {
 		remainingMemory = memoryLimit - allowedMemory
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
 	}
+
+	currentUsedBytes := sysCurrentMemory()
+	currentMemory.Store(int64(currentUsedBytes))
+	currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
+
+	go func() {
+		// Register SIGHUP handler for config reload before loadRelabelConfigs.
+		// This guarantees that the config will be re-read if the signal arrives just after loadRelabelConfig.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+		sighupCh := procutil.NewSighupChan()
+		t := time.NewTicker(time.Second * 5)
+		defer t.Stop()
+		for {
+			select {
+			case <-sighupCh:
+				return
+			case <-t.C:
+				currentUsedBytes = sysCurrentMemory()
+				currentMemory.Store(int64(currentUsedBytes))
+				currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
+			}
+		}
+	}()
 }
 
 // Allowed returns the amount of system memory allowed to use by the app.
@@ -63,7 +94,14 @@ func Remaining() int {
 	return remainingMemory
 }
 
-func Percentage() {
+// Current return memory usage in byte. The value is updated every 5 seconds.
+func Current() int {
 	once.Do(initOnce)
+	return int(currentMemory.Load())
+}
 
+// CurrentPercentage return memory usage percentage in [0-100] int. The value is updated every 5 seconds.
+func CurrentPercentage() int {
+	once.Do(initOnce)
+	return int(currentMemoryPercentage.Load())
 }

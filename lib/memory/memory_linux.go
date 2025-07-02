@@ -39,12 +39,14 @@ func sysCurrentMemory() int {
 	if uint64(maxInt)/uint64(si.Totalram-si.Freeram) > uint64(si.Unit) {
 		usedMem = int(uint64(si.Totalram-si.Freeram) * uint64(si.Unit))
 	}
-	mem := cgroup.GetMemoryUsage()
-	if mem <= 0 || int64(int(mem)) != mem || int(mem) > usedMem {
-		mem = cgroup.GetHierarchicalMemoryUsage()
-		if mem <= 0 || int64(int(mem)) != mem || int(mem) > usedMem {
-			return usedMem
-		}
-	}
-	return int(mem)
+
+	return usedMem
+	//mem := cgroup.GetMemoryUsage()
+	//if mem <= 0 || int64(int(mem)) != mem || int(mem) > usedMem {
+	//	mem = cgroup.GetHierarchicalMemoryUsage()
+	//	if mem <= 0 || int64(int(mem)) != mem || int(mem) > usedMem {
+	//		return usedMem
+	//	}
+	//}
+	//return int(mem)
 }

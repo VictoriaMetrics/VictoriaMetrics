@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadogsketches"
@@ -36,6 +34,8 @@ import (
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
@@ -43,6 +43,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -130,6 +131,12 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
+
+	up := memory.CurrentPercentage()
+	logger.Infof("memory usage is %d%%", up)
+	if memory.CurrentPercentage() > 80 {
+		return false
+	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if strings.HasPrefix(path, "/static") {
