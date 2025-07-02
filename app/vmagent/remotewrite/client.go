@@ -448,7 +448,8 @@ again:
 	}
 
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
-	if statusCode == 409 {
+	switch statusCode {
+	case 409:
 		logBlockRejected(block, c.sanitizedURL, resp)
 
 		// Just drop block on 409 status code like Prometheus does.
@@ -461,7 +462,13 @@ again:
 		// - Remote Write v2 specification explicitly specifies a `415 Unsupported Media Type` for unsupported encodings.
 		// - Real-world implementations of v1 use both 400 and 415 status codes.
 		// See more in research: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462#issuecomment-2786918054
-	} else if statusCode == 415 || statusCode == 400 {
+	case 415, 400:
+		if c.canDowngradeVMProto.Swap(false) {
+			logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
+				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+			c.useVMProto.Store(false)
+		}
+
 		if encoding.IsZstd(block) {
 			logger.Infof("received unsupported media type or bad request from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
 				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)

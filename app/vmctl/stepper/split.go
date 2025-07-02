@@ -33,7 +33,7 @@ func SplitDateRange(start, end time.Time, step string, timeReverse bool) ([][]ti
 	case StepMonth:
 		nextStep = func(t time.Time) (time.Time, time.Time) {
 			endOfMonth := time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
-			if t == endOfMonth {
+			if t.Equal(endOfMonth) {
 				endOfMonth = time.Date(t.Year(), t.Month()+2, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
 				t = time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location())
 			}
