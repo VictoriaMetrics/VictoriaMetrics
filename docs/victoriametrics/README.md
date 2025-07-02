@@ -2053,7 +2053,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 * VictoriaMetrics limits the number of labels per each series, label name length and label value length
   via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
   Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
-  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
+  It is recommended [monitoring](#monitoring) `vm_rows_ignored_total` metric and VictoriaMetrics logs in order 
   to determine whether limits must be adjusted for your workload.
   Alternatively, you can use [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) to change metric target labels.
 
