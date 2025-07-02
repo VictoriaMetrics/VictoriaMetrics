@@ -39,7 +39,8 @@ type partSearch struct {
 
 	sparse bool
 
-	tmpIB *inmemoryBlock
+	tmpIB  *inmemoryBlock
+	tmpIdB *indexBlock
 }
 
 func (ps *partSearch) reset() {
@@ -55,6 +56,8 @@ func (ps *partSearch) reset() {
 	ps.sb.Reset()
 
 	ps.tmpIB.Reset()
+	ps.tmpIdB.buf = ps.tmpIdB.buf[:0]
+	ps.tmpIdB.bhs = ps.tmpIdB.bhs[:0]
 
 	ps.ib = nil
 	ps.ibItemIdx = 0
@@ -67,6 +70,9 @@ func (ps *partSearch) reset() {
 func (ps *partSearch) Init(p *part, sparse bool) {
 	if ps.tmpIB == nil {
 		ps.tmpIB = &inmemoryBlock{}
+	}
+	if ps.tmpIdB == nil {
+		ps.tmpIdB = &indexBlock{}
 	}
 	ps.reset()
 
@@ -283,7 +289,9 @@ func (ps *partSearch) nextBHS() error {
 			return fmt.Errorf("cannot read index block: %w", err)
 		}
 		b = idxb
-		idxbCache.TryPutBlock(idxbKey, b)
+		if idxbCache.TryPutBlock(idxbKey, b) {
+			ps.tmpIdB = &indexBlock{}
+		}
 	}
 	idxb := b.(*indexBlock)
 	ps.bhs = idxb.bhs
@@ -299,9 +307,8 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot decompress index block: %w", err)
 	}
-	idxb := &indexBlock{
-		buf: append([]byte{}, ps.indexBuf...),
-	}
+	idxb := ps.tmpIdB
+	idxb.buf = append(idxb.buf[:0], ps.indexBuf...)
 	idxb.bhs, err = unmarshalBlockHeadersNoCopy(idxb.bhs[:0], idxb.buf, int(mr.blockHeadersCount))
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal block headers from index block (offset=%d, size=%d): %w", mr.indexBlockOffset, mr.indexBlockSize, err)
