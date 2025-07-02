@@ -7,7 +7,8 @@ services:
     ports:
       - "8080:8080"
       - "8083:8083"
-    command: [ "all" ]
+    command:
+      - "all"
     environment:
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://victoriatraces:9428/insert/opentelemetry/v1/traces
     depends_on:

@@ -200,17 +200,15 @@ make docker-vt-single-up
 _See [compose-vt-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/victoriatraces/deployment/docker/compose-vt-single.yml)_
 
 VictoriaTraces will be accessible on the `--httpListenAddr=:9428` port.
+
 In addition to VictoriaTraces server, the docker compose contains the following components:
 * [HotROD](https://hub.docker.com/r/jaegertracing/example-hotrod) application to generate trace data.
 * `VictoriaMetrics single-node` to collect metrics from all the components;
-* [Grafana](#grafana) is configured with [VictoriaLogs](https://github.com/VictoriaMetrics/victorialogs-datasource) and Jaeger datasources pointing to VictoriaTraces server.
-* [vmalert](#vmalert) is configured to query `VictoriaLogs single-node`, and send alerts state
-  and recording rules results to `VictoriaMetrics single-node`;
-* [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
+* [Grafana](#grafana) is configured with [VictoriaMetrics](https://github.com/VictoriaMetrics/victoriametrics-datasource) and Jaeger datasources pointing to VictoriaTraces server.
 
-<img alt="VictoriaLogs single-server deployment" width="500" src="assets/vl-single-server.png">
+<img alt="VictoriaTraces single-server deployment" width="500" src="assets/vt-single-server.png">
 
-To access HotROD, use link [http://localhost:8080](http://localhost:8080).
+To generate Trace data, you need to access HotROD at [http://localhost:8080](http://localhost:8080), and **click any button on the page**.
 
 To access Grafana, use link [http://localhost:3000](http://localhost:3000).
 
