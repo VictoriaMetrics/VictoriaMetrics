@@ -134,8 +134,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	up := memory.CurrentPercentage()
 	logger.Infof("memory usage is %d%%", up)
-	if memory.CurrentPercentage() > 80 {
-		return false
+	if memory.CurrentPercentage() > 50 {
+		httpserver.Errorf(w, r, "server overloaded, request rejected by circuit breaker")
+		return true
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
