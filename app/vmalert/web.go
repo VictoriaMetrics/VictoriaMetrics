@@ -459,7 +459,7 @@ func (rh *requestHandler) listNotifiers() ([]byte, error) {
 		}
 		for _, target := range protoTargets {
 			notifier.Targets = append(notifier.Targets, &apiTarget{
-				Address: target.Notifier.Addr(),
+				Address: target.Addr(),
 				Labels:  target.Labels.ToMap(),
 			})
 		}
