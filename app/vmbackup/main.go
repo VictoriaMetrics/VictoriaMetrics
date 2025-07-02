@@ -51,6 +51,13 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		procutil.WaitForSigterm()
+		logger.Infof("received stop signal, canceling backup operation")
+		cancel()
+	}()
+
 	// Storing snapshot delete function to be able to call it in case
 	// of error since logger.Fatal will exit the program without
 	// calling deferred functions.
@@ -79,7 +86,7 @@ func main() {
 		}
 		logger.Infof("Snapshot delete url %s", deleteURL.Redacted())
 
-		name, err := snapshot.Create(createURL.String())
+		name, err := snapshot.Create(ctx, createURL.String())
 		if err != nil {
 			logger.Fatalf("cannot create snapshot: %s", err)
 		}
@@ -89,7 +96,9 @@ func main() {
 		}
 
 		deleteSnapshot = func() {
-			err := snapshot.Delete(deleteURL.String(), name)
+			// Do not use ctx here as it may be canceled by the time deleteSnapshot is called
+			// if process is interrupted.
+			err := snapshot.Delete(context.Background(), deleteURL.String(), name)
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
@@ -98,13 +107,6 @@ func main() {
 
 	listenAddrs := []string{*httpListenAddr}
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		procutil.WaitForSigterm()
-		logger.Infof("received stop signal, canceling backup operation")
-		cancel()
-	}()
 
 	pushmetrics.Init()
 	err := makeBackup(ctx)

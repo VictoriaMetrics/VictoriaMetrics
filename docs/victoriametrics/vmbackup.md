@@ -481,15 +481,15 @@ Run `vmbackup -help` in order to see all the available options:
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
   -snapshot.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used
+     Optional path to TLS CA file to use for verifying connections to -snapshot.createURL. By default, system CA is used
   -snapshot.tlsCertFile string
-     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+     Optional path to client-side TLS certificate file to use when connecting to -snapshot.createURL
   -snapshot.tlsInsecureSkipVerify
-     Whether to skip tls verification when connecting to -snapshotCreateURL
+     Whether to skip tls verification when connecting to -snapshot.createURL
   -snapshot.tlsKeyFile string
-     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+     Optional path to client-side TLS certificate key to use when connecting to -snapshot.createURL
   -snapshot.tlsServerName string
-     Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used
+     Optional TLS server name to use for connections to -snapshot.createURL. By default, the server name from -snapshot.createURL is used
   -snapshotName string
      Name for the snapshot to backup. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
   -storageDataPath string
