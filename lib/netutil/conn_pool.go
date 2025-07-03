@@ -152,9 +152,18 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
 		case cp.concurrentDialsCh <- struct{}{}:
 			// Create new connection.
-			conn, err := cp.dialAndHandshake()
+			conn, dialErr := cp.dialAndHandshake()
 			<-cp.concurrentDialsCh
-			return conn, err
+			// Dial and handshake can take some time, during which a connection may appear in the pool.
+			// Reusing such connections might help mitigate handshake issues:
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345
+			if dialErr != nil {
+				if bc, getErr := cp.tryGetConn(); getErr == nil {
+					return bc, nil
+				}
+			}
+
+			return conn, dialErr
 		default:
 			// Make attempt to get already established connections from the pool.
 			// It may appear there while waiting for cp.concurrentDialsCh.
