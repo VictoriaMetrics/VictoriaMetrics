@@ -6,6 +6,8 @@ import (
 	"io"
 	"sync"
 
+	"github.com/golang/snappy"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -13,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
@@ -21,7 +22,7 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 // Parse parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
 //
 // callback shouldn't hold tss after returning.
-func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries) error) error {
+func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries, mss []prompb.MetricMetadata) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -88,8 +89,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 		rows += len(tss[i].Samples)
 	}
 	rowsRead.Add(rows)
+	//todo: add metric for mss
+	mss := wr.Metadata
 
-	if err := callback(tss); err != nil {
+	if err := callback(tss, mss); err != nil {
 		return fmt.Errorf("error when processing imported data: %w", err)
 	}
 	return nil
