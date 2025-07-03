@@ -91,5 +91,5 @@ func (s *Storage) legacyDebugFlush() {
 	if legacyIDBCurr != nil {
 		legacyIDBCurr.tb.DebugFlush()
 	}
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
 }
