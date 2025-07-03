@@ -8,13 +8,13 @@ import (
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-func testMetricsIndex(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testMetricsIndex(t *testing.T, sut at.PrometheusWriteQuerier) {
 	// verify index is empty at the start
 	expected := at.GraphiteMetricsIndexResponse{}
 	tenant := "1:2"
-	got := sut.GraphiteMetricsIndex(tc.T(), at.QueryOpts{Tenant: tenant})
+	got := sut.GraphiteMetricsIndex(t, at.QueryOpts{Tenant: tenant})
 	if diff := cmp.Diff(expected, got); diff != "" {
-		tc.T().Errorf("unexpected response (-want, +got):\n%s", diff)
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// Mon Feb  5 09:57:36 CET 2024
@@ -31,15 +31,15 @@ func testMetricsIndex(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		dataSet[idx] += ingestTimestamp
 	}
 
-	sut.PrometheusAPIV1ImportPrometheus(tc.T(), dataSet, at.QueryOpts{Tenant: tenant})
-	sut.ForceFlush(tc.T())
+	sut.PrometheusAPIV1ImportPrometheus(t, dataSet, at.QueryOpts{Tenant: tenant})
+	sut.ForceFlush(t)
 
 	// verify ingested metrics correctly returned in index response
 	expected = []string{"metric_name_1", "metric_name_2", "metric_name_3"}
 
-	got = sut.GraphiteMetricsIndex(tc.T(), at.QueryOpts{Tenant: tenant})
+	got = sut.GraphiteMetricsIndex(t, at.QueryOpts{Tenant: tenant})
 	if diff := cmp.Diff(expected, got); diff != "" {
-		tc.T().Errorf("unexpected response (-want, +got):\n%s", diff)
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 }
 
@@ -49,7 +49,7 @@ func TestSingleMetricsIndex(t *testing.T) {
 
 	sut := tc.MustStartDefaultVmsingle()
 
-	testMetricsIndex(tc, sut)
+	testMetricsIndex(tc.T(), sut)
 }
 
 func TestClusterMetricsIndex(t *testing.T) {
@@ -58,5 +58,5 @@ func TestClusterMetricsIndex(t *testing.T) {
 
 	sut := tc.MustStartDefaultCluster()
 
-	testMetricsIndex(tc, sut)
+	testMetricsIndex(tc.T(), sut)
 }
