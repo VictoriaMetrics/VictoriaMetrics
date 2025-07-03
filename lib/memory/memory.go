@@ -54,7 +54,8 @@ func initOnce() {
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
 	}
 
-	currentUsedBytes := sysCurrentMemory()
+	currentAvailableBytes, _ := getAvailableMemory()
+	currentUsedBytes := max(0, memoryLimit-currentAvailableBytes)
 	currentMemory.Store(int64(currentUsedBytes))
 	currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
 
@@ -70,7 +71,8 @@ func initOnce() {
 			case <-sighupCh:
 				return
 			case <-t.C:
-				currentUsedBytes = sysCurrentMemory()
+				currentAvailableBytes, _ = getAvailableMemory()
+				currentUsedBytes = max(0, memoryLimit-currentAvailableBytes)
 				currentMemory.Store(int64(currentUsedBytes))
 				currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
 				logger.Infof("current: %dMiB, total: %dMiB, percent: %d%%", currentUsedBytes/1024/1024, memoryLimit/1024/1024, currentMemoryPercentage.Load())
