@@ -18,8 +18,11 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to hide the logs panel to view only the graph. When the logs panel is hidden, the `/query` request is not executed.
+
 * BUGFIX: [`rate_sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats): fix inconsistent per-second rate calculation when time filters are specified via HTTP query parameters instead of LogsQL expression. This affects recording rule results. See [#9303](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9303).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): disabled opening of autocomplete popup on initial page load.
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): prevent groups from automatically expanding on list updates if all groups were previously collapsed. See [#8076](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8076).
 
 ## [v1.24.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.24.0-victorialogs)
 

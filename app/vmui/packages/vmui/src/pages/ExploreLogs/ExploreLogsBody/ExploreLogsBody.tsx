@@ -1,5 +1,12 @@
 import { FC, useRef } from "preact/compat";
-import { CodeIcon, ListIcon, TableIcon, PlayIcon } from "../../../components/Main/Icons";
+import {
+  CodeIcon,
+  ListIcon,
+  TableIcon,
+  PlayIcon,
+  VisibilityOffIcon,
+  VisibilityIcon
+} from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
@@ -12,6 +19,10 @@ import GroupView from "./views/GroupView/GroupView";
 import TableView from "./views/TableView/TableView";
 import JsonView from "./views/JsonView/JsonView";
 import LiveTailingView from "./views/LiveTailingView/LiveTailingView";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import Button from "../../../components/Main/Button/Button";
+import { useSearchParams } from "react-router-dom";
+import Alert from "../../../components/Main/Alert/Alert";
 
 export interface ExploreLogBodyProps {
   data: Logs[];
@@ -34,9 +45,21 @@ const tabs = [
 
 const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
   const { isMobile } = useDeviceDetect();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [activeTab, setActiveTab] = useStateSearchParams(DisplayType.group, "view");
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  const [hideLogs, setHideLogs] = useStateSearchParams(false, "hide_logs");
+
+  const toggleHideLogs = () => {
+    setHideLogs(prev => {
+      const newVal = !prev;
+      newVal ? searchParams.set("hide_logs", "true") : searchParams.delete("hide_logs");
+      setSearchParams(searchParams);
+      return newVal;
+    });
+  };
 
   const handleChangeTab = (view: string) => {
     setActiveTab(view as DisplayType);
@@ -82,19 +105,33 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
           className="vm-explore-logs-body-header__settings"
           ref={settingsRef}
         />
+        <Tooltip title={hideLogs ? "Show Logs" : "Hide Logs"}>
+          <Button
+            variant="text"
+            color="primary"
+            startIcon={hideLogs ? <VisibilityOffIcon/> : <VisibilityIcon/>}
+            onClick={toggleHideLogs}
+            ariaLabel="settings"
+          />
+        </Tooltip>
       </div>
 
       <div
         className={classNames({
           "vm-explore-logs-body__table": true,
+          "vm-explore-logs-body__table_hide": hideLogs,
           "vm-explore-logs-body__table_mobile": isMobile,
         })}
       >
-        {ActiveTabComponent &&
-            <ActiveTabComponent
-              data={data}
-              settingsRef={settingsRef}
-            />
+        {hideLogs && (
+          <Alert variant="info">Logs are hidden. Updates paused.</Alert>
+        )}
+
+        {!hideLogs && ActiveTabComponent &&
+          <ActiveTabComponent
+            data={data}
+            settingsRef={settingsRef}
+          />
         }
       </div>
     </div>

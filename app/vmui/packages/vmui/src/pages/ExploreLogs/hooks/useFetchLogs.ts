@@ -4,9 +4,12 @@ import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";
 import dayjs from "dayjs";
 import { useTenant } from "../../../hooks/useTenant";
+import { useSearchParams } from "react-router-dom";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
   const tenant = useTenant();
+  const [searchParams] = useSearchParams();
+  const hideLogs = useMemo(() => searchParams.get("hide_logs"), [searchParams]);
 
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState<{ [key: number]: boolean }>({});
@@ -74,6 +77,13 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       abortControllerRef.current.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (hideLogs) {
+      setLogs([]);
+      setError(undefined);
+    }
+  }, [hideLogs]);
 
   return {
     logs,

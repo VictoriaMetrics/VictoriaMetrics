@@ -4,6 +4,7 @@
   position: relative;
 
   &-header {
+    grid-template-columns: 1fr auto auto;
     background-color: $color-background-block;
     z-index: 3;
     margin: -$padding-medium 0-$padding-medium 0;
@@ -67,6 +68,12 @@
 
     .vm-table {
       min-width: 700px;
+    }
+
+    &_hide {
+      display: flex;
+      align-content: center;
+      justify-content: center;
     }
   }
 }

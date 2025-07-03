@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef } from "preact/compat";
+import { FC, useEffect, useMemo, useRef } from "preact/compat";
 import { GraphOptions, GRAPH_STYLES } from "../types";
 import Switch from "../../../Main/Switch/Switch";
 import "./style.scss";
@@ -61,15 +61,6 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
 
   return (
     <div className="vm-bar-hits-options">
-      <Tooltip title={hideChart ? "Show chart and resume hits updates" : "Hide chart and pause hits updates"}>
-        <Button
-          variant="text"
-          color="primary"
-          startIcon={hideChart ? <VisibilityOffIcon/> : <VisibilityIcon/>}
-          onClick={toggleHideChart}
-          ariaLabel="settings"
-        />
-      </Tooltip>
       <div ref={optionsButtonRef}>
         <Tooltip title="Graph settings">
           <Button
@@ -81,6 +72,15 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
           />
         </Tooltip>
       </div>
+      <Tooltip title={hideChart ? "Show chart and resume hits updates" : "Hide chart and pause hits updates"}>
+        <Button
+          variant="text"
+          color="primary"
+          startIcon={hideChart ? <VisibilityOffIcon/> : <VisibilityIcon/>}
+          onClick={toggleHideChart}
+          ariaLabel="settings"
+        />
+      </Tooltip>
       <Popper
         open={openOptions}
         placement="bottom-right"
