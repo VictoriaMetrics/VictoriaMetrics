@@ -141,7 +141,7 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 	cp.cond.L.Lock()
 	defer cp.cond.L.Unlock()
 
-	maxAttempts := 3
+	maxAttempts := 5
 	for i := 0; i < maxAttempts; i++ {
 		bc, err := cp.tryGetConn()
 		if err != nil {
@@ -152,28 +152,35 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 			return bc, nil
 		}
 
+		stopCh := make(chan struct{})
 		// Slow path - no free connections in the pool.
 		go func() {
+			defer cp.cond.Signal()
+
+			select {
 			// Limit the number of concurrent dials.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
-			cp.concurrentDialsCh <- struct{}{}
-			// Create new connection.
-			bc, err := cp.dialAndHandshake()
-			<-cp.concurrentDialsCh
+			case cp.concurrentDialsCh <- struct{}{}:
+				// Create new connection.
+				bc, err := cp.dialAndHandshake()
+				<-cp.concurrentDialsCh
 
-			if err == nil {
-				cp.conns = append(cp.conns, connWithTimestamp{
-					bc:             bc,
-					lastActiveTime: fasttime.UnixTimestamp(),
-				})
+				if err == nil {
+					cp.conns = append(cp.conns, connWithTimestamp{
+						bc:             bc,
+						lastActiveTime: fasttime.UnixTimestamp(),
+					})
+				}
+
+				// notify waiting goroutines about the new connection
+				// notify even if err != nil, so that they can unblock and try to get a connection again
+			case <-stopCh:
+				return
 			}
-
-			// notify waiting goroutines about the new connection
-			// notify even if err != nil, so that they can unblock and try to get a connection again
-			cp.cond.Signal()
 		}()
 
 		cp.cond.Wait()
+		close(stopCh)
 	}
 
 	return nil, fmt.Errorf("cannot get connection from pool %s: no free connections after %d attempts", cp.name, maxAttempts)
