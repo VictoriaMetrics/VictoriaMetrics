@@ -31,6 +31,7 @@ type ConnPool struct {
 	conns []connWithTimestamp
 
 	isStopped bool
+	stopCh    chan struct{}
 
 	// lastDialError contains the last error seen when dialing remote addr.
 	// When it is non-nil and conns is empty, then ConnPool.Get() return this error.
@@ -72,6 +73,8 @@ func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Fun
 		name:             name,
 		handshakeFunc:    handshakeFunc,
 		compressionLevel: compressionLevel,
+
+		stopCh: make(chan struct{}),
 	}
 	cp.cond.L = &cp.mu
 
@@ -105,6 +108,7 @@ func (cp *ConnPool) MustStop() {
 	cp.mu.Lock()
 	isStopped := cp.isStopped
 	cp.isStopped = true
+	close(cp.stopCh)
 	for _, c := range cp.conns {
 		_ = c.bc.Close()
 	}
@@ -152,9 +156,10 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 			return bc, nil
 		}
 
-		stopCh := make(chan struct{})
 		// Slow path - no free connections in the pool.
 		go func() {
+			// notify waiting goroutines about the new connection
+			// notify even if err != nil, so that they can unblock and try to get a connection again
 			defer cp.cond.Signal()
 
 			select {
@@ -165,22 +170,26 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 				bc, err := cp.dialAndHandshake()
 				<-cp.concurrentDialsCh
 
-				if err == nil {
-					cp.conns = append(cp.conns, connWithTimestamp{
-						bc:             bc,
-						lastActiveTime: fasttime.UnixTimestamp(),
-					})
+				if err != nil {
+					return
 				}
 
-				// notify waiting goroutines about the new connection
-				// notify even if err != nil, so that they can unblock and try to get a connection again
-			case <-stopCh:
+				cp.mu.Lock()
+				defer cp.mu.Unlock()
+				if cp.isStopped {
+					_ = bc.Close()
+					return
+				}
+				cp.conns = append(cp.conns, connWithTimestamp{
+					bc:             bc,
+					lastActiveTime: fasttime.UnixTimestamp(),
+				})
+			case <-cp.stopCh:
 				return
 			}
 		}()
 
 		cp.cond.Wait()
-		close(stopCh)
 	}
 
 	return nil, fmt.Errorf("cannot get connection from pool %s: no free connections after %d attempts", cp.name, maxAttempts)
