@@ -180,6 +180,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 }
 
 var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
+var metadataReadScrape = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="promscrape"}`)
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
 	dstLen := len(dst)
@@ -206,7 +207,6 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 		// Skip empty line
 		return dst, tagsPool
 	}
-	// todo, do not skip comment, but return metadata
 	if s[0] == '#' {
 		// Skip comment
 		return dst, tagsPool
@@ -727,4 +727,112 @@ var numericChars = [256]bool{
 	'e': true,
 	'E': true,
 	'.': true,
+}
+
+// MetadataRow contains metric's HELP or TYPE message.
+// For example:
+// # HELP alertmanager_alerts How many alerts by state.
+// # TYPE alertmanager_alerts gauge
+type Metadata struct {
+	Metric string
+	Type   uint32
+	Help   string
+}
+
+type MetadataRows struct {
+	Rows []Metadata
+}
+
+func (ms *MetadataRows) Unmarshal(s string) {
+	ms.UnmarshalWithErrLogger(s, stdErrLogger)
+}
+
+func (ms *MetadataRows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
+	ms.Rows = unmarshalMetadataRowsWithErrLogger(s, errLogger)
+}
+
+func (ms *MetadataRows) Reset() {
+	ms.Rows = ms.Rows[:0]
+}
+
+func unmarshalMetadataRowsWithErrLogger(s string, errLogger func(s string)) []Metadata {
+	var dst []Metadata
+	for len(s) > 0 {
+		var line string
+		n := strings.IndexByte(s, '\n')
+		if n < 0 {
+			line = s
+			s = ""
+		} else {
+			line = s[:n]
+			s = s[n+1:]
+		}
+		if mr, ok := parseMetadataLine(line, errLogger); ok {
+			dst = append(dst, mr)
+		}
+	}
+	metadataReadScrape.Add(len(dst))
+	return dst
+}
+
+func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
+	s = skipLeadingWhitespace(s)
+
+	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
+		// Skip non comment
+		return Metadata{}, false
+	}
+
+	parts := strings.SplitN(s, " ", 4)
+	if len(parts) < 3 {
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q", s))
+		}
+		return Metadata{}, false
+	}
+	var mr Metadata
+	commentType := parts[1]
+	mr.Metric = parts[2]
+	var isType, isHelp bool
+	switch commentType {
+	case "HELP":
+		isHelp = true
+	case "TYPE":
+		isType = true
+	default:
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q", s))
+		}
+		return Metadata{}, false
+	}
+
+	// 	HELP can have null contents
+	if isType {
+		if len(parts) == 3 {
+			if errLogger != nil {
+				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: missing TYPE", s))
+			}
+			return Metadata{}, false
+		}
+		switch parts[3] {
+		case "counter":
+			mr.Type = 1
+		case "gauge":
+			mr.Type = 2
+		case "histogram":
+			mr.Type = 3
+		case "summary":
+			mr.Type = 5
+		default:
+			if errLogger != nil {
+				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: missing TYPE", s))
+			}
+			return Metadata{}, false
+		}
+
+	}
+	if isHelp && len(parts) > 3 {
+		mr.Help = skipTrailingWhitespace(parts[3])
+	}
+	return mr, true
 }
