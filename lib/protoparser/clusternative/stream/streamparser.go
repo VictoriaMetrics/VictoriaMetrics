@@ -35,34 +35,34 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		callbackErrLock sync.Mutex
 		callbackErr     error
 	)
-	for {
-		reqBuf, err := readBlock(nil, r, bc, isReadOnly)
-		if err != nil {
-			wg.Wait()
-			if err == io.EOF {
-				// Remote end gracefully closed the connection.
-				return callbackErr
-			}
-			return errors.Join(err, callbackErr)
+	reqBuf, err := readBlock(nil, r, bc, isReadOnly)
+	if err != nil {
+		wg.Wait()
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return callbackErr
 		}
-		blocksRead.Inc()
-		uw := getUnmarshalWork()
-		uw.reqBuf = reqBuf
-		uw.callback = func(rows []storage.MetricRow) {
-			if err := callback(rows); err != nil {
-				processErrors.Inc()
-				callbackErrLock.Lock()
-				if callbackErr == nil {
-					callbackErr = fmt.Errorf("error when processing native block: %w", err)
-				}
-				callbackErrLock.Unlock()
-			}
-		}
-		uw.wg = &wg
-		wg.Add(1)
-		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
+		return errors.Join(err, callbackErr)
 	}
+	blocksRead.Inc()
+	uw := getUnmarshalWork()
+	uw.reqBuf = reqBuf
+	uw.callback = func(rows []storage.MetricRow) {
+		if err := callback(rows); err != nil {
+			processErrors.Inc()
+			callbackErrLock.Lock()
+			if callbackErr == nil {
+				callbackErr = fmt.Errorf("error when processing native block: %w", err)
+			}
+			callbackErrLock.Unlock()
+		}
+	}
+	uw.wg = &wg
+	wg.Add(1)
+	protoparserutil.ScheduleUnmarshalWork(uw)
+	wcr.DecConcurrency()
+
+	return nil
 }
 
 // readBlock reads the next data block from vminsert-initiated bc, appends it to dst and returns the result.
@@ -92,14 +92,14 @@ func readBlock(dst []byte, r io.Reader, bc *handshake.BufferedConn, isReadOnly f
 		// The vmstorage is in readonly mode, so drop the read block of data
 		// and send `read only` status to vminsert.
 		dst = dst[:dstLen]
-		if err := sendAck(bc, 2); err != nil {
+		if err := sendAck(bc, consts.StorageStatusReadOnly); err != nil {
 			writeErrors.Inc()
 			return dst, fmt.Errorf("cannot send readonly status to vminsert: %w", err)
 		}
 		return dst, nil
 	}
 	// Send `ack` to vminsert that the packet has been received.
-	if err := sendAck(bc, 1); err != nil {
+	if err := sendAck(bc, consts.StorageStatusAck); err != nil {
 		writeErrors.Inc()
 		return dst, fmt.Errorf("cannot send `ack` to vminsert: %w", err)
 	}
@@ -157,7 +157,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		uw.mrs = mrs
 		if err != nil {
 			parseErrors.Inc()
-			logger.Errorf("cannot unmarshal MetricRow from clusternative block with size %d (remaining %d bytes): %s", len(reqBuf), len(tail), err)
+			logger.Errorf("cannot unmarshal MetricRow from clusternative block with size %d (remaining %d bytes): %s; buffer: %q", len(reqBuf), len(tail), err, string(reqBuf))
 			break
 		}
 		rowsRead.Add(len(mrs))

@@ -8,3 +8,8 @@ const MaxInsertPacketSizeForVMStorage = 100 * 1024 * 1024
 // It is smaller than MaxInsertPacketSizeForVMStorage in order to reduce
 // max memory usage occupied by buffers at vminsert and vmstorage.
 const MaxInsertPacketSizeForVMInsert = 30 * 1024 * 1024
+
+const (
+	StorageStatusReadOnly = 2
+	StorageStatusAck      = 1
+)
