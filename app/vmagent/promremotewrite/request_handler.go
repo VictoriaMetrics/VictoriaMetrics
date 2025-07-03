@@ -27,12 +27,12 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
-	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries) error {
-		return insertRows(at, tss, extraLabels)
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mss []prompb.MetricMetadata) error {
+		return insertRows(at, tss, mss, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, metricsMeta []prompb.MetricMetadata, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -68,6 +68,19 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
+
+	metadata := ctx.WriteRequest.Metadata[:0]
+	for i := range metricsMeta {
+		meta := &metricsMeta[i]
+		metadata = append(metadata, prompbmarshal.MetricMetadata{
+			MetricFamilyName: meta.MetricFamilyName,
+			Type:             meta.Type,
+			Help:             meta.Help,
+			Unit:             meta.Unit,
+		})
+	}
+	ctx.WriteRequest.Metadata = metadata
+
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}

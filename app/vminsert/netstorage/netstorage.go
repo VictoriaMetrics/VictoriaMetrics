@@ -10,8 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
@@ -301,7 +302,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
-	err := sendToConn(sn.bc, br.buf)
+	err := sendToConn(sn.bc, "writeRows_v1", br.buf)
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
@@ -334,7 +335,7 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
-func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
+func sendToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
 	// if len(buf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
 	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
 
@@ -347,20 +348,34 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	if err := bc.SetWriteDeadline(deadline); err != nil {
 		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
 	}
+	sizeBuf := sizeBufPool.Get()
+	defer sizeBufPool.Put(sizeBuf)
+	writeSizeBuf := func(data []byte) error {
+		sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(data)))
+		if _, err := bc.Write(sizeBuf.B); err != nil {
+			return fmt.Errorf("cannot write data size %d: %w", len(data), err)
+		}
+
+		if _, err := bc.Write(data); err != nil {
+			return fmt.Errorf("cannot write data with size %d: %w", len(data), err)
+		}
+
+		if err := bc.Flush(); err != nil {
+			return fmt.Errorf("cannot flush data with size %d: %w", len(data), err)
+		}
+		return nil
+	}
+
+	rpcNameBytes := bytesutil.ToUnsafeBytes(rpcName)
+	if err := writeSizeBuf(rpcNameBytes); err != nil {
+		return fmt.Errorf("cannot write rpcName %q: %w", rpcName, err)
+	}
+
 	// sizeBuf guarantees that the rows batch will be either fully
 	// read or fully discarded on the vmstorage side.
 	// sizeBuf is used for read optimization in vmstorage.
-	sizeBuf := sizeBufPool.Get()
-	defer sizeBufPool.Put(sizeBuf)
-	sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(buf)))
-	if _, err := bc.Write(sizeBuf.B); err != nil {
-		return fmt.Errorf("cannot write data size %d: %w", len(buf), err)
-	}
-	if _, err := bc.Write(buf); err != nil {
-		return fmt.Errorf("cannot write data with size %d: %w", len(buf), err)
-	}
-	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush data with size %d: %w", len(buf), err)
+	if err := writeSizeBuf(buf); err != nil {
+		return fmt.Errorf("cannot write buf with size %d: %w", len(buf), err)
 	}
 
 	// Wait for `ack` from vmstorage.
@@ -375,9 +390,9 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 
 	ackResp := sizeBuf.B[0]
 	switch ackResp {
-	case 1:
+	case consts.StorageStatusAck:
 		// ok response, data successfully accepted by vmstorage
-	case 2:
+	case consts.StorageStatusReadOnly:
 		// vmstorage is in readonly mode
 		return errStorageReadOnly
 	default:
@@ -847,7 +862,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 		return
 	}
 	// send nil buff to check ack response from storage
-	err := sendToConn(sn.bc, nil)
+	err := sendToConn(sn.bc, "healthcheck_v1", nil)
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
 		sn.isReadOnly.Store(false)
