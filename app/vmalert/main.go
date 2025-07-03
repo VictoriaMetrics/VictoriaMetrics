@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -407,6 +408,21 @@ func configsEqual(a, b []config.Group) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
+	// sort both slices by file and name before comparing them
+	sort.SliceStable(a, func(i, j int) bool {
+		if a[i].File != a[j].File {
+			return a[i].File < a[j].File
+		}
+		return a[i].Name < a[j].Name
+	})
+	sort.SliceStable(b, func(i, j int) bool {
+		if b[i].File != b[j].File {
+			return b[i].File < b[j].File
+		}
+		return b[i].Name < b[j].Name
+	})
+
 	for i := range a {
 		if a[i].Checksum != b[i].Checksum {
 			return false

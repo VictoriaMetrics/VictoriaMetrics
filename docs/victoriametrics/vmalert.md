@@ -818,7 +818,7 @@ max range per request:  8h20m0s
 2021-06-07T09:59:12.098Z        info    app/vmalert/replay.go:68        replay finished! Imported 511734 samples
 ```
 
-> In replay mode, groups are executed one after another in sequence. Within each group, rules are also executed sequentially, 
+> In replay mode, groups are executed sequentially in the defined order. Within each group, rules are also executed sequentially, 
 regardless of the `concurrency` setting. This ensures that any potential chaining between rules is preserved (see `-replay.rulesDelay`).
 If you want rules to run concurrently based on the `concurrency` setting, set `-replay.rulesDelay=0`.
 
