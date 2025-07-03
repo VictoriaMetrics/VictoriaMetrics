@@ -16,6 +16,8 @@ type ConnPool struct {
 	mu sync.Mutex
 	d  *TCPDialer
 
+	cond sync.Cond
+
 	// concurrentDialsCh limits the number of concurrent dials the ConnPool can make.
 	// This should prevent from creating an excees number of connections during temporary
 	// spikes in workload at vmselect and vmstorage nodes.
@@ -71,6 +73,8 @@ func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Fun
 		handshakeFunc:    handshakeFunc,
 		compressionLevel: compressionLevel,
 	}
+	cp.cond.L = &cp.mu
+
 	cp.checkAvailability(true)
 	_ = ms.NewGauge(fmt.Sprintf(`vm_tcpdialer_conns_idle{name=%q, addr=%q}`, name, addr), func() float64 {
 		cp.mu.Lock()
@@ -134,50 +138,45 @@ func (cp *ConnPool) Addr() string {
 
 // Get returns free connection from the pool.
 func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
-	bc, err := cp.tryGetConn()
-	if err != nil {
-		return nil, err
-	}
-	if bc != nil {
-		// Fast path - obtained the connection from pool.
-		return bc, nil
-	}
-	return cp.getConnSlow()
-}
+	cp.cond.L.Lock()
+	defer cp.cond.L.Unlock()
 
-func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
-	for {
-		select {
-		// Limit the number of concurrent dials.
-		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
-		case cp.concurrentDialsCh <- struct{}{}:
-			// Create new connection.
-			conn, dialErr := cp.dialAndHandshake()
-			<-cp.concurrentDialsCh
-			// Dial and handshake can take some time, during which a connection may appear in the pool.
-			// Reusing such connections might help mitigate handshake issues:
-			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345
-			if dialErr != nil {
-				if bc, getErr := cp.tryGetConn(); getErr == nil {
-					return bc, nil
-				}
-			}
-
-			return conn, dialErr
-		default:
-			// Make attempt to get already established connections from the pool.
-			// It may appear there while waiting for cp.concurrentDialsCh.
-			bc, err := cp.tryGetConn()
-			if err != nil {
-				return nil, err
-			}
-			if bc == nil {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
+	maxAttempts := 3
+	for i := 0; i < maxAttempts; i++ {
+		bc, err := cp.tryGetConn()
+		if err != nil {
+			return nil, err
+		}
+		if bc != nil {
+			// Fast path - obtained the connection from pool.
 			return bc, nil
 		}
+
+		// Slow path - no free connections in the pool.
+		go func() {
+			// Limit the number of concurrent dials.
+			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
+			cp.concurrentDialsCh <- struct{}{}
+			// Create new connection.
+			bc, err := cp.dialAndHandshake()
+			<-cp.concurrentDialsCh
+
+			if err == nil {
+				cp.conns = append(cp.conns, connWithTimestamp{
+					bc:             bc,
+					lastActiveTime: fasttime.UnixTimestamp(),
+				})
+			}
+
+			// notify waiting goroutines about the new connection
+			// notify even if err != nil, so that they can unblock and try to get a connection again
+			cp.cond.Signal()
+		}()
+
+		cp.cond.Wait()
 	}
+
+	return nil, fmt.Errorf("cannot get connection from pool %s: no free connections after %d attempts", cp.name, maxAttempts)
 }
 
 func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
@@ -203,9 +202,6 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 }
 
 func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
-
 	if cp.isStopped {
 		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
 	}
@@ -237,6 +233,7 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 			bc:             bc,
 			lastActiveTime: fasttime.UnixTimestamp(),
 		})
+		cp.cond.Signal()
 	}
 	cp.mu.Unlock()
 }
