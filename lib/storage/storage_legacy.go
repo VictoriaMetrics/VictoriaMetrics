@@ -82,3 +82,14 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 
 	return slices.Concat(dmisPrev, dmisCurr), nil
 }
+
+func (s *Storage) legacyDebugFlush() {
+	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
+	if legacyIDBPrev != nil {
+		legacyIDBPrev.tb.DebugFlush()
+	}
+	if legacyIDBCurr != nil {
+		legacyIDBCurr.tb.DebugFlush()
+	}
+	s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+}

@@ -4,17 +4,15 @@ import (
 	"math"
 	"path/filepath"
 	"strconv"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// mustOpenLegacyIndexDBReadOnly opens legacy index db from the given path in
-// read-only mode.
+// mustOpenLegacyIndexDB opens legacy index db from the given path.
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-func mustOpenLegacyIndexDBReadOnly(path string, s *Storage) *indexDB {
+func mustOpenLegacyIndexDB(path string, s *Storage) *indexDB {
 	name := filepath.Base(path)
 	id, err := strconv.ParseUint(name, 16, 64)
 	if err != nil {
@@ -25,7 +23,5 @@ func mustOpenLegacyIndexDBReadOnly(path string, s *Storage) *indexDB {
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	}
-	var alwaysReadOnly atomic.Bool
-	alwaysReadOnly.Store(true)
-	return mustOpenIndexDB(id, tr, name, path, s, &alwaysReadOnly)
+	return mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly)
 }
