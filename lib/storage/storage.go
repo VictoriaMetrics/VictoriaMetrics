@@ -267,7 +267,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Add deleted metricIDs from legacy previous and current indexDBs to every
 	// partition indexDB. Also add deleted metricIDs from current indexDB to the
-	// previous one, because current has higher priority than previous.
+	// previous one, because previous may contain the same metrics that wasn't marked as deleted.
 	legacyDeletedMetricIDSet := &uint64set.Set{}
 	if legacyIDBPrev != nil {
 		legacyDeletedMetricIDSet.Union(legacyIDBPrev.getDeletedMetricIDs())
@@ -362,15 +362,7 @@ func getMetricNamesCacheSize() int {
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.DebugFlush()
-
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	if legacyIDBPrev != nil {
-		legacyIDBPrev.tb.DebugFlush()
-	}
-	if legacyIDBCurr != nil {
-		legacyIDBCurr.tb.DebugFlush()
-	}
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	s.legacyDebugFlush()
 
 	hour := fasttime.UnixHour()
 	s.updateCurrHourMetricIDs(hour)
