@@ -3,11 +3,14 @@ package servers
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -126,17 +129,14 @@ func (s *VMInsertServer) run() {
 			}()
 
 			logger.Infof("processing vminsert conn from %s", c.RemoteAddr())
-			err = stream.Parse(bc, func(rows []storage.MetricRow) error {
-				vminsertMetricsRead.Add(len(rows))
-				s.storage.AddRows(rows, uint8(*precisionBits))
-				return nil
-			}, s.storage.IsReadOnly)
-			if err != nil {
+			if err := s.processConn(bc); err != nil {
 				if s.isStopping() {
+					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
 				vminsertConnErrors.Inc()
 				logger.Errorf("cannot process vminsert conn from %s: %s", c.RemoteAddr(), err)
+				return
 			}
 		}()
 	}
@@ -173,3 +173,146 @@ func (s *VMInsertServer) setIsStopping() {
 func (s *VMInsertServer) isStopping() bool {
 	return s.stopFlag.Load()
 }
+
+func (s *VMInsertServer) processConn(bc *handshake.BufferedConn) error {
+	ctx := &vminsertRequestCtx{
+		bc:      bc,
+		sizeBuf: make([]byte, 8),
+	}
+	for {
+		if err := s.processRequest(ctx); err != nil {
+			return fmt.Errorf("cannot process vminsert request: %w", err)
+		}
+		if err := bc.Flush(); err != nil {
+			return fmt.Errorf("cannot flush compressed buffers: %w", err)
+		}
+	}
+}
+
+const maxRPCNameSize = 128
+
+func (s *VMInsertServer) processRequest(ctx *vminsertRequestCtx) error {
+	// Read rpcName
+	// Do not set deadline on reading rpcName, since it may take a
+	// lot of time for idle connection.
+	if err := ctx.readDataBufBytes(maxRPCNameSize); err != nil {
+		if err == io.EOF {
+			// Remote client gracefully closed the connection.
+			return err
+		}
+		return fmt.Errorf("cannot read rpcName: %w", err)
+	}
+	rpcName := string(ctx.dataBuf)
+
+	// Process the rpcName call.
+	if err := s.processRPC(ctx, rpcName); err != nil {
+		return fmt.Errorf("cannot execute %q: %w", rpcName, err)
+	}
+
+	return nil
+}
+
+func (s *VMInsertServer) processRPC(ctx *vminsertRequestCtx, rpcName string) error {
+	switch rpcName {
+	case "writeRows_v1":
+		return s.processWriteRows(ctx)
+	case "writeMetadata_v1":
+		return s.processWriteMetadata(ctx)
+	case "healthcheck_v1":
+		return s.processHealthcheck(ctx)
+	default:
+		return fmt.Errorf("unsupported rpcName: %q", rpcName)
+	}
+}
+
+func (s *VMInsertServer) processWriteRows(ctx *vminsertRequestCtx) error {
+	return stream.Parse(ctx.bc, func(rows []storage.MetricRow) error {
+		vminsertMetricsRead.Add(len(rows))
+		s.storage.AddRows(rows, uint8(*precisionBits))
+		return nil
+	}, s.storage.IsReadOnly)
+}
+
+func (s *VMInsertServer) processWriteMetadata(ctx *vminsertRequestCtx) error {
+	logger.Infof("processing writeMetadata_v1 request")
+	// read full buffer and just dump it for debugging
+	// todo: replace fake with real stream parsing of metadata items
+	if err := ctx.readDataBufBytes(1024 * 1024); err != nil {
+		if err == io.EOF {
+			// Remote client gracefully closed the connection.
+			return err
+		}
+		return fmt.Errorf("cannot read writeMetadata_v1 data: %w", err)
+	}
+	logger.Infof("writeMetadata_v1 data: %s", string(ctx.dataBuf))
+
+	// For now, just return OK response.
+	if err := sendAck(ctx.bc, consts.StorageStatusAck); err != nil {
+		return fmt.Errorf("cannot send ack for healthcheck_v1: %w", err)
+	}
+
+	return nil
+}
+
+func (s *VMInsertServer) processHealthcheck(ctx *vminsertRequestCtx) error {
+	// todo: check readonly mode handling here
+	if err := ctx.readDataBufBytes(0); err != nil {
+		if err == io.EOF {
+			// Remote client gracefully closed the connection.
+			return err
+		}
+		return fmt.Errorf("cannot read healthcheck_v1 data: %w", err)
+	}
+
+	// For now, just return OK response.
+	if err := sendAck(ctx.bc, consts.StorageStatusAck); err != nil {
+		return fmt.Errorf("cannot send ack for healthcheck_v1: %w", err)
+	}
+
+	return nil
+}
+
+type vminsertRequestCtx struct {
+	bc      *handshake.BufferedConn
+	sizeBuf []byte
+	dataBuf []byte
+}
+
+func (ctx *vminsertRequestCtx) readDataBufBytes(maxDataSize int) error {
+	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
+	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
+		if err == io.EOF {
+			return err
+		}
+		return fmt.Errorf("cannot read data size: %w", err)
+	}
+	dataSize := encoding.UnmarshalUint64(ctx.sizeBuf)
+	if dataSize > uint64(maxDataSize) {
+		return fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
+	}
+	ctx.dataBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.dataBuf, int(dataSize))
+	if dataSize == 0 {
+		return nil
+	}
+	if n, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
+		return fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
+	}
+	return nil
+}
+
+// move/export to reuse from protoparser/clusternative/stream/streamparser.go
+func sendAck(bc *handshake.BufferedConn, status byte) error {
+	deadline := time.Now().Add(5 * time.Second)
+	if err := bc.SetWriteDeadline(deadline); err != nil {
+		return fmt.Errorf("cannot set write deadline: %w", err)
+	}
+	b := auxBufPool.Get()
+	defer auxBufPool.Put(b)
+	b.B = append(b.B[:0], status)
+	if _, err := bc.Write(b.B); err != nil {
+		return err
+	}
+	return bc.Flush()
+}
+
+var auxBufPool bytesutil.ByteBufferPool
