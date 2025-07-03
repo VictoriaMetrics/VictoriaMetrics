@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * BUGFIX: [`rate_sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats): fix inconsistent per-second rate calculation when time filters are specified via HTTP query parameters instead of LogsQL expression. This affects recording rule results. See [#9303](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9303).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): disabled opening of autocomplete popup on initial page load.
 
 ## [v1.24.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.24.0-victorialogs)
 
@@ -61,6 +62,7 @@ Released at 2025-06-20
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix issue with hits chart ignoring selected AccountID and ProjectID. See [#9157](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9157).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix missing field values in auto-complete. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8749)
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): remove the compact mode of the table tab and add field sorting capabilities to the JSON tab. See [#7047](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7047).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix errors in console about loading of `manifest.json` when accessing UI through vmauth with Basic Auth enabled.
 * BUGFIX: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): properly read log timestamp from `__REALTIME_TIMESTAMP` field according to [the docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#time-field). See [#9144](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9144). The bug has been introduced in [v1.22.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.0-victorialogs).
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support `-` as a timestamp value, as described in [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.3).
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly handle quotes inside quoted strings such as `"\""`. Previously this could lead to panics. See [#9219](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9219).

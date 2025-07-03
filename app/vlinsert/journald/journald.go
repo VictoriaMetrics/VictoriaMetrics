@@ -276,7 +276,7 @@ func readJournaldLogEntry(streamName string, lr *insertutil.LineReader, lmp inse
 			}
 			size := binary.LittleEndian.Uint64(fb.value[:8])
 
-			// Read the value until its lenth exceeds the given size - the last char in the read value will always be '\n'
+			// Read the value until its length exceeds the given size - the last char in the read value will always be '\n'
 			// because it is appended by appendNextLineToValue().
 			for uint64(len(fb.value[8:])) <= size {
 				if err := fb.appendNextLineToValue(lr); err != nil {
