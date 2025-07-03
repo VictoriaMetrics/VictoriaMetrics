@@ -23,7 +23,7 @@ import (
 // limitConcurrency defines whether to control the number of concurrent calls to this function.
 // It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
 // like /api/v1/write calls.
-func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
+func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row, metadata []prometheus.Metadata) error, errLogger func(string)) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode Prometheus text exposition data: %w", err)
@@ -109,9 +109,10 @@ func (ctx *streamContext) reset() {
 }
 
 var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="prometheus"}`)
-	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="prometheus"}`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="prometheus"}`)
+	readCalls    = metrics.NewCounter(`vm_protoparser_read_calls_total{type="prometheus"}`)
+	readErrors   = metrics.NewCounter(`vm_protoparser_read_errors_total{type="prometheus"}`)
+	rowsRead     = metrics.NewCounter(`vm_protoparser_rows_read_total{type="prometheus"}`)
+	metadataRead = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="prometheus"}`)
 )
 
 func getStreamContext(r io.Reader) *streamContext {
@@ -134,8 +135,9 @@ var streamContextPool sync.Pool
 
 type unmarshalWork struct {
 	rows             prometheus.Rows
+	mmd              prometheus.MetadataRows
 	ctx              *streamContext
-	callback         func(rows []prometheus.Row) error
+	callback         func(rows []prometheus.Row, mms []prometheus.Metadata) error
 	errLogger        func(string)
 	defaultTimestamp int64
 	reqBuf           []byte
@@ -143,6 +145,7 @@ type unmarshalWork struct {
 
 func (uw *unmarshalWork) reset() {
 	uw.rows.Reset()
+	uw.mmd.Reset()
 	uw.ctx = nil
 	uw.callback = nil
 	uw.errLogger = nil
@@ -150,9 +153,9 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []prometheus.Row) {
+func (uw *unmarshalWork) runCallback(rows []prometheus.Row, mms []prometheus.Metadata) {
 	ctx := uw.ctx
-	if err := uw.callback(rows); err != nil {
+	if err := uw.callback(rows, mms); err != nil {
 		ctx.callbackErrLock.Lock()
 		if ctx.callbackErr == nil {
 			ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
@@ -166,11 +169,16 @@ func (uw *unmarshalWork) runCallback(rows []prometheus.Row) {
 func (uw *unmarshalWork) Unmarshal() {
 	if uw.errLogger != nil {
 		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+		uw.mmd.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
 	} else {
 		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+		uw.mmd.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
 	}
 	rows := uw.rows.Rows
 	rowsRead.Add(len(rows))
+
+	mms := uw.mmd.Rows
+	metadataRead.Add(len(mms))
 
 	// Fill missing timestamps with the current timestamp.
 	defaultTimestamp := uw.defaultTimestamp
@@ -184,7 +192,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	uw.runCallback(rows)
+	uw.runCallback(rows, mms)
 	putUnmarshalWork(uw)
 }
 

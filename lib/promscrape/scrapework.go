@@ -522,6 +522,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		scrapesFailed.Inc()
 	} else {
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		wc.metadataRows.UnmarshalWithErrLogger(bodyString, sw.logError)
 	}
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
@@ -550,6 +551,8 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		wc.writeRequest.Reset()
 		up = 0
 	}
+	wc.addMetadata(wc.metadataRows.Rows)
+
 	if up == 0 {
 		bodyString = ""
 	}
@@ -611,7 +614,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	r := body.NewReader()
-	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
+	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row, mms []parser.Metadata) error {
 		labelsLen := maxLabelsLen.Load()
 		wc := writeRequestCtxPool.Get(int(labelsLen))
 		defer func() {
@@ -643,6 +646,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 			return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 				"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
 		}
+		wc.addMetadata(mms)
 
 		if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
 			samplesDropped := wc.applySeriesLimit(sw)
@@ -771,7 +775,8 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 }
 
 type writeRequestCtx struct {
-	rows parser.Rows
+	rows         parser.Rows
+	metadataRows parser.MetadataRows
 
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
@@ -780,6 +785,7 @@ type writeRequestCtx struct {
 
 func (wc *writeRequestCtx) reset() {
 	wc.rows.Reset()
+	wc.metadataRows.Reset()
 
 	wc.writeRequest.Reset()
 
@@ -862,7 +868,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row) error {
+		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row, _ []parser.Metadata) error {
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
@@ -1050,6 +1056,37 @@ func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp
 }
 
 var errLabelsLimitExceeded = errors.New("label_limit exceeded")
+
+func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
+	if len(metadataRows) == 0 {
+		return
+	}
+	metadataMap := make(map[string]*prompbmarshal.MetricMetadata, len(metadataRows)/2)
+
+	for i := range metadataRows {
+		row := &metadataRows[i]
+		md, ok := metadataMap[row.Metric]
+		if !ok {
+			md = &prompbmarshal.MetricMetadata{
+				MetricFamilyName: row.Metric,
+			}
+		}
+		if row.Type != 0 {
+			md.Type = row.Type
+		}
+		if row.Help != "" {
+			md.Help = row.Help
+		}
+		metadataMap[row.Metric] = md
+	}
+	mms := make([]prompbmarshal.MetricMetadata, 0, len(metadataMap))
+	for _, md := range metadataMap {
+		// Append the struct value (*md), not the pointer.
+		mms = append(mms, *md)
+	}
+	wc.writeRequest.Metadata = mms
+
+}
 
 // addRow adds r with the given timestamp to wc.
 //

@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="promremotewrite"}`)
-	metadataInserted   = metrics.NewCounter(`vmagent_metadata_inserted_total{type="promremotewrite"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="promremotewrite"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="promremotewrite"}`)
+	rowsInserted           = metrics.NewCounter(`vmagent_rows_inserted_total{type="promremotewrite"}`)
+	metadataInserted       = metrics.NewCounter(`vmagent_metadata_inserted_total{type="promremotewrite"}`)
+	rowsTenantInserted     = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="promremotewrite"}`)
+	metadataTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_metadata_total{type="promremotewrite"}`)
+	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="promremotewrite"}`)
 )
 
 // InsertHandler processes remote write for prometheus.
@@ -94,6 +95,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 	rowsInserted.Add(rowsTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
+		metadataTenantInserted.Get(at).Add(len(mms))
 	}
 	metadataInserted.Add(len(mmsDst))
 	rowsPerInsert.Update(float64(rowsTotal))
