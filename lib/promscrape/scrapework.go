@@ -526,7 +526,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
-	scrapeErr := wc.tryAddRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
+	scrapeErr := wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
 	if scrapeErr == nil {
 		samplesPostRelabeling = len(wc.writeRequest.Timeseries)
 		if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
@@ -629,7 +629,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		}()
 
 		samplesScraped.Add(int64(len(rows)))
-		if err := wc.tryAddRows(cfg, rows, scrapeTimestamp, true); err != nil {
+		if err := wc.addRows(cfg, rows, scrapeTimestamp, true); err != nil {
 			if errors.Is(err, errLabelsLimitExceeded) {
 				scrapesSkippedByLabelLimit.Inc()
 				return fmt.Errorf("the response from %q contains samples with a number of labels exceeding label_limit=%d; "+
@@ -866,7 +866,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
-			if err := wc.tryAddRows(sw.Config, rows, timestamp, true); err != nil {
+			if err := wc.addRows(sw.Config, rows, timestamp, true); err != nil {
 				sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
 				return err
 			}
@@ -992,7 +992,10 @@ func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, times
 	dst = appendRow(dst, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	dst = appendRow(dst, "up", float64(am.up), timestamp)
 
-	_ = wc.tryAddRows(sw.Config, dst, timestamp, false)
+	err := wc.addRows(sw.Config, dst, timestamp, false)
+	if err != nil {
+		logger.Fatalf("BUG: cannot add auto metrics: %s", err)
+	}
 
 	rows.Rows = dst
 	putAutoRows(rows)
@@ -1021,7 +1024,7 @@ func appendRow(dst []parser.Row, metric string, value float64, timestamp int64) 
 	})
 }
 
-func (wc *writeRequestCtx) tryAddRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) error {
+func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) error {
 	// pre-allocate buffers
 	labelsLen := 0
 	for i := range rows {
@@ -1038,7 +1041,8 @@ func (wc *writeRequestCtx) tryAddRows(cfg *ScrapeWork, rows []parser.Row, timest
 
 	// add rows
 	for i := range rows {
-		if err := wc.tryAddRow(cfg, &rows[i], timestamp, needRelabel); err != nil {
+		err := wc.addRow(cfg, &rows[i], timestamp, needRelabel)
+		if err != nil {
 			return err
 		}
 	}
@@ -1047,10 +1051,10 @@ func (wc *writeRequestCtx) tryAddRows(cfg *ScrapeWork, rows []parser.Row, timest
 
 var errLabelsLimitExceeded = errors.New("label_limit exceeded")
 
-// tryAddRow adds r with the given timestamp to wc.
+// addRow adds r with the given timestamp to wc.
 //
 // The cfg is used as a read-only configuration source.
-func (wc *writeRequestCtx) tryAddRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel bool) error {
+func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel bool) error {
 	metric := r.Metric
 
 	// Add `exported_` prefix to metrics, which clash with the automatically generated
@@ -1087,7 +1091,8 @@ func (wc *writeRequestCtx) tryAddRow(cfg *ScrapeWork, r *parser.Row, timestamp i
 	externalLabels := cfg.ExternalLabels.GetLabels()
 	wc.labels = appendExtraLabels(wc.labels, externalLabels, labelsLen, cfg.HonorLabels)
 	labelLimit := cfg.LabelLimit
-	if needRelabel && labelLimit > 0 && len(wc.labels)-labelsLen > labelLimit {
+	labelsAfterRelabeling := len(wc.labels) - labelsLen
+	if labelLimit > 0 && labelsAfterRelabeling > labelLimit {
 		wc.labels = wc.labels[:labelsLen]
 		return errLabelsLimitExceeded
 	}
