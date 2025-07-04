@@ -729,7 +729,9 @@ var numericChars = [256]bool{
 	'.': true,
 }
 
-// Metadata contains metric's HELP or TYPE message.
+// Metadata contains HELP or TYPE message in prometheus exposition format.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+//
 // For example:
 // # HELP alertmanager_alerts How many alerts by state.
 // # TYPE alertmanager_alerts gauge
@@ -745,8 +747,6 @@ type MetadataRows struct {
 }
 
 // Unmarshal unmarshals Prometheus metadata rows from s with stdErrLogger.
-//
-// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md.
 func (ms *MetadataRows) Unmarshal(s string) {
 	ms.UnmarshalWithErrLogger(s, stdErrLogger)
 }
