@@ -1,18 +1,28 @@
 package memory
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
 	"flag"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	allowedPercent = flag.Float64("memory.allowedPercent", 60, `Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage`)
-	allowedBytes   = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage`)
+	allowedPercent   = flag.Float64("memory.allowedPercent", 60, `Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage`)
+	allowedBytes     = flagutil.NewBytes("memory.allowedBytes", 0, `Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage`)
+	memCheckInterval = flag.Duration("memory.checkInterval", 2*time.Second, "How often to check the memory usage.")
 )
 
 var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
@@ -20,10 +30,13 @@ var _ = metrics.NewGauge("process_memory_limit_bytes", func() float64 {
 })
 
 var (
-	allowedMemory   int
-	remainingMemory int
-	memoryLimit     int
+	allowedMemory           int
+	remainingMemory         int
+	memoryLimit             int
+	currentMemory           atomic.Int64
+	currentMemoryPercentage atomic.Int32
 )
+
 var once sync.Once
 
 func initOnce() {
@@ -45,6 +58,35 @@ func initOnce() {
 		remainingMemory = memoryLimit - allowedMemory
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
 	}
+	if *memCheckInterval == 0 {
+		return
+	}
+	// enable memory detection if configured
+	currentAvailableBytes, _ := getAvailableMemory()
+	currentUsedBytes := max(0, memoryLimit-currentAvailableBytes)
+	currentMemory.Store(int64(currentUsedBytes))
+	currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
+
+	go func() {
+		// Register SIGHUP handler for config reload before loadRelabelConfigs.
+		// This guarantees that the config will be re-read if the signal arrives just after loadRelabelConfig.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
+		sighupCh := procutil.NewSighupChan()
+		t := time.NewTicker(*memCheckInterval)
+		defer t.Stop()
+		for {
+			select {
+			case <-sighupCh:
+				return
+			case <-t.C:
+				currentAvailableBytes, _ = getAvailableMemory()
+				currentUsedBytes = max(0, memoryLimit-currentAvailableBytes)
+				currentMemory.Store(int64(currentUsedBytes))
+				currentMemoryPercentage.Store(int32(currentUsedBytes * 100 / memoryLimit))
+				logger.Infof("current: %dMiB, total: %dMiB, percent: %d%%", currentUsedBytes/1024/1024, memoryLimit/1024/1024, currentMemoryPercentage.Load())
+			}
+		}
+	}()
 }
 
 // Allowed returns the amount of system memory allowed to use by the app.
@@ -62,3 +104,58 @@ func Remaining() int {
 	once.Do(initOnce)
 	return remainingMemory
 }
+
+// Current return memory usage in byte. The value is updated every 5 seconds.
+func Current() int {
+	once.Do(initOnce)
+	return int(currentMemory.Load())
+}
+
+// CurrentPercentage return memory usage percentage in [0-100] int. The value is updated every 5 seconds.
+func CurrentPercentage() int {
+	once.Do(initOnce)
+	return int(currentMemoryPercentage.Load())
+}
+
+func sysCurrentMemory() int {
+	am, err := getAvailableMemory()
+	if err != nil {
+		return 0
+	}
+	return am
+}
+
+// getAvailableMemory parse /proc/meminfo and return MemAvailable in byte.
+func getAvailableMemory() (int, error) {
+	b, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0, err
+	}
+	s := bufio.NewScanner(bytes.NewReader(b))
+	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		if fields[0] != "MemAvailable:" {
+			continue
+		}
+		val, err := strconv.ParseInt(fields[1], 0, 64)
+		if err != nil {
+			return 0, err
+		}
+		switch len(fields) {
+		case 2:
+			return int(val), nil
+		case 3:
+			if fields[2] != "kB" {
+				return 0, fmt.Errorf("%w: unsupported unit in optional 3rd field %q", ErrFileParse, fields[2])
+			}
+			return int(1024 * val), nil
+		default:
+			return 0, fmt.Errorf("%w: malformed line %q", ErrFileParse, s.Text())
+		}
+	}
+	return 0, fmt.Errorf("AvailableMemory not found")
+}
+
+var (
+	ErrFileParse = errors.New("error parsing file")
+)
