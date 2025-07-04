@@ -550,10 +550,12 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompbmarsh
 		// Nothing to push
 		return true
 	}
-	// Do not shard metadata even if -remoteWrite.shardByURL is set,
-	// since metadata is usually small and there is no guarantee that metadata can be sent to
-	// the same remote storage with the corresponding metrics,
-	// just replicate it to all the remote storages.
+	// Do not shard metadata even if -remoteWrite.shardByURL is set, just replicate it among rwctxs.
+	// Since metadata is usually small and there is no guarantee that metadata can be sent to
+	// the same remote storage with the corresponding metrics.
+	//
+	// Push metadata to remote storage systems in parallel in order to reduce
+	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
 	var anyPushFailed atomic.Bool

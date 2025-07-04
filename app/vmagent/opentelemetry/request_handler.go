@@ -16,10 +16,11 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentelemetry"}`)
-	metadataInserted   = metrics.NewCounter(`vmagent_metadata_inserted_total{type="opentelemetry"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="opentelemetry"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
+	rowsInserted           = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentelemetry"}`)
+	metadataInserted       = metrics.NewCounter(`vmagent_metadata_inserted_total{type="opentelemetry"}`)
+	rowsTenantInserted     = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="opentelemetry"}`)
+	metadataTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_metadata_total{type="opentelemetry"}`)
+	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
 
 // InsertHandler processes opentelemetry metrics.
@@ -84,6 +85,7 @@ func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, mms []prompbmars
 	metadataInserted.Add(len(mms))
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
+		metadataTenantInserted.Get(at).Add(len(mms))
 	}
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil

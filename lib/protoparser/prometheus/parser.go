@@ -785,7 +785,7 @@ func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
 	s = skipLeadingWhitespace(s)
 
 	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
-		// Skip non comment
+		// Skip non-comment
 		return Metadata{}, false
 	}
 

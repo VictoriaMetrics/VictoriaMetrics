@@ -53,7 +53,7 @@ func parseData(data []byte, callback func(tss []prompbmarshal.TimeSeries, mms []
 	wr := getWriteContext()
 	defer putWriteContext(wr)
 
-	wr.parseRequestToTss(&req)
+	wr.parseRequest(&req)
 
 	if err := callback(wr.tss, wr.mms); err != nil {
 		return fmt.Errorf("error when processing OpenTelemetry data: %w", err)
@@ -64,7 +64,7 @@ func parseData(data []byte, callback func(tss []prompbmarshal.TimeSeries, mms []
 
 var skippedSampleLogger = logger.WithThrottler("otlp_skipped_sample", 5*time.Second)
 
-func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics, metadataList map[string]struct{}) {
+func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList map[string]struct{}) {
 	for _, m := range sc.Metrics {
 		if len(m.Name) == 0 {
 			// skip metrics without names
@@ -75,10 +75,9 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics, metad
 			MetricFamilyName: metricName,
 			Help:             m.Description,
 			Unit:             m.Unit,
-
-			// the metadata.Type conversion from OTLP to Prometheus follows rules in:
-			// https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/#instrumentation-scope-1
 		}
+		// the metadata type conversion from OTLP to Prometheus follows rules in:
+		// https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/#instrumentation-scope-1
 		switch {
 		case m.Gauge != nil:
 			for _, p := range m.Gauge.DataPoints {
@@ -358,7 +357,7 @@ func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	return labels[:0]
 }
 
-func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
+func (wr *writeContext) parseRequest(req *pb.ExportMetricsServiceRequest) {
 	metadataList := make(map[string]struct{})
 	for _, rm := range req.ResourceMetrics {
 		var attributes []*pb.KeyValue
@@ -367,7 +366,7 @@ func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 		}
 		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], attributes)
 		for _, sc := range rm.ScopeMetrics {
-			wr.appendSamplesFromScopeMetrics(sc, metadataList)
+			wr.appendFromScopeMetrics(sc, metadataList)
 		}
 	}
 }
