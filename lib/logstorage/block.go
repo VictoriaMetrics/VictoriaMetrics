@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -135,6 +136,11 @@ func (c *column) canStoreInConstColumn() bool {
 		return false
 	}
 	for _, v := range values[1:] {
+		if len(value) != len(v) {
+			return false
+		}
+	}
+	for _, v := range values[1:] {
 		if value != v {
 			return false
 		}
@@ -196,10 +202,12 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 func (b *block) assertValid() {
 	// Check that timestamps are in ascending order
 	timestamps := b.timestamps
-	for i := 1; i < len(timestamps); i++ {
-		if timestamps[i-1] > timestamps[i] {
-			logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
-				timestamps[i-1], timestamps[i])
+	if !areTimestampsSorted(timestamps) {
+		for i := 1; i < len(timestamps); i++ {
+			if timestamps[i-1] > timestamps[i] {
+				logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
+					timestamps[i-1], timestamps[i])
+			}
 		}
 	}
 
@@ -351,8 +359,20 @@ func canStoreInConstColumn(rows [][]Field, colIdx int) bool {
 		return false
 	}
 	rows = rows[1:]
+	l := len(value)
 	for i := range rows {
-		if value != rows[i][colIdx].Value {
+		row := rows[i]
+		ptr := unsafe.Pointer(unsafe.SliceData(row))
+		f := (*Field)(unsafe.Add(ptr, unsafe.Sizeof(Field{})*uintptr(colIdx)))
+		if l != len(f.Value) {
+			return false
+		}
+	}
+	for i := range rows {
+		row := rows[i]
+		ptr := unsafe.Pointer(unsafe.SliceData(row))
+		f := (*Field)(unsafe.Add(ptr, unsafe.Sizeof(Field{})*uintptr(colIdx)))
+		if value != f.Value {
 			return false
 		}
 	}
@@ -360,10 +380,12 @@ func canStoreInConstColumn(rows [][]Field, colIdx int) bool {
 }
 
 func assertTimestampsSorted(timestamps []int64) {
-	for i := range timestamps {
-		if i > 0 && timestamps[i-1] > timestamps[i] {
-			logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
-				timestamps[i-1], timestamps[i])
+	if !areTimestampsSorted(timestamps) {
+		for i := range timestamps {
+			if i > 0 && timestamps[i-1] > timestamps[i] {
+				logger.Panicf("BUG: log entries must be sorted by timestamp; got the previous entry with bigger timestamp %d than the current entry with timestamp %d",
+					timestamps[i-1], timestamps[i])
+			}
 		}
 	}
 }
@@ -565,8 +587,22 @@ func areSameFieldsInRows(rows [][]Field) bool {
 		if len(fields) != len(leFields) {
 			return false
 		}
+	}
+	ptr := unsafe.Pointer(unsafe.SliceData(fields))
+	for i := range rows {
+		leFields := rows[i]
 		for j := range leFields {
-			if leFields[j].Name != fields[j].Name {
+			f := (*Field)(unsafe.Add(ptr, unsafe.Sizeof(Field{})*uintptr(j)))
+			if len(leFields[j].Name) != len(f.Name) {
+				return false
+			}
+		}
+	}
+	for i := range rows {
+		leFields := rows[i]
+		for j := range leFields {
+			f := (*Field)(unsafe.Add(ptr, unsafe.Sizeof(Field{})*uintptr(j)))
+			if leFields[j].Name != f.Name {
 				return false
 			}
 		}
@@ -707,4 +743,75 @@ func mustWriteTimestampsTo(th *timestampsHeader, timestamps []int64, sw *streamW
 	th.blockSize = uint64(len(bb.B))
 	sw.timestampsWriter.MustWrite(bb.B)
 	longTermBufPool.Put(bb)
+}
+
+// areTimestampsSorted fast compare timestamps. All timestamp must greater then 0
+func areTimestampsSorted(ts []int64) bool {
+	if len(ts) < 2 {
+		return true
+	}
+	l := len(ts) - 1
+	align4 := l & (-8)
+	tailLen := l & 7
+	ptr := unsafe.Pointer(unsafe.SliceData(ts))
+	for i := 1; i < align4+1; i += 8 {
+		arr := (*[9]int64)(unsafe.Add(ptr, (i-1)*8))
+		sign := ((arr[1] - arr[0]) >> 63) |
+			((arr[2] - arr[1]) >> 63) |
+			((arr[3] - arr[1]) >> 63) |
+			((arr[4] - arr[3]) >> 63) |
+			((arr[5] - arr[4]) >> 63) |
+			((arr[6] - arr[5]) >> 63) |
+			((arr[7] - arr[6]) >> 63) |
+			((arr[8] - arr[7]) >> 63)
+		if sign != 0 {
+			return false
+		}
+	}
+	ptr = unsafe.Add(ptr, align4*8)
+	var sign int64
+	switch tailLen {
+	case 1:
+		arr := (*[2]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63)
+	case 2:
+		arr := (*[3]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63) | ((arr[2] - arr[1]) >> 63)
+	case 3:
+		arr := (*[4]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63) | ((arr[2] - arr[1]) >> 63) | ((arr[3] - arr[2]) >> 63)
+	case 4:
+		arr := (*[5]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63) |
+			((arr[2] - arr[1]) >> 63) |
+			((arr[3] - arr[2]) >> 63) |
+			((arr[4] - arr[3]) >> 63)
+	case 5:
+		arr := (*[6]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63) |
+			((arr[2] - arr[1]) >> 63) |
+			((arr[3] - arr[2]) >> 63) |
+			((arr[4] - arr[3]) >> 63) |
+			((arr[5] - arr[4]) >> 63)
+	case 6:
+		arr := (*[7]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63) |
+			((arr[2] - arr[1]) >> 63) |
+			((arr[3] - arr[2]) >> 63) |
+			((arr[4] - arr[3]) >> 63) |
+			((arr[5] - arr[4]) >> 63) |
+			((arr[6] - arr[5]) >> 63)
+	case 7:
+		arr := (*[8]int64)(ptr)
+		sign = ((arr[1] - arr[0]) >> 63) |
+			((arr[2] - arr[1]) >> 63) |
+			((arr[3] - arr[2]) >> 63) |
+			((arr[4] - arr[3]) >> 63) |
+			((arr[5] - arr[4]) >> 63) |
+			((arr[6] - arr[5]) >> 63) |
+			((arr[7] - arr[6]) >> 63)
+	case 8:
+		panic("impossible")
+	}
+	return sign == 0
 }
