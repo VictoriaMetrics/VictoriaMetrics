@@ -354,6 +354,10 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)
 
+	if maxDiskSpaceUsageBytes.N > 0 {
+		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_max_disk_space_usage_bytes{path=%q}`, *storageDataPath), uint64(maxDiskSpaceUsageBytes.N))
+	}
+
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
 
 	isReadOnly := uint64(0)

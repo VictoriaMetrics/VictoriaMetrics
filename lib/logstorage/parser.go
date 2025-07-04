@@ -537,6 +537,11 @@ func (q *Query) AddTimeFilter(start, end int64) {
 	q.visitSubqueries(func(q *Query) {
 		q.addTimeFilterNoSubqueries(ft)
 	})
+
+	// Initialize rate functions with the step calculated from HTTP time filter
+	// This fixes the bug where rate_sum() doesn't divide by stepSeconds when
+	// time filter is specified via HTTP params instead of LogsQL expression
+	q.initStatsRateFuncsFromTimeFilter()
 }
 
 func (q *Query) addTimeFilterNoSubqueries(ft *filterTime) {
@@ -1205,14 +1210,17 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
 	q.optimize()
+	q.initStatsRateFuncsFromTimeFilter()
 
+	return q, nil
+}
+
+func (q *Query) initStatsRateFuncsFromTimeFilter() {
 	start, end := q.GetFilterTimeRange()
 	if start != math.MinInt64 && end != math.MaxInt64 {
 		step := end - start + 1 // 1 is needed in order to include [start ... end] in the step.
 		q.initStatsRateFuncs(step)
 	}
-
-	return q, nil
 }
 
 func (q *Query) initStatsRateFuncs(step int64) {

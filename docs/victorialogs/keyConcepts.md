@@ -11,6 +11,7 @@ tags:
   - logs
 aliases:
 - /victorialogs/keyConcepts.html
+- /victorialogs/keyConcepts/
 ---
 ## Data model
 
