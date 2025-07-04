@@ -729,7 +729,7 @@ var numericChars = [256]bool{
 	'.': true,
 }
 
-// MetadataRow contains metric's HELP or TYPE message.
+// Metadata contains metric's HELP or TYPE message.
 // For example:
 // # HELP alertmanager_alerts How many alerts by state.
 // # TYPE alertmanager_alerts gauge
@@ -739,18 +739,24 @@ type Metadata struct {
 	Help   string
 }
 
+// MetadataRows contains parsed Prometheus metadata rows.
 type MetadataRows struct {
 	Rows []Metadata
 }
 
+// Unmarshal unmarshals Prometheus metadata rows from s with stdErrLogger.
+//
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md.
 func (ms *MetadataRows) Unmarshal(s string) {
 	ms.UnmarshalWithErrLogger(s, stdErrLogger)
 }
 
+// UnmarshalWithErrLogger unmarshals Prometheus metadata rows from s.
 func (ms *MetadataRows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	ms.Rows = unmarshalMetadataRowsWithErrLogger(s, errLogger)
 }
 
+// Reset resets ms.
 func (ms *MetadataRows) Reset() {
 	ms.Rows = ms.Rows[:0]
 }
@@ -806,7 +812,7 @@ func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
 		return Metadata{}, false
 	}
 
-	// 	HELP can have null contents
+	// HELP can have null content, TYPE can't
 	if isType {
 		if len(parts) == 3 {
 			if errLogger != nil {

@@ -1081,11 +1081,10 @@ func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
 	}
 	mms := make([]prompbmarshal.MetricMetadata, 0, len(metadataMap))
 	for _, md := range metadataMap {
-		// Append the struct value (*md), not the pointer.
 		mms = append(mms, *md)
 	}
 	wc.writeRequest.Metadata = mms
-
+	return
 }
 
 // addRow adds r with the given timestamp to wc.

@@ -99,6 +99,7 @@ func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(len(rows))
+	metadataInserted.Add(len(mms))
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(len(rows))
 		metadataTenantInserted.Get(at).Add(len(mms))

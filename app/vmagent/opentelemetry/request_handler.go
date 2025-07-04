@@ -63,8 +63,6 @@ func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, mms []prompbmars
 			Samples: samples[samplesLen:],
 		})
 	}
-	ctx.WriteRequest.Timeseries = tssDst
-
 	var accountID, projectID uint32
 	if at != nil {
 		accountID = at.AccountID
@@ -75,6 +73,7 @@ func insertRows(at *auth.Token, tss []prompbmarshal.TimeSeries, mms []prompbmars
 		mm.AccountID = accountID
 		mm.ProjectID = projectID
 	}
+	ctx.WriteRequest.Timeseries = tssDst
 	ctx.WriteRequest.Metadata = mms
 	ctx.Labels = labels
 	ctx.Samples = samples
