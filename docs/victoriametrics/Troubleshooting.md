@@ -446,7 +446,7 @@ If too much disk space is used by a [single-node VictoriaMetrics](https://docs.v
 at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/), then please check the following:
 
 - Make sure that there are no old snapsots, since they can occupy disk space. See [how to work with snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots)
-  and [snapshot troubleshooting](https://docs.victoriametrics.com/#snapshot-troubleshooting).
+  , [snapshot troubleshooting](https://docs.victoriametrics.com/#snapshot-troubleshooting) and [vmbackup troubleshooting](https://docs.victoriametrics.com/victoriametrics/vmbackup/#troubleshooting).
 
 - Under normal conditions the size of `<-storageDataPath>/indexdb` folder must be smaller than the size of `<-storageDataPath>/data` folder, where `-storageDataPath`
   is the corresponding command-line flag value. This can be checked by the following query if [VictoriaMetrics monitoring](#monitoring) is properly set up:
