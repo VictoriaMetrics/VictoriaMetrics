@@ -363,7 +363,7 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 		return true
 
 	default:
-		// Split both timeseries and metadata
+		// Split both timeseries and metadata.
 		timeseries := wr.Timeseries
 		metaData := wr.Metadata
 		n := len(timeseries) / 2

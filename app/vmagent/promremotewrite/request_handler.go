@@ -97,7 +97,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		rowsTenantInserted.Get(at).Add(rowsTotal)
 		metadataTenantInserted.Get(at).Add(len(mms))
 	}
-	metadataInserted.Add(len(mmsDst))
+	metadataInserted.Add(len(mms))
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }
