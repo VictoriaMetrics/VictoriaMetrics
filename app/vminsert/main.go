@@ -133,7 +133,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	defer requestDuration.UpdateDuration(startTime)
 
 	if *maxMemoryUsage >= 1 && *maxMemoryUsage <= 100 {
-		// todo remove debug logging
 		if memory.CurrentPercentage() > *maxMemoryUsage {
 			httpserver.Errorf(w, r, "server overloaded, request rejected by circuit breaker")
 			return true

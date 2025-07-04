@@ -31,8 +31,7 @@ var (
 	currentMemoryPercentage atomic.Int32
 )
 var (
-	once        sync.Once
-	watcherOnce sync.Once
+	once sync.Once
 )
 
 func initOnce() {
@@ -55,6 +54,10 @@ func initOnce() {
 		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
 	}
 
+	if *memCheckInterval == 0 {
+		return
+	}
+	// enable memory detection if configured
 	currentAvailableBytes, _ := getAvailableMemory()
 	currentUsedBytes := max(0, memoryLimit-currentAvailableBytes)
 	currentMemory.Store(int64(currentUsedBytes))
