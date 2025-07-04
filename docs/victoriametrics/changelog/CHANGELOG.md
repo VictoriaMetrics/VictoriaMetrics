@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add ipv6 address as a metadata label to [gce_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#gce_sd_configs)
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): improve error messages when `vmbackupmanager` fails to create snapshot. See [#9340](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9340) for the details.
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): support client-side TLS configuration for creating and deleting snapshots via `-snapshot.tls*` cmd-line flags.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove duplicate kubernetes targets from [service-discovery-debug](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) page. See [8626](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626) issue for details.
