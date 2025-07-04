@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+**Update Note 1:** The `-retryMaxTime` flag has been deprecated. Please use `-retryMaxInterval` flga instead. For more details, see [#9169](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9169).
+
 * FEATURE: all the [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) components: improve error message when an empty license is provided via the `-license` or `-licenseFile` command-line flags. See [#9337](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9337) for the details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `concurrency` option to kafka remoteWrite producer. See [9249](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9249) issue for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): support `label_limit` scrape parameter. It sets labels limit for each scraped sample from a target. If limit is exceeded, the scrape will be rejected and target marked with corresponding scrape error. The `label_limit` can be defined on global level, per job or during relabeling via `__label_limit__` label. See [scrape configs doc](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) for details. See [#7660](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7660) and [#3233](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3233) issues.
