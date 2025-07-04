@@ -994,7 +994,7 @@ func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, times
 
 	err := wc.addRows(sw.Config, dst, timestamp, false)
 	if err != nil {
-		logger.Fatalf("BUG: cannot add auto metrics: %s", err)
+		sw.logError(fmt.Errorf("cannot add auto metrics: %w", err).Error())
 	}
 
 	rows.Rows = dst
