@@ -527,6 +527,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
+	wc.addMetadata(wc.metadataRows.Rows)
 	scrapeErr := wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
 	if scrapeErr == nil {
 		samplesPostRelabeling = len(wc.writeRequest.Timeseries)
@@ -551,7 +552,6 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		wc.writeRequest.Reset()
 		up = 0
 	}
-	wc.addMetadata(wc.metadataRows.Rows)
 
 	if up == 0 {
 		bodyString = ""
