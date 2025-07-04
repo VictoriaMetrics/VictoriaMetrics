@@ -1084,7 +1084,6 @@ func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
 		mms = append(mms, *md)
 	}
 	wc.writeRequest.Metadata = mms
-	return
 }
 
 // addRow adds r with the given timestamp to wc.
