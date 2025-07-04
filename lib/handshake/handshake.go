@@ -168,7 +168,7 @@ func readIsCompressed(c net.Conn) (bool, error) {
 }
 
 func writeMessage(c net.Conn, msg string) error {
-	if err := c.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+	if err := c.SetWriteDeadline(time.Now().Add(time.Second * 3)); err != nil {
 		return fmt.Errorf("cannot set write deadline: %w", err)
 	}
 	if _, err := io.WriteString(c, msg); err != nil {
@@ -201,7 +201,7 @@ func readMessage(c net.Conn, msg string) error {
 }
 
 func readData(c net.Conn, dataLen int) ([]byte, error) {
-	if err := c.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+	if err := c.SetReadDeadline(time.Now().Add(time.Second * 3)); err != nil {
 		return nil, fmt.Errorf("cannot set read deadline: %w", err)
 	}
 	data := make([]byte, dataLen)
