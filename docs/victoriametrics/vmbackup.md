@@ -12,7 +12,7 @@ aliases:
   - /vmbackup/index.html
   - /vmbackup/
 ---
-`vmbackup` creates VictoriaMetrics data backups from instant snapshots
+`vmbackup` creates VictoriaMetrics data backups from instant snapshots.
 More information how to work with them could be found in [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots) documentation.
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
@@ -181,7 +181,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth or CPU, then either decrease the `-concurrency` command-line flag value or set `-maxBytesPerSecond` command-line flag value to lower value.
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
-* If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
+* If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process. After backup process has finished successfully, please remove old snapshot that was created during failed attempt.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
 * Please find description how snapshots use disk space and recommendations in [snapshot troubleshooting](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting)
@@ -349,6 +349,7 @@ Run `vmbackup -help` in order to see all the available options:
   -dst string
      Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
+     Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
