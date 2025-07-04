@@ -23,7 +23,7 @@ import (
 // limitConcurrency defines whether to control the number of concurrent calls to this function.
 // It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
 // like /api/v1/write calls.
-func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row, metadata []prometheus.Metadata) error, errLogger func(string)) error {
+func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row, metadataList []prometheus.Metadata) error, errLogger func(string)) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode Prometheus text exposition data: %w", err)
@@ -137,7 +137,7 @@ type unmarshalWork struct {
 	rows             prometheus.Rows
 	mmd              prometheus.MetadataRows
 	ctx              *streamContext
-	callback         func(rows []prometheus.Row, mms []prometheus.Metadata) error
+	callback         func(rows []prometheus.Row, metadataList []prometheus.Metadata) error
 	errLogger        func(string)
 	defaultTimestamp int64
 	reqBuf           []byte
@@ -153,9 +153,9 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []prometheus.Row, mms []prometheus.Metadata) {
+func (uw *unmarshalWork) runCallback(rows []prometheus.Row, metadataList []prometheus.Metadata) {
 	ctx := uw.ctx
-	if err := uw.callback(rows, mms); err != nil {
+	if err := uw.callback(rows, metadataList); err != nil {
 		ctx.callbackErrLock.Lock()
 		if ctx.callbackErr == nil {
 			ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
