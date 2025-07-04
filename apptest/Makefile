@@ -2,11 +2,11 @@ TS_START := $(shell date -u -v-1d +"%Y-%m-%dT%H:%M:%SZ")
 TS_END   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 tsbs-build:
-	test -d /tmp/tsbs || git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
+	test -d /tmp/tsbs || (git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
 	cd /tmp/tsbs/cmd/tsbs_generate_data && GOBIN=/tmp/tsbs/bin go install && \
 	cd ../tsbs_generate_queries && GOBIN=/tmp/tsbs/bin go install && \
     cd ../tsbs_load_victoriametrics && GOBIN=/tmp/tsbs/bin go install && \
-    cd ../tsbs_run_queries_victoriametrics && GOBIN=/tmp/tsbs/bin go install
+    cd ../tsbs_run_queries_victoriametrics && GOBIN=/tmp/tsbs/bin go install)
 
 tsbs-generate-data:
 	test -f /tmp/tsbs-data.gz || /tmp/tsbs/bin/tsbs_generate_data \
