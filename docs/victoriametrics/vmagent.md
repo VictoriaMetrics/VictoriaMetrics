@@ -533,6 +533,11 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_samples_post_metric_relabeling > 10000
   ```
 
+* `scrape_labels_limit` - the configured limit on the number of [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) the given target can expose
+  per [sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
+  The limit can be set via `label_limit` option at [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
+  This metric is exposed only if the `label_limit` is set. 
+
 * `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target generates during the current scrape.
   This metric allows detecting targets (identified by `instance` label),
   which lead to [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
