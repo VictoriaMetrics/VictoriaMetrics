@@ -642,7 +642,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	}, 3, 4015, 2)
 }
 
-func TestWriteRequestCtx_TryAddRowNoRelabeling(t *testing.T) {
+func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
 	f := func(row string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
 		r := parsePromRow(row)
