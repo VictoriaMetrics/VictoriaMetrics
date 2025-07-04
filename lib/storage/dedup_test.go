@@ -216,3 +216,77 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 200, 300, 1000}, []int64{0, 2, 6, 7, 8})
 	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 13e3, 30e3, 39e3, 45e3}, []int64{0, 1, 4, 6, 7})
 }
+
+func TestDeduplicateSamples_KeepsFirstAndLast(t *testing.T) {
+	f := func(scrapeInterval time.Duration, timestamps []int64, values []float64) {
+		t.Helper()
+		timestampsCopy := append([]int64{}, timestamps...)
+		valuesCopy := append([]float64{}, values...)
+
+		dedupInterval := scrapeInterval.Milliseconds()
+		timestampsCopy, valuesCopy = DeduplicateSamples(timestampsCopy, valuesCopy, dedupInterval)
+
+		if len(timestampsCopy) == 0 {
+			t.Fatalf("deduplication removed all samples for timestamps %v", timestamps)
+		}
+		if timestampsCopy[0] != timestamps[0] || valuesCopy[0] != values[0] {
+			t.Fatalf("first sample lost; got (%d,%f) want (%d,%f)", timestampsCopy[0], valuesCopy[0], timestamps[0], values[0])
+		}
+		if timestampsCopy[len(timestampsCopy)-1] != timestamps[len(timestamps)-1] || valuesCopy[len(valuesCopy)-1] != values[len(values)-1] {
+			t.Fatalf("last sample lost; got (%d,%f) want (%d,%f)", timestampsCopy[len(timestampsCopy)-1], valuesCopy[len(valuesCopy)-1], timestamps[len(timestamps)-1], values[len(values)-1])
+		}
+		if len(timestamps) > 2 && len(timestampsCopy) >= len(timestamps) {
+			t.Fatalf("deduplication did not reduce samples count; got %d want less than %d", len(timestampsCopy), len(timestamps))
+		}
+	}
+
+	// duplicates around edges
+	f(time.Second, []int64{0, 200, 400, 800, 1000, 1200, 1500, 2100, 2300, 2500, 2500}, []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	// heavy duplication in first and last intervals
+	f(time.Second, []int64{0, 100, 200, 300, 700, 1000, 1600, 1700, 1800, 2300, 2400, 2500}, []float64{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+	// single sample case
+	f(time.Second, []int64{1000}, []float64{42})
+	// two samples case
+	f(time.Second, []int64{0, 2000}, []float64{1, 2})
+	// many duplicates at start
+	f(time.Second, []int64{0, 100, 200, 300, 400, 500, 1500, 2000}, []float64{1, 2, 3, 4, 5, 6, 7, 8})
+	// many duplicates at end
+	f(time.Second, []int64{0, 1000, 2000, 2100, 2200, 2300, 2400, 2500}, []float64{1, 2, 3, 4, 5, 6, 7, 8})
+}
+
+func TestDeduplicateSamplesDuringMerge_KeepsFirstAndLast(t *testing.T) {
+	f := func(scrapeInterval time.Duration, timestamps []int64, values []int64) {
+		t.Helper()
+		dedupTs := append([]int64{}, timestamps...)
+		dedupValues := append([]int64{}, values...)
+
+		dedupInterval := scrapeInterval.Milliseconds()
+		dedupTs, dedupValues = deduplicateSamplesDuringMerge(dedupTs, dedupValues, dedupInterval)
+
+		if len(dedupTs) == 0 {
+			t.Fatalf("deduplication removed all samples for timestamps %v", timestamps)
+		}
+		if dedupTs[0] != timestamps[0] || dedupValues[0] != values[0] {
+			t.Fatalf("first sample lost; got (%d,%d) want (%d,%d)", dedupTs[0], dedupValues[0], timestamps[0], values[0])
+		}
+		if dedupTs[len(dedupTs)-1] != timestamps[len(timestamps)-1] || dedupValues[len(dedupValues)-1] != values[len(values)-1] {
+			t.Fatalf("last sample lost; got (%d,%d) want (%d,%d)", dedupTs[len(dedupTs)-1], dedupValues[len(dedupValues)-1], timestamps[len(timestamps)-1], values[len(values)-1])
+		}
+		if len(timestamps) > 2 && len(dedupTs) >= len(timestamps) {
+			t.Fatalf("deduplication did not reduce samples count; got %d want less than %d", len(dedupTs), len(timestamps))
+		}
+	}
+
+	// duplicates around edges
+	f(time.Second, []int64{0, 200, 400, 800, 1000, 1300, 1500, 2100, 2400, 2500, 2500}, []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	// heavy duplication in first and last intervals
+	f(time.Second, []int64{0, 100, 200, 300, 700, 1000, 1600, 1700, 1800, 2300, 2400, 2500}, []int64{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+	// single sample case
+	f(time.Second, []int64{1000}, []int64{42})
+	// two samples case
+	f(time.Second, []int64{0, 2000}, []int64{1, 2})
+	// many duplicates at start
+	f(time.Second, []int64{0, 100, 200, 300, 400, 500, 1500, 2000}, []int64{1, 2, 3, 4, 5, 6, 7, 8})
+	// many duplicates at end
+	f(time.Second, []int64{0, 1000, 2000, 2100, 2200, 2300, 2400, 2500}, []int64{1, 2, 3, 4, 5, 6, 7, 8})
+}
