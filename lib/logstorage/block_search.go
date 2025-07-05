@@ -248,6 +248,8 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 		return
 	}
 
+	logger.Infof("DEBUG: filter applied to block %d of part %s", bsw.bh.columnsHeaderOffset, bsw.p.path)
+
 	bs.br.mustInit(bs, bm)
 
 	// fetch the requested columns to bs.br.

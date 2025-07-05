@@ -78,6 +78,7 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 
 	// Gather all lagging parts in the target partition for this sequence.
 	var lagging []*partWrapper
+	pending := 0
 	for _, ptw := range oudatedPtws {
 		pt := ptw.pt
 		pt.ddb.partsLock.Lock()
@@ -85,6 +86,7 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 		for _, arr := range allPws {
 			for _, pw := range arr {
 				if pw.isInMerge || pw.mustDrop.Load() {
+					pending++
 					continue
 				}
 				if pw.p.appliedTSeq.Load() < task.Seq {
@@ -99,7 +101,12 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 
 	// If there are no lagging parts, mark the task as success and return.
 	if len(lagging) == 0 {
-		logger.Infof("DEBUG: no lagging parts, marking task as success")
+		if pending > 0 {
+			logger.Infof("DEBUG: no lagging parts, but there are pending parts, waiting for them to finish")
+			return nil
+		}
+
+		logger.Infof("DEBUG: no lagging/pending parts, marking task as success")
 		s.markTask(oudatedPtws, task.Seq, taskSuccess, false)
 
 		for _, ptw := range ptws {

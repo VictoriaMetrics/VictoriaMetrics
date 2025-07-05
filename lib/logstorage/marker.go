@@ -185,7 +185,7 @@ func (dm *deleteMarker) Unmarshal(blocksCount uint64, data []byte) (int, error) 
 	pos += n
 
 	// Read each block's data
-	for i := uint64(0); i < numBlocks; i++ {
+	for i := range numBlocks {
 		// Read block ID
 		if pos+8 > len(data) {
 			return 0, fmt.Errorf("truncated data: cannot read block_id %d", i)
@@ -355,6 +355,7 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	datPath := filepath.Join(partPath, rowMarkerDatFilename)
 	fs.MustWriteAtomic(datPath, datBuf, true /*overwrite*/)
 	fs.MustSyncPath(partPath)
+
 	p.setAppliedTSeq(seq)
 	logger.Infof("DEBUG: flushDeleteMarker: part=%s, seq=%d, rle=%s", partPath, seq, dm.String())
 }

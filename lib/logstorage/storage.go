@@ -809,6 +809,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 				logger.Infof("DEBUG: ignore RLE (already marked) for part=%s blockSeq=%d -> %s", p.path, blockID, rle.String())
 				return // already marked
 			}
+			logger.Infof("DEBUG: existing delete marker for part=%s blockOffset=%d -> %s", p.path, blockID, existedRLE.String())
 		}
 
 		// Replace seq with offset
