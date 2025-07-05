@@ -763,9 +763,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 	}
 	partMarkers := make(map[string]*partMarkerData)
 
-	var rowsMarked uint64
 	var partMarkersLock sync.Mutex
-
 	writeBlockResult := func(_ uint, br *blockResult) {
 		if br == nil || br.rowsLen == 0 {
 			return
@@ -787,7 +785,6 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 		ones := bm.onesCount()
 
 		// logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
-		rowsMarked += uint64(ones)
 
 		var rle boolRLE
 		if ones == rowsCount {
@@ -798,13 +795,15 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 			logger.Infof("DEBUG: delete marker RLE for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
 		}
 
-		if len(rle) < 16 {
+		if !rle.IsStateful() {
+			logger.Infof("DEBUG: ignore RLE (too short) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
 			return // need at least 2 items in RLE bitmap
 		}
 
 		if bs.bsw.dm != nil {
-			dm, ok := bs.bsw.dm.GetMarkedRows(bs.bsw.seq)
-			if ok && bytes.Equal(dm, rle) {
+			existedRLE, ok := bs.bsw.dm.GetMarkedRows(bs.bsw.seq)
+			if ok && bytes.Equal(existedRLE, rle) {
+				logger.Infof("DEBUG: ignore RLE (already marked) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
 				return // already marked
 			}
 		}
@@ -834,7 +833,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 		flushDeleteMarker(pm.part, pm.delMarker, seq)
 	}
 
-	logger.Infof("DEBUG: affected (rows = %d, parts = %d, seq = %d)", rowsMarked, len(partMarkers), seq)
+	logger.Infof("DEBUG: affected (parts = %d, seq = %d)", len(partMarkers), seq)
 	return nil
 }
 

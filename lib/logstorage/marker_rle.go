@@ -218,6 +218,25 @@ func (rle boolRLE) SetAllOnes(count int) boolRLE {
 	return rle
 }
 
+// IsStateful returns true if the bitmap encoded in rle
+// contains two or more 1-bits.
+//
+// It walks the RLE stream once and exits as soon as the second
+// one-bit is found, so it is O(#runs) with early termination.
+// IsStateful reports whether the RLE slice contains
+// at least two encoded run-lengths.
+func (rle boolRLE) IsStateful() bool {
+	if len(rle) == 0 {
+		return false
+	}
+
+	_, n := encoding.UnmarshalVarUint64(rle)
+	if n <= 0 || n >= len(rle) {
+		return false
+	}
+	return true
+}
+
 // func (rle boolRLE) UnionV1(other boolRLE) boolRLE {
 // 	// Fast paths.
 // 	if len(rle) == 0 {
