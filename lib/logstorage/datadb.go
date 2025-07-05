@@ -336,11 +336,6 @@ func getPartsForOptimalMerge(pws []*partWrapper) ([]*partWrapper, []*partWrapper
 	pwsRemaining := make([]*partWrapper, 0, len(pws)-len(pwsToMerge))
 	for _, pw := range pws {
 		if _, ok := m[pw]; !ok {
-			// skip parts with outstanding delete tasks not yet applied
-			partitionSeq := pw.p.pt.getPendingAsyncTask().Seq
-			if pw.p.appliedTSeq.Load() < partitionSeq {
-				continue
-			}
 			pwsRemaining = append(pwsRemaining, pw)
 		}
 	}
@@ -922,23 +917,6 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 		smallPartNames := getPartNames(ddb.smallParts)
 		bigPartNames := getPartNames(ddb.bigParts)
 		mustWritePartNames(ddb.path, smallPartNames, bigPartNames)
-	}
-
-	// Determine minimal applied seq among sources
-	minSeq := uint64(math.MaxUint64)
-	for _, pw := range pws {
-		seq := pw.p.appliedTSeq.Load()
-		if seq < minSeq {
-			minSeq = seq
-		}
-	}
-	if minSeq == math.MaxUint64 {
-		minSeq = 0
-	}
-
-	logger.Infof("DEBUG: swapSrcWithDstParts (minSeq=%d, pwNew=%v)", minSeq, pwNew.p.path)
-	if pwNew != nil {
-		pwNew.p.setAppliedTSeq(minSeq)
 	}
 
 	ddb.partsLock.Unlock()
