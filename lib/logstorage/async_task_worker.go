@@ -39,19 +39,14 @@ func (s *Storage) startAsyncTaskWorker() {
 				err := s.runAsyncTasksOnce(ctx, &seq)
 				if err != nil {
 					logger.Errorf("async task worker: %s", err)
-					if failedTime++; failedTime > maxFailedTime {
-						failedTime = 0
-					}
+					failedTime++
 				} else {
 					failedTime = 0
 				}
 
-				if failedTime == 0 {
-					s.advanceAsyncTask(seq, err)
-				}
-
-				if seq != 0 {
-					logger.Infof("DEBUG: done task (seq=%d, err=%v)", seq, err)
+				if failedTime > maxFailedTime {
+					s.failAsyncTask(seq, err)
+					failedTime = 0
 				}
 
 				// Start the 5-second wait *after* the task completes
@@ -74,7 +69,7 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 	}
 	s.partitionsLock.Unlock()
 
-	task := s.findNextAsyncTask(ptws)
+	oudatedPtws, task := s.findNextAsyncTask(ptws)
 	if task.Type == asyncTaskNone {
 		return nil
 	}
@@ -83,7 +78,7 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 
 	// Gather all lagging parts in the target partition for this sequence.
 	var lagging []*partWrapper
-	for _, ptw := range ptws {
+	for _, ptw := range oudatedPtws {
 		pt := ptw.pt
 		pt.ddb.partsLock.Lock()
 		allPws := [][]*partWrapper{pt.ddb.inmemoryParts, pt.ddb.smallParts, pt.ddb.bigParts}
@@ -93,6 +88,7 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 					continue
 				}
 				if pw.p.appliedTSeq.Load() < task.Seq {
+					logger.Infof("DEBUG: found lagging part %s, appliedTSeq=%d, task.Seq=%d", pw.p.path, pw.p.appliedTSeq.Load(), task.Seq)
 					pw.incRef()
 					lagging = append(lagging, pw)
 				}
@@ -101,7 +97,11 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 		pt.ddb.partsLock.Unlock()
 	}
 
+	// If there are no lagging parts, mark the task as success and return.
 	if len(lagging) == 0 {
+		logger.Infof("DEBUG: no lagging parts, marking task as success")
+		s.markTask(oudatedPtws, task.Seq, taskSuccess, false)
+
 		for _, ptw := range ptws {
 			ptw.decRef()
 		}
@@ -132,18 +132,12 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 	return nil
 }
 
-func (s *Storage) advanceAsyncTask(sequence uint64, err error) error {
-	if sequence == 0 {
+func (s *Storage) failAsyncTask(sequence uint64, err error) error {
+	if sequence == 0 || err == nil {
 		return nil // nothing to advance
 	}
 
-	// Determine resulting status for the task.
-	newStatus := taskSuccess
-	if err != nil {
-		newStatus = taskError
-	}
-
-	// Take a snapshot of partitions to iterate safely without holding the lock for long.
+	// Take a snapshot of partitions
 	s.partitionsLock.Lock()
 	ptws := append([]*partitionWrapper{}, s.partitions...)
 	for _, ptw := range ptws {
@@ -151,47 +145,39 @@ func (s *Storage) advanceAsyncTask(sequence uint64, err error) error {
 	}
 	s.partitionsLock.Unlock()
 
-	for _, ptw := range ptws {
-		pt := ptw.pt
-
-		// 1) Ensure every part in this partition has appliedTSeq at least `sequence`.
-		pt.ddb.partsLock.Lock()
-		all := [][]*partWrapper{pt.ddb.inmemoryParts, pt.ddb.smallParts, pt.ddb.bigParts}
-		for _, arr := range all {
-			for _, pw := range arr {
-				if pw.p.appliedTSeq.Load() < sequence {
-					pw.p.setAppliedTSeq(sequence)
-				}
-			}
-		}
-		pt.ddb.partsLock.Unlock()
-
-		// 2) Update task status in this partition, if present and still pending.
-		updated := false
-		if pt.asyncTasksLen.Load() >= sequence {
-			pt.asyncTasksLock.Lock()
-			for i := range pt.asyncTasks {
-				if pt.asyncTasks[i].Seq == sequence {
-					if pt.asyncTasks[i].Status == taskPending {
-						pt.asyncTasks[i].Status = newStatus
-						updated = true
-					}
-					break
-				}
-			}
-			pt.asyncTasksLock.Unlock()
-
-			if updated {
-				pt.mustSaveAsyncTasks()
-			}
-		}
-	}
+	// Mark the tasks as error for partitions and parts
+	s.markTask(ptws, sequence, taskError, true)
 
 	for _, ptw := range ptws {
 		ptw.decRef()
 	}
 
 	return nil
+}
+
+func (s *Storage) markTask(ptws []*partitionWrapper, taskSeq uint64, ats asyncTaskStatus, includeParts bool) {
+	for _, ptw := range ptws {
+		pt := ptw.pt
+
+		if includeParts {
+			// 1) Ensure every part in this partition has appliedTSeq at least `sequence`.
+			pt.ddb.partsLock.Lock()
+			all := [][]*partWrapper{pt.ddb.inmemoryParts, pt.ddb.smallParts, pt.ddb.bigParts}
+			for _, arr := range all {
+				for _, pw := range arr {
+					if pw.p.appliedTSeq.Load() < taskSeq {
+						pw.p.setAppliedTSeq(taskSeq)
+					}
+				}
+			}
+			pt.ddb.partsLock.Unlock()
+		}
+
+		// 2) Update task status in this partition, if present and still pending.
+		pt.markAsyncTaskAsApplied(taskSeq, ats)
+	}
+
+	logger.Infof("DEBUG: done task (seq=%d, status=%s)", taskSeq, ats)
 }
 
 func (s *Storage) runDeleteTask(ctx context.Context, task asyncTask, lagging []*partWrapper) error {
@@ -209,15 +195,15 @@ func (s *Storage) runDeleteTask(ctx context.Context, task asyncTask, lagging []*
 	return err
 }
 
-func (s *Storage) findNextAsyncTask(ptws []*partitionWrapper) asyncTask {
+func (s *Storage) findNextAsyncTask(ptws []*partitionWrapper) ([]*partitionWrapper, asyncTask) {
 	var minSeq uint64 = math.MaxUint64
 	var result asyncTask
+	var resultPtws []*partitionWrapper
 
 	for _, ptw := range ptws {
 		pt := ptw.pt
 
-		task := pt.getOldestPendingAsyncTask()
-		// Skip partitions without pending tasks.
+		task := pt.getPendingAsyncTask()
 		if task.Type == asyncTaskNone {
 			continue
 		}
@@ -225,8 +211,9 @@ func (s *Storage) findNextAsyncTask(ptws []*partitionWrapper) asyncTask {
 		if task.Seq < minSeq {
 			result = task
 			minSeq = task.Seq
+			resultPtws = append(resultPtws, ptw)
 		}
 	}
 
-	return result
+	return resultPtws, result
 }

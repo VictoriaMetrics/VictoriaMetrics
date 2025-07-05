@@ -111,6 +111,8 @@ func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
 		blocksCount: p.ph.BlocksCount,
 	}
 
+	p.appliedTSeq.Store(pt.getPendingAsyncTask().Seq)
+	logger.Infof("DEBUG: create inmemory part with appliedTSeq=%d", p.appliedTSeq.Load())
 	return &p
 }
 
@@ -265,7 +267,7 @@ func (p *part) setAppliedTSeq(seq uint64) {
 	}
 
 	seqPath := filepath.Join(p.path, appliedTSeqFilename)
-	if err := os.WriteFile(seqPath, []byte(fmt.Sprintf("%d", seq)), 0o644); err != nil {
+	if err := os.WriteFile(seqPath, fmt.Appendf(nil, "%d", seq), 0o644); err != nil {
 		logger.Warnf("cannot write appliedTSeq to %q: %s", seqPath, err)
 		return
 	}

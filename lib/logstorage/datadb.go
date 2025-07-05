@@ -337,7 +337,7 @@ func getPartsForOptimalMerge(pws []*partWrapper) ([]*partWrapper, []*partWrapper
 	for _, pw := range pws {
 		if _, ok := m[pw]; !ok {
 			// skip parts with outstanding delete tasks not yet applied
-			partitionSeq := pw.p.pt.asyncTasksLen.Load()
+			partitionSeq := pw.p.pt.getPendingAsyncTask().Seq
 			if pw.p.appliedTSeq.Load() < partitionSeq {
 				continue
 			}
@@ -441,7 +441,7 @@ func getPartsToMergeLocked(pws []*partWrapper, maxOutBytes uint64) []*partWrappe
 	for _, pw := range pws {
 		if !pw.isInMerge {
 			// skip parts with outstanding delete tasks not yet applied
-			partitionSeq := pw.p.pt.asyncTasksLen.Load()
+			partitionSeq := pw.p.pt.getPendingAsyncTask().Seq
 			if pw.p.appliedTSeq.Load() < partitionSeq {
 				continue
 			}
@@ -940,6 +940,8 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 	if minSeq == math.MaxUint64 {
 		minSeq = 0
 	}
+
+	logger.Infof("DEBUG: swapSrcWithDstParts (minSeq=%d, pwNew=%v)", minSeq, pwNew.p.path)
 	if pwNew != nil {
 		pwNew.p.setAppliedTSeq(minSeq)
 	}
@@ -1405,10 +1407,6 @@ func (ddb *datadb) mustForceMergeAllParts() {
 func appendAllPartsForForceMergeLocked(dst, src []*partWrapper) []*partWrapper {
 	for _, pw := range src {
 		if !pw.isInMerge {
-			partitionSeq := pw.p.pt.asyncTasksLen.Load()
-			if pw.p.appliedTSeq.Load() < partitionSeq {
-				continue
-			}
 			pw.isInMerge = true
 			dst = append(dst, pw)
 		}
