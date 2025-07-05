@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "preact/compat";
 import { InfoIcon, PlayIcon, SpinnerIcon, WikiIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
@@ -11,6 +11,9 @@ import { useQueryDispatch, useQueryState } from "../../../state/query/QueryState
 import Switch from "../../../components/Main/Switch/Switch";
 import QueryHistory from "../../../components/QueryHistory/QueryHistory";
 import useBoolean from "../../../hooks/useBoolean";
+import { useQuickAutocomplete } from "../../../hooks/useQuickAutocomplete";
+import { AUTOCOMPLETE_QUICK_KEY } from "../../../components/Main/ShortcutKeys/constants/keyList";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export interface ExploreLogHeaderProps {
   query: string;
@@ -32,8 +35,9 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
   onRun,
 }) => {
   const { isMobile } = useDeviceDetect();
-  const { autocomplete, queryHistory } = useQueryState();
+  const { autocomplete, queryHistory, autocompleteQuick } = useQueryState();
   const queryDispatch = useQueryDispatch();
+  const setQuickAutocomplete = useQuickAutocomplete();
 
   const [errorLimit, setErrorLimit] = useState("");
   const [limitInput, setLimitInput] = useState(limit);
@@ -85,6 +89,13 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
     }
   }, [query, awaitQuery]);
 
+  const onChangeHandle = (value: string) => {
+    onChange(value);
+    if (autocompleteQuick) {
+      setQuickAutocomplete(false);
+    }
+  };
+
   return (
     <div
       className={classNames({
@@ -96,12 +107,12 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
       <div className="vm-explore-logs-header-top">
         <QueryEditor
           value={query}
-          autocomplete={autocomplete}
+          autocomplete={autocomplete || autocompleteQuick}
           autocompleteEl={LogsQueryEditorAutocomplete}
           onArrowUp={createHandlerArrow(-1)}
           onArrowDown={createHandlerArrow(1)}
           onEnter={onRun}
-          onChange={onChange}
+          onChange={onChangeHandle}
           label={"Log query"}
           error={error}
         />
@@ -116,12 +127,14 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
       </div>
       <div className="vm-explore-logs-header-bottom">
         <div className="vm-explore-logs-header-bottom-contols">
-          <Switch
-            label={"Autocomplete"}
-            value={autocomplete}
-            onChange={onChangeAutocomplete}
-            fullWidth={isMobile}
-          />
+          <Tooltip title={<>Quick tip: {AUTOCOMPLETE_QUICK_KEY}</>}>
+            <Switch
+              label={"Autocomplete"}
+              value={autocomplete}
+              onChange={onChangeAutocomplete}
+              fullWidth={isMobile}
+            />
+          </Tooltip>
         </div>
         <div className="vm-explore-logs-header-bottom-helpful">
           <a

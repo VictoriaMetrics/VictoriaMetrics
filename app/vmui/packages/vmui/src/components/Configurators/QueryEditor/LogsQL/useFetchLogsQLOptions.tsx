@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, Dispatch, SetStateAction } from "preact/compat";
+import { useEffect, useState, useRef } from "preact/compat";
 import dayjs from "dayjs";
 import { ContextData, ContextType } from "./types";
 import { FunctionIcon, LabelIcon, MetricIcon, ValueIcon } from "../../../Main/Icons";

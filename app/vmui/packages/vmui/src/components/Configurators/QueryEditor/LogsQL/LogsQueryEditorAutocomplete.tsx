@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import Autocomplete, { AutocompleteOptions } from "../../../Main/Autocomplete/Autocomplete";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "../QueryEditor";
@@ -13,7 +13,8 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   caretPosition,
   hasHelperText,
   onSelect,
-  onFoundOptions
+  onFoundOptions,
+  isOpen
 }) => {
   const [offsetPos, setOffsetPos] = useState({ top: 0, left: 0 });
 
@@ -41,7 +42,7 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
       query: value,
       ...getContextData(part, cursorStartPosition)
     };
-  }, [logicalParts, caretPosition]);
+  }, [logicalParts, caretPosition, value]);
 
   const { fieldNames, fieldValues, loading } = useFetchLogsQLOptions(contextData);
 
@@ -141,6 +142,10 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     span.remove();
     marker.remove();
   }, [anchorEl, caretPosition, hasHelperText, fullValue]);
+
+  if (!isOpen) {
+    return;
+  }
 
   return (
     <>
