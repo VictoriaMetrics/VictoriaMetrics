@@ -546,7 +546,16 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		bsw.MustInitForInmemoryPart(mpNew)
 	} else {
 		nocache := dstPartType == partBig
-		bsw.MustInitForFilePart(dstPartPath, nocache)
+
+		minSeq := uint64(math.MaxUint64)
+		for _, pw := range pws {
+			seq := pw.p.appliedTSeq.Load()
+			if seq < minSeq {
+				minSeq = seq
+			}
+		}
+
+		bsw.MustInitForFilePart(dstPartPath, nocache, minSeq)
 	}
 
 	// Merge source parts to destination part.
