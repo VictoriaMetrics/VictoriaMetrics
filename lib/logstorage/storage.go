@@ -788,31 +788,31 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 
 		// logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
 
+		blockID := bs.bsw.bh.columnsHeaderOffset
 		var rle boolRLE
 		if ones == rowsCount {
 			rle = boolRLE(nil).SetAllOnes(rowsCount)
-			logger.Infof("DEBUG: delete marker RLE (all) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+			logger.Infof("DEBUG: delete marker RLE (all) for part=%s blockSeq=%d -> %s", p.path, blockID, rle.String())
 		} else {
 			rle = boolRLE(bm.MarshalBoolRLE(nil))
-			logger.Infof("DEBUG: delete marker RLE for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+			logger.Infof("DEBUG: delete marker RLE for part=%s blockOffset=%d -> %s", p.path, blockID, rle.String())
 		}
 
 		if !rle.IsStateful() {
-			logger.Infof("DEBUG: ignore RLE (too short) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+			logger.Infof("DEBUG: ignore RLE (too short) for part=%s blockSeq=%d -> %s", p.path, blockID, rle.String())
 			return // need at least 2 items in RLE bitmap
 		}
 
 		if bs.bsw.dm != nil {
-			existedRLE, ok := bs.bsw.dm.GetMarkedRows(bs.bsw.columnsHeaderOffset)
+			existedRLE, ok := bs.bsw.dm.GetMarkedRows(blockID)
 			if ok && bytes.Equal(existedRLE, rle) {
-				logger.Infof("DEBUG: ignore RLE (already marked) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+				logger.Infof("DEBUG: ignore RLE (already marked) for part=%s blockSeq=%d -> %s", p.path, blockID, rle.String())
 				return // already marked
 			}
 		}
 
 		// Replace seq with offset
 		// Previously: seq := bs.bsw.seq
-		offset := bs.bsw.columnsHeaderOffset
 		partPath := p.path
 
 		partMarkersLock.Lock()
@@ -824,7 +824,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 			}
 			partMarkers[partPath] = dm
 		}
-		dm.delMarker.AddBlock(offset, rle)
+		dm.delMarker.AddBlock(blockID, rle)
 		partMarkersLock.Unlock()
 	}
 
