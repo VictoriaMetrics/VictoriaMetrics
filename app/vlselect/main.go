@@ -267,6 +267,11 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		logsql.ProcessStreamsRequest(ctx, w, r)
 		logsqlStreamsDuration.UpdateDuration(startTime)
 		return true
+	case "/select/logsql/delete":
+		logsqlDeleteRequests.Inc()
+		logsql.ProcessDeleteRequest(ctx, w, r)
+		logsqlDeleteDuration.UpdateDuration(startTime)
+		return true
 	default:
 		return false
 	}
@@ -321,4 +326,7 @@ var (
 
 	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
+
+	logsqlDeleteRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/delete"}`)
+	logsqlDeleteDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/delete"}`)
 )

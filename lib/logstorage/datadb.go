@@ -336,6 +336,11 @@ func getPartsForOptimalMerge(pws []*partWrapper) ([]*partWrapper, []*partWrapper
 	pwsRemaining := make([]*partWrapper, 0, len(pws)-len(pwsToMerge))
 	for _, pw := range pws {
 		if _, ok := m[pw]; !ok {
+			// skip parts with outstanding delete tasks not yet applied
+			partitionSeq := pw.p.pt.asyncTasksLen.Load()
+			if pw.p.appliedTSeq.Load() < partitionSeq {
+				continue
+			}
 			pwsRemaining = append(pwsRemaining, pw)
 		}
 	}
@@ -435,6 +440,11 @@ func getPartsToMergeLocked(pws []*partWrapper, maxOutBytes uint64) []*partWrappe
 	pwsRemaining := make([]*partWrapper, 0, len(pws))
 	for _, pw := range pws {
 		if !pw.isInMerge {
+			// skip parts with outstanding delete tasks not yet applied
+			partitionSeq := pw.p.pt.asyncTasksLen.Load()
+			if pw.p.appliedTSeq.Load() < partitionSeq {
+				continue
+			}
 			pwsRemaining = append(pwsRemaining, pw)
 		}
 	}
@@ -919,6 +929,21 @@ func (ddb *datadb) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, d
 		mustWritePartNames(ddb.path, smallPartNames, bigPartNames)
 	}
 
+	// Determine minimal applied seq among sources
+	minSeq := uint64(math.MaxUint64)
+	for _, pw := range pws {
+		seq := pw.p.appliedTSeq.Load()
+		if seq < minSeq {
+			minSeq = seq
+		}
+	}
+	if minSeq == math.MaxUint64 {
+		minSeq = 0
+	}
+	if pwNew != nil {
+		pwNew.p.setAppliedTSeq(minSeq)
+	}
+
 	ddb.partsLock.Unlock()
 
 	removedParts := removedInmemoryParts + removedSmallParts + removedBigParts
@@ -1350,8 +1375,8 @@ func (ddb *datadb) mustForceMergeAllParts() {
 
 	// Collect all the file parts for forced merge
 	ddb.partsLock.Lock()
-	pws = appendAllPartsForMergeLocked(pws, ddb.smallParts)
-	pws = appendAllPartsForMergeLocked(pws, ddb.bigParts)
+	pws = appendAllPartsForForceMergeLocked(pws, ddb.smallParts)
+	pws = appendAllPartsForForceMergeLocked(pws, ddb.bigParts)
 	ddb.partsLock.Unlock()
 
 	// If len(pws) == 1, then the merge must run anyway.
@@ -1377,12 +1402,32 @@ func (ddb *datadb) mustForceMergeAllParts() {
 	putWaitGroup(wg)
 }
 
-func appendAllPartsForMergeLocked(dst, src []*partWrapper) []*partWrapper {
+func appendAllPartsForForceMergeLocked(dst, src []*partWrapper) []*partWrapper {
 	for _, pw := range src {
 		if !pw.isInMerge {
+			partitionSeq := pw.p.pt.asyncTasksLen.Load()
+			if pw.p.appliedTSeq.Load() < partitionSeq {
+				continue
+			}
 			pw.isInMerge = true
 			dst = append(dst, pw)
 		}
 	}
 	return dst
+}
+
+func mustReadAppliedTSeq(partPath string) uint64 {
+	seqPath := filepath.Join(partPath, appliedTSeqFilename)
+	if !fs.IsPathExist(seqPath) {
+		return 0
+	}
+	data, err := os.ReadFile(seqPath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read %q: %s", seqPath, err)
+	}
+	var seq uint64
+	if _, err := fmt.Sscanf(string(data), "%d", &seq); err != nil {
+		logger.Panicf("FATAL: cannot parse appliedTSeq from %q: %s", seqPath, err)
+	}
+	return seq
 }

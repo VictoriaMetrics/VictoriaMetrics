@@ -350,6 +350,19 @@ func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logst
 	return netstorageSelect.GetStreamIDs(ctx, tenantIDs, q, limit)
 }
 
+// DeleteRows marks rows matching q with the Deleted marker (full or partial) and flushes markers to disk immediately.
+func DeleteRows(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) error {
+	err := logstorage.ValidateDeleteQuery(q)
+	if err != nil {
+		return fmt.Errorf("validate query: %w", err)
+	}
+
+	if localStorage != nil {
+		return localStorage.DeleteRows(ctx, tenantIDs, q)
+	}
+	return netstorageSelect.DeleteRows(ctx, tenantIDs, q)
+}
+
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)

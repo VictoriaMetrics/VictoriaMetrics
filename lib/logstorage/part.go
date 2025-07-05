@@ -2,7 +2,9 @@ package logstorage
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"sync/atomic"
 
 	"github.com/cespare/xxhash/v2"
 
@@ -47,6 +49,12 @@ type part struct {
 	oldBloomValues     bloomValuesReaderAt
 
 	bloomValuesShards []bloomValuesReaderAt
+
+	// marker holds marker data for marker types (delete, ttl, etc.). May be nil if not present.
+	marker *marker
+
+	// appliedTSeq is the highest delete task sequence applied to this part.
+	appliedTSeq atomic.Uint64
 }
 
 type bloomValuesReaderAt struct {
@@ -99,6 +107,10 @@ func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
 		},
 	}
 
+	p.marker = &marker{
+		blocksCount: p.ph.BlocksCount,
+	}
+
 	return &p
 }
 
@@ -110,6 +122,7 @@ func mustOpenFilePart(pt *partition, path string) *part {
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
 	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
+	markerDatPath := filepath.Join(path, rowMarkerDatFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
@@ -126,6 +139,15 @@ func mustOpenFilePart(pt *partition, path string) *part {
 		columnIdxsReader := filestream.MustOpen(columnIdxsPath, true)
 		p.columnIdxs = mustReadColumnIdxs(columnIdxsReader, p.columnNames, p.ph.BloomValuesShardsCount)
 		columnIdxsReader.MustClose()
+	}
+
+	// Load marker data
+	if fs.IsPathExist(markerDatPath) {
+		markerDatReader := filestream.MustOpen(markerDatPath, true)
+		p.marker = mustReadMarkerData(markerDatReader, p.ph.BlocksCount)
+		markerDatReader.MustClose()
+	} else {
+		p.marker = nil
 	}
 
 	// Read metaindex
@@ -168,6 +190,10 @@ func mustOpenFilePart(pt *partition, path string) *part {
 			shard.values = fs.MustOpenReaderAt(valuesPath)
 		}
 	}
+
+	// Load appliedTSeq from disk for this part.
+	seq := mustReadAppliedTSeq(path)
+	p.appliedTSeq.Store(seq)
 
 	return &p
 }
@@ -223,4 +249,25 @@ func getBloomFilePath(partPath string, shardIdx uint64) string {
 
 func getValuesFilePath(partPath string, shardIdx uint64) string {
 	return filepath.Join(partPath, valuesFilename) + fmt.Sprintf("%d", shardIdx)
+}
+
+// setAppliedTSeq updates the applied sequence for the part and persists it to disk
+// if the part is file-based. Best-effort: on error it only logs and leaves the
+// in-memory counter updated, so the worker will retry later.
+func (p *part) setAppliedTSeq(seq uint64) {
+	if p.appliedTSeq.Load() >= seq {
+		return
+	}
+	p.appliedTSeq.Store(seq)
+
+	if p.path == "" {
+		return // in-memory part – nothing to persist
+	}
+
+	seqPath := filepath.Join(p.path, appliedTSeqFilename)
+	if err := os.WriteFile(seqPath, []byte(fmt.Sprintf("%d", seq)), 0o644); err != nil {
+		logger.Warnf("cannot write appliedTSeq to %q: %s", seqPath, err)
+		return
+	}
+	fs.MustSyncPath(p.path)
 }

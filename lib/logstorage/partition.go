@@ -1,8 +1,11 @@
 package logstorage
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
+	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -32,6 +35,13 @@ type partition struct {
 
 	// ddb is the datadb used for the given partition
 	ddb *datadb
+
+	// asyncTasks holds outstanding background tasks (delete, ttl, etc.) for the partition.
+	// The length of this slice equals to the latest sequence number of tasks created for the partition.
+	// Access must be protected with asyncTasksLock.
+	asyncTasks     []asyncTask
+	asyncTasksLock sync.Mutex
+	asyncTasksLen  atomic.Uint64
 }
 
 // mustCreatePartition creates a partition at the given path.
@@ -94,6 +104,9 @@ func mustOpenPartition(s *Storage, path string) *partition {
 	}
 
 	pt.ddb = mustOpenDatadb(pt, datadbPath, s.flushInterval)
+
+	// Load async tasks from disk
+	pt.mustLoadAsyncTasks()
 
 	return pt
 }
@@ -211,4 +224,88 @@ func (pt *partition) updateStats(ps *PartitionStats) {
 // mustForceMerge runs forced merge for all the parts in pt.
 func (pt *partition) mustForceMerge() {
 	pt.ddb.mustForceMergeAllParts()
+}
+
+// addDeleteTask appends a delete task to the partition's task list
+func (pt *partition) addDeleteTask(tenantIDs []TenantID, q *Query, seq uint64) uint64 {
+	task := asyncTask{
+		Seq:       seq,
+		Type:      asyncTaskDelete,
+		TenantIDs: append([]TenantID(nil), tenantIDs...),
+		Query:     q.String(),
+		Status:    taskPending,
+	}
+
+	pt.asyncTasksLock.Lock()
+	pt.asyncTasks = append(pt.asyncTasks, task)
+	pt.asyncTasksLock.Unlock()
+
+	// Persist tasks to disk
+	pt.mustSaveAsyncTasks()
+
+	pt.asyncTasksLen.Store(seq)
+	return seq
+}
+
+func (pt *partition) getOldestPendingAsyncTask() asyncTask {
+	var result asyncTask
+
+	if pt.asyncTasksLen.Load() == 0 {
+		return result
+	}
+
+	pt.asyncTasksLock.Lock()
+	for i := len(pt.asyncTasks) - 1; i >= 0; i-- {
+		task := pt.asyncTasks[i]
+		if task.Status == taskPending {
+			result = task
+			continue
+		}
+
+		break
+	}
+	pt.asyncTasksLock.Unlock()
+
+	return result
+}
+
+// mustSaveAsyncTasks persists the current async tasks to disk
+func (pt *partition) mustSaveAsyncTasks() {
+	pt.asyncTasksLock.Lock()
+	tasks := make([]asyncTask, len(pt.asyncTasks))
+	copy(tasks, pt.asyncTasks)
+	pt.asyncTasksLock.Unlock()
+
+	data := marshalAsyncTasks(tasks)
+	tasksPath := filepath.Join(pt.path, asyncTasksFilename)
+	fs.MustWriteAtomic(tasksPath, data, true)
+}
+
+// mustLoadAsyncTasks loads async tasks from disk during partition startup
+func (pt *partition) mustLoadAsyncTasks() {
+	tasksPath := filepath.Join(pt.path, asyncTasksFilename)
+	if !fs.IsPathExist(tasksPath) {
+		// No tasks file exists yet
+		return
+	}
+
+	data, err := os.ReadFile(tasksPath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read async tasks from %q: %s", tasksPath, err)
+	}
+
+	tasks := unmarshalAsyncTasks(data)
+
+	pt.asyncTasksLock.Lock()
+	pt.asyncTasks = tasks
+	pt.asyncTasksLock.Unlock()
+
+	// Update asyncTasksLen to the highest sequence number
+	var maxSeq uint64
+	for _, task := range tasks {
+		if task.Seq > maxSeq {
+			maxSeq = task.Seq
+		}
+	}
+	pt.asyncTasksLen.Store(maxSeq)
 }
