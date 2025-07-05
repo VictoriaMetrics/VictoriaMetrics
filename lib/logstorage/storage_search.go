@@ -1296,12 +1296,10 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	tenantIDs := so.tenantIDs
 
 	bswb := getBlockSearchWorkBatch()
-
 	scheduleBlockSearch := func(bh *blockHeader) bool {
 		if bswb.appendBlockSearchWork(p, so, bh) {
 			return true
 		}
-		// Current batch is full – flush it and continue.
 		select {
 		case <-stopCh:
 			return false
@@ -1354,27 +1352,18 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 
 		bhs := bhss.bhs
 		for len(bhs) > 0 {
-			// Advance bhs so that bhs[0] has streamID >= current tenantID
+			// search for blocks with the given tenantID
 			n = sort.Search(len(bhs), func(i int) bool {
 				return !bhs[i].streamID.tenantID.less(tenantID)
 			})
-			// Account for skipped blocks in sequence numbering.
 			bhs = bhs[n:]
-
-			for len(bhs) > 0 {
+			for len(bhs) > 0 && bhs[0].streamID.tenantID.equal(tenantID) {
 				bh := &bhs[0]
 				bhs = bhs[1:]
-
-				// Process only blocks that match the current tenantID.
-				if !bh.streamID.tenantID.equal(tenantID) {
-					continue
-				}
-
 				th := &bh.timestampsHeader
 				if so.minTimestamp > th.maxTimestamp || so.maxTimestamp < th.minTimestamp {
 					continue
 				}
-
 				if !scheduleBlockSearch(bh) {
 					return
 				}
@@ -1409,7 +1398,6 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	streamIDs := so.streamIDs
 
 	bswb := getBlockSearchWorkBatch()
-
 	scheduleBlockSearch := func(bh *blockHeader) bool {
 		if bswb.appendBlockSearchWork(p, so, bh) {
 			return true
@@ -1467,26 +1455,18 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 
 		bhs := bhss.bhs
 		for len(bhs) > 0 {
-			// Move bhs so that bhs[0] has streamID >= current streamID
+			// search for blocks with the given streamID
 			n = sort.Search(len(bhs), func(i int) bool {
 				return !bhs[i].streamID.less(streamID)
 			})
-			// Account for skipped blocks in sequence numbering.
 			bhs = bhs[n:]
-
-			for len(bhs) > 0 {
+			for len(bhs) > 0 && bhs[0].streamID.equal(streamID) {
 				bh := &bhs[0]
 				bhs = bhs[1:]
-
-				if !bh.streamID.equal(streamID) {
-					continue
-				}
-
 				th := &bh.timestampsHeader
 				if so.minTimestamp > th.maxTimestamp || so.maxTimestamp < th.minTimestamp {
 					continue
 				}
-
 				if !scheduleBlockSearch(bh) {
 					return
 				}
