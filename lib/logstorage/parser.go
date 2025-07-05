@@ -1209,6 +1209,7 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	if !lex.isEnd() {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
+	q.applyOffset()
 	q.optimize()
 	q.initStatsRateFuncsFromTimeFilter()
 
@@ -2575,19 +2576,15 @@ func getWeekRangeArg(lex *lexer) (time.Weekday, string, error) {
 	return day, argStr, nil
 }
 
-func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
+func parseFilterTimeRange(lex *lexer) (filter, error) {
 	if lex.isKeyword("offset") {
-		ft := &filterTime{
-			minTimestamp: math.MinInt64,
-			maxTimestamp: lex.currentTimestamp,
-		}
-		offset, offsetStr, err := parseTimeOffset(lex)
+		fto := &filterTimeOffset{}
+		offset, _, err := parseTimeOffset(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse offset for _time filter []: %w", err)
 		}
-		ft.maxTimestamp -= offset
-		ft.stringRepr = offsetStr
-		return ft, nil
+		fto.offset = offset
+		return fto, nil
 	}
 
 	ft, err := parseFilterTime(lex)
@@ -2598,13 +2595,13 @@ func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
 		return ft, nil
 	}
 
-	offset, offsetStr, err := parseTimeOffset(lex)
+	offset, _, err := parseTimeOffset(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse offset for _time filter [%s]: %w", ft, err)
 	}
 	ft.minTimestamp -= offset
 	ft.maxTimestamp -= offset
-	ft.stringRepr += " " + offsetStr
+	ft.offsetStringRepr = offset
 	return ft, nil
 }
 
@@ -2972,6 +2969,103 @@ func (q *Query) isStarQuery() bool {
 	default:
 		return false
 	}
+}
+
+func (q *Query) applyOffset() {
+	fto, ok := q.f.(*filterTimeOffset)
+	if ok {
+		q.f = &filterTime{
+			minTimestamp:     math.MinInt64,
+			maxTimestamp:     q.timestamp - fto.offset,
+			offsetStringRepr: fto.offset,
+		}
+		return
+	}
+	if _, ok := q.f.(*filterTime); ok {
+		return
+	}
+
+	q.visitSubqueries(func(q *Query) {
+		applyTimeOffsetsInternal(q.f, q.timestamp, 0)
+	})
+}
+
+// applyTimeOffsets traverse given filter to find filterTimeOffset to merge it into all filterTime.
+func applyTimeOffsetsInternal(f filter, timestamp, timeOffset int64) bool {
+	ft, ok := f.(*filterTime)
+	if ok {
+		if ft.minTimestamp != math.MinInt64 {
+			ft.minTimestamp -= timeOffset
+		}
+		if ft.maxTimestamp != math.MaxInt64 {
+			ft.maxTimestamp -= timeOffset
+		}
+		ft.offsetStringRepr += timeOffset
+		return true
+	}
+
+	fo, ok := f.(*filterOr)
+	if ok {
+		// Merge '(_time:1h and time:offset 1h) or (_time:1h and time:offset 2h)' into '_time:2h or _time:3h'.
+		applied := false
+		for i, f := range fo.filters {
+			fto, ok := f.(*filterTimeOffset)
+			if ok {
+				ft := &filterTime{
+					minTimestamp:     math.MinInt64,
+					maxTimestamp:     timestamp - fto.offset - timeOffset,
+					offsetStringRepr: timeOffset + fto.offset,
+				}
+				fo.filters[i] = ft
+				applied = true
+				continue
+			}
+			if applyTimeOffsetsInternal(f, timestamp, timeOffset) {
+				applied = true
+			}
+		}
+		return applied
+	}
+
+	fa, ok := f.(*filterAnd)
+	if !ok {
+		return false
+	}
+	// Accumulate all offsets.
+	hasFilterTimeOffset := false
+	for i := 0; i < len(fa.filters); {
+		f := fa.filters[i]
+		fto, ok := f.(*filterTimeOffset)
+		if !ok {
+			i++
+			continue
+		}
+		hasFilterTimeOffset = true
+		timeOffset += fto.offset
+		fa.filters = append(fa.filters[:i], fa.filters[i+1:]...)
+	}
+	if !hasFilterTimeOffset {
+		return false
+	}
+
+	// Apply the offset to all time filters.
+	applied := false
+	for _, f := range fa.filters {
+		if applyTimeOffsetsInternal(f, timestamp, timeOffset) {
+			applied = true
+		}
+	}
+	if applied {
+		return true
+	}
+
+	// There are no time filters, so add a time filter with the offset starting from the given timestamp.
+	fa.filters = append(fa.filters, &filterTime{
+		minTimestamp:     math.MinInt64,
+		maxTimestamp:     timestamp - timeOffset,
+		offsetStringRepr: timeOffset,
+	})
+	return false
 }
 
 func getFieldNameFromPipes(pipes []pipe) (string, error) {

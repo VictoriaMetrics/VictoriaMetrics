@@ -16,11 +16,20 @@ type filterTime struct {
 	maxTimestamp int64
 
 	// stringRepr is string representation of the filter
-	stringRepr string
+	stringRepr       string
+	offsetStringRepr int64
 }
 
 func (ft *filterTime) String() string {
-	return "_time:" + ft.stringRepr
+	s := "_time:" + ft.stringRepr
+	if ft.offsetStringRepr != 0 {
+		if ft.stringRepr != "" {
+			s += " "
+		}
+		v := marshalDurationString(nil, ft.offsetStringRepr)
+		s += "offset " + string(v)
+	}
+	return s
 }
 
 func (ft *filterTime) updateNeededFields(pf *prefixfilter.Filter) {
