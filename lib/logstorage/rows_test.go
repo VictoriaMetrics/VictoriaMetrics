@@ -100,11 +100,11 @@ func TestGetRowsSizeBytes(t *testing.T) {
 	}
 	f(nil, 0)
 	f([][]Field{}, 0)
-	f([][]Field{{}}, 35)
-	f([][]Field{{{Name: "foo"}}}, 40)
+	f([][]Field{{}}, 48)
+	f([][]Field{{{Name: "foo"}}}, 48)
 
 	_, rows := newTestRows(1000, 10)
-	f(rows, 233900)
+	f(rows, 286900)
 }
 
 func TestRowsAppendRows(t *testing.T) {

@@ -1,9 +1,11 @@
 package logstorage
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestBlockMustInitFromRows(t *testing.T) {
@@ -204,4 +206,114 @@ func TestBlockMustInitFromRows_Overflow(t *testing.T) {
 	f(10, 10, 10)
 	f(15, 30, 15)
 	f(maxColumnsPerBlock+1000, 1, maxColumnsPerBlock)
+}
+
+func TestBlockUncompressedSizeBytes(t *testing.T) {
+	f := func(rows [][]Field) {
+		t.Helper()
+
+		// Build expected JSON and calculate actual serialized size
+		var totalSize int
+		for _, fields := range rows {
+			m := make(map[string]string)
+			m["_time"] = time.RFC3339Nano
+
+			for _, f := range fields {
+				if f.Value == "" {
+					continue // skip empty values
+				}
+				key := getRawFieldName(f.Name)
+				m[key] = f.Value
+			}
+
+			b, err := json.Marshal(m)
+			if err != nil {
+				t.Fatalf("failed to marshal JSON: %v", err)
+			}
+			totalSize += len(b) + 1 // +1 for newline if expected
+		}
+
+		b := &block{}
+		timestamps := make([]int64, len(rows)) // values don't matter for size estimation
+		b.MustInitFromRows(timestamps, rows)
+
+		actualSize := b.uncompressedSizeBytes()
+		if actualSize != totalSize {
+			t.Fatalf("unexpected uncompressed size;\n got  %d\n want %d, testcase: %v", actualSize, totalSize, rows)
+		}
+	}
+
+	// Empty block
+	f(nil)
+
+	// Single row with one field
+	f([][]Field{
+		{{"msg", "hello"}},
+	})
+
+	// Multiple rows with constant columns
+	f([][]Field{
+		{{"level", "info"}},
+		{{"level", "info"}},
+	})
+
+	// Multiple rows with variable columns
+	f([][]Field{
+		{{"msg", "first"}},
+		{{"msg", "second"}},
+	})
+
+	// Mixed constant and variable columns
+	f([][]Field{
+		{{"service", "api"}, {"msg", "start"}},
+		{{"service", "api"}, {"msg", "end"}},
+	})
+
+	// Empty values ignored
+	f([][]Field{
+		{{"msg", "hello"}, {"empty", ""}},
+		{{"msg", ""}, {"empty", "world"}},
+	})
+}
+
+// TestEstimatedJSONRowLenMatchesBlockUncompressedSizeBytes verifies that
+// EstimatedJSONRowLen and block.uncompressedSizeBytes stay in sync.
+// If this test fails, update the calculations in both functions so that they
+// produce identical results for the same set of log entries.
+func TestEstimatedJSONRowLenMatchesBlockUncompressedSizeBytes(t *testing.T) {
+	f := func(rows [][]Field) {
+		t.Helper()
+
+		b := &block{}
+		timestamps := make([]int64, len(rows))
+		b.MustInitFromRows(timestamps, rows)
+
+		sizeBlock := b.uncompressedSizeBytes()
+		sizeRows := 0
+		for _, fields := range rows {
+			sizeRows += EstimatedJSONRowLen(fields)
+		}
+
+		if sizeBlock != sizeRows {
+			t.Fatalf("sizes mismatch: block=%d rows=%d for rows: %+v", sizeBlock, sizeRows, rows)
+		}
+	}
+
+	// Test cases
+	f(nil)
+
+	// Single row with one field
+	f([][]Field{{{"msg", "hello"}}})
+
+	// Multiple rows with constant column
+	f([][]Field{{{"level", "info"}}, {{"level", "info"}}})
+
+	// Multiple rows with variable columns
+	f([][]Field{{{"msg", "first"}}, {{"msg", "second"}}})
+
+	// Mixed constant and variable columns
+	f([][]Field{{{"service", "api"}, {"msg", "start"}}, {{"service", "api"}, {"msg", "end"}}})
+
+	// Empty values ignored
+	f([][]Field{{{"msg", "hello"}, {"empty", ""}}, {{"msg", ""}, {"empty", "world"}}})
 }
