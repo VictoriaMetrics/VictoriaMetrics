@@ -1360,22 +1360,32 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 
 		bhs := bhss.bhs
 		for len(bhs) > 0 {
-			// search for blocks with the given tenantID
+			// Advance bhs so that bhs[0] has streamID >= current tenantID
 			n = sort.Search(len(bhs), func(i int) bool {
 				return !bhs[i].streamID.tenantID.less(tenantID)
 			})
 			// Account for skipped blocks in sequence numbering.
 			seq += uint32(n)
 			bhs = bhs[n:]
-			for len(bhs) > 0 && bhs[0].streamID.tenantID.equal(tenantID) {
+
+			for len(bhs) > 0 {
 				bh := &bhs[0]
 				bhs = bhs[1:]
+
+				// Assign a stable global sequence number *before* any predicates.
 				seqCurr := seq
 				seq++
+
+				// Process only blocks that match the current tenantID.
+				if !bh.streamID.tenantID.equal(tenantID) {
+					continue
+				}
+
 				th := &bh.timestampsHeader
 				if so.minTimestamp > th.maxTimestamp || so.maxTimestamp < th.minTimestamp {
 					continue
 				}
+
 				if !scheduleBlockSearch(bh, seqCurr) {
 					return
 				}
@@ -1474,22 +1484,31 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 
 		bhs := bhss.bhs
 		for len(bhs) > 0 {
-			// search for blocks with the given streamID
+			// Move bhs so that bhs[0] has streamID >= current streamID
 			n = sort.Search(len(bhs), func(i int) bool {
 				return !bhs[i].streamID.less(streamID)
 			})
 			// Account for skipped blocks in sequence numbering.
 			seq += uint32(n)
 			bhs = bhs[n:]
-			for len(bhs) > 0 && bhs[0].streamID.equal(streamID) {
+
+			for len(bhs) > 0 {
 				bh := &bhs[0]
 				bhs = bhs[1:]
+
+				// Assign stable sequence number before filters.
 				seqCurr := seq
 				seq++
+
+				if !bh.streamID.equal(streamID) {
+					continue
+				}
+
 				th := &bh.timestampsHeader
 				if so.minTimestamp > th.maxTimestamp || so.maxTimestamp < th.minTimestamp {
 					continue
 				}
+
 				if !scheduleBlockSearch(bh, seqCurr) {
 					return
 				}
