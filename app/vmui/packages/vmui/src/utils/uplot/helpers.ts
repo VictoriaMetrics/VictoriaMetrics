@@ -54,9 +54,9 @@ export const getDashLine = (group: number): number[] => {
   return group <= 1 ? [] : [group*4, group*1.2];
 };
 
-export const getMetricName = (metricItem: MetricResult, seriesItem: SeriesItem) => {
+export const getMetricName = (metricItem: MetricResult, seriesItem: SeriesItem): string => {
   if (seriesItem?.hasAlias && seriesItem?.label) {
-    return seriesItem.label;
+    return seriesItem.label as string;
   }
 
   const metric = metricItem?.metric || {};

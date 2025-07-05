@@ -84,7 +84,7 @@ const getSeriesStatistics = (d: MetricResult) => {
 
 export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => ({
   group,
-  label: s.label || "",
+  label: (s.label || "") as string,
   color: s.stroke as string,
   checked: s.show || false,
   freeFormFields: s.freeFormFields,
@@ -96,7 +96,7 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => (
 export const getHideSeries = ({ hideSeries, legend, metaKey, series, isAnomalyView }: HideSeriesArgs): string[] => {
   const { label } = legend;
   const include = includesHideSeries(label, hideSeries);
-  const labels = series.map(s => s.label || "");
+  const labels = series.map(s => s.label || "") as string[];
 
   // if anomalyView is true, always return all series except the one specified by `label`
   if (isAnomalyView) {
