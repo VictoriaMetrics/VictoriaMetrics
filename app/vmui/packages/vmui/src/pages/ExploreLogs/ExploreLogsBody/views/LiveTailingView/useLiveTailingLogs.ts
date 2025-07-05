@@ -139,7 +139,7 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
     setError(undefined);
 
     try {
-      const response = await fetch(`${serverUrl}/select/logsql/tail`, {
+      const response = await fetch(`${serverUrl}/logsql/tail`, {
         signal,
         method: "POST",
         headers: {
@@ -222,4 +222,4 @@ export const useLiveTailingLogs = (query: string, limit: number) => {
     clearLogs,
     isLimitedLogsPerUpdate
   };
-}; 
+};

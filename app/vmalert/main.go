@@ -73,9 +73,9 @@ absolute path to all .tpl files in root.
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
 		`Supports templating - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating . `+
-		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
-		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
-		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
+		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{ .Expr|jsonEscape|queryEscape }},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
+		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{ .Expr|queryEscape }}'. `+
+		`If empty 'vmalert/#/#alert-{{ .AlertID }}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"In case of conflicts, original labels are kept with prefix `exported_`.")
 
@@ -295,8 +295,8 @@ func getHostnameAsExternalURL(addr string, isSecure bool) (*url.URL, error) {
 func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
 	if externalAlertSource == "" {
 		return func(a notifier.Alert) string {
-			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
-			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
+			aID := strconv.FormatUint(a.ID, 10)
+			return fmt.Sprintf("%s/vmalert/#/#alert-%s", externalURL, aID)
 		}, nil
 	}
 	if validateTemplate {

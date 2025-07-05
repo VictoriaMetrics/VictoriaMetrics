@@ -1,3 +1,5 @@
+import { APP_TYPE, AppType } from "../constants/appType";
+
 const regexp = /(\/select\/)(\d+|\d.+)(\/)(.+)/;
 
 export const replaceTenantId = (serverUrl: string, tenantId: string) => {
@@ -8,6 +10,11 @@ export const getTenantIdFromUrl = (url: string): string => {
   return url.match(regexp)?.[2] || "";
 };
 
-export const getUrlWithoutTenant = (url: string): string => {
-  return url.replace(regexp, "");
+export const getUrlWithoutTenant = (server: string): string => {
+  switch (APP_TYPE) {
+    case AppType.victorialogs:
+      return server.replace(/^(.*)(\/select)/, "$1");
+    default:
+      return server.replace(/^(.*)(\/select\/[^/]+)/, "$1");
+  }
 };

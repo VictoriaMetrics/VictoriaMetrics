@@ -10,6 +10,7 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsLogsLayout from "./ControlsLogsLayout";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 import { footerLinksToLogs } from "../../constants/footerLinks";
+import useFetchFlags from "../../hooks/useFetchFlags";
 
 const LogsLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -17,6 +18,7 @@ const LogsLayout: FC = () => {
   const { pathname } = useLocation();
 
   useFetchDefaultTimezone();
+  useFetchFlags();
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui for VictoriaLogs";
