@@ -50,9 +50,12 @@ func benchmarkReadBulkRequest(b *testing.B, encoding string) {
 		r := &bytes.Reader{}
 		for pb.Next() {
 			r.Reset(dataBytes)
-			_, err := readBulkRequest("test", r, encoding, timeFields, msgFields, blp)
+			_, parseErrors, err := readBulkRequest("test", r, encoding, timeFields, msgFields, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
+			}
+			if len(parseErrors) > 0 {
+				panic(fmt.Errorf("unexpected parse errors: %v", parseErrors))
 			}
 		}
 	})
