@@ -111,7 +111,8 @@ func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
 		blocksCount: p.ph.BlocksCount,
 	}
 
-	logger.Infof("DEBUG: create inmemory part with appliedTSeq=%d", p.appliedTSeq.Load())
+	p.appliedTSeq.Store(pt.getPendingAsyncTask().Seq)
+
 	return &p
 }
 

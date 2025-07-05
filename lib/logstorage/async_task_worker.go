@@ -118,6 +118,10 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 
 	// Update parts as caught up.
 	for _, pw := range lagging {
+		if pw.p.appliedTSeq.Load() < task.Seq {
+			logger.Infof("DEBUG: found part %s to caught up (appliedTSeq=%d, task.Seq=%d)", pw.p.path, pw.p.appliedTSeq.Load(), task.Seq)
+			continue
+		}
 		pw.p.setAppliedTSeq(task.Seq)
 		pw.decRef()
 	}

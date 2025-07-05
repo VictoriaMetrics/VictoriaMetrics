@@ -231,18 +231,16 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 			// logger.Infof("DEBUG: find delete marker for block %d (total rows=%d, columnsHeaderOffset=%d) of part %s", bsw.seq, bsw.bh.rowsCount, bsw.bh.columnsHeaderOffset, bsw.p.path)
 			if ent.IsOnes(bsw.bh.rowsCount) {
 				// Full-block delete – skip the block entirely.
-				logger.Infof("DEBUG: delete marker covers the entire block (rows=%d); skipping", bsw.bh.rowsCount)
+				// logger.Infof("DEBUG: delete marker covers the entire block (block=%d, rows=%d); skipping", bsw.seq, bsw.bh.rowsCount)
 				return
 			}
 
 			// Partial delete – measure rows before/after applying the marker for investigation.
-			beforeCount := bm.onesCount()
+			// beforeCount := bm.onesCount()
 			ent.AndNotRLE(bm)
-			afterCount := bm.onesCount()
-			logger.Infof("DEBUG: applied delete marker for block %d of part %s; deleted=%d, before=%d, after=%d, rle=%s", bsw.seq, bsw.p.path, beforeCount-afterCount, beforeCount, afterCount, ent.String())
+			// afterCount := bm.onesCount()
+			// logger.Infof("DEBUG: applied delete marker for block %d of part %s; deleted=%d, before=%d, after=%d, rle=%s", bsw.seq, bsw.p.path, beforeCount-afterCount, beforeCount, afterCount, ent.String())
 		}
-	} else {
-		logger.Infof("DEBUG: no delete marker for block %d of part %s", bsw.seq, bsw.p.path)
 	}
 
 	// Apply query filter.
