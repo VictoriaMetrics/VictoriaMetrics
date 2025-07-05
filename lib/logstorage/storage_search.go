@@ -1296,15 +1296,9 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	tenantIDs := so.tenantIDs
 
 	bswb := getBlockSearchWorkBatch()
-	// seq holds the global block index inside the part (0..BlocksCount-1).
-	// It must be incremented for every block header we iterate over, even if the
-	// block is eventually skipped by the search filter. This guarantees that the
-	// same physical block always receives the same sequence number across
-	// different queries, which is essential for stable delete-marker mapping.
-	seq := uint32(0)
 
-	scheduleBlockSearch := func(bh *blockHeader, seqCurr uint32) bool {
-		if bswb.appendBlockSearchWork(p, so, bh, seqCurr) {
+	scheduleBlockSearch := func(bh *blockHeader) bool {
+		if bswb.appendBlockSearchWork(p, so, bh) {
 			return true
 		}
 		// Current batch is full – flush it and continue.
@@ -1365,16 +1359,11 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 				return !bhs[i].streamID.tenantID.less(tenantID)
 			})
 			// Account for skipped blocks in sequence numbering.
-			seq += uint32(n)
 			bhs = bhs[n:]
 
 			for len(bhs) > 0 {
 				bh := &bhs[0]
 				bhs = bhs[1:]
-
-				// Assign a stable global sequence number *before* any predicates.
-				seqCurr := seq
-				seq++
 
 				// Process only blocks that match the current tenantID.
 				if !bh.streamID.tenantID.equal(tenantID) {
@@ -1386,7 +1375,7 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 					continue
 				}
 
-				if !scheduleBlockSearch(bh, seqCurr) {
+				if !scheduleBlockSearch(bh) {
 					return
 				}
 			}
@@ -1427,8 +1416,8 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	// different queries, which is essential for stable delete-marker mapping.
 	seq := uint32(0)
 
-	scheduleBlockSearch := func(bh *blockHeader, seqCurr uint32) bool {
-		if bswb.appendBlockSearchWork(p, so, bh, seqCurr) {
+	scheduleBlockSearch := func(bh *blockHeader) bool {
+		if bswb.appendBlockSearchWork(p, so, bh) {
 			return true
 		}
 		select {
