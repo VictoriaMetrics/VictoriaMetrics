@@ -117,7 +117,7 @@ func TestFieldsToSpan(t *testing.T) {
 			{
 				traceID: "99999999999",
 				spanID:  "98765",
-				refType: "FOLLOW_FROM",
+				refType: "FOLLOWS_FROM",
 			},
 		},
 		startTime: 0,

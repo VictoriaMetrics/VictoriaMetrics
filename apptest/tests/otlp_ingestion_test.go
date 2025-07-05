@@ -169,7 +169,7 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 						{
 							TraceID: hex.EncodeToString([]byte(traceID)),
 							SpanID:  hex.EncodeToString([]byte(spanID)),
-							RefType: "FOLLOW_FROM",
+							RefType: "FOLLOWS_FROM",
 						},
 					},
 					StartTime: spanTime.UnixMicro(),
