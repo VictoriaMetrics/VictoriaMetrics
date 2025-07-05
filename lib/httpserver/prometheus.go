@@ -3,15 +3,14 @@ package httpserver
 import (
 	"errors"
 	"net/http"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // SendPrometheusError sends err to w in Prometheus querying API response format.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview for more details
 func SendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.WarnfSkipframes(1, "error in %q: %s", GetRequestURI(r), err)
+	errStr := err.Error()
+	logHTTPError(r, errStr)
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
