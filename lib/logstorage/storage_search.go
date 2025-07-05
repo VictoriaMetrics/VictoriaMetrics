@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -16,6 +17,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	rowsPerQuery        = metrics.NewHistogram(`vl_storage_rows_read_per_query`)
+	bytesPerQuery       = metrics.NewHistogram(`vl_storage_bytes_read_per_query`)
+	blocksPerQuery      = metrics.NewHistogram(`vl_storage_blocks_read_per_query`)
+	streamsUsedPerQuery = metrics.NewHistogram(`vl_storage_streams_used_per_query`)
 )
 
 // genericSearchOptions contain options used for search.
@@ -100,7 +109,16 @@ func (f writeBlockResultFunc) newDataBlockWriter() WriteDataBlockFunc {
 // RunQuery runs the given q and calls writeBlock for results.
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteDataBlockFunc) error {
 	writeBlockResult := writeBlock.newBlockResultWriter()
-	return s.runQuery(ctx, tenantIDs, q, writeBlockResult)
+
+	err := s.runQuery(ctx, tenantIDs, q, writeBlockResult)
+
+	// Update metrics regardless of the error
+	bytesPerQuery.Update(float64(q.searchStats.totalBytesFromDisk.Load()))
+	rowsPerQuery.Update(float64(q.searchStats.totalRows.Load()))
+	blocksPerQuery.Update(float64(q.searchStats.totalBlocks.Load()))
+	streamsUsedPerQuery.Update(float64(q.searchStats.fetchStreams.Load()))
+
+	return err
 }
 
 // runQueryFunc must run the given q and pass query results to writeBlock
@@ -133,7 +151,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	workersCount := q.GetConcurrency()
 
 	search := func(stopCh <-chan struct{}, writeBlockToPipes writeBlockResultFunc) error {
-		s.search(workersCount, so, stopCh, writeBlockToPipes)
+		s.search(workersCount, q.searchStats, so, stopCh, writeBlockToPipes)
 		return nil
 	}
 
@@ -1031,13 +1049,17 @@ func (db *DataBlock) initFromBlockResult(br *blockResult) {
 // search searches for the matching rows according to so.
 //
 // It calls writeBlock for each matching block.
-func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+func (s *Storage) search(workersCount int, ss *searchStats, so *genericSearchOptions, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
 	// Spin up workers
 	var wgWorkers sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)
 	wgWorkers.Add(workersCount)
-	for i := 0; i < workersCount; i++ {
+
+	for i := range workersCount {
 		go func(workerID uint) {
+			var totalBytesFromDisk uint64
+			var totalRows, totalBlocks int
+
 			bs := getBlockSearch()
 			bm := getBitmap(0)
 			for bswb := range workCh {
@@ -1051,6 +1073,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 					}
 
 					bs.search(bsw, bm)
+					totalBytesFromDisk += bs.bytesReadFromDisk.Load()
+					totalRows += bs.br.rowsLen
+					totalBlocks++
+
 					if bs.br.rowsLen > 0 {
 						writeBlock(workerID, &bs.br)
 					}
@@ -1059,6 +1085,11 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 				bswb.bsws = bswb.bsws[:0]
 				putBlockSearchWorkBatch(bswb)
 			}
+
+			ss.totalBytesFromDisk.Add(totalBytesFromDisk)
+			ss.totalRows.Add(uint64(totalRows))
+			ss.totalBlocks.Add(uint64(totalBlocks))
+
 			putBlockSearch(bs)
 			putBitmap(bm)
 			wgWorkers.Done()
@@ -1097,7 +1128,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(sf, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(sf, ss, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -1126,7 +1157,14 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+type searchStats struct {
+	fetchStreams       atomic.Uint64
+	totalBytesFromDisk atomic.Uint64
+	totalRows          atomic.Uint64
+	totalBlocks        atomic.Uint64
+}
+
+func (pt *partition) search(sf *StreamFilter, ss *searchStats, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -1144,6 +1182,8 @@ func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions
 		streamIDs = getStreamIDsForTenantIDs(so.streamIDs, tenantIDs)
 		tenantIDs = nil
 	}
+	ss.fetchStreams.Add(uint64(len(streamIDs)))
+
 	if hasStreamFilters(f) {
 		f = initStreamFilters(so.tenantIDs, pt.idb, f)
 	}
