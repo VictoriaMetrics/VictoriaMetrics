@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -784,6 +785,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 
 		rowsCount := int(bs.bsw.bh.rowsCount)
 		ones := bm.onesCount()
+
 		// logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
 		rowsMarked += uint64(ones)
 
@@ -792,8 +794,19 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 			rle = boolRLE(nil).SetAllOnes(rowsCount)
 			logger.Infof("DEBUG: delete marker RLE (all) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
 		} else {
-			rle = boolRLE(bm.MarshalRLE(nil))
+			rle = boolRLE(bm.MarshalBoolRLE(nil))
 			logger.Infof("DEBUG: delete marker RLE for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+		}
+
+		if len(rle) < 16 {
+			return // need at least 2 items in RLE bitmap
+		}
+
+		if bs.bsw.dm != nil {
+			dm, ok := bs.bsw.dm.GetMarkedRows(bs.bsw.seq)
+			if ok && bytes.Equal(dm, rle) {
+				return // already marked
+			}
 		}
 
 		seq := bs.bsw.seq

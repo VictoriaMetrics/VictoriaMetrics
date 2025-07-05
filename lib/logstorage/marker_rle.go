@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
-// MarshalRLE encodes the given bitmap into run-length encoding and appends the
+// MarshalBoolRLE encodes the given bitmap into run-length encoding and appends the
 // resulting bytes to dst. The format starts with the length of the initial run
 // of zero bits and then alternates zero-runs and one-runs until the end of the
 // bitmap is reached. All run lengths are encoded with variable-length unsigned
@@ -18,7 +18,7 @@ import (
 //
 //	000111 -> 3,3      (encoded as VarUInt64 3,3)
 //	1100   -> 0,2,2    (encoded 0,2,2)
-func (bm *bitmap) MarshalRLE(dst []byte) []byte {
+func (bm *bitmap) MarshalBoolRLE(dst []byte) boolRLE {
 	if bm == nil || bm.bitsLen == 0 {
 		return nil
 	}

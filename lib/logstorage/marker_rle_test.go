@@ -19,7 +19,7 @@ func createTestRLE(pattern string) boolRLE {
 		}
 	}
 
-	return boolRLE(bm.MarshalRLE(nil))
+	return boolRLE(bm.MarshalBoolRLE(nil))
 }
 
 // equalRLE checks if two RLE bitmaps are equivalent
@@ -71,7 +71,7 @@ func TestMarshalRLE(t *testing.T) {
 			expectedRLE = encoding.MarshalVarUint64(expectedRLE, run)
 		}
 
-		actualRLE := bm.MarshalRLE(nil)
+		actualRLE := bm.MarshalBoolRLE(nil)
 		if !bytes.Equal(actualRLE, expectedRLE) {
 			t.Fatalf("unexpected result for pattern %s; got %v; want %v", pattern, actualRLE, expectedRLE)
 		}
@@ -151,6 +151,7 @@ func TestBoolRLEUnion(t *testing.T) {
 	f("0000", "0000", "0000")
 	f("1111", "1111", "1111")
 	f("0000", "1111", "1111")
+	f("1111", "0000", "1111")
 
 	// Classical “two halves” overlap
 	f("11110000", "00001111", "11111111")
