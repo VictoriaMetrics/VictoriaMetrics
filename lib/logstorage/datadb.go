@@ -439,12 +439,7 @@ func (ddb *datadb) bigPartsMerger() {
 func getPartsToMergeLocked(pws []*partWrapper, maxOutBytes uint64) []*partWrapper {
 	pwsRemaining := make([]*partWrapper, 0, len(pws))
 	for _, pw := range pws {
-		if !pw.isInMerge {
-			// skip parts with outstanding delete tasks not yet applied
-			partitionSeq := pw.p.pt.getPendingAsyncTask().Seq
-			if pw.p.appliedTSeq.Load() < partitionSeq {
-				continue
-			}
+		if !pw.isInMerge && !pw.p.isPayingAsyncTask() {
 			pwsRemaining = append(pwsRemaining, pw)
 		}
 	}

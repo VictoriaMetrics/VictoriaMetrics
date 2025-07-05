@@ -273,3 +273,8 @@ func (p *part) setAppliedTSeq(seq uint64) {
 	}
 	fs.MustSyncPath(p.path)
 }
+
+func (p *part) isPayingAsyncTask() bool {
+	seq, ok := p.pt.isPayingAsyncTask()
+	return ok && p.appliedTSeq.Load() < seq
+}

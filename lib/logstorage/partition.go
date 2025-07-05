@@ -283,6 +283,12 @@ func (pt *partition) markAsyncTaskAsApplied(seq uint64, status asyncTaskStatus) 
 	}
 }
 
+func (pt *partition) isPayingAsyncTask() (seq uint64, ok bool) {
+	seq = pt.getPendingAsyncTask().Seq
+	ok = seq == pt.s.asyncTaskSeq.Load()
+	return
+}
+
 // mustLoadAsyncTasks loads async tasks from disk during partition startup
 func (pt *partition) mustLoadAsyncTasks() {
 	tasksPath := filepath.Join(pt.path, asyncTasksFilename)

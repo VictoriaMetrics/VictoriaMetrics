@@ -146,7 +146,9 @@ type Storage struct {
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
 
+	// asyncTaskStop is used to stop the async task worker.
 	asyncTaskStop asyncTaskStop
+	asyncTaskSeq  atomic.Uint64
 }
 
 type asyncTaskStop struct {

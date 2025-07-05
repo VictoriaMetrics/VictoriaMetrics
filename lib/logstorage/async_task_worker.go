@@ -69,7 +69,7 @@ func (s *Storage) runAsyncTasksOnce(ctx context.Context, seq *uint64) error {
 	}
 	s.partitionsLock.Unlock()
 
-	oudatedPtws, task := s.findNextAsyncTask(ptws)
+	oudatedPtws, task := s.advanceNextAsyncTask(ptws)
 	if task.Type == asyncTaskNone {
 		return nil
 	}
@@ -195,7 +195,7 @@ func (s *Storage) runDeleteTask(ctx context.Context, task asyncTask, lagging []*
 	return err
 }
 
-func (s *Storage) findNextAsyncTask(ptws []*partitionWrapper) ([]*partitionWrapper, asyncTask) {
+func (s *Storage) advanceNextAsyncTask(ptws []*partitionWrapper) ([]*partitionWrapper, asyncTask) {
 	var minSeq uint64 = math.MaxUint64
 	var result asyncTask
 	var resultPtws []*partitionWrapper
@@ -215,5 +215,6 @@ func (s *Storage) findNextAsyncTask(ptws []*partitionWrapper) ([]*partitionWrapp
 		}
 	}
 
+	s.asyncTaskSeq.Store(result.Seq)
 	return resultPtws, result
 }
