@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"sync"
+	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 
@@ -63,50 +64,6 @@ func (t *hashTokenizer) reset() {
 		}
 		t.bm.init(len(t.buckets))
 	}
-}
-
-func (t *hashTokenizer) tokenizeString(dst []uint64, s string) []uint64 {
-	if !isASCII(s) {
-		// Slow path - s contains unicode chars
-		return t.tokenizeStringUnicode(dst, s)
-	}
-
-	// Fast path for ASCII s
-	i := 0
-	for i < len(s) {
-		// Search for the next token.
-		start := len(s)
-		for i < len(s) {
-			if !isTokenChar(s[i]) {
-				i++
-				continue
-			}
-			start = i
-			i++
-			break
-		}
-		// Search for the end of the token.
-		end := len(s)
-		for i < len(s) {
-			if isTokenChar(s[i]) {
-				i++
-				continue
-			}
-			end = i
-			i++
-			break
-		}
-		if end <= start {
-			break
-		}
-
-		// Register the token.
-		token := s[start:end]
-		if h, ok := t.addToken(token); ok {
-			dst = append(dst, h)
-		}
-	}
-	return dst
 }
 
 func (t *hashTokenizer) tokenizeStringUnicode(dst []uint64, s string) []uint64 {
@@ -179,3 +136,93 @@ func putHashTokenizer(t *hashTokenizer) {
 }
 
 var hashTokenizerPool sync.Pool
+
+func initAsciiTable() (table [256]byte) {
+	for i := '0'; i <= '9'; i++ {
+		table[i] = 1
+	}
+	for i := 'a'; i <= 'z'; i++ {
+		table[i] = 1
+	}
+	for i := 'A'; i <= 'Z'; i++ {
+		table[i] = 1
+	}
+	table['_'] = 1
+	return
+}
+
+func initUnicodeTable() (table [256]byte) {
+	for i := '0'; i <= '9'; i++ {
+		table[i] = 1
+	}
+	for i := 'a'; i <= 'z'; i++ {
+		table[i] = 1
+	}
+	for i := 'A'; i <= 'Z'; i++ {
+		table[i] = 1
+	}
+	table['_'] = 1
+	for i := 128; i <= 255; i++ {
+		table[i] = 1
+	}
+	return
+}
+
+var lookupTables [2][256]byte = func() [2][256]byte {
+	return [2][256]byte{
+		initAsciiTable(),
+		initUnicodeTable(),
+	}
+}()
+
+func (t *hashTokenizer) tokenizeString(dst []uint64, s string) []uint64 {
+	i := 0
+	ptr := unsafe.Pointer(unsafe.StringData(s))
+	var curUnicodeFlag byte
+	for i < len(s) {
+		curUnicodeFlag = 0
+		// Search for the next token.
+		start := len(s)
+		for i < len(s) {
+			c := *(*byte)(unsafe.Add(ptr, uintptr(i)))
+			unicodeFlag := c & 0x80
+			unicodeFlag = (unicodeFlag | (-unicodeFlag)) >> 7
+			curUnicodeFlag |= unicodeFlag
+			flag := lookupTables[unicodeFlag][c]
+			if flag == 0 {
+				i++
+				continue
+			}
+			start = i
+			i++
+			break
+		}
+		// Search for the end of the token.
+		end := len(s)
+		for i < len(s) {
+			c := *(*byte)(unsafe.Add(ptr, uintptr(i)))
+			flag := lookupTables[curUnicodeFlag][c]
+			if flag != 0 {
+				i++
+				continue
+			}
+			end = i
+			i++
+			break
+		}
+		if end <= start {
+			break
+		}
+
+		// Register the token.
+		token := unsafe.String((*byte)(unsafe.Add(ptr, start)), end-start)
+		if curUnicodeFlag == 1 {
+			dst = t.tokenizeStringUnicode(dst, token)
+			continue
+		}
+		if h, ok := t.addToken(token); ok {
+			dst = append(dst, h)
+		}
+	}
+	return dst
+}
