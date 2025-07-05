@@ -343,7 +343,7 @@ func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, seq ui
 		return false
 	}
 
-	logger.Infof("DEBUG: found delete marker when merging: bsr.blockData.streamID=%q, bsr.blockData.rowsCount=%d, streamID=%q", bsr.blockData.streamID, bsr.blockData.rowsCount, bsm.streamID)
+	logger.Infof("DEBUG: merging: found delete marker when merging: bsr.blockData.streamID=%q, bsr.blockData.rowsCount=%d, streamID=%q", bsr.blockData.streamID.String(), bsr.blockData.rowsCount, bsm.streamID.String())
 
 	rowsTotal := int(bsr.blockData.rowsCount)
 	if rowsTotal == 0 {
@@ -398,7 +398,7 @@ func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, seq ui
 	}
 	heap.Push(&bsm.readersHeap, bsrNew)
 	bsm.bsrs = append(bsm.bsrs, bsrNew)
-	logger.Infof("DEBUG: pushed pruned reader streamID=%s rows=%d", &bsr.blockData.streamID, len(keptTS))
+	logger.Infof("DEBUG: merging: pushed pruned reader streamID=%s rows=%d", &bsr.blockData.streamID, len(keptTS))
 
 	return true
 }
