@@ -1498,7 +1498,7 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 					continue
 				}
 
-				if !scheduleBlockSearch(bh, seqCurr) {
+				if !scheduleBlockSearch(bh) {
 					return
 				}
 			}
