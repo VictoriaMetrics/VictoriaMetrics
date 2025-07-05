@@ -22,7 +22,7 @@ func TestCalculateRetryDuration(t *testing.T) {
 		expectMaxDuration := helper(expectMinDuration)
 		expectMinDuration = expectMinDuration - (1000 * time.Millisecond) // Avoid edge case when calculating time.Until(now)
 
-		if !(retryDuration >= expectMinDuration && retryDuration <= expectMaxDuration) {
+		if retryDuration < expectMinDuration || retryDuration > expectMaxDuration {
 			t.Fatalf(
 				"incorrect retry duration, want (ms): [%d, %d], got (ms): %d",
 				expectMinDuration.Milliseconds(), expectMaxDuration.Milliseconds(),

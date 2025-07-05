@@ -248,7 +248,7 @@ func (cw *configWatcher) updateTargets(key TargetType, targetMetadata map[string
 	for _, ot := range oldTargets {
 		if _, ok := targetMetadata[ot.Addr()]; !ok {
 			// if target not exists in currentTargets, close it
-			ot.Notifier.Close()
+			ot.Close()
 		} else {
 			updatedTargets = append(updatedTargets, ot)
 			delete(targetMetadata, ot.Addr())
