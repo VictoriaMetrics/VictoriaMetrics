@@ -237,63 +237,147 @@ func (rle boolRLE) IsStateful() bool {
 	return true
 }
 
-// func (rle boolRLE) UnionV1(other boolRLE) boolRLE {
-// 	// Fast paths.
-// 	if len(rle) == 0 {
-// 		return append(boolRLE(nil), other...)
-// 	}
-// 	if len(other) == 0 {
-// 		return append(boolRLE(nil), rle...)
-// 	}
+func (rle boolRLE) IsSubsetOf(other boolRLE) bool {
+	// Fast paths --------------------------------------------------------
+	if len(rle) == 0 { // empty bitmap is subset of anything
+		return true
+	}
+	if len(other) == 0 { // other is all-zero ⇒ rle must have no 1s
+		return !rle.containsOne()
+	}
 
-// 	totalRows := totalRowsInRLE(rle)
-// 	if tr := totalRowsInRLE(other); tr > totalRows {
-// 		totalRows = tr
-// 	}
+	// Decoder for a single RLE stream ----------------------------------
+	type decoder struct {
+		src  boolRLE
+		idx  int    // read offset in src
+		rem  uint64 // rows left in current run
+		ones bool   // type of current run (false = zeros)
+	}
+	load := func(d *decoder) {
+		for d.rem == 0 && d.idx < len(d.src) {
+			run, n := encoding.UnmarshalVarUint64(d.src[d.idx:])
+			d.idx += n
+			if run == 0 {
+				// Zero-length run: flip run type and continue reading.
+				d.ones = !d.ones
+				continue
+			}
+			d.rem = run
+			// NOTE: do *not* flip d.ones here; it already describes this run.
+		}
+	}
 
-// 	// Initialize bitmap large enough to hold the union of both inputs.
-// 	bm := getBitmap(totalRows)
-// 	bm.init(totalRows)
+	var a, b decoder
+	a.src = rle
+	b.src = other
 
-// 	// Helper that sets bits in bm according to the supplied RLE.
-// 	decodeIntoBitmap := func(src boolRLE) {
-// 		idx := 0
-// 		pos := 0
-// 		isOnesRun := false // first run is zeros
-// 		for idx < len(src) {
-// 			run, n := encoding.UnmarshalVarUint64(src[idx:])
-// 			idx += n
-// 			if isOnesRun && run > 0 {
-// 				// Set bits [pos, pos+run)
-// 				for i := 0; i < int(run); i++ {
-// 					bm.setBit(pos + i)
-// 				}
-// 			}
-// 			pos += int(run)
-// 			isOnesRun = !isOnesRun
-// 		}
-// 	}
+	for {
+		load(&a)
+		load(&b)
 
-// 	decodeIntoBitmap(rle)
-// 	decodeIntoBitmap(other)
+		// a finished → every 1-bit matched ⇒ subset
+		if a.rem == 0 && a.idx >= len(a.src) {
+			return true
+		}
 
-// 	// Encode back to RLE and release the bitmap.
-// 	result := bm.MarshalRLE(nil)
-// 	putBitmap(bm)
-// 	return result
-// }
+		// b finished → remaining bits are zeros
+		if b.rem == 0 && b.idx >= len(b.src) {
+			// If a still has any 1s, not a subset
+			return !(a.ones && a.rem > 0)
+		}
 
-// // totalRowsInRLE returns the total number of rows represented by the RLE stream.
-// func totalRowsInRLE(rle boolRLE) int {
-// 	idx := 0
-// 	total := 0
-// 	for idx < len(rle) {
-// 		run, n := encoding.UnmarshalVarUint64(rle[idx:])
-// 		idx += n
-// 		total += int(run)
-// 	}
-// 	return total
-// }
+		// Determine how many rows we can consume in this step.
+		var span uint64
+		switch {
+		case a.rem == 0:
+			span = b.rem
+		case b.rem == 0:
+			span = a.rem
+		case a.rem < b.rem:
+			span = a.rem
+		default:
+			span = b.rem
+		}
+
+		// If this span has 1s in a and 0s in b → violation.
+		if a.ones && !b.ones && span > 0 {
+			return false
+		}
+
+		// Consume span from both streams.
+		if a.rem >= span {
+			a.rem -= span
+			if a.rem == 0 {
+				a.ones = !a.ones
+			}
+		}
+		if b.rem >= span {
+			b.rem -= span
+			if b.rem == 0 {
+				b.ones = !b.ones
+			}
+		}
+	}
+}
+
+// containsOne is an O(#runs) helper: true if bitmap has any 1-bit.
+func (rle boolRLE) containsOne() bool {
+	idx := 0
+	ones := false
+	for idx < len(rle) {
+		run, n := encoding.UnmarshalVarUint64(rle[idx:])
+		idx += n
+		if ones && run > 0 {
+			return true
+		}
+		ones = !ones
+	}
+	return false
+}
+
+// BitmapUnion decodes both RLEs into bitmaps, unions them, and returns the re-encoded RLE.
+// This is a simple reference version for testing.
+func UnionV0(a, b boolRLE, totalRows int) boolRLE {
+	if totalRows == 0 {
+		return nil
+	}
+	bmA := getBitmap(totalRows)
+	bmB := getBitmap(totalRows)
+	defer putBitmap(bmA)
+	defer putBitmap(bmB)
+
+	// Set 1-bits for each bitmap according to each RLE
+	applyRLEToBitmap(bmA, a, totalRows)
+	applyRLEToBitmap(bmB, b, totalRows)
+
+	// OR the bitmaps
+	for i := range bmA.a {
+		bmA.a[i] |= bmB.a[i]
+	}
+
+	// Encode back to RLE
+	return bmA.MarshalBoolRLE(nil)
+}
+
+// Helper: sets 1s in bitmap for every one-run in rle.
+func applyRLEToBitmap(bm *bitmap, rle boolRLE, totalRows int) {
+	idx, pos := 0, 0
+	ones := false
+	for idx < len(rle) && pos < totalRows {
+		run, n := encoding.UnmarshalVarUint64(rle[idx:])
+		idx += n
+		if ones && run > 0 {
+			for i := 0; i < int(run) && pos+i < totalRows; i++ {
+				bm.setBit(pos + i)
+			}
+		}
+		pos += int(run)
+		ones = !ones
+	}
+}
+
+// Assumes existence of a 'bitmap' type with setBit(int) and MarshalBoolRLE([]byte) methods
+// and a constructor newBitmap(rows int) *bitmap
 
 // Union returns an RLE-encoded bitmap equal to the bit-wise OR of rle and other.
 // It walks the two RLE streams in lock-step, so it never allocates an
@@ -309,10 +393,10 @@ func (rle boolRLE) Union(other boolRLE) boolRLE {
 
 	// Decoder tracks the remaining rows in the current run and its type.
 	type decoder struct {
-		src    boolRLE
-		idx    int    // offset in src
-		rem    uint64 // rows left in current run
-		isOnes bool   // current run type (false = zeros)
+		src   boolRLE
+		pos   int    // offset in src
+		n     uint64 // rows left in current run
+		isOne bool   // current run type (false = zeros)
 	}
 
 	// Initialise decoders (first run is zeros).
@@ -321,90 +405,83 @@ func (rle boolRLE) Union(other boolRLE) boolRLE {
 
 	// step pulls the next non-empty run into d.rem / d.isOnes.
 	step := func(d *decoder) {
-		for d.rem == 0 && d.idx < len(d.src) {
-			run, n := encoding.UnmarshalVarUint64(d.src[d.idx:])
-			d.idx += n
-			d.rem = run
-			if d.rem == 0 {
-				// Empty run – just toggle type and continue.
-				d.isOnes = !d.isOnes
+		for d.pos < len(d.src) {
+			run, n := encoding.UnmarshalVarUint64(d.src[d.pos:])
+			d.pos += n
+			d.n = run
+			if d.n == 0 {
+				d.isOne = !d.isOne
 				continue
 			}
-			// Non-empty run loaded; keep current type.
+
+			return
 		}
 	}
 
-	// Output builder collects run lengths before varint-encoding.
-	outRuns := make([]uint64, 0, 8)
-	outIsOnes := false // first run is zeros
-	outLen := uint64(0)
+	needOnes := false // first run is zeros
+	outN := uint64(0)
+	var v []uint64
 
-	flush := func() {
-		outRuns = append(outRuns, outLen)
-		outLen = 0
-	}
-
+	step(&d1)
+	step(&d2)
 	for {
-		step(&d1)
-		step(&d2)
-
+		isStep := false
 		// Both streams exhausted?
-		if d1.rem == 0 && d2.rem == 0 {
+		if d1.n == 0 && d2.n == 0 {
 			break
 		}
 
-		// Span length = min(non-zero rems).
-		var span uint64
-		switch {
-		case d1.rem == 0:
-			span = d2.rem
-		case d2.rem == 0:
-			span = d1.rem
-		case d1.rem < d2.rem:
-			span = d1.rem
-		default:
-			span = d2.rem
-		}
+		outIsOnes := d1.isOne || d2.isOne
 
-		// Union bit for this span.
-		spanOnes := d1.isOnes || d2.isOnes
-
-		// Emit or extend run in output.
-		if spanOnes == outIsOnes {
-			outLen += span
-		} else {
-			if outLen > 0 {
-				flush()
+		if !needOnes {
+			if outIsOnes {
+				v = append(v, outN)
 			}
-			outIsOnes = spanOnes
-			outLen = span
-		}
 
-		// Advance decoders.
-		if d1.rem >= span {
-			d1.rem -= span
-			if d1.rem == 0 {
-				d1.isOnes = !d1.isOnes
+			if !d1.isOne {
+				outN += d1.n
+				step(&d1)
+				isStep = true
+			}
+
+			if !d2.isOne {
+				outN += d2.n
+				step(&d2)
+				isStep = true
 			}
 		}
-		if d2.rem >= span {
-			d2.rem -= span
-			if d2.rem == 0 {
-				d2.isOnes = !d2.isOnes
+
+		if needOnes {
+			if !outIsOnes {
+				v = append(v, 0)
+			}
+
+			if d1.isOne {
+				outN += d1.n
+				step(&d1)
+				isStep = true
+			}
+
+			if d2.isOne {
+				outN += d2.n
+				step(&d2)
+				isStep = true
 			}
 		}
+
+		if isStep {
+			continue
+		}
+
+		if outN > 0 {
+			v = append(v, outN)
+			outN = 0
+		}
+		needOnes = !needOnes
 	}
 
-	flush()
-
-	// Drop trailing zero-run (saves bytes, matches existing style).
-	if len(outRuns) > 0 && !outIsOnes && outRuns[len(outRuns)-1] == 0 {
-		outRuns = outRuns[:len(outRuns)-1]
-	}
-
-	// Varint-encode result.
 	var dst boolRLE
-	for _, l := range outRuns {
+	for _, l := range v {
 		dst = encoding.MarshalVarUint64(dst, l)
 	}
 	return dst

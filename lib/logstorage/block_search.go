@@ -231,10 +231,10 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 			}
 
 			// Partial delete – measure rows before/after applying the marker for investigation.
-			// beforeCount := bm.onesCount()
+			beforeCount := bm.onesCount()
 			ent.AndNotRLE(bm)
-			// afterCount := bm.onesCount()
-			// logger.Infof("DEBUG: applied delete marker for block block id %d of part %s; deleted=%d, before=%d, after=%d, rle=%s", bsw.bh.columnsHeaderOffset, bsw.p.path, beforeCount-afterCount, beforeCount, afterCount, ent.String())
+			afterCount := bm.onesCount()
+			logger.Infof("DEBUG: applied delete marker for block block id %d of part %s; deleted=%d, before=%d, after=%d, rle=%s", bsw.bh.columnsHeaderOffset, bsw.p.path, beforeCount-afterCount, beforeCount, afterCount, ent.String())
 		}
 	} else {
 		logger.Infof("DEBUG: no delete marker for block  block id %d of part %s", bsw.bh.columnsHeaderOffset, bsw.p.path)
@@ -242,13 +242,17 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// Apply query filter.
 	bs.bsw.so.filter.applyToBlockSearch(bs, bm)
-
 	if bm.isZero() {
 		// The filter doesn't match any logs in the current block.
 		return
 	}
 
-	logger.Infof("DEBUG: filter applied to block %d of part %s", bsw.bh.columnsHeaderOffset, bsw.p.path)
+	if bsw.dm != nil {
+		ent, _ := bsw.dm.GetMarkedRows(bsw.bh.columnsHeaderOffset)
+		logger.Infof("DEBUG: filter applied to block %d of part %s, oneCount=%d, rle=%s", bsw.bh.columnsHeaderOffset, bsw.p.path, bm.onesCount(), ent.String())
+	} else {
+		logger.Infof("DEBUG: filter applied to block %d of part %s, oneCount=%d", bsw.bh.columnsHeaderOffset, bsw.p.path, bm.onesCount())
+	}
 
 	bs.br.mustInit(bs, bm)
 

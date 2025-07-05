@@ -817,15 +817,15 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 		partPath := p.path
 
 		partMarkersLock.Lock()
-		dm, ok := partMarkers[partPath]
+		m, ok := partMarkers[partPath]
 		if !ok {
-			dm = &partMarkerData{
+			m = &partMarkerData{
 				part:      pwMap[p],
 				delMarker: &deleteMarker{},
 			}
-			partMarkers[partPath] = dm
+			partMarkers[partPath] = m
 		}
-		dm.delMarker.AddBlock(blockID, rle)
+		m.delMarker.AddBlock(blockID, rle)
 		partMarkersLock.Unlock()
 	}
 

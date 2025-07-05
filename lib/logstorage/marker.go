@@ -303,12 +303,6 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	}
 
 	p := pw.p
-	// In-memory part has no path yet – merge marker in memory and return.
-	if p.path == "" {
-		addInMemoryDeleteMarker(p, dm)
-		return
-	}
-
 	ddb := p.pt.ddb
 
 	// Serialize with other modifications to the same part and protect against
@@ -316,6 +310,11 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	ddb.partsLock.Lock()
 	defer ddb.partsLock.Unlock()
 	if pw.isInMerge || pw.mustDrop.Load() {
+		return
+	}
+
+	if p.path == "" {
+		addInMemoryDeleteMarker(p, dm)
 		return
 	}
 
