@@ -35,6 +35,9 @@ type blockResult struct {
 	brSrc *blockResult
 
 	// bm is an optional bitmap, which must be applied to bs or brSrc in order to obtain blockResult values.
+	// It also powers row-marking APIs (Storage.MarkRows / DeleteRows). If future optimizations
+	// decide to skip bitmap generation, they **must** keep it enabled when these APIs set the
+	// explicit need-bitmap flag.
 	bm *bitmap
 
 	// a holds all the bytes behind the requested column values in the block.

@@ -1333,3 +1333,22 @@ func parseExtraFiltersJSON(s string) ([]extraFilter, error) {
 	}
 	return filters, nil
 }
+
+// ProcessDeleteRequest handles /select/logsql/delete request.
+//
+// It executes DeleteRows and responds with plain "ok" when finished.
+func ProcessDeleteRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	if err := vlstorage.DeleteRows(ctx, tenantIDs, q); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	_, _ = w.Write([]byte("ok"))
+}

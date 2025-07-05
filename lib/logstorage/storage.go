@@ -1,6 +1,8 @@
 package logstorage
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -141,6 +144,13 @@ type Storage struct {
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
+
+	asyncTaskStop asyncTaskStop
+}
+
+type asyncTaskStop struct {
+	waiter atomic.Int32
+	ch     chan struct{}
 }
 
 type partitionWrapper struct {
@@ -320,6 +330,10 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	s.partitions = ptws
 	s.runRetentionWatcher()
 	s.runMaxDiskSpaceUsageWatcher()
+
+	// Start background async-task reconciler
+	s.startAsyncTaskWorker()
+
 	return s
 }
 
@@ -503,6 +517,12 @@ func (s *Storage) MustForceMerge(partitionNamePrefix string) {
 	}
 	s.partitionsLock.Unlock()
 
+	// waiting for async task to stop.
+	s.asyncTaskStop.waiter.Add(1)
+	defer s.asyncTaskStop.waiter.Add(-1)
+	<-s.asyncTaskStop.ch
+
+	// shutdown must wait for force merge.
 	s.wg.Add(1)
 	defer s.wg.Done()
 
@@ -674,4 +694,195 @@ func (s *Storage) DebugFlush() {
 
 func durationToDays(d time.Duration) int64 {
 	return int64(d / (time.Hour * 24))
+}
+
+func ValidateDeleteQuery(q *Query) error {
+	if q.pipes != nil {
+		return fmt.Errorf("query must not contain pipes")
+	}
+
+	if q.f == nil {
+		return fmt.Errorf("query must contain a filter")
+	}
+
+	minTS, maxTS := q.GetFilterTimeRange()
+	if maxTS > int64(fasttime.UnixTimestamp()*1e9) {
+		q.AddTimeFilter(minTS, time.Now().UnixNano())
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteRows(ctx context.Context, tenantIDs []TenantID, q *Query) error {
+	// DEBUG: log incoming deletion request.
+	minTS, maxTS := q.GetFilterTimeRange()
+	minDay := minTS / nsecsPerDay
+	maxDay := maxTS / nsecsPerDay
+
+	// Iterate partitions in time order and add delete tasks where needed
+	s.partitionsLock.Lock()
+	var tasksAdded int
+
+	seq := globalTaskSeq.Add(1)
+	for _, ptw := range s.partitions {
+		if ptw.day < minDay || ptw.day > maxDay {
+			continue // outside time window
+		}
+		ptw.pt.addDeleteTask(tenantIDs, q, seq)
+		tasksAdded++
+	}
+	s.partitionsLock.Unlock()
+
+	logger.Infof("DEBUG: DeleteRows scheduled %d delete tasks across partitions, query=%q", tasksAdded, q.String())
+	return nil
+}
+
+// markDeleteRowsOnParts behaves like MarkRows but only processes data from the supplied parts.
+// allowed map must contain *part keys that can be modified.
+func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantID, qStr string, seq uint64, allowed map[*partition][]*partWrapper) error {
+	q, err := ParseQuery(qStr)
+	if err != nil {
+		return fmt.Errorf("parse query: %w", err)
+	}
+	if len(q.pipes) > 0 {
+		return fmt.Errorf("query must not contain pipes")
+	}
+
+	// Build mapping of parts to wrappers and log allowed parts
+	pwMap := make(map[*part]*partWrapper)
+	for _, ptw := range allowed {
+		for _, pw := range ptw {
+			pwMap[pw.p] = pw
+		}
+	}
+
+	type partMarkerData struct {
+		part      *partWrapper
+		delMarker *deleteMarker
+	}
+	partMarkers := make(map[string]*partMarkerData)
+
+	var rowsMarked uint64
+	var partMarkersLock sync.Mutex
+
+	writeBlockResult := func(_ uint, br *blockResult) {
+		if br == nil || br.rowsLen == 0 {
+			return
+		}
+		bm := br.bm
+		if bm == nil || bm.isZero() {
+			return
+		}
+		bs := br.bs
+		if bs == nil {
+			return
+		}
+		p := bs.bsw.p
+		if p == nil {
+			return
+		}
+
+		rowsCount := int(bs.bsw.bh.rowsCount)
+		ones := bm.onesCount()
+		logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
+		rowsMarked += uint64(ones)
+
+		var rle boolRLE
+		if ones == rowsCount {
+			rle = boolRLE(nil).SetAllOnes(rowsCount)
+		} else {
+			rle = boolRLE(bm.MarshalRLE(nil))
+			logger.Infof("DEBUG: delete marker RLE for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+		}
+
+		seq := bs.bsw.seq
+		partPath := p.path
+
+		partMarkersLock.Lock()
+		dm, ok := partMarkers[partPath]
+		if !ok {
+			dm = &partMarkerData{
+				part:      pwMap[p],
+				delMarker: &deleteMarker{},
+			}
+			partMarkers[partPath] = dm
+		}
+		dm.delMarker.AddBlock(seq, rle)
+		partMarkersLock.Unlock()
+	}
+
+	// Use specialized search that only processes allowed parts
+	if err := s.searchSpecificParts(ctx, tenantIDs, q, allowed, writeBlockResult); err != nil {
+		return fmt.Errorf("find rows: %w", err)
+	}
+
+	for _, pm := range partMarkers {
+		flushDeleteMarker(pm.part, pm.delMarker, seq)
+	}
+
+	logger.Infof("DEBUG: affected (rows = %d, parts = %d, seq = %d)", rowsMarked, len(partMarkers), seq)
+	return nil
+}
+
+// searchSpecificParts performs a targeted search only on the specified parts.
+// This avoids scanning blocks in parts that aren't relevant.
+func (s *Storage) searchSpecificParts(ctx context.Context, tenantIDs []TenantID, q *Query, allowedParts map[*partition][]*partWrapper, writeBlock writeBlockResultFunc) error {
+	qNew, err := initSubqueries(ctx, tenantIDs, q, s.runQuery, true)
+	if err != nil {
+		return err
+	}
+	q = qNew
+
+	streamIDs := q.getStreamIDs()
+	sort.Slice(streamIDs, func(i, j int) bool {
+		return streamIDs[i].less(&streamIDs[j])
+	})
+
+	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
+	fieldsFilter := getNeededColumns(q.pipes)
+
+	so := &genericSearchOptions{
+		tenantIDs:    tenantIDs,
+		streamIDs:    streamIDs,
+		minTimestamp: minTimestamp,
+		maxTimestamp: maxTimestamp,
+		filter:       q.f,
+		fieldsFilter: fieldsFilter,
+	}
+
+	workersCount := q.GetConcurrency()
+
+	search := func(stopCh <-chan struct{}, writeBlockToPipes writeBlockResultFunc) error {
+		s.searchAllowedParts(workersCount, so, allowedParts, stopCh, writeBlockToPipes)
+		return nil
+	}
+
+	return runPipes(ctx, q.pipes, search, writeBlock, workersCount)
+}
+
+// searchAllowedParts is similar to storage.search but only processes the specified allowed parts.
+func (s *Storage) searchAllowedParts(workersCount int, so *genericSearchOptions, allowedParts map[*partition][]*partWrapper, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+	// Setup workers and work channel using shared function
+	workCh, wgWorkers := setupSearchWorkers(workersCount, stopCh, writeBlock)
+
+	var wgSearchers sync.WaitGroup
+	for pt, parts := range allowedParts {
+		partitionSearchConcurrencyLimitCh <- struct{}{}
+		wgSearchers.Add(1)
+		go func(partition *partition, allowedPartsInPartition []*partWrapper) {
+			// Obtain common filterStream from f
+			sf, f := getCommonStreamFilter(so.filter)
+
+			// Search only the allowed parts in this partition
+			// The search pipeline will handle time filtering at the part/block level
+			partition.searchSpecificParts(sf, f, so, allowedPartsInPartition, workCh, stopCh)
+
+			wgSearchers.Done()
+			<-partitionSearchConcurrencyLimitCh
+		}(pt, parts)
+	}
+	wgSearchers.Wait()
+
+	// Wait for workers to complete and finalize using shared function
+	finishSearchWorkers(workCh, wgWorkers)
 }

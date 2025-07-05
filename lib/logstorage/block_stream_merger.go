@@ -20,7 +20,13 @@ func mustMergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*block
 			break
 		}
 		bsr := bsm.readersHeap[0]
-		bsm.mustWriteBlock(&bsr.blockData, bsw)
+
+		// Determine block sequence index in source part (0-based).
+		seq := uint32(bsr.globalBlocksCount - 1) // globalBlocksCount incremented after read.
+		if !bsm.processDeleteMarker(bsr, seq) {
+			bsm.mustWriteBlock(&bsr.blockData, bsw)
+		}
+
 		if bsr.NextBlock() {
 			heap.Fix(&bsm.readersHeap, 0)
 		} else {
@@ -313,4 +319,86 @@ func (h *blockStreamReadersHeap) Pop() any {
 	x[len(x)-1] = nil
 	*h = x[:len(x)-1]
 	return bsr
+}
+
+// processDeleteMarker applies delete-markers to the current block in bsr.
+// It returns true if the caller must `continue` the outer merge loop.
+// Depending on the marker entry the function can:
+//  1. Skip the block entirely (full delete);
+//  2. Partially prune rows and re-queue the pruned block so that heap order is preserved.
+//
+// In both cases the original reader is advanced to the next block or popped when exhausted.
+func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, seq uint32) bool {
+	miAgg := bsr.marker
+	if miAgg == nil {
+		return false
+	}
+	dm := miAgg.delete.Load()
+	if dm == nil {
+		return false
+	}
+
+	bm, ok := dm.GetMarkedRows(seq)
+	if !ok {
+		return false
+	}
+
+	logger.Infof("DEBUG: found delete marker when merging: bsr.blockData.streamID=%q, bsr.blockData.rowsCount=%d, streamID=%q", bsr.blockData.streamID, bsr.blockData.rowsCount, bsm.streamID)
+
+	rowsTotal := int(bsr.blockData.rowsCount)
+	if rowsTotal == 0 {
+		logger.Panicf("BUG: this should not happens: rowsTotal == 0")
+	}
+
+	// Delete all rows case
+	if bm.IsOnes(uint64(rowsTotal)) {
+		logger.Infof("DEBUG: full delete of block seq=%d streamID=%s", seq, &bsr.blockData.streamID)
+		return true
+	}
+
+	// Worst case: unmarshal original rows so we can filter them.
+	if bsm.sbu == nil {
+		bsm.sbu = getStringsBlockUnmarshaler()
+	}
+	if bsm.vd == nil {
+		bsm.vd = getValuesDecoder()
+	}
+
+	var rs rows
+	if err := bsr.blockData.unmarshalRows(&rs, bsm.sbu, bsm.vd); err != nil {
+		logger.Panicf("BUG: cannot unmarshal rows for partial delete pruning: %s", err)
+	}
+
+	// Collect rows that remain after applying delete marker without materializing a full bitmap.
+	keptTS := make([]int64, 0, rowsTotal)
+	keptRows := make([][]Field, 0, rowsTotal)
+	bm.ForEachZeroBit(rowsTotal, func(i int) {
+		keptTS = append(keptTS, rs.timestamps[i])
+		keptRows = append(keptRows, rs.rows[i])
+	})
+
+	if len(keptTS) == 0 {
+		logger.Panicf("BUG: length of rows after partial delete marker pruning is 0")
+	}
+
+	// Construct an in-memory part that contains only the kept rows so it can be re-queued.
+	lr := getLogRows()
+	for i, ts := range keptTS {
+		lr.mustAddRow(bsr.blockData.streamID, ts, keptRows[i])
+	}
+	mp := getInmemoryPart()
+	mp.mustInitFromRows(lr)
+	putLogRows(lr)
+
+	bsrNew := getBlockStreamReader()
+	bsrNew.MustInitFromInmemoryPart(mp)
+	// Load the first block so blockData is valid when it enters the heap.
+	if !bsrNew.NextBlock() {
+		logger.Panicf("BUG: pruned in-memory reader has no blocks to merge")
+	}
+	heap.Push(&bsm.readersHeap, bsrNew)
+	bsm.bsrs = append(bsm.bsrs, bsrNew)
+	logger.Infof("DEBUG: pushed pruned reader streamID=%s rows=%d", &bsr.blockData.streamID, len(keptTS))
+
+	return true
 }

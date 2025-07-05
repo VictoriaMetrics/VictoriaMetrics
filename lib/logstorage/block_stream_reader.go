@@ -65,6 +65,9 @@ type streamReaders struct {
 	columnsHeaderReader      readerWithStats
 	timestampsReader         readerWithStats
 
+	// Marker reader for tracking bytes read during streaming
+	markerDatReader readerWithStats
+
 	messageBloomValuesReader bloomValuesReader
 	oldBloomValuesReader     bloomValuesReader
 	bloomValuesShards        []bloomValuesReader
@@ -116,6 +119,8 @@ func (sr *streamReaders) reset() {
 	sr.columnsHeaderReader.reset()
 	sr.timestampsReader.reset()
 
+	sr.markerDatReader.reset()
+
 	sr.messageBloomValuesReader.reset()
 	sr.oldBloomValuesReader.reset()
 	for i := range sr.bloomValuesShards {
@@ -129,6 +134,7 @@ func (sr *streamReaders) reset() {
 
 func (sr *streamReaders) init(partFormatVersion uint, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,
 	columnsHeaderIndexReader, columnsHeaderReader, timestampsReader filestream.ReadCloser,
+	markerDatReader filestream.ReadCloser,
 	messageBloomValuesReader, oldBloomValuesReader bloomValuesStreamReader, bloomValuesShards []bloomValuesStreamReader,
 ) {
 	sr.partFormatVersion = partFormatVersion
@@ -141,14 +147,16 @@ func (sr *streamReaders) init(partFormatVersion uint, columnNamesReader, columnI
 	sr.columnsHeaderReader.init(columnsHeaderReader)
 	sr.timestampsReader.init(timestampsReader)
 
+	sr.markerDatReader.init(markerDatReader)
+
 	sr.messageBloomValuesReader.init(messageBloomValuesReader)
 	sr.oldBloomValuesReader.init(oldBloomValuesReader)
-
 	sr.bloomValuesShards = slicesutil.SetLength(sr.bloomValuesShards, len(bloomValuesShards))
 	for i := range sr.bloomValuesShards {
 		sr.bloomValuesShards[i].init(bloomValuesShards[i])
 	}
 
+	// Read columnNames and columnIdxs
 	if partFormatVersion >= 1 {
 		sr.columnNames, _ = mustReadColumnNames(&sr.columnNamesReader)
 	}
@@ -167,12 +175,14 @@ func (sr *streamReaders) totalBytesRead() uint64 {
 	n += sr.columnsHeaderIndexReader.bytesRead
 	n += sr.columnsHeaderReader.bytesRead
 	n += sr.timestampsReader.bytesRead
-
 	n += sr.messageBloomValuesReader.totalBytesRead()
 	n += sr.oldBloomValuesReader.totalBytesRead()
 	for i := range sr.bloomValuesShards {
 		n += sr.bloomValuesShards[i].totalBytesRead()
 	}
+
+	// markerDatReader is sidecar delete-marker file, not counted in CompressedSizeBytes
+	// of the part header, so skip it from the total.
 
 	return n
 }
@@ -185,7 +195,7 @@ func (sr *streamReaders) MustClose() {
 	sr.columnsHeaderIndexReader.MustClose()
 	sr.columnsHeaderReader.MustClose()
 	sr.timestampsReader.MustClose()
-
+	sr.markerDatReader.MustClose()
 	sr.messageBloomValuesReader.MustClose()
 	sr.oldBloomValuesReader.MustClose()
 	for i := range sr.bloomValuesShards {
@@ -227,6 +237,9 @@ type blockStreamReader struct {
 
 	// ph is the header for the part
 	ph partHeader
+
+	// marker aggregates marker data for the source part (delete, ttl, etc.).
+	marker *marker
 
 	// streamReaders contains data readers in stream mode
 	streamReaders streamReaders
@@ -288,6 +301,8 @@ func (bsr *blockStreamReader) reset() {
 	bsr.globalRowsCount = 0
 	bsr.globalBlocksCount = 0
 
+	bsr.marker = nil
+
 	bsr.sidLast.reset()
 	bsr.minTimestampLast = 0
 }
@@ -304,6 +319,9 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 
 	bsr.ph = mp.ph
 
+	// propagate delete-marker data
+	bsr.marker = nil
+
 	// Initialize streamReaders
 	columnNamesReader := mp.columnNames.NewReader()
 	columnIdxsReader := mp.columnIdxs.NewReader()
@@ -313,14 +331,27 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 	columnsHeaderReader := mp.columnsHeader.NewReader()
 	timestampsReader := mp.timestamps.NewReader()
 
-	messageBloomValuesReader := mp.messageBloomValues.NewStreamReader()
+	messageBloomValuesReader := bloomValuesStreamReader{
+		bloom:  mp.messageBloomValues.bloom.NewReader(),
+		values: mp.messageBloomValues.values.NewReader(),
+	}
 	var oldBloomValuesReader bloomValuesStreamReader
-	bloomValuesShards := []bloomValuesStreamReader{
-		mp.fieldBloomValues.NewStreamReader(),
+	var bloomValuesShards []bloomValuesStreamReader
+	if bsr.ph.FormatVersion < 1 {
+		oldBloomValuesReader.bloom = mp.fieldBloomValues.bloom.NewReader()
+		oldBloomValuesReader.values = mp.fieldBloomValues.values.NewReader()
+	} else {
+		bloomValuesShards = []bloomValuesStreamReader{
+			{
+				bloom:  mp.fieldBloomValues.bloom.NewReader(),
+				values: mp.fieldBloomValues.values.NewReader(),
+			},
+		}
 	}
 
 	bsr.streamReaders.init(bsr.ph.FormatVersion, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,
 		columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
+		nil, // no marker data reader for in-memory parts
 		messageBloomValuesReader, oldBloomValuesReader, bloomValuesShards)
 
 	// Read metaindex data
@@ -339,6 +370,7 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
 	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
+	markerDatPath := filepath.Join(path, rowMarkerDatFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
@@ -354,6 +386,13 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	if bsr.ph.FormatVersion >= 3 {
 		columnIdxsReader = filestream.MustOpen(columnIdxsPath, nocache)
 	}
+
+	// Open marker readers - check if files exist first
+	var markerDatReader filestream.ReadCloser
+	if fs.IsPathExist(markerDatPath) {
+		markerDatReader = filestream.MustOpen(markerDatPath, nocache)
+	}
+
 	metaindexReader := filestream.MustOpen(metaindexPath, nocache)
 	indexReader := filestream.MustOpen(indexPath, nocache)
 	var columnsHeaderIndexReader filestream.ReadCloser
@@ -393,10 +432,16 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	// Initialize streamReaders
 	bsr.streamReaders.init(bsr.ph.FormatVersion, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,
 		columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
+		markerDatReader,
 		messageBloomValuesReader, oldBloomValuesReader, bloomValuesShards)
 
 	// Read metaindex data
 	bsr.indexBlockHeaders = mustReadIndexBlockHeaders(bsr.indexBlockHeaders[:0], &bsr.streamReaders.metaindexReader)
+
+	// Read marker index if available
+	if markerDatReader != nil {
+		bsr.marker = mustReadMarkerData(&bsr.streamReaders.markerDatReader, bsr.ph.BlocksCount)
+	}
 }
 
 // NextBlock reads the next block from bsr and puts it into bsr.blockData.
