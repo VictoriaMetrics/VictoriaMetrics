@@ -132,6 +132,7 @@ func TestBoolRLEUnion(t *testing.T) {
 		}
 	}
 
+	// Basic
 	f("", "", "")
 	f("1", "", "1")
 	f("", "1", "1")
@@ -143,6 +144,49 @@ func TestBoolRLEUnion(t *testing.T) {
 	f("1010", "1010", "1010")
 	f("11001100", "10101010", "11101110")
 	f("11111", "0000011111", "1111111111")
+
+	// Edge-cases around empties and all-zero blocks
+	f("", "0000", "0000")
+	f("0000", "", "0000")
+	f("0000", "0000", "0000")
+	f("1111", "1111", "1111")
+	f("0000", "1111", "1111")
+
+	// Classical “two halves” overlap
+	f("11110000", "00001111", "11111111")
+
+	// Middle gap preserved
+	f("111100001111", "000000001111", "111100001111")
+
+	// Complementary patterns that fill every bit
+	f("10000001", "01111110", "11111111")
+	f("0001000", "0000100", "0001100")
+	f("101010", "001100", "101110")
+	f("11001100", "00110011", "11111111")
+
+	// Different lengths (second is shorter)
+	f("111000", "001", "111000")
+
+	// Different lengths (second is longer, adds trailing zeros)
+	f("11", "001000", "111000")
+
+	// Perfect alternation (maximal run-boundary stress)
+	f("10101010", "01010101", "11111111")
+
+	// Ones at both extremes only
+	f("1000000001", "0000000001", "1000000001")
+
+	// All zeros remain zeros (makes sure trailing zeros are preserved)
+	f("000000", "0", "000000")
+
+	// Second stream adds a 1 just beyond the first stream’s end
+	f("111", "0001000", "1111000")
+
+	// Disjoint ones at opposite ends
+	f("0001", "1000", "1001")
+
+	// Streams with leading zero-runs of different size
+	f("00111100", "00011000", "00111100")
 	t.Run("contiguous-large-runs", func(t *testing.T) {
 		a := strings.Repeat("1", 362)
 		b := strings.Repeat("0", 362) + strings.Repeat("1", 246)

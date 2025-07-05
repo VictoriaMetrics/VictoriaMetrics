@@ -784,12 +784,13 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 
 		rowsCount := int(bs.bsw.bh.rowsCount)
 		ones := bm.onesCount()
-		logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
+		// logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
 		rowsMarked += uint64(ones)
 
 		var rle boolRLE
 		if ones == rowsCount {
 			rle = boolRLE(nil).SetAllOnes(rowsCount)
+			logger.Infof("DEBUG: delete marker RLE (all) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
 		} else {
 			rle = boolRLE(bm.MarshalRLE(nil))
 			logger.Infof("DEBUG: delete marker RLE for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())

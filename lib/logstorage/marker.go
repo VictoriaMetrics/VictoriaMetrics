@@ -108,7 +108,7 @@ type markedBlocks struct {
 func (mb *markedBlocks) String() string {
 	s := strings.Builder{}
 	for i, blockID := range mb.blockIDs {
-		s.WriteString(fmt.Sprintf("[%d] blockID: %d, row: %v\n", i, blockID, mb.rows[i]))
+		s.WriteString(fmt.Sprintf("| [blockID: %d, row: %v] ", blockID, mb.rows[i].String()))
 	}
 	return s.String()
 }
@@ -356,7 +356,7 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	fs.MustWriteAtomic(datPath, datBuf, true /*overwrite*/)
 	fs.MustSyncPath(partPath)
 	p.setAppliedTSeq(seq)
-	logger.Infof("DEBUG: flushDeleteMarker: part=%s, seq=%d, rle=%s", partPath, seq, merged.String())
+	logger.Infof("DEBUG: flushDeleteMarker: part=%s, seq=%d, rle=%s", partPath, seq, dm.String())
 }
 
 // addInMemoryDeleteMarker merges dm into p.marker.delete without touching disk.
