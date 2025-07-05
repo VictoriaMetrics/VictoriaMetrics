@@ -803,14 +803,16 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 		}
 
 		if bs.bsw.dm != nil {
-			existedRLE, ok := bs.bsw.dm.GetMarkedRows(bs.bsw.seq)
+			existedRLE, ok := bs.bsw.dm.GetMarkedRows(bs.bsw.columnsHeaderOffset)
 			if ok && bytes.Equal(existedRLE, rle) {
 				logger.Infof("DEBUG: ignore RLE (already marked) for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
 				return // already marked
 			}
 		}
 
-		seq := bs.bsw.seq
+		// Replace seq with offset
+		// Previously: seq := bs.bsw.seq
+		offset := bs.bsw.columnsHeaderOffset
 		partPath := p.path
 
 		partMarkersLock.Lock()
@@ -822,7 +824,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 			}
 			partMarkers[partPath] = dm
 		}
-		dm.delMarker.AddBlock(seq, rle)
+		dm.delMarker.AddBlock(offset, rle)
 		partMarkersLock.Unlock()
 	}
 

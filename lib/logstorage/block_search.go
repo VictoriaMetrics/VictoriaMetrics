@@ -25,9 +25,6 @@ type blockSearchWork struct {
 	// bh is the header of the block to search.
 	bh blockHeader
 
-	// seq is the block sequence index inside its part (0..BlocksCount-1).
-	seq uint32
-
 	// dm is the delete marker for the block.
 	dm *deleteMarker
 }
@@ -36,7 +33,6 @@ func (bsw *blockSearchWork) reset() {
 	bsw.p = nil
 	bsw.so = nil
 	bsw.bh.reset()
-	bsw.seq = 0
 }
 
 type blockSearchWorkBatch struct {
@@ -68,7 +64,7 @@ func putBlockSearchWorkBatch(bswb *blockSearchWorkBatch) {
 
 var blockSearchWorkBatchPool sync.Pool
 
-func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptions, bh *blockHeader, seq uint32) bool {
+func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptions, bh *blockHeader) bool {
 	bsws := bswb.bsws
 	var dm *deleteMarker
 	if p.marker != nil {
@@ -76,10 +72,9 @@ func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptio
 	}
 
 	bsws = append(bsws, blockSearchWork{
-		p:   p,
-		so:  so,
-		seq: seq,
-		dm:  dm,
+		p:  p,
+		so: so,
+		dm: dm,
 	})
 	bsw := &bsws[len(bsws)-1]
 	bsw.bh.copyFrom(bh)
@@ -227,7 +222,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	bm.setBits()
 
 	if bsw.dm != nil {
-		if ent, ok := bsw.dm.GetMarkedRows(bsw.seq); ok {
+		if ent, ok := bsw.dm.GetMarkedRows(bsw.bh.columnsHeaderOffset); ok {
 			// logger.Infof("DEBUG: find delete marker for block %d (total rows=%d, columnsHeaderOffset=%d) of part %s", bsw.seq, bsw.bh.rowsCount, bsw.bh.columnsHeaderOffset, bsw.p.path)
 			if ent.IsOnes(bsw.bh.rowsCount) {
 				// Full-block delete – skip the block entirely.
@@ -239,8 +234,10 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 			// beforeCount := bm.onesCount()
 			ent.AndNotRLE(bm)
 			// afterCount := bm.onesCount()
-			// logger.Infof("DEBUG: applied delete marker for block %d of part %s; deleted=%d, before=%d, after=%d, rle=%s", bsw.seq, bsw.p.path, beforeCount-afterCount, beforeCount, afterCount, ent.String())
+			// logger.Infof("DEBUG: applied delete marker for block block id %d of part %s; deleted=%d, before=%d, after=%d, rle=%s", bsw.bh.columnsHeaderOffset, bsw.p.path, beforeCount-afterCount, beforeCount, afterCount, ent.String())
 		}
+	} else {
+		logger.Infof("DEBUG: no delete marker for block  block id %d of part %s", bsw.bh.columnsHeaderOffset, bsw.p.path)
 	}
 
 	// Apply query filter.

@@ -21,9 +21,15 @@ func mustMergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*block
 		}
 		bsr := bsm.readersHeap[0]
 
-		// Determine block sequence index in source part (0-based).
-		seq := uint32(bsr.globalBlocksCount - 1) // globalBlocksCount incremented after read.
-		if !bsm.processDeleteMarker(bsr, seq) {
+		// Use columnsHeaderOffset (uint64) as a stable identifier for the block.
+		var currBlockID uint64
+		if len(bsr.blockHeaders) > 0 {
+			idx := bsr.nextBlockIdx - 1
+			if idx >= 0 && idx < len(bsr.blockHeaders) {
+				currBlockID = bsr.blockHeaders[idx].columnsHeaderOffset
+			}
+		}
+		if !bsm.processDeleteMarker(bsr, currBlockID) {
 			bsm.mustWriteBlock(&bsr.blockData, bsw)
 		}
 
@@ -328,7 +334,7 @@ func (h *blockStreamReadersHeap) Pop() any {
 //  2. Partially prune rows and re-queue the pruned block so that heap order is preserved.
 //
 // In both cases the original reader is advanced to the next block or popped when exhausted.
-func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, seq uint32) bool {
+func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, blockID uint64) bool {
 	miAgg := bsr.marker
 	if miAgg == nil {
 		return false
@@ -338,7 +344,7 @@ func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, seq ui
 		return false
 	}
 
-	bm, ok := dm.GetMarkedRows(seq)
+	bm, ok := dm.GetMarkedRows(blockID)
 	if !ok {
 		return false
 	}
@@ -347,12 +353,12 @@ func (bsm *blockStreamMerger) processDeleteMarker(bsr *blockStreamReader, seq ui
 
 	rowsTotal := int(bsr.blockData.rowsCount)
 	if rowsTotal == 0 {
-		logger.Panicf("BUG: this should not happens: rowsTotal == 0")
+		logger.Panicf("BUG: this should not happen: rowsTotal == 0")
 	}
 
 	// Delete all rows case
 	if bm.IsOnes(uint64(rowsTotal)) {
-		// logger.Infof("DEBUG: full delete of block seq=%d streamID=%s", seq, &bsr.blockData.streamID)
+		// logger.Infof("DEBUG: full delete of block blockID=%d streamID=%s", blockID, &bsr.blockData.streamID)
 		return true
 	}
 
