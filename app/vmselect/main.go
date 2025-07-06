@@ -32,7 +32,7 @@ import (
 var (
 	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
-		"See https://docs.victoriametrics.com/#track-ingested-metrics-usage")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
@@ -103,7 +103,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
 	//
-	// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+	// See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
 	switch {
 	case strings.HasPrefix(path, "/prometheus/"):
 		path = path[len("/prometheus"):]
@@ -562,6 +562,15 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
+	case "/api/v1/notifiers", "/notifiers":
+		notifiersRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
+		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 		metadataRequests.Inc()
@@ -691,9 +700,10 @@ var (
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/prettify-query"}`)
 
-	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
-	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
-	alertsRequests  = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	vmalertRequests   = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
+	rulesRequests     = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
+	alertsRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	notifiersRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/notifiers"}`)
 
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)

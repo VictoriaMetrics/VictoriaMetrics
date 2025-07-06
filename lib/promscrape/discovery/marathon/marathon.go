@@ -16,7 +16,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.marathonSDCheckInterval", 30*time.Second, "Interval for checking for changes in Marathon REST API. "+
 	"This works only if marathon_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs/#marathon_sd_configs for details")
+	"See https://docs.victoriametrics.com/victoriametrics/sd_configs/#marathon_sd_configs for details")
 
 // SDConfig is the configuration for Marathon service discovery.
 type SDConfig struct {

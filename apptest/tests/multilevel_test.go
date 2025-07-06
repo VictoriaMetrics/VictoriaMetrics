@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup
+// See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup
 func TestClusterMultilevelSelect(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()

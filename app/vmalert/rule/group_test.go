@@ -75,6 +75,9 @@ func TestUpdateWith(t *testing.T) {
 				t.Fatalf("comparison1 error: %s", err)
 			}
 		}
+		if g.Debug != expect.Debug {
+			t.Fatalf("expected to have debug %v; got %v", expect.Debug, g.Debug)
+		}
 	}
 
 	// new rule
@@ -131,6 +134,7 @@ func TestUpdateWith(t *testing.T) {
 		}})
 
 	// update recording rule
+	debug := true
 	f(config.Group{
 		Rules: []config.Rule{{
 			Record: "foo",
@@ -142,7 +146,7 @@ func TestUpdateWith(t *testing.T) {
 		Rules: []config.Rule{{
 			Record: "foo",
 			Expr:   "min(up)",
-			Debug:  true,
+			Debug:  &debug,
 			Labels: map[string]string{
 				"baz": "bar",
 			},
@@ -158,7 +162,7 @@ func TestUpdateWith(t *testing.T) {
 			{
 				Alert: "foo",
 				Expr:  "up > 0",
-				Debug: true,
+				Debug: &debug,
 				For:   promutil.NewDuration(time.Second),
 			},
 		}}, config.Group{
@@ -166,7 +170,7 @@ func TestUpdateWith(t *testing.T) {
 			{
 				Record: "foo",
 				Expr:   "max(up)",
-				Debug:  true,
+				Debug:  &debug,
 			},
 			{
 				Alert: "foo",
@@ -208,6 +212,31 @@ func TestUpdateWith(t *testing.T) {
 			{Alert: "foo4"},
 			{Record: "foo5"},
 		}})
+
+	f(config.Group{Debug: false}, config.Group{Debug: true})
+	f(config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	}, config.Group{
+		Debug: true,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	})
+
+	f(config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1"},
+		},
+	}, config.Group{
+		Debug: false,
+		Rules: []config.Rule{
+			{Alert: "foo1", Debug: &debug},
+		},
+	})
 }
 
 func TestUpdateDuringRandSleep(t *testing.T) {
@@ -309,6 +338,7 @@ func TestGroupStart(t *testing.T) {
           summary: "{{ $value }}"
 `
 	)
+
 	var groups []config.Group
 	err := yaml.Unmarshal([]byte(rules), &groups)
 	if err != nil {
@@ -509,6 +539,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
           summary: "{{ $value }}"
 `
 	)
+
 	var groups []config.Group
 	err := yaml.Unmarshal([]byte(rules), &groups)
 	if err != nil {

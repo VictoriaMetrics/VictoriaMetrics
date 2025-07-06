@@ -70,7 +70,7 @@ func VisitAll(e Expr, f func(expr Expr)) {
 //	rate(default_rollup(foo + bar)[1i:1i])
 //	rate(default_rollup(foo > 10)[1i:1i])
 //
-// See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions
+// See https://docs.victoriametrics.com/victoriametrics/metricsql/#implicit-query-conversions
 //
 // Note that rate(foo) is valid expression, since it returns the expected results most of the time, e.g. rate(foo[1i]).
 func IsLikelyInvalid(e Expr) bool {

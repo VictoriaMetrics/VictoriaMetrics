@@ -25,7 +25,7 @@ func BenchmarkSlice(b *testing.B) {
 		}
 	})
 
-	result := s.GetSlice()
+	result := s.All()
 	sum := 0
 	for _, p := range result {
 		sum += *p

@@ -60,7 +60,7 @@ and [kubernetes operator](https://docs.victoriametrics.com/operator/). See how t
 
 Common recommendations:
 1. Prefer setting [requests equal to limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits)
-for stateful components like [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
+for stateful components like [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
 component restarts.
 
 1. Avoid using [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) 
@@ -84,7 +84,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 ## Backup Recommendations
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/), which simplifies backup automation.
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/), which simplifies backup automation.
 
 ## Technical Support and Services
 
@@ -94,4 +94,4 @@ There are the following channels for providing technical support for VictoriaMet
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
-We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise/).
+We also provide [Enterprise support](https://docs.victoriametrics.com/victoriametrics/enterprise/).

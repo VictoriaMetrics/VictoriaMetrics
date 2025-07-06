@@ -5,12 +5,13 @@ MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
-LATEST_TAG ?= latest
 
 PKG_TAG ?= $(shell git tag -l --points-at HEAD)
 ifeq ($(PKG_TAG),)
 PKG_TAG := $(BUILDINFO_TAG)
 endif
+
+EXTRA_DOCKER_TAG_SUFFIX ?= EXTRA_DOCKER_TAG_SUFFIX
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
@@ -196,12 +197,56 @@ vmutils-crossbuild: \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
 
+publish-final-images:
+	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmagent $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert-tool $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmauth $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmbackup $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmrestore $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) APP_NAME=vmctl $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vminsert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmselect $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmstorage $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=victoria-metrics $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmagent $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmalert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmauth $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackup $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmrestore $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise-cluster APP_NAME=vminsert $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise-cluster APP_NAME=vmselect $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise-cluster APP_NAME=vmstorage $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmgateway $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackupmanager $(MAKE) publish-via-docker-from-rc && \
+	PKG_TAG=$(TAG) $(MAKE) publish-latest
+
+publish-latest:
+	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmagent $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmalert-tool $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmauth $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmbackup $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmrestore $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG) APP_NAME=vmctl $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vminsert $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmselect $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-cluster APP_NAME=vmstorage $(MAKE) publish-via-docker-latest && \
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmgateway $(MAKE) publish-via-docker-latest
+	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackupmanager $(MAKE) publish-via-docker-latest
+
+publish-victoria-logs-latest:
+	PKG_TAG=$(TAG) APP_NAME=victoria-logs $(MAKE) publish-via-docker-latest
+	PKG_TAG=$(TAG) APP_NAME=vlogscli $(MAKE) publish-via-docker-latest
+
 publish-release:
 	rm -rf bin/*
-	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release && LATEST_TAG=cluster-stable $(MAKE) publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release && LATEST_TAG=enterprise-stable $(MAKE) publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && LATEST_TAG=enterprise-cluster-stable $(MAKE) publish
+	git checkout $(TAG) && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-cluster && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-enterprise && $(MAKE) release && $(MAKE) publish && \
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release && $(MAKE) publish
 
 release:
 	$(MAKE_PARALLEL) \
@@ -527,7 +572,7 @@ test-full:
 test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: victoria-metrics vmagent vmalert vmauth
+integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore victoria-logs vlagent
 	go test ./apptest/... -skip="^TestCluster.*"
 
 benchmark:
@@ -541,7 +586,7 @@ benchmark-pure:
 vendor-update:
 	go get -u ./lib/...
 	go get -u ./app/...
-	go mod tidy -compat=1.23
+	go mod tidy -compat=1.24
 	go mod vendor
 
 app-local:

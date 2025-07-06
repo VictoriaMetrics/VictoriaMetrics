@@ -2,7 +2,7 @@ package logstorage
 
 import (
 	"math"
-	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -30,9 +31,10 @@ type blockResult struct {
 	// bs is nil for the blockResult constructed by pipes.
 	bs *blockSearch
 
-	// bm is the associated bitmap for the given blockResult.
-	//
-	// bm is nil for the blockResult constructed by pipes.
+	// brSrc points to the source blockResult if bs is nil and bm is non-nil.
+	brSrc *blockResult
+
+	// bm is an optional bitmap, which must be applied to bs or brSrc in order to obtain blockResult values.
 	bm *bitmap
 
 	// a holds all the bytes behind the requested column values in the block.
@@ -57,15 +59,13 @@ type blockResult struct {
 
 	// csInitialized is set to true if cs is properly initialized and can be returned from getColumns().
 	csInitialized bool
-
-	fvecs []filteredValuesEncodedCreator
-	svecs []searchValuesEncodedCreator
 }
 
 func (br *blockResult) reset() {
 	br.rowsLen = 0
 
 	br.bs = nil
+	br.brSrc = nil
 	br.bm = nil
 
 	br.a.reset()
@@ -85,12 +85,6 @@ func (br *blockResult) reset() {
 	br.cs = br.cs[:0]
 
 	br.csInitialized = false
-
-	clear(br.fvecs)
-	br.fvecs = br.fvecs[:0]
-
-	clear(br.svecs)
-	br.svecs = br.svecs[:0]
 }
 
 // clone returns a clone of br, which owns its own data.
@@ -100,6 +94,7 @@ func (br *blockResult) clone() *blockResult {
 	brNew.rowsLen = br.rowsLen
 
 	// do not clone br.cs, since it may be updated at any time.
+	// do not clone br.brSrc, since it may be updated at any time.
 	// do not clone br.bm, since it may be updated at any time.
 
 	cs := br.getColumns()
@@ -135,8 +130,6 @@ func (br *blockResult) clone() *blockResult {
 
 	// do not clone br.csEmpty - it will be populated by the caller via getColumnByName().
 
-	// do not clone br.fvecs and br.svecs, since they may point to external data.
-
 	return brNew
 }
 
@@ -146,27 +139,24 @@ func (br *blockResult) clone() *blockResult {
 func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) {
 	br.reset()
 
-	srcTimestamps := brSrc.getTimestamps()
-	dstTimestamps := br.timestampsBuf[:0]
-	bm.forEachSetBitReadonly(func(idx int) {
-		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
-	})
-	br.timestampsBuf = dstTimestamps
-	br.rowsLen = len(br.timestampsBuf)
-
-	if br.rowsLen == 0 || bm.isZero() {
+	br.rowsLen = bm.onesCount()
+	if br.rowsLen == 0 {
 		return
 	}
 
-	for _, cSrc := range brSrc.getColumns() {
-		br.appendFilteredColumn(brSrc, cSrc, bm)
+	br.brSrc = brSrc
+	br.bm = bm
+
+	cs := brSrc.getColumns()
+	for _, c := range cs {
+		br.appendFilteredColumn(c)
 	}
 }
 
-// appendFilteredColumn adds cSrc with the given bm filter to br.
+// appendFilteredColumn adds cSrc to br.
 //
-// the br is valid until brSrc, cSrc or bm is updated.
-func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
+// the br is valid until cSrc is updated.
+func (br *blockResult) appendFilteredColumn(cSrc *blockResultColumn) {
 	if br.rowsLen == 0 {
 		logger.Panicf("BUG: br.rowsLen must be greater than 0")
 	}
@@ -185,34 +175,10 @@ func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResul
 		cDst.minValue = cSrc.minValue
 		cDst.maxValue = cSrc.maxValue
 		cDst.dictValues = cSrc.dictValues
-		br.fvecs = append(br.fvecs, filteredValuesEncodedCreator{
-			br: brSrc,
-			c:  cSrc,
-			bm: bm,
-		})
-		cDst.valuesEncodedCreator = &br.fvecs[len(br.fvecs)-1]
+		cDst.cSrc = cSrc
 	}
 
 	br.csAdd(cDst)
-}
-
-type filteredValuesEncodedCreator struct {
-	br *blockResult
-	c  *blockResultColumn
-	bm *bitmap
-}
-
-func (fvec *filteredValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
-	valuesEncodedSrc := fvec.c.getValuesEncoded(fvec.br)
-
-	valuesBuf := br.valuesBuf
-	valuesBufLen := len(valuesBuf)
-	fvec.bm.forEachSetBitReadonly(func(idx int) {
-		valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
-	})
-	br.valuesBuf = valuesBuf
-
-	return valuesBuf[valuesBufLen:]
 }
 
 // cloneValues clones the given values into br and returns the cloned values.
@@ -335,20 +301,56 @@ func (br *blockResult) addResultColumnConst(rc resultColumn) {
 	})
 }
 
-// initAllColumns initializes all the columns in br except of unneededColumnNames.
-func (br *blockResult) initAllColumns(unneededColumnNames []string) {
-	if !slices.Contains(unneededColumnNames, "_time") {
-		// Add _time column
+// initColumns initializes columns in br according to pf.
+func (br *blockResult) initColumns(pf *prefixfilter.Filter) {
+	fields, ok := pf.GetAllowStrings()
+	if ok {
+		// Fast path
+		br.initColumnsByFields(fields)
+	} else {
+		// Slow path
+		br.initColumnsByFilter(pf)
+	}
+
+	br.csInitFast()
+}
+
+func (br *blockResult) initColumnsByFields(fields []string) {
+	for _, f := range fields {
+		switch f {
+		case "_time":
+			br.addTimeColumn()
+		case "_stream_id":
+			br.addStreamIDColumn()
+		case "_stream":
+			if !br.addStreamColumn() {
+				// Skip the current block, since the associated stream tags are missing
+				br.reset()
+				return
+			}
+		default:
+			v := br.bs.getConstColumnValue(f)
+			if v != "" {
+				br.addConstColumn(f, v)
+			} else if ch := br.bs.getColumnHeader(f); ch != nil {
+				br.addColumn(ch)
+			} else {
+				br.addConstColumn(f, "")
+			}
+		}
+	}
+}
+
+func (br *blockResult) initColumnsByFilter(pf *prefixfilter.Filter) {
+	if pf.MatchString("_time") {
 		br.addTimeColumn()
 	}
 
-	if !slices.Contains(unneededColumnNames, "_stream_id") {
-		// Add _stream_id column
+	if pf.MatchString("_stream_id") {
 		br.addStreamIDColumn()
 	}
 
-	if !slices.Contains(unneededColumnNames, "_stream") {
-		// Add _stream column
+	if pf.MatchString("_stream") {
 		if !br.addStreamColumn() {
 			// Skip the current block, since the associated stream tags are missing
 			br.reset()
@@ -356,7 +358,7 @@ func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 		}
 	}
 
-	if !slices.Contains(unneededColumnNames, "_msg") {
+	if pf.MatchString("_msg") {
 		// Add _msg column
 		v := br.bs.getConstColumnValue("_msg")
 		if v != "" {
@@ -372,9 +374,10 @@ func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 	csh := br.bs.getColumnsHeader()
 	for _, cc := range csh.constColumns {
 		if cc.Name == "" {
+			// We already added _msg column above
 			continue
 		}
-		if !slices.Contains(unneededColumnNames, cc.Name) {
+		if pf.MatchString(cc.Name) {
 			br.addConstColumn(cc.Name, cc.Value)
 		}
 	}
@@ -384,43 +387,13 @@ func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 	for i := range chs {
 		ch := &chs[i]
 		if ch.name == "" {
+			// We already added _msg column above
 			continue
 		}
-		if !slices.Contains(unneededColumnNames, ch.name) {
+		if pf.MatchString(ch.name) {
 			br.addColumn(ch)
 		}
 	}
-
-	br.csInitFast()
-}
-
-// initRequestedColumns initializes neededColumnNames at br.
-func (br *blockResult) initRequestedColumns(neededColumnNames []string) {
-	for _, columnName := range neededColumnNames {
-		switch columnName {
-		case "_stream_id":
-			br.addStreamIDColumn()
-		case "_stream":
-			if !br.addStreamColumn() {
-				// Skip the current block, since the associated stream tags are missing.
-				br.reset()
-				return
-			}
-		case "_time":
-			br.addTimeColumn()
-		default:
-			v := br.bs.getConstColumnValue(columnName)
-			if v != "" {
-				br.addConstColumn(columnName, v)
-			} else if ch := br.bs.getColumnHeader(columnName); ch != nil {
-				br.addColumn(ch)
-			} else {
-				br.addConstColumn(columnName, "")
-			}
-		}
-	}
-
-	br.csInitFast()
 }
 
 // mustInit initializes br with the given bs and bm.
@@ -445,11 +418,11 @@ func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) boo
 
 func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 	if br.bs != nil {
-		bh := &br.bs.bsw.bh
-		if bh.rowsCount == uint64(br.rowsLen) {
-			return min(minTimestamp, bh.timestampsHeader.minTimestamp)
+		th := &br.bs.bsw.bh.timestampsHeader
+		if br.isFull() {
+			return min(minTimestamp, th.minTimestamp)
 		}
-		if minTimestamp <= bh.timestampsHeader.minTimestamp {
+		if minTimestamp <= th.minTimestamp {
 			return minTimestamp
 		}
 	}
@@ -466,11 +439,11 @@ func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
 
 func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
 	if br.bs != nil {
-		bh := &br.bs.bsw.bh
-		if bh.rowsCount == uint64(br.rowsLen) {
-			return max(maxTimestamp, bh.timestampsHeader.maxTimestamp)
+		th := &br.bs.bsw.bh.timestampsHeader
+		if br.isFull() {
+			return max(maxTimestamp, th.maxTimestamp)
 		}
-		if maxTimestamp >= bh.timestampsHeader.maxTimestamp {
+		if maxTimestamp >= th.maxTimestamp {
 			return maxTimestamp
 		}
 	}
@@ -493,19 +466,28 @@ func (br *blockResult) getTimestamps() []int64 {
 }
 
 func (br *blockResult) initTimestamps() {
-	if br.bs == nil {
-		// Try decoding timestamps from _time field
-		c := br.getColumnByName("_time")
-		timestampValues := c.getValues(br)
-		var ok bool
-		br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], timestampValues)
-		if !ok {
-			br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
-		}
+	if br.brSrc != nil {
+		srcTimestamps := br.brSrc.getTimestamps()
+		br.initTimestampsInternal(srcTimestamps)
+		return
+	}
+	if br.bs != nil {
+		srcTimestamps := br.bs.getTimestamps()
+		br.initTimestampsInternal(srcTimestamps)
 		return
 	}
 
-	srcTimestamps := br.bs.getTimestamps()
+	// Try decoding timestamps from _time field
+	c := br.getColumnByName("_time")
+	timestampValues := c.getValues(br)
+	var ok bool
+	br.timestampsBuf, ok = tryParseTimestamps(br.timestampsBuf[:0], timestampValues)
+	if !ok {
+		br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
+	}
+}
+
+func (br *blockResult) initTimestampsInternal(srcTimestamps []int64) {
 	if br.bm.areAllBitsSet() {
 		// Fast path - all the rows in the block are selected, so copy all the timestamps without any filtering.
 		br.timestampsBuf = append(br.timestampsBuf[:0], srcTimestamps...)
@@ -543,68 +525,81 @@ func (br *blockResult) checkTimestampsLen() {
 	}
 }
 
-func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bitmap, ch *columnHeader) []string {
+func (br *blockResult) readValuesEncodedFromColumnHeader(ch *columnHeader) []string {
 	valuesBufLen := len(br.valuesBuf)
 
 	switch ch.valueType {
 	case valueTypeString:
-		visitValuesReadonly(bs, ch, bm, br.addValues)
+		visitValuesReadonly(br.bs, ch, br.bm, br.addValues)
 	case valueTypeDict:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 1, "dict")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 1, "dict")
 			for _, v := range values {
 				dictIdx := v[0]
 				if int(dictIdx) >= len(ch.valuesDict.values) {
-					logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
+					logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", br.bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
 				}
 			}
 			br.addValues(values)
 		})
 	case valueTypeUint8:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 1, "uint8")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 1, "uint8")
 			br.addValues(values)
 		})
 	case valueTypeUint16:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 2, "uint16")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 2, "uint16")
 			br.addValues(values)
 		})
 	case valueTypeUint32:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 4, "uint32")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 4, "uint32")
 			br.addValues(values)
 		})
 	case valueTypeUint64:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "uint64")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "uint64")
 			br.addValues(values)
 		})
 	case valueTypeInt64:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "int64")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "int64")
 			br.addValues(values)
 		})
 	case valueTypeFloat64:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "float64")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "float64")
 			br.addValues(values)
 		})
 	case valueTypeIPv4:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 4, "ipv4")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 4, "ipv4")
 			br.addValues(values)
 		})
 	case valueTypeTimestampISO8601:
-		visitValuesReadonly(bs, ch, bm, func(values []string) {
-			checkValuesSize(bs, ch, values, 8, "iso8601")
+		visitValuesReadonly(br.bs, ch, br.bm, func(values []string) {
+			checkValuesSize(br.bs, ch, values, 8, "iso8601")
 			br.addValues(values)
 		})
 	default:
-		logger.Panicf("FATAL: %s: unknown valueType=%d for column %q", bs.partPath(), ch.valueType, ch.name)
+		logger.Panicf("FATAL: %s: unknown valueType=%d for column %q", br.bs.partPath(), ch.valueType, ch.name)
 	}
 
 	return br.valuesBuf[valuesBufLen:]
+}
+
+func (br *blockResult) readValuesEncodedFromResultColumn(c *blockResultColumn) []string {
+	valuesEncodedSrc := c.getValuesEncoded(br.brSrc)
+
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	br.bm.forEachSetBitReadonly(func(idx int) {
+		valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
+	})
+	br.valuesBuf = valuesBuf
+
+	return valuesBuf[valuesBufLen:]
 }
 
 func checkValuesSize(bs *blockSearch, ch *columnHeader, values []string, sizeExpected int, typeStr string) {
@@ -625,26 +620,10 @@ func (br *blockResult) addColumn(ch *columnHeader) {
 		minValue:   ch.minValue,
 		maxValue:   ch.maxValue,
 		dictValues: ch.valuesDict.values,
+		chSrc:      ch,
 	})
-	c := &br.csBuf[len(br.csBuf)-1]
 
-	br.svecs = append(br.svecs, searchValuesEncodedCreator{
-		bs: br.bs,
-		bm: br.bm,
-		ch: ch,
-	})
-	c.valuesEncodedCreator = &br.svecs[len(br.svecs)-1]
 	br.csInitialized = false
-}
-
-type searchValuesEncodedCreator struct {
-	bs *blockSearch
-	bm *bitmap
-	ch *columnHeader
-}
-
-func (svec *searchValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
-	return br.newValuesEncodedFromColumnHeader(svec.bs, svec.bm, svec.ch)
 }
 
 func (br *blockResult) addTimeColumn() {
@@ -1782,132 +1761,266 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 	return s
 }
 
-// copyColumns copies columns from srcColumnNames to dstColumnNames.
-func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
-	for i, srcName := range srcColumnNames {
-		br.copySingleColumn(srcName, dstColumnNames[i])
+// copyColumnsByFilters copies columns from srcColumnFilters to dstColumnFilters.
+//
+// srcColumnFilters and dstColumnFilters may contain column names and column name prefixes ending with '*'.
+func (br *blockResult) copyColumnsByFilters(srcColumnFilters, dstColumnFilters []string) {
+	for i, srcFilter := range srcColumnFilters {
+		dstFilter := dstColumnFilters[i]
+		br.copyColumnsByFilter(srcFilter, dstFilter)
 	}
 }
 
-func (br *blockResult) copySingleColumn(srcName, dstName string) {
+func (br *blockResult) copyColumnsByFilter(srcFilter, dstFilter string) {
 	found := false
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
+
 	for _, c := range cs {
-		if c.name != dstName {
-			br.csBuf = append(br.csBuf, *c)
+		if !prefixfilter.MatchFilter(srcFilter, c.name) {
+			continue
 		}
-		if c.name == srcName {
-			cCopy := *c
-			cCopy.name = dstName
-			br.csBuf = append(br.csBuf, cCopy)
-			found = true
-		}
-	}
-	if !found {
-		br.addConstColumn(dstName, "")
-	}
-	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
-	br.csInitialized = false
-}
 
-// renameColumns renames columns from srcColumnNames to dstColumnNames.
-func (br *blockResult) renameColumns(srcColumnNames, dstColumnNames []string) {
-	for i, srcName := range srcColumnNames {
-		br.renameSingleColumn(srcName, dstColumnNames[i])
+		aLen := len(br.a.b)
+		br.a.b = prefixfilter.AppendReplace(br.a.b, srcFilter, dstFilter, c.name)
+		fieldName := bytesutil.ToUnsafeString(br.a.b[aLen:])
+
+		cCopy := *c
+		cCopy.name = fieldName
+		br.csAdd(cCopy)
+		found = true
+	}
+
+	if !found && !prefixfilter.IsWildcardFilter(srcFilter) {
+		br.addConstColumn(dstFilter, "")
 	}
 }
 
-func (br *blockResult) renameSingleColumn(srcName, dstName string) {
+// renameColumnsByFilters renames columns from srcColumnFilters to dstColumnFilters.
+//
+// srcColumnFilters and dstColumnFilters may contain column names and column name prefixes ending with '*'.
+func (br *blockResult) renameColumnsByFilters(srcColumnFilters, dstColumnFilters []string) {
+	for i, srcFilter := range srcColumnFilters {
+		dstFilter := dstColumnFilters[i]
+		br.renameColumnsByFilter(srcFilter, dstFilter)
+	}
+}
+
+func (br *blockResult) renameColumnsByFilter(srcFilter, dstFilter string) {
 	found := false
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
+
+	br.csInitialized = false
+	csBuf := br.csBuf
+	csBufLen := len(csBuf)
+
 	for _, c := range cs {
-		if c.name == srcName {
-			cCopy := *c
-			cCopy.name = dstName
-			br.csBuf = append(br.csBuf, cCopy)
-			found = true
-		} else if c.name != dstName {
-			br.csBuf = append(br.csBuf, *c)
+		if !prefixfilter.MatchFilter(srcFilter, c.name) {
+			csBuf = append(csBuf, *c)
 		}
 	}
-	if !found {
-		br.addConstColumn(dstName, "")
+
+	for _, c := range cs {
+		if !prefixfilter.MatchFilter(srcFilter, c.name) {
+			continue
+		}
+
+		aLen := len(br.a.b)
+		br.a.b = prefixfilter.AppendReplace(br.a.b, srcFilter, dstFilter, c.name)
+
+		c.name = bytesutil.ToUnsafeString(br.a.b[aLen:])
+		csBuf = append(csBuf, *c)
+		found = true
 	}
+
+	br.csBuf = csBuf
 	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
-	br.csInitialized = false
+
+	if !found && !prefixfilter.IsWildcardFilter(srcFilter) {
+		br.addConstColumn(dstFilter, "")
+	}
 }
 
-// deleteColumns deletes columns with the given columnNames.
-func (br *blockResult) deleteColumns(columnNames []string) {
-	if len(columnNames) == 0 {
+// deleteColumnsByFilters deletes columns with the given columnFilters.
+//
+// columnFilters may contain column names and column name prefixes ending with '*'.
+func (br *blockResult) deleteColumnsByFilters(columnFilters []string) {
+	if len(columnFilters) == 0 {
 		return
 	}
 
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
+
+	br.csInitialized = false
+	csBuf := br.csBuf
+	csBufLen := len(csBuf)
+
 	for _, c := range cs {
-		if !slices.Contains(columnNames, c.name) {
-			br.csBuf = append(br.csBuf, *c)
+		if !prefixfilter.MatchFilters(columnFilters, c.name) {
+			csBuf = append(csBuf, *c)
 		}
 	}
 
+	br.csBuf = csBuf
 	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
-	br.csInitialized = false
 }
 
-// setColumns sets the resulting columns to the given columnNames.
-func (br *blockResult) setColumns(columnNames []string) {
-	if br.areSameColumns(columnNames) {
+// setColumnFilters sets the resulting columns according to the given columnFilters.
+func (br *blockResult) setColumnFilters(columnFilters []string) {
+	if br.areSameColumns(columnFilters) {
 		// Fast path - nothing to change.
 		return
 	}
 
 	// Slow path - construct the requested columns
 	cs := br.getColumns()
-	csBufLen := len(br.csBuf)
-	for _, c := range cs {
-		if slices.Contains(columnNames, c.name) {
-			br.csBuf = append(br.csBuf, *c)
-		}
-	}
 
-	for _, columnName := range columnNames {
-		if idx := getBlockResultColumnIdxByName(cs, columnName); idx < 0 {
-			br.addConstColumn(columnName, "")
-		}
-	}
-
-	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
 	br.csInitialized = false
+	csBuf := br.csBuf
+	csBufLen := len(csBuf)
+
+	for _, c := range cs {
+		if prefixfilter.MatchFilters(columnFilters, c.name) {
+			csBuf = append(csBuf, *c)
+		}
+	}
+
+	br.csBuf = csBuf
+	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
+
+	for _, columnFilter := range columnFilters {
+		if prefixfilter.IsWildcardFilter(columnFilter) {
+			continue
+		}
+		if idx := getBlockResultColumnIdxByName(cs, columnFilter); idx < 0 {
+			br.addConstColumn(columnFilter, "")
+		}
+	}
 }
 
-func (br *blockResult) areSameColumns(columnNames []string) bool {
+func (br *blockResult) areSameColumns(columnFilters []string) bool {
 	cs := br.getColumns()
-	if len(cs) != len(columnNames) {
-		return false
-	}
-	for i, c := range cs {
-		if c.name != columnNames[i] {
+	for _, c := range cs {
+		if !prefixfilter.MatchFilters(columnFilters, c.name) {
 			return false
 		}
 	}
+
+	for _, columnFilter := range columnFilters {
+		if prefixfilter.IsWildcardFilter(columnFilter) {
+			continue
+		}
+		if idx := getBlockResultColumnIdxByName(cs, columnFilter); idx < 0 {
+			return false
+		}
+	}
+
 	return true
 }
 
-func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
-	if columnName == "" {
-		columnName = "_msg"
+func getMatchingColumns(br *blockResult, filters []string) *matchingColumns {
+	v := matchingColumnsPool.Get()
+	if v == nil {
+		v = &matchingColumns{}
 	}
+	mc := v.(*matchingColumns)
+
+	if isSingleField(filters) {
+		// Fast path - a single column is requested
+		field := filters[0]
+		c := br.getColumnByName(field)
+		mc.cs = append(mc.cs[:0], c)
+		return mc
+	}
+
+	// Slower path - multiple columns are requested
+	mc.cs = br.getMatchingColumnsSlow(mc.cs[:0], filters)
+	return mc
+}
+
+func putMatchingColumns(mc *matchingColumns) {
+	mc.reset()
+	matchingColumnsPool.Put(mc)
+}
+
+type matchingColumns struct {
+	cs []*blockResultColumn
+}
+
+func (mc *matchingColumns) reset() {
+	clear(mc.cs)
+	mc.cs = mc.cs[:0]
+}
+
+func (mc *matchingColumns) sort() {
+	if len(mc.cs) > 1 && !sort.IsSorted(mc) {
+		sort.Sort(mc)
+	}
+}
+
+func (mc *matchingColumns) Len() int {
+	return len(mc.cs)
+}
+func (mc *matchingColumns) Less(i, j int) bool {
+	cs := mc.cs
+	return cs[i].name < cs[j].name
+}
+func (mc *matchingColumns) Swap(i, j int) {
+	cs := mc.cs
+	cs[i], cs[j] = cs[j], cs[i]
+}
+
+var matchingColumnsPool sync.Pool
+
+func (br *blockResult) getMatchingColumnsSlow(dst []*blockResultColumn, filters []string) []*blockResultColumn {
 	cs := br.getColumns()
 
+	// Add columns matching the given filters
+	for _, c := range cs {
+		if prefixfilter.MatchFilters(filters, c.name) {
+			dst = append(dst, c)
+		}
+	}
+
+	// Add empty columns for non-wildcard filters, which do not match non-empty columns.
+	for _, f := range filters {
+		if prefixfilter.IsWildcardFilter(f) {
+			continue
+		}
+
+		needEmptyField := true
+		for _, c := range cs {
+			if f == c.name {
+				needEmptyField = false
+				break
+			}
+		}
+
+		if needEmptyField {
+			c := br.getEmptyColumnByName(f)
+			dst = append(dst, c)
+		}
+	}
+
+	return dst
+}
+
+func isSingleField(filters []string) bool {
+	return len(filters) == 1 && !prefixfilter.IsWildcardFilter(filters[0])
+}
+
+func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
+	cs := br.getColumns()
+
+	columnName = getCanonicalColumnName(columnName)
 	idx := getBlockResultColumnIdxByName(cs, columnName)
 	if idx >= 0 {
 		return cs[idx]
 	}
 
-	// Search for empty column with the given name
+	return br.getEmptyColumnByName(columnName)
+}
+
+func (br *blockResult) getEmptyColumnByName(columnName string) *blockResultColumn {
 	csEmpty := br.csEmpty
 	for i := range csEmpty {
 		if csEmpty[i].name == columnName {
@@ -2070,21 +2183,17 @@ type blockResultColumn struct {
 	// valuesBucketed contains values after getValuesBucketed() call
 	valuesBucketed []string
 
-	// valuesEncodedCreator must return valuesEncoded.
-	//
-	// This interface must be set for non-const and non-time columns if valuesEncoded field isn't set.
-	valuesEncodedCreator columnValuesEncodedCreator
+	// chSrc is an optional pointer to the source columnHeader. It is used for reading the values at readValuesEncoded()
+	chSrc *columnHeader
+
+	// cSrc is an optional pointer to the source blockResultColumn. It is used for reading the values at readValuesEncoded()
+	cSrc *blockResultColumn
 
 	// bucketSizeStr contains bucketSizeStr for valuesBucketed
 	bucketSizeStr string
 
 	// bucketOffsetStr contains bucketOffset for valuesBucketed
 	bucketOffsetStr string
-}
-
-// columnValuesEncodedCreator must return encoded values for the current column.
-type columnValuesEncodedCreator interface {
-	newValuesEncoded(br *blockResult) []string
 }
 
 // clone returns a clone of c backed by data from br.
@@ -2115,8 +2224,8 @@ func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 	}
 	cNew.valuesBucketed = br.cloneValues(c.valuesBucketed)
 
-	// Do not copy c.valuesEncodedCreator, since it may refer to data, which may change over time.
-	// We already copied c.valuesEncoded, so cNew.valuesEncodedCreator must be nil.
+	// Do not copy c.chSrc and c.cSrc, since they may refer to data, which may change over time.
+	// We already copied c.valuesEncoded, so c.chSrc and c.cSrc must be nil.
 
 	cNew.bucketSizeStr = c.bucketSizeStr
 	cNew.bucketOffsetStr = c.bucketOffsetStr
@@ -2211,9 +2320,16 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	}
 
 	if c.valuesEncoded == nil {
-		c.valuesEncoded = c.valuesEncodedCreator.newValuesEncoded(br)
+		c.valuesEncoded = c.readValuesEncoded(br)
 	}
 	return c.valuesEncoded
+}
+
+func (c *blockResultColumn) readValuesEncoded(br *blockResult) []string {
+	if br.bs != nil {
+		return br.readValuesEncodedFromColumnHeader(c.chSrc)
+	}
+	return br.readValuesEncodedFromResultColumn(c.cSrc)
 }
 
 // forEachDictValue calls f for every matching value in the column dictionary.
@@ -2223,7 +2339,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 	if c.valueType != valueTypeDict {
 		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
 	}
-	if br.bs != nil && uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+	if br.isFull() {
 		// Fast path - there is no need in reading encoded values
 		for _, v := range c.dictValues {
 			f(v)
@@ -2231,7 +2347,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 		return
 	}
 
-	// Slow path - need to read encoded values in order filter not referenced columns.
+	// Slow path - need to read encoded values in order to filter not referenced columns.
 	a := encoding.GetUint64s(len(c.dictValues))
 	hits := a.A
 	clear(hits)
@@ -2246,6 +2362,13 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 		}
 	}
 	encoding.PutUint64s(a)
+}
+
+func (br *blockResult) isFull() bool {
+	if br.bs == nil {
+		return false
+	}
+	return br.bs.bsw.bh.rowsCount == uint64(br.rowsLen)
 }
 
 // forEachDictValueWithHits calls f for every matching value in the column dictionary.

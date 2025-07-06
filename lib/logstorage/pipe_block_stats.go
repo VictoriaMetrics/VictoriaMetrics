@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -38,9 +39,8 @@ func (ps *pipeBlockStats) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (ps *pipeBlockStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	unneededFields.reset()
-	neededFields.add("*")
+func (ps *pipeBlockStats) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.AddAllowFilter("*")
 }
 
 func (ps *pipeBlockStats) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {

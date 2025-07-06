@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
@@ -24,9 +25,8 @@ type dedupAggr struct {
 type dedupAggrShard struct {
 	dedupAggrShardNopad
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(dedupAggrShardNopad{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(dedupAggrShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
 type dedupAggrState struct {
@@ -210,7 +210,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 }
 
 // isDuplicate returns true if b is duplicate of a
-// See https://docs.victoriametrics.com/#deduplication
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
 func isDuplicate(a *dedupAggrSample, b pushSample) bool {
 	if b.timestamp > a.timestamp {
 		return false

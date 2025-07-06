@@ -9,7 +9,6 @@ import (
 	"github.com/valyala/fastjson"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -30,7 +29,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
@@ -59,7 +58,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 
 var (
 	requestsJSONTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
-	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
+	requestJSONDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
 func parseJSONRequest(data []byte, lmp insertutil.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {

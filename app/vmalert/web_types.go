@@ -20,6 +20,16 @@ const (
 	paramRuleID = "rule_id"
 )
 
+type apiNotifier struct {
+	Kind    string       `json:"kind"`
+	Targets []*apiTarget `json:"targets"`
+}
+
+type apiTarget struct {
+	Address string            `json:"address"`
+	Labels  map[string]string `json:"labels"`
+}
+
 // apiAlert represents a notifier.AlertingRule state
 // for WEB view
 // https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
@@ -98,11 +108,17 @@ type apiGroup struct {
 	EvalOffset float64 `json:"eval_offset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	EvalDelay float64 `json:"eval_delay,omitempty"`
+	// Unhealthy unhealthy rules count
+	Unhealthy int
+	// Healthy passing rules count
+	Healthy int
+	// NoMatch not matching rules count
+	NoMatch int
 }
 
 // groupAlerts represents a group of alerts for WEB view
 type groupAlerts struct {
-	Group  apiGroup
+	Group  *apiGroup
 	Alerts []*apiAlert
 }
 
@@ -321,12 +337,11 @@ func newAlertAPI(ar *rule.AlertingRule, a *notifier.Alert) *apiAlert {
 	return aa
 }
 
-func groupToAPI(g *rule.Group) apiGroup {
+func groupToAPI(g *rule.Group) *apiGroup {
 	g = g.DeepCopy()
 	ag := apiGroup{
 		// encode as string to avoid rounding
-		ID: fmt.Sprintf("%d", g.GetID()),
-
+		ID:              strconv.FormatUint(g.GetID(), 10),
 		Name:            g.Name,
 		Type:            g.Type.String(),
 		File:            g.File,
@@ -336,8 +351,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 		Params:          urlValuesToStrings(g.Params),
 		Headers:         headersToStrings(g.Headers),
 		NotifierHeaders: headersToStrings(g.NotifierHeaders),
-
-		Labels: g.Labels,
+		Labels:          g.Labels,
 	}
 	if g.EvalOffset != nil {
 		ag.EvalOffset = g.EvalOffset.Seconds()
@@ -349,7 +363,7 @@ func groupToAPI(g *rule.Group) apiGroup {
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, ruleToAPI(r))
 	}
-	return ag
+	return &ag
 }
 
 func urlValuesToStrings(values url.Values) []string {

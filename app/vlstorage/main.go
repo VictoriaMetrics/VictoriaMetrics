@@ -253,8 +253,11 @@ func processForceFlush(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+// Storage implements insertutil.LogRowsStorage interface
+type Storage struct{}
+
 // CanWriteData returns non-nil error if it cannot write data to vlstorage
-func CanWriteData() error {
+func (*Storage) CanWriteData() error {
 	if localStorage == nil {
 		// The data can be always written in non-local mode.
 		return nil
@@ -273,7 +276,7 @@ func CanWriteData() error {
 // MustAddRows adds lr to vlstorage
 //
 // It is advised to call CanWriteData() before calling MustAddRows()
-func MustAddRows(lr *logstorage.LogRows) {
+func (*Storage) MustAddRows(lr *logstorage.LogRows) {
 	if localStorage != nil {
 		// Store lr in the local storage.
 		localStorage.MustAddRows(lr)
@@ -350,6 +353,10 @@ func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logst
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)
+
+	if maxDiskSpaceUsageBytes.N > 0 {
+		metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_max_disk_space_usage_bytes{path=%q}`, *storageDataPath), uint64(maxDiskSpaceUsageBytes.N))
+	}
 
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
 

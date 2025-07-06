@@ -22,8 +22,6 @@ export const getMetricNamesStats = (server: string, params: MetricNamesStatsPara
     Object.entries(params).filter(([_, value]) => value != null)
   ).toString();
 
-  console.log("searchParams", searchParams);
-
   return `${server}/api/v1/status/metric_names_stats?${searchParams}`;
 };
 

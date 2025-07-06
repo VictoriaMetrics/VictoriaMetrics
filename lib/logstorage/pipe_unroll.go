@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -58,18 +59,11 @@ func (pu *pipeUnroll) visitSubqueries(visitFunc func(q *Query)) {
 	pu.iff.visitSubqueries(visitFunc)
 }
 
-func (pu *pipeUnroll) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if pu.iff != nil {
-			unneededFields.removeFields(pu.iff.neededFields)
-		}
-		unneededFields.removeFields(pu.fields)
-	} else {
-		if pu.iff != nil {
-			neededFields.addFields(pu.iff.neededFields)
-		}
-		neededFields.addFields(pu.fields)
+func (pu *pipeUnroll) updateNeededFields(pf *prefixfilter.Filter) {
+	if pu.iff != nil {
+		pf.AddAllowFilters(pu.iff.allowFilters)
 	}
+	pf.AddAllowFilters(pu.fields)
 }
 
 func (pu *pipeUnroll) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {

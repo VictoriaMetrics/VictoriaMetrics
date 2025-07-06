@@ -184,7 +184,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		timestamp := int64(123000)
 		tsmGlobal.Register(&sw)
 		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-			if !strings.Contains(err.Error(), "sample_limit") {
+			if !strings.Contains(err.Error(), "sample_limit") && !strings.Contains(err.Error(), "label_limit") {
 				t.Fatalf("unexpected error: %s", err)
 			}
 		}
@@ -486,6 +486,25 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_series_limit_samples_dropped 0 123
 		scrape_timeout_seconds 42 123
 	`)
+	// Scrape failure because of the exceeded LabelLimit
+	f(`
+                foo{bar="baz"} 34.44
+                bar{a="b",c="d",e="f"} -3e4
+        `, &ScrapeWork{
+		StreamParse:   streamParse,
+		ScrapeTimeout: time.Second * 42,
+		HonorLabels:   true,
+		LabelLimit:    2,
+	}, `
+                up 0 123
+                scrape_samples_scraped 2 123
+                scrape_response_size_bytes 0 123
+                scrape_duration_seconds 0 123
+                scrape_samples_post_metric_relabeling 0 123
+                scrape_series_added 0 123
+                scrape_timeout_seconds 42 123
+		scrape_labels_limit 2 123
+        `)
 	// Scrape success with the given SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -597,7 +616,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		return w.String()
 	}
 
-	// process one serie: one batch of data, plus auto metrics pushed
+	// process one series: one batch of data, plus auto metrics pushed
 	f(generateScrape(1), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
@@ -628,7 +647,10 @@ func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
 		t.Helper()
 		r := parsePromRow(row)
 		var wc writeRequestCtx
-		wc.addRow(cfg, r, r.Timestamp, false)
+		err := wc.addRow(cfg, r, r.Timestamp, false)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tss := wc.writeRequest.Timeseries
 		tssExpected := parseData(dataExpected)
 		if err := expectEqualTimeseries(tss, tssExpected); err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeFacetsDefaultLimit is the default number of entries pipeFacets returns per each log field.
@@ -71,9 +72,8 @@ func (pf *pipeFacets) canLiveTail() bool {
 	return false
 }
 
-func (pf *pipeFacets) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.add("*")
-	unneededFields.reset()
+func (pf *pipeFacets) updateNeededFields(f *prefixfilter.Filter) {
+	f.AddAllowFilter("*")
 }
 
 func (pf *pipeFacets) hasFilterInWithQuery() bool {
@@ -341,7 +341,7 @@ func (pfp *pipeFacetsProcessor) flush() error {
 	}
 
 	// merge state across shards
-	shards := pfp.shards.GetSlice()
+	shards := pfp.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

@@ -2,8 +2,47 @@ package logstorage
 
 import (
 	"math/rand"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
+
+func TestRowsBuffer(t *testing.T) {
+	var rowsFlushed atomic.Uint64
+	flushFunc := func(lr *logRows) {
+		rowsFlushed.Add(uint64(lr.Len()))
+	}
+	var wgBuffer sync.WaitGroup
+
+	var rb rowsBuffer
+	rb.init(&wgBuffer, flushFunc)
+
+	const concurrency = 10
+	const rowsPerInsert = 200
+	const insertLoops = 30
+	var wg sync.WaitGroup
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			lr := newTestLogRows(1, rowsPerInsert, 1)
+			for i := 0; i < insertLoops; i++ {
+				rb.mustAddRows(lr)
+			}
+		}()
+	}
+	wg.Wait()
+
+	rb.flush()
+	wgBuffer.Wait()
+
+	rowsLen := rowsFlushed.Load()
+	rowsLenExpected := uint64(concurrency * rowsPerInsert * insertLoops)
+	if rowsLen != rowsLenExpected {
+		t.Fatalf("unexpected number of rows; got %d; want %d", rowsLen, rowsLenExpected)
+	}
+}
 
 func TestAppendPartsToMergeManyParts(t *testing.T) {
 	// Verify that big number of parts are merged into minimal number of parts

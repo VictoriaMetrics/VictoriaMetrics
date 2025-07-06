@@ -73,8 +73,12 @@ func (st *StreamTags) marshalString(dst []byte) []byte {
 
 // Add adds (name:value) tag to st.
 func (st *StreamTags) Add(name, value string) {
-	if len(name) == 0 || len(value) == 0 {
+	if len(value) == 0 {
 		return
+	}
+
+	if len(name) == 0 {
+		name = "_msg"
 	}
 
 	buf := st.buf

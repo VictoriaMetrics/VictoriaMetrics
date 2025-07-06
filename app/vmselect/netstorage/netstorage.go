@@ -1332,7 +1332,7 @@ func setupTfss(qt *querytracer.Tracer, tr storage.TimeRange, tagFilterss [][]sto
 				if len(paths) >= maxMetrics {
 					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
 						"either narrow down the query or increase the corresponding -search.max* command-line flag value; "+
-						"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics, query)
+						"see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits", maxMetrics, query)
 				}
 				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
 				continue

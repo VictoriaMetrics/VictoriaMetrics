@@ -739,3 +739,23 @@ func mustGenerateCertificates() ([]byte, []byte, []byte) {
 
 	return caPEM, certPEM, keyPEM
 }
+
+func TestConfigHeadersHash(t *testing.T) {
+	f := func(headers []string, resultExpected string) {
+		t.Helper()
+		opts := Options{
+			Headers: headers,
+		}
+		var err error
+		c, err := opts.NewConfig()
+		if err != nil {
+			t.Fatalf("create new config error: %v", err)
+		}
+		if c.headersDigest != resultExpected {
+			t.Fatalf("generate wrong hash; got %s want %s", c.headersDigest, resultExpected)
+		}
+	}
+	f(nil, "digest(headers)=17241709254077376921")
+	f([]string{"foo: bar"}, "digest(headers)=16063449615388042431")
+	f([]string{"foo: bar", "X-Forwarded-For: A-B:c"}, "digest(headers)=8240238594493248512")
+}

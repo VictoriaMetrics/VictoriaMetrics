@@ -53,7 +53,7 @@ import (
 
 var (
 	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
-	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info")
+	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter for more info")
 	strictParse          = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
 	dryRun               = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
@@ -65,25 +65,25 @@ var (
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+
 		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of vmagent instance in the cluster of scrapers. "+
 		"It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. "+
-		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
-		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"is added to all the scraped metrics. See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberURLTemplate = flag.String("promscrape.cluster.memberURLTemplate", "", "An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. "+
 		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
 		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more details")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more details")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
 		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
-		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
-		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/sd_configs/#scrape_configs")
+		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
 )
 
 var clusterMemberID int
@@ -265,6 +265,7 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
+	LabelLimit           int                         `yaml:"label_limit,omitempty"`
 	ScrapeInterval       *promutil.Duration          `yaml:"scrape_interval,omitempty"`
 	ScrapeTimeout        *promutil.Duration          `yaml:"scrape_timeout,omitempty"`
 	ExternalLabels       *promutil.Labels            `yaml:"external_labels,omitempty"`
@@ -295,6 +296,7 @@ type ScrapeConfig struct {
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
+	LabelLimit           int                         `yaml:"label_limit,omitempty"`
 
 	// This silly option is needed for compatibility with Prometheus.
 	// vmagent was supporting disable_compression option since the beginning, while Prometheus developers
@@ -878,6 +880,13 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
 	}
+	labelLimit := sc.LabelLimit
+	if labelLimit <= 0 {
+		labelLimit = globalCfg.LabelLimit
+		if labelLimit <= 0 {
+			labelLimit = defaultLabelLimit
+		}
+	}
 	scrapeInterval := sc.ScrapeInterval.Duration()
 	if scrapeInterval <= 0 {
 		scrapeInterval = globalCfg.ScrapeInterval.Duration()
@@ -987,6 +996,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
+		labelLimit:           labelLimit,
 		disableCompression:   disableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
@@ -1018,6 +1028,7 @@ type scrapeWorkConfig struct {
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
+	labelLimit           int
 	disableCompression   bool
 	disableKeepAlive     bool
 	streamParse          bool
@@ -1236,7 +1247,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		scrapeTimeout = d
 	}
 	// Read series_limit option from __series_limit__ label.
-	// See https://docs.victoriametrics.com/vmagent/#cardinality-limiter
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
 	seriesLimit := swc.seriesLimit
 	if s := labels.Get("__series_limit__"); len(s) > 0 {
 		n, err := strconv.Atoi(s)
@@ -1246,7 +1257,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		seriesLimit = n
 	}
 	// Read sample_limit option from __sample_limit__ label.
-	// See https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
 	sampleLimit := swc.sampleLimit
 	if s := labels.Get("__sample_limit__"); len(s) > 0 {
 		n, err := strconv.Atoi(s)
@@ -1255,8 +1266,18 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		sampleLimit = n
 	}
+	// Read label_limit option from __label_limit__ label.
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
+	labelLimit := swc.labelLimit
+	if s := labels.Get("__label_limit__"); len(s) > 0 {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __label_limit__=%q: %w", s, err)
+		}
+		labelLimit = n
+	}
 	// Read stream_parse option from __stream_parse__ label.
-	// See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode
 	streamParse := swc.streamParse
 	if s := labels.Get("__stream_parse__"); len(s) > 0 {
 		b, err := strconv.ParseBool(s)
@@ -1300,13 +1321,14 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		AuthConfig:           swc.authConfig,
 		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
-		SampleLimit:          sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
+		SampleLimit:          sampleLimit,
 		SeriesLimit:          seriesLimit,
+		LabelLimit:           labelLimit,
 		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
 
@@ -1352,4 +1374,5 @@ func mergeLabels(dst *promutil.Labels, swc *scrapeWorkConfig, target string, ext
 const (
 	defaultScrapeInterval = time.Minute
 	defaultScrapeTimeout  = 10 * time.Second
+	defaultLabelLimit     = 0
 )

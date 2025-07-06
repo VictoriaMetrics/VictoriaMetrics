@@ -1,13 +1,17 @@
 package workingsetcache
 
 import (
+	"errors"
 	"flag"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/fastcache"
 )
@@ -37,6 +41,10 @@ type Cache struct {
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
 
+	ExpireEvictionBytes atomic.Uint64
+	MissEvictionBytes   atomic.Uint64
+	SizeEvictionBytes   atomic.Uint64
+
 	// mode indicates whether to use only curr and skip prev.
 	//
 	// This flag is set to switching if curr is filled for more than 50% space.
@@ -64,8 +72,29 @@ func Load(filePath string, maxBytes int) *Cache {
 	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
 }
 
+// loadFromFileOrNew attempts to load a fastcache.Cache from the given file path
+// If loading fails due to an error (e.g. corrupted or unreadable file), the error is logged
+// and a new cache is created with the specified maxBytes size.
+func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
+	cache, err := fastcache.LoadFromFileMaxBytes(filePath, maxBytes)
+	if err == nil {
+		return cache
+	}
+
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Infof("cache at path %s missing files; init new cache", filePath)
+	} else if strings.Contains(err.Error(), "contains maxBytes") {
+		// covers the cache reset due to max memory size change at
+		// https://github.com/VictoriaMetrics/fastcache/blob/198c85ee90a1f65127126b5904c191e70f083cbf/file.go#L133
+		logger.Warnf("%s; init new cache", err)
+	} else {
+		logger.Errorf("cache at path %s is invalid: %s; init new cache", filePath, err)
+	}
+	return fastcache.New(maxBytes)
+}
+
 func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
-	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes)
+	curr := loadFromFileOrNew(filePath, maxBytes)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
 	if cs.EntriesCount == 0 {
@@ -75,7 +104,7 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 		// Try loading it again with maxBytes / 2 size.
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
+		prev := loadFromFileOrNew(filePath, maxBytes/2)
 		curr := fastcache.New(maxBytes / 2)
 		c := newCacheInternal(curr, prev, split, maxBytes)
 		c.runWatchers(expireDuration)
@@ -155,6 +184,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		var cs fastcache.Stats
 		prev.UpdateStats(&cs)
 		updateCacheStatsHistory(&c.csHistory, &cs)
+		c.ExpireEvictionBytes.Add(cs.BytesSize)
 		prev.Reset()
 		c.curr.Store(prev)
 		c.mu.Unlock()
@@ -208,6 +238,7 @@ func (c *Cache) prevCacheWatcher() {
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
 				updateCacheStatsHistory(&c.csHistory, &csPrev)
+				c.MissEvictionBytes.Add(csPrev.BytesSize)
 				prev.Reset()
 			}
 		}
@@ -259,6 +290,7 @@ func (c *Cache) cacheSizeWatcher() {
 	var cs fastcache.Stats
 	prev.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
+	c.SizeEvictionBytes.Add(cs.BytesSize)
 	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.

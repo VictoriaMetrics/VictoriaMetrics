@@ -8,4 +8,5 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT ["/vmrestore-prod"]
 ARG TARGETARCH
-COPY vmrestore-linux-${TARGETARCH}-prod ./vmrestore-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vmrestore-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vmrestore-prod

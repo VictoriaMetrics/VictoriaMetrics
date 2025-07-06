@@ -14,12 +14,81 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.24.1
+Released: 2025-06-20
+
+- BUGFIX: Resolved the issue first seen in [v1.23.0](#v1230) where some fit and infer jobs were silently skipped at task submission time (due to a bug in the new background scheduler behind [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)) followed by similar warnings in the logs later on, such as:
+  ```shellhelp
+  2025-06-19 14:32:50,568 - apscheduler.executors.default - WARNING - Run time of job "{job_name}" (trigger: interval[1 day, 0:00:00], next run at: 2025-06-20 14:32:50 UTC)" was missed by 0:00:01.024753
+  ```
+
+- BUGFIX: Resolved the issue where `vmanomaly` service on [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where `start_from` argument was set and [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) was enabled, didn't resume infer jobs after respective fitted models were restored from the previous run. This could lead to a situation where the service, *if restore happened in-between fit calls*, would not produce any anomaly scores and stay idle until the next `fit_every` happens, which is *expected in stateless mode*, but not in *stateful* mode with `restore_state` enabled.
+
+## v1.24.0
+Released: 2025-06-18
+
+- FEATURE: Introduced stateful `vmanomaly` service with job persistence and state restoration capabilities. Added a new [`restore_state`](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) setting that enables the service to persist and restore its state between runs, including anomaly detection model instances and training data. This prevents unnecessary model refitting when restarting the service, significantly reducing startup time and computational overhead.
+
+- IMPROVEMENT: More informative log messages for fit and infer stages and for sub-optimal configurations used in the [sharded mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability).
+
+- BUGFIX: Now system interrupt signals are properly handled and lead to expected graceful shutdown if for some reason new background scheduler, introduced in [v1.23.0](#v1230) was already stopped in the middle of the fit or infer call. Previously, this could lead to a service crash with an unhandled exception.
+
+## v1.23.3
+Released: 2025-06-13
+
+- IMPROVEMENT: Added backward-compatible single-dashed form support for `vmanomaly`'s [command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to enhance compatibility with VictoriaMetrics ecosystem and ease devOps experience. For example, `-license.forceOffline` can now be used in addition to `--license.forceOffline` - for the users who prefer the single-dash format or are accustomed to it from other VictoriaMetrics tools.
+
+## v1.23.2
+Released: 2025-06-09
+
+- IMPROVEMENT: Increased convergence speed for [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score), [ZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score), [MADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad), and [OnlineMADModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) models. Now it works better for tight optimization budgets (n_trials < 10, timeout < 1s)
+
+- BUGFIX: Now mean and variance of [OnlineZScoreModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) with exponential `decay` < 1 [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) are properly calculated for unbiased predictions.
+
+## v1.23.1
+Released: 2025-06-08
+
+- BUGFIX: In [sharding mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) the corner case when shard number (`VMANOMALY_MEMBER_NUM`) is greater than the number of configured shards (`VMANOMALY_MEMBERS_COUNT`) is now properly handled.
+
+- BUGFIX: In [sharding mode](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), the corner case when the number of produced [sub-configurations](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) is less than the number of configured shards (`VMANOMALY_MEMBERS_COUNT`) is now properly handled. Until config hot-reload is supported, such "idle" shards will be turned off with exit code 1 and respective critical message logged.
+
+## v1.23.0
+Released: 2025-06-05
+
+> There is a known bug that can cause some fit and infer jobs to be silently skipped at task submission time (due to a bug in the new background scheduler behind [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)) followed by similar warnings in the logs later on, such as:
+>  ```shellhelp
+>  2025-06-19 14:32:50,568 - apscheduler.executors.default - WARNING - Run time of job "{job_name}" (trigger: interval[1 day, 0:00:00], next run at: 2025-06-20 14:32:50 UTC)" was missed by 0:00:01.024753
+>  ```
+> Releases affected: [v1.23.0](#v1230) - [v1.23.3](#v1233).
+> **The issue has been resolved in patch [v1.24.1](#v1241), upgrade is recommended.**
+
+- FEATURE: Added `decay` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) to [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models). This parameters allows for newer data to be weighted more heavily in online models. By default this is set to 1 which means all data points are weighted the same to maintain backward compatibility with existing configs. The closer this value is to 0 the more important new data is.
+
+- IMPROVEMENT: **Restored back parallelization** in the read/fit/infer pipeline, previously disabled in [v1.22.0](#v1220-experimental) due to deadlock issues. The new implementation prevents deadlocks, allowing to control the parallelization level via `n_workers` in [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/). It's suggested to upgrade from [v1.22.0](#v1220) - [v1.22.1](#v1221) to this version to regain the performance benefits of parallel processing.
+
+- IMPROVEMENT: Added `--dryRun` [argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) to `vmanomaly` to enable dry run mode. This mode allows to validate configuration without executing any actual operations and doesn't require a license. It is particularly useful to test the configurations before deploying them in a production environment.
+
+- IMPROVEMENT: Enhanced task scheduling to reduce locks between anomaly detection models' fit and inference calls, improving their concurrent performance.
+
+- IMPROVEMENT: `min_dev_from_expected` model [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) is now bi-directional, allowing you to set *different* thresholds for peaks and drops.
+
+- BUGFIX: Now `clip_predictions` [model common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) is properly used with [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), ensuring that the predictions are clipped to the respective query's `data_range` values even if the model saw *less datapoints* than required `min_n_samples_seen_` to produce anomaly scores (e.g., when a new model instance was created during `infer` call for new timeseries not seen at training time).
+
+## v1.22.1
+Released: 2025-05-11
+
+- FEATURE: Introduced a simplified backtesting mode for the [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) that treats your entire [`from`, `to`] (or [`from_iso`, `to_iso`]) range as an *inference* window and automatically generates the corresponding fit windows based on your `fit_window` setting. To enable it, set the `inference_only: true` flag in your BacktestingScheduler configuration.
+
+- BUGFIX: Resolved a crash when running the [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) with `n_jobs` greater than 1.
+
+- BUGFIX: Corrected the `start_from` logic in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) so that the *first* job now fires exactly at `start_from` (instead of occasionally adding `fit_every` to that time).
+
 ## v1.22.0-experimental
 Released: 2025-04-11
 
 **(Experimental Patch Release)**
 
-> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Future releases will reintroduce optimized parallelization.
+> Important Notice - this patch disables parallelization to resolve rate but critical deadlock issue that completely halted the fit/infer pipeline (resulting in no anomaly scores, no model refits, and no log output) on multicore systems. Although this change improves resource usage by reducing peak-to-average RAM consumption, it incurs a 2–4x slowdown in fit/infer routines. We recommend upgrading only if your current deployments are experiencing deadlock-related outages. Please upgrade to [v1.23.0](#v1230) or newer for restored parallelization.
 
 - BUGFIX: Resolved an intermittent deadlock in the fit/infer process that previously caused the service to freeze indefinitely, thereby preventing anomaly score production and model refits on multicore systems.
 
@@ -40,7 +109,7 @@ Released: 2025-03-16
 ## v1.20.0
 Released: 2025-03-03
 
-> **Note**: This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
+> This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - FEATURE: The `scale` argument is now a [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale), previously supported only by [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile). Additionally, `scale` is now **two-sided**, represented as `[scale_lb, scale_ub]`. The previous format (`scale: x`) remains supported and will be automatically converted to `scale: [x, x]`.
   
@@ -51,7 +120,7 @@ Released: 2025-03-03
 ## v1.19.2
 Released: 2025-01-27
 
-> **Note**: This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
+> This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - IMPROVEMENT: Added the `complete` option to the `--splitBy` argument in `config_splitter.py` [util](https://docs.victoriametrics.com/anomaly-detection/faq/#splitting-the-config). This allows splitting a parent configuration into the smallest possible sub-configurations, each containing exactly one scheduler, one model, and either one or multiple queries (depending on whether the model is [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) or not).
 
@@ -64,20 +133,20 @@ Released: 2025-01-27
 ## v1.19.1
 Released: 2025-01-21
 
-> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
+> There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
-> **Note**: This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
+> This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - BUGFIX: Resolved writer warnings for configurations where `reader.tenant_id` equals `writer.tenant_id` and **is not** `multitenant`, as this is a valid setup. Enhanced tenant_id-related log messages across config validation, reader, and writer for improved clarity.
 
 ## v1.19.0
 Released: 2025-01-20
 
-> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
+> There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
-> **Note**: This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
+> This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
-- FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=tenant_id#per-query-parameters).
+- FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=tenant_id#per-query-parameters).
 - IMPROVEMEMT: Speedup the model infer stage on multicore systems.
 - IMPROVEMEMT: Speedup the model fitting stage by 1.25–3x, depending on configuration complexity.
 - IMPROVEMENT: Reduced service RAM usage by 5-10%, depending on configuration complexity.
@@ -87,7 +156,7 @@ Released: 2025-01-20
 ## v1.18.8
 Released: 2024-12-03
 
-> **Note**: This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
+> This release contains a bug introduced in [v1.18.7](#v1187) - [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - IMPROVEMENT: Added a `scale` parameter to [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet). It allows for proportional scaling of the confidence intervals generated by `interval_width`. If set > 1, it may help reducing false positives in scenarios where the data contains many sharp but expected seasonal peaks that may not be well captured by Prophet's seasonal [Fourier terms](https://en.wikipedia.org/wiki/Fourier_series).
 
@@ -96,7 +165,7 @@ Released: 2024-12-03
 ## v1.18.7
 Released: 2024-12-02
 
-> **Note**: This release introduced a bug in [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
+> This release introduced a bug in [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
 - IMPROVEMENT: Introduced a new `push_frequency` parameter for the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters), with a default value of 15m. This enhancement ensures better alignment with pull-based monitoring behavior and improves [self-monitoring experience](https://docs.victoriametrics.com/anomaly-detection/self-monitoring) of `vmanomaly` in setups with infrequent schedules (e.g., rare `fit_every` or `infer_every` intervals) to deal with data staleness.
 
@@ -105,7 +174,7 @@ Released: 2024-12-02
 ## v1.18.6
 Released: 2024-12-01
 
-> **Note**: Release [v1.18.5](#v1185) contained an issue that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly). This issue has been resolved in patch [v1.18.7](#v1187), please update to apply the fix.
+> Release [v1.18.5](#v1185) contained an issue that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly). This issue has been resolved in patch [v1.18.7](#v1187), please update to apply the fix.
 
 - BUGFIX: Assure proper validation of [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) arguments, if specified in ISO-8601 format, preventing service crashes due to validation errors.
 
@@ -113,7 +182,7 @@ Released: 2024-12-01
 ## v1.18.5
 Released: 2024-11-27
 
-> **Note**: This release contained an issue that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly). This issue has been resolved in patch [v1.18.7](#v1187), please update to apply the fix.
+> This release contained an issue that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly). This issue has been resolved in patch [v1.18.7](#v1187), please update to apply the fix.
 
 - IMPROVEMENT: Introduced the ability to run `vmanomaly` using a configuration directory. This enhancement allows users to recursively merge multiple full configuration files (previously limited to merging specific sections, such as `reader`) and execute a single instance of the service with the combined configuration.
 - IMPROVEMENT: Added a new utility, `config_splitter.py`, to streamline the process of splitting a single configuration file into multiple standalone configurations. The configurations are split by specified entities like `schedulers`, `models`, `queries` or `extra_filters`. The split configurations can be saved to a designated directory. It simplifies scaling `vmanomaly` and enhances user experience by automating the process of separating config files so they can be run on separate instances of vmanomaly. For more details, refer to [this section](https://docs.victoriametrics.com/anomaly-detection/faq/#splitting-the-config).
@@ -132,14 +201,14 @@ Released: 2024-11-14
 ## v1.18.2
 Released: 2024-11-13
 
-> **Note**: In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
+> In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
 
 - IMPROVEMENT: Enhanced the flexibility of the [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) for tz-aware data (`tz_aware = True`). The `tz_seasonalities` argument has been reformatted to align with the structure of the existing `seasonalities` argument. For more details, refer to the [model section here](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet). Additionally, tz-aware support for `ProphetModel` has been added to [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model wrapper. This feature is automatically enabled if the data is timezone-aware and its timezone is not set to the default ('UTC'), otherwise default timezone-free optimization flow will be used.
 
 ## v1.18.1
 Released: 2024-11-12
 
-> **Note**: In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
+> In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
 
 - IMPROVEMENT: Added a [reader-level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) `data_range` argument, allowing users to define a default *valid* data range for all input queries in `queries`. Individual queries can still override this default with their own `data_range` if needed.
 - IMPROVEMENT: Added the `url` label to enhance labelset consistency across [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) in both [reader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [writer](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) components. Metrics affected:
@@ -172,7 +241,7 @@ Released: 2024-10-28
 Released: 2024-10-22
 
 - IMPROVEMENT: Added `vmanomaly_version_info` (service) and `vmanomaly_ui_version_info` (vmui) gauges to self-monitoring metrics.
-- IMPROVEMENT: Added `instance` and `job` labels to [pushed](https://docs.victoriametrics.com/keyconcepts/#push-model) metrics so they have the same labels as vmanomaly metrics that are [pulled](https://docs.victoriametrics.com/keyconcepts/#pull-model)/scraped. Metric labels can be customized via the [`extra_labels` argument](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/?highlight=extra_labels#push-config-parameters). By default job label will be `vmanomaly` and the instance label will be `f'{hostname}:{vmanomaly_port}`. See [monitoring.push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) for examples and details.
+- IMPROVEMENT: Added `instance` and `job` labels to [pushed](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) metrics so they have the same labels as vmanomaly metrics that are [pulled](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model)/scraped. Metric labels can be customized via the [`extra_labels` argument](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/?highlight=extra_labels#push-config-parameters). By default job label will be `vmanomaly` and the instance label will be `f'{hostname}:{vmanomaly_port}`. See [monitoring.push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) for examples and details.
 - IMPROVEMENT: Added a subsection to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#logs-generated-by-vmanomaly) page with detailed per-component service logs, including reader and writer logs, error handling, metrics updates, and multi-tenancy warnings.
 - IMPROVEMENT: Added a new [Command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) subsection to the [Quickstart guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/), providing details on available options for configuring `vmanomaly`.
 
@@ -180,7 +249,7 @@ Released: 2024-10-22
 ## v1.17.1
 Released: 2024-10-18
 
-- BUGFIX: [Prophet models](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) no longer fail to train on *constant* data, data consisting of the same value and no variation across time. The bug prevented the `fit` stage from completing successfully, resulting in the model instance not being stored in the model registry, after automated model cleanup was added in [v1.17.0](#1170).
+- BUGFIX: [Prophet models](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) no longer fail to train on *constant* data, data consisting of the same value and no variation across time. The bug prevented the `fit` stage from completing successfully, resulting in the model instance not being stored in the model registry, after automated model cleanup was added in [v1.17.0](#v1170).
 
 ## v1.17.0
 Released: 2024-10-17
@@ -211,7 +280,7 @@ Released: 2024-10-08
 
 ## v1.16.2
 Released: 2024-10-06
-- FEATURE: Added support for `multitenant` value in `tenant_id` arg to enable querying across multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) (option available from [v1.104.0](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels)):
+- FEATURE: Added support for `multitenant` value in `tenant_id` arg to enable querying across multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (option available from [v1.104.0](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)):
   - Applied when reading input data from `vmselect` via the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader).
   - Applied when writing generated results through `vminsert` via the [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer#vm-writer).
   - For more details, refer to the `tenant_id` arg description in the documentation of the mentioned components.
@@ -225,12 +294,12 @@ Released: 2024-10-02
 ## v1.16.0
 Released: 2024-10-01
 
-> **Note**: A bug was discovered in this release that causes the service to crash. Please use the patch [v1.16.1](#v1161) to resolve this issue.
+> A bug was discovered in this release that causes the service to crash. Please use the patch [v1.16.1](#v1161) to resolve this issue.
 
 - FEATURE: Introduced data dumps to a host filesystem for [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader).  Resource-intensive setups (multiple queries returning many metrics, bigger `fit_window` arg) will have RAM consumption reduced during fit calls.
 - IMPROVEMENT: Added a `groupby` argument for logical grouping in [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models#multivariate-models). When specified, a separate multivariate model is trained for each unique combination of label values in the `groupby` columns. For example, to perform multivariate anomaly detection on metrics at the machine level without cross-entity interference, you can use `groupby: [host]` or `groupby: [instance]`, ensuring one model per entity being trained (e.g., per host). Please find more details [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#group-by).
 - IMPROVEMENT: Improved performance of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) on multicore instances for reading and data processing.
-- IMPROVEMENT: Introduced new CLI argument aliases to enhance compatibility with [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) (i.e. using secrets) and better align with [VictoriaMetrics flags](https://docs.victoriametrics.com/#list-of-command-line-flags):
+- IMPROVEMENT: Introduced new CLI argument aliases to enhance compatibility with [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) (i.e. using secrets) and better align with [VictoriaMetrics flags](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags):
   - `--licenseFile` as an alias for `--license-file`
   - `--license.forceOffline` as an alias for `--license-verify-offline`
   - `--loggerLevel` as an alias for `--log-level`
@@ -372,7 +441,7 @@ Released: 2024-02-15
 - IMPROVEMENT: now logs from [`monitoring.pull`](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#monitoring-section-config-example) GET requests to `/metrics` endpoint are shown only in DEBUG mode
 - IMPROVEMENT: labelset for multivariate models is deduplicated and cleaned, resulting in better UX
 
-> **Note**: These updates support more flexible setup and effective resource management in service, as now it's not longer needed to spawn several instances of `vmanomaly` to split queries/models context across.
+> These updates support more flexible setup and effective resource management in service, as now it's not longer needed to spawn several instances of `vmanomaly` to split queries/models context across.
 
 
 ## v1.9.2
@@ -390,7 +459,8 @@ Released: 2024-01-27
 Released: 2024-01-26
 - BUGFIX: The `query_from_last_seen_timestamp` internal logic in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), first introduced in [v1.5.1](#v151), now functions correctly. This fix ensures that the input data shape remains consistent for subsequent `fit`-based model calls in the service.
 - BREAKING CHANGE: The `sampling_period` parameter is now mandatory in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This change aims to clarify and standardize the frequency of input/output in `vmanomaly`, thereby reducing uncertainty and aligning with user expectations.
-> **Note**: The majority of users, who have been proactively specifying the `sampling_period` parameter in their configurations, will experience no disruption from this update. This transition formalizes a practice that was already prevalent and expected among our user base.
+
+> The majority of users, who have been proactively specifying the `sampling_period` parameter in their configurations, will experience no disruption from this update. This transition formalizes a practice that was already prevalent and expected among our user base.
 
 
 ## v1.8.0
@@ -410,7 +480,7 @@ Released: 2023-12-21
 - FEATURE: add `BacktestingScheduler` for consecutive retrospective fit/infer calls.
 - FEATURE: add improved & numerically stable anomaly scores.
 - IMPROVEMENT: add full config validation. The probability of getting errors in later stages (say, model fit) is greatly reduced now. All the config validation errors that needs to be fixed are now a part of logging.
-  > **note**: this is an backward-incompatible change, as `model` config section now expects key-value args for internal model defined in nested `args`.
+  > This is an backward-incompatible change, as `model` config section now expects key-value args for internal model defined in nested `args`.
 - IMPROVEMENT: add explicit support of `gzip`-ed responses from vmselect in VmReader.
 
 
@@ -419,7 +489,7 @@ Released: 2023-10-30
 - IMPROVEMENT: 
   - now all the produced healthcheck metrics have `vmanomaly_` prefix for easier accessing.
   - updated docs for monitoring.
-  > **note**: this is an backward-incompatible change, as metric names will be changed, resulting in new metrics creation, i.e. `model_datapoints_produced` will become `vmanomaly_model_datapoints_produced`
+  > This is an backward-incompatible change, as metric names will be changed, resulting in new metrics creation, i.e. `model_datapoints_produced` will become `vmanomaly_model_datapoints_produced`
 - IMPROVEMENT: Set default value for `--log_level` from `DEBUG` to `INFO` to reduce logs verbosity.
 - IMPROVEMENT: Add alias `--log-level` to `--log_level`.
 - FEATURE: Added `extra_filters` parameter to reader. It allows to apply global filters to all queries.

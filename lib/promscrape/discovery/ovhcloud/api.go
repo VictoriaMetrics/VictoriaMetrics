@@ -47,7 +47,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	apiServer, ok := availableEndpoints[sdc.Endpoint]
 	if !ok {
 		return nil, fmt.Errorf(
-			"unsupported `endpoint` for ovhcloud sd: %s, see: https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs",
+			"unsupported `endpoint` for ovhcloud sd: %s, see: https://docs.victoriametrics.com/victoriametrics/sd_configs/#ovhcloud_sd_configs",
 			sdc.Endpoint,
 		)
 	}

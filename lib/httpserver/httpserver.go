@@ -54,6 +54,7 @@ var (
 	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*")
 
+	disableKeepAlive            = flag.Bool("http.disableKeepAlive", false, "Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr")
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
 	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
@@ -64,6 +65,8 @@ var (
 	headerHSTS         = flag.String("http.header.hsts", "", "Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'")
 	headerFrameOptions = flag.String("http.header.frameOptions", "", "Value for 'X-Frame-Options' header")
 	headerCSP          = flag.String("http.header.csp", "", `Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"`)
+
+	disableCORS = flag.Bool("http.disableCORS", false, `Disable CORS for all origins (*)`)
 )
 
 var (
@@ -100,35 +103,7 @@ type ServeOptions struct {
 // Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default all the responses are transparently compressed, since egress traffic is usually expensive.
-//
-// The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
-//
-// If useProxyProtocol is set to true for the corresponding addr, then the incoming connections are accepted via proxy protocol.
-// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandler) {
-	if rh == nil {
-		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
-			return false
-		}
-	}
-	opts := ServeOptions{
-		UseProxyProtocol: useProxyProtocol,
-	}
-	for idx, addr := range addrs {
-		if addr == "" {
-			continue
-		}
-		go serve(addr, rh, idx, opts)
-	}
-}
-
-// ServeWithOpts starts an http server on the given addrs with the given optional request handlers.
-//
-// By default all the responses are transparently compressed, since egress traffic is usually expensive.
-//
-// The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
-// TODO: rename to Serve and update Serve usage with new signature
-func ServeWithOpts(addrs []string, rh RequestHandler, opts ServeOptions) {
+func Serve(addrs []string, rh RequestHandler, opts ServeOptions) {
 	if rh == nil {
 		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
@@ -191,6 +166,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 
 		ErrorLog: logger.StdErrorLogger(),
 	}
+	s.s.SetKeepAlivesEnabled(!*disableKeepAlive)
 	if *connTimeout > 0 {
 		s.s.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
 			timeoutSec := connTimeout.Seconds()
@@ -527,6 +503,10 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 // EnableCORS enables https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 // on the response.
 func EnableCORS(w http.ResponseWriter, _ *http.Request) {
+	if *disableCORS {
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8680
+		return
+	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 }
 
@@ -673,10 +653,7 @@ func (rwa *responseWriterWithAbort) abort() {
 // Errorf writes formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) {
 	errStr := fmt.Sprintf(format, args...)
-	remoteAddr := GetQuotedRemoteAddr(r)
-	requestURI := GetRequestURI(r)
-	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
-	logger.WarnfSkipframes(1, "%s", errStr)
+	logHTTPError(r, errStr)
 
 	// Extract statusCode from args
 	statusCode := http.StatusBadRequest
@@ -696,6 +673,14 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 		return
 	}
 	http.Error(w, errStr, statusCode)
+}
+
+// logHTTPError logs the errStr with the client remote address and the request URI obtained from r.
+func logHTTPError(r *http.Request, errStr string) {
+	remoteAddr := GetQuotedRemoteAddr(r)
+	requestURI := GetRequestURI(r)
+	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
+	logger.WarnfSkipframes(2, "%s", errStr)
 }
 
 // ErrorWithStatusCode is error with HTTP status code.

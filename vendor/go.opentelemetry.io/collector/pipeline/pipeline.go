@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"go.opentelemetry.io/collector/pipeline/internal/globalsignal"
 )
 
 // typeAndNameSeparator is the separator that is used between type and name in type/name composite keys.
@@ -24,14 +22,17 @@ type ID struct {
 
 // NewID returns a new ID with the given Signal and empty name.
 func NewID(signal Signal) ID {
-	return ID{signal: signal}
+	return NewIDWithName(signal, "")
 }
 
-// MustNewID builds a Signal and returns a new ID with the given Signal and empty name.
-// It panics if the Signal is invalid.
-// A signal must consist of 1 to 62 lowercase ASCII alphabetic characters.
+// Deprecated: [v0.127.0] use NewIDWithName.
 func MustNewID(signal string) ID {
-	return ID{signal: globalsignal.MustNewSignal(signal)}
+	id := ID{}
+	err := id.signal.UnmarshalText([]byte(signal))
+	if err != nil {
+		panic(err)
+	}
+	return id
 }
 
 // NewIDWithName returns a new ID with the given Signal and name.
@@ -39,12 +40,9 @@ func NewIDWithName(signal Signal, name string) ID {
 	return ID{signal: signal, name: name}
 }
 
-// MustNewIDWithName builds a Signal and returns a new ID with the given Signal and name.
-// It panics if the Signal is invalid or name is invalid.
-// A signal must consist of 1 to 62 lowercase ASCII alphabetic characters.
-// A name must consist of 1 to 1024 unicode characters excluding whitespace, control characters, and symbols.
+// Deprecated: [v0.127.0] use NewIDWithName.
 func MustNewIDWithName(signal string, name string) ID {
-	id := ID{signal: globalsignal.MustNewSignal(signal)}
+	id := MustNewID(signal)
 	err := validateName(name)
 	if err != nil {
 		panic(err)
@@ -93,8 +91,7 @@ func (i *ID) UnmarshalText(text []byte) error {
 		}
 	}
 
-	var err error
-	if i.signal, err = globalsignal.NewSignal(signalStr); err != nil {
+	if err := i.signal.UnmarshalText([]byte(signalStr)); err != nil {
 		return fmt.Errorf("in %q id: %w", idStr, err)
 	}
 	i.name = nameStr

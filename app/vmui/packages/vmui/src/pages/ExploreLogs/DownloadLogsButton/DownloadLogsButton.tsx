@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { useCallback } from "react";
 import dayjs from "dayjs";
 import DownloadButton from "../../../components/DownloadButton/DownloadButton";
@@ -7,10 +7,11 @@ import { downloadCSV, downloadJSON } from "../../../utils/file";
 import { Logs } from "../../../api/types";
 
 interface DownloadLogsButtonProps {
-  logs: Logs[];
+  /** Callback to get logs to download */
+  getLogs: () => Logs[];
 }
 
-const DownloadLogsButton: FC<DownloadLogsButtonProps> = ({ logs }) => {
+const DownloadLogsButton: FC<DownloadLogsButtonProps> = ({ getLogs }) => {
   const { fileExtensions, getDownloaderByExtension } = useMemo(() => {
     const downloadFileOptions: {
       extension: string;
@@ -39,12 +40,13 @@ const DownloadLogsButton: FC<DownloadLogsButtonProps> = ({ logs }) => {
       return;
     }
 
+    const logs = getLogs();
     const downloader = getDownloaderByExtension(fileExtension);
     if (downloader){
       const timestamp = dayjs().utc().format(DATE_FILENAME_FORMAT);
       downloader(logs, `vmui_logs_${timestamp}.${fileExtension}`);
     }
-  }, [logs]);
+  }, [getLogs]);
 
   return <DownloadButton
     title={"Download logs"}

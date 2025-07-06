@@ -653,6 +653,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "for-pending"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-pending",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-pending"},
 			Annotations: map[string]string{"activeAt": "5000"},
 			State:       notifier.StatePending,
@@ -672,6 +673,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "for-firing"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-firing",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-firing"},
 			Annotations: map[string]string{"activeAt": "1000"},
 			State:       notifier.StateFiring,
@@ -692,6 +694,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "for-hold-pending"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "for-hold-pending",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
 			Annotations: map[string]string{"activeAt": "5000"},
 			State:       notifier.StatePending,
@@ -747,6 +750,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "multi-series"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "multi-series"},
 			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
@@ -758,6 +762,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		hash(map[string]string{"alertname": "multi-series", "foo": "bar"}): {
 			GroupID:     fakeGroup.GetID(),
 			Name:        "multi-series",
+			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "multi-series", "foo": "bar"},
 			Annotations: map[string]string{},
 			State:       notifier.StatePending,
@@ -809,10 +814,6 @@ func TestGroup_Restore(t *testing.T) {
 	fn := func(rules []config.Rule, expAlerts map[uint64]*notifier.Alert) {
 		t.Helper()
 		defer fqr.Reset()
-
-		for _, r := range rules {
-			fqr.Set(r.Expr, metricWithValueAndLabels(t, 0, "__name__", r.Alert))
-		}
 
 		fg := NewGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
 		fg.Init()
@@ -866,6 +867,7 @@ func TestGroup_Restore(t *testing.T) {
 	}
 
 	// one active alert, no previous state
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fn(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)}},
 		map[uint64]*notifier.Alert{
@@ -874,10 +876,10 @@ func TestGroup_Restore(t *testing.T) {
 				ActiveAt: defaultTS,
 			},
 		})
-	fqr.Reset()
 
 	// one active alert with state restore
 	ts := time.Now().Truncate(time.Hour)
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
 	fn(
@@ -889,8 +891,33 @@ func TestGroup_Restore(t *testing.T) {
 			},
 		})
 
+	// one rule, two active alerts, one with state restored
+	ts = time.Now().Truncate(time.Hour)
+	fqr.Set("foo",
+		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "prod"),
+		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "dev"))
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+		// only env=prod has state metric, so only it will have state restore
+		stateMetric("foo", ts, "env", "prod"))
+	fn(
+		[]config.Rule{
+			{Alert: "foo", Expr: "foo", For: promutil.NewDuration(time.Second)},
+		},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
+				Name:     "foo",
+				ActiveAt: defaultTS,
+			},
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "prod"}): {
+				Name:     "foo",
+				ActiveAt: ts,
+			},
+		})
+
 	// two rules, two active alerts, one with state restored
 	ts = time.Now().Truncate(time.Hour)
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+	fqr.Set("bar", metricWithValueAndLabels(t, 0, "__name__", "bar"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
 		stateMetric("bar", ts))
 	fn(
@@ -911,6 +938,8 @@ func TestGroup_Restore(t *testing.T) {
 
 	// two rules, two active alerts, two with state restored
 	ts = time.Now().Truncate(time.Hour)
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
+	fqr.Set("bar", metricWithValueAndLabels(t, 0, "__name__", "bar"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
@@ -933,6 +962,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert but wrong state restore
 	ts = time.Now().Truncate(time.Hour)
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
 		stateMetric("wrong alert", ts))
 	fn(
@@ -946,6 +976,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert with labels
 	ts = time.Now().Truncate(time.Hour)
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev"))
 	fn(
@@ -959,6 +990,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert with restore labels mismatch
 	ts = time.Now().Truncate(time.Hour)
+	fqr.Set("foo", metricWithValueAndLabels(t, 0, "__name__", "foo"))
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))
 	fn(
@@ -967,6 +999,27 @@ func TestGroup_Restore(t *testing.T) {
 			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
 				Name:     "foo",
 				ActiveAt: defaultTS,
+			},
+		})
+
+	// two active alerts with dynamic labels and restore
+	ts = time.Now().Truncate(time.Hour)
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+		stateMetric("foo", ts, "env", "dev"),
+		stateMetric("foo", ts.Add(time.Second), "env", "prod"))
+	fqr.Set("foo",
+		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "dev"),
+		metricWithValueAndLabels(t, 0, "__name__", "foo", "env", "prod"))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "{{$labels.env}}"}, For: promutil.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
+				Name:     "foo",
+				ActiveAt: ts,
+			},
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "prod"}): {
+				Name:     "foo",
+				ActiveAt: ts.Add(time.Second),
 			},
 		})
 }

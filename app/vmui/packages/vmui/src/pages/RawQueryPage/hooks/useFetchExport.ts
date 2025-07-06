@@ -65,6 +65,9 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     const { signal } = abortControllerRef.current;
     setIsLoading(true);
     try {
+      const maxPointsPerSeries = Math.floor(window.innerWidth / 4);
+      const maxResponseSize = 30 * 1024 * 1024; // 30 MiB
+
       const tempData: MetricBase[] = [];
       const seriesLimit = showAllSeries ? Infinity : +stateSeriesLimits[displayType] || Infinity;
       let counter = 1;
@@ -81,6 +84,14 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
 
         const response = await fetch(url, { signal });
         const text = await response.text();
+        const sizeInBytes = new TextEncoder().encode(text).length;
+
+        if (sizeInBytes > maxResponseSize) {
+          const errorMessage = "Response too large to display (over 30 MiB). Please narrow your query.";
+          setError(errorMessage);
+          setQueryErrors(prev => [...prev, errorMessage]);
+          continue;
+        }
 
         if (!response.ok || !response.body) {
           tempData.push({ metric: {}, values: [], group: counter } as MetricBase);
@@ -91,15 +102,30 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
           const freeTempSize = seriesLimit - tempData.length;
           const lines = text.split("\n").filter(line => line);
           const lineLimited = lines.slice(0, freeTempSize).sort();
-          lineLimited.forEach((line: string) => {
-            const jsonLine = parseLineToJSON(line) as (ExportMetricResult | null);
-            if (!jsonLine) return;
+
+          for (const line of lineLimited) {
+            const jsonLine = parseLineToJSON(line) as ExportMetricResult | null;
+            if (!jsonLine) continue;
+
+            const { values: rawValues, timestamps: rawTimestamps } = jsonLine;
+            const totalPoints = rawValues.length;
+
+            const shouldDownsample = totalPoints > maxPointsPerSeries;
+            const pointsToTake = shouldDownsample ? maxPointsPerSeries : totalPoints;
+            const step = shouldDownsample ? totalPoints / maxPointsPerSeries : 1;
+
+            const values: [number, number][] = Array.from({ length: pointsToTake }, (_, i) => {
+              const idx = shouldDownsample ? Math.floor(i * step) : i;
+              return [rawTimestamps[idx] / 1000, rawValues[idx]];
+            });
+
             tempData.push({
               group: counter,
               metric: jsonLine.metric,
-              values: jsonLine.values.map((value, index) => [(jsonLine.timestamps[index] / 1000), value]),
+              values,
             } as MetricBase);
-          });
+          }
+
           totalLength += lines.length;
         }
 

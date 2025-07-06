@@ -21,7 +21,7 @@ import DownloadReport, { ReportType } from "../CustomPanel/DownloadReport/Downlo
 
 const RawSamplesLink = () => (
   <Hyperlink
-    href="https://docs.victoriametrics.com/keyconcepts/#raw-samples"
+    href="https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples"
     underlined
   >
     raw samples
@@ -31,7 +31,7 @@ const RawSamplesLink = () => (
 const QueryDataLink = () => (
   <Hyperlink
     underlined
-    href="https://docs.victoriametrics.com/keyconcepts/#query-data"
+    href="https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data"
   >
     Query API
   </Hyperlink>
@@ -40,7 +40,7 @@ const QueryDataLink = () => (
 const TimeSeriesSelectorLink = () => (
   <Hyperlink
     underlined
-    href="https://docs.victoriametrics.com/keyconcepts/#filtering"
+    href="https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering"
   >
     time series selector
   </Hyperlink>

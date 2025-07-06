@@ -18,9 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-var (
-	defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
-)
+var defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
 
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
@@ -50,6 +48,8 @@ type Group struct {
 	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// EvalAlignment will make the timestamp of group query requests be aligned with interval
 	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
+	// Debug enables debug logs for the group
+	Debug bool `yaml:"debug,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]any `yaml:",inline"`
 }
@@ -143,7 +143,7 @@ type Rule struct {
 	KeepFiringFor *promutil.Duration `yaml:"keep_firing_for,omitempty"`
 	Labels        map[string]string  `yaml:"labels,omitempty"`
 	Annotations   map[string]string  `yaml:"annotations,omitempty"`
-	Debug         bool               `yaml:"debug,omitempty"`
+	Debug         *bool              `yaml:"debug,omitempty"`
 	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
 	// Overrides `-rule.updateEntriesLimit`.
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
@@ -291,12 +291,6 @@ func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpress
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
-	sort.SliceStable(groups, func(i, j int) bool {
-		if groups[i].File != groups[j].File {
-			return groups[i].File < groups[j].File
-		}
-		return groups[i].Name < groups[j].Name
-	})
 	return groups, nil
 }
 

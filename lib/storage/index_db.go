@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -442,7 +443,7 @@ func invalidateTagFiltersCache() {
 	tagFiltersKeyGen.Add(1)
 }
 
-var tagFiltersKeyGen atomic.Uint64
+var tagFiltersKeyGen atomicutil.Uint64
 
 func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	if len(metricIDs) == 0 {
@@ -2327,7 +2328,7 @@ func errTooManyTimeseries(maxMetrics int) error {
 	return fmt.Errorf("the number of matching timeseries exceeds %d; "+
 		"either narrow down the search or increase -search.max* command-line flag values "+
 		"(the most likely limit is -search.maxUniqueTimeseries); "+
-		"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
+		"see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits", maxMetrics)
 }
 
 func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
@@ -3149,8 +3150,8 @@ func generateUniqueMetricID() uint64 {
 // This number mustn't go backwards on restarts, otherwise metricID
 // collisions are possible. So don't change time on the server
 // between VictoriaMetrics restarts.
-var nextUniqueMetricID = func() *atomic.Uint64 {
-	var n atomic.Uint64
+var nextUniqueMetricID = func() *atomicutil.Uint64 {
+	var n atomicutil.Uint64
 	n.Store(uint64(time.Now().UnixNano()))
 	return &n
 }()
@@ -3425,8 +3426,8 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 }
 
 var (
-	indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
-	indexBlocksWithMetricIDsProcessed      atomic.Uint64
+	indexBlocksWithMetricIDsIncorrectOrder atomicutil.Uint64
+	indexBlocksWithMetricIDsProcessed      atomicutil.Uint64
 )
 
 func checkItemsSorted(data []byte, items []mergeset.Item) bool {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,7 +45,7 @@ Enterprise version of vmalert supports S3 and GCS paths to rules.
 For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
 S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
 all files with prefix rule_ in folder dir.
-See https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage
+See https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage
 `)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions `+
@@ -71,7 +72,7 @@ absolute path to all .tpl files in root.
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
-		`Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . `+
+		`Supports templating - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating . `+
 		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
 		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
@@ -148,8 +149,12 @@ func main() {
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}
-		if err := replay(groupsCfg, q, rw); err != nil {
+		totalRows, droppedRows, err := replay(groupsCfg, q, rw)
+		if err != nil {
 			logger.Fatalf("replay failed: %s", err)
+		}
+		if droppedRows > 0 {
+			logger.Fatalf("failed to push all generated samples to remote write url, dropped %d samples out of %d", droppedRows, totalRows)
 		}
 		logger.Infof("replay succeed!")
 		return
@@ -182,7 +187,9 @@ func main() {
 		listenAddrs = []string{":8880"}
 	}
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(listenAddrs, useProxyProtocol, rh.handler)
+	go httpserver.Serve(listenAddrs, rh.handler, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	})
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -318,7 +325,7 @@ func usage() {
 	const s = `
 vmalert processes alerts and recording rules.
 
-See the docs at https://docs.victoriametrics.com/vmalert/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
 `
 	flagutil.Usage(s)
 }
@@ -401,6 +408,21 @@ func configsEqual(a, b []config.Group) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
+	// sort both slices by file and name before comparing them
+	sort.SliceStable(a, func(i, j int) bool {
+		if a[i].File != a[j].File {
+			return a[i].File < a[j].File
+		}
+		return a[i].Name < a[j].Name
+	})
+	sort.SliceStable(b, func(i, j int) bool {
+		if b[i].File != b[j].File {
+			return b[i].File < b[j].File
+		}
+		return b[i].Name < b[j].Name
+	})
+
 	for i := range a {
 		if a[i].Checksum != b[i].Checksum {
 			return false

@@ -14,6 +14,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -216,9 +217,8 @@ type rawItemsShardNopad struct {
 type rawItemsShard struct {
 	rawItemsShardNopad
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(rawItemsShardNopad{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(rawItemsShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
 func (ris *rawItemsShard) Len() int {
@@ -279,7 +279,7 @@ func (ris *rawItemsShard) updateFlushDeadline() {
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
 
-var tooLongItemsTotal atomic.Uint64
+var tooLongItemsTotal atomicutil.Uint64
 
 type partWrapper struct {
 	// refCount is the number of references to partWrapper

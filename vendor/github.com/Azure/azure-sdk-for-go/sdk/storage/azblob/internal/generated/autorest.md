@@ -67,7 +67,7 @@ directive:
     $.items.enum.push("permissions");
 ```
 
-### Updating service version to 2025-01-05
+### Updating service version to 2025-05-05
 ```yaml
 directive:
 - from: 
@@ -80,7 +80,7 @@ directive:
   where: $
   transform: >-
     return $.
-      replaceAll(`[]string{"2021-12-02"}`, `[]string{ServiceVersion}`);
+      replaceAll(`[]string{"2025-01-05"}`, `[]string{ServiceVersion}`);
 ```
 
 ### Fix CRC Response Header in PutBlob response

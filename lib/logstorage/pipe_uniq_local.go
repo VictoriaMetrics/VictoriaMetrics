@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // pipeUniqLocal processes local part of the pipeUniq in cluster if hits are requested with unique values.
@@ -33,15 +34,14 @@ func (pu *pipeUniqLocal) canLiveTail() bool {
 	return false
 }
 
-func (pu *pipeUniqLocal) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.reset()
-	unneededFields.reset()
+func (pu *pipeUniqLocal) updateNeededFields(pf *prefixfilter.Filter) {
+	pf.Reset()
 
 	if len(pu.pu.byFields) == 0 {
-		neededFields.add("*")
+		pf.AddAllowFilter("*")
 	} else {
-		neededFields.addFields(pu.pu.byFields)
-		neededFields.add(pu.pu.hitsFieldName)
+		pf.AddAllowFilters(pu.pu.byFields)
+		pf.AddAllowFilter(pu.pu.hitsFieldName)
 	}
 }
 
@@ -97,7 +97,7 @@ func (pup *pipeUniqLocalProcessor) writeBlock(workerID uint, br *blockResult) {
 		value := string(buf)
 		hits64, ok := tryParseUint64(hits[rowIdx])
 		if !ok {
-			logger.Panicf("BUG: unexpected hits recevied from the remote storage at the column %q: %q; it must be uint64", pu.hitsFieldName, hits[rowIdx])
+			logger.Panicf("BUG: unexpected hits received from the remote storage at the column %q: %q; it must be uint64", pu.hitsFieldName, hits[rowIdx])
 		}
 		shard.vhs = append(shard.vhs, ValueWithHits{
 			Value: value,
@@ -126,7 +126,7 @@ func getColumnValuess(br *blockResult, fields []string) [][]string {
 
 func (pup *pipeUniqLocalProcessor) flush() error {
 	pu := pup.pu.pu
-	shards := pup.shards.GetSlice()
+	shards := pup.shards.All()
 	if len(shards) == 0 {
 		return nil
 	}

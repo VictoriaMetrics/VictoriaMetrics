@@ -351,7 +351,7 @@ const (
 	targetDropReasonRelabeling       = targetDropReason("relabeling")         // target dropped because of relabeling
 	targetDropReasonMissingScrapeURL = targetDropReason("missing scrape URL") // target dropped because of missing scrape URL
 	targetDropReasonDuplicate        = targetDropReason("duplicate")          // target with the given set of labels already exists
-	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped because of sharding https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
+	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped because of sharding https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets
 )
 
 func (dt *droppedTargets) getTargetsList() []droppedTarget {
@@ -412,6 +412,12 @@ func (dt *droppedTargets) getTotalTargets() int {
 func labelsHash(labels *promutil.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
 	for _, label := range labels.GetLabels() {
+		// exclude annotations from hash generation
+		// annotations are mutable and should not be used for objects identification
+		// See this issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8626
+		if strings.HasPrefix(label.Name, "__meta_kubernetes_") && strings.Contains(label.Name, "_annotation_") {
+			continue
+		}
 		_, _ = d.WriteString(label.Name)
 		_, _ = d.WriteString(label.Value)
 	}

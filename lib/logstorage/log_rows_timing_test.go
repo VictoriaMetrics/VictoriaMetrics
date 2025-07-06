@@ -52,7 +52,7 @@ func BenchmarkLogRowsMustAdd(b *testing.B) {
 }
 
 func benchmarkLogRowsMustAdd(rows [][]Field, streamFields []string) {
-	lr := GetLogRows(streamFields, nil, nil, "")
+	lr := GetLogRows(streamFields, nil, nil, nil, "")
 	var tid TenantID
 	for i, fields := range rows {
 		tid.AccountID = uint32(i)

@@ -30,8 +30,8 @@ var (
 	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier.")
 	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent group")
-	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the `time` parameter for rule evaluation requests to compensate intentional data delay from the datasource. "+
-		"Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). "+
+	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. "+
+		"Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). "+
 		"This doesn't apply to groups with eval_offset specified.")
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries. "+
@@ -57,6 +57,7 @@ type Group struct {
 	// checksum stores the hash of yaml definition for this group.
 	checksum       string
 	LastEvaluation time.Time
+	Debug          bool
 
 	Labels          map[string]string
 	Params          url.Values
@@ -118,6 +119,7 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Headers:         make(map[string]string),
 		NotifierHeaders: make(map[string]string),
 		Labels:          cfg.Labels,
+		Debug:           cfg.Debug,
 		evalAlignment:   cfg.EvalAlignment,
 
 		doneCh:     make(chan struct{}),
@@ -271,6 +273,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Limit = newGroup.Limit
 	g.checksum = newGroup.checksum
 	g.Rules = newRules
+	g.Debug = newGroup.Debug
 	return nil
 }
 
@@ -442,11 +445,17 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 
 			g.infof("re-started")
 		case <-t.C:
-			missed := (time.Since(evalTS) / g.Interval) - 1
+			// calculate the real wall clock offset by stripping the monotonic clock first,
+			// then evalTS can be corrected when wall clock is adjusted.
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8790#issuecomment-2986541829
+			offset := time.Now().Round(0).Sub(evalTS.Round(0))
+			missed := (offset / g.Interval) - 1
 			if missed < 0 {
 				// missed can become < 0 due to irregular delays during evaluation
-				// which can result in time.Since(evalTS) < g.Interval
+				// which can result in time.Since(evalTS) < g.Interval;
+				// or the system wall clock was changed backward
 				missed = 0
+				evalTS = time.Now()
 			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
@@ -504,43 +513,107 @@ func (g *Group) infof(format string, args ...any) {
 }
 
 // Replay performs group replay
-func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool) int {
+func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoint, replayRuleRetryAttempts int, replayDelay time.Duration, disableProgressBar bool, ruleEvaluationConcurrency int) int {
 	var total int
 	step := g.Interval * time.Duration(maxDataPoint)
 	ri := rangeIterator{start: start, end: end, step: step}
 	iterations := int(end.Sub(start)/step) + 1
 	fmt.Printf("\nGroup %q"+
 		"\ninterval: \t%v"+
-		"\nrequests to make: \t%d"+
+		"\nconcurrency: \t %d"+
+		"\nrequests to make per rule: \t%d"+
 		"\nmax range per request: \t%v\n",
-		g.Name, g.Interval, iterations, step)
+		g.Name, g.Interval, g.Concurrency, iterations, step)
 	if g.Limit > 0 {
-		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
+		fmt.Printf("\nWarning: `limit: %d` param has no effect during replay.\n",
 			g.Limit)
 	}
-	for _, rule := range g.Rules {
-		fmt.Printf("> Rule %q (ID: %d)\n", rule, rule.ID())
-		var bar *pb.ProgressBar
-		if !disableProgressBar {
-			bar = pb.StartNew(iterations)
-		}
-		ri.reset()
-		for ri.next() {
-			n, err := replayRule(rule, ri.s, ri.e, rw, replayRuleRetryAttempts)
-			if err != nil {
-				logger.Fatalf("rule %q: %s", rule, err)
+	concurrency := g.Concurrency
+	if g.Concurrency > 1 && replayDelay > 0 {
+		fmt.Printf("\nWarning: group concurrency %d will be ignored since `-replay.rulesDelay` is %.3f seconds."+
+			" Set -replay.rulesDelay=0 to enable concurrency for replay.\n", g.Concurrency, replayDelay.Seconds())
+		concurrency = 1
+	}
+
+	if concurrency == 1 {
+		for _, rule := range g.Rules {
+			var bar *pb.ProgressBar
+			if !disableProgressBar {
+				bar = pb.StartNew(iterations)
 			}
-			total += n
+			total += replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+			if bar != nil {
+				bar.Finish()
+			}
+			// sleep to let remote storage to flush data on-disk
+			// so chained rules could be calculated correctly
+			time.Sleep(replayDelay)
+		}
+		return total
+	}
+
+	sem := make(chan struct{}, g.Concurrency)
+	res := make(chan int, len(g.Rules)*iterations)
+	wg := sync.WaitGroup{}
+	var bar *pb.ProgressBar
+	if !disableProgressBar {
+		bar = pb.StartNew(iterations * len(g.Rules))
+	}
+	for _, r := range g.Rules {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(r Rule, ri rangeIterator) {
+			// pass ri as a copy, so it can be modified within the replayRuleRange
+			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+			<-sem
+			wg.Done()
+		}(r, ri)
+	}
+
+	wg.Wait()
+	close(res)
+	close(sem)
+
+	if bar != nil {
+		bar.Finish()
+	}
+
+	total = 0
+	for n := range res {
+		total += n
+	}
+	return total
+}
+
+func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int) int {
+	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
+	sem := make(chan struct{}, ruleEvaluationConcurrency)
+	wg := sync.WaitGroup{}
+	res := make(chan int, int(ri.end.Sub(ri.start)/ri.step)+1)
+	for ri.next() {
+		sem <- struct{}{}
+		wg.Add(1)
+
+		go func(s, e time.Time) {
+			n, err := replayRule(r, s, e, rw, replayRuleRetryAttempts)
+			if err != nil {
+				logger.Fatalf("rule %q: %s", r, err)
+			}
 			if bar != nil {
 				bar.Increment()
 			}
-		}
-		if bar != nil {
-			bar.Finish()
-		}
-		// sleep to let remote storage to flush data on-disk
-		// so chained rules could be calculated correctly
-		time.Sleep(replayDelay)
+			res <- n
+			<-sem
+			wg.Done()
+		}(ri.s, ri.e)
+	}
+	wg.Wait()
+	close(res)
+	close(sem)
+
+	total := 0
+	for n := range res {
+		total += n
 	}
 	return total
 }
@@ -567,11 +640,10 @@ type rangeIterator struct {
 	s, e time.Time
 }
 
-func (ri *rangeIterator) reset() {
-	ri.iter = 0
-	ri.s, ri.e = time.Time{}, time.Time{}
-}
-
+// next iterates with given step between start and end
+// by modifying iter, s and e.
+// Returns true until it reaches end.
+// next modifies ri and isn't thread-safe.
 func (ri *rangeIterator) next() bool {
 	ri.s = ri.start.Add(ri.step * time.Duration(ri.iter))
 	if !ri.end.After(ri.s) {

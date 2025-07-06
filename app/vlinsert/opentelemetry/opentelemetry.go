@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,7 +21,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	// use the same path as opentelemetry collector
 	// https://opentelemetry.io/docs/specs/otlp/#otlphttp-request
-	case "/v1/logs":
+	case "/insert/opentelemetry/v1/logs":
 		if r.Header.Get("Content-Type") == "application/json" {
 			httpserver.Errorf(w, r, "json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 			return true
@@ -44,7 +42,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
-	if err := vlstorage.CanWriteData(); err != nil {
+	if err := insertutil.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
@@ -53,7 +51,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
 		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf", false)
 		useDefaultStreamFields := len(cp.StreamFields) == 0
-		err := pushProtobufRequest(data, lmp, useDefaultStreamFields)
+		err := pushProtobufRequest(data, lmp, cp.MsgFields, useDefaultStreamFields)
 		lmp.MustClose()
 		return err
 	})
@@ -72,10 +70,10 @@ var (
 	requestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 
-	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
+	requestProtobufDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 )
 
-func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor, useDefaultStreamFields bool) error {
+func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor, msgFields []string, useDefaultStreamFields bool) error {
 	var req pb.ExportLogsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		errorsTotal.Inc()
@@ -84,35 +82,31 @@ func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor, useDef
 
 	var commonFields []logstorage.Field
 	for _, rl := range req.ResourceLogs {
-		attributes := rl.Resource.Attributes
-		commonFields = slicesutil.SetLength(commonFields, len(attributes))
-		for i, attr := range attributes {
-			commonFields[i].Name = attr.Key
-			commonFields[i].Value = attr.Value.FormatString(true)
-		}
+		commonFields = commonFields[:0]
+		commonFields = appendKeyValues(commonFields, rl.Resource.Attributes, "")
 		commonFieldsLen := len(commonFields)
 		for _, sc := range rl.ScopeLogs {
-			commonFields = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp, useDefaultStreamFields)
+			commonFields = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp, msgFields, useDefaultStreamFields)
 		}
 	}
 
 	return nil
 }
 
-func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutil.LogMessageProcessor, useDefaultStreamFields bool) []logstorage.Field {
+func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutil.LogMessageProcessor, msgFields []string, useDefaultStreamFields bool) []logstorage.Field {
 	fields := commonFields
 	for _, lr := range sc.LogRecords {
 		fields = fields[:len(commonFields)]
-		fields = append(fields, logstorage.Field{
-			Name:  "_msg",
-			Value: lr.Body.FormatString(true),
-		})
-		for _, attr := range lr.Attributes {
+		if lr.Body.KeyValueList != nil {
+			fields = appendKeyValues(fields, lr.Body.KeyValueList.Values, "")
+			logstorage.RenameField(fields[len(commonFields):], msgFields, "_msg")
+		} else {
 			fields = append(fields, logstorage.Field{
-				Name:  attr.Key,
-				Value: attr.Value.FormatString(true),
+				Name:  "_msg",
+				Value: lr.Body.FormatString(true),
 			})
 		}
+		fields = appendKeyValues(fields, lr.Attributes, "")
 		if len(lr.TraceID) > 0 {
 			fields = append(fields, logstorage.Field{
 				Name:  "trace_id",
@@ -135,6 +129,25 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 			streamFields = commonFields
 		}
 		lmp.AddRow(lr.ExtractTimestampNano(), fields, streamFields)
+	}
+	return fields
+}
+
+func appendKeyValues(fields []logstorage.Field, kvs []*pb.KeyValue, parentField string) []logstorage.Field {
+	for _, attr := range kvs {
+		fieldName := attr.Key
+		if parentField != "" {
+			fieldName = parentField + "." + fieldName
+		}
+
+		if attr.Value.KeyValueList != nil {
+			fields = appendKeyValues(fields, attr.Value.KeyValueList.Values, fieldName)
+		} else {
+			fields = append(fields, logstorage.Field{
+				Name:  fieldName,
+				Value: attr.Value.FormatString(true),
+			})
+		}
 	}
 	return fields
 }

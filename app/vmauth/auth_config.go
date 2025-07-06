@@ -34,15 +34,15 @@ import (
 
 var (
 	authConfigPath = flag.String("auth.config", "", "Path to auth config. It can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmauth/ for details on the format of this auth config")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/ for details on the format of this auth config")
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "interval for config file re-read. "+
 		"Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.")
 	defaultRetryStatusCodes = flagutil.NewArrayInt("retryStatusCodes", 0, "Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. "+
-		"See https://docs.victoriametrics.com/vmauth/#load-balancing for details")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details")
 	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
-		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth/#load-balancing")
+		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing")
 	discoverBackendIPsGlobal = flag.Bool("discoverBackendIPs", false, "Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. "+
-		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips")
+		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
 		"Too low value may lead to DNS errors")
 	httpAuthHeader = flagutil.NewArrayString("httpAuthHeader", "HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header")

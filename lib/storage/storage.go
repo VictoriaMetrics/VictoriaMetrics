@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -239,7 +240,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	mem := memory.Allowed()
 	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize())
 	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("metricID_metricName", mem/10)
+	s.metricNameCache = s.mustLoadCache("metricID_metricName", getMetricNamesCacheSize())
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
@@ -349,6 +350,20 @@ func getMetricNamesStatsCacheSize() int {
 		return memory.Allowed() / 100
 	}
 	return maxMetricNamesStatsCacheSize
+}
+
+var maxMetricNameCacheSize int
+
+// SetMetricNameCacheSize overrides the default size of storage/metricName cache
+func SetMetricNameCacheSize(size int) {
+	maxMetricNameCacheSize = size
+}
+
+func getMetricNamesCacheSize() int {
+	if maxMetricNameCacheSize <= 0 {
+		return memory.Allowed() / 10
+	}
+	return maxMetricNameCacheSize
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
@@ -579,26 +594,35 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
-	TSIDCacheSize         uint64
-	TSIDCacheSizeBytes    uint64
-	TSIDCacheSizeMaxBytes uint64
-	TSIDCacheRequests     uint64
-	TSIDCacheMisses       uint64
-	TSIDCacheCollisions   uint64
+	TSIDCacheSize                uint64
+	TSIDCacheSizeBytes           uint64
+	TSIDCacheSizeMaxBytes        uint64
+	TSIDCacheRequests            uint64
+	TSIDCacheMisses              uint64
+	TSIDCacheCollisions          uint64
+	TSIDCacheSizeEvictionBytes   uint64
+	TSIDCacheExpireEvictionBytes uint64
+	TSIDCacheMissEvictionBytes   uint64
 
-	MetricIDCacheSize         uint64
-	MetricIDCacheSizeBytes    uint64
-	MetricIDCacheSizeMaxBytes uint64
-	MetricIDCacheRequests     uint64
-	MetricIDCacheMisses       uint64
-	MetricIDCacheCollisions   uint64
+	MetricIDCacheSize                uint64
+	MetricIDCacheSizeBytes           uint64
+	MetricIDCacheSizeMaxBytes        uint64
+	MetricIDCacheRequests            uint64
+	MetricIDCacheMisses              uint64
+	MetricIDCacheCollisions          uint64
+	MetricIDCacheSizeEvictionBytes   uint64
+	MetricIDCacheExpireEvictionBytes uint64
+	MetricIDCacheMissEvictionBytes   uint64
 
-	MetricNameCacheSize         uint64
-	MetricNameCacheSizeBytes    uint64
-	MetricNameCacheSizeMaxBytes uint64
-	MetricNameCacheRequests     uint64
-	MetricNameCacheMisses       uint64
-	MetricNameCacheCollisions   uint64
+	MetricNameCacheSize                uint64
+	MetricNameCacheSizeBytes           uint64
+	MetricNameCacheSizeMaxBytes        uint64
+	MetricNameCacheRequests            uint64
+	MetricNameCacheMisses              uint64
+	MetricNameCacheCollisions          uint64
+	MetricNameCacheSizeEvictionBytes   uint64
+	MetricNameCacheExpireEvictionBytes uint64
+	MetricNameCacheMissEvictionBytes   uint64
 
 	DateMetricIDCacheSize        uint64
 	DateMetricIDCacheSizeBytes   uint64
@@ -670,6 +694,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.TSIDCacheRequests += cs.GetCalls
 	m.TSIDCacheMisses += cs.Misses
 	m.TSIDCacheCollisions += cs.Collisions
+	m.TSIDCacheExpireEvictionBytes += s.tsidCache.ExpireEvictionBytes.Load()
+	m.TSIDCacheMissEvictionBytes += s.tsidCache.MissEvictionBytes.Load()
+	m.TSIDCacheSizeEvictionBytes += s.tsidCache.SizeEvictionBytes.Load()
 
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
@@ -679,6 +706,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricIDCacheRequests += cs.GetCalls
 	m.MetricIDCacheMisses += cs.Misses
 	m.MetricIDCacheCollisions += cs.Collisions
+	m.MetricIDCacheExpireEvictionBytes += s.metricIDCache.ExpireEvictionBytes.Load()
+	m.MetricIDCacheMissEvictionBytes += s.metricIDCache.MissEvictionBytes.Load()
+	m.MetricIDCacheSizeEvictionBytes += s.metricIDCache.SizeEvictionBytes.Load()
 
 	cs.Reset()
 	s.metricNameCache.UpdateStats(&cs)
@@ -688,6 +718,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNameCacheRequests += cs.GetCalls
 	m.MetricNameCacheMisses += cs.Misses
 	m.MetricNameCacheCollisions += cs.Collisions
+	m.MetricNameCacheExpireEvictionBytes += s.metricNameCache.ExpireEvictionBytes.Load()
+	m.MetricNameCacheMissEvictionBytes += s.metricNameCache.MissEvictionBytes.Load()
+	m.MetricNameCacheSizeEvictionBytes += s.metricNameCache.SizeEvictionBytes.Load()
 
 	m.DateMetricIDCacheSize += uint64(s.dateMetricIDCache.EntriesCount())
 	m.DateMetricIDCacheSizeBytes += uint64(s.dateMetricIDCache.SizeBytes())
@@ -2016,6 +2049,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	hmPrev := s.prevHourMetricIDs.Load()
 	hmCurr := s.currHourMetricIDs.Load()
 	var pendingHourEntries []uint64
+	addToPendingHourEntries := func(hour, metricID uint64) {
+		if hour == hmCurr.hour && !hmCurr.m.Has(metricID) {
+			pendingHourEntries = append(pendingHourEntries, metricID)
+		}
+	}
 
 	mn := GetMetricName()
 	defer PutMetricName(mn)
@@ -2119,9 +2157,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				seriesRepopulated++
 				slowInsertsCount++
 			}
-			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-				pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
-			}
+			addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 			continue
 		}
 
@@ -2167,9 +2203,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 
-			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-				pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
-			}
+			addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 
 			continue
 		}
@@ -2192,9 +2226,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		prevTSID = r.TSID
 		prevMetricNameRaw = mr.MetricNameRaw
 
-		if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
-			pendingHourEntries = append(pendingHourEntries, genTSID.TSID.MetricID)
-		}
+		addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 
 		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())
@@ -2929,8 +2961,8 @@ func nextIndexDBTableName() string {
 	return fmt.Sprintf("%016X", n)
 }
 
-var indexDBTableIdx = func() *atomic.Uint64 {
-	var x atomic.Uint64
+var indexDBTableIdx = func() *atomicutil.Uint64 {
+	var x atomicutil.Uint64
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()

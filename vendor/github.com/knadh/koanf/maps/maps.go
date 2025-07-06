@@ -74,9 +74,15 @@ func Unflatten(m map[string]interface{}, delim string) map[string]interface{} {
 	// Iterate through the flat conf map.
 	for k, v := range m {
 		var (
-			keys = strings.Split(k, delim)
+			keys []string
 			next = out
 		)
+
+		if delim != "" {
+			keys = strings.Split(k, delim)
+		} else {
+			keys = []string{k}
+		}
 
 		// Iterate through key parts, for eg:, parent.child.key
 		// will be ["parent", "child", "key"]

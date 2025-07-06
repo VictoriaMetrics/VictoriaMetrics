@@ -22,11 +22,29 @@ Substitute the `localhost:9428` address inside `endpoints` section with the real
 
 ## Time field
 
-By default VictoriaLogs use the `__REALTIME_TIMESTAMP` field as [timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
-for the logs ingested via journald protocol. This can be modified by setting the `-journald.timeField` command-line flag to the log field name,
-which contains the needed timestamp.
-
+VictoriaLogs uses the `__REALTIME_TIMESTAMP` field as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
+for the logs ingested via journald protocol. Other field can be used instead of `__REALTIME_TIMESTAMP` by specifying it via `-journald.timeField` command-line flag.
 See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+
+## Level field
+
+VictoriaLogs automatically sets the `level` log field according to the [`PRIORITY` field value](https://wiki.archlinux.org/title/Systemd/Journal).
+
+## Stream fields
+
+VictoriaLogs uses `(_MACHINE_ID, _HOSTNAME, _SYSTEMD_UNIT)` as [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+for logs ingested via journald protocol. The list of log stream fields can be changed via `-journald.streamFields` command-line flag if needed,
+by providing comma-separated list of journald fields from [this list](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+
+Please make sure that the log stream fields passed to `-journald.streamFields` do not contain fields with high number or unbound number of unique values,
+since this may lead to [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+This can happen with `_SYSTEMD_UNIT` if you have templated units with non-static instances
+such as `systemd-coredump@.service` or if you have a `.socket` unit with `Accept=yes`.
+
+The following Journald fields are also good candidates for stream fields:
+
+- `_TRANSPORT` (to separate out kernel and audit logs which are not associated with a `_SYSTEMD_UNIT`)
+- `_SYSTEMD_USER_UNIT`
 
 ## Dropping fields
 
@@ -36,17 +54,10 @@ This list can contain log field prefixes ending with `*` such as `some-prefix*`.
 
 See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
 
-## Stream fields
-
-VictoriaLogs can be configured to use the particular fields as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-for logs ingested via jorunald protocol, via `-journald.streamFields` command-line flag, which accepts comma-separated list of fields to use as log stream fields.
-
-See [the list of supported Journald fields](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
-
 ## Multitenancy
 
 By default VictoriaLogs stores logs ingested via journald protocol into `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
-This can be changed by passing the needed tenant in the format `AccountID:ProjectID` at the `-journlad.tenantID` command-line flag.
+This can be changed by passing the needed tenant in the format `AccountID:ProjectID` at the `-journald.tenantID` command-line flag.
 For example, `-journald.tenantID=123:456` would store logs ingested via journald protocol into `(AccountID=123, ProjectID=456)` tenant.
 
 See also:

@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -20,7 +21,10 @@ type Vminsert struct {
 
 	httpListenAddr          string
 	clusternativeListenAddr string
-	cli                     *Client
+	graphiteListenAddr      string
+	openTSDBListenAddr      string
+
+	cli *Client
 }
 
 // storageNodes returns the storage node addresses passed to vminsert via
@@ -41,6 +45,8 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
 		vminsertClusterNativeAddrRE,
+		graphiteListenAddrRE,
+		openTSDBListenAddrRE,
 	}
 	// Add storateNode REs to block until vminsert establishes connections with
 	// all storage nodes. The extracted values are unused.
@@ -53,6 +59,8 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-clusternativeListenAddr": "127.0.0.1:0",
+			"-graphiteListenAddr":      ":0",
+			"-opentsdbListenAddr":      "127.0.0.1:0",
 		},
 		extractREs: extractREs,
 	})
@@ -68,6 +76,8 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 		},
 		httpListenAddr:          stderrExtracts[0],
 		clusternativeListenAddr: stderrExtracts[1],
+		graphiteListenAddr:      stderrExtracts[2],
+		openTSDBListenAddr:      stderrExtracts[3],
 		cli:                     cli,
 	}, nil
 }
@@ -78,19 +88,107 @@ func (app *Vminsert) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// HTTPAddr returns the address at which the vminsert process is
+// listening for incoming HTTP requests.
+func (app *Vminsert) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // InfluxWrite is a test helper function that inserts a
 // collection of records in Influx line format by sending a HTTP
 // POST request to /influx/write vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#influxwrite
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#influxwrite
 func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
-	data := []byte(strings.Join(records, "\n"))
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
 
+	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
 		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// GraphiteWrite is a test helper function that sends a
+// collection of records to graphiteListenAddr port.
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
+func (app *Vminsert) GraphiteWrite(t *testing.T, records []string, _ QueryOpts) {
+	t.Helper()
+	app.cli.Write(t, app.graphiteListenAddr, records)
+}
+
+// PrometheusAPIV1ImportCSV is a test helper function that inserts a collection
+// of records in CSV format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/csv vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/csv", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	app.sendBlocking(t, len(records), func() {
+		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// of records in Native format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/native vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	app.sendBlocking(t, 1, func() {
+		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
+// OpenTSDBAPIPut is a test helper function that inserts a collection of
+// records in OpenTSDB format for the given tenant by sending an HTTP POST
+// request to /opentsdb/api/put vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/opentsdb/api/put", app.openTSDBListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte("[" + strings.Join(records, ",") + "]")
+	app.sendBlocking(t, len(records), func() {
+		_, statusCode := app.cli.Post(t, url, "application/json", data)
 		if statusCode != http.StatusNoContent {
 			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 		}
@@ -119,7 +217,7 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 // tenant by sending a HTTP POST request to
 // /prometheus/api/v1/import/prometheus vminsert endpoint.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 

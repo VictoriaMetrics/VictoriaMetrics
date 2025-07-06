@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
@@ -365,8 +367,8 @@ func (q *Query) DropAllPipes() {
 	q.pipes = nil
 }
 
-func (q *Query) addFieldsFilters(neededColumnNames, unneededColumnNames []string) {
-	qStr := "*" + toFieldsFilters(neededColumnNames, unneededColumnNames)
+func (q *Query) addFieldsFilters(pf *prefixfilter.Filter) {
+	qStr := "*" + toFieldsFilters(pf)
 	qTmp, err := ParseQueryAtTimestamp(qStr, q.GetTimestamp())
 	if err != nil {
 		logger.Panicf("BUG: cannot parse query with fields filters: %s", err)
@@ -485,11 +487,11 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeUniq:
 			return false
 		case *pipeFields:
-			if !t.containsStar && !slices.Contains(t.fields, "_time") {
+			if !prefixfilter.MatchFilters(t.fieldFilters, "_time") {
 				return false
 			}
 		case *pipeDelete:
-			if slices.Contains(t.fields, "_time") {
+			if prefixfilter.MatchFilters(t.fieldFilters, "_time") {
 				return false
 			}
 		}
@@ -525,15 +527,21 @@ func (q *Query) GetFilterTimeRange() (int64, int64) {
 func (q *Query) AddTimeFilter(start, end int64) {
 	startStr := marshalTimestampRFC3339NanoString(nil, start)
 	endStr := marshalTimestampRFC3339NanoString(nil, end)
+
 	ft := &filterTime{
 		minTimestamp: start,
-		maxTimestamp: end,
-		stringRepr:   fmt.Sprintf("[%s, %s]", startStr, endStr),
+		maxTimestamp: getMatchingEndTime(end, string(endStr)),
+		stringRepr:   fmt.Sprintf("[%s,%s]", startStr, endStr), // should be matched with parsing logic
 	}
 
 	q.visitSubqueries(func(q *Query) {
 		q.addTimeFilterNoSubqueries(ft)
 	})
+
+	// Initialize rate functions with the step calculated from HTTP time filter
+	// This fixes the bug where rate_sum() doesn't divide by stepSeconds when
+	// time filter is specified via HTTP params instead of LogsQL expression
+	q.initStatsRateFuncsFromTimeFilter()
 }
 
 func (q *Query) addTimeFilterNoSubqueries(ft *filterTime) {
@@ -584,6 +592,7 @@ func (q *Query) AddPipeLimit(n uint64) {
 	q.pipes = append(q.pipes, &pipeLimit{
 		limit: n,
 	})
+	q.optimize()
 }
 
 // optimize applies various optimations to q.
@@ -663,7 +672,7 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 		}
 		return false
 	}
-	_ = visitFilter(f, callback)
+	_ = visitFilterRecursive(f, callback)
 }
 
 func mergeFiltersStream(f filter) filter {
@@ -789,67 +798,83 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		case *pipeFields:
 			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
 			for _, f := range byFields {
-				if !slices.Contains(t.fields, f) {
+				if !prefixfilter.MatchFilters(t.fieldFilters, f) {
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
-
-			remainingMetricFields := make(map[string]struct{})
-			for _, f := range t.fields {
-				if _, ok := metricFields[f]; ok {
-					remainingMetricFields[f] = struct{}{}
+			for f := range maps.Clone(metricFields) {
+				if !prefixfilter.MatchFilters(t.fieldFilters, f) {
+					delete(metricFields, f)
 				}
 			}
-			metricFields = remainingMetricFields
 		case *pipeDelete:
 			// Disallow deleting by(...) fields, since this breaks output.
-			for _, f := range t.fields {
-				if slices.Contains(byFields, f) {
+			for _, f := range byFields {
+				if prefixfilter.MatchFilters(t.fieldFilters, f) {
 					return nil, fmt.Errorf("the %q field cannot be deleted via %q in the query [%s]", f, p, q)
 				}
-				delete(metricFields, f)
+			}
+			for f := range maps.Clone(metricFields) {
+				if prefixfilter.MatchFilters(t.fieldFilters, f) {
+					delete(metricFields, f)
+				}
 			}
 		case *pipeCopy:
 			// Add copied fields to by(...) fields list.
-			for i := range t.srcFields {
-				fSrc := t.srcFields[i]
-				fDst := t.dstFields[i]
+			for i := range t.srcFieldFilters {
+				fSrc := t.srcFieldFilters[i]
+				fDst := t.dstFieldFilters[i]
 
-				if slices.Contains(byFields, fDst) {
-					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
-				}
-				if _, ok := metricFields[fDst]; ok {
-					if _, ok := metricFields[fSrc]; !ok {
-						delete(metricFields, fDst)
+				for _, f := range byFields {
+					if prefixfilter.MatchFilter(fDst, f) {
+						return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", f, t, q)
+					}
+					if prefixfilter.MatchFilter(fSrc, f) {
+						dstFieldName := string(prefixfilter.AppendReplace(nil, fSrc, fDst, f))
+						if slices.Contains(byFields, dstFieldName) {
+							return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", dstFieldName, t, q)
+						}
+						byFields = append(byFields, dstFieldName)
 					}
 				}
-
-				if slices.Contains(byFields, fSrc) {
-					if !slices.Contains(byFields, fDst) {
-						byFields = append(byFields, fDst)
+				for f := range maps.Clone(metricFields) {
+					if prefixfilter.MatchFilter(fDst, f) {
+						delete(metricFields, f)
 					}
-				}
-				if _, ok := metricFields[fSrc]; ok {
-					metricFields[fDst] = struct{}{}
+					if prefixfilter.MatchFilter(fSrc, f) {
+						dstFieldName := string(prefixfilter.AppendReplace(nil, fSrc, fDst, f))
+						metricFields[dstFieldName] = struct{}{}
+					}
 				}
 			}
 		case *pipeRename:
 			// Update by(...) fields with dst fields
-			for i := range t.srcFields {
-				fSrc := t.srcFields[i]
-				fDst := t.dstFields[i]
+			for i := range t.srcFieldFilters {
+				fSrc := t.srcFieldFilters[i]
+				fDst := t.dstFieldFilters[i]
 
-				if slices.Contains(byFields, fDst) {
-					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
+				for j, f := range byFields {
+					if prefixfilter.MatchFilter(fDst, f) {
+						return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", f, t, q)
+					}
+					if prefixfilter.MatchFilter(fSrc, f) {
+						dstFieldName := string(prefixfilter.AppendReplace(nil, fSrc, fDst, f))
+						if slices.Contains(byFields, dstFieldName) {
+							return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", dstFieldName, t, q)
+						}
+						byFields[j] = dstFieldName
+					}
 				}
-				delete(metricFields, fDst)
 
-				if n := slices.Index(byFields, fSrc); n >= 0 {
-					byFields[n] = fDst
-				}
-				if _, ok := metricFields[fSrc]; ok {
-					delete(metricFields, fSrc)
-					metricFields[fDst] = struct{}{}
+				for f := range maps.Clone(metricFields) {
+					if prefixfilter.MatchFilter(fDst, f) {
+						delete(metricFields, f)
+					}
+					if prefixfilter.MatchFilter(fSrc, f) {
+						delete(metricFields, f)
+						dstFieldName := string(prefixfilter.AppendReplace(nil, fSrc, fDst, f))
+						metricFields[dstFieldName] = struct{}{}
+					}
 				}
 			}
 		case *pipeFormat:
@@ -963,6 +988,28 @@ func removeStarFilters(f filter) filter {
 		return fn, nil
 	}
 	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error: %s", err)
+	}
+
+	// Replace filterOr with filterNoop if one of its sub-filters are filterNoop
+	visitFunc = func(f filter) bool {
+		fo, ok := f.(*filterOr)
+		if !ok {
+			return false
+		}
+		for _, f := range fo.filters {
+			if _, ok := f.(*filterNoop); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc = func(_ filter) (filter, error) {
+		fn := &filterNoop{}
+		return fn, nil
+	}
+	f, err = copyFilter(f, visitFunc, copyFunc)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error: %s", err)
 	}
@@ -1114,16 +1161,15 @@ func mergeFiltersAnd(f1, f2 filter) filter {
 	}
 }
 
-func getNeededColumns(pipes []pipe) ([]string, []string) {
-	neededFields := newFieldsSet()
-	neededFields.add("*")
-	unneededFields := newFieldsSet()
+func getNeededColumns(pipes []pipe) *prefixfilter.Filter {
+	var pf prefixfilter.Filter
+	pf.AddAllowFilter("*")
 
 	for i := len(pipes) - 1; i >= 0; i-- {
-		pipes[i].updateNeededFields(neededFields, unneededFields)
+		pipes[i].updateNeededFields(&pf)
 	}
 
-	return neededFields.getAll(), unneededFields.getAll()
+	return &pf
 }
 
 // ParseQuery parses s.
@@ -1164,14 +1210,17 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
 	q.optimize()
+	q.initStatsRateFuncsFromTimeFilter()
 
+	return q, nil
+}
+
+func (q *Query) initStatsRateFuncsFromTimeFilter() {
 	start, end := q.GetFilterTimeRange()
 	if start != math.MinInt64 && end != math.MaxInt64 {
 		step := end - start + 1 // 1 is needed in order to include [start ... end] in the step.
 		q.initStatsRateFuncs(step)
 	}
-
-	return q, nil
 }
 
 func (q *Query) initStatsRateFuncs(step int64) {
@@ -1456,8 +1505,11 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseGenericFilter(lex, fieldName)
 	case lex.isKeyword("*"):
 		lex.nextToken()
+		if lex.isKeyword(":") {
+			return nil, fmt.Errorf("cannot search for wildcard field name %q*", fieldName)
+		}
 		f := &filterPrefix{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			prefix:    "",
 		}
 		return f, nil
@@ -1548,7 +1600,7 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
 		s += lex.rawToken
 		lex.nextToken()
 	}
@@ -1561,6 +1613,11 @@ func getCompoundToken(lex *lexer) (string, error) {
 }
 
 func (lex *lexer) isInvalidQuotedString() error {
+	if lex.isQuotedToken() {
+		// The string is already properly quoted and parsed.
+		return nil
+	}
+
 	if lex.token != `"` && lex.token != "`" && lex.token != `'` {
 		return nil
 	}
@@ -1595,8 +1652,8 @@ func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	rawS := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
-		s += lex.token
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) && !lex.isEnd() {
+		suffix += lex.rawToken
 		lex.nextToken()
 	}
 	if suffix == "" {
@@ -1613,7 +1670,7 @@ func getCompoundFuncArg(lex *lexer) string {
 	rawArg := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") {
+	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") && !lex.isEnd() {
 		suffix += lex.rawToken
 		lex.nextToken()
 	}
@@ -1629,15 +1686,18 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 		if lex.isKeyword("*") && !lex.isSkippedSpace {
 			// The phrase is a search prefix in the form `foo*`.
 			lex.nextToken()
+			if lex.isKeyword(":") {
+				return nil, fmt.Errorf("field name prefix filter %q* isn't supported", phrase)
+			}
 			f := &filterPrefix{
-				fieldName: fieldName,
+				fieldName: getCanonicalColumnName(fieldName),
 				prefix:    phrase,
 			}
 			return f, nil
 		}
 		// The phrase is a search phrase.
 		f := &filterPhrase{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			phrase:    phrase,
 		}
 		return f, nil
@@ -1698,13 +1758,13 @@ func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgMaybePrefix(lex, "i", fieldName, func(phrase string, isFilterPrefix bool) (filter, error) {
 		if isFilterPrefix {
 			f := &filterAnyCasePrefix{
-				fieldName: fieldName,
+				fieldName: getCanonicalColumnName(fieldName),
 				prefix:    phrase,
 			}
 			return f, nil
 		}
 		f := &filterAnyCasePhrase{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			phrase:    phrase,
 		}
 		return f, nil
@@ -1755,7 +1815,7 @@ func parseFilterLenRange(lex *lexer, fieldName string) (filter, error) {
 
 		stringRepr := "(" + args[0] + ", " + args[1] + ")"
 		fr := &filterLenRange{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			minLen:    minLen,
 			maxLen:    maxLen,
 
@@ -1772,7 +1832,7 @@ func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 			return nil, fmt.Errorf("unexpected number of args for %s(); got %d; want 2", funcName, len(args))
 		}
 		fr := &filterStringRange{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			minValue:  args[0],
 			maxValue:  args[1],
 
@@ -1785,7 +1845,7 @@ func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 func parseFilterValueType(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
 		fv := &filterValueType{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			valueType: arg,
 		}
 		return fv, nil
@@ -1801,7 +1861,7 @@ func parseFilterIPv4Range(lex *lexer, fieldName string) (filter, error) {
 				return nil, fmt.Errorf("cannot parse IPv4 address or IPv4 CIDR %q at %s()", args[0], funcName)
 			}
 			fr := &filterIPv4Range{
-				fieldName: fieldName,
+				fieldName: getCanonicalColumnName(fieldName),
 				minValue:  minValue,
 				maxValue:  maxValue,
 			}
@@ -1819,7 +1879,7 @@ func parseFilterIPv4Range(lex *lexer, fieldName string) (filter, error) {
 			return nil, fmt.Errorf("cannot parse upper bound ip %q in %s()", funcName, args[1])
 		}
 		fr := &filterIPv4Range{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			minValue:  minValue,
 			maxValue:  maxValue,
 		}
@@ -1853,7 +1913,7 @@ func parseFilterContainsAll(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	fi := &filterContainsAll{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 	}
 	return parseInValues(lex, fieldName, fi, &fi.values)
 }
@@ -1864,7 +1924,7 @@ func parseFilterContainsAny(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	fi := &filterContainsAny{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 	}
 	return parseInValues(lex, fieldName, fi, &fi.values)
 }
@@ -1875,7 +1935,7 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	fi := &filterIn{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 	}
 	return parseInValues(lex, fieldName, fi, &fi.values)
 }
@@ -1914,7 +1974,7 @@ func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter
 func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
 		fs := &filterSequence{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			phrases:   args,
 		}
 		return fs, nil
@@ -1924,7 +1984,7 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 func parseFilterEqField(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
 		fe := &filterEqField{
-			fieldName:      fieldName,
+			fieldName:      getCanonicalColumnName(fieldName),
 			otherFieldName: arg,
 		}
 		return fe, nil
@@ -1934,7 +1994,7 @@ func parseFilterEqField(lex *lexer, fieldName string) (filter, error) {
 func parseFilterLeField(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
 		fe := &filterLeField{
-			fieldName:      fieldName,
+			fieldName:      getCanonicalColumnName(fieldName),
 			otherFieldName: arg,
 		}
 		return fe, nil
@@ -1944,7 +2004,7 @@ func parseFilterLeField(lex *lexer, fieldName string) (filter, error) {
 func parseFilterLtField(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
 		fe := &filterLeField{
-			fieldName:      fieldName,
+			fieldName:      getCanonicalColumnName(fieldName),
 			otherFieldName: arg,
 
 			excludeEqualValues: true,
@@ -1957,13 +2017,13 @@ func parseFilterExact(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgMaybePrefix(lex, "exact", fieldName, func(phrase string, isFilterPrefix bool) (filter, error) {
 		if isFilterPrefix {
 			f := &filterExactPrefix{
-				fieldName: fieldName,
+				fieldName: getCanonicalColumnName(fieldName),
 				prefix:    phrase,
 			}
 			return f, nil
 		}
 		f := &filterExact{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			value:     phrase,
 		}
 		return f, nil
@@ -1983,17 +2043,17 @@ func newFilterRegexp(fieldName, arg string) (filter, error) {
 	}
 	if arg == ".+" {
 		fp := &filterPrefix{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 		}
 		return fp, nil
 	}
 
 	re, err := regexutil.NewRegex(arg)
 	if err != nil {
-		return nil, fmt.Errorf("invalid regexp %q: %w", arg, err)
+		return nil, fmt.Errorf("invalid regexp %q:%q: %w", getCanonicalColumnName(fieldName), arg, err)
 	}
 	fr := &filterRegexp{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		re:        re,
 	}
 	return fr, nil
@@ -2001,7 +2061,10 @@ func newFilterRegexp(fieldName, arg string) (filter, error) {
 
 func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
-	arg := getCompoundFuncArg(lex)
+	arg, err := getCompoundToken(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read regexp for field %q: %w", getCanonicalColumnName(fieldName), err)
+	}
 	return newFilterRegexp(fieldName, arg)
 }
 
@@ -2022,13 +2085,13 @@ func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 	if lex.isKeyword("*") && !lex.isSkippedSpace {
 		lex.nextToken()
 		f := &filterExactPrefix{
-			fieldName: fieldName,
+			fieldName: getCanonicalColumnName(fieldName),
 			prefix:    phrase,
 		}
 		return f, nil
 	}
 	f := &filterExact{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		value:     phrase,
 	}
 	return f, nil
@@ -2071,7 +2134,7 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 		minValue = nextafter(minValue, inf)
 	}
 	fr := &filterRange{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		minValue:  minValue,
 		maxValue:  inf,
 
@@ -2106,7 +2169,7 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		maxValue = nextafter(maxValue, -inf)
 	}
 	fr := &filterRange{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		minValue:  -inf,
 		maxValue:  maxValue,
 
@@ -2125,7 +2188,7 @@ func tryParseFilterGTString(lex *lexer, fieldName, op string, includeMinValue bo
 		minValue = string(append([]byte(minValue), 0))
 	}
 	fr := &filterStringRange{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		minValue:  minValue,
 		maxValue:  maxStringRangeValue,
 
@@ -2144,7 +2207,7 @@ func tryParseFilterLTString(lex *lexer, fieldName, op string, includeMaxValue bo
 		maxValue = string(append([]byte(maxValue), 0))
 	}
 	fr := &filterStringRange{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		maxValue:  maxValue,
 
 		stringRepr: op + quoteStringTokenIfNeeded(maxValueOrig),
@@ -2215,7 +2278,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	fr := &filterRange{
-		fieldName: fieldName,
+		fieldName: getCanonicalColumnName(fieldName),
 		minValue:  minValue,
 		maxValue:  maxValue,
 
@@ -2917,10 +2980,10 @@ func getFieldNameFromPipes(pipes []pipe) (string, error) {
 	}
 	switch t := pipes[len(pipes)-1].(type) {
 	case *pipeFields:
-		if t.containsStar || len(t.fields) != 1 {
-			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		if !isSingleField(t.fieldFilters) {
+			return "", fmt.Errorf("'%s' pipe must contain only a single field name", t)
 		}
-		return t.fields[0], nil
+		return t.fieldFilters[0], nil
 	case *pipeUniq:
 		if len(t.byFields) != 1 {
 			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
@@ -2982,6 +3045,18 @@ func parseDuration(lex *lexer) (int64, string, error) {
 
 func quoteStringTokenIfNeeded(s string) string {
 	if !needQuoteStringToken(s) {
+		return s
+	}
+	return strconv.Quote(s)
+}
+
+func quoteFieldFilterIfNeeded(s string) string {
+	if !prefixfilter.IsWildcardFilter(s) {
+		return quoteTokenIfNeeded(s)
+	}
+
+	wildcard := s[:len(s)-1]
+	if wildcard == "" || !needQuoteToken(wildcard) {
 		return s
 	}
 	return strconv.Quote(s)
@@ -3133,21 +3208,25 @@ func nextafter(f, xInf float64) float64 {
 	return math.Nextafter(f, xInf)
 }
 
-func toFieldsFilters(neededColumnNames, unneededColumnNames []string) string {
-	qStr := ""
-	if slices.Contains(neededColumnNames, "*") {
-		if len(unneededColumnNames) > 0 {
-			qStr += " | delete " + fieldNamesString(unneededColumnNames)
-		}
-	} else {
-		if len(neededColumnNames) > 0 {
-			qStr += " | fields " + fieldNamesString(neededColumnNames)
-		} else {
-			// Select at least non-existing field in order to do not select other fields.
-			qStr += " | fields " + nonExistingFieldName
-		}
+func toFieldsFilters(pf *prefixfilter.Filter) string {
+	if pf.MatchNothing() {
+		return " | delete *"
 	}
+	if pf.MatchAll() {
+		return ""
+	}
+
+	qStr := ""
+
+	denyFilters := pf.GetDenyFilters()
+	if len(denyFilters) > 0 {
+		qStr += " | delete " + fieldNamesString(denyFilters)
+	}
+
+	allowFilters := pf.GetAllowFilters()
+	if len(allowFilters) > 0 && !prefixfilter.MatchAll(allowFilters) {
+		qStr += " | fields " + fieldNamesString(allowFilters)
+	}
+
 	return qStr
 }
-
-const nonExistingFieldName = "__non_existing_field__"

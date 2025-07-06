@@ -1,4 +1,4 @@
-FROM python:3.12-bullseye
+FROM python:3.13-bullseye
 
 COPY --from=datadog/serverless-init:1 /datadog-init /app/datadog-init
 ENV DD_SERVICE=datadog-demo-run-go

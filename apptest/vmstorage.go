@@ -95,12 +95,11 @@ func (app *Vmstorage) ForceMerge(t *testing.T) {
 // SnapshotCreate creates a database snapshot by sending a query to the
 // /snapshot/create endpoint.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
 func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -113,10 +112,15 @@ func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	return &res
 }
 
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (app *Vmstorage) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
+}
+
 // SnapshotList lists existing database snapshots by sending a query to the
 // /snapshot/list endpoint.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
 func (app *Vmstorage) SnapshotList(t *testing.T) *SnapshotListResponse {
 	t.Helper()
 
@@ -137,7 +141,7 @@ func (app *Vmstorage) SnapshotList(t *testing.T) *SnapshotListResponse {
 // SnapshotDelete deletes a snapshot by sending a query to the
 // /snapshot/delete endpoint.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
 func (app *Vmstorage) SnapshotDelete(t *testing.T, snapshotName string) *SnapshotDeleteResponse {
 	t.Helper()
 
@@ -162,7 +166,7 @@ func (app *Vmstorage) SnapshotDelete(t *testing.T, snapshotName string) *Snapsho
 // SnapshotDeleteAll deletes all snapshots by sending a query to the
 // /snapshot/delete_all endpoint.
 //
-// See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots
 func (app *Vmstorage) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse {
 	t.Helper()
 

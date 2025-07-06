@@ -9,4 +9,5 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8428
 ENTRYPOINT ["/victoria-metrics-prod"]
 ARG TARGETARCH
-COPY victoria-metrics-linux-${TARGETARCH}-prod ./victoria-metrics-prod
+ARG BINARY_SUFFIX=non-existing
+COPY victoria-metrics-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./victoria-metrics-prod

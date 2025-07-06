@@ -165,7 +165,7 @@ func TestClientProxyReadOk(t *testing.T) {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
 		if isGzipped {
-			t.Fatalf("the response musn't be gzipped")
+			t.Fatalf("the response mustn't be gzipped")
 		}
 		got, err := io.ReadAll(cb.NewReader())
 		if err != nil {

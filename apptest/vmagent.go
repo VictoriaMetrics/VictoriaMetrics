@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -56,7 +57,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 //
 // The call is blocked until the data is flushed to vmstorage or the timeout is reached.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
@@ -72,7 +73,7 @@ func (app *Vmagent) APIV1ImportPrometheus(t *testing.T, records []string, opts Q
 // The call accepts the records but does not guarantee successful flush to vmstorage.
 // Flushing may still be in progress on the function return.
 //
-// See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1importprometheus
 func (app *Vmagent) APIV1ImportPrometheusNoWaitFlush(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
@@ -99,6 +100,30 @@ func (app *Vmagent) RemoteWritePacketsDroppedTotal(t *testing.T) int {
 		total += v
 	}
 	return int(total)
+}
+
+// ReloadRelabelConfigs sends SIGHUP to trigger relabel config reload
+// and waits until vmagent_relabel_config_reloads_total increases.
+// Fails the test if no reload is detected within 3 seconds.
+func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
+	prevTotal := app.GetMetric(t, "vmagent_relabel_config_reloads_total")
+
+	if err := app.process.Signal(syscall.SIGHUP); err != nil {
+		t.Fatalf("could not send SIGHUP signal to %s process: %v", app.instance, err)
+	}
+
+	var currTotal float64
+	for i := 0; i < 30; i++ {
+		currTotal = app.GetMetric(t, "vmagent_relabel_config_reloads_total")
+		if currTotal > prevTotal {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if currTotal <= prevTotal {
+		t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
+	}
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and

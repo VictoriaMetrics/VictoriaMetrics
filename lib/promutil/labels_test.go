@@ -238,7 +238,8 @@ func TestNewLabelsFromStringFailure(t *testing.T) {
 	f(`foo{bar="baz`)
 	f(`foo{bar="baz"`)
 	f(`foo{bar="baz",`)
-	f(`foo{"bar"="baz"}`)
+	// This will no longer fail with support of Prometheus 3.0 quoted UTF8 labels
+	//f(`foo{"bar"="baz"}`)
 	f(`{"bar":"baz"}`)
 	f(`{bar:"baz"}`)
 	f(`{bar=~"baz"}`)

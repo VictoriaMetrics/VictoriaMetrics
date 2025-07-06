@@ -75,18 +75,16 @@ type recordForStore struct {
 func MustLoadFrom(loadPath string, maxSizeBytes uint64) *Tracker {
 	mt, err := loadFrom(loadPath, maxSizeBytes)
 	if err != nil {
-		logger.Fatalf("unexpected error at tracker state load from path=%q: %s", loadPath, err)
+		// just log error in case of any error and return empty object as other caches do
+		logger.Errorf("metric names stats tracker file at path %s is invalid: %s; init new metric names stats tracker", loadPath, err)
+		return newTracker(loadPath, maxSizeBytes)
 	}
+
 	return mt
 }
 
 func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
-	mt := &Tracker{
-		maxSizeBytes: maxSizeBytes,
-		cachePath:    loadPath,
-		getCurrentTs: fasttime.UnixTimestamp,
-	}
-	mt.initEmpty()
+	mt := newTracker(loadPath, maxSizeBytes)
 
 	f, err := os.Open(loadPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -307,6 +305,16 @@ func (mt *Tracker) initEmpty() {
 	mt.currentSizeBytes.Store(0)
 	mt.currentItemsCount.Store(0)
 	mt.creationTs.Store(mt.getCurrentTs())
+}
+
+func newTracker(loadPath string, maxSizeBytes uint64) *Tracker {
+	mt := &Tracker{
+		maxSizeBytes: maxSizeBytes,
+		cachePath:    loadPath,
+		getCurrentTs: fasttime.UnixTimestamp,
+	}
+	mt.initEmpty()
+	return mt
 }
 
 // RegisterIngestRequest tracks metric name ingestion

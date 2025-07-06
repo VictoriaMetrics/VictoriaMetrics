@@ -9,4 +9,5 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8880
 ENTRYPOINT ["/vmalert-prod"]
 ARG TARGETARCH
-COPY vmalert-linux-${TARGETARCH}-prod ./vmalert-prod
+ARG BINARY_SUFFIX=non-existing
+COPY vmalert-linux-${TARGETARCH}-prod${BINARY_SUFFIX} ./vmalert-prod

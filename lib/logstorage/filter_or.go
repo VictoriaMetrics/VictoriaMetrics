@@ -3,6 +3,8 @@ package logstorage
 import (
 	"strings"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
 )
 
 // filterOr contains filters joined by OR operator.
@@ -25,9 +27,9 @@ func (fo *filterOr) String() string {
 	return strings.Join(a, " or ")
 }
 
-func (fo *filterOr) updateNeededFields(neededFields fieldsSet) {
+func (fo *filterOr) updateNeededFields(pf *prefixfilter.Filter) {
 	for _, f := range fo.filters {
-		f.updateNeededFields(neededFields)
+		f.updateNeededFields(pf)
 	}
 }
 
