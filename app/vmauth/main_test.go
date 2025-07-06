@@ -231,7 +231,7 @@ users:
 	}
 	responseExpected = `
 statusCode=401
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /a/b?c=d; cannot authorize request with auth tokens ["http_auth:Basic Zm9vOmludmFsaWQtc2VjcmV0"]`
+cannot authorize request with auth tokens ["http_auth:Basic Zm9vOmludmFsaWQtc2VjcmV0"]`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	*logInvalidAuthTokens = origLogInvalidAuthTokens
 
@@ -346,7 +346,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg"`
+missing route for "http://some-host.com/abc?de=fg"`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
@@ -362,7 +362,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
 Pass-Header: abc
 Some-Header: foobar
 X-Forwarded-For: 12.34.56.78
@@ -404,7 +404,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "" are unavailable`
+all the 2 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// all the backend_urls are unavailable for authorized user
@@ -422,7 +422,7 @@ users:
 	}
 	responseExpected = `
 statusCode=502
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "some-user" are unavailable`
+all the 2 backends for the user "some-user" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// zero discovered backend IPs
@@ -444,7 +444,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /def/?de=fg; all the 0 backends for the user "" are unavailable`
+all the 0 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
 
@@ -461,7 +461,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "" are unavailable`
+all the 2 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
