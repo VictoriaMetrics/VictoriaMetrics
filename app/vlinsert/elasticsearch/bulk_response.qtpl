@@ -1,16 +1,29 @@
 {% stripspace %}
 
-{% func BulkResponse(n int, tookMs int64) %}
+{% func BulkResponse(n int, errs []parseError, tookMs int64) %}
 {
 	"took":{%dl tookMs %},
-	"errors":false,
+	"errors": {% if len(errs) > 0 %} true {% else %} false {% endif %},
 	"items":[
 		{% for i := 0; i < n; i++ %}
-		{
-			"create":{
-				"status":201
-			}
-		}
+			{% if len(errs) > 0 && errs[0].pos == i %}
+				{
+					"create":{
+						"status":400,
+						"error":{
+							"type":"document_parsing_exception",
+							"reason": {%q= errs[0].err.Error() %}
+						}
+					}
+				}
+				{% code errs = errs[1:] %}
+			{% else %}
+				{
+					"create":{
+						"status":201
+					}
+				}
+			{% endif %}
 		{% if i+1 < n %},{% endif %}
 		{% endfor %}
 	]
