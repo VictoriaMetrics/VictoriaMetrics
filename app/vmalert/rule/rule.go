@@ -79,17 +79,6 @@ func GetLastEntry(r Rule) StateEntry {
 	return StateEntry{}
 }
 
-// GetRuleStateSize returns size of rule stateEntry
-func GetRuleStateSize(r Rule) int {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.size()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.size()
-	}
-	return 0
-}
-
 // GetAllRuleState returns rule entire stateEntries
 func GetAllRuleState(r Rule) []StateEntry {
 	if rule, ok := r.(*AlertingRule); ok {
@@ -99,12 +88,6 @@ func GetAllRuleState(r Rule) []StateEntry {
 		return rule.state.getAll()
 	}
 	return []StateEntry{}
-}
-
-func (s *ruleState) size() int {
-	s.RLock()
-	defer s.RUnlock()
-	return len(s.entries)
 }
 
 func (s *ruleState) getLast() StateEntry {

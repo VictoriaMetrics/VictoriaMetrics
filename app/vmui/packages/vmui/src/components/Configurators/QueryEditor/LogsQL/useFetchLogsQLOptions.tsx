@@ -79,7 +79,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
         return;
       }
 
-      const response = await fetch(`${serverUrl}/select/logsql/${urlSuffix}?${params}`, {
+      const response = await fetch(`${serverUrl}/logsql/${urlSuffix}?${params}`, {
         signal,
         headers: { ...tenant }
       });

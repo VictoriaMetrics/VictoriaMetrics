@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -23,27 +22,6 @@ import (
 var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 
 var (
-	apiLinks = [][2]string{
-		// api links are relative since they can be used by external clients,
-		// such as Grafana, and proxied via vmselect.
-		{"api/v1/rules", "list all loaded groups and rules"},
-		{"api/v1/alerts", "list all active alerts"},
-		{"api/v1/notifiers", "list all notifiers"},
-		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
-	}
-	systemLinks = [][2]string{
-		{"vmalert/groups", "UI"},
-		{"flags", "command-line flags"},
-		{"metrics", "list of application metrics"},
-		{"-/reload", "reload configuration"},
-	}
-	navItems = []tpl.NavItem{
-		{Name: "vmalert", URL: "../vmalert", Icon: "vm"},
-		{Name: "Groups", URL: "groups"},
-		{Name: "Alerts", URL: "alerts"},
-		{Name: "Notifiers", URL: "notifiers"},
-		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
-	}
 	ruleTypeMap = map[string]string{
 		"alert":  ruleTypeAlerting,
 		"record": ruleTypeRecording,
@@ -55,73 +33,40 @@ type requestHandler struct {
 }
 
 var (
-	//go:embed static
-	staticFiles   embed.FS
-	staticHandler = http.FileServer(http.FS(staticFiles))
-	staticServer  = http.StripPrefix("/vmalert", staticHandler)
+	//go:embed vmui
+	uiFiles      embed.FS
+	uiFileServer = http.FileServer(http.FS(uiFiles))
 )
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
-	if strings.HasPrefix(r.URL.Path, "/vmalert/static") {
-		staticServer.ServeHTTP(w, r)
+	path := r.URL.Path
+	if path == "/vmalert" {
+		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		_ = r.ParseForm()
+		newURL := "vmalert/?" + r.Form.Encode()
+		httpserver.Redirect(w, newURL)
 		return true
 	}
-
-	switch r.URL.Path {
-	case "/", "/vmalert", "/vmalert/":
+	if path == "" || path == "/" {
 		if r.Method != http.MethodGet {
-			httpserver.Errorf(w, r, "path %q supports only GET method", r.URL.Path)
 			return false
 		}
-		WriteWelcome(w, r)
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, "<h2>VictoriaMetrics VMAlert</h2></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victoriametrics/vmalert/'>https://docs.victoriametrics.com/victoriametrics/vmalert/</a></br>")
+		fmt.Fprintf(w, "Useful endpoints:</br>")
+		httpserver.WriteAPIHelp(w, [][2]string{
+			{"vmalert", "Web UI"},
+			{"api/v1/notifiers", "list all static and discovered endpoints, where alerts are sent to"},
+			{"api/v1/rules", "list all loaded groups and rules"},
+			{"api/v1/alerts", "list all active alerts"},
+			{"-/reload", "reload configuration"},
+		})
 		return true
-	case "/vmalert/alerts":
-		WriteListAlerts(w, r, rh.groupAlerts())
-		return true
-	case "/vmalert/alert":
-		alert, err := rh.getAlert(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		WriteAlert(w, r, alert)
-		return true
-	case "/vmalert/rule":
-		rule, err := rh.getRule(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		WriteRuleDetails(w, r, rule)
-		return true
-	case "/vmalert/groups":
-		rf, err := newRulesFilter(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		data := rh.groups(rf)
-		WriteListGroups(w, r, data, rf.filter)
-		return true
-	case "/vmalert/notifiers":
-		WriteListTargets(w, r, notifier.GetTargets())
-		return true
-
-	// special cases for Grafana requests,
-	// served without `vmalert` prefix:
-	case "/rules":
-		// Grafana makes an extra request to `/rules`
-		// handler in addition to `/api/v1/rules` calls in alerts UI
-		var data []*apiGroup
-		rf, err := newRulesFilter(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		data = rh.groups(rf)
-		WriteListGroups(w, r, data, rf.filter)
-		return true
-
+	}
+	switch path {
 	case "/vmalert/api/v1/notifiers", "/api/v1/notifiers":
 		data, err := rh.listNotifiers()
 		if err != nil {
@@ -147,7 +92,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
-
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
 		rf, err := newRulesFilter(r)
@@ -203,10 +147,20 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
-
-	default:
-		return false
 	}
+	if strings.HasPrefix(path, "/vmalert") {
+		p := strings.TrimPrefix(path, "/vmalert")
+		if strings.HasPrefix(p, "/alert") || strings.HasPrefix(p, "/group") ||
+			strings.HasPrefix(p, "/rule") || strings.HasPrefix(p, "/notifier") {
+			newURL := "/vmalert/?#" + p
+			httpserver.Redirect(w, newURL)
+			return true
+		}
+		r.URL.Path = "/vmui" + p
+		uiFileServer.ServeHTTP(w, r)
+		return true
+	}
+	return false
 }
 
 func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
@@ -310,11 +264,16 @@ func (rf *rulesFilter) matchesGroup(group *rule.Group) bool {
 	return true
 }
 
-func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
+func isNoMatch(r *apiRule) bool {
+	return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
+}
+
+func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	groups := make([]*apiGroup, 0)
+	lr := listGroupsResponse{Status: "success"}
+	lr.Data.Groups = make([]*apiGroup, 0)
 	for _, group := range rh.m.groups {
 		if !rf.matchesGroup(group) {
 			continue
@@ -330,7 +289,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
 			if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, rule.Name) {
 				continue
 			}
-			if (rule.LastError == "" && rf.filter == "unhealthy") || (!isNoMatch(rule) && rf.filter == "nomatch") {
+			if (rule.LastError == "" && rf.filter == "unhealthy") || (!isNoMatch(&rule) && rf.filter == "nomatch") {
 				continue
 			}
 			if rf.excludeAlerts {
@@ -341,27 +300,21 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
 			} else {
 				g.Healthy++
 			}
-			if isNoMatch(rule) {
+			if isNoMatch(&rule) {
 				g.NoMatch++
 			}
 			filteredRules = append(filteredRules, rule)
 		}
 		g.Rules = filteredRules
-		groups = append(groups, g)
+		lr.Data.Groups = append(lr.Data.Groups, g)
 	}
 	// sort list of groups for deterministic output
-	slices.SortFunc(groups, func(a, b *apiGroup) int {
+	slices.SortFunc(lr.Data.Groups, func(a, b *apiGroup) int {
 		if a.Name != b.Name {
 			return strings.Compare(a.Name, b.Name)
 		}
 		return strings.Compare(a.File, b.File)
 	})
-	return groups
-}
-
-func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
-	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups(rf)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
@@ -377,33 +330,6 @@ type listAlertsResponse struct {
 	Data   struct {
 		Alerts []*apiAlert `json:"alerts"`
 	} `json:"data"`
-}
-
-func (rh *requestHandler) groupAlerts() []groupAlerts {
-	rh.m.groupsMu.RLock()
-	defer rh.m.groupsMu.RUnlock()
-
-	var gAlerts []groupAlerts
-	for _, g := range rh.m.groups {
-		var alerts []*apiAlert
-		for _, r := range g.Rules {
-			a, ok := r.(*rule.AlertingRule)
-			if !ok {
-				continue
-			}
-			alerts = append(alerts, ruleToAPIAlert(a)...)
-		}
-		if len(alerts) > 0 {
-			gAlerts = append(gAlerts, groupAlerts{
-				Group:  groupToAPI(g),
-				Alerts: alerts,
-			})
-		}
-	}
-	slices.SortFunc(gAlerts, func(a, b groupAlerts) int {
-		return strings.Compare(a.Group.Name, b.Group.Name)
-	})
-	return gAlerts
 }
 
 func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
