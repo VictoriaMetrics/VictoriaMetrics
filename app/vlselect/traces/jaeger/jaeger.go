@@ -372,7 +372,7 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 				v = spanKindMap[v]
 			}
 			attributesFilter[field] = v
-		} else if strings.HasPrefix(k, otelpb.InstrumentationScopeAttrPrefix) {
+		} else if strings.HasPrefix(k, otelpb.InstrumentationScopeAttrPrefix) || strings.HasPrefix(k, otelpb.ResourceAttrPrefix) {
 			attributesFilter[k] = v
 		} else {
 			attributesFilter[otelpb.SpanAttrPrefixField+k] = v

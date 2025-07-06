@@ -216,7 +216,7 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := refsMap[idx]; !ok {
 					refsMap[idx] = &spanRef{
-						refType: "FOLLOW_FROM", // default FOLLOW_FROM
+						refType: "FOLLOWS_FROM", // default FOLLOWS_FROM
 					}
 				}
 				ref := refsMap[idx]
