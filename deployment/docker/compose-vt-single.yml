@@ -33,7 +33,7 @@ services:
   #  storing trace span and serving read queries.
   victoriatraces:
     # todo: use official image when it is released
-    image: 'docker.io/victoriametrics/victoria-traces:heads-victoriatraces-0-g960b1e842-dirty-7a348925'
+    image: 'docker.io/victoriametrics/victoria-traces:heads-victoriatraces-0-g4429ac366EXTRA_DOCKER_TAG_SUFFIX'
     ports:
       - "9428:9428"
     command:
