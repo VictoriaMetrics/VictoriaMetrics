@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Rows contains parsed Prometheus rows.
@@ -822,13 +823,13 @@ func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
 		}
 		switch parts[3] {
 		case "counter":
-			mr.Type = 1
+			mr.Type = uint32(prompb.MetricMetadataCOUNTER)
 		case "gauge":
-			mr.Type = 2
+			mr.Type = uint32(prompb.MetricMetadataGAUGE)
 		case "histogram":
-			mr.Type = 3
+			mr.Type = uint32(prompb.MetricMetadataHISTOGRAM)
 		case "summary":
-			mr.Type = 5
+			mr.Type = uint32(prompb.MetricMetadataSUMMARY)
 		default:
 			if errLogger != nil {
 				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: missing TYPE", s))
