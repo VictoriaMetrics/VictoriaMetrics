@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // pipeFormat processes '| format ...' pipe.
@@ -226,7 +227,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 		case "lc":
 			b = appendLowercase(b, v)
 		case "time":
-			nsecs, ok := TryParseUnixTimestamp(v)
+			nsecs, ok := timeutil.TryParseUnixTimestamp(v)
 			if !ok {
 				b = append(b, v...)
 			} else {

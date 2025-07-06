@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
@@ -231,7 +232,7 @@ func parseElasticsearchTimestamp(s string) (int64, error) {
 	}
 	if len(s) < len("YYYY-MM-DD") || s[len("YYYY")] != '-' {
 		// Try parsing timestamp in seconds or milliseconds
-		nsecs, ok := logstorage.TryParseUnixTimestamp(s)
+		nsecs, ok := timeutil.TryParseUnixTimestamp(s)
 		if !ok {
 			return 0, fmt.Errorf("cannot parse unix timestamp %q", s)
 		}

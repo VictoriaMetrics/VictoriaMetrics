@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // ExtractTimestampFromFields extracts timestamp in nanoseconds from the first field the name from timeFields at fields.
@@ -42,7 +43,7 @@ func parseTimestamp(s string) (int64, error) {
 		return time.Now().UnixNano(), nil
 	}
 	if len(s) <= len("YYYY") || s[len("YYYY")] != '-' {
-		nsecs, ok := logstorage.TryParseUnixTimestamp(s)
+		nsecs, ok := timeutil.TryParseUnixTimestamp(s)
 		if !ok {
 			return 0, fmt.Errorf("cannot parse unix timestamp %q", s)
 		}
