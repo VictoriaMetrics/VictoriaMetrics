@@ -28,22 +28,23 @@ See [the list of supported Journald fields](https://www.freedesktop.org/software
 
 ## Level field
 
-VictoriaLogs atomatically sets the `level` log field according to the [`PRIORITY` field falue](https://wiki.archlinux.org/title/Systemd/Journal).
+VictoriaLogs automatically sets the `level` log field according to the [`PRIORITY` field value](https://wiki.archlinux.org/title/Systemd/Journal).
 
 ## Stream fields
 
 VictoriaLogs uses `(_MACHINE_ID, _HOSTNAME, _SYSTEMD_UNIT)` as [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-for logs ingested via jorunald protocol. The list of log stream fields can be changed via `-journald.streamFields` command-line flag if needed,
-by providing comma-separated list of journald fields form [this list](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
+for logs ingested via journald protocol. The list of log stream fields can be changed via `-journald.streamFields` command-line flag if needed,
+by providing comma-separated list of journald fields from [this list](https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html).
 
-Please make sure that the log stream fields passed to `-journlad.streamFields` do not contain fields with high number or unbound number of unique values,
+Please make sure that the log stream fields passed to `-journald.streamFields` do not contain fields with high number or unbound number of unique values,
 since this may lead to [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+This can happen with `_SYSTEMD_UNIT` if you have templated units with non-static instances
+such as `systemd-coredump@.service` or if you have a `.socket` unit with `Accept=yes`.
 
 The following Journald fields are also good candidates for stream fields:
 
-- `_TRANSPORT`
+- `_TRANSPORT` (to separate out kernel and audit logs which are not associated with a `_SYSTEMD_UNIT`)
 - `_SYSTEMD_USER_UNIT`
-
 
 ## Dropping fields
 

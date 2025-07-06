@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +23,7 @@ func TestCreateSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	snapshotName, err := Create(server.URL + "/snapshot/create")
+	snapshotName, err := Create(context.Background(), server.URL+"/snapshot/create")
 	if err != nil {
 		t.Fatalf("Failed taking snapshot: %v", err)
 	}
@@ -47,7 +48,7 @@ func TestCreateSnapshotFailed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	snapshotName, err := Create(server.URL + "/snapshot/create")
+	snapshotName, err := Create(context.Background(), server.URL+"/snapshot/create")
 	if err == nil {
 		t.Fatalf("Snapshot did not fail, got snapshot: %v", snapshotName)
 	}
@@ -73,7 +74,7 @@ func TestDeleteSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	err := Delete(server.URL+"/snapshot/delete", snapshotName)
+	err := Delete(context.Background(), server.URL+"/snapshot/delete", snapshotName)
 	if err != nil {
 		t.Fatalf("Failed to delete snapshot: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	err := Delete(server.URL+"/snapshot/delete", snapshotName)
+	err := Delete(context.Background(), server.URL+"/snapshot/delete", snapshotName)
 	if err == nil {
 		t.Fatalf("Snapshot should have failed, got: %v", err)
 	}

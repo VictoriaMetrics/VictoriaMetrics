@@ -11,6 +11,9 @@ type WriteRequest struct {
 	// Timeseries is a list of time series in the given WriteRequest
 	Timeseries []TimeSeries
 
+	// Metadata is a list of metadata info in the given WriteRequest
+	Metadata []MetricMetadata
+
 	labelsPool  []Label
 	samplesPool []Sample
 }
@@ -19,6 +22,9 @@ type WriteRequest struct {
 func (wr *WriteRequest) Reset() {
 	clear(wr.Timeseries)
 	wr.Timeseries = wr.Timeseries[:0]
+
+	clear(wr.Metadata)
+	wr.Metadata = wr.Metadata[:0]
 
 	clear(wr.labelsPool)
 	wr.labelsPool = wr.labelsPool[:0]
@@ -62,8 +68,11 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 
 	// message WriteRequest {
 	//    repeated TimeSeries timeseries = 1;
+	//    reserved 2;
+	//    repeated Metadata metadata = 3;
 	// }
 	tss := wr.Timeseries
+	mds := wr.Metadata
 	labelsPool := wr.labelsPool
 	samplesPool := wr.samplesPool
 	var fc easyproto.FieldContext
@@ -88,9 +97,25 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 			if err != nil {
 				return fmt.Errorf("cannot unmarshal timeseries: %w", err)
 			}
+		case 3:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read metricMetadata data")
+			}
+			if len(mds) < cap(mds) {
+				mds = mds[:len(mds)+1]
+			} else {
+				mds = append(mds, MetricMetadata{})
+			}
+			md := &mds[len(mds)-1]
+			if err := md.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal metricMetadata: %w", err)
+			}
+
 		}
 	}
 	wr.Timeseries = tss
+	wr.Metadata = mds
 	wr.labelsPool = labelsPool
 	wr.samplesPool = samplesPool
 	return nil
@@ -199,6 +224,71 @@ func (s *Sample) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read sample timestamp")
 			}
 			s.Timestamp = timestamp
+		}
+	}
+	return nil
+}
+
+// MetricMetadata represents additional meta information for specific MetricFamilyName
+// Refer to https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L21
+type MetricMetadata struct {
+	// Represents the metric type, these match the set from Prometheus.
+	// Refer to https://github.com/prometheus/common/blob/95acce133ca2c07a966a71d475fb936fc282db18/model/metadata.go for details.
+	Type             uint32
+	MetricFamilyName string
+	Help             string
+	Unit             string
+}
+
+func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
+	// message MetricMetadata {
+	//   enum MetricType {
+	//     UNKNOWN = 0;
+	//     COUNTER = 1;
+	//     GAUGE = 2;
+	//     HISTOGRAM = 3;
+	//     GAUGEHISTOGRAM = 4;
+	//     SUMMARY = 5;
+	//     INFO = 6;
+	//     STATESET = 7;
+	//   }
+	//
+	//   MetricType type = 1;
+	//   string metric_family_name = 2;
+	//   string help = 4;
+	//   string unit = 5;
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read the next field: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			value, ok := fc.Uint32()
+			if !ok {
+				return fmt.Errorf("cannot read metric type")
+			}
+			mm.Type = value
+		case 2:
+			value, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read metric family name")
+			}
+			mm.MetricFamilyName = value
+		case 4:
+			value, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read help")
+			}
+			mm.Help = value
+		case 5:
+			value, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read unit")
+			}
+			mm.Unit = value
 		}
 	}
 	return nil

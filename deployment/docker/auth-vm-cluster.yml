@@ -1,14 +1,17 @@
 # balance load among vmselects
 # see https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing
-unauthorized_user:
-  url_map:
-  - src_paths:
-    - "/select/.*"
-    url_prefix:
-    - http://vmselect-1:8481
-    - http://vmselect-2:8481
-  - src_paths:
-    - "/insert/.*"
-    url_prefix:
-    - http://vminsert-1:8480
-    - http://vminsert-2:8480
+users:
+  - username: "foo"
+    password: "bar"
+    url_map:
+    - src_paths:
+      - "/select/.*"
+      - "/admin/.*"
+      url_prefix:
+      - http://vmselect-1:8481
+      - http://vmselect-2:8481
+    - src_paths:
+      - "/insert/.*"
+      url_prefix:
+      - http://vminsert-1:8480
+      - http://vminsert-2:8480

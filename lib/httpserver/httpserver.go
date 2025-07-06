@@ -653,10 +653,7 @@ func (rwa *responseWriterWithAbort) abort() {
 // Errorf writes formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) {
 	errStr := fmt.Sprintf(format, args...)
-	remoteAddr := GetQuotedRemoteAddr(r)
-	requestURI := GetRequestURI(r)
-	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
-	logger.WarnfSkipframes(1, "%s", errStr)
+	logHTTPError(r, errStr)
 
 	// Extract statusCode from args
 	statusCode := http.StatusBadRequest
@@ -676,6 +673,14 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 		return
 	}
 	http.Error(w, errStr, statusCode)
+}
+
+// logHTTPError logs the errStr with the client remote address and the request URI obtained from r.
+func logHTTPError(r *http.Request, errStr string) {
+	remoteAddr := GetQuotedRemoteAddr(r)
+	requestURI := GetRequestURI(r)
+	errStr = fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, errStr)
+	logger.WarnfSkipframes(2, "%s", errStr)
 }
 
 // ErrorWithStatusCode is error with HTTP status code.

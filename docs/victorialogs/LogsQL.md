@@ -1319,7 +1319,7 @@ This query matches the following log messages, since their length is in the requ
 This query doesn't match the following log messages:
 
 - `foo`, since it is too short
-- `foo bar baz abc`, sinc it is too long
+- `foo bar baz abc`, since it is too long
 
 It is possible to use `inf` as the upper bound. For example, the following query matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with the length bigger or equal to 5 chars:
@@ -3362,7 +3362,7 @@ It understands the following Syslog formats:
 
 The following fields are unpacked:
 
-- `level` - optained from `PRI`.
+- `level` - obtained from `PRI`.
 - `priority` - obtained from `PRI`.
 - `facility` - calculated as `PRI / 8`.
 - `facility_keyword` - string representation of the `facility` field according to [these docs](https://en.wikipedia.org/wiki/Syslog#Facility).
@@ -3497,7 +3497,7 @@ See also:
 
 #### Conditional unroll
 
-If the [`unroll` pipe](#unroll-pipe) must be applied only to some [log enties](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+If the [`unroll` pipe](#unroll-pipe) must be applied only to some [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unroll`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unrolls `value` field only if `value_type` field equals to `json_array`:
 
@@ -3534,7 +3534,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 
 `avg(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the average value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Non-numeric values are ignored.
+Non-numeric values are ignored. If all the values are non-numeric, then `NaN` is returned.
 
 For example, the following query returns the average value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -3972,6 +3972,7 @@ See also:
 
 `sum(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of numeric values across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+Non-numeric values are skipped. If all the values across `field1`, ..., `fieldN` are non-numeric, then `NaN` is returned.
 
 For example, the following query returns the sum of numeric values for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -4127,7 +4128,7 @@ LogsQL supports the following string literals:
 
 - `"double quoted"`. Double quote and backslash inside such a string must be escaped with `\`: `"escape\"doublequote and \\ backslash"`.
   Double-quoted strings may contain special sequences such as `\n`, `\t`, `\f`, `\x8c`, etc. They are decoded according to [these docs](https://go.dev/ref/spec#String_literals).
-- `'single quoted'`. Single quote and backsliash inside such a string must be escaped with `\`: `'escape\'singlequote and \\ backslash'`.
+- `'single quoted'`. Single quote and backslash inside such a string must be escaped with `\`: `'escape\'singlequote and \\ backslash'`.
 - ``` `backtick quoted` ```. Strings with backslashes, double quotes and single quotes shouldn't be escaped inside backtick-quoted strings.
 
 ## Comments
@@ -4136,10 +4137,10 @@ LogsQL query may contain comments at any place. The comment starts with `#` and 
 Example query with comments:
 
 ```logsql
-error                       # find logs with `error` word
-  | stats by (_stream) logs # then count the number of logs per `_stream` label
-  | sort by (logs) desc     # then sort by the found logs in descending order
-  | limit 5                 # and show top 5 streams with the biggest number of logs
+error                               # find logs with `error` word
+  | stats by (_stream) count() logs # then count the number of logs per `_stream` label
+  | sort by (logs) desc             # then sort by the found logs in descending order
+  | limit 5                         # and show top 5 streams with the biggest number of logs
 ```
 
 ## Numeric values

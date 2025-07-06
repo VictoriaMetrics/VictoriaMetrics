@@ -19,25 +19,34 @@ import (
 func TestHandler(t *testing.T) {
 	fq := &datasource.FakeQuerier{}
 	fq.Add(datasource.Metric{
-		Values: []float64{1}, Timestamps: []int64{0},
+		Values:     []float64{1},
+		Timestamps: []int64{0},
 	})
-	g := rule.NewGroup(config.Group{
-		Name:        "group",
-		File:        "rules.yaml",
-		Concurrency: 1,
-		Rules: []config.Rule{
-			{ID: 0, Alert: "alert"},
-			{ID: 1, Record: "record"},
-		},
-	}, fq, 1*time.Minute, nil)
-	ar := g.Rules[0].(*rule.AlertingRule)
-	rr := g.Rules[1].(*rule.RecordingRule)
-
-	g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
-
-	m := &manager{groups: map[uint64]*rule.Group{
-		g.CreateID(): g,
-	}}
+	m := &manager{groups: map[uint64]*rule.Group{}}
+	var ar *rule.AlertingRule
+	var rr *rule.RecordingRule
+	for _, dsType := range []string{"prometheus", "", "graphite"} {
+		g := rule.NewGroup(config.Group{
+			Name:        "group",
+			File:        "rules.yaml",
+			Type:        config.NewRawType(dsType),
+			Concurrency: 1,
+			Rules: []config.Rule{
+				{
+					ID:    0,
+					Alert: "alert",
+				},
+				{
+					ID:     1,
+					Record: "record",
+				},
+			},
+		}, fq, 1*time.Minute, nil)
+		ar = g.Rules[0].(*rule.AlertingRule)
+		rr = g.Rules[1].(*rule.RecordingRule)
+		g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
+		m.groups[g.CreateID()] = g
+	}
 	rh := &requestHandler{m: m}
 
 	getResp := func(t *testing.T, url string, to any, code int) {
@@ -54,7 +63,7 @@ func TestHandler(t *testing.T) {
 				t.Fatalf("err closing body %s", err)
 			}
 		}()
-		if to != nil {
+		if to != nil && code < 300 {
 			if err = json.NewDecoder(resp.Body).Decode(to); err != nil {
 				t.Fatalf("unexpected err %s", err)
 			}
@@ -95,14 +104,23 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/alerts", func(t *testing.T) {
 		lr := listAlertsResponse{}
 		getResp(t, ts.URL+"/api/v1/alerts", &lr, 200)
-		if length := len(lr.Data.Alerts); length != 1 {
-			t.Fatalf("expected 1 alert got %d", length)
+		if length := len(lr.Data.Alerts); length != 3 {
+			t.Fatalf("expected 3 alert got %d", length)
 		}
 
 		lr = listAlertsResponse{}
 		getResp(t, ts.URL+"/vmalert/api/v1/alerts", &lr, 200)
-		if length := len(lr.Data.Alerts); length != 1 {
-			t.Fatalf("expected 1 alert got %d", length)
+		if length := len(lr.Data.Alerts); length != 3 {
+			t.Fatalf("expected 3 alert got %d", length)
+		}
+
+		lr = listAlertsResponse{}
+		getResp(t, ts.URL+"/api/v1/alerts?datasource_type=test", &lr, 400)
+
+		lr = listAlertsResponse{}
+		getResp(t, ts.URL+"/api/v1/alerts?datasource_type=prometheus", &lr, 200)
+		if length := len(lr.Data.Alerts); length != 2 {
+			t.Fatalf("expected 2 alert got %d", length)
 		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
@@ -138,14 +156,14 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/rules", func(t *testing.T) {
 		lr := listGroupsResponse{}
 		getResp(t, ts.URL+"/api/v1/rules", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Fatalf("expected 1 group got %d", length)
+		if length := len(lr.Data.Groups); length != 3 {
+			t.Fatalf("expected 3 group got %d", length)
 		}
 
 		lr = listGroupsResponse{}
 		getResp(t, ts.URL+"/vmalert/api/v1/rules", &lr, 200)
-		if length := len(lr.Data.Groups); length != 1 {
-			t.Fatalf("expected 1 group got %d", length)
+		if length := len(lr.Data.Groups); length != 3 {
+			t.Fatalf("expected 3 group got %d", length)
 		}
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
@@ -172,10 +190,10 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/api/v1/rules&filters", func(t *testing.T) {
-		check := func(url string, expGroups, expRules int) {
+		check := func(url string, statusCode, expGroups, expRules int) {
 			t.Helper()
 			lr := listGroupsResponse{}
-			getResp(t, ts.URL+url, &lr, 200)
+			getResp(t, ts.URL+url, &lr, statusCode)
 			if length := len(lr.Data.Groups); length != expGroups {
 				t.Fatalf("expected %d groups got %d", expGroups, length)
 			}
@@ -191,25 +209,31 @@ func TestHandler(t *testing.T) {
 			}
 		}
 
-		check("/api/v1/rules?type=alert", 1, 1)
-		check("/api/v1/rules?type=record", 1, 1)
+		check("/api/v1/rules?type=alert", 200, 3, 3)
+		check("/api/v1/rules?type=record", 200, 3, 3)
+		check("/api/v1/rules?type=records", 400, 0, 0)
 
-		check("/vmalert/api/v1/rules?type=alert", 1, 1)
-		check("/vmalert/api/v1/rules?type=record", 1, 1)
+		check("/vmalert/api/v1/rules?type=alert", 200, 3, 3)
+		check("/vmalert/api/v1/rules?type=record", 200, 3, 3)
+		check("/vmalert/api/v1/rules?type=recording", 400, 0, 0)
+
+		check("/vmalert/api/v1/rules?datasource_type=prometheus", 200, 2, 4)
+		check("/vmalert/api/v1/rules?datasource_type=graphite", 200, 1, 2)
+		check("/vmalert/api/v1/rules?datasource_type=graphiti", 400, 0, 0)
 
 		// no filtering expected due to bad params
-		check("/api/v1/rules?type=badParam", 1, 2)
-		check("/api/v1/rules?foo=bar", 1, 2)
+		check("/api/v1/rules?type=badParam", 400, 0, 0)
+		check("/api/v1/rules?foo=bar", 200, 3, 6)
 
-		check("/api/v1/rules?rule_group[]=foo&rule_group[]=bar", 0, 0)
-		check("/api/v1/rules?rule_group[]=foo&rule_group[]=group&rule_group[]=bar", 1, 2)
+		check("/api/v1/rules?rule_group[]=foo&rule_group[]=bar", 200, 0, 0)
+		check("/api/v1/rules?rule_group[]=foo&rule_group[]=group&rule_group[]=bar", 200, 3, 6)
 
-		check("/api/v1/rules?rule_group[]=group&file[]=foo", 0, 0)
-		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml", 1, 2)
+		check("/api/v1/rules?rule_group[]=group&file[]=foo", 200, 0, 0)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml", 200, 3, 6)
 
-		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 1, 0)
-		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 1, 1)
-		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 1, 2)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 200, 3, 0)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 200, 3, 3)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 200, 3, 6)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default
@@ -259,7 +283,7 @@ func TestEmptyResponse(t *testing.T) {
 				t.Fatalf("err closing body %s", err)
 			}
 		}()
-		if to != nil {
+		if to != nil && code < 300 {
 			if err = json.NewDecoder(resp.Body).Decode(to); err != nil {
 				t.Fatalf("unexpected err %s", err)
 			}
