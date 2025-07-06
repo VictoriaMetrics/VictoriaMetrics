@@ -20,6 +20,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add support for Unix timestamps in seconds, milliseconds and microseconds additionally to nanoseconds when using `<time:field_name>` formatting. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8659).
 
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): properly parse fractional Unix timestamps with millisecond, microsecond and nanosecond precision in the ingested logs. Previously the precision loss in the parsed timestamps could occur. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8767#discussion_r2051657518) for details.
 * BUGFIX: [`rate_sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats): fix inconsistent per-second rate calculation when time filters are specified via HTTP query parameters instead of LogsQL expression. This affects recording rule results. See [#9303](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9303).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): disabled opening of autocomplete popup on initial page load.
 
