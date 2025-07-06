@@ -1,0 +1,12 @@
+apiVersion: 1
+
+datasources:
+  - name: VictoriaTraces
+    type: jaeger
+    access: proxy
+    url:  http://victoriatraces:9428/select/jaeger/
+
+  - name: VictoriaMetrics
+    type: prometheus
+    access: proxy
+    url: http://victoriametrics:8428/

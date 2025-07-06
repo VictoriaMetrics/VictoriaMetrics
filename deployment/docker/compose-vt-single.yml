@@ -1,0 +1,61 @@
+services:
+
+  hotrod:
+    # HotROD (Rides on Demand) is a demo application that generates trace data and sends to VictoriaTraces.
+    # Visit :8080 after the deployment and click any button on the page to generate trace spans.
+    image: jaegertracing/example-hotrod:1.70.0
+    ports:
+      - "8080:8080"
+      - "8083:8083"
+    command:
+      - "all"
+    environment:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://victoriatraces:9428/insert/opentelemetry/v1/traces
+    depends_on:
+      - victoriatraces
+
+  # Grafana instance configured with VictoriaLogs as datasource
+  grafana:
+    image: grafana/grafana:12.0.2
+    depends_on:
+      - "victoriametrics"
+      - "victoriatraces"
+    ports:
+      - 3000:3000
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./provisioning/datasources/victoriametrics-traces-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./provisioning/plugins/:/var/lib/grafana/plugins
+    restart: always
+
+  #  VictoriaTraces instance, a single process responsible for
+  #  storing trace span and serving read queries.
+  victoriatraces:
+    # todo: use official image when it is released
+    image: 'docker.io/victoriametrics/victoria-traces:heads-victoriatraces-0-g960b1e842-dirty-7a348925'
+    ports:
+      - "9428:9428"
+    command:
+      - "--storageDataPath=/vtraces"
+    volumes:
+      - vtdata:/vtraces
+
+  # VictoriaMetrics instance, a single process responsible for
+  # scraping, storing metrics and serve read requests.
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.120.0
+    ports:
+      - "8428:8428"
+    volumes:
+      - vmdata:/storage
+      - ./prometheus-vt-single.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--storageDataPath=/storage"
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+    restart: always
+
+volumes:
+  vmdata: {}
+  vtdata: {}
+  grafanadata: {}

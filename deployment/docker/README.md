@@ -15,6 +15,8 @@ to the Internet.
 * Logs:
   * [VictoriaLogs single server](#victoriaLogs-server)
   * [VictoriaLogs cluster](#victoriaLogs-cluster)
+* Traces:
+  * [VictoriaTraces single server](#victoriaTraces-server)
 * [Common](#common-components)
   * [vmauth](#vmauth)
   * [vmalert](#vmalert)
@@ -197,6 +199,40 @@ Please see more examples on integration of VictoriaLogs with other log shippers 
 * [telegraf](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/telegraf)
 * [fluentd](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentd)
 * [datadog-serverless](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-serverless)
+
+## VictoriaTraces server
+
+To spin-up environment with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) run the following command:
+```sh
+# checkout to `victoriatraces` branch 
+git clone -b victoriatraces --single-branch https://github.com/VictoriaMetrics/VictoriaMetrics.git
+cd VictoriaMetrics
+
+# start docker compose
+make docker-vt-single-up
+```
+_See [compose-vt-single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/victoriatraces/deployment/docker/compose-vt-single.yml)_
+
+VictoriaTraces will be accessible on the `--httpListenAddr=:9428` port.
+
+In addition to VictoriaTraces server, the docker compose contains the following components:
+* [HotROD](https://hub.docker.com/r/jaegertracing/example-hotrod) application to generate trace data.
+* `VictoriaMetrics single-node` to collect metrics from all the components;
+* [Grafana](#grafana) is configured with [VictoriaMetrics](https://github.com/VictoriaMetrics/victoriametrics-datasource) and Jaeger datasource pointing to VictoriaTraces server.
+
+<img alt="VictoriaTraces single-server deployment" width="500" src="assets/vt-single-server.png">
+
+To generate trace data, you need to access HotROD at [http://localhost:8080](http://localhost:8080), and **click any button on the page**.
+
+To access Grafana, use link [http://localhost:3000](http://localhost:3000).
+
+To access [VictoriaTraces UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui), 
+use link [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui).
+
+To shut down environment execute the following command:
+```
+make docker-vt-single-down
+```
 
 # Common components
 
