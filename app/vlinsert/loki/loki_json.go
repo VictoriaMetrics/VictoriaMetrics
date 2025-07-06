@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var maxRequestSize = flagutil.NewBytes("loki.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single Loki request")
@@ -221,7 +222,7 @@ func parseLokiTimestamp(s string) (int64, error) {
 		// Special case - an empty timestamp must be substituted with the current time by the caller.
 		return 0, nil
 	}
-	nsecs, ok := logstorage.TryParseUnixTimestamp(s)
+	nsecs, ok := timeutil.TryParseUnixTimestamp(s)
 	if !ok {
 		return 0, fmt.Errorf("cannot parse unix timestamp %q", s)
 	}
