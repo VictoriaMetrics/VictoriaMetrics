@@ -97,7 +97,10 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
   const getLogs = useCallback(() => logs, [logs]);
 
   useEffect(() => {
-    setExpandGroups(new Array(groupData.length).fill(!isMobile));
+    setExpandGroups(prev => {
+      const keepClosed = (prev.every(v => !v) && prev.length) || isMobile;
+      return new Array(groupData.length).fill(!keepClosed);
+    });
   }, [groupData]);
 
   useEffect(() => {

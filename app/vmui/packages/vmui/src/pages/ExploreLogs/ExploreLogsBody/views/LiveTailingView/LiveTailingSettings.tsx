@@ -93,7 +93,6 @@ const LiveTailingSettings: FC<LiveTailingSettingsProps> = ({
           <Button
             ref={settingButtonRef}
             variant="text"
-            color="secondary"
             onClick={openSettings}
             startIcon={<SettingsIcon/>}
             ariaLabel={"Settings"}
