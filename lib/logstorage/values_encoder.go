@@ -722,14 +722,17 @@ func tryParseUint64(s string) (uint64, bool) {
 			return 0, false
 		}
 		if n > ((1<<64)-1)/10 {
+			// overflow
 			return 0, false
 		}
 		n *= 10
 		d := uint64(ch - '0')
-		if n > (1<<64)-1-d {
+		n1 := n + d
+		if n1 < n {
+			// overflow
 			return 0, false
 		}
-		n += d
+		n = n1
 	}
 	return n, true
 }
