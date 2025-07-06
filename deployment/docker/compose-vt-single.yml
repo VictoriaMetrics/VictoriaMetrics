@@ -27,8 +27,6 @@ services:
       - ./provisioning/datasources/victoriametrics-traces-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./provisioning/plugins/:/var/lib/grafana/plugins
-      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
-      - ./../../dashboards/victoriatraces.json:/var/lib/grafana/dashboards/vl.json
     restart: always
 
   #  VictoriaTraces instance, a single process responsible for
