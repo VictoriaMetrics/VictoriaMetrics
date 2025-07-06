@@ -17,6 +17,7 @@ The following `tip` changes can be tested by building VictoriaLogs from the late
 according to [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/#building-from-source-code)
 
 ## tip
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add support for applying a global time offset to all time-based conditions for the `<q>` [query](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax) via `options(time_offset=<duration>) <q>` syntax. This can be useful when time range is provided via [HTTP parameters](https://docs.victoriametrics.com/victorialogs/querying/#http-api) and needs to be shifted backwards. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) and [#8587](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8587) for details.
 
 * FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add support for Unix timestamps in seconds, milliseconds and microseconds additionally to nanoseconds when using `<time:field_name>` formatting. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8659).
 

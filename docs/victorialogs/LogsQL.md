@@ -4233,3 +4233,13 @@ VictoriaLogs supports the following options, which can be passed in the beginnin
   ```logsql
   user_id:in(_time:2024-12Z | keep user_id) | count()
   ```
+
+- `time_offset` – allows shifting all [time filters](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in the query.
+  Accepts any [duration value](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values) like `12h`, `1d`, `1y`.
+  Useful when time range parameters are passed via HTTP and need to be adjusted dynamically without modifying the original request.
+  The [`/select/logsql/hits`](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats) and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats)
+  handlers respect this offset and return buckets with timestamps shifted accordingly.
+
+  ```logsql
+  options (time_offset=24h) error | stats count() as 'errors count 1d ago'
+  ```
