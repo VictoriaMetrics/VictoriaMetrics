@@ -46,7 +46,7 @@ Each log entry contains the following fields:
 * `samples_fetched`: number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) fetched;
 * `bytes`: number of bytes transferred from storage to process the query;
 * `memory_estimated_bytes`: estimated memory needed to run the query. See `-search.maxMemoryPerQuery` cmd-line flag.
-* `headers.*`: header key-value pairs associated with request {{% available_from "tip" %}}. Only headers listed in `-search.logSlowQueryStatsHeaders`
+* `headers.*`: header key-value pairs associated with request {{% available_from "v1.121.0" %}}. Only headers listed in `-search.logSlowQueryStatsHeaders`
   are logged.
 
 ## Analysis
