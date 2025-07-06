@@ -93,18 +93,18 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, groups []apiGroup, filter string) %}
+{% func ListGroups(r *http.Request, groups []*apiGroup, filter string) %}
     {%code
         prefix := vmalertutil.Prefix(r.URL.Path)
         filters := map[string]string{
             "":          "All",
             "unhealthy": "Unhealthy",
-            "noMatch":   "No Match",
+            "nomatch":   "No Match",
         }
         icons := map[string]string{
             "":          "all",
             "unhealthy": "unhealthy",
-            "noMatch":   "nomatch",
+            "nomatch":   "nomatch",
         }
         currentText := filters[filter]
         currentIcon := icons[filter]
@@ -161,9 +161,9 @@
                         <table class="table table-striped table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th scope="col" style="width: 60%">Rule</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many series were produced by the rule">Series</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                                    <th scope="col" class="w-60">Rule</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -594,9 +594,9 @@
             <thead>
                 <tr>
                     <th scope="col" title="The time when event was created">Updated at</th>
-                    <th scope="col" style="width: 10%" class="text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
-                    {% if seriesFetchedEnabled %}<th scope="col" style="width: 10%" class="text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>{% endif %}
-                    <th scope="col" style="width: 10%" class="text-center" title="How many seconds request took">Duration</th>
+                    <th scope="col" class="w-10 text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
+                    {% if seriesFetchedEnabled %}<th scope="col" class="w-10 text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>{% endif %}
+                    <th scope="col" class="w-10 text-center" title="How many seconds request took">Duration</th>
                     <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
                     <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>

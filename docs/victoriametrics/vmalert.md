@@ -735,6 +735,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 * `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/2.53/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
+* `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
   Used as alert source in AlertManager.
 * `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
@@ -817,7 +818,7 @@ max range per request:  8h20m0s
 2021-06-07T09:59:12.098Z        info    app/vmalert/replay.go:68        replay finished! Imported 511734 samples
 ```
 
-> In replay mode, groups are executed one after another in sequence. Within each group, rules are also executed sequentially, 
+> In replay mode, groups are executed sequentially in the defined order. Within each group, rules are also executed sequentially, 
 regardless of the `concurrency` setting. This ensures that any potential chaining between rules is preserved (see `-replay.rulesDelay`).
 If you want rules to run concurrently based on the `concurrency` setting, set `-replay.rulesDelay=0`.
 
@@ -860,6 +861,9 @@ There are following non-required `replay` flags:
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
+* `-replay.ruleEvaluationConcurrency` -  The maximum number of concurrent `/query_range` requests for a single rule. 
+  Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`.
+  The default value is `1`.
 
 See full description for these flags in `./vmalert -help`.
 
