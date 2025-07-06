@@ -226,7 +226,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 		case "lc":
 			b = appendLowercase(b, v)
 		case "time":
-			nsecs, ok := tryParseInt64(v)
+			nsecs, ok := TryParseUnixTimestamp(v)
 			if !ok {
 				b = append(b, v...)
 			} else {
