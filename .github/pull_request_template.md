@@ -7,3 +7,4 @@ Please provide a brief description of the changes you made. Be as specific as po
 The following checks are **mandatory**:
 
 - [ ] My change adheres to [VictoriaMetrics contributing guidelines](https://docs.victoriametrics.com/victoriametrics/contributing/#pull-request-checklist).
+- [ ] My change adheres to [VictoriaMetrics development goals](https://docs.victoriametrics.com/victoriametrics/goals/).
