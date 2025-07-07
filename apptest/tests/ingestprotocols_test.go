@@ -4,11 +4,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
