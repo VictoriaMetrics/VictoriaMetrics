@@ -2,6 +2,8 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 
 go 1.24.4
 
+replace github.com/VictoriaMetrics/VictoriaLogs => github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250707001644-8b2cdbd4d59a
+
 // This is needed in order to avoid vmbackup and vmrestore binary size increase by 20MB
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8008
 //
@@ -32,6 +34,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
+	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-00010101000000-000000000000
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.5
 	github.com/VictoriaMetrics/metrics v1.37.0
@@ -43,14 +46,12 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cheggaaa/pb/v3 v3.1.7
-	github.com/ergochat/readline v0.1.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v1.0.0
 	github.com/google/go-cmp v0.7.0
 	github.com/googleapis/gax-go/v2 v2.14.2
 	github.com/influxdata/influxdb v1.12.0
 	github.com/klauspost/compress v1.18.0
-	github.com/mattn/go-isatty v0.0.20
 	github.com/prometheus/prometheus v0.303.1
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/valyala/fastjson v1.6.4
@@ -115,6 +116,7 @@ require (
 	github.com/knadh/koanf/v2 v2.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect

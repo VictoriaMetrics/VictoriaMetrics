@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 // Vlsingle holds the state of a vlsingle app and provides vlsingle-specific
