@@ -737,7 +737,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 
 		// Search for metric name for the given metricID.
 		var ok bool
-		metr	icNameCopy, ok = db.searchMetricName(metricNameCopy[:0], tsidLocal.MetricID, false)
+		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], tsidLocal.MetricID, false)
 		if !ok {
 			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", tsidLocal.MetricID, i)
 		}
