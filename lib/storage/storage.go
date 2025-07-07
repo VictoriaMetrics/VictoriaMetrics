@@ -277,7 +277,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.tb = tb
 
 	// Add deleted metricIDs from legacy previous and current indexDBs to every
-	// partition indexDB.
+	// partition indexDB. Also add deleted metricIDs from current indexDB to the
+	// previous one, because previous may contain the same metrics that wasn't marked as deleted.
 	legacyDeletedMetricIDSet := &uint64set.Set{}
 	if legacyIDBPrev != nil {
 		legacyDeletedMetricIDSet.Union(legacyIDBPrev.getDeletedMetricIDs())
@@ -286,6 +287,11 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		legacyDeletedMetricIDSet.Union(legacyIDBCurr.getDeletedMetricIDs())
 	}
 	legacyDeletedMetricIDs := legacyDeletedMetricIDSet.AppendTo(nil)
+
+	if legacyIDBPrev != nil {
+		legacyIDBPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
+	}
+
 	ptws := tb.GetPartitions(nil)
 	for _, ptw := range ptws {
 		ptw.pt.idb.updateDeletedMetricIDs(legacyDeletedMetricIDs)
@@ -371,7 +377,7 @@ func getMetricNamesCacheSize() int {
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.DebugFlush()
-	// Do not flush legacy IndexDBs since they are read-only.
+	s.legacyDebugFlush()
 
 	hour := fasttime.UnixHour()
 	s.updateCurrHourMetricIDs(hour)
@@ -2908,12 +2914,12 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) (prev, curr *indexDB)
 
 	if numIDBs > 1 {
 		currPath := filepath.Join(path, tableNames[1])
-		curr = mustOpenLegacyIndexDBReadOnly(currPath, s)
+		curr = mustOpenLegacyIndexDB(currPath, s)
 	}
 
 	if numIDBs > 0 {
 		prevPath := filepath.Join(path, tableNames[0])
-		prev = mustOpenLegacyIndexDBReadOnly(prevPath, s)
+		prev = mustOpenLegacyIndexDB(prevPath, s)
 	}
 
 	return prev, curr
