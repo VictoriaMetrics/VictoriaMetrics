@@ -335,6 +335,26 @@ func (app *Vmsingle) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string,
 	}
 }
 
+// GraphiteMetricsIndex sends a query to a /metrics/index.json
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMetricsIndexResponse {
+
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/metrics/index.json", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, seriesURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var index GraphiteMetricsIndexResponse
+	if err := json.Unmarshal([]byte(res), &index); err != nil {
+		t.Fatalf("could not unmarshal metrics index response data:\n%s\n err: %v", res, err)
+	}
+	return index
+}
+
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //

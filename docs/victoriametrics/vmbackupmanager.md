@@ -616,6 +616,16 @@ command-line flags:
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
+  -snapshot.tlsCAFile string
+     Optional path to TLS CA file to use for verifying connections to -snapshot.createURL. By default, system CA is used
+  -snapshot.tlsCertFile string
+     Optional path to client-side TLS certificate file to use when connecting to -snapshot.createURL
+  -snapshot.tlsInsecureSkipVerify
+     Whether to skip tls verification when connecting to -snapshot.createURL
+  -snapshot.tlsKeyFile string
+     Optional path to client-side TLS certificate key to use when connecting to -snapshot.createURL
+  -snapshot.tlsServerName string
+     Optional TLS server name to use for connections to -snapshot.createURL. By default, the server name from -snapshotCreateURL is used
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls array

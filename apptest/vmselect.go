@@ -227,6 +227,25 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	return status
 }
 
+// GraphiteMetricsIndex sends a query to a /graphite/metrics/index.json
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/select/%s/graphite/metrics/index.json", app.httpListenAddr, opts.getTenant())
+	res, statusCode := app.cli.Get(t, seriesURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var index GraphiteMetricsIndexResponse
+	if err := json.Unmarshal([]byte(res), &index); err != nil {
+		t.Fatalf("could not unmarshal metrics index response data:\n%s\n err: %v", res, err)
+	}
+	return index
+}
+
 // APIV1AdminTenants sends a query to a /admin/tenants endpoint
 func (app *Vmselect) APIV1AdminTenants(t *testing.T) *AdminTenantsResponse {
 	t.Helper()
