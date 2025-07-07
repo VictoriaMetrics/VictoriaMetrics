@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -226,9 +227,17 @@ func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 
 	return tc.MustStartCluster(&ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
+		Vmstorage1Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1"),
+			"-retentionPeriod=100y",
+		},
 		Vmstorage2Instance: "vmstorage2",
-		VminsertInstance:   "vminsert",
-		VmselectInstance:   "vmselect",
+		Vmstorage2Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2"),
+			"-retentionPeriod=100y",
+		},
+		VminsertInstance: "vminsert",
+		VmselectInstance: "vmselect",
 	})
 }
 
@@ -258,16 +267,7 @@ type ClusterOptions struct {
 func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
-	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
-		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage1Instance,
-		"-retentionPeriod=100y",
-	}...)
 	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
-
-	opts.Vmstorage2Flags = append(opts.Vmstorage2Flags, []string{
-		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage2Instance,
-		"-retentionPeriod=100y",
-	}...)
 	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
 
 	opts.VminsertFlags = append(opts.VminsertFlags, []string{
