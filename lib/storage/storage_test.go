@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -1102,7 +1103,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		"instance",
 		"job",
 	}
-	lns, err := s.SearchLabelNames(nil, nil, TimeRange{}, 100, 1e9, noDeadline)
+	lns, err := s.SearchLabelNames(nil, nil, TimeRange{0, math.MaxInt}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames: %w", err)
 	}
@@ -1129,7 +1130,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValues returns correct result.
-	addIDs, err := s.SearchLabelValues(nil, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
+	addIDs, err := s.SearchLabelValues(nil, "add_id", nil, TimeRange{0, math.MaxInt}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues: %w", err)
 	}
@@ -2044,25 +2045,6 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 		panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 	}
 	return len(names)
-}
-
-// testCountAllMetricIDs is a test helper function that counts the IDs of
-// all time series within the given time range.
-func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
-	tfsAll := NewTagFilters()
-	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
-	}
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
-	idb, putIndexDB := s.getCurrIndexDB()
-	defer putIndexDB()
-	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
-	if err != nil {
-		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
-	}
-	return len(ids)
 }
 
 func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
@@ -3478,6 +3460,25 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	t.Run("disablePerDayIndex=true", func(t *testing.T) {
 		f(t, true)
 	})
+}
+
+// testCountAllMetricIDs is a test helper function that counts the IDs of
+// all time series within the given time range.
+func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+	}
+	if s.disablePerDayIndex {
+		tr = globalIndexTimeRange
+	}
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
+	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	if err != nil {
+		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
+	}
+	return len(ids)
 }
 
 func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
