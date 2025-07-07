@@ -6,6 +6,10 @@ datasources:
       access: proxy
       url: http://vmauth:8427/select/0/prometheus
       isDefault: true
+      basicAuth: true
+      basicAuthUser: foo
+      secureJsonData:
+        basicAuthPassword: bar
       jsonData:
         prometheusType: Prometheus
         prometheusVersion: 2.24.0
