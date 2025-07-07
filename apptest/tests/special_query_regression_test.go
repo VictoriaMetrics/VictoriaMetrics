@@ -2,6 +2,7 @@ package tests
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
@@ -27,10 +28,18 @@ func TestClusterSpecialQueryRegression(t *testing.T) {
 
 	sut := tc.MustStartCluster(&at.ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
+		Vmstorage1Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1"),
+			"-retentionPeriod=100y",
+		},
 		Vmstorage2Instance: "vmstorage2",
-		VminsertInstance:   "vminsert",
-		VminsertFlags:      []string{"-graphiteListenAddr=:0", "-opentsdbListenAddr=127.0.0.1:0"},
-		VmselectInstance:   "vmselect",
+		Vmstorage2Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2"),
+			"-retentionPeriod=100y",
+		},
+		VminsertInstance: "vminsert",
+		VminsertFlags:    []string{"-graphiteListenAddr=:0", "-opentsdbListenAddr=127.0.0.1:0"},
+		VmselectInstance: "vmselect",
 	})
 	testSpecialQueryRegression(tc, sut)
 }
