@@ -119,30 +119,6 @@ func (qos *QueryOpts) getTenant() string {
 	return qos.Tenant
 }
 
-// QueryOptsLogs contains various params used for VictoriaLogs querying or ingesting data
-type QueryOptsLogs struct {
-	MessageField string
-	StreamFields string
-	TimeField    string
-}
-
-func (qos *QueryOptsLogs) asURLValues() url.Values {
-	uv := make(url.Values)
-	addNonEmpty := func(name string, values ...string) {
-		for _, value := range values {
-			if len(value) == 0 {
-				continue
-			}
-			uv.Add(name, value)
-		}
-	}
-	addNonEmpty("_time_field", qos.TimeField)
-	addNonEmpty("_stream_fields", qos.StreamFields)
-	addNonEmpty("_msg_field", qos.MessageField)
-
-	return uv
-}
-
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
 type PrometheusAPIV1QueryResponse struct {
