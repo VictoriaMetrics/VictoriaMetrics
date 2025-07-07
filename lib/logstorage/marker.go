@@ -101,20 +101,20 @@ func (mi *marker) Unmarshal(data []byte) error {
 // markedBlocks is the common part shared by all marker indexes – a sparse
 // mapping from blockSeq -> RLE blob (or full-delete sentinel).
 type markedBlocks struct {
-	blockIDs []uint32  // sorted block sequence numbers that have marker data
+	blockIDs []uint64  // sorted block sequence numbers that have marker data
 	rows     []boolRLE // same length and order as blockIDs
 }
 
 func (mb *markedBlocks) String() string {
 	s := strings.Builder{}
 	for i, blockID := range mb.blockIDs {
-		s.WriteString(fmt.Sprintf("[%d] blockID: %d, row: %v\n", i, blockID, mb.rows[i]))
+		s.WriteString(fmt.Sprintf("| [blockID: %d, row: %v] ", blockID, mb.rows[i].String()))
 	}
 	return s.String()
 }
 
 // GetMarkedRows returns marked rows for the given block sequence number.
-func (mb *markedBlocks) GetMarkedRows(blockSeq uint32) (boolRLE, bool) {
+func (mb *markedBlocks) GetMarkedRows(blockSeq uint64) (boolRLE, bool) {
 	idx, found := slices.BinarySearch(mb.blockIDs, blockSeq)
 	if !found {
 		return nil, false
@@ -156,7 +156,7 @@ func (dm *deleteMarker) Marshal(dst []byte) []byte {
 
 	// For each block, write: block_id + rle_length + rle_data
 	for i, blockID := range dm.blockIDs {
-		dst = encoding.MarshalUint32(dst, blockID)
+		dst = encoding.MarshalUint64(dst, blockID)
 
 		rleData := dm.rows[i]
 		dst = encoding.MarshalVarUint64(dst, uint64(len(rleData)))
@@ -187,11 +187,11 @@ func (dm *deleteMarker) Unmarshal(blocksCount uint64, data []byte) (int, error) 
 	// Read each block's data
 	for i := range numBlocks {
 		// Read block ID
-		if pos+4 > len(data) {
+		if pos+8 > len(data) {
 			return 0, fmt.Errorf("truncated data: cannot read block_id %d", i)
 		}
-		blockID := encoding.UnmarshalUint32(data[pos:])
-		pos += 4
+		blockID := encoding.UnmarshalUint64(data[pos:])
+		pos += 8
 
 		// Read RLE data length
 		if pos >= len(data) {
@@ -224,13 +224,13 @@ func (dm *deleteMarker) merge(other *deleteMarker) {
 	}
 	if len(dm.blockIDs) == 0 {
 		// dm is empty – just copy other's data.
-		dm.blockIDs = append([]uint32(nil), other.blockIDs...)
+		dm.blockIDs = append([]uint64(nil), other.blockIDs...)
 		dm.rows = append([]boolRLE(nil), other.rows...)
 		return
 	}
 
 	// Two‑pointer merge because both blockID slices are already sorted.
-	mergedIDs := make([]uint32, 0, len(dm.blockIDs)+len(other.blockIDs))
+	mergedIDs := make([]uint64, 0, len(dm.blockIDs)+len(other.blockIDs))
 	mergedRows := make([]boolRLE, 0, len(dm.rows)+len(other.rows))
 
 	i, j := 0, 0
@@ -274,7 +274,7 @@ func (dm *deleteMarker) merge(other *deleteMarker) {
 
 // AddBlock adds a block with its RLE data to the deleteMarker.
 // If blockID already exists, it merges the RLE data using union operation.
-func (dm *deleteMarker) AddBlock(blockID uint32, rle boolRLE) {
+func (dm *deleteMarker) AddBlock(blockID uint64, rle boolRLE) {
 	// Find existing block or insertion point
 	idx, found := slices.BinarySearch(dm.blockIDs, blockID)
 
@@ -303,12 +303,6 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	}
 
 	p := pw.p
-	// In-memory part has no path yet – merge marker in memory and return.
-	if p.path == "" {
-		addInMemoryDeleteMarker(p, dm)
-		return
-	}
-
 	ddb := p.pt.ddb
 
 	// Serialize with other modifications to the same part and protect against
@@ -316,6 +310,12 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	ddb.partsLock.Lock()
 	defer ddb.partsLock.Unlock()
 	if pw.isInMerge || pw.mustDrop.Load() {
+		logger.Fatalf("DEBUG: PANIC: flushDeleteMarker: pw.isInMerge=%t, pw.mustDrop=%t", pw.isInMerge, pw.mustDrop.Load())
+		return
+	}
+
+	if p.path == "" {
+		addInMemoryDeleteMarker(p, dm)
 		return
 	}
 
@@ -331,7 +331,7 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 		// First marker – just deep-copy delMarker to avoid sharing mutable slices.
 		merged = &deleteMarker{
 			markedBlocks: markedBlocks{
-				blockIDs: append([]uint32(nil), dm.blockIDs...),
+				blockIDs: append([]uint64(nil), dm.blockIDs...),
 				rows:     append([]boolRLE(nil), dm.rows...),
 			},
 		}
@@ -339,7 +339,7 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 		// Copy-on-write: start from current snapshot and merge additions.
 		merged = &deleteMarker{
 			markedBlocks: markedBlocks{
-				blockIDs: append([]uint32(nil), current.blockIDs...),
+				blockIDs: append([]uint64(nil), current.blockIDs...),
 				rows:     append([]boolRLE(nil), current.rows...),
 			},
 		}
@@ -355,8 +355,8 @@ func flushDeleteMarker(pw *partWrapper, dm *deleteMarker, seq uint64) {
 	datPath := filepath.Join(partPath, rowMarkerDatFilename)
 	fs.MustWriteAtomic(datPath, datBuf, true /*overwrite*/)
 	fs.MustSyncPath(partPath)
+
 	p.setAppliedTSeq(seq)
-	logger.Infof("DEBUG: flushDeleteMarker: part=%s, seq=%d, rle=%s", partPath, seq, merged.String())
 }
 
 // addInMemoryDeleteMarker merges dm into p.marker.delete without touching disk.
@@ -379,14 +379,14 @@ func addInMemoryDeleteMarker(p *part, dm *deleteMarker) {
 	if current == nil {
 		merged = &deleteMarker{
 			markedBlocks: markedBlocks{
-				blockIDs: append([]uint32(nil), dm.blockIDs...),
+				blockIDs: append([]uint64(nil), dm.blockIDs...),
 				rows:     append([]boolRLE(nil), dm.rows...),
 			},
 		}
 	} else {
 		merged = &deleteMarker{
 			markedBlocks: markedBlocks{
-				blockIDs: append([]uint32(nil), current.blockIDs...),
+				blockIDs: append([]uint64(nil), current.blockIDs...),
 				rows:     append([]boolRLE(nil), current.rows...),
 			},
 		}

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -41,7 +40,6 @@ type partition struct {
 	// Access must be protected with asyncTasksLock.
 	asyncTasks     []asyncTask
 	asyncTasksLock sync.Mutex
-	asyncTasksLen  atomic.Uint64
 }
 
 // mustCreatePartition creates a partition at the given path.
@@ -228,6 +226,9 @@ func (pt *partition) mustForceMerge() {
 
 // addDeleteTask appends a delete task to the partition's task list
 func (pt *partition) addDeleteTask(tenantIDs []TenantID, q *Query, seq uint64) uint64 {
+	pt.asyncTasksLock.Lock()
+	defer pt.asyncTasksLock.Unlock()
+
 	task := asyncTask{
 		Seq:       seq,
 		Type:      asyncTaskDelete,
@@ -236,49 +237,56 @@ func (pt *partition) addDeleteTask(tenantIDs []TenantID, q *Query, seq uint64) u
 		Status:    taskPending,
 	}
 
-	pt.asyncTasksLock.Lock()
-	pt.asyncTasks = append(pt.asyncTasks, task)
-	pt.asyncTasksLock.Unlock()
-
-	// Persist tasks to disk
-	pt.mustSaveAsyncTasks()
-
-	pt.asyncTasksLen.Store(seq)
+	pt.mustSaveAsyncTasksLocked(task)
 	return seq
 }
 
-func (pt *partition) getOldestPendingAsyncTask() asyncTask {
+// TODO(phuong): use atomic
+func (pt *partition) getPendingAsyncTask() asyncTask {
 	var result asyncTask
-
-	if pt.asyncTasksLen.Load() == 0 {
-		return result
-	}
 
 	pt.asyncTasksLock.Lock()
 	for i := len(pt.asyncTasks) - 1; i >= 0; i-- {
 		task := pt.asyncTasks[i]
 		if task.Status == taskPending {
 			result = task
-			continue
+			break
 		}
-
-		break
 	}
 	pt.asyncTasksLock.Unlock()
 
 	return result
 }
 
-// mustSaveAsyncTasks persists the current async tasks to disk
-func (pt *partition) mustSaveAsyncTasks() {
-	pt.asyncTasksLock.Lock()
-	tasks := make([]asyncTask, len(pt.asyncTasks))
-	copy(tasks, pt.asyncTasks)
-	pt.asyncTasksLock.Unlock()
+// mustSaveAsyncTasksLocked persists the current async tasks to disk.
+// p.asyncTasksLock must be held before calling.
+func (pt *partition) mustSaveAsyncTasksLocked(tasks ...asyncTask) {
+	if len(tasks) > 0 {
+		pt.asyncTasks = append(pt.asyncTasks, tasks...)
+	}
 
 	data := marshalAsyncTasks(tasks)
 	tasksPath := filepath.Join(pt.path, asyncTasksFilename)
 	fs.MustWriteAtomic(tasksPath, data, true)
+}
+
+func (pt *partition) markAsyncTaskAsApplied(seq uint64, status asyncTaskStatus) {
+	pt.asyncTasksLock.Lock()
+	defer pt.asyncTasksLock.Unlock()
+
+	for i := range pt.asyncTasks {
+		if pt.asyncTasks[i].Seq == seq && pt.asyncTasks[i].Status == taskPending {
+			pt.asyncTasks[i].Status = status
+			pt.mustSaveAsyncTasksLocked()
+			return
+		}
+	}
+}
+
+func (pt *partition) isPayingAsyncTask() (seq uint64, ok bool) {
+	seq = pt.getPendingAsyncTask().Seq
+	ok = seq == pt.s.asyncTaskSeq.Load()
+	return
 }
 
 // mustLoadAsyncTasks loads async tasks from disk during partition startup
@@ -299,13 +307,4 @@ func (pt *partition) mustLoadAsyncTasks() {
 	pt.asyncTasksLock.Lock()
 	pt.asyncTasks = tasks
 	pt.asyncTasksLock.Unlock()
-
-	// Update asyncTasksLen to the highest sequence number
-	var maxSeq uint64
-	for _, task := range tasks {
-		if task.Seq > maxSeq {
-			maxSeq = task.Seq
-		}
-	}
-	pt.asyncTasksLen.Store(maxSeq)
 }

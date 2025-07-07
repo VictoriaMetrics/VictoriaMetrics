@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -19,29 +18,32 @@ func createTestRLE(pattern string) boolRLE {
 		}
 	}
 
-	return boolRLE(bm.MarshalRLE(nil))
+	return boolRLE(bm.MarshalBoolRLE(nil))
 }
 
-// equalRLE checks if two RLE bitmaps are equivalent
-func equalRLE(a, b boolRLE) bool {
-	if len(a) == 0 && len(b) == 0 {
-		return true
+func applyRLEToBitmap(bm *bitmap, rle boolRLE) {
+	idx := 0
+	pos := 0
+	for idx < len(rle) {
+		run, n := encoding.UnmarshalVarUint64(rle[idx:])
+		idx += n
+		if run > 0 {
+			for i := 0; i < int(run); i++ {
+				bm.setBit(pos + i)
+			}
+		}
 	}
-	if len(a) == 0 || len(b) == 0 {
-		return false
-	}
+}
 
-	// Compare by converting both to bitmap and checking bit-by-bit
-	bmA := getBitmap(1000) // sufficient for test cases
-	defer putBitmap(bmA)
+func equalRLE(a, b boolRLE) bool {
+	bmA := getBitmap(1000)
 	bmB := getBitmap(1000)
+	defer putBitmap(bmA)
 	defer putBitmap(bmB)
 
-	// Apply RLE to bitmaps (AndNotRLE sets bits where RLE is 1)
-	a.AndNotRLE(bmA)
-	b.AndNotRLE(bmB)
+	applyRLEToBitmap(bmA, a) // SET 1-bits
+	applyRLEToBitmap(bmB, b)
 
-	// Compare word-by-word
 	if len(bmA.a) != len(bmB.a) {
 		return false
 	}
@@ -71,7 +73,7 @@ func TestMarshalRLE(t *testing.T) {
 			expectedRLE = encoding.MarshalVarUint64(expectedRLE, run)
 		}
 
-		actualRLE := bm.MarshalRLE(nil)
+		actualRLE := bm.MarshalBoolRLE(nil)
 		if !bytes.Equal(actualRLE, expectedRLE) {
 			t.Fatalf("unexpected result for pattern %s; got %v; want %v", pattern, actualRLE, expectedRLE)
 		}
@@ -119,34 +121,150 @@ func TestMarshalRLE(t *testing.T) {
 }
 
 func TestBoolRLEUnion(t *testing.T) {
-	f := func(a, b, expected string) {
+	f := func(a, b, expected []uint64) {
 		t.Helper()
 
-		rleA := createTestRLE(a)
-		rleB := createTestRLE(b)
-		expectedRLE := createTestRLE(expected)
+		rleA := encodeTestRLE(a)
+		rleB := encodeTestRLE(b)
+		expectedRLE := encodeTestRLE(expected)
 
 		result := rleA.Union(rleB)
 		if !equalRLE(result, expectedRLE) {
-			t.Fatalf("unexpected result; got %v; want %v", result, expectedRLE)
+			t.Fatalf("unexpected result;\n got:      %v\n want:     %v", decodeRLE(result), decodeRLE(expectedRLE))
 		}
 	}
 
-	f("", "", "")
-	f("1", "", "1")
-	f("", "1", "1")
-	f("0", "1", "1")
-	f("1", "0", "1")
-	f("101", "010", "111")
-	f("1100", "0011", "1111")
-	f("1010", "0101", "1111")
-	f("1010", "1010", "1010")
-	f("11001100", "10101010", "11101110")
-	f("11111", "0000011111", "1111111111")
-	t.Run("contiguous-large-runs", func(t *testing.T) {
-		a := strings.Repeat("1", 362)
-		b := strings.Repeat("0", 362) + strings.Repeat("1", 246)
-		expected := strings.Repeat("1", 608)
-		f(a, b, expected)
-	})
+	// Basic
+	f([]uint64{}, []uint64{}, []uint64{})
+	f([]uint64{0, 1}, []uint64{}, []uint64{0, 1})
+	f([]uint64{}, []uint64{0, 1}, []uint64{0, 1})
+	f([]uint64{1}, []uint64{0, 1}, []uint64{0, 1})
+	f([]uint64{0, 1}, []uint64{1}, []uint64{0, 1})
+	f([]uint64{0, 1, 1, 1}, []uint64{1, 1, 1, 1}, []uint64{0, 4})
+	f([]uint64{0, 2, 2}, []uint64{2, 2, 2}, []uint64{0, 4, 2})
+	f([]uint64{0, 1, 1, 1}, []uint64{0, 1, 1, 1}, []uint64{0, 1, 1, 1})
+	f([]uint64{2, 2, 2, 2}, []uint64{1, 1, 1, 1, 1, 1, 1, 1}, []uint64{1, 3, 1, 3})
+	f([]uint64{0, 5}, []uint64{5, 5}, []uint64{0, 10})
+
+	// Edge-cases
+	f([]uint64{}, []uint64{4}, []uint64{4})
+	f([]uint64{4}, []uint64{}, []uint64{4})
+	f([]uint64{4}, []uint64{4}, []uint64{4})
+	f([]uint64{0, 4}, []uint64{0, 4}, []uint64{0, 4})
+	f([]uint64{4}, []uint64{0, 4}, []uint64{0, 4})
+	f([]uint64{0, 4}, []uint64{4}, []uint64{0, 4})
+
+	// Two halves overlap
+	f([]uint64{0, 4, 4}, []uint64{4, 4, 4}, []uint64{0, 8, 4})
+
+	// Middle gap
+	f([]uint64{0, 4, 4, 4}, []uint64{8, 4}, []uint64{0, 4, 4, 4})
+
+	// Complementary patterns
+	f([]uint64{0, 1, 6, 1}, []uint64{1, 6, 1, 1}, []uint64{0, 9})
+	f([]uint64{3, 1, 3}, []uint64{4, 1, 2}, []uint64{3, 2, 3})
+
+	// Different lengths
+	f([]uint64{0, 3, 3}, []uint64{2, 1}, []uint64{0, 3, 3})
+	f([]uint64{0, 2}, []uint64{2, 1, 3}, []uint64{0, 2, 1, 3})
+
+	// Alternation
+	f([]uint64{0, 1, 1, 1, 1, 1, 1, 1, 1}, []uint64{1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint64{0, 8, 1})
+
+	// Extremes
+	f([]uint64{0, 1, 8, 1}, []uint64{8, 1}, []uint64{0, 1, 7, 2})
+
+	// All zeros remain zeros
+	f([]uint64{6}, []uint64{1}, []uint64{6})
+
+	// Second adds a one just beyond the end
+	f([]uint64{0, 3}, []uint64{3, 1, 3}, []uint64{0, 4, 3})
+
+	// Disjoint ones at opposite ends
+	f([]uint64{3, 1}, []uint64{1, 3}, []uint64{1, 1, 3})
+
+	// Leading zero-runs of different sizes
+	f([]uint64{2, 4, 2}, []uint64{3, 2, 3}, []uint64{2, 4, 3})
+
+	// Large runs
+	f([]uint64{362}, []uint64{362, 246}, []uint64{362, 246})
+
+	// Real-world testcases
+	f(
+		[]uint64{1, 4, 1, 16, 1, 52, 2, 24, 1, 32, 1, 4, 1, 7, 1, 10, 1, 6, 1, 53, 1, 28, 1, 41, 1, 14, 1, 1, 1, 87, 1, 29, 1, 15, 1, 1, 1, 36, 1, 13, 1, 37, 1, 18, 1, 8},
+		[]uint64{0, 1, 4, 1, 16, 1, 116, 1, 25, 1, 275, 1, 1, 1, 116},
+		[]uint64{0, 75, 2, 24, 1, 32, 1, 12, 1, 10, 1, 60, 1, 28, 1, 41, 1, 14, 1, 1, 1, 87, 1, 29, 1, 54, 1, 13, 1, 37, 1, 18, 1, 8})
+}
+
+func TestBoolRLEIsSubsetOf(t *testing.T) {
+	f := func(a, b []uint64, want bool) {
+		t.Helper()
+		rleA := encodeTestRLE(a)
+		rleB := encodeTestRLE(b)
+		got := rleA.IsSubsetOf(rleB)
+		if got != want {
+			t.Fatalf("IsSubsetOf failed:\n a: %v\n b: %v\n got: %v\nwant: %v", a, b, got, want)
+		}
+	}
+
+	// Both empty (length 0)
+	f([]uint64{}, []uint64{}, true)
+
+	// Subset: all zeros
+	f([]uint64{6}, []uint64{6}, true)
+
+	// Subset: a is all zeros, b is all ones
+	f([]uint64{6}, []uint64{0, 6}, true)
+
+	// Subset: both all ones
+	f([]uint64{0, 6}, []uint64{0, 6}, true)
+
+	// Subset: a is a proper subset of b
+	f([]uint64{2, 2, 2}, []uint64{2, 4}, true)
+	f([]uint64{0, 2, 2}, []uint64{0, 4}, true)
+
+	// Not subset: a has ones where b has zeros
+	f([]uint64{0, 2, 2}, []uint64{2, 2}, false)
+	f([]uint64{0, 1, 1}, []uint64{2, 1}, false)
+
+	// Both alternating, a subset of b
+	f([]uint64{1, 1, 1, 1}, []uint64{1, 1, 1, 1}, true)
+	f([]uint64{1, 1, 1, 1}, []uint64{1, 3}, true)
+	f([]uint64{1, 2, 1}, []uint64{1, 1, 1, 1}, false)
+
+	// Edge: a is empty, b is not (always true)
+	f([]uint64{}, []uint64{5}, true)
+
+	// Edge: b is empty, a is not (false unless a has no ones)
+	f([]uint64{0, 3}, []uint64{}, false)
+	f([]uint64{3}, []uint64{}, true)
+
+	// a fully covers b in ones, not a subset
+	f([]uint64{0, 6}, []uint64{3, 3}, false)
+
+	//
+	f(
+		[]uint64{0, 1, 4, 1, 16, 1, 116, 1, 25, 1, 275, 1, 1, 1, 116},
+		[]uint64{1, 4, 1, 16, 1, 52, 2, 24, 1, 32, 1, 4, 1, 7, 1, 10, 1, 6, 1, 53, 1, 28, 1, 41, 1, 14, 1, 1, 1, 87, 1, 29, 1, 15, 1, 1, 1, 36, 1, 13, 1, 37, 1, 18, 1, 8},
+		true)
+}
+
+func encodeTestRLE(runs []uint64) boolRLE {
+	var b boolRLE
+	for _, x := range runs {
+		b = encoding.MarshalVarUint64(b, x)
+	}
+	return b
+}
+
+// decodeRLE decodes a boolRLE slice back to []uint64 for pretty-printing test errors
+func decodeRLE(rle boolRLE) []uint64 {
+	var res []uint64
+	idx := 0
+	for idx < len(rle) {
+		n, l := encoding.UnmarshalVarUint64(rle[idx:])
+		res = append(res, n)
+		idx += l
+	}
+	return res
 }

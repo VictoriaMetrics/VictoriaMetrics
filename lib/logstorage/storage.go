@@ -145,12 +145,65 @@ type Storage struct {
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
 
+	// asyncTaskStop is used to stop the async task worker.
 	asyncTaskStop asyncTaskStop
+	asyncTaskSeq  atomic.Uint64
 }
 
 type asyncTaskStop struct {
 	waiter atomic.Int32
+	mu     sync.Mutex
 	ch     chan struct{}
+}
+
+// init prepares the pause channel; must be called once at storage startup.
+func (ats *asyncTaskStop) init() {
+	ats.mu.Lock()
+	if ats.ch == nil {
+		ats.ch = make(chan struct{})
+	}
+	ats.mu.Unlock()
+}
+
+// addWaiter increments the waiter counter and returns the channel
+// that will be closed when the async-task worker acknowledges the pause.
+func (ats *asyncTaskStop) addWaiter() <-chan struct{} {
+	ats.mu.Lock()
+	ch := ats.ch
+	ats.waiter.Add(1)
+	ats.mu.Unlock()
+	return ch
+}
+
+// doneWaiter decrements the waiter counter, signalling that the caller has
+// finished the critical section.
+func (ats *asyncTaskStop) doneWaiter() {
+	if n := ats.waiter.Add(-1); n == 0 {
+		// All waiters are done – prepare a fresh channel for the next pause.
+		ats.mu.Lock()
+		if ats.ch == nil {
+			ats.ch = make(chan struct{})
+		}
+		ats.mu.Unlock()
+	}
+}
+
+// canProcess returns true if the async-task worker may proceed with work. If
+// there are active waiters, it closes the channel to acknowledge the pause and
+// returns false.
+func (ats *asyncTaskStop) canProcess() bool {
+	if ats.waiter.Load() == 0 {
+		return true
+	}
+
+	ats.mu.Lock()
+	if ats.ch != nil {
+		close(ats.ch)
+		ats.ch = nil
+	}
+	ats.mu.Unlock()
+
+	return false
 }
 
 type partitionWrapper struct {
@@ -270,6 +323,9 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		streamIDCache:     streamIDCache,
 		filterStreamCache: filterStreamCache,
 	}
+
+	// Initialize the async-task pause mechanism.
+	s.asyncTaskStop.init()
 
 	partitionsPath := filepath.Join(path, partitionsDirname)
 	fs.MustMkdirIfNotExist(partitionsPath)
@@ -517,10 +573,12 @@ func (s *Storage) MustForceMerge(partitionNamePrefix string) {
 	}
 	s.partitionsLock.Unlock()
 
-	// waiting for async task to stop.
-	s.asyncTaskStop.waiter.Add(1)
-	defer s.asyncTaskStop.waiter.Add(-1)
-	<-s.asyncTaskStop.ch
+	// Pause the async-task worker.
+	ch := s.asyncTaskStop.addWaiter()
+	defer s.asyncTaskStop.doneWaiter()
+
+	// Wait until the worker acknowledges pause by closing the channel.
+	<-ch
 
 	// shutdown must wait for force merge.
 	s.wg.Add(1)
@@ -586,6 +644,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 			s.rowsDroppedTooBigTimestamp.Add(1)
 			continue
 		}
+
 		lrPart := m[day]
 		if lrPart == nil {
 			lrPart = GetLogRows(nil, nil, nil, nil, "")
@@ -714,7 +773,6 @@ func ValidateDeleteQuery(q *Query) error {
 }
 
 func (s *Storage) DeleteRows(ctx context.Context, tenantIDs []TenantID, q *Query) error {
-	// DEBUG: log incoming deletion request.
 	minTS, maxTS := q.GetFilterTimeRange()
 	minDay := minTS / nsecsPerDay
 	maxDay := maxTS / nsecsPerDay
@@ -762,9 +820,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 	}
 	partMarkers := make(map[string]*partMarkerData)
 
-	var rowsMarked uint64
 	var partMarkersLock sync.Mutex
-
 	writeBlockResult := func(_ uint, br *blockResult) {
 		if br == nil || br.rowsLen == 0 {
 			return
@@ -784,30 +840,37 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 
 		rowsCount := int(bs.bsw.bh.rowsCount)
 		ones := bm.onesCount()
-		logger.Infof("DEBUG: markDeleteRows writeBlockResult part=%s blockSeq=%d rowsTotal=%d rowsMatched=%d", p.path, bs.bsw.seq, rowsCount, ones)
-		rowsMarked += uint64(ones)
 
+		blockID := bs.bsw.bh.columnsHeaderOffset
 		var rle boolRLE
 		if ones == rowsCount {
 			rle = boolRLE(nil).SetAllOnes(rowsCount)
 		} else {
-			rle = boolRLE(bm.MarshalRLE(nil))
-			logger.Infof("DEBUG: delete marker RLE for part=%s blockSeq=%d -> %s", p.path, bs.bsw.seq, rle.String())
+			rle = boolRLE(bm.MarshalBoolRLE(nil))
 		}
 
-		seq := bs.bsw.seq
-		partPath := p.path
+		if !rle.IsStateful() {
+			return // need at least 2 items in RLE bitmap
+		}
 
+		if bs.bsw.dm != nil {
+			existedRLE, ok := bs.bsw.dm.GetMarkedRows(blockID)
+			if ok && rle.IsSubsetOf(existedRLE) {
+				return // already marked
+			}
+		}
+
+		partPath := p.path
 		partMarkersLock.Lock()
-		dm, ok := partMarkers[partPath]
+		m, ok := partMarkers[partPath]
 		if !ok {
-			dm = &partMarkerData{
+			m = &partMarkerData{
 				part:      pwMap[p],
 				delMarker: &deleteMarker{},
 			}
-			partMarkers[partPath] = dm
+			partMarkers[partPath] = m
 		}
-		dm.delMarker.AddBlock(seq, rle)
+		m.delMarker.AddBlock(blockID, rle)
 		partMarkersLock.Unlock()
 	}
 
@@ -820,7 +883,7 @@ func (s *Storage) markDeleteRowsOnParts(ctx context.Context, tenantIDs []TenantI
 		flushDeleteMarker(pm.part, pm.delMarker, seq)
 	}
 
-	logger.Infof("DEBUG: affected (rows = %d, parts = %d, seq = %d)", rowsMarked, len(partMarkers), seq)
+	logger.Infof("DEBUG: affected (parts = %d, seq = %d)", len(partMarkers), seq)
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -289,7 +290,7 @@ func (bsw *blockStreamWriter) MustInitForInmemoryPart(mp *inmemoryPart) {
 // MustInitForFilePart initializes bsw for writing data to file part located at path.
 //
 // if nocache is true, then the written data doesn't go to OS page cache.
-func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
+func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool, appliedTSeq uint64) {
 	bsw.reset()
 
 	fs.MustMkdirFailIfExist(path)
@@ -339,6 +340,13 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 	bsw.streamWriters.init(columnNamesWriter, columnIdxsWriter, metaindexWriter, indexWriter,
 		columnsHeaderIndexWriter, columnsHeaderWriter, timestampsWriter, messageBloomValuesWriter,
 		createBloomValuesWriter, bloomValuesMaxShardsCount)
+
+	if appliedTSeq > 0 {
+		tseqPath := filepath.Join(path, appliedTSeqFilename)
+		tseqWriter := filestream.MustCreate(tseqPath, nocache)
+		fs.MustWriteData(tseqWriter, fmt.Appendf(nil, "%d", appliedTSeq))
+		tseqWriter.MustClose()
+	}
 }
 
 // MustWriteRows writes timestamps with rows under the given sid to bsw.
