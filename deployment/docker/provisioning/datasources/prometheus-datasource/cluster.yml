@@ -6,6 +6,10 @@ datasources:
       access: proxy
       url: http://vmauth:8427/select/0/prometheus
       isDefault: true
+      # Basic Auth credentials for the datasource
+      # This is used to authenticate with the vmauth service
+      # Note: please check changes in the vmauth configuration `auth-vm-cluster.yml`
+      # to ensure the credential match
       basicAuth: true
       basicAuthUser: foo
       secureJsonData:
