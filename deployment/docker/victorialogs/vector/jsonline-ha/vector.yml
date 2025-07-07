@@ -18,26 +18,7 @@ sinks:
     type: http
     inputs:
       - parser
-    uri: http://victorialogs:9428/insert/jsonline
-    encoding:
-      codec: json
-    framing:
-      method: newline_delimited
-    compression: gzip
-    healthcheck:
-      enabled: false
-    request:
-      headers:
-        AccountID: '0'
-        ProjectID: '0'
-        VL-Stream-Fields: source_type,host,container_name,label.com.docker.compose.service
-        VL-Msg-Field: message.msg
-        VL-Time-Field: timestamp
-  vlogs-2:
-    type: http
-    inputs:
-      - parser
-    uri: http://victorialogs-2:9428/insert/jsonline
+    uri: http://vlagent:9429/insert/jsonline
     encoding:
       codec: json
     framing:

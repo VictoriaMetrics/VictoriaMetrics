@@ -34,7 +34,7 @@ Enterprise binaries can be downloaded and evaluated for free
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/#how-to-upgrade-victoriametrics).
 
 VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
 
@@ -1608,6 +1608,10 @@ Below is the output for `/path/to/vmselect -help`:
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
   -search.logSlowQueryStats duration
      Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/victoriametrics/query-stats . Zero disables slow query statistics logging. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+  -search.logSlowQueryStatsHeaders array
+     White list of header keys to log for queries exceeding -search.logSlowQueryStats. By default, no headers are logged. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -search.maxBinaryOpPushdownLabelValues instance
      The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example instance, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int

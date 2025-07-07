@@ -1,7 +1,7 @@
 services:
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    image: grafana/grafana:11.5.0
+    image: grafana/grafana:12.0.2
     depends_on:
       - "victoriametrics"
       - "vmauth"
@@ -36,30 +36,30 @@ services:
     user: root
 
   vlinsert:
-    image: victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
       - "--storageNode=vlstorage-2:9428"
 
   vlselect-1:
-    image: victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
       - "--storageNode=vlstorage-2:9428"
   vlselect-2:
-    image: victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - "--storageNode=vlstorage-1:9428"
       - "--storageNode=vlstorage-2:9428"
 
   vlstorage-1:
-    image: victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
     volumes:
       - vldata-1:/vlogs
   vlstorage-2:
-    image: victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
     volumes:
@@ -68,7 +68,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.119.0
+    image: victoriametrics/victoria-metrics:v1.120.0
     volumes:
       - vmdata:/storage
       - ./prometheus-vl-cluster.yml:/etc/prometheus/prometheus.yml
@@ -81,7 +81,7 @@ services:
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    image: victoriametrics/vmauth:v1.119.0
+    image: victoriametrics/vmauth:v1.120.0
     depends_on:
       - "victoriametrics"
       - "vlselect-1"
@@ -97,7 +97,7 @@ services:
 
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
-    image: victoriametrics/vmalert:v1.119.0
+    image: victoriametrics/vmalert:v1.120.0
     depends_on:
       - "vmauth"
       - "alertmanager"

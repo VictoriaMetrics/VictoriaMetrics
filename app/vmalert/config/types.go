@@ -89,15 +89,18 @@ func (t *Type) ValidateExpr(expr string) error {
 	return nil
 }
 
+// SupportedType is true if given datasource type is supported
+func SupportedType(dsType string) bool {
+	return dsType == "graphite" || dsType == "prometheus" || dsType == "vlogs"
+}
+
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (t *Type) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	switch s {
-	case "graphite", "prometheus", "vlogs":
-	default:
+	if !SupportedType(s) {
 		return fmt.Errorf("unknown datasource type=%q, want prometheus, graphite or vlogs", s)
 	}
 	t.Name = s

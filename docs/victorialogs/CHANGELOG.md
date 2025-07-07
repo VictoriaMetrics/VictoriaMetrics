@@ -18,6 +18,13 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [`rate_sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats): fix inconsistent per-second rate calculation when time filters are specified via HTTP query parameters instead of LogsQL expression. This affects recording rule results. See [#9303](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9303).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): disabled opening of autocomplete popup on initial page load.
+
+## [v1.24.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.24.0-victorialogs)
+
+Released at 2025-06-20
+
 * FEATURE: add `-http.disableKeepAlive` to disable HTTP keep-alives for incoming connections. The flag could improve load balancing among replicas behind HTTP load balancers. See [#9125](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9125) and [#2395](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2395) for details.
 * FEATURE: [`delete` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe): allow deleting all the fields with common prefix via `... | delete prefix*` syntax.
 * FEATURE: [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe): allow keeping all the fields with common prefix via `... | fields prefix*` syntax.
@@ -26,10 +33,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
 * FEATURE: [`unpack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe): allow unpacking JSON fields with common prefix via `... fields (prefix*)` syntax.
 * FEATURE: [`avg` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the average value over all the fields with common prefix via `avg(prefix*)` syntax.
-* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
-* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
-* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
-* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#avg-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
+* FEATURE: [`max` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats): allow calculating the maximum value over all the fields with common prefix via `max(prefix*)` syntax.
+* FEATURE: [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats): allow calculating the minimum value over all the fields with common prefix via `min(prefix*)` syntax.
+* FEATURE: [`median` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#median-stats): allow calculating the median value over all the fields with common prefix via `median(prefix*)` syntax.
+* FEATURE: [`quantile` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#quantile-stats): allow calculating the maximum value over all the fields with common prefix via `quantile(prefix*)` syntax.
 * FEATURE: [`sum` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum-stats): allow calculating the sum for all the fields with common prefix via `sum(prefix*)` syntax.
 * FEATURE: [`sum_len` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#sum_len-stats): allow calculating the sum of byte lengths for all the fields with common prefix via `sum_len(prefix*)` syntax.
 * FEATURE: [`count` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count-stats): allow calculating the number of logs with at least a single non-empty field across fields with common prefix via `count(prefix*)` syntax.
@@ -54,6 +61,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): live tailing tab automatically reconnects when the connection is lost. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9129).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix issue with hits chart ignoring selected AccountID and ProjectID. See [#9157](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9157).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix missing field values in auto-complete. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8749)
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): remove the compact mode of the table tab and add field sorting capabilities to the JSON tab. See [#7047](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7047).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix errors in console about loading of `manifest.json` when accessing UI through vmauth with Basic Auth enabled.
 * BUGFIX: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): properly read log timestamp from `__REALTIME_TIMESTAMP` field according to [the docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#time-field). See [#9144](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9144). The bug has been introduced in [v1.22.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.22.0-victorialogs).
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support `-` as a timestamp value, as described in [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.3).
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly handle quotes inside quoted strings such as `"\""`. Previously this could lead to panics. See [#9219](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9219).
@@ -565,7 +574,7 @@ Released at 2024-09-30
 Released at 2024-09-29
 
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): accept Unix timestamps in seconds in the ingested logs. This simplifies integration with systems, which prefer Unix timestamps over text-based representation of time.
-* FEATURE: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): allow using `order` alias instead of `sort`. For example, `_time:5s | order by (_time)` query works the same as `_time:5s | sort by (_time)`. This simplifies the to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) transition from SQL-like query languages.
+* FEATURE: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): allow using `order` alias instead of `sort`. For example, `_time:5s | order by (_time)` query works the same as `_time:5s | sort by (_time)`. This simplifies [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) transition from SQL-like query languages.
 * FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): allow using multiple identical [stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) with distinct [filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters) and automatically generated result names. For example, `_time:5m | count(), count() if (error)` query works as expected now, e.g. it returns two results over the last 5 minutes: the total number of logs and the number of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word). Previously this query couldn't be executed because the `if (...)` condition wasn't included in the automatically generate result name, so both results had the same name - `count(*)`.
 
 * BUGFIX: properly calculate [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) and [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) pipes. Previously they could return invalid results in some cases.
@@ -645,7 +654,7 @@ Released at 2024-07-05
 
 Released at 2024-07-02
 
-* FEATURE: add `-syslog.useLocalTimestamp.tcp` and `-syslog.useLocalTimestamp.udp` command-line flags, which could be used for using the local timestamp as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) for the logs ingested via the corresponding `-syslog.listenAddr.tcp` / `-syslog.listenAddr.udp`. By default the timestamp from the syslog message is used as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field). See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
+* FEATURE: add `-syslog.useLocalTimestamp.tcp` and `-syslog.useLocalTimestamp.udp` command-line flags, which could be used for using the local timestamp as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) for the logs ingested via the corresponding `-syslog.listenAddr.tcp` / `-syslog.listenAddr.udp`. By default, the timestamp from the syslog message is used as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field). See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
 
 * BUGFIX: make slowly ingested logs visible for search as soon as they are ingested into VictoriaLogs. Previously slowly ingested logs could remain invisible for search for long time.
 

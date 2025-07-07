@@ -176,6 +176,7 @@ unauthorized_user:
     - "http://vminsert-3:8480/"
   - src_paths:
     - "/select/.*"
+    - "/admin/.*"
     url_prefix:
     - "http://vmselect-1:8481/"
     - "http://vmselect-2:8481/"
@@ -604,7 +605,7 @@ unauthorized_user:
 
 There are the following solutions for this issue:
 
-- To enumerate every `vmselect` hosname or IP in the `url_prefix` list:
+- To enumerate every `vmselect` hostname or IP in the `url_prefix` list:
 
   ```yaml
   unauthorized_user:

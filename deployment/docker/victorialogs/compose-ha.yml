@@ -2,3 +2,6 @@ services:
   victorialogs-2:
     deploy:
       replicas: 1
+  vlagent:
+    deploy:
+      replicas: 1

@@ -4,6 +4,7 @@ weight: 2
 menu:
   docs:
     parent: "integrations-vm"
+    identifier: "integrations-prometheus-vm"
     weight: 2
 aliases:
   - /victoriametrics/data-ingestion/prometheus/

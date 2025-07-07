@@ -1,7 +1,7 @@
 services:
   # meta service will be ignored by compose
   .victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v1.23.3-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v1.24.0-victorialogs
     command:
       - -storageDataPath=/vlogs
       - -loggerFormat=json
@@ -19,7 +19,7 @@ services:
       retries: 10
 
   dd-proxy:
-    image: docker.io/victoriametrics/vmauth:v1.119.0
+    image: docker.io/victoriametrics/vmauth:v1.120.0
     restart: on-failure
     volumes:
       - ./:/etc/vmauth
@@ -44,6 +44,18 @@ services:
     deploy:
       replicas: 0
 
+  # vlagent is needed for HA setup and its replica count is set to 1 in compose-ha.yml file
+  vlagent:
+    image: victoriametrics/vlagent:v0.0.1
+    volumes:
+      - vlagent:/vlagent
+    command:
+      - '--remoteWrite.tmpDataPath=/vlagent'
+      - '--remoteWrite.url=http://victorialogs:9428/internal/insert'
+      - '--remoteWrite.url=http://victorialogs-2:9428/internal/insert'
+    deploy:
+      replicas: 0
+
   victoriametrics:
     image: victoriametrics/victoria-metrics:v1.112.0
     ports:
@@ -63,3 +75,4 @@ volumes:
   victorialogs:
   victorialogs-2:
   victoriametrics:
+  vlagent:

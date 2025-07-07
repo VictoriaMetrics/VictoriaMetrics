@@ -75,4 +75,3 @@ Additional context
 ### What more can we do?
 
 Setup vmagents in Ground Control regions. That allows it to accept data close to storage and add more reliability if storage is temporarily offline.
-g
