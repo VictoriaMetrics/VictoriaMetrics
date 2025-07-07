@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-remoteWrite.enableMetadata` command-line flag to enable sending metadata to the configured `-remoteWrite.url`, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
+
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 
 Released at 2025-07-04

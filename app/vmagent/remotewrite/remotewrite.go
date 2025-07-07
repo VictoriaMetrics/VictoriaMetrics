@@ -92,8 +92,8 @@ var (
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 
-	enableMetadata = flag.Bool("enableMetadata", false, "Enable scraping metric metadata from targets, receiving metric metadata from prometheus remote write v1 and OTLP "+
-		"and sending it to -remoteWrite.url. ")
+	enableMetadata = flag.Bool("remoteWrite.enableMetadata", false, "Whether to send metadata to the configured remoteWrite.url, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. "+
+		"See also remoteWrite.maxMetadataPerBlock")
 )
 
 var (

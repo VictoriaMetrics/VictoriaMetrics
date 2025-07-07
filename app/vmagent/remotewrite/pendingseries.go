@@ -24,7 +24,7 @@ import (
 
 var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
-		"This option takes effect only when less than `-remoteWrite.maxRowsPerBlock` data points per `-remoteWrite.flushInterval` are pushed to -remoteWrite.url")
+		"This option takes effect only when less than remoteWrite.maxRowsPerBlock data points per remoteWrite.flushInterval are pushed to -remoteWrite.url")
 	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxRowsPerBlock")
 	maxRowsPerBlock      = flag.Int("remoteWrite.maxRowsPerBlock", 10000, "The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
 	maxMetadataPerBlock  = flag.Int("remoteWrite.maxMetadataPerBlock", 500, "The maximum number of metadata to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
