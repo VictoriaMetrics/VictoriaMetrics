@@ -581,6 +581,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 
 func TestIndexDB(t *testing.T) {
 	const metricGroups = 10
+	timestamp := time.Now().UnixMilli()
 
 	t.Run("serial", func(t *testing.T) {
 		const path = "TestIndexDB-serial"
@@ -591,7 +592,7 @@ func TestIndexDB(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := testIndexDBCheckTSIDByName(db, mns, tsids, false); err != nil {
+		if err := testIndexDBCheckTSIDByName(db, mns, tsids, timestamp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
@@ -601,7 +602,7 @@ func TestIndexDB(t *testing.T) {
 		s = MustOpenStorage(path, OpenOptions{})
 
 		db, putIndexDB = s.getCurrIndexDB()
-		if err := testIndexDBCheckTSIDByName(db, mns, tsids, false); err != nil {
+		if err := testIndexDBCheckTSIDByName(db, mns, tsids, timestamp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
@@ -623,7 +624,7 @@ func TestIndexDB(t *testing.T) {
 					ch <- err
 					return
 				}
-				if err := testIndexDBCheckTSIDByName(db, mns, tsid, true); err != nil {
+				if err := testIndexDBCheckTSIDByName(db, mns, tsid, timestamp, true); err != nil {
 					ch <- err
 					return
 				}
@@ -693,7 +694,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	return mns, tsids, nil
 }
 
-func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isConcurrent bool) error {
+func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, timestamp int64, isConcurrent bool) error {
 	hasValue := func(lvs []string, v []byte) bool {
 		for _, lv := range lvs {
 			if string(v) == lv {
@@ -703,9 +704,9 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		return false
 	}
 
-	currentTime := timestampFromTime(time.Now())
 	timeseriesCounters := make(map[uint64]bool)
 	var genTSID generationTSID
+	var tsidLocal TSID
 	var metricNameCopy []byte
 	allLabelNames := make(map[string]bool)
 	for i := range mns {
@@ -719,28 +720,29 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		metricName := mn.Marshal(nil)
 
 		is := db.getIndexSearch(noDeadline)
-		if !is.getTSIDByMetricName(&genTSID, metricName, uint64(currentTime)/msecPerDay) {
+		if !is.getTSIDByMetricName(&genTSID, metricName, uint64(timestamp)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
 		db.putIndexSearch(is)
 
+		tsidLocal = genTSID.TSID
 		if isConcurrent {
 			// Copy tsid.MetricID, since multiple TSIDs may match
 			// the same mn in concurrent mode.
-			genTSID.TSID.MetricID = tsid.MetricID
+			tsidLocal.MetricID = tsid.MetricID
 		}
-		if !reflect.DeepEqual(tsid, &genTSID.TSID) {
-			return fmt.Errorf("unexpected tsid for mn:\n%s\ngot\n%+v\nwant\n%+v", mn, &genTSID.TSID, tsid)
+		if !reflect.DeepEqual(tsid, &tsidLocal) {
+			return fmt.Errorf("unexpected tsid for mn:\n%s\ngot\n%+v\nwant\n%+v", mn, &tsidLocal, tsid)
 		}
 
 		// Search for metric name for the given metricID.
 		var ok bool
-		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], genTSID.TSID.MetricID, false)
+		metr	icNameCopy, ok = db.searchMetricName(metricNameCopy[:0], tsidLocal.MetricID, false)
 		if !ok {
-			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", genTSID.TSID.MetricID, i)
+			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", tsidLocal.MetricID, i)
 		}
 		if !bytes.Equal(metricName, metricNameCopy) {
-			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", genTSID.TSID.MetricID, metricNameCopy, metricName)
+			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", tsidLocal.MetricID, metricNameCopy, metricName)
 		}
 
 		// Try searching metric name for non-existent MetricID.
@@ -802,8 +804,8 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 
 	// Try tag filters.
 	tr := TimeRange{
-		MinTimestamp: currentTime - msecPerDay,
-		MaxTimestamp: currentTime + msecPerDay,
+		MinTimestamp: timestamp - msecPerDay,
+		MaxTimestamp: timestamp + msecPerDay,
 	}
 	for i := range mns {
 		mn := &mns[i]
