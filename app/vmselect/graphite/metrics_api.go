@@ -203,7 +203,7 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	jsonp := r.FormValue("jsonp")
-	sq := storage.NewSearchQuery(0, math.MaxInt, nil, 0)
+	sq := storage.NewSearchQuery(0, math.MaxInt64, nil, 0)
 	metricNames, err := netstorage.LabelValues(nil, "__name__", sq, 0, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
