@@ -686,7 +686,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		var search Search
 		defer search.MustClose()
 
-		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt}, 1e5, noDeadline)
+		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt64}, 1e5, noDeadline)
 		n := 0
 		for search.NextMetricBlock() {
 			var b Block
@@ -700,7 +700,6 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 			t.Fatalf("unexpected rows count; got %d; want %d", n, count)
 		}
 	}
-
 	// Verify no metrics exist
 	assertCountRows(0)
 
@@ -1169,6 +1168,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
 		}
 	}
+
 	assertDeletedMetricIDsCacheSize := func(tr TimeRange, want int) {
 		t.Helper()
 
@@ -1569,6 +1569,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		"instance",
 		"job",
 	}
+
 	now := timestampFromTime(time.Now())
 	start := now - msecPerDay
 	end := now + 60*1000
