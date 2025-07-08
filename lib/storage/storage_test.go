@@ -949,7 +949,6 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 			numMetrics: 1000,
 			maxMetrics: 999,
 			wantErr:    true,
-			wantCount:  0,
 		})
 	})
 
@@ -964,7 +963,6 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 			numMetrics: 1000,
 			maxMetrics: 999,
 			wantErr:    true,
-			wantCount:  0,
 		})
 	})
 }
