@@ -22,7 +22,6 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
-include apptest/Makefile
 
 all: \
 	victoria-metrics-prod \
