@@ -1854,13 +1854,13 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 }
 
 func TestStorageRotateIndexDB_AddRows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 	}
@@ -1869,13 +1869,13 @@ func TestStorageRotateIndexDB_AddRows(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 	op := func(s *Storage) {
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 		s.RegisterMetricNames(nil, mrs)
 		s.DebugFlush()
 	}
