@@ -1,4 +1,4 @@
-TSBS_START := $(shell date -u -v-1d +"%Y-%m-%dT%H:%M:%SZ")
+TSBS_START := $(shell date -u -v-3d +"%Y-%m-%dT%H:%M:%SZ")
 TSBS_END   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 tsbs-build:
@@ -13,7 +13,7 @@ tsbs-generate-data:
 	--format=victoriametrics \
 	--use-case=devops  \
 	--seed=8428 \
-	--scale=100 \
+	--scale=4000 \
 	--timestamp-start=$(TSBS_START) \
 	--timestamp-end=$(TSBS_END) \
 	--log-interval=10s \
