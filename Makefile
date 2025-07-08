@@ -607,7 +607,7 @@ check-licenses: install-wwhrd
 
 tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
 
-TSBS_START := $(shell date -u -v-3d +"%Y-%m-%dT%H:%M:%SZ")
+TSBS_START := $(shell date -u -d "3 days ago" +"%Y-%m-%dT%H:%M:%SZ")
 TSBS_END   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 tsbs-build:
@@ -640,7 +640,7 @@ tsbs-generate-queries:
 	--seed=8428 \
 	--timestamp-start=$(TSBS_START) \
 	--timestamp-end=$(TSBS_END) \
-	--use-case=cpu-only \
+	--use-case=devops \
 	| gzip > /tmp/tsbs-queries.gz
 
 tsbs-run-queries:
