@@ -708,7 +708,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		var search Search
 		defer search.MustClose()
 
-		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt}, 1e5, noDeadline)
+		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt64}, 1e5, noDeadline)
 		n := 0
 		for search.NextMetricBlock() {
 			var b Block
