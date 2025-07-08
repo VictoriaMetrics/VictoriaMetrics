@@ -1562,22 +1562,14 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	// Verify the storage contains the added metric names.
 	s.DebugFlush()
 
-	// Verify that SearchLabelNames with the specified time range returns correct result.
+	// Verify that SearchLabelNames returns correct result.
 	lnsExpected := []string{
 		"__name__",
 		"add_id",
 		"instance",
 		"job",
 	}
-
-	now := timestampFromTime(time.Now())
-	start := now - msecPerDay
-	end := now + 60*1000
-	tr := TimeRange{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-	}
-	lns, err := s.SearchLabelNames(nil, nil, tr, 100, 1e9, noDeadline)
+	lns, err := s.SearchLabelNames(nil, nil, TimeRange{0, math.MaxInt64}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames: %w", err)
 	}
@@ -1586,8 +1578,35 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		return fmt.Errorf("unexpected label names returned from SearchLabelNames;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
+	// Verify that SearchLabelNames with the specified time range returns correct result.
+	now := timestampFromTime(time.Now())
+	start := now - msecPerDay
+	end := now + 60*1000
+	tr := TimeRange{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+	}
+	lns, err = s.SearchLabelNames(nil, nil, tr, 100, 1e9, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchLabelNames: %w", err)
+	}
+	sort.Strings(lns)
+	if !reflect.DeepEqual(lns, lnsExpected) {
+		return fmt.Errorf("unexpected label names returned from SearchLabelNames;\ngot\n%q\nwant\n%q", lns, lnsExpected)
+	}
+
+	// Verify that SearchLabelValues returns correct result.
+	addIDs, err := s.SearchLabelValues(nil, "add_id", nil, TimeRange{0, math.MaxInt64}, addsCount+100, 1e9, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchLabelValues: %w", err)
+	}
+	sort.Strings(addIDs)
+	if !reflect.DeepEqual(addIDs, addIDsExpected) {
+		return fmt.Errorf("unexpected tag values returned from SearchLabelValues;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+	}
+
 	// Verify that SearchLabelValues with the specified time range returns correct result.
-	addIDs, err := s.SearchLabelValues(nil, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
+	addIDs, err = s.SearchLabelValues(nil, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues: %w", err)
 	}
