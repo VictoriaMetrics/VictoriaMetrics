@@ -588,7 +588,7 @@ func TestIndexDB(t *testing.T) {
 		s := MustOpenStorage(path, OpenOptions{})
 
 		db, putIndexDB := s.getCurrIndexDB()
-		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
+		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups, timestamp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -619,7 +619,7 @@ func TestIndexDB(t *testing.T) {
 		ch := make(chan error, 3)
 		for i := 0; i < cap(ch); i++ {
 			go func() {
-				mns, tsid, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
+				mns, tsid, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups, timestamp)
 				if err != nil {
 					ch <- err
 					return
@@ -649,7 +649,7 @@ func TestIndexDB(t *testing.T) {
 	})
 }
 
-func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricName, []TSID, error) {
+func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp int64) ([]MetricName, []TSID, error) {
 	r := rand.New(rand.NewSource(1))
 	// Create tsids.
 	var mns []MetricName
@@ -657,7 +657,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 
 	is := db.getIndexSearch(noDeadline)
 
-	date := uint64(timestampFromTime(time.Now())) / msecPerDay
+	date := uint64(timestamp) / msecPerDay
 
 	var metricNameBuf []byte
 	for i := 0; i < 401; i++ {
@@ -1609,9 +1609,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	// Create a bunch of per-day time series
 	const days = 5
 	const metricsPerDay = 1000
-	theDay := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC)
-	now := uint64(timestampFromTime(theDay))
-	baseDate := now / msecPerDay
+	timestamp := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC).UnixMilli()
+	baseDate := uint64(timestamp) / msecPerDay
 	var metricNameBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
@@ -1715,8 +1714,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	// Check SearchLabelNames with the specified time range.
 	tr := TimeRange{
-		MinTimestamp: int64(now) - msecPerDay,
-		MaxTimestamp: int64(now),
+		MinTimestamp: int64(timestamp) - msecPerDay,
+		MaxTimestamp: int64(timestamp),
 	}
 	lns, err := db.SearchLabelNames(nil, nil, tr, 10000, 1e9, noDeadline)
 	if err != nil {
@@ -1753,8 +1752,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	// Perform a search within a day.
 	// This should return the metrics for the day
 	tr = TimeRange{
-		MinTimestamp: int64(now - 2*msecPerHour - 1),
-		MaxTimestamp: int64(now),
+		MinTimestamp: int64(timestamp - 2*msecPerHour - 1),
+		MaxTimestamp: int64(timestamp),
 	}
 	matchedTSIDs, err := searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 	if err != nil {
@@ -1826,8 +1825,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	// Perform a search across all the days, should match all metrics
 	tr = TimeRange{
-		MinTimestamp: int64(now - msecPerDay*days),
-		MaxTimestamp: int64(now),
+		MinTimestamp: int64(timestamp - msecPerDay*days),
+		MaxTimestamp: int64(timestamp),
 	}
 
 	matchedTSIDs, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
