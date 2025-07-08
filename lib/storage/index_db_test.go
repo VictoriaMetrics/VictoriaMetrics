@@ -680,7 +680,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 		var genTSID generationTSID
 		if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 			generateTSID(&genTSID.TSID, &mn)
-			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+			createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 		}
 
 		mns = append(mns, mn)
@@ -1654,7 +1654,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 			}
 			metricIDs.Add(genTSID.TSID.MetricID)
 		}
@@ -1704,7 +1704,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	var genTSID generationTSID
 	if !is3.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is3, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 	}
 	// delete the added metric. It is expected it won't be returned during searches
 	deletedSet := &uint64set.Set{}
@@ -2178,7 +2178,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 			}
 			metricIDs.Add(genTSID.TSID.MetricID)
 		}

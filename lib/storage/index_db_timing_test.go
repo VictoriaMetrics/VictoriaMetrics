@@ -78,8 +78,6 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, startOffset, recordsPerLoop int) {
 	date := uint64(0)
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
 		mn.MetricGroup = strconv.AppendUint(mn.MetricGroup[:0], uint64(i+startOffset), 10)
 		for j := range mn.Tags {
@@ -88,7 +86,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricNa
 		mn.sortTags()
 
 		generateTSID(&genTSID.TSID, mn)
-		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, mn, &genTSID.TSID, date)
 	}
 }
 
@@ -100,8 +98,6 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	db, putIndexDB := s.getCurrIndexDB()
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
 	var mn MetricName
 	var genTSID generationTSID
 	date := uint64(0)
@@ -112,7 +108,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 		mn.sortTags()
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -282,12 +278,9 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	var genTSID generationTSID
 	date := uint64(12345)
 
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
-
 	for i := 0; i < recordsCount; i++ {
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 	}
 	db.s.DebugFlush()
 
