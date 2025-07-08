@@ -1038,30 +1038,66 @@ func TestStorageDeleteSeries_EmptyFilters(t *testing.T) {
 func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
-	const numSeries = 1000
-	rng := rand.New(rand.NewSource(1))
-	mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric", TimeRange{
-		MinTimestamp: time.Now().Add(-100 * 24 * time.Hour).UnixMilli(),
-		MaxTimestamp: time.Now().UnixMilli(),
+	type options struct {
+		tr         TimeRange
+		numMetrics int
+		maxMetrics int
+		wantErr    bool
+		wantCount  int
+	}
+
+	f := func(t *testing.T, opts *options) {
+		t.Helper()
+
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, uint64(opts.numMetrics), "metric", opts.tr)
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, opts.maxMetrics)
+		if got := err != nil; got != opts.wantErr {
+			t.Errorf("unmet error expectation: got %t, want %t", got, opts.wantErr)
+		}
+		if got != opts.wantCount {
+			t.Errorf("unexpected deleted series count: got %d, want %d", got, opts.wantCount)
+		}
+	}
+
+	// All ingested samples belong to a single month. In this case,
+	// DeleteSeries() is expected to return an error because the number of
+	// metrics registered within a single partition index is 1000 while the
+	// number of metrics to delete at once is 999.
+	t.Run("1m", func(t *testing.T) {
+		f(t, &options{
+			tr: TimeRange{
+				MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			},
+			numMetrics: 1000,
+			maxMetrics: 999,
+			wantErr:    true,
+		})
 	})
 
-	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-
-	tfs := NewTagFilters()
-	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
-	}
-	maxSeries := numSeries - 1
-	count, err := s.DeleteSeries(nil, []*TagFilters{tfs}, maxSeries)
-	if err == nil {
-		t.Errorf("expected an error but there hasn't been one")
-	}
-	if count != 0 {
-		t.Errorf("unexpected deleted series count: got %d, want 0", count)
-	}
+	// All ingested samples belong to two months. Since the index is global,
+	// DeleteSeries() is expected to return an error too.
+	t.Run("2m", func(t *testing.T) {
+		f(t, &options{
+			tr: TimeRange{
+				MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			},
+			numMetrics: 1000,
+			maxMetrics: 999,
+			wantErr:    true,
+		})
+	})
 }
 
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
