@@ -1044,9 +1044,9 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 		}
 	}
 
-	// All indested samples belong to a single month. In this case,
+	// All ingested samples belong to a single month. In this case,
 	// DeleteSeries() is expected to return an error because the number of
-	// metrics registered within a single partition index is 1000 while the the
+	// metrics registered within a single partition index is 1000 while the
 	// number of metrics to delete at once is 999.
 	t.Run("1m", func(t *testing.T) {
 		f(t, &options{
@@ -1057,19 +1057,14 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 			numMetrics: 1000,
 			maxMetrics: 999,
 			wantErr:    true,
-			wantCount:  0,
 		})
 	})
 
-	// All indested samples belong to two months. In this case,
+	// All ingested samples belong to two months. In this case,
 	// DeleteSeries() must delete the requested metrics because the 1000 metrics
 	// is spread across two months and each month has roughly 500 metrics. Since
 	// the number of metrics to delete at once (999) is applied per partition
 	// index, the DeleteSeries() must succeed.
-	//
-	// TODO(@rtm0): This is not the behavior that we want. The maxMetrics limit
-	// must work across all partition indexes involved and thus this sub-test
-	// must fail.
 	t.Run("2m", func(t *testing.T) {
 		f(t, &options{
 			tr: TimeRange{
