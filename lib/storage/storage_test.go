@@ -718,7 +718,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 
 	var metricGroupName = []byte("metric")
-	tfs := NewTagFilters()
+	tfs := NewTagFilters(0, 0)
 	if err := tfs.Add(nil, metricGroupName, false, false); err != nil {
 		t.Fatalf("cannot add tag filter: %s", err)
 	}
@@ -772,7 +772,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		ts := time.Unix(0, 0)
 		n := 0
 		for range numMonths {
-			lns, err := s.SearchLabelNames(nil, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
+			lns, err := s.SearchLabelNames(nil, 0, 0, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
 			if err != nil {
 				t.Fatalf("error in SearchLabelNames: %s", err)
 				return
