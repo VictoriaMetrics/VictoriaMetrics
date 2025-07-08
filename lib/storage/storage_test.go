@@ -1145,7 +1145,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 		var accountID uint32 = 1
 		var projectID uint32 = 2
 		rng := rand.New(rand.NewSource(1))
-		mrs := testGenerateMetricRowsWithPrefix(rng, uint64(opts.numMetrics), "metric", opts.tr)
+		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, uint64(opts.numMetrics), "metric", opts.tr)
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
@@ -1651,7 +1651,8 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		"instance",
 		"job",
 	}
-	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{0, math.MaxInt}, 100, 1e9, noDeadline)
+
+	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{0, math.MaxInt64}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames: %w", err)
 	}
@@ -1696,7 +1697,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValues returns correct result.
-	addIDs, err := s.SearchLabelValues(nil, accountID, projectID, "add_id", nil, TimeRange{0, math.MaxInt}, addsCount+100, 1e9, noDeadline)
+	addIDs, err := s.SearchLabelValues(nil, accountID, projectID, "add_id", nil, TimeRange{0, math.MaxInt64}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues: %w", err)
 	}
