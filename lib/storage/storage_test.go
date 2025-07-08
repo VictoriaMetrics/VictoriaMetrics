@@ -1665,19 +1665,17 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		addIDsExpected = append(addIDsExpected, k)
 	}
 	sort.Strings(addIDsExpected)
-	allDates := TimeRange{0, math.MaxInt64}
 
 	// Verify the storage contains the added metric names.
 	s.DebugFlush()
 
-	// Verify that SearchLabelNames with the specified time range returns correct result.
+	// Verify that SearchLabelNames returns correct result.
 	lnsExpected := []string{
 		"__name__",
 		"add_id",
 		"instance",
 		"job",
 	}
-
 	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{0, math.MaxInt64}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames: %w", err)
@@ -1688,7 +1686,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelNames returns empty results for incorrect accountID, projectID
-	lns, err = s.SearchLabelNames(nil, accountID+1, projectID+1, nil, TimeRange{}, 100, 1e9, noDeadline)
+	lns, err = s.SearchLabelNames(nil, accountID+1, projectID+1, nil, TimeRange{0, math.MaxInt64}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeys for incorrect accountID, projectID: %w", err)
 	}
@@ -1733,7 +1731,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValues return empty results for incorrect accountID, projectID
-	addIDs, err = s.SearchLabelValues(nil, accountID+1, projectID+1, "add_id", nil, allDates, addsCount+100, 1e9, noDeadline)
+	addIDs, err = s.SearchLabelValues(nil, accountID+1, projectID+1, "add_id", nil, TimeRange{0, math.MaxInt64}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues for incorrect accountID, projectID: %w", err)
 	}
