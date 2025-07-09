@@ -3451,7 +3451,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3669,7 +3669,7 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
