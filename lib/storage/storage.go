@@ -763,8 +763,15 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 
 func (s *Storage) notifyReadWriteMode() {
 	s.tb.NotifyReadWriteMode()
-	// NotifyReadWriteMode() is not called for legacy idbs becase they are
-	// opened in read-only mode and must remain so throughout the process life.
+
+	idbPrev, idbCurr := s.getLegacyIndexDBs()
+	if idbPrev != nil {
+		idbPrev.tb.NotifyReadWriteMode()
+	}
+	if idbCurr != nil {
+		idbCurr.tb.NotifyReadWriteMode()
+	}
+	s.putLegacyIndexDBs(idbPrev, idbCurr)
 }
 
 // TODO(@rtm0): Move to storage_legacy.go
