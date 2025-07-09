@@ -26,6 +26,8 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
 
+	APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts)
+
 	// TODO(@rtm0): Prometheus does not provide this API. Either move it to a
 	// separate interface or rename this interface to allow for multiple querier
 	// types.
