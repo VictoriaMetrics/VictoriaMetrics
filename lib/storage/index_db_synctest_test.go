@@ -48,13 +48,13 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 			if diff := cmp.Diff(want.missingMetricIDs, missingMetricIDs); diff != "" {
 				t.Fatalf("unexpected tsids (-want, +got):\n%s", diff)
 			}
-			if got, want := idb.extDB.missingTSIDsForMetricID.Load(), want.missingTSIDsForMetricID; got != want {
+			if got, want := idb.missingTSIDsForMetricID.Load(), want.missingTSIDsForMetricID; got != want {
 				t.Fatalf("unexpected missingTSIDsForMetricID metric value: got %d, want %d", got, want)
 			}
 			wantDeletedMetricIDs := &uint64set.Set{}
 			wantDeletedMetricIDs.AddMulti(want.deletedMetricIDs)
 			if !s.getDeletedMetricIDs().Equal(wantDeletedMetricIDs) {
-				t.Fatalf("deleted metricIDs set is different from %v", want.deletedMetricIDs)
+				t.Fatalf("deleted metricIDs set is different from %v: %v", want.deletedMetricIDs, s.getDeletedMetricIDs().AppendTo(nil))
 			}
 		}
 
