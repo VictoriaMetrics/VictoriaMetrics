@@ -405,7 +405,7 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 // This function is for debugging and testing purposes only,
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
-	s.tb.flushPendingRows()
+	s.tb.DebugFlush()
 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
