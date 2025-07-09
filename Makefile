@@ -622,14 +622,14 @@ tsbs-generate-data:
 	--format=victoriametrics \
 	--use-case=devops  \
 	--seed=8428 \
-	--scale=4000 \
+	--scale=400 \
 	--timestamp-start=$(TSBS_START) \
 	--timestamp-end=$(TSBS_END) \
 	--log-interval=10s \
 	| gzip > /tmp/tsbs-data.gz
 
 tsbs-load-data:
-	cat /tmp/tsbs-data.gz | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics
+	cat /tmp/tsbs-data.gz | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=16
 
 tsbs-generate-queries:
 	test -f /tmp/tsbs-queries.gz || /tmp/tsbs/bin/tsbs_generate_queries \
@@ -644,4 +644,4 @@ tsbs-generate-queries:
 	| gzip > /tmp/tsbs-queries.gz
 
 tsbs-run-queries:
-	cat /tmp/tsbs-queries.gz | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics
+	cat /tmp/tsbs-queries.gz | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=16
