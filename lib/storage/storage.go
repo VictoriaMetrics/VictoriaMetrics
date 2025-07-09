@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,7 +31,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 const (
@@ -407,7 +405,7 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 // This function is for debugging and testing purposes only,
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
-	s.tb.flushPendingRows()
+	s.tb.DebugFlush()
 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
@@ -1612,7 +1610,7 @@ func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, accountID, project
 	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
-	return s.searchGraphitePaths(qt, idb, accountID, projectID, tr, nil, query, maxPaths, deadline)
+	return idb.SearchGraphitePaths(qt, accountID, projectID, tr, nil, query, maxPaths, deadline)
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -1654,134 +1652,6 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 			dst = append(dst, ',')
 		}
 		dst = append(dst, '}')
-	}
-}
-
-func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, idb *indexDB, accountID, projectID uint32, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
-	n := bytes.IndexAny(qTail, "*[{")
-	if n < 0 {
-		// Verify that qHead matches a metric name.
-		qHead = append(qHead, qTail...)
-		suffixes, err := idb.SearchTagValueSuffixes(qt, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
-		if err != nil {
-			return nil, err
-		}
-		if len(suffixes) == 0 {
-			// The query doesn't match anything.
-			return nil, nil
-		}
-		if len(suffixes[0]) > 0 {
-			// The query matches a metric name with additional suffix.
-			return nil, nil
-		}
-		return []string{string(qHead)}, nil
-	}
-	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := idb.SearchTagValueSuffixes(qt, accountID, projectID, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if len(suffixes) == 0 {
-		return nil, nil
-	}
-	if len(suffixes) >= maxPaths {
-		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
-	}
-	qNode := qTail[n:]
-	qTail = nil
-	mustMatchLeafs := true
-	if m := bytes.IndexByte(qNode, '.'); m >= 0 {
-		qTail = qNode[m+1:]
-		qNode = qNode[:m+1]
-		mustMatchLeafs = false
-	}
-	re, err := getRegexpForGraphiteQuery(string(qNode))
-	if err != nil {
-		return nil, err
-	}
-	qHeadLen := len(qHead)
-	var paths []string
-	for _, suffix := range suffixes {
-		if len(paths) > maxPaths {
-			return nil, fmt.Errorf("more than maxPath=%d paths found", maxPaths)
-		}
-		if !re.MatchString(suffix) {
-			continue
-		}
-		if mustMatchLeafs {
-			qHead = append(qHead[:qHeadLen], suffix...)
-			paths = append(paths, string(qHead))
-			continue
-		}
-		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := s.searchGraphitePaths(qt, idb, accountID, projectID, tr, qHead, qTail, maxPaths, deadline)
-		if err != nil {
-			return nil, err
-		}
-		paths = append(paths, ps...)
-	}
-	return paths, nil
-}
-
-func getRegexpForGraphiteQuery(q string) (*regexp.Regexp, error) {
-	parts, tail := getRegexpPartsForGraphiteQuery(q)
-	if len(tail) > 0 {
-		return nil, fmt.Errorf("unexpected tail left after parsing %q: %q", q, tail)
-	}
-	reStr := "^" + strings.Join(parts, "") + "$"
-	return metricsql.CompileRegexp(reStr)
-}
-
-func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
-	var parts []string
-	for {
-		n := strings.IndexAny(q, "*{}[,")
-		if n < 0 {
-			parts = append(parts, regexp.QuoteMeta(q))
-			return parts, ""
-		}
-		parts = append(parts, regexp.QuoteMeta(q[:n]))
-		q = q[n:]
-		switch q[0] {
-		case ',', '}':
-			return parts, q
-		case '*':
-			parts = append(parts, "[^.]*")
-			q = q[1:]
-		case '{':
-			var tmp []string
-			for {
-				a, tail := getRegexpPartsForGraphiteQuery(q[1:])
-				tmp = append(tmp, strings.Join(a, ""))
-				if len(tail) == 0 {
-					parts = append(parts, regexp.QuoteMeta("{"))
-					parts = append(parts, strings.Join(tmp, ","))
-					return parts, ""
-				}
-				if tail[0] == ',' {
-					q = tail
-					continue
-				}
-				if tail[0] == '}' {
-					if len(tmp) == 1 {
-						parts = append(parts, tmp[0])
-					} else {
-						parts = append(parts, "(?:"+strings.Join(tmp, "|")+")")
-					}
-					q = tail[1:]
-					break
-				}
-				logger.Panicf("BUG: unexpected first char at tail %q; want `.` or `}`", tail)
-			}
-		case '[':
-			n := strings.IndexByte(q, ']')
-			if n < 0 {
-				parts = append(parts, regexp.QuoteMeta(q))
-				return parts, ""
-			}
-			parts = append(parts, q[:n+1])
-			q = q[n+1:]
-		}
 	}
 }
 
@@ -2068,7 +1938,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				}
 				mn.sortTags()
 
-				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 				genTSID.generation = generation
 				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
@@ -2081,7 +1951,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 						continue
 					}
 					mn.sortTags()
-					is.createPerDayIndexes(date, &genTSID.TSID, mn)
+					idb.createPerDayIndexes(date, &genTSID.TSID, mn)
 				}
 				s.dateMetricIDCache.Set(generation, date, genTSID.TSID.MetricID)
 			}
@@ -2114,7 +1984,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 			if genTSID.generation < generation {
 				// The found TSID is from the previous indexdb. Create it in the current indexdb.
-				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 				genTSID.generation = generation
 				seriesRepopulated++
 			}
@@ -2132,7 +2002,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 		// Schedule creating TSID indexes instead of creating them synchronously.
 		// This should keep stable the ingestion rate when new time series are ingested.
-		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
 		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 		newSeriesCount++
@@ -2266,7 +2136,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				}
 				mn.sortTags()
 
-				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 				genTSID.generation = generation
 				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
@@ -2308,7 +2178,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 			if genTSID.generation < generation {
 				// The found TSID is from the previous indexdb. Create it in the current indexdb.
-				createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 				genTSID.generation = generation
 				seriesRepopulated++
 			}
@@ -2331,7 +2201,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 
-		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
 		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 		newSeriesCount++
@@ -2392,9 +2262,9 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
-func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
-	is.createGlobalIndexes(tsid, mn)
-	is.createPerDayIndexes(date, tsid, mn)
+func createAllIndexesForMetricName(db *indexDB, mn *MetricName, tsid *TSID, date uint64) {
+	db.createGlobalIndexes(tsid, mn)
+	db.createPerDayIndexes(date, tsid, mn)
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
@@ -2503,7 +2373,7 @@ func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*Met
 		}
 		mn.sortTags()
 
-		createAllIndexesForMetricName(isNext, mn, &r.TSID, date)
+		createAllIndexesForMetricName(idbNext, mn, &r.TSID, date)
 		genTSID.TSID = r.TSID
 		genTSID.generation = generation
 		s.putSeriesToCache(metricNameRaw, &genTSID, date)
@@ -2649,7 +2519,7 @@ func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRo
 				continue
 			}
 			mn.sortTags()
-			is.createPerDayIndexes(date, dmid.tsid, mn)
+			idb.createPerDayIndexes(date, dmid.tsid, mn)
 		}
 		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
 			date:     date,

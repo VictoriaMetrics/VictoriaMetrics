@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -38,33 +39,6 @@ func TestReplaceAlternateRegexpsWithGraphiteWildcards(t *testing.T) {
 	f("foo.(bar|baz).*.{x,y}", "foo.{bar,baz}.*.{x,y}")
 	f("foo.(bar|baz).*.{x,y}(z|aa)", "foo.{bar,baz}.*.{x,y}{z,aa}")
 	f("foo(.*)", "foo*")
-}
-
-func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
-	f := func(q, expectedRegexp string) {
-		t.Helper()
-		re, err := getRegexpForGraphiteQuery(q)
-		if err != nil {
-			t.Fatalf("unexpected error for query=%q: %s", q, err)
-		}
-		reStr := re.String()
-		if reStr != expectedRegexp {
-			t.Fatalf("unexpected regexp for query %q; got %q want %q", q, reStr, expectedRegexp)
-		}
-	}
-	f(``, `^$`)
-	f(`*`, `^[^.]*$`)
-	f(`foo.`, `^foo\.$`)
-	f(`foo.bar`, `^foo\.bar$`)
-	f(`{foo,b*ar,b[a-z]}`, `^(?:foo|b[^.]*ar|b[a-z])$`)
-	f(`[-a-zx.]`, `^[-a-zx.]$`)
-	f(`**`, `^[^.]*[^.]*$`)
-	f(`a*[de]{x,y}z`, `^a[^.]*[de](?:x|y)z$`)
-	f(`foo{bar`, `^foo\{bar$`)
-	f(`foo{ba,r`, `^foo\{ba,r$`)
-	f(`foo[bar`, `^foo\[bar$`)
-	f(`foo{bar}`, `^foobar$`)
-	f(`foo{bar,,b{{a,b*},z},[x-y]*z}a`, `^foo(?:bar||b(?:(?:a|b[^.]*)|z)|[x-y][^.]*z)a$`)
 }
 
 func TestDateMetricIDCacheSerial(t *testing.T) {
@@ -186,14 +160,12 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 }
 
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
-	newStorage := func() *Storage {
-		var s Storage
-		s.currHourMetricIDs.Store(&hourMetricIDs{})
-		s.prevHourMetricIDs.Store(&hourMetricIDs{})
-		return &s
-	}
+	defer testRemoveAll(t)
+
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		hour := fasttime.UnixHour()
 		if hour%24 == 0 {
 			hour++
@@ -228,7 +200,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
@@ -253,16 +227,17 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load()
-		hmEmpty := &hourMetricIDs{}
-		if !reflect.DeepEqual(hmPrev, hmEmpty) {
-			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		if hmPrev.m.Len() > 0 {
+			t.Fatalf("hmPrev is not empty: %v", hmPrev)
 		}
 		if len(s.pendingHourEntries) != 0 {
 			t.Fatalf("unexpected len(s.pendingHourEntries); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		s.pendingHourEntries = []pendingHourMetricIDEntry{
 			{AccountID: 123, ProjectID: 431, MetricID: 343},
 			{AccountID: 123, ProjectID: 431, MetricID: 32424},
@@ -285,7 +260,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			}
 			x.Add(e.MetricID)
 		}
-
 		hour := fasttime.UnixHour()
 		if hour%24 == 0 {
 			hour++
@@ -322,7 +296,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		s.pendingHourEntries = []pendingHourMetricIDEntry{
 			{AccountID: 123, ProjectID: 431, MetricID: 343},
 			{AccountID: 123, ProjectID: 431, MetricID: 32424},
@@ -345,7 +321,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			}
 			x.Add(e.MetricID)
 		}
-
 		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
@@ -380,16 +355,17 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load()
-		hmEmpty := &hourMetricIDs{}
-		if !reflect.DeepEqual(hmPrev, hmEmpty) {
-			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		if hmPrev.m.Len() > 0 {
+			t.Fatalf("hmPrev is not empty: %v", hmPrev)
 		}
 		if len(s.pendingHourEntries) != 0 {
 			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour_start_of_day", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
 		s.pendingHourEntries = []pendingHourMetricIDEntry{
 			{AccountID: 123, ProjectID: 431, MetricID: 343},
 			{AccountID: 123, ProjectID: 431, MetricID: 32424},
@@ -448,16 +424,16 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load()
-		hmEmpty := &hourMetricIDs{}
-		if !reflect.DeepEqual(hmPrev, hmEmpty) {
-			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		if hmPrev.m.Len() > 0 {
+			t.Fatalf("hmPrev is not empty: %v", hmPrev)
 		}
 		if len(s.pendingHourEntries) != 0 {
 			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_from_previous_hour_new_day", func(t *testing.T) {
-		s := newStorage()
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
 
 		hour := fasttime.UnixHour()
 		hour -= hour % 24
@@ -707,6 +683,135 @@ func testStorageRandTimestamps(s *Storage) error {
 		return fmt.Errorf("expecting at least one row in storage")
 	}
 	return nil
+}
+
+func TestStorageDeletePendingSeries(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numMonths = 10
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+
+	var metricGroupName = []byte("metric")
+	tfs := NewTagFilters(0, 0)
+	if err := tfs.Add(nil, metricGroupName, false, false); err != nil {
+		t.Fatalf("cannot add tag filter: %s", err)
+	}
+
+	addRows := func(from, to time.Time, reverse bool) {
+		t.Helper()
+
+		var mn MetricName
+		mn.Tags = []Tag{
+			{[]byte("job"), []byte("job")},
+		}
+		mn.MetricGroup = metricGroupName
+		metricNameRaw := mn.marshalRaw(nil)
+
+		ts := from
+		inc := 1
+		if reverse {
+			inc = -1
+			ts = to
+		}
+		for {
+			mr := MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     ts.UnixMilli(),
+				Value:         1,
+			}
+			s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+			ts = ts.AddDate(0, inc, 0)
+			if ts.After(to) || ts.Before(from) {
+				break
+			}
+		}
+	}
+
+	assertDeleteSeries := func(want int) {
+		t.Helper()
+
+		n, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e5)
+		if err != nil {
+			t.Fatalf("error in DeleteSeries: %s", err)
+		}
+
+		if n != want {
+			t.Fatalf("unexpected number of deleted series; got %d; want %d", n, want)
+		}
+	}
+
+	assertCountMonthsWithLabels := func(count int) {
+		t.Helper()
+
+		ts := time.Unix(0, 0)
+		n := 0
+		for range numMonths {
+			lns, err := s.SearchLabelNames(nil, 0, 0, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
+			if err != nil {
+				t.Fatalf("error in SearchLabelNames: %s", err)
+				return
+			}
+			if len(lns) != 0 {
+				n++
+			}
+			ts = ts.AddDate(0, 1, 0)
+		}
+
+		if n != count {
+			t.Fatalf("unexpected labels count; got %d; want %d", n, count)
+		}
+	}
+
+	assertCountRows := func(count int) {
+		t.Helper()
+
+		var search Search
+		defer search.MustClose()
+
+		search.Init(nil, s, []*TagFilters{tfs}, TimeRange{0, math.MaxInt64}, 1e5, noDeadline)
+		n := 0
+		for search.NextMetricBlock() {
+			var b Block
+			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
+			n += b.RowsCount()
+		}
+		if err := search.Error(); err != nil {
+			t.Fatalf("error in Search: %s", err)
+		}
+		if n != count {
+			t.Fatalf("unexpected rows count; got %d; want %d", n, count)
+		}
+	}
+
+	// Verify no metrics exist
+	assertCountRows(0)
+
+	start := time.Unix(0, 0)
+	middle := start.AddDate(0, (numMonths-1)/2, 0)
+	end := start.AddDate(0, numMonths-1, 0)
+
+	// Add some rows and flush, so next DeleteSeries() can delete them
+	addRows(start, middle, false)
+	s.DebugFlush()
+
+	// Add the rest of the rows – DeleteSeries() won't see them since they are not flushed yet
+	addRows(middle.AddDate(0, 1, 0), end, false)
+
+	assertDeleteSeries(1)
+
+	// Verify metrics are fully deleted
+	s.DebugFlush()
+	assertCountRows(0)
+
+	// Verify all deleted TSIDs are recreated
+	addRows(start, end, true)
+	s.DebugFlush()
+	assertCountMonthsWithLabels(numMonths)
+
+	// Verify all metrics are present
+	assertCountRows(numMonths)
+
+	s.MustClose()
 }
 
 func TestStorageDeleteSeries(t *testing.T) {
@@ -998,129 +1103,439 @@ func TestStorageDeleteSeries_EmptyFilters(t *testing.T) {
 func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
-	const numSeries = 1000
-	rng := rand.New(rand.NewSource(1))
-	var accountID uint32 = 1
-	var projectID uint32 = 2
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "metric", TimeRange{
-		MinTimestamp: time.Now().Add(-100 * 24 * time.Hour).UnixMilli(),
-		MaxTimestamp: time.Now().UnixMilli(),
+	type options struct {
+		tr         TimeRange
+		numMetrics int
+		maxMetrics int
+		wantErr    bool
+		wantCount  int
+	}
+
+	f := func(t *testing.T, opts *options) {
+		t.Helper()
+
+		var accountID uint32 = 1
+		var projectID uint32 = 2
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, uint64(opts.numMetrics), "metric", opts.tr)
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		tfs := NewTagFilters(accountID, projectID)
+		if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, opts.maxMetrics)
+		if got := err != nil; got != opts.wantErr {
+			t.Errorf("unmet error expectation: got %t, want %t", got, opts.wantErr)
+		}
+		if got != opts.wantCount {
+			t.Errorf("unexpected deleted series count: got %d, want %d", got, opts.wantCount)
+		}
+	}
+
+	// All ingested samples belong to a single month. In this case,
+	// DeleteSeries() is expected to return an error because the number of
+	// metrics registered within a single partition index is 1000 while the
+	// number of metrics to delete at once is 999.
+	t.Run("1m", func(t *testing.T) {
+		f(t, &options{
+			tr: TimeRange{
+				MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			},
+			numMetrics: 1000,
+			maxMetrics: 999,
+			wantErr:    true,
+		})
 	})
 
-	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-
-	tfs := NewTagFilters(accountID, projectID)
-	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
-	}
-	maxSeries := numSeries - 1
-	count, err := s.DeleteSeries(nil, []*TagFilters{tfs}, maxSeries)
-	if err == nil {
-		t.Errorf("expected an error but there hasn't been one")
-	}
-	if count != 0 {
-		t.Errorf("unexpected deleted series count: got %d, want 0", count)
-	}
+	// All ingested samples belong to two months. Since the index is global,
+	// DeleteSeries() is expected to return an error too.
+	t.Run("2m", func(t *testing.T) {
+		f(t, &options{
+			tr: TimeRange{
+				MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			},
+			numMetrics: 1000,
+			maxMetrics: 999,
+			wantErr:    true,
+		})
+	})
 }
 
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	defer testRemoveAll(t)
 
-	// For this test, the time range must be < 40 days. Otherwise the global
-	// index will be searched and the actual time range used in tag filters
-	// cache will be the globalTimeRange.
-	tr := TimeRange{
-		MinTimestamp: time.Now().Add(-30 * 24 * time.Hour).UnixMilli(),
-		MaxTimestamp: time.Now().UnixMilli(),
+	month1 := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
 	}
-	const (
-		accountID = 12
-		projectID = 34
-	)
+	month2 := TimeRange{
+		MinTimestamp: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
+	}
 	var mn MetricName
 	mn.MetricGroup = []byte("metric1")
-	mn.AccountID = accountID
-	mn.ProjectID = projectID
-	mr := MetricRow{
+	mr1Month1 := MetricRow{
 		MetricNameRaw: mn.marshalRaw(nil),
-		Timestamp:     tr.MaxTimestamp,
+		Timestamp:     month1.MinTimestamp,
 		Value:         123,
 	}
-	var (
-		genTSID generationTSID
-		tfssKey []byte
-	)
-	tfs := NewTagFilters(accountID, projectID)
-	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	mn.MetricGroup = []byte("metric2")
+	mr2Month2 := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Timestamp:     month2.MinTimestamp,
+		Value:         456,
 	}
-	tfss := []*TagFilters{tfs}
+	mn.MetricGroup = []byte("metric3")
+	mr3Month1 := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Timestamp:     month1.MinTimestamp,
+		Value:         789,
+	}
+	mr3Month2 := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Timestamp:     month2.MinTimestamp,
+		Value:         987,
+	}
+
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
-	idb, putIndexDB := s.getCurrIndexDB()
-	defer putIndexDB()
-
-	// Ensure caches are empty.
-	if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
-		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
-	}
-	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if got, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
-		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
-	}
-	if got := s.getDeletedMetricIDs().Len(); got != 0 {
-		t.Fatalf("deletedMetricIDs cache: unexpected size: got %d, want empty", got)
-	}
-
-	// Add one row, search it, and ensure that the tsidCache and
-	// tagFiltersToMetricIDsCache are not empty but the deletedMetricIDs
-	// cache is still empty.
-	s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+	s.AddRows([]MetricRow{mr1Month1, mr2Month2, mr3Month1, mr3Month2}, defaultPrecisionBits)
 	s.DebugFlush()
-	gotMetrics, err := s.SearchMetricNames(nil, tfss, tr, 1, noDeadline)
-	if err != nil {
-		t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+
+	tfss := func(metricNameRE string) []*TagFilters {
+		tfs := NewTagFilters(0, 0)
+		if err := tfs.Add(nil, []byte(metricNameRE), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		return []*TagFilters{tfs}
 	}
-	wantMetrics := []string{string(mr.MetricNameRaw)}
-	if reflect.DeepEqual(gotMetrics, wantMetrics) {
-		t.Fatalf("SearchMetricNames() unexpected search result: got %v, want %v", gotMetrics, wantMetrics)
+	tfssMetric1 := tfss("metric1")
+	tfssMetric2 := tfss("metric2")
+	tfssMetric3 := tfss("metric3")
+	tfssMetric12 := tfss("metric(1|2)")
+	tfssMetric123 := tfss("metric(1|2|3)")
+
+	assertMetricNameCached := func(metricNameRaw []byte, want bool) {
+		t.Helper()
+		var v generationTSID
+		if got := s.getTSIDFromCache(&v, metricNameRaw); got != want {
+			t.Errorf("unexpected %q metric name in TSID cache: got %t, want %t", string(metricNameRaw), got, want)
+		}
+	}
+	assertTagFiltersCached := func(tfss []*TagFilters, tr TimeRange, want bool) {
+		t.Helper()
+
+		idb, putIndexDB := s.getCurrIndexDB()
+		defer putIndexDB()
+
+		tfssKey := marshalTagFiltersKey(nil, tfss, tr, true)
+		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
+		if got != want {
+			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
+		}
+	}
+	assertDeletedMetricIDsCacheSize := func(want int) {
+		t.Helper()
+
+		if got := s.getDeletedMetricIDs().Len(); got != want {
+			t.Fatalf("unexpected deletedMetricIDs cache size: got %d, want %d", got, want)
+		}
 	}
 
-	if !s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
-		t.Fatalf("tsidCache was expected to contain a record but it did not")
-	}
-	metricID := genTSID.TSID.MetricID
-	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if _, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); !ok {
-		t.Fatalf("tagFiltersToMetricIDsCache was expected to contain a record but it did not")
-	}
-	if got := s.getDeletedMetricIDs().Len(); got != 0 {
-		t.Fatalf("deletedMetricIDs cache unexpected size: got %d, want empty", got)
+	// The data is inserted but never queried or deleted. Expect all three
+	// metrics to be in TSID cache and expect TFSS and deletedMetricIDs caches
+	// to be empty.
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, false)
+	assertTagFiltersCached(tfssMetric1, month2, false)
+	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	searchMetricNames := func(tfss []*TagFilters, tr TimeRange, wantMetricCount int) {
+		t.Helper()
+		metrics, err := s.SearchMetricNames(nil, tfss, tr, 2, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+		if got := len(metrics); got != wantMetricCount {
+			t.Errorf("SearchMetricNames() unexpected metric count: got %v, want %v", got, wantMetricCount)
+		}
 	}
 
-	// Delete the metric added earlier and ensure that the tsidCache and
-	// tagFiltersToMetricIDsCache have been reset and the deletedMetricIDs
-	// cache is now contains ID of the deleted metric.
-	numDeletedSeries, err := s.DeleteSeries(nil, tfss, 1)
-	if err != nil {
-		t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+	// Search metric1 in month1. The search result must be cached for that tfss
+	// for month1 but not for month2.
+	searchMetricNames(tfssMetric1, month1, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, false)
+	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric1 in month2. month2 does not contain metric1, but the
+	// empty result is still cached for month2.
+	searchMetricNames(tfssMetric1, month2, 0)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric2 in month1. month1 does not contain metric2, but the
+	// empty result is still cached for month1.
+	searchMetricNames(tfssMetric2, month1, 0)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric2 in month2. month2 contains metric2, therefore the tag
+	// filters will be cached for month2.
+	searchMetricNames(tfssMetric2, month2, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric3 in month1. Both month1 and 2 contain metric3;
+	// however, the search time range is month1, therefore the tag
+	// filters will be cached for month1 only.
+	searchMetricNames(tfssMetric3, month1, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, true)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric3 in month2. Now the tag filters will also be cached for
+	// month2.
+	searchMetricNames(tfssMetric3, month2, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, true)
+	assertTagFiltersCached(tfssMetric3, month2, true)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric1 or 2 in month1. The tag filters must be cached for
+	// month1 only.
+	searchMetricNames(tfssMetric12, month1, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, true)
+	assertTagFiltersCached(tfssMetric3, month2, true)
+	assertTagFiltersCached(tfssMetric12, month1, true)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric1 or 2 in month2. The tag filters must be also be cached
+	// for month2.
+	searchMetricNames(tfssMetric12, month2, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, true)
+	assertTagFiltersCached(tfssMetric3, month2, true)
+	assertTagFiltersCached(tfssMetric12, month1, true)
+	assertTagFiltersCached(tfssMetric12, month2, true)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric1,2,3 in month1. The tag filters are cached
+	// for month1 only.
+	searchMetricNames(tfssMetric123, month1, 2)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, true)
+	assertTagFiltersCached(tfssMetric3, month2, true)
+	assertTagFiltersCached(tfssMetric12, month1, true)
+	assertTagFiltersCached(tfssMetric12, month2, true)
+	assertTagFiltersCached(tfssMetric123, month1, true)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(0)
+
+	// Search for metric1,2,3 in month2. The tag filters are also cached
+	// for month2.
+	searchMetricNames(tfssMetric123, month2, 2)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
+	assertTagFiltersCached(tfssMetric1, month1, true)
+	assertTagFiltersCached(tfssMetric1, month2, true)
+	assertTagFiltersCached(tfssMetric2, month1, true)
+	assertTagFiltersCached(tfssMetric2, month2, true)
+	assertTagFiltersCached(tfssMetric3, month1, true)
+	assertTagFiltersCached(tfssMetric3, month2, true)
+	assertTagFiltersCached(tfssMetric12, month1, true)
+	assertTagFiltersCached(tfssMetric12, month2, true)
+	assertTagFiltersCached(tfssMetric123, month1, true)
+	assertTagFiltersCached(tfssMetric123, month2, true)
+	assertDeletedMetricIDsCacheSize(0)
+
+	deleteSeries := func(tfss []*TagFilters, want int) {
+		t.Helper()
+		got, err := s.DeleteSeries(nil, tfss, 2)
+		if err != nil {
+			t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Fatalf("unexpected deleted series count: got %d, want %d", got, want)
+		}
 	}
-	if got, want := numDeletedSeries, 1; got != want {
-		t.Fatalf("unexpected number of deleted series, got %d, want %d", got, want)
-	}
-	if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
-		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
-	}
-	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if got, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
-		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
-	}
-	if got, want := s.getDeletedMetricIDs().AppendTo(nil), []uint64{metricID}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("deletedMetricIDs cache: unexpected contents: got %v, want %v", got, want)
-	}
+
+	// Delete metric1. TSID cache must be cleared. Tag filters for month1 and
+	// month 2 must be cleared.
+	// deletedMetricIDsCache size must be 1.
+	deleteSeries(tfssMetric1, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
+	assertTagFiltersCached(tfssMetric1, month1, false)
+	assertTagFiltersCached(tfssMetric1, month2, false)
+	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(1)
+
+	// Delete metric2. TSID cache must be cleared. Tag filters for month2
+	// must be cleared and deletedMetricIDsCache size for month2 must be 2.
+	deleteSeries(tfssMetric2, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
+	assertTagFiltersCached(tfssMetric1, month1, false)
+	assertTagFiltersCached(tfssMetric1, month2, false)
+	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(2)
+
+	// Delete metric3. TSID cache must be cleared.
+	// deletedMetricIDsCache size for month1 and 2 must be 3.
+	deleteSeries(tfssMetric3, 1)
+
+	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
+	assertTagFiltersCached(tfssMetric1, month1, false)
+	assertTagFiltersCached(tfssMetric1, month2, false)
+	assertTagFiltersCached(tfssMetric2, month1, false)
+	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric3, month1, false)
+	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric12, month1, false)
+	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric123, month1, false)
+	assertTagFiltersCached(tfssMetric123, month2, false)
+	assertDeletedMetricIDsCacheSize(3)
 }
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
@@ -1208,7 +1623,8 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		"instance",
 		"job",
 	}
-	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 100, 1e9, noDeadline)
+
+	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{0, math.MaxInt64}, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames: %w", err)
 	}
@@ -1253,7 +1669,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValues returns correct result.
-	addIDs, err := s.SearchLabelValues(nil, accountID, projectID, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
+	addIDs, err := s.SearchLabelValues(nil, accountID, projectID, "add_id", nil, TimeRange{0, math.MaxInt64}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValues: %w", err)
 	}
@@ -1575,13 +1991,13 @@ func TestStorageRotateIndexDB_AddRows(t *testing.T) {
 		accountID = 12
 		projectID = 34
 	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	op := func(s *Storage) {
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 	}
@@ -1594,13 +2010,13 @@ func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
 		accountID = 12
 		projectID = 34
 	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	op := func(s *Storage) {
-		rng := rand.New(rand.NewSource(1))
-		tr := TimeRange{
-			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		}
-		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 		s.RegisterMetricNames(nil, mrs)
 		s.DebugFlush()
 	}
@@ -2273,25 +2689,6 @@ func testCountAllMetricNames(s *Storage, accountID, projectID uint32, tr TimeRan
 		panic(fmt.Sprintf("SeachMetricNames() failed unexpectedly: %v", err))
 	}
 	return len(names)
-}
-
-// testCountAllMetricIDs is a test helper function that counts the IDs of
-// all time series within the given time range.
-func testCountAllMetricIDs(s *Storage, accountID, projectID uint32, tr TimeRange) int {
-	tfsAll := NewTagFilters(accountID, projectID)
-	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
-	}
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
-	idb, putIndexDB := s.getCurrIndexDB()
-	defer putIndexDB()
-	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
-	if err != nil {
-		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
-	}
-	return len(ids)
 }
 
 func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
@@ -3777,6 +4174,25 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	t.Run("disablePerDayIndex=true", func(t *testing.T) {
 		f(t, true)
 	})
+}
+
+// testCountAllMetricIDs is a test helper function that counts the IDs of
+// all time series within the given time range.
+func testCountAllMetricIDs(s *Storage, accountID, projectID uint32, tr TimeRange) int {
+	tfsAll := NewTagFilters(accountID, projectID)
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+	}
+	if s.disablePerDayIndex {
+		tr = globalIndexTimeRange
+	}
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
+	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	if err != nil {
+		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
+	}
+	return len(ids)
 }
 
 func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {

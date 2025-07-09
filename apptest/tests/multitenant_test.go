@@ -172,7 +172,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// Delete series from specific tenant
-	vmselect.DeleteSeries(t, "foo_bar", apptest.QueryOpts{
+	vmselect.APIV1AdminTSDBDeleteSeries(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "5:15",
 	})
 	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
@@ -195,7 +195,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// Delete series for multitenant with tenant filter
-	vmselect.DeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
+	vmselect.APIV1AdminTSDBDeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
 		Tenant: "multitenant",
 	})
 
