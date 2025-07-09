@@ -1270,41 +1270,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
-	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if len(metricIDs) == 0 {
-		return nil, nil
-	}
-	if err = idb.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
-		return nil, err
-	}
-	metricNames := make([]string, 0, len(metricIDs))
-	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
-	var metricName []byte
-	for i, metricID := range metricIDs {
-		if i&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(deadline); err != nil {
-				return nil, err
-			}
-		}
-		var ok bool
-		metricName, ok = idb.searchMetricName(metricName[:0], metricID, false)
-		if !ok {
-			// Skip missing metricName for metricID.
-			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
-			continue
-		}
-		if _, ok := metricNamesSeen[string(metricName)]; ok {
-			// The given metric name was already seen; skip it
-			continue
-		}
-		metricNames = append(metricNames, string(metricName))
-		metricNamesSeen[metricNames[len(metricNames)-1]] = struct{}{}
-	}
-	qt.Printf("loaded %d metric names", len(metricNames))
-	return metricNames, nil
+	return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 }
 
 // ErrDeadlineExceeded is returned when the request times out.
@@ -1361,38 +1327,6 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
-
-	key := labelName
-	if key == "__name__" {
-		key = ""
-	}
-	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && string(tfss[0].tfs[0].key) == key {
-		// tfss contains only a single filter on labelName. It is faster searching for label values
-		// without any filters and limits and then later applying the filter and the limit to the found label values.
-		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
-
-		lvs, err := idb.SearchLabelValues(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
-		if err != nil {
-			return nil, err
-		}
-		needSlowSearch := len(lvs) == maxMetrics
-
-		lvsLen := len(lvs)
-		lvs = filterLabelValues(lvs, &tfss[0].tfs[0], key)
-		qt.Printf("found %d out of %d values for the label %q after filtering", len(lvs), lvsLen, labelName)
-		if len(lvs) >= maxLabelValues {
-			qt.Printf("leave %d out of %d values for the label %q because of the limit", maxLabelValues, len(lvs), labelName)
-			lvs = lvs[:maxLabelValues]
-
-			// We found at least maxLabelValues unique values for the label with the given filters.
-			// It is OK returning all these values instead of falling back to the slow search.
-			needSlowSearch = false
-		}
-		if !needSlowSearch {
-			return lvs, nil
-		}
-		qt.Printf("fall back to slow search because only a subset of label values is found")
-	}
 
 	return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
