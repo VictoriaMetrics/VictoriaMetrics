@@ -53,7 +53,7 @@ func (sn *storageNode) isReady() bool {
 	return !sn.isBroken.Load() && !sn.isReadOnly.Load()
 }
 
-// push pushes buf to sn internal bufs.
+// pushTS pushes tsBuf to sn internal bufs.
 //
 // This function doesn't block on fast path.
 // It may block only if storage nodes cannot handle the incoming ingestion rate.
@@ -62,39 +62,71 @@ func (sn *storageNode) isReady() bool {
 // The function falls back to sending data to other vmstorage nodes
 // if sn is currently unavailable or overloaded.
 //
-// rows must match the number of rows in the buf.
-func (sn *storageNode) push(snb *storageNodesBucket, buf []byte, rows int) error {
+// tsRows must match the number of tsRows in the tsBuf.
+func (sn *storageNode) pushTS(snb *storageNodesBucket, buf []byte, rows int) error {
 	if len(buf) > maxBufSizePerStorageNode {
-		logger.Panicf("BUG: len(buf)=%d cannot exceed %d", len(buf), maxBufSizePerStorageNode)
+		logger.Panicf("BUG: len(tsBuf)=%d cannot exceed %d", len(buf), maxBufSizePerStorageNode)
 	}
 	sn.rowsPushed.Add(rows)
-	if sn.trySendBuf(buf, rows) {
+	if sn.trySendTSBuf(buf, rows) {
 		// Fast path - the buffer is successfully sent to sn.
 		return nil
 	}
 	if *dropSamplesOnOverload && !sn.isReadOnly.Load() {
 		sn.rowsDroppedOnOverload.Add(rows)
-		dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
+		dropSamplesOnOverloadLogger.Warnf("some tsRows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new tsRows now. "+
 			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
 		return nil
 	}
-	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
-	if err := sn.rerouteBufToOtherStorageNodes(snb, buf, rows); err != nil {
-		return fmt.Errorf("error when re-routing rows from %s: %w", sn.dialer.Addr(), err)
+	// Slow path - sn cannot accept tsBuf now, so re-route it to other vmstorage nodes.
+	if err := sn.rerouteTSBufToOtherStorageNodes(snb, buf, rows); err != nil {
+		return fmt.Errorf("error when re-routing tsRows from %s: %w", sn.dialer.Addr(), err)
+	}
+	return nil
+}
+
+// pushMR pushes metaBuf to sn internal bufs.
+//
+// This function doesn't block on fast path.
+// It may block only if storage nodes cannot handle the incoming ingestion rate.
+// This blocking provides backpressure to the caller.
+//
+// The function falls back to sending data to other vmstorage nodes
+// if sn is currently unavailable or overloaded.
+//
+// metaRows must match the number of metaRows in the metaBuf.
+func (sn *storageNode) pushMR(snb *storageNodesBucket, buf []byte, rows int) error {
+	if len(buf) > maxBufSizePerStorageNode {
+		logger.Panicf("BUG: len(tsBuf)=%d cannot exceed %d", len(buf), maxBufSizePerStorageNode)
+	}
+	sn.rowsPushed.Add(rows)
+	if sn.trySendMRBuf(buf, rows) {
+		// Fast path - the buffer is successfully sent to sn.
+		return nil
+	}
+	if *dropSamplesOnOverload && !sn.isReadOnly.Load() {
+		sn.rowsDroppedOnOverload.Add(rows)
+		dropSamplesOnOverloadLogger.Warnf("some metadata rows are dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
+			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
+		return nil
+	}
+	// Slow path - sn cannot accept tsBuf now, so re-route it to other vmstorage nodes.
+	if err := sn.rerouteMRBufToOtherStorageNodes(snb, buf, rows); err != nil {
+		return fmt.Errorf("error when re-routing tsRows from %s: %w", sn.dialer.Addr(), err)
 	}
 	return nil
 }
 
 var dropSamplesOnOverloadLogger = logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second)
 
-func (sn *storageNode) rerouteBufToOtherStorageNodes(snb *storageNodesBucket, buf []byte, rows int) error {
+func (sn *storageNode) rerouteTSBufToOtherStorageNodes(snb *storageNodesBucket, buf []byte, rows int) error {
 	sns := snb.sns
 	sn.brLock.Lock()
 again:
 	select {
 	case <-sn.stopCh:
 		sn.brLock.Unlock()
-		return fmt.Errorf("cannot send %d rows because of graceful shutdown", rows)
+		return fmt.Errorf("cannot send %d tsRows because of graceful shutdown", rows)
 	default:
 	}
 
@@ -111,23 +143,23 @@ again:
 		}
 		sn.brLock.Unlock()
 
-		// The vmstorage node isn't ready for data processing. Re-route buf to healthy vmstorage nodes even if disableRerouting is set.
+		// The vmstorage node isn't ready for data processing. Re-route tsBuf to healthy vmstorage nodes even if disableRerouting is set.
 		rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
 		rows -= rowsProcessed
 		if err != nil {
-			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
+			return fmt.Errorf("%d tsRows dropped because the current vsmtorage is unavailable and %w", rows, err)
 		}
 		return nil
 	}
 
-	if len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
-		// Fast path: the buf contents fits sn.buf.
-		sn.br.buf = append(sn.br.buf, buf...)
-		sn.br.rows += rows
+	if len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+		// Fast path: the tsBuf contents fits sn.tsBuf.
+		sn.br.tsBuf = append(sn.br.tsBuf, buf...)
+		sn.br.tsRows += rows
 		sn.brLock.Unlock()
 		return nil
 	}
-	// Slow path: the buf contents doesn't fit sn.buf, so try re-routing it to other vmstorage nodes.
+	// Slow path: the tsBuf contents doesn't fit sn.tsBuf, so try re-routing it to other vmstorage nodes.
 	if *disableRerouting || len(sns) == 1 {
 		sn.brCond.Wait()
 		goto again
@@ -136,7 +168,61 @@ again:
 	rowsProcessed, err := rerouteRowsToFreeStorageNodes(snb, sn, buf)
 	rows -= rowsProcessed
 	if err != nil {
-		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %w", rows, err)
+		return fmt.Errorf("%d tsRows dropped because the current vmstorage tsBuf is full and %w", rows, err)
+	}
+	return nil
+}
+
+func (sn *storageNode) rerouteMRBufToOtherStorageNodes(snb *storageNodesBucket, buf []byte, rows int) error {
+	sns := snb.sns
+	sn.brLock.Lock()
+again:
+	select {
+	case <-sn.stopCh:
+		sn.brLock.Unlock()
+		return fmt.Errorf("cannot send %d tsRows because of graceful shutdown", rows)
+	default:
+	}
+
+	if !sn.isReady() {
+		if len(sns) == 1 {
+			// There are no other storage nodes to re-route to. So wait until the current node becomes healthy.
+			sn.brCond.Wait()
+			goto again
+		}
+		if *disableReroutingOnUnavailable {
+			// We should not send timeseries from currently unavailable storage to alive storage nodes.
+			sn.brCond.Wait()
+			goto again
+		}
+		sn.brLock.Unlock()
+
+		// The vmstorage node isn't ready for data processing. Re-route tsBuf to healthy vmstorage nodes even if disableRerouting is set.
+		rowsProcessed, err := rerouteMRToReadyStorageNodes(snb, sn, buf)
+		rows -= rowsProcessed
+		if err != nil {
+			return fmt.Errorf("%d tsRows dropped because the current vsmtorage is unavailable and %w", rows, err)
+		}
+		return nil
+	}
+
+	if len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+		// Fast path: the metaBuf contents fits sn.metaBuf.
+		sn.br.metaBuf = append(sn.br.metaBuf, buf...)
+		sn.br.metaRows += rows
+		sn.brLock.Unlock()
+		return nil
+	}
+	// Slow path: the metaBuf contents doesn't fit sn.tsBuf, so try re-routing it to other vmstorage nodes.
+	if *disableRerouting || len(sns) == 1 {
+		sn.brCond.Wait()
+		goto again
+	}
+	sn.brLock.Unlock()
+	rowsProcessed, err := rerouteMRToReadyStorageNodes(snb, sn, buf)
+	rows -= rowsProcessed
+	if err != nil {
+		return fmt.Errorf("%d tsRows dropped because the current vmstorage tsBuf is full and %w", rows, err)
 	}
 	return nil
 }
@@ -162,17 +248,18 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	var br bufRows
-	brLastResetTime := fasttime.UnixTimestamp()
+	brTSLastResetTime := fasttime.UnixTimestamp()
+	brMRLastResetTime := fasttime.UnixTimestamp()
 	mustStop := false
 	for !mustStop {
 		sn.brLock.Lock()
-		waitForNewData := len(sn.br.buf) == 0
+		waitForNewData := sn.br.isEmpty()
 		sn.brLock.Unlock()
 		if waitForNewData {
 			select {
 			case <-sn.stopCh:
 				mustStop = true
-				// Make sure the br.buf is flushed last time before returning
+				// Make sure the br bufs are flushed last time before returning
 				// in order to send the remaining bits of data.
 			case <-ticker.C:
 			}
@@ -184,13 +271,19 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 		sn.brLock.Unlock()
 
 		currentTime := fasttime.UnixTimestamp()
-		if len(br.buf) < cap(br.buf)/4 && currentTime-brLastResetTime > 10 {
-			// Free up capacity space occupied by br.buf in order to reduce memory usage after spikes.
-			br.buf = append(br.buf[:0:0], br.buf...)
-			brLastResetTime = currentTime
+		if len(br.tsBuf) < cap(br.tsBuf)/4 && currentTime-brTSLastResetTime > 10 {
+			// Free up capacity space occupied by br.tsBuf in order to reduce memory usage after spikes.
+			br.tsBuf = append(br.tsBuf[:0:0], br.tsBuf...)
+			brTSLastResetTime = currentTime
 		}
+		if len(br.metaBuf) < cap(br.metaBuf)/4 && currentTime-brMRLastResetTime > 10 {
+			// Free up capacity space occupied by br.metaBuf in order to reduce memory usage after spikes.
+			br.metaBuf = append(br.metaBuf[:0:0], br.metaBuf...)
+			brMRLastResetTime = currentTime
+		}
+
 		sn.checkHealth()
-		if len(br.buf) == 0 {
+		if br.isEmpty() {
 			// Nothing to send.
 			continue
 		}
@@ -201,7 +294,7 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 			select {
 			case <-sn.stopCh:
 				timerpool.Put(t)
-				logger.Errorf("dropping %d rows on graceful shutdown, since all the vmstorage nodes are unavailable", br.rows)
+				logger.Errorf("dropping %d tsRows on graceful shutdown, since all the vmstorage nodes are unavailable", br.tsRows)
 				return
 			case <-t.C:
 				timerpool.Put(t)
@@ -223,16 +316,16 @@ func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, r
 			if attempts > len(sns) {
 				if i == 0 {
 					// The data wasn't replicated at all.
-					cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to storage nodes, since all the nodes are temporarily unavailable; "+
-						"re-trying to send the data soon", len(br.buf), br.rows)
+					cannotReplicateLogger.Warnf("cannot pushTS %d bytes with %d tsRows to storage nodes, since all the nodes are temporarily unavailable; "+
+						"re-trying to send the data soon", len(br.tsBuf), br.tsRows)
 					return false
 				}
 				// The data is partially replicated, so just emit a warning and return true.
 				// We could retry sending the data again, but this may result in uncontrolled duplicate data.
 				// So it is better returning true.
-				rowsIncompletelyReplicatedTotal.Add(br.rows)
-				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d rows, "+
-					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
+				rowsIncompletelyReplicatedTotal.Add(br.tsRows)
+				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d tsRows, "+
+					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.tsBuf), br.tsRows)
 				return true
 			}
 			if idx >= len(sns) {
@@ -302,12 +395,29 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
-	err := sendToConn(sn.bc, "writeRows_v1", br.buf)
+	err := sendToConn(sn.bc, "writeRows_v1", br.tsBuf)
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
-		// Successfully sent buf to bc.
-		sn.rowsSent.Add(br.rows)
+		// Successfully sent tsBuf to bc.
+		sn.rowsSent.Add(br.tsRows)
+		if len(br.metaBuf) == 0 {
+			return true
+		}
+	}
+	if errors.Is(err, errStorageReadOnly) {
+		// The vmstorage is transitioned to readonly mode.
+		sn.isReadOnly.Store(true)
+		sn.brCond.Broadcast()
+		// Signal the caller that the data wasn't accepted by the vmstorage,
+		// so it will be re-routed to the remaining vmstorage nodes.
+		return false
+	}
+
+	err = sendToConn(sn.bc, "writeMetadata_v1", br.metaBuf)
+	if err == nil {
+		// Successfully sent metaBuf to bc.
+		sn.rowsSent.Add(br.metaRows)
 		return true
 	}
 	if errors.Is(err, errStorageReadOnly) {
@@ -318,9 +428,10 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		// so it will be re-routed to the remaining vmstorage nodes.
 		return false
 	}
-	// Couldn't flush buf to sn. Mark sn as broken.
-	cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
-		"re-routing this data to healthy storage nodes", len(br.buf), br.rows, sn.dialer.Addr(), err)
+
+	// Couldn't flush bufs to sn. Mark sn as broken.
+	cannotSendBufsLogger.Warnf("cannot send %d timeseries bytes with %d Rows and %d metadata bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
+		"re-routing this data to healthy storage nodes", len(br.tsBuf), br.tsRows, len(br.metaBuf), br.metaRows, sn.dialer.Addr(), err)
 	if err = sn.bc.Close(); err != nil {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
@@ -336,7 +447,7 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
 func sendToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
-	// if len(buf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
+	// if len(tsBuf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
 	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
 
 	timeoutSeconds := len(buf) / 3e5
@@ -350,7 +461,11 @@ func sendToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
 	}
 	sizeBuf := sizeBufPool.Get()
 	defer sizeBufPool.Put(sizeBuf)
-	writeSizeBuf := func(data []byte) error {
+
+	// sendBuf guarantees that the data batch will be either fully
+	// read or fully discarded on the vmstorage side.
+	// sendBuf is used for read optimization in vmstorage.
+	sendBuf := func(data []byte) error {
 		sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(data)))
 		if _, err := bc.Write(sizeBuf.B); err != nil {
 			return fmt.Errorf("cannot write data size %d: %w", len(data), err)
@@ -367,15 +482,12 @@ func sendToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
 	}
 
 	rpcNameBytes := bytesutil.ToUnsafeBytes(rpcName)
-	if err := writeSizeBuf(rpcNameBytes); err != nil {
+	if err := sendBuf(rpcNameBytes); err != nil {
 		return fmt.Errorf("cannot write rpcName %q: %w", rpcName, err)
 	}
 
-	// sizeBuf guarantees that the rows batch will be either fully
-	// read or fully discarded on the vmstorage side.
-	// sizeBuf is used for read optimization in vmstorage.
-	if err := writeSizeBuf(buf); err != nil {
-		return fmt.Errorf("cannot write buf with size %d: %w", len(buf), err)
+	if err := sendBuf(buf); err != nil {
+		return fmt.Errorf("cannot write tsBuf with size %d: %w", len(buf), err)
 	}
 
 	// Wait for `ack` from vmstorage.
@@ -469,7 +581,7 @@ type storageNode struct {
 	// The number of connection errors to vmstorage node.
 	connectionErrors *metrics.Counter
 
-	// The number of rows pushed to storageNode with push method.
+	// The number of rows pushed to storageNode with pushTS method.
 	rowsPushed *metrics.Counter
 
 	// The number of rows sent to vmstorage node.
@@ -569,13 +681,13 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
-			n := sn.br.rows
+			n := sn.br.tsRows
 			sn.brLock.Unlock()
 			return float64(n)
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
-			n := len(sn.br.buf)
+			n := len(sn.br.tsBuf)
 			sn.brLock.Unlock()
 			return float64(n)
 		})
@@ -667,7 +779,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
 		}
 		if *disableRerouting {
-			if !sn.sendBufMayBlock(rowBuf) {
+			if !sn.sendTSBufMayBlock(rowBuf) {
 				return rowsProcessed, fmt.Errorf("graceful shutdown started")
 			}
 			rowsProcessed++
@@ -678,7 +790,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 			continue
 		}
 	again:
-		if sn.trySendBuf(rowBuf, 1) {
+		if sn.trySendTSBuf(rowBuf, 1) {
 			rowsProcessed++
 			if sn != snSource {
 				snSource.rowsReroutedFromHere.Inc()
@@ -690,7 +802,83 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 		idxsExcludeNew = getNotReadyStorageNodeIdxs(snb, idxsExcludeNew[:0], sn)
 		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
 		snNew := sns[idx]
-		if !snNew.trySendBuf(rowBuf, 1) {
+		if !snNew.trySendTSBuf(rowBuf, 1) {
+			// The row cannot be sent to both snSource, sn and snNew without blocking.
+			// Sleep for a while and try sending the row to snSource again.
+			time.Sleep(100 * time.Millisecond)
+			goto again
+		}
+		rowsProcessed++
+		if snNew != snSource {
+			snSource.rowsReroutedFromHere.Inc()
+			snNew.rowsReroutedToHere.Inc()
+		}
+	}
+	return rowsProcessed, nil
+}
+
+// TODO: deduplicate rerouting logic
+// extract src parsing to a callback and use core logic for rerouting
+// in separate functions
+func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
+	reroutesTotal.Inc()
+	rowsProcessed := 0
+	var idxsExclude, idxsExcludeNew []int
+	nodesHash := snb.nodesHash
+	sns := snb.sns
+	idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
+	var mr storage.MetricMetadataRow
+	for len(src) > 0 {
+		tail, err := mr.UnmarshalMetadataRaw(src)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal MetricRow: %s", err)
+		}
+		rowBuf := src[:len(src)-len(tail)]
+		src = tail
+		reroutedRowsProcessed.Inc()
+		h := xxhash.Sum64(mr.MetricFamilyName)
+		mr.Reset()
+		var sn *storageNode
+		for {
+			idx := nodesHash.getNodeIdx(h, idxsExclude)
+			sn = sns[idx]
+			if sn.isReady() {
+				break
+			}
+			select {
+			case <-sn.stopCh:
+				return rowsProcessed, fmt.Errorf("graceful shutdown started")
+			default:
+			}
+
+			// re-generate idxsExclude list, since sn must be put there.
+			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
+		}
+		if *disableRerouting {
+			if !sn.sendMRBufMayBlock(rowBuf) {
+				return rowsProcessed, fmt.Errorf("graceful shutdown started")
+			}
+			rowsProcessed++
+			if sn != snSource {
+				snSource.rowsReroutedFromHere.Inc()
+				sn.rowsReroutedToHere.Inc()
+			}
+			continue
+		}
+	again:
+		if sn.trySendMRBuf(rowBuf, 1) {
+			rowsProcessed++
+			if sn != snSource {
+				snSource.rowsReroutedFromHere.Inc()
+				sn.rowsReroutedToHere.Inc()
+			}
+			continue
+		}
+		// If the re-routing is enabled, then try sending the row to another storage node.
+		idxsExcludeNew = getNotReadyStorageNodeIdxs(snb, idxsExcludeNew[:0], sn)
+		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
+		snNew := sns[idx]
+		if !snNew.trySendMRBuf(rowBuf, 1) {
 			// The row cannot be sent to both snSource, sn and snNew without blocking.
 			// Sleep for a while and try sending the row to snSource again.
 			time.Sleep(100 * time.Millisecond)
@@ -737,7 +925,7 @@ func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNod
 
 	again:
 		// Try sending the row to snSource in order to minimize re-routing.
-		if snSource.trySendBuf(rowBuf, 1) {
+		if snSource.trySendTSBuf(rowBuf, 1) {
 			rowsProcessed++
 			continue
 		}
@@ -750,7 +938,7 @@ func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNod
 			idx := nodesHash.getNodeIdx(h, idxsExclude)
 			sn = sns[idx]
 		}
-		if !sn.trySendBuf(rowBuf, 1) {
+		if !sn.trySendTSBuf(rowBuf, 1) {
 			// The row cannot be sent to both snSource and sn without blocking.
 			// Sleep for a while and try sending the row to snSource again.
 			time.Sleep(100 * time.Millisecond)
@@ -802,7 +990,7 @@ func getNotReadyStorageNodeIdxs(snb *storageNodesBucket, dst []int, snExtra *sto
 	return dst
 }
 
-func (sn *storageNode) trySendBuf(buf []byte, rows int) bool {
+func (sn *storageNode) trySendTSBuf(buf []byte, rows int) bool {
 	if !sn.isReady() {
 		// Fast path without locking the sn.brLock.
 		return false
@@ -810,18 +998,18 @@ func (sn *storageNode) trySendBuf(buf []byte, rows int) bool {
 
 	sent := false
 	sn.brLock.Lock()
-	if sn.isReady() && len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
-		sn.br.buf = append(sn.br.buf, buf...)
-		sn.br.rows += rows
+	if sn.isReady() && len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+		sn.br.tsBuf = append(sn.br.tsBuf, buf...)
+		sn.br.tsRows += rows
 		sent = true
 	}
 	sn.brLock.Unlock()
 	return sent
 }
 
-func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
+func (sn *storageNode) sendTSBufMayBlock(buf []byte) bool {
 	sn.brLock.Lock()
-	for len(sn.br.buf)+len(buf) > maxBufSizePerStorageNode {
+	for len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) > maxBufSizePerStorageNode {
 		select {
 		case <-sn.stopCh:
 			sn.brLock.Unlock()
@@ -830,8 +1018,43 @@ func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 		}
 		sn.brCond.Wait()
 	}
-	sn.br.buf = append(sn.br.buf, buf...)
-	sn.br.rows++
+	sn.br.tsBuf = append(sn.br.tsBuf, buf...)
+	sn.br.tsRows++
+	sn.brLock.Unlock()
+	return true
+}
+
+func (sn *storageNode) trySendMRBuf(buf []byte, rows int) bool {
+	if !sn.isReady() {
+		// Fast path without locking the sn.brLock.
+		return false
+	}
+
+	sent := false
+	sn.brLock.Lock()
+	// todo: update conditions everywhere to check both bufs size
+	if sn.isReady() && len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+		sn.br.metaBuf = append(sn.br.metaBuf, buf...)
+		sn.br.metaRows += rows
+		sent = true
+	}
+	sn.brLock.Unlock()
+	return sent
+}
+
+func (sn *storageNode) sendMRBufMayBlock(buf []byte) bool {
+	sn.brLock.Lock()
+	for len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) > maxBufSizePerStorageNode {
+		select {
+		case <-sn.stopCh:
+			sn.brLock.Unlock()
+			return false
+		default:
+		}
+		sn.brCond.Wait()
+	}
+	sn.br.metaBuf = append(sn.br.metaBuf, buf...)
+	sn.br.metaRows++
 	sn.brLock.Unlock()
 	return true
 }

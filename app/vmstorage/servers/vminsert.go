@@ -223,7 +223,7 @@ func (s *VMInsertServer) processRPC(ctx *vminsertRequestCtx, rpcName string) err
 }
 
 func (s *VMInsertServer) processWriteRows(ctx *vminsertRequestCtx) error {
-	return stream.Parse(ctx.bc, func(rows []storage.MetricRow) error {
+	return stream.ParseTS(ctx.bc, func(rows []storage.MetricRow) error {
 		vminsertMetricsRead.Add(len(rows))
 		s.storage.AddRows(rows, uint8(*precisionBits))
 		return nil
@@ -232,27 +232,15 @@ func (s *VMInsertServer) processWriteRows(ctx *vminsertRequestCtx) error {
 
 func (s *VMInsertServer) processWriteMetadata(ctx *vminsertRequestCtx) error {
 	logger.Infof("processing writeMetadata_v1 request")
-	// read full buffer and just dump it for debugging
-	// todo: replace fake with real stream parsing of metadata items
-	if err := ctx.readDataBufBytes(1024 * 1024); err != nil {
-		if err == io.EOF {
-			// Remote client gracefully closed the connection.
-			return err
-		}
-		return fmt.Errorf("cannot read writeMetadata_v1 data: %w", err)
-	}
-	logger.Infof("writeMetadata_v1 data: %s", string(ctx.dataBuf))
+	return stream.ParseMR(ctx.bc, func(mrs []storage.MetricMetadataRow) error {
+		vminsertMetricsRead.Add(len(mrs))
+		s.storage.AddMetadataRows(mrs)
+		return nil
 
-	// For now, just return OK response.
-	if err := sendAck(ctx.bc, consts.StorageStatusAck); err != nil {
-		return fmt.Errorf("cannot send ack for healthcheck_v1: %w", err)
-	}
-
-	return nil
+	}, s.storage.IsReadOnly)
 }
 
 func (s *VMInsertServer) processHealthcheck(ctx *vminsertRequestCtx) error {
-	// todo: check readonly mode handling here
 	if err := ctx.readDataBufBytes(0); err != nil {
 		if err == io.EOF {
 			// Remote client gracefully closed the connection.
@@ -261,8 +249,12 @@ func (s *VMInsertServer) processHealthcheck(ctx *vminsertRequestCtx) error {
 		return fmt.Errorf("cannot read healthcheck_v1 data: %w", err)
 	}
 
-	// For now, just return OK response.
-	if err := sendAck(ctx.bc, consts.StorageStatusAck); err != nil {
+	status := consts.StorageStatusAck
+	if s.storage.IsReadOnly() {
+		status = consts.StorageStatusReadOnly
+	}
+
+	if err := sendAck(ctx.bc, byte(status)); err != nil {
 		return fmt.Errorf("cannot send ack for healthcheck_v1: %w", err)
 	}
 

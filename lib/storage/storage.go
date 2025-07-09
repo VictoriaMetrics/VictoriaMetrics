@@ -169,6 +169,9 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	metricsMetadataStorage    map[string][]*MetricMetadataRow
+	metricMetadataStorageLock sync.RWMutex
 }
 
 type pendingHourMetricIDEntry struct {
@@ -1658,6 +1661,36 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 		s.rowsReceivedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
+}
+
+func (s *Storage) AddMetadataRows(metaRows []MetricMetadataRow) {
+	if len(metaRows) == 0 {
+		return
+	}
+	s.metricMetadataStorageLock.Lock()
+	defer s.metricMetadataStorageLock.Unlock()
+	if s.metricsMetadataStorage == nil {
+		s.metricsMetadataStorage = make(map[string][]*MetricMetadataRow, len(metaRows))
+
+	}
+	for _, mr := range metaRows {
+		if _, ok := s.metricsMetadataStorage[string(mr.MetricFamilyName)]; !ok {
+			s.metricsMetadataStorage[string(mr.MetricFamilyName)] = make([]*MetricMetadataRow, 0, 1)
+			s.metricsMetadataStorage[string(mr.MetricFamilyName)] = append(s.metricsMetadataStorage[string(mr.MetricFamilyName)], &mr)
+			continue
+		}
+		found := false
+		for _, v := range s.metricsMetadataStorage[string(mr.MetricFamilyName)] {
+			if v.Type == mr.Type && bytes.Equal(mr.Unit, v.Unit) && bytes.Equal(mr.Help, v.Help) {
+				found = true
+			}
+		}
+		if found {
+			continue
+		}
+		s.metricsMetadataStorage[string(mr.MetricFamilyName)] = append(s.metricsMetadataStorage[string(mr.MetricFamilyName)], &mr)
+	}
+	logger.Infof("Added %d metadata rows to storage", len(metaRows))
 }
 
 type metricRowsInsertCtx struct {
