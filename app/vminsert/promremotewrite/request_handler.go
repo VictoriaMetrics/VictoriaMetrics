@@ -27,12 +27,12 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
-	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
-		return insertRows(at, tss, extraLabels)
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		return insertRows(at, tss, mms, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []prompb.Label) error {
+func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
@@ -70,6 +70,16 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			}
 		}
 		perTenantRows[*atLocal] += len(ts.Samples)
+	}
+
+	// todo: should we drop meta if metric was also dropped?
+	// will it be a part of the same request?
+	for i := range mms {
+		m := &mms[i]
+		atLocal := ctx.GetLocalAuthToken(at)
+		if err := ctx.WriteMetadata(atLocal, m); err != nil {
+			return err
+		}
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsTenantInserted.MultiAdd(perTenantRows)

@@ -18,14 +18,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// Parse parses data sent from vminsert to bc and calls callback for parsed rows.
+// ParseTS parses data sent from vminsert to bc and calls callback for parsed rows.
 // Optional function isReadOnly must return true if the storage cannot accept new data.
 // In this case the data read from bc isn't accepted and the readonly status is sent back bc.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
 // callback shouldn't hold block after returning.
-func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
+func ParseTS(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
 	wcr := writeconcurrencylimiter.GetReader(bc)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
@@ -45,7 +45,7 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		return errors.Join(err, callbackErr)
 	}
 	blocksRead.Inc()
-	uw := getUnmarshalWork()
+	uw := getTSUnmarshalWork()
 	uw.reqBuf = reqBuf
 	uw.callback = func(rows []storage.MetricRow) {
 		if err := callback(rows); err != nil {
@@ -132,14 +132,14 @@ var (
 	processErrors = metrics.NewCounter(`vm_protoparser_process_errors_total{type="clusternative"}`)
 )
 
-type unmarshalWork struct {
+type tsUnmarhsalWork struct {
 	wg       *sync.WaitGroup
 	callback func(rows []storage.MetricRow)
 	reqBuf   []byte
 	mrs      []storage.MetricRow
 }
 
-func (uw *unmarshalWork) reset() {
+func (uw *tsUnmarhsalWork) reset() {
 	uw.wg = nil
 	uw.callback = nil
 	// Zero reqBuf, since it may occupy big amounts of memory (consts.MaxInsertPacketSizeForVMStorage).
@@ -148,7 +148,7 @@ func (uw *unmarshalWork) reset() {
 }
 
 // Unmarshal implements protoparserutil.UnmarshalWork
-func (uw *unmarshalWork) Unmarshal() {
+func (uw *tsUnmarhsalWork) Unmarshal() {
 	reqBuf := uw.reqBuf
 	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage
@@ -166,22 +166,113 @@ func (uw *unmarshalWork) Unmarshal() {
 	}
 	wg := uw.wg
 	wg.Done()
-	putUnmarshalWork(uw)
+	putTSUnmarshalWork(uw)
 }
 
 const maxRowsPerCallback = 10000
 
-func getUnmarshalWork() *unmarshalWork {
-	v := unmarshalWorkPool.Get()
+func getTSUnmarshalWork() *tsUnmarhsalWork {
+	v := tsUnmarshalWorkPool.Get()
 	if v == nil {
-		return &unmarshalWork{}
+		return &tsUnmarhsalWork{}
 	}
-	return v.(*unmarshalWork)
+	return v.(*tsUnmarhsalWork)
 }
 
-func putUnmarshalWork(uw *unmarshalWork) {
+func putTSUnmarshalWork(uw *tsUnmarhsalWork) {
 	uw.reset()
-	unmarshalWorkPool.Put(uw)
+	tsUnmarshalWorkPool.Put(uw)
 }
 
-var unmarshalWorkPool sync.Pool
+var tsUnmarshalWorkPool sync.Pool
+var mrUnmarshalWorkPool sync.Pool
+
+func ParseMR(bc *handshake.BufferedConn, callback func(rows []storage.MetricMetadataRow) error, isReadOnly func() bool) error {
+	wcr := writeconcurrencylimiter.GetReader(bc)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(wcr)
+
+	var wg sync.WaitGroup
+	var (
+		callbackErrLock sync.Mutex
+		callbackErr     error
+	)
+	reqBuf, err := readBlock(nil, r, bc, isReadOnly)
+	if err != nil {
+		wg.Wait()
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return callbackErr
+		}
+		return errors.Join(err, callbackErr)
+	}
+	blocksRead.Inc()
+	uw := getMRUnmarshalWork()
+	uw.reqBuf = reqBuf
+	uw.callback = func(rows []storage.MetricMetadataRow) {
+		if err := callback(rows); err != nil {
+			processErrors.Inc()
+			callbackErrLock.Lock()
+			if callbackErr == nil {
+				callbackErr = fmt.Errorf("error when processing native block: %w", err)
+			}
+			callbackErrLock.Unlock()
+		}
+	}
+	uw.wg = &wg
+	wg.Add(1)
+	protoparserutil.ScheduleUnmarshalWork(uw)
+	wcr.DecConcurrency()
+
+	return nil
+}
+
+type mrUnmarshalWork struct {
+	wg       *sync.WaitGroup
+	callback func(rows []storage.MetricMetadataRow)
+	reqBuf   []byte
+	mrs      []storage.MetricMetadataRow
+}
+
+func (uw *mrUnmarshalWork) reset() {
+	uw.wg = nil
+	uw.callback = nil
+	// Zero reqBuf, since it may occupy big amounts of memory (consts.MaxInsertPacketSizeForVMStorage).
+	uw.reqBuf = nil
+	uw.mrs = uw.mrs[:0]
+}
+
+// Unmarshal implements protoparserutil.UnmarshalWork
+func (uw *mrUnmarshalWork) Unmarshal() {
+	reqBuf := uw.reqBuf
+	for len(reqBuf) > 0 {
+		// Limit the number of rows passed to callback in order to reduce memory usage
+		// when processing big packets of rows.
+		mrs, tail, err := storage.UnmarshalMetricMetadataRows(uw.mrs[:0], reqBuf, maxRowsPerCallback)
+		uw.mrs = mrs
+		if err != nil {
+			parseErrors.Inc()
+			logger.Errorf("cannot unmarshal MetricRow from clusternative block with size %d (remaining %d bytes): %s; buffer: %q", len(reqBuf), len(tail), err, string(reqBuf))
+			break
+		}
+		rowsRead.Add(len(mrs))
+		uw.callback(mrs)
+		reqBuf = tail
+	}
+	wg := uw.wg
+	wg.Done()
+	putMRUnmarshalWork(uw)
+}
+
+func getMRUnmarshalWork() *mrUnmarshalWork {
+	v := mrUnmarshalWorkPool.Get()
+	if v == nil {
+		return &mrUnmarshalWork{}
+	}
+	return v.(*mrUnmarshalWork)
+}
+
+func putMRUnmarshalWork(uw *mrUnmarshalWork) {
+	uw.reset()
+	mrUnmarshalWorkPool.Put(uw)
+}
