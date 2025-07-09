@@ -15,7 +15,7 @@ aliases:
 
 ## Pre-reqs
 
-1. Make sure you have these tools installed `golang`, `docker`, `make`, `git`, `gcc`, `ca-certificates`, `curl`, `screen`, `zip`:
+1. Make sure you have these tools installed `golang`, `docker`, `make`, `git`, `gcc`, `ca-certificates`, `curl`, `zip`:
 1. Make sure you have `enterprise` remote configured
    ```
    git remote add enterprise <url>
