@@ -576,16 +576,21 @@ integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmresto
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
 integration-test-legacy: victoria-metrics vmbackup vmrestore
-	VERSION=v1.118.0; \
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
+	VERSION=v1.121.0; \
+	VMSINGLE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
+	VMCLUSTER=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}-cluster.tar.gz; \
+	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}; \
 	DIR=/tmp/$${VERSION}; \
-	BINARY=$${DIR}/victoria-metrics-prod; \
-	ARCHIVE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
-	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}/$${ARCHIVE}; \
-	mkdir -p $${DIR}; \
-	test -f $${BINARY} || curl --output-dir /tmp -LO $${URL} && tar xzf /tmp/$${ARCHIVE} -C $${DIR}; \
-	VM_LEGACY_VMSINGLE_PATH=$${BINARY} go test ./apptest/tests -run="^TestLegacySingle.*"
+	test -d $${DIR} || (mkdir $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMSINGLE} && tar xzf /tmp/$${VMSINGLE} -C $${DIR} && \
+		curl --output-dir /tmp -LO $${URL}/$${VMCLUSTER} && tar xzf /tmp/$${VMCLUSTER} -C $${DIR} \
+	); \
+	VM_LEGACY_VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
+	VM_LEGACY_VMSTORAGE_PATH=$${DIR}/vmstorage-prod \
+	go test ./apptest/tests -run="^TestLegacySingle.*"
+
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...

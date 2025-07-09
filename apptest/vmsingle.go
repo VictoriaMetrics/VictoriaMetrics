@@ -339,7 +339,6 @@ func (app *Vmsingle) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string,
 //
 // See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
 func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMetricsIndexResponse {
-
 	t.Helper()
 
 	seriesURL := fmt.Sprintf("http://%s/metrics/index.json", app.httpListenAddr)
