@@ -1331,24 +1331,6 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 	return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
-func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
-	var b []byte
-	result := lvs[:0]
-	for _, lv := range lvs {
-		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs)
-		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
-		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
-		ok, err := tf.match(b)
-		if err != nil {
-			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
-		}
-		if ok {
-			result = append(result, lv)
-		}
-	}
-	return result
-}
-
 // SearchTagValueSuffixes returns all the tag value suffixes for the given
 // tagKey and tagValuePrefix on the given tr.
 //

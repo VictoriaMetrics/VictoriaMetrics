@@ -903,6 +903,24 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 	return db.searchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
+func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
+	var b []byte
+	result := lvs[:0]
+	for _, lv := range lvs {
+		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs)
+		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
+		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
+		ok, err := tf.match(b)
+		if err != nil {
+			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
+		}
+		if ok {
+			result = append(result, lv)
+		}
+	}
+	return result
+}
+
 func (db *indexDB) searchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
