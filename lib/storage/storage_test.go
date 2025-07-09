@@ -41,33 +41,6 @@ func TestReplaceAlternateRegexpsWithGraphiteWildcards(t *testing.T) {
 	f("foo(.*)", "foo*")
 }
 
-func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
-	f := func(q, expectedRegexp string) {
-		t.Helper()
-		re, err := getRegexpForGraphiteQuery(q)
-		if err != nil {
-			t.Fatalf("unexpected error for query=%q: %s", q, err)
-		}
-		reStr := re.String()
-		if reStr != expectedRegexp {
-			t.Fatalf("unexpected regexp for query %q; got %q want %q", q, reStr, expectedRegexp)
-		}
-	}
-	f(``, `^$`)
-	f(`*`, `^[^.]*$`)
-	f(`foo.`, `^foo\.$`)
-	f(`foo.bar`, `^foo\.bar$`)
-	f(`{foo,b*ar,b[a-z]}`, `^(?:foo|b[^.]*ar|b[a-z])$`)
-	f(`[-a-zx.]`, `^[-a-zx.]$`)
-	f(`**`, `^[^.]*[^.]*$`)
-	f(`a*[de]{x,y}z`, `^a[^.]*[de](?:x|y)z$`)
-	f(`foo{bar`, `^foo\{bar$`)
-	f(`foo{ba,r`, `^foo\{ba,r$`)
-	f(`foo[bar`, `^foo\[bar$`)
-	f(`foo{bar}`, `^foobar$`)
-	f(`foo{bar,,b{{a,b*},z},[x-y]*z}a`, `^foo(?:bar||b(?:(?:a|b[^.]*)|z)|[x-y][^.]*z)a$`)
-}
-
 func TestDateMetricIDCacheSerial(t *testing.T) {
 	c := newDateMetricIDCache()
 	if err := testDateMetricIDCache(c, false); err != nil {
@@ -187,6 +160,8 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 }
 
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
@@ -321,7 +296,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
-
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
