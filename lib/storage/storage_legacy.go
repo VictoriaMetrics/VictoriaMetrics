@@ -93,3 +93,14 @@ func (s *Storage) legacyDebugFlush() {
 	}
 	s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
 }
+
+func (s *Storage) legacyNotifyReadWriteMode() {
+	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
+	if legacyIDBPrev != nil {
+		legacyIDBPrev.tb.NotifyReadWriteMode()
+	}
+	if legacyIDBCurr != nil {
+		legacyIDBCurr.tb.NotifyReadWriteMode()
+	}
+	s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+}
