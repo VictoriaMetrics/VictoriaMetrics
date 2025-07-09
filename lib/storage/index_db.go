@@ -576,11 +576,11 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricID = generateUniqueMetricID()
 }
 
-func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
+func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	if is.db.s.disablePerDayIndex {
+	if db.s.disablePerDayIndex {
 		// Create metricName -> TSID entry.
 		// This index is used for searching a TSID by metric name during data
 		// ingestion or metric name registration when -disablePerDayIndex flag
@@ -610,7 +610,7 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
 	kbPool.Put(kb)
 
-	is.db.tb.AddItems(ii.Items)
+	db.tb.AddItems(ii.Items)
 }
 
 type indexItems struct {
@@ -2961,8 +2961,8 @@ const (
 	int64Max = int64((1 << 63) - 1)
 )
 
-func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
-	if is.db.s.disablePerDayIndex {
+func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
+	if db.s.disablePerDayIndex {
 		return
 	}
 	ii := getIndexItems()
@@ -2989,7 +2989,7 @@ func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricNa
 	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
 	kbPool.Put(kb)
 
-	is.db.tb.AddItems(ii.Items)
+	db.tb.AddItems(ii.Items)
 }
 
 func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {
