@@ -83,8 +83,6 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, timestamp int64, startOffset, recordsPerLoop int) {
 	date := uint64(timestamp) / msecPerDay
-	is := db.getIndexSearch(0, 0, noDeadline)
-	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
 		mn.MetricGroup = strconv.AppendUint(mn.MetricGroup[:0], uint64(i+startOffset), 10)
 		for j := range mn.Tags {
@@ -93,7 +91,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricNa
 		mn.sortTags()
 
 		generateTSID(&genTSID.TSID, mn)
-		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, mn, &genTSID.TSID, date)
 	}
 }
 
@@ -108,8 +106,6 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
 	const accountID = 34327843
 	const projectID = 893433
-	is := db.getIndexSearch(0, 0, noDeadline)
-	defer db.putIndexSearch(is)
 	var mn MetricName
 	var genTSID generationTSID
 	date := uint64(timestamp) / msecPerDay
@@ -122,7 +118,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -295,14 +291,11 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	var genTSID generationTSID
 	date := uint64(timestamp) / msecPerDay
 
-	is := db.getIndexSearch(0, 0, noDeadline)
-	defer db.putIndexSearch(is)
-
 	for i := 0; i < recordsCount; i++ {
 		mn.AccountID = uint32(i % accountsCount)
 		mn.ProjectID = uint32(i % projectsCount)
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 	}
 	db.s.DebugFlush()
 

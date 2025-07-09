@@ -702,7 +702,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		var genTSID generationTSID
 		if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 			generateTSID(&genTSID.TSID, &mn)
-			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+			createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 		}
 		if genTSID.TSID.AccountID != mn.AccountID {
 			return nil, nil, nil, fmt.Errorf("unexpected TSID.AccountID; got %d; want %d; mn:\n%s\ntsid:\n%+v", genTSID.TSID.AccountID, mn.AccountID, &mn, &genTSID.TSID)
@@ -1787,7 +1787,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 			}
 			if genTSID.TSID.AccountID != accountID {
 				t.Fatalf("unexpected accountID; got %d; want %d", genTSID.TSID.AccountID, accountID)
@@ -1843,7 +1843,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	var genTSID generationTSID
 	if !is3.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(is3, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 	}
 	// delete the added metric. It is expected it won't be returned during searches
 	deletedSet := &uint64set.Set{}
@@ -2317,7 +2317,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 			}
 			metricIDs.Add(genTSID.TSID.MetricID)
 		}
@@ -2341,7 +2341,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			var genTSID generationTSID
 			if !isTenant2.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				createAllIndexesForMetricName(isTenant2, &mn, &genTSID.TSID, date)
+				createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
 			}
 			metricIDs.Add(genTSID.TSID.MetricID)
 		}
