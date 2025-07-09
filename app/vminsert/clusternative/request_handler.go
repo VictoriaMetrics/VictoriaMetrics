@@ -38,7 +38,7 @@ func InsertHandler(c net.Conn) error {
 
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
-	return stream.Parse(bc, func(rows []storage.MetricRow) error {
+	return stream.ParseTS(bc, func(rows []storage.MetricRow) error {
 		return insertRows(rows)
 	}, nil)
 }
