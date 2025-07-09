@@ -763,15 +763,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 
 func (s *Storage) notifyReadWriteMode() {
 	s.tb.NotifyReadWriteMode()
-
-	idbPrev, idbCurr := s.getLegacyIndexDBs()
-	if idbPrev != nil {
-		idbPrev.tb.NotifyReadWriteMode()
-	}
-	if idbCurr != nil {
-		idbCurr.tb.NotifyReadWriteMode()
-	}
-	s.putLegacyIndexDBs(idbPrev, idbCurr)
+	s.legacyNotifyReadWriteMode()
 }
 
 // TODO(@rtm0): Move to storage_legacy.go
