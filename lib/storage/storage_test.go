@@ -4801,21 +4801,21 @@ func TestStorageSearchTagValueSuffixes_maxTagValueSuffixes(t *testing.T) {
 	assertSuffixCount(maxTagValueSuffixes, wantCount)
 }
 
-func TestMustOpenIndexDBTables_noTables(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_noTables(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := curr.extDB
-	assertIndexDBIsNotNil(t, prev)
-	assertIndexDBIsNotNil(t, curr)
-	assertIndexDBIsNotNil(t, next)
+	prev := s.legacyIDBPrev.Load()
+	curr := s.legacyIDBCurr.Load()
+	assertIndexDBIsNil(t, prev)
+	assertIndexDBIsNil(t, curr)
 }
 
-func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_prevOnly(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4827,15 +4827,14 @@ func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.legacyIDBPrev.Load()
+	curr := s.legacyIDBCurr.Load()
 	assertIndexDBName(t, prev, prevName)
-	assertIndexDBIsNotNil(t, curr)
-	assertIndexDBIsNotNil(t, next)
+	assertIndexDBIsNil(t, curr)
 }
 
-func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_currAndPrev(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4850,15 +4849,14 @@ func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.legacyIDBPrev.Load()
+	curr := s.legacyIDBCurr.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
-	assertIndexDBIsNotNil(t, next)
 }
 
-func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_nextIsRemoved(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4876,15 +4874,15 @@ func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.legacyIDBPrev.Load()
+	curr := s.legacyIDBCurr.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
-	assertIndexDBName(t, next, nextName)
+	assertPathsDoNotExist(t, nextPath)
 }
 
-func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_nextAndObsoleteDirsAreRemoved(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4908,16 +4906,15 @@ func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.legacyIDBPrev.Load()
+	curr := s.legacyIDBCurr.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
-	assertIndexDBName(t, next, nextName)
-	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path)
+	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path, nextPath)
 }
 
-func TestMustRotateIndexDBs_dirNames(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4928,33 +4925,30 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
 	vmfs.MustMkdirIfNotExist(currPath)
-	nextName := "123456789ABCDEF2"
-	nextPath := filepath.Join(idbPath, nextName)
-	vmfs.MustMkdirIfNotExist(nextPath)
-	assertPathsExist(t, prevPath, currPath, nextPath)
+	assertPathsExist(t, prevPath, currPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.legacyIDBPrev.Load()
+	curr := s.legacyIDBCurr.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
-	assertIndexDBName(t, next, nextName)
+	assertPathsExist(t, prevPath, currPath)
 
-	s.mustRotateIndexDB(time.Now())
-	next = s.idbNext.Load()
-	curr = s.idbCurr.Load()
-	prev = curr.extDB
-	newNextName := next.name
-	newNextPath := filepath.Join(idbPath, newNextName)
-	assertPathsDoNotExist(t, prevPath)
+	s.legacyMustRotateIndexDB(time.Now())
+	prev = s.legacyIDBPrev.Load()
+	curr = s.legacyIDBCurr.Load()
 	assertIndexDBName(t, prev, currName)
-	assertIndexDBName(t, curr, nextName)
-	assertPathsExist(t, newNextPath)
-	if newNextName == nextName {
-		t.Fatalf("Unexpected next dir name after rotation: got %s, want something else", newNextName)
-	}
+	assertIndexDBIsNil(t, curr)
+	assertPathsDoNotExist(t, prevPath)
+	assertPathsExist(t, currPath)
+
+	s.legacyMustRotateIndexDB(time.Now())
+	prev = s.legacyIDBPrev.Load()
+	curr = s.legacyIDBCurr.Load()
+	assertIndexDBIsNil(t, prev)
+	assertIndexDBIsNil(t, curr)
+	assertPathsDoNotExist(t, prevPath, currPath)
 }
 
 func assertPathsExist(t *testing.T, paths ...string) {
@@ -4988,10 +4982,10 @@ func assertIndexDBName(t *testing.T, idb *indexDB, want string) {
 	}
 }
 
-func assertIndexDBIsNotNil(t *testing.T, idb *indexDB) {
+func assertIndexDBIsNil(t *testing.T, idb *indexDB) {
 	t.Helper()
 
-	if idb == nil {
-		t.Fatalf("unexpected idb: got nil, want non-nil")
+	if idb != nil {
+		t.Fatalf("unexpected idb: got %s, want nil", idb.name)
 	}
 }
