@@ -520,6 +520,8 @@ per each time series returned from the given [series_selector](https://docs.vict
 Unlike Prometheus, it takes into account the last sample before the given lookbehind window `d` when calculating the result.
 See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
+The `increase` function stops returning results for stale time series immediately {{% available_from "v1.120.0" %}}.
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is usually applied to [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
@@ -535,6 +537,8 @@ over the given lookbehind window `d` per each time series returned from the give
 It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does.
 See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
+The `increase_prometheus` function does not stop returning results for stale time series immediately; instead, the values fade out over time.
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is usually applied to [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
@@ -546,6 +550,8 @@ See also [increase_pure](#increase_pure) and [increase](#increase).
 `increase_pure(series_selector[d])` is a [rollup function](#rollup-functions), which works the same as [increase](#increase) except
 of the following corner case - it assumes that [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) always start from 0,
 while [increase](#increase) ignores the first value in a series if it is too big.
+
+The `increase_pure` function does not stop returning results for stale time series immediately; instead, the values fade out over time.
 
 This function is usually applied to [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
@@ -738,6 +744,8 @@ passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics
 while `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) for the selected time series.
 This allows avoiding unexpected gaps on the graph when `step` is smaller than the `scrape_interval`.
 
+The `rate` function stops returning results for stale time series immediately {{% available_from "v1.120.0" %}}.
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 This function is supported by PromQL.
@@ -752,6 +760,8 @@ The resulting calculation is equivalent to `increase_prometheus(series_selector[
 
 It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does.
 See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
+
+The `rate_prometheus` function does not stop returning results for stale time series immediately; instead, the values fade out over time.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
