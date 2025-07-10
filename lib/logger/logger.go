@@ -333,12 +333,18 @@ func simplifyFilePath(file string) string {
 		file = file[n+len("/VictoriaMetrics/"):]
 	}
 
-	// the path may under vendor folder and may contain go module version num.
 	keyword := "/vendor/github.com/VictoriaMetrics/VictoriaMetrics"
 	if vendorIdx := strings.Index(file, keyword); vendorIdx >= 0 {
+		// the path may under vendor folder
 		if slashOffset := strings.Index(file[vendorIdx+len(keyword):], "/"); slashOffset > 0 {
+			// There is no trailing '/' after '/vendor/github.com/VictoriaMetrics/VictoriaMetrics',
+			// so it must contain a Go module version number.
+			//
+			// example:
 			// VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics@v0.0.0-00010101000000-000000000000/1.go
 			// |  vendorIdx |                   len(keyword)                   |             slashOffset          |   |
+			//
+			// remove Go module version number in |<-slashOffset->|.
 			file = file[:vendorIdx+len(keyword)] + file[vendorIdx+len(keyword)+slashOffset:]
 		}
 	}
