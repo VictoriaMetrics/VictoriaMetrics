@@ -2176,7 +2176,7 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, accountID, projec
 	// Pre-fetch metricIDs.
 	prefetchedMetricIDs := &uint64set.Set{}
 	var metricName []byte
-	is := db.getIndexSearch(projectID, accountID, deadline)
+	is := db.getIndexSearch(accountID, projectID, deadline)
 	defer db.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
 		if loops&paceLimiterSlowIterationsMask == 0 {
