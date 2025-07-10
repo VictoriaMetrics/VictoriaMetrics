@@ -181,7 +181,7 @@ func parsePipeJoin(lex *lexer) (pipe, error) {
 	// Parse join query
 	q, err := parseQueryInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot parse join(...) query: %w", err)
+		return nil, fmt.Errorf("cannot parse join(...) query: %w", err)
 	}
 
 	pj := &pipeJoin{
