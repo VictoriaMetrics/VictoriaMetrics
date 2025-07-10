@@ -4555,8 +4555,8 @@ func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
 func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	defer testRemoveAll(t)
 
-	storagePath := t.Name()
-	idbPath := filepath.Join(storagePath, indexdbDirname)
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
 	vmfs.MustMkdirIfNotExist(prevPath)
@@ -4568,7 +4568,7 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	vmfs.MustMkdirIfNotExist(nextPath)
 	assertPathsExist(t, prevPath, currPath, nextPath)
 
-	s := MustOpenStorage(storagePath, OpenOptions{})
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
