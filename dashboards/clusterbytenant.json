@@ -136,7 +136,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
+          "expr": "sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\", projectID=~\"$project\", cluster=~\"$cluster\"}[$__rate_interval])) by (accountID,projectID) ",
           "interval": "",
           "legendFormat": "{{accountID}}:{{projectID}}",
           "range": true,
@@ -241,7 +241,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
+          "expr": "sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\", projectID=~\"$project\", cluster=~\"$cluster\"}[$__rate_interval])) by (accountID,projectID) ",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -355,7 +355,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(vm_tenant_active_timeseries{accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
+          "expr": "sum(vm_tenant_active_timeseries{accountID=~\"$account\",projectID=~\"$project\", cluster=~\"$cluster\"}) by(accountID,projectID)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -462,7 +462,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) /1000",
+          "expr": "sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\", projectID=~\"$project\", cluster=~\"$cluster\"}[$__rate_interval])) by (accountID,projectID) /1000",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -568,7 +568,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\",projectID=~\"$project\"}) by(accountID, projectID)",
+          "expr": "sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\",projectID=~\"$project\", cluster=~\"$cluster\"}) by(accountID, projectID)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -675,7 +675,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\"}[24h])) by(accountID,projectID)",
+          "expr": "sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\", cluster=~\"$cluster\"}[24h])) by(accountID,projectID)",
           "interval": "",
           "legendFormat": "{{accountID}}:{{projectID}}",
           "range": true,
@@ -780,7 +780,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by(accountID,projectID)",
+          "expr": "sum(rate(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\", cluster=~\"$cluster\"}[$__rate_interval])) by(accountID,projectID)",
           "interval": "",
           "legendFormat": "{{accountID}}:{{projectID}}",
           "range": true,
@@ -864,7 +864,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\"}[$__range])) by (accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\", cluster=~\"$cluster\"}[$__range])) by (accountID), \"accountID=other\") ",
           "legendFormat": "{{accountID}}",
           "range": true,
           "refId": "A"
@@ -934,7 +934,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\", cluster=~\"$cluster\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1004,7 +1004,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
+          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\", cluster=~\"$cluster\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1076,7 +1076,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\", cluster=~\"$cluster\"}) by(accountID), \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1146,7 +1146,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\", cluster=~\"$cluster\"}) by(accountID), \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1216,7 +1216,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\", cluster=~\"$cluster\"}[24h])) by(accountID), \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1331,7 +1331,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\"}[$__range])) by (accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\", cluster=~\"$cluster\"}[$__range])) by (accountID), \"accountID=other\") ",
           "format": "table",
           "instant": true,
           "legendFormat": "{{label_name}}",
@@ -1448,7 +1448,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\", cluster=~\"$cluster\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
           "format": "table",
           "instant": true,
           "legendFormat": "{{label_name}}",
@@ -1565,7 +1565,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
+          "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\", cluster=~\"$cluster\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
           "format": "table",
           "instant": true,
           "legendFormat": "{{label_name}}",
@@ -1682,7 +1682,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\", cluster=~\"$cluster\"}) by(accountID), \"accountID=other\") ",
           "format": "table",
           "instant": true,
           "legendFormat": "{{label_name}}",
@@ -1799,7 +1799,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\", cluster=~\"$cluster\"}) by(accountID), \"accountID=other\") ",
           "format": "table",
           "instant": true,
           "legendFormat": "{{label_name}}",
@@ -1916,7 +1916,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\", cluster=~\"$cluster\"}[24h])) by(accountID), \"accountID=other\") ",
           "format": "table",
           "instant": true,
           "legendFormat": "{{label_name}}",
@@ -1953,16 +1953,37 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "uid": "${ds}"
+        },
+        "definition": "label_values(vm_tenant_active_timeseries,cluster)",
+        "hide": 2,
+        "includeAll": true,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_tenant_active_timeseries,cluster)",
+          "refId": "VictoriaMetrics-cluster-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_tenant_active_timeseries, accountID)",
+        "definition": "label_values(vm_tenant_active_timeseries{cluster=~\"$cluster\"}, accountID)",
         "includeAll": true,
         "multi": true,
         "name": "account",
         "options": [],
         "query": {
-          "query": "label_values(vm_tenant_active_timeseries, accountID)",
+          "query": "label_values(vm_tenant_active_timeseries{cluster=~\"$cluster\"}, accountID)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -1976,13 +1997,13 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
+        "definition": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\", cluster=~\"$cluster\"},projectID)",
         "includeAll": true,
         "multi": true,
         "name": "project",
         "options": [],
         "query": {
-          "query": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
+          "query": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\", cluster=~\"$cluster\"},projectID)",
           "refId": "VictoriaMetrics-projectID-Variable-Query"
         },
         "refresh": 1,
