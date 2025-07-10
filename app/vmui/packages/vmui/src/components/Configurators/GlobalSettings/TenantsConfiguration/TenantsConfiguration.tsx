@@ -1,4 +1,4 @@
-import React, { FC, useState, useRef, useEffect, useMemo } from "preact/compat";
+import { FC, useState, useRef, useEffect, useMemo } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";

@@ -1,11 +1,10 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { Data, HeadCell } from "../types";
 import LineProgress from "../../../../components/Main/LineProgress/LineProgress";
 import { PlayCircleOutlineIcon } from "../../../../components/Main/Icons";
 import Button from "../../../../components/Main/Button/Button";
 import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
-import get from "lodash.get";
 import dayjs from "dayjs";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
 
@@ -176,7 +175,7 @@ const TableCells: FC<CardinalityTableCells> = ({
         );
 
       default:
-        return get(row, cell.id, "");
+        return cell.id in row ? row[cell.id as keyof typeof row] : "";
     }
   };
 

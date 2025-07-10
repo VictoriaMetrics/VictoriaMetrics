@@ -1,4 +1,4 @@
-import React, { useMemo, forwardRef } from "preact/compat";
+import { useMemo, forwardRef } from "preact/compat";
 import Calendar from "../../Main/DatePicker/Calendar/Calendar";
 import dayjs, { Dayjs } from "dayjs";
 import Popper from "../../Main/Popper/Popper";

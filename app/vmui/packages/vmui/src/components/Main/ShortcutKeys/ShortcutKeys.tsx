@@ -1,4 +1,4 @@
-import React, { FC, useCallback } from "preact/compat";
+import { FC, useCallback } from "preact/compat";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";

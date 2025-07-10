@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState } from "preact/compat";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Button from "../../../Main/Button/Button";

@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { InstantMetricResult, Logs } from "../../../api/types";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { TopQuery } from "../../../types";

@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import { FC, useState } from "preact/compat";
 import Button from "../Main/Button/Button";
 import TextField from "../Main/TextField/TextField";
 import Modal from "../Main/Modal/Modal";

@@ -1,4 +1,4 @@
-import React, { FC, MouseEvent, useMemo } from "react";
+import { FC, MouseEvent, useMemo } from "react";
 import { LegendItemType } from "../../../../types";
 import { useLegendView } from "./hooks/useLegendView";
 import LegendLines from "./LegendViews/LegendLines";

@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import { FC, useState } from "preact/compat";
 import Trace from "./Trace";
 import Button from "../Main/Button/Button";
 import { CodeIcon, CollapseIcon, DeleteIcon, DownloadIcon, ExpandIcon } from "../Main/Icons";

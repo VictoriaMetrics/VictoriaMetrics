@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useState } from "preact/compat";
+import { FC, useCallback } from "preact/compat";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import Button from "../Main/Button/Button";
 import { DownloadIcon } from "../Main/Icons";
@@ -13,6 +13,7 @@ interface DownloadButtonProps {
   onDownload: (format?: string) => void;
 }
 
+/** TODO: Currently unused, later will be added for the exporting metrics */
 const DownloadButton: FC<DownloadButtonProps> = ({ title, downloadFormatOptions, onDownload }) => {
   const {
     value: isPopupOpen,

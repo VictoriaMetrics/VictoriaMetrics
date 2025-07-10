@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { ChangeEvent } from "react";
 import Trace from "../../components/TraceQuery/Trace";
 import TracingsView from "../../components/TraceQuery/TracingsView";

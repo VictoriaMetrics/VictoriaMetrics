@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import useBoolean from "../../../hooks/useBoolean";
 import classNames from "classnames";
 import TextField from "../TextField/TextField";

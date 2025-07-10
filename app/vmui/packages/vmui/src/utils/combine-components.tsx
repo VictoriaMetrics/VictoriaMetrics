@@ -1,4 +1,4 @@
-import React, { ComponentProps, FC, ReactNode } from "react";
+import { ComponentProps, FC, ReactNode } from "react";
 
 type Props = { children: ReactNode };
 
