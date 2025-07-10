@@ -1892,6 +1892,7 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 // and all the caches that may contain some or all of deleted metricIDs are reset.
 func (db *indexDB) saveDeletedMetricIDs(metricIDs []uint64) {
 	if len(metricIDs) == 0 {
+		// Nothing to delete
 		return
 	}
 
