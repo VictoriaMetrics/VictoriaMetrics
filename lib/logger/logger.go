@@ -12,9 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -235,6 +236,11 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+var (
+	mu            sync.Mutex
+	filePathCache = sync.Map{}
+)
+
 func logMessage(level, msg string, skipframes int) {
 	timestamp := ""
 	if !*disableTimestamps {
@@ -246,10 +252,7 @@ func logMessage(level, msg string, skipframes int) {
 		file = "???"
 		line = 0
 	}
-	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
-		// Strip /VictoriaMetrics/ prefix
-		file = file[n+len("/VictoriaMetrics/"):]
-	}
+	file = simplifyFilePath(file)
 	location := fmt.Sprintf("%s:%d", file, line)
 
 	// rate limit ERROR and WARN log messages with given limit.
@@ -318,7 +321,24 @@ func logMessage(level, msg string, skipframes int) {
 	}
 }
 
-var mu sync.Mutex
+func simplifyFilePath(file string) string {
+	if result, ok := filePathCache.Load(file); ok {
+		return result.(string)
+	}
+	key := file
+	if n := strings.Index(file, "/vendor/github.com/VictoriaMetrics/VictoriaMetrics"); n >= 0 {
+		file = file[n+1:]
+		// remove possible go module version num like `@v0.0.0-00010101000000-000000000000`
+		if file[49:50] != "/" { // len("/vendor/github.com/VictoriaMetrics/VictoriaMetrics") is 50
+			nextSlash := strings.Index(file[50:], "/")
+			file = file[:49] + file[50+nextSlash:]
+		}
+	} else if n = strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
+		file = file[n+len("/VictoriaMetrics/"):]
+	}
+	filePathCache.Store(key, file)
+	return file
+}
 
 func shouldSkipLog(level string) bool {
 	switch *loggerLevel {
