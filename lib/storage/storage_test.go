@@ -4439,10 +4439,12 @@ func TestStorageSearchTagValueSuffixes_maxTagValueSuffixes(t *testing.T) {
 func TestMustOpenIndexDBTables_noTables(t *testing.T) {
 	defer testRemoveAll(t)
 
-	path := t.Name()
-
-	s := Storage{}
-	next, curr, prev := s.mustOpenIndexDBTables(path)
+	storageDataPath := t.Name()
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	next := s.idbNext.Load()
+	curr := s.idbCurr.Load()
+	prev := curr.extDB
 	assertIndexDBIsNotNil(t, prev)
 	assertIndexDBIsNotNil(t, curr)
 	assertIndexDBIsNotNil(t, next)
@@ -4451,15 +4453,18 @@ func TestMustOpenIndexDBTables_noTables(t *testing.T) {
 func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
 	defer testRemoveAll(t)
 
-	path := t.Name()
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
-	prevPath := filepath.Join(path, prevName)
+	prevPath := filepath.Join(idbPath, prevName)
 	vmfs.MustMkdirIfNotExist(prevPath)
-
 	assertPathsExist(t, prevPath)
 
-	s := Storage{}
-	next, curr, prev := s.mustOpenIndexDBTables(path)
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	next := s.idbNext.Load()
+	curr := s.idbCurr.Load()
+	prev := curr.extDB
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBIsNotNil(t, curr)
 	assertIndexDBIsNotNil(t, next)
@@ -4468,18 +4473,21 @@ func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
 func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
 	defer testRemoveAll(t)
 
-	path := t.Name()
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
-	prevPath := filepath.Join(path, prevName)
+	prevPath := filepath.Join(idbPath, prevName)
 	vmfs.MustMkdirIfNotExist(prevPath)
 	currName := "123456789ABCDEF1"
-	currPath := filepath.Join(path, currName)
+	currPath := filepath.Join(idbPath, currName)
 	vmfs.MustMkdirIfNotExist(currPath)
-
 	assertPathsExist(t, prevPath, currPath)
 
-	s := Storage{}
-	next, curr, prev := s.mustOpenIndexDBTables(path)
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	next := s.idbNext.Load()
+	curr := s.idbCurr.Load()
+	prev := curr.extDB
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBIsNotNil(t, next)
@@ -4488,21 +4496,24 @@ func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
 func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
 	defer testRemoveAll(t)
 
-	path := t.Name()
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
-	prevPath := filepath.Join(path, prevName)
+	prevPath := filepath.Join(idbPath, prevName)
 	vmfs.MustMkdirIfNotExist(prevPath)
 	currName := "123456789ABCDEF1"
-	currPath := filepath.Join(path, currName)
+	currPath := filepath.Join(idbPath, currName)
 	vmfs.MustMkdirIfNotExist(currPath)
 	nextName := "123456789ABCDEF2"
-	nextPath := filepath.Join(path, nextName)
+	nextPath := filepath.Join(idbPath, nextName)
 	vmfs.MustMkdirIfNotExist(nextPath)
-
 	assertPathsExist(t, prevPath, currPath, nextPath)
 
-	s := Storage{}
-	next, curr, prev := s.mustOpenIndexDBTables(path)
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	next := s.idbNext.Load()
+	curr := s.idbCurr.Load()
+	prev := curr.extDB
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4511,27 +4522,30 @@ func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
 func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
 	defer testRemoveAll(t)
 
-	path := t.Name()
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	obsolete1Name := "123456789ABCDEEE"
-	obsolete1Path := filepath.Join(path, obsolete1Name)
+	obsolete1Path := filepath.Join(idbPath, obsolete1Name)
 	vmfs.MustMkdirIfNotExist(obsolete1Path)
 	obsolete2Name := "123456789ABCDEEF"
-	obsolete2Path := filepath.Join(path, obsolete2Name)
+	obsolete2Path := filepath.Join(idbPath, obsolete2Name)
 	vmfs.MustMkdirIfNotExist(obsolete2Path)
 	prevName := "123456789ABCDEF0"
-	prevPath := filepath.Join(path, prevName)
+	prevPath := filepath.Join(idbPath, prevName)
 	vmfs.MustMkdirIfNotExist(prevPath)
 	currName := "123456789ABCDEF1"
-	currPath := filepath.Join(path, currName)
+	currPath := filepath.Join(idbPath, currName)
 	vmfs.MustMkdirIfNotExist(currPath)
 	nextName := "123456789ABCDEF2"
-	nextPath := filepath.Join(path, nextName)
+	nextPath := filepath.Join(idbPath, nextName)
 	vmfs.MustMkdirIfNotExist(nextPath)
-
 	assertPathsExist(t, obsolete1Path, obsolete2Path, prevPath, currPath, nextPath)
 
-	s := Storage{}
-	next, curr, prev := s.mustOpenIndexDBTables(path)
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	next := s.idbNext.Load()
+	curr := s.idbCurr.Load()
+	prev := curr.extDB
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4542,41 +4556,40 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storagePath := t.Name()
-	path := filepath.Join(storagePath, indexdbDirname)
+	idbPath := filepath.Join(storagePath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
-	prevPath := filepath.Join(path, prevName)
+	prevPath := filepath.Join(idbPath, prevName)
 	vmfs.MustMkdirIfNotExist(prevPath)
 	currName := "123456789ABCDEF1"
-	currPath := filepath.Join(path, currName)
+	currPath := filepath.Join(idbPath, currName)
 	vmfs.MustMkdirIfNotExist(currPath)
 	nextName := "123456789ABCDEF2"
-	nextPath := filepath.Join(path, nextName)
+	nextPath := filepath.Join(idbPath, nextName)
 	vmfs.MustMkdirIfNotExist(nextPath)
-
 	assertPathsExist(t, prevPath, currPath, nextPath)
 
 	s := MustOpenStorage(storagePath, OpenOptions{})
 	defer s.MustClose()
-
-	curr, next, putIndexDBs := s.getCurrAndNextIndexDBs()
-	assertIndexDBName(t, curr.extDB, prevName)
+	next := s.idbNext.Load()
+	curr := s.idbCurr.Load()
+	prev := curr.extDB
+	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
-	putIndexDBs()
 
 	s.mustRotateIndexDB(time.Now())
-
-	curr, next, putIndexDBs = s.getCurrAndNextIndexDBs()
+	next = s.idbNext.Load()
+	curr = s.idbCurr.Load()
+	prev = curr.extDB
 	newNextName := next.name
-	newNextPath := filepath.Join(path, newNextName)
+	newNextPath := filepath.Join(idbPath, newNextName)
 	assertPathsDoNotExist(t, prevPath)
-	assertIndexDBName(t, curr.extDB, currName)
+	assertIndexDBName(t, prev, currName)
 	assertIndexDBName(t, curr, nextName)
 	assertPathsExist(t, newNextPath)
 	if newNextName == nextName {
 		t.Fatalf("Unexpected next dir name after rotation: got %s, want something else", newNextName)
 	}
-	putIndexDBs()
 }
 
 func assertPathsExist(t *testing.T, paths ...string) {
