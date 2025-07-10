@@ -322,21 +322,28 @@ func logMessage(level, msg string, skipframes int) {
 }
 
 func simplifyFilePath(file string) string {
+	// fast path: cache
 	if result, ok := filePathCache.Load(file); ok {
 		return result.(string)
 	}
+
+	// slow path
 	key := file
-	if n := strings.Index(file, "/vendor/github.com/VictoriaMetrics/VictoriaMetrics"); n >= 0 {
-		file = file[n+1:]
-		// remove possible go module version num like `@v0.0.0-00010101000000-000000000000`
-		if file[49:50] != "/" { // len("/vendor/github.com/VictoriaMetrics/VictoriaMetrics") is 50
-			nextSlash := strings.Index(file[50:], "/")
-			file = file[:49] + file[50+nextSlash:]
-		}
-	} else if n = strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
+	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
 		file = file[n+len("/VictoriaMetrics/"):]
 	}
+
+	// the path may under vendor folder and may contain go module version num.
+	keyword := "/vendor/github.com/VictoriaMetrics/VictoriaMetrics"
+	if vendorIdx := strings.Index(file, "/vendor/github.com/VictoriaMetrics/VictoriaMetrics"); vendorIdx >= 0 {
+		if slashOffset := strings.Index(file[vendorIdx+len(keyword):], "/"); slashOffset > 0 {
+			// VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics@v0.0.0-00010101000000-000000000000/1.go
+			// |  vendorIdx |                   len(keyword)                   |             slashOffset          |   |
+			file = file[:vendorIdx+len(keyword)] + file[vendorIdx+len(keyword)+slashOffset:]
+		}
+	}
 	filePathCache.Store(key, file)
+
 	return file
 }
 

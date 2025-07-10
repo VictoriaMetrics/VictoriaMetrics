@@ -48,13 +48,13 @@ func TestSimplifyFilePath(t *testing.T) {
 	// used in other repo as vendor
 	f(
 		`/VictoriaMetrics/VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go`,
-		"vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
+		"VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
 	)
 
 	// used in other repo as vendor with version num
 	f(
 		`/VictoriaMetrics/VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics@v0.0.0-00010101000000-000000000000/1.go`,
-		"vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
+		"VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
 	)
 
 	// The following tests are for local builds, for which path is the absolute path.
@@ -64,11 +64,11 @@ func TestSimplifyFilePath(t *testing.T) {
 	)
 	f(
 		`/Users/jiekun/repo/github.com/VictoriaMetrics/VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go`,
-		"vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
+		"VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
 	)
 	f(
 		`/Users/jiekun/repo/github.com/VictoriaMetrics/VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics@v0.0.0-00010101000000-000000000000/1.go`,
-		"vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
+		"VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
 	)
 	f(
 		`/Users/jiekun/repo/github.com/VictoriaMetrics/VictoriaMetrics-enterprise/1.go`,
@@ -80,11 +80,11 @@ func TestSimplifyFilePath(t *testing.T) {
 	)
 	f(
 		`/Users/jiekun/repo/github.com/VictoriaMetrics/VictoriaTraces-enterprise/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go`,
-		"vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
+		"VictoriaTraces-enterprise/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
 	)
 	f(
 		`/Users/jiekun/repo/github.com/VictoriaMetrics/VictoriaTraces-enterprise/vendor/github.com/VictoriaMetrics/VictoriaMetrics@v0.0.0-00010101000000-000000000000/1.go`,
-		"vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
+		"VictoriaTraces-enterprise/vendor/github.com/VictoriaMetrics/VictoriaMetrics/1.go",
 	)
 
 	// special cases that user may rename the repo to whatever they want and does not contain `/VictoriaMetrics/`.
