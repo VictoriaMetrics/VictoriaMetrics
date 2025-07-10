@@ -1768,6 +1768,7 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 
 func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
 	if len(metricIDs) == 0 {
+		// Nothing to delete
 		return
 	}
 
@@ -1961,7 +1962,6 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	if err = db.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
 		return nil, err
 	}
-
 	metricNames := make([]string, 0, len(metricIDs))
 	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
 	var metricName []byte
