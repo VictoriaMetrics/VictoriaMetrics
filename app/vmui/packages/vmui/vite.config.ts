@@ -27,6 +27,15 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
               console.error("[proxy error]", err.message);
             });
           }
+        },
+        "^/prometheus/api.*": {
+          target: "https://play.victoriametrics.com/select/0/",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
         }
       };
     }
