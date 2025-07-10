@@ -58,16 +58,16 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 // Due to second prescision of config reload metric, config cannot be reloaded more than 1 time in a second
 func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 	t.Helper()
-	ct := int(time.Now().Unix())
 	if err := os.WriteFile(app.configFilePath, []byte(configFileYAML), os.ModePerm); err != nil {
 		t.Fatalf("unexpected error at UpdateConfiguration, cannot write configFile content: %s", err)
 	}
+	numReloadsPrev := app.GetIntMetric(t, "vmauth_config_last_reload_total")
 	if err := app.process.Signal(syscall.SIGHUP); err != nil {
 		t.Fatalf("unexpected signal error: %s", err)
 	}
-	for range 10 {
-		ts := app.GetIntMetric(t, "vmauth_config_last_reload_success_timestamp_seconds")
-		if ts < ct {
+	for range 20 {
+		numReloads := app.GetIntMetric(t, "vmauth_config_last_reload_total")
+		if numReloads == numReloadsPrev {
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
