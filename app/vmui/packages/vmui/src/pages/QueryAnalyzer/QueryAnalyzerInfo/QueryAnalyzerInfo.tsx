@@ -1,4 +1,4 @@
-import  { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { DataAnalyzerType } from "../index";
 import {
   ClockIcon,

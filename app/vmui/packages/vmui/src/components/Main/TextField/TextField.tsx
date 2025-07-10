@@ -1,4 +1,4 @@
-import  {
+import {
   FC,
   useEffect,
   useRef,

@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { Data, HeadCell } from "../types";
 import LineProgress from "../../../../components/Main/LineProgress/LineProgress";
 import { PlayCircleOutlineIcon } from "../../../../components/Main/Icons";

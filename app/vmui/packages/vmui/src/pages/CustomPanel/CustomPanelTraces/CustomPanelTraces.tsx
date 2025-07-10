@@ -1,6 +1,6 @@
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import TracingsView from "../../../components/TraceQuery/TracingsView";
-import  { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "preact/compat";
 import Trace from "../../../components/TraceQuery/Trace";
 import { DisplayType } from "../../../types";
 

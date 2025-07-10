@@ -1,4 +1,4 @@
-import  { FC, useState } from "preact/compat";
+import { FC, useState } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import "./style.scss";

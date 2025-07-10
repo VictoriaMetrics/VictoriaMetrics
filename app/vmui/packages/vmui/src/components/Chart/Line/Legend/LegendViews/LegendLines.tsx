@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import LegendItem from "../LegendItem/LegendItem";
 import { LegendProps } from "../LegendGroup";
 

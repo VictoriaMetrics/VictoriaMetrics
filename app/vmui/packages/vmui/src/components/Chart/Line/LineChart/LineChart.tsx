@@ -1,4 +1,4 @@
-import  { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState } from "preact/compat";
 import uPlot, {
   AlignedData as uPlotData,
   Options as uPlotOptions,

@@ -1,4 +1,4 @@
-import  { FC } from "react";
+import { FC } from "react";
 import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
 import { Data } from "./Table/types";

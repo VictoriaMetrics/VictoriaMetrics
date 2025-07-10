@@ -1,5 +1,5 @@
 import Header from "../Header/Header";
-import  { FC, useEffect } from "preact/compat";
+import { FC, useEffect } from "preact/compat";
 import { Outlet, useLocation, useSearchParams } from "react-router-dom";
 import qs from "qs";
 import "../MainLayout/style.scss";

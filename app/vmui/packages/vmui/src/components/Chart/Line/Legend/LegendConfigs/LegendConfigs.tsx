@@ -1,4 +1,4 @@
-import  { FC, Fragment, useMemo } from "preact/compat";
+import { FC, Fragment, useMemo } from "preact/compat";
 import Switch from "../../../../Main/Switch/Switch";
 import { LegendDisplayType, useLegendView } from "../hooks/useLegendView";
 import { useHideDuplicateFields } from "../hooks/useHideDuplicateFields";

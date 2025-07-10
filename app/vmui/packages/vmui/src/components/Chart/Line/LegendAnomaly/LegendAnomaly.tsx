@@ -1,4 +1,4 @@
-import  { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { ForecastType, SeriesItem } from "../../../../types";
 import { anomalyColors } from "../../../../utils/color";
 import "./style.scss";

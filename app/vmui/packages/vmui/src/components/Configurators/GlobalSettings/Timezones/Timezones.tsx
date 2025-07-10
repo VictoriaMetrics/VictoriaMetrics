@@ -1,4 +1,4 @@
-import  { FC, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "preact/compat";
+import { FC, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "preact/compat";
 import { getBrowserTimezone, getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
 import { ArrowDropDownIcon } from "../../../Main/Icons";
 import classNames from "classnames";

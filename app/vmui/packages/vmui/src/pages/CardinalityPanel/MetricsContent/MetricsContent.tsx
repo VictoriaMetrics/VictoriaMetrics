@@ -1,4 +1,4 @@
-import  { FC } from "react";
+import { FC } from "react";
 import EnhancedTable from "../Table/Table";
 import TableCells from "../Table/TableCells/TableCells";
 import { Data, HeadCell } from "../Table/types";

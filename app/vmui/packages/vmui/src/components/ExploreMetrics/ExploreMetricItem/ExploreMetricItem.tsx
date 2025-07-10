@@ -1,4 +1,4 @@
-import  { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import ExploreMetricItemGraph from "../ExploreMetricGraph/ExploreMetricItemGraph";
 import ExploreMetricItemHeader from "../ExploreMetricItemHeader/ExploreMetricItemHeader";
 import "./style.scss";

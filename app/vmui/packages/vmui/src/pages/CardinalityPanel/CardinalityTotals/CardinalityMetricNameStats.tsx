@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { InfoOutlinedIcon } from "../../../components/Main/Icons";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { MetricNameStats } from "../types";

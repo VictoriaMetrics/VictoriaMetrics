@@ -1,4 +1,4 @@
-import  { ReactNode } from "react";
+import { ReactNode } from "react";
 import classNames from "classnames";
 import "./style.scss";
 import { FC } from "preact/compat";

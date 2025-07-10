@@ -1,4 +1,4 @@
-import  { FC, useState } from "preact/compat";
+import { FC, useState } from "preact/compat";
 import LineLoader from "../../components/Main/LineLoader/LineLoader";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";

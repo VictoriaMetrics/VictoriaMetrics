@@ -1,4 +1,4 @@
-import  { FC, useMemo, useRef, useState } from "preact/compat";
+import { FC, useMemo, useRef, useState } from "preact/compat";
 import { InstantMetricResult } from "../../../api/types";
 import { InstantDataSeries } from "../../../types";
 import { useSortedCategories } from "../../../hooks/useSortedCategories";

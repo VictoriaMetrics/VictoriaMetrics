@@ -1,4 +1,4 @@
-import  { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";

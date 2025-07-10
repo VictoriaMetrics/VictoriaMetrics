@@ -1,4 +1,4 @@
-import  { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState } from "preact/compat";
 import { MouseEvent } from "react";
 import LineProgress from "../../Main/LineProgress/LineProgress";
 import Trace from "../Trace";

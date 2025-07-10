@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { LegendItemType } from "../../../../types";
 import "./style.scss";
 import LegendGroup from "./LegendGroup";

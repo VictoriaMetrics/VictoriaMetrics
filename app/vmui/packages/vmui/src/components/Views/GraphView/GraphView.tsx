@@ -1,4 +1,4 @@
-import  { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
 import LineChart from "../../Chart/Line/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";

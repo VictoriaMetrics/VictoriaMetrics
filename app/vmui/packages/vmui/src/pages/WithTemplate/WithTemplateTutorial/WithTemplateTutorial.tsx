@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import "./style.scss";
 import CodeExample from "../../../components/Main/CodeExample/CodeExample";
 

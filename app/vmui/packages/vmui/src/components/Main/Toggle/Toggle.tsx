@@ -1,4 +1,4 @@
-import  { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import { ReactNode } from "react";
 import "./style.scss";

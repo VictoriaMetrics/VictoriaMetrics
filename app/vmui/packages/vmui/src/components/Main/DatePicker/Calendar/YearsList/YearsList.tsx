@@ -1,4 +1,4 @@
-import  { FC, useEffect, useMemo } from "preact/compat";
+import { FC, useEffect, useMemo } from "preact/compat";
 import dayjs, { Dayjs } from "dayjs";
 import classNames from "classnames";
 

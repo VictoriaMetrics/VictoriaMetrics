@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { ReactNode } from "react";
 import classNames from "classnames";
 

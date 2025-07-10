@@ -1,4 +1,4 @@
-import  { FC, RefObject } from "react";
+import { FC, RefObject } from "react";
 import GraphTab from "./GraphTab";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import TableTab from "./TableTab";

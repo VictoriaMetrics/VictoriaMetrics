@@ -1,4 +1,4 @@
-import  { FC, useEffect, useMemo } from "preact/compat";
+import { FC, useEffect, useMemo } from "preact/compat";
 import Select from "../../Main/Select/Select";
 import "./style.scss";
 import { GRAPH_SIZES } from "../../../constants/graph";

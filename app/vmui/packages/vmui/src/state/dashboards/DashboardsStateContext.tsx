@@ -1,4 +1,4 @@
-import  { createContext, FC, useContext, useMemo, useReducer } from "preact/compat";
+import { createContext, FC, useContext, useMemo, useReducer } from "preact/compat";
 import { DashboardsAction, DashboardsState, initialDashboardsState, reducer } from "./reducer";
 
 import { Dispatch } from "react";

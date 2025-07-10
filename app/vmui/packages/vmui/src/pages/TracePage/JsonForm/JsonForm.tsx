@@ -1,4 +1,4 @@
-import  { FC, useState, useMemo } from "preact/compat";
+import { FC, useState, useMemo } from "preact/compat";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
 import Button from "../../../components/Main/Button/Button";

@@ -1,4 +1,4 @@
-import  { createContext, FC, useContext, useMemo, useReducer } from "preact/compat";
+import { createContext, FC, useContext, useMemo, useReducer } from "preact/compat";
 import { LogsAction, LogsState, initialLogsState, reducer } from "./reducer";
 import { Dispatch } from "react";
 

@@ -1,4 +1,4 @@
-import  { FC, memo } from "preact/compat";
+import { FC, memo } from "preact/compat";
 import { LogoShortIcon } from "../../components/Main/Icons";
 import "./style.scss";
 import { footerLinksByDefault } from "../../constants/footerLinks";

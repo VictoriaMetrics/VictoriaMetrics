@@ -1,4 +1,4 @@
-import  { forwardRef, useCallback, useImperativeHandle, useState } from "preact/compat";
+import { forwardRef, useCallback, useImperativeHandle, useState } from "preact/compat";
 import { DisplayType, ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import Tooltip from "../../../Main/Tooltip/Tooltip";

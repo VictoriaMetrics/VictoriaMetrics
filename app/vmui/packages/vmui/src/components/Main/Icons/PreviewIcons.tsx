@@ -1,4 +1,4 @@
-import  { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import * as icons from "./index";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import "./style.scss";
