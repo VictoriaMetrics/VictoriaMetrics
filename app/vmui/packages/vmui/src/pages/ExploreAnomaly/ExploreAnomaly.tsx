@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import  { FC, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import { ForecastType } from "../../types";

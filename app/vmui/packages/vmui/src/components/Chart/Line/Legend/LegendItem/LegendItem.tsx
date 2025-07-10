@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import  { FC, useMemo } from "preact/compat";
 import { MouseEvent } from "react";
 import { LegendItemType } from "../../../../../types";
 import "./style.scss";

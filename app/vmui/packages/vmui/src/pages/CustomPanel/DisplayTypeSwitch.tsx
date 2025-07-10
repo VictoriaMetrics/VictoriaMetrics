@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import  { FC } from "preact/compat";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { ChartIcon, CodeIcon, TableIcon } from "../../components/Main/Icons";
 import Tabs from "../../components/Main/Tabs/Tabs";

@@ -1,4 +1,4 @@
-import React, { FC, useRef } from "preact/compat";
+import  { FC, useRef } from "preact/compat";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";

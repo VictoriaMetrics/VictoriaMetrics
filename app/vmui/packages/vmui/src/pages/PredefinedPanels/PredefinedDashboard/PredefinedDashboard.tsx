@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import  { FC, useEffect, useMemo, useState } from "preact/compat";
 import { MouseEvent as ReactMouseEvent, useCallback } from "react";
 import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";

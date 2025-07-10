@@ -1,4 +1,4 @@
-import React, { FC, useState, useMemo } from "react";
+import  { FC, useState, useMemo } from "react";
 import { TopQuery } from "../../../types";
 import { getComparator, stableSort } from "../../../components/Table/helpers";
 import { TopQueryPanelProps } from "../TopQueryPanel/TopQueryPanel";

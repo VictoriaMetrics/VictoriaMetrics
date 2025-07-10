@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import  { FC } from "react";
 import GraphView from "../../../components/Views/GraphView/GraphView";
 import GraphTips from "../../../components/Chart/GraphTips/GraphTips";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";

@@ -30,24 +30,6 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
         }
       };
     }
-    case "LOGS": {
-      return {
-        "^/select/.*": {
-          target: "https://play-vmlogs.victoriametrics.com",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              proxyReq.removeHeader("AccountID");
-              proxyReq.removeHeader("ProjectID");
-            });
-
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          }
-        }
-      };
-    }
     default: {
       return undefined;
     }

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import  { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { ArrowDownIcon, RestartIcon, TimelineIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";

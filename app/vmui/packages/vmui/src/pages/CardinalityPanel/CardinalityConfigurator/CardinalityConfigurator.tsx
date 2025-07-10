@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "react";
+import  { FC, useMemo } from "react";
 import { PlayIcon, QuestionIcon, RestartIcon, TipIcon, WikiIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";

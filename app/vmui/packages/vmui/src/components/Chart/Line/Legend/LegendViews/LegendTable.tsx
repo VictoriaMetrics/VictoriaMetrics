@@ -1,10 +1,9 @@
-import React, { FC, useMemo } from "preact/compat";
+import  { FC, useMemo } from "preact/compat";
 import { LegendProps } from "../LegendGroup";
 import "./style.scss";
 import { LegendItemType } from "../../../../../types";
 import { MouseEvent } from "react";
 import classNames from "classnames";
-import get from "lodash.get";
 import { STATS_ORDER } from "../../../../../constants/graph";
 import { useShowStats } from "../hooks/useShowStats";
 
@@ -72,7 +71,7 @@ const LegendTable: FC<LegendProps> = ({ labels, duplicateFields, onChange }) => 
                   className="vm-legend-table-col"
                 >
                   <span className="vm-legend-table-col__content">
-                    {get(row, col.key)}
+                    {col.key in row ? row[col.key as keyof typeof row] : ""}
                   </span>
                 </td>
               ))}

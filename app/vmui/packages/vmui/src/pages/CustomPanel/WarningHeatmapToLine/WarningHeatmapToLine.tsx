@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import  { FC } from "preact/compat";
 import Alert from "../../../components/Main/Alert/Alert";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
 import {

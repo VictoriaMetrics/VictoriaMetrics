@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import  { FC, useState } from "preact/compat";
 import { MouseEvent } from "react";
 import { Data, Order, TableProps, } from "./types";
 import { EnhancedTableHead } from "./TableHead";

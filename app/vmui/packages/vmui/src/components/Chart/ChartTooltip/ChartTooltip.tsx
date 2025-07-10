@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useRef, useState, createPortal } from "preact/compat";
+import  { FC, useCallback, useEffect, useRef, useState, createPortal } from "preact/compat";
 import { MouseEvent as ReactMouseEvent } from "react";
 import useEventListener from "../../../hooks/useEventListener";
 import classNames from "classnames";

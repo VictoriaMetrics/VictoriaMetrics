@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo } from "react";
+import  { FC, useEffect, useMemo } from "react";
 import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";

@@ -1,5 +1,3 @@
-import { APP_TYPE_LOGS } from "../constants/appType";
-
 const router = {
   home: "/",
   metrics: "/metrics",
@@ -37,9 +35,9 @@ export interface RouterOptions {
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !APP_TYPE_LOGS,
-    timeSelector: !APP_TYPE_LOGS,
-    executionControls: !APP_TYPE_LOGS,
+    stepControl: true,
+    timeSelector: true,
+    executionControls: true,
   }
 };
 

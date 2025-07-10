@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import  { FC, useState, useEffect } from "preact/compat";
 import { ArrowDownIcon } from "../Icons";
 import "./style.scss";
 import { ReactNode } from "react";

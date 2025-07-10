@@ -3,7 +3,7 @@ import { IndexHtmlTransform } from "vite";
 
 /**
  * Vite plugin to dynamically load index.html based on the current mode.
- * If a specific mode-based index file (e.g., index.victorialogs.html) exists, it is used.
+ * If a specific mode-based index file (e.g., index.vmanomaly.html) exists, it is used.
  * Otherwise, the default index.html is loaded.
  */
 export default function dynamicIndexHtmlPlugin({ mode }) {

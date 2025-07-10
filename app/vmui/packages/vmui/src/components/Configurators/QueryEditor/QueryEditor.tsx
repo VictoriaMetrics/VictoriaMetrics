@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import  { FC, useEffect, useRef, useState } from "preact/compat";
 import { ErrorTypes } from "../../../types";
 import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
 import "./style.scss";

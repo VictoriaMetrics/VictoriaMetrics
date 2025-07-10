@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import  { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { DisplayType, PanelSettings } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import GraphView from "../../../components/Views/GraphView/GraphView";

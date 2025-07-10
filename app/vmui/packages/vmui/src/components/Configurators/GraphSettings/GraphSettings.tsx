@@ -1,4 +1,4 @@
-import React, { FC, useRef } from "preact/compat";
+import  { FC, useRef } from "preact/compat";
 import AxesLimitsConfigurator from "./AxesLimitsConfigurator/AxesLimitsConfigurator";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { SettingsIcon } from "../../Main/Icons";

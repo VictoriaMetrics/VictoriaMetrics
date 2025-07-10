@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import  { FC } from "preact/compat";
 import ChartTooltip, { ChartTooltipProps } from "./ChartTooltip";
 import "./style.scss";
 

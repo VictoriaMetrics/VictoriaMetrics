@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import  { FC, useRef, useState } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../../components/Main/Icons";

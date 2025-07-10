@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import  { FC, useState } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import router from "./router";
 import AppContextProvider from "./contexts/AppContextProvider";

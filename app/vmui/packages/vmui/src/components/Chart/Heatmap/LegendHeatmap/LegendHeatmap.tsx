@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import  { FC, useEffect, useMemo, useState } from "preact/compat";
 import { gradMetal16 } from "../../../../utils/uplot";
 import "./style.scss";
 import { ChartTooltipProps } from "../../ChartTooltip/ChartTooltip";

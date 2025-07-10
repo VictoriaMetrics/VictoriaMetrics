@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useMemo } from "preact/compat";
+import  { FC, useCallback, useMemo } from "preact/compat";
 import debounce from "lodash.debounce";
 import { AxisRange, YaxisState } from "../../../../state/graph/reducer";
 import "./style.scss";

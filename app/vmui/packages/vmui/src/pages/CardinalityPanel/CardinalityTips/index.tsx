@@ -1,5 +1,5 @@
 import { TipIcon } from "../../../components/Main/Icons";
-import React, { FC } from "preact/compat";
+import  { FC } from "preact/compat";
 import { ReactNode } from "react";
 import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 import "./style.scss";

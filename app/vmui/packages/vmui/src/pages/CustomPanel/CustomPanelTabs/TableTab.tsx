@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import  { FC } from "react";
 import { InstantMetricResult } from "../../../api/types";
 import { createPortal, useMemo, useState } from "preact/compat";
 import TableView from "../../../components/Views/TableView/TableView";
