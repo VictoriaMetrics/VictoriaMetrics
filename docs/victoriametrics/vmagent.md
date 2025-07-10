@@ -596,6 +596,14 @@ in order to compare it to the current response body. The memory usage may be red
 When staleness tracking is disabled, then `vmagent` doesn't track the number of new time series per each scrape,
 e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatically-generated-metrics) for details.
 
+## Metadata support
+
+By default, `vmagent` drops metric metadata that exposed by target in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). To enable sending metadata to configured `-remoteWrite.url`, set `-remoteWrite.enableMetadata=true`.
+
+Apart from the native metadata fields, vmagent also attaches tenant info to the metadata when `-enableMultitenantHandlers` is set and data is sent via the multitenant endpoints (/insert/<accountID>/<suffix>), allowing storing metadata under different tenants in VictoriaMetrics cluster.
+
+Please note, sending metadata requires extra memory, disk space, and network transmissions.
+
 ## Stream parsing mode
 
 By default, `vmagent` parses the full response from the scrape target, applies [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
@@ -1935,6 +1943,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Empty values are set to false.
   -remoteWrite.dropSamplesOnOverload
      Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence
+  -remoteWrite.enableMetadata
+     Whether to send metadata to the configured remoteWrite.url, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array

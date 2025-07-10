@@ -658,3 +658,113 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 		},
 	})
 }
+
+func TestMetadataRowsUnmarshalFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var mms MetadataRows
+		mms.Unmarshal(s)
+		if len(mms.Rows) != 0 {
+			t.Fatalf("unexpected number of metadata rows parsed; got %d; want 0;\nrows:%#v", len(mms.Rows), mms.Rows)
+		}
+
+		// Try again
+		mms.Unmarshal(s)
+		if len(mms.Rows) != 0 {
+			t.Fatalf("unexpected number of metadata rows parsed; got %d; want 0;\nrows:%#v", len(mms.Rows), mms.Rows)
+		}
+	}
+
+	// Empty lines and comments
+	f("")
+	f(" ")
+	f("\t")
+	f("\t  \r")
+	f("\t\t  \n\n  # foobar")
+	f("#foobar")
+	f("#TYPE foobar gauge")
+	f("#HELP foobar It's a test metric.")
+	f("#  TYPE foobar gauge")
+	f("## HELP foobar It's a test metric.")
+	f("## TYPE foobar gauge")
+	f("# TYPE foobar")
+	f("# TYPE foobar ")
+	f("# TYPE foobar badType")
+	f("# TEST foobar counter")
+}
+
+func TestMetadataRowsUnmarshalSuccess(t *testing.T) {
+	f := func(s string, rowsExpected *MetadataRows) {
+		t.Helper()
+		var mms MetadataRows
+		mms.Unmarshal(s)
+		if !reflect.DeepEqual(mms.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", mms.Rows, rowsExpected.Rows)
+		}
+
+		// Try unmarshaling again
+		mms.Unmarshal(s)
+		if !reflect.DeepEqual(mms.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", mms.Rows, rowsExpected.Rows)
+		}
+	}
+
+	// Empty line or comment
+	f("", &MetadataRows{})
+	f("\r", &MetadataRows{})
+	f("\n\n", &MetadataRows{})
+	f("\n\r\n", &MetadataRows{})
+	f("\t  \t\n\r\n#foobar\n  # baz", &MetadataRows{})
+
+	f(`
+# TYPE foobar counter
+# HELP foobar
+	`, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "foobar",
+				Type:   1,
+			},
+			{
+				Metric: "foobar",
+				Help:   "",
+			},
+		},
+	})
+
+	f(`#                                    _                                            _
+#   ___ __ _ ___ ___  __ _ _ __   __| |_ __ __ _        _____  ___ __   ___  _ __| |_ ___ _ __
+`+"#  / __/ _` / __/ __|/ _` | '_ \\ / _` | '__/ _` |_____ / _ \\ \\/ / '_ \\ / _ \\| '__| __/ _ \\ '__|\n"+`
+# | (_| (_| \__ \__ \ (_| | | | | (_| | | | (_| |_____|  __/>  <| |_) | (_) | |  | ||  __/ |
+#  \___\__,_|___/___/\__,_|_| |_|\__,_|_|  \__,_|      \___/_/\_\ .__/ \___/|_|   \__\___|_|
+#                                                               |_|
+#
+# TYPE cassandra_token_ownership_ratio gauge
+# HELP cassandra_token_ownership_ratio The ratio of Cassandra token ownership.
+cassandra_token_ownership_ratio 78.9`, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Type:   2,
+			},
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Help:   "The ratio of Cassandra token ownership.",
+			},
+		},
+	})
+
+	// Multi lines
+	f("# TYPE cassandra_token_ownership_ratio gauge\n# HELP cassandra_token_ownership_ratio The ratio of Cassandra token ownership.\ncassandra_token_ownership_ratio 78.9\n ##", &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Type:   2,
+			},
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Help:   "The ratio of Cassandra token ownership.",
+			},
+		},
+	})
+}

@@ -47,6 +47,8 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 				MetricFamilyName: md.MetricFamilyName,
 				Help:             md.Help,
 				Unit:             md.Unit,
+				AccountID:        md.AccountID,
+				ProjectID:        md.ProjectID,
 			})
 		}
 
@@ -139,6 +141,8 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			MetricFamilyName: "process_cpu_seconds_total",
 			Help:             "Total user and system CPU time spent in seconds",
 			Unit:             "seconds",
+			ProjectID:        123,
+			AccountID:        456,
 		},
 	}
 	data = wrm.MarshalProtobuf(data[:0])
@@ -193,6 +197,8 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			MetricFamilyName: "process_cpu_seconds_total",
 			Help:             "Total user and system CPU time spent in seconds",
 			Unit:             "seconds",
+			ProjectID:        123,
+			AccountID:        456,
 		},
 	}
 	data = wrm.MarshalProtobuf(data[:0])
@@ -207,6 +213,8 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			MetricFamilyName: "process_cpu_seconds_total",
 			Help:             "Total user and system CPU time spent in seconds",
 			Unit:             "seconds",
+			ProjectID:        123,
+			AccountID:        456,
 		},
 	}
 	data = wrm.MarshalProtobuf(data[:0])
