@@ -256,27 +256,27 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	f([]string{"a", "b", "c", "def"}, []string{"a", "b", "c", "def"})
 	f([]string{"\x00", "\x00b", "\x00c", "\x00def"}, []string{"\x00", "\x00b", "\x00c", "\x00def"})
 	f([]string{
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
 	}, []string{
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
 	})
 	f([]string{
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
-		y(0, 0, "", "", []uint64{0}),
-		y(0, 0, "", "", []uint64{0}),
-		y(0, 0, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
 	}, []string{
-		x(0, 0, "", "", []uint64{0}),
-		x(0, 0, "", "", []uint64{0}),
-		y(0, 0, "", "", []uint64{0}),
-		y(0, 0, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		x(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
 	})
 	f([]string{
 		x(1, 2, "", "", []uint64{0}),
@@ -673,6 +673,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	var tsids []TSID
 	tenants := make(map[string]struct{})
 
+	// Usage of 0:0 is ok, since getTSIDByMetricName uses accountID and projectID from metric name.
 	is := db.getIndexSearch(0, 0, noDeadline)
 
 	date := uint64(timestamp) / msecPerDay
@@ -760,6 +761,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		mn.sortTags()
 		metricName := mn.Marshal(nil)
 
+		// Usage of 0:0 is ok, since getTSIDByMetricName uses accountID and projectID from metric name.
 		is := db.getIndexSearch(0, 0, noDeadline)
 		if !is.getTSIDByMetricName(&genTSID, metricName, uint64(timestamp)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
@@ -2264,14 +2266,16 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	s := MustOpenStorage(path, OpenOptions{})
 	db, putIndexDB := s.getCurrIndexDB()
 
-	is := db.getIndexSearch(0, 0, noDeadline)
-
 	// Create a bunch of per-day time series
 	const (
 		days                = 6
 		tenant2IngestionDay = 8
 		metricsPerDay       = 1000
+		accountID1          = 1
+		accountID2          = 2
+		projectID           = 34
 	)
+	is := db.getIndexSearch(accountID1, projectID, noDeadline)
 	rotationDay := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC)
 	rotationMillis := uint64(rotationDay.UnixMilli())
 	rotationDate := rotationMillis / msecPerDay
@@ -2283,9 +2287,11 @@ func TestSearchContainsTimeRange(t *testing.T) {
 
 	sort.Strings(labelNames)
 
-	newMN := func(name string, day, metric int) MetricName {
+	newMN := func(accountID, projectID uint32, name string, day, metric int) MetricName {
 		var mn MetricName
 		mn.MetricGroup = []byte(name)
+		mn.AccountID = accountID
+		mn.ProjectID = projectID
 		mn.AddTag(
 			"constant",
 			"const",
@@ -2306,13 +2312,13 @@ func TestSearchContainsTimeRange(t *testing.T) {
 		return mn
 	}
 
-	// ingest metrics for tenant 0:0
+	// ingest metrics for first tenant
 	for day := 0; day < days; day++ {
 		date := rotationDate - uint64(day)
 
 		var metricIDs uint64set.Set
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric", day, metric)
+			mn := newMN(accountID1, projectID, "testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
@@ -2327,16 +2333,14 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	db.putIndexSearch(is)
 
 	// ingest metrics for tenant 1:1
-	isTenant2 := db.getIndexSearch(1, 1, noDeadline)
+	isTenant2 := db.getIndexSearch(accountID2, projectID, noDeadline)
 	{
 		var metricIDs uint64set.Set
-		// ingestion day must be outside of tenant 0:0 data ingestion
+		// ingestion day must be outside of the first tenant data ingestion
 		date := rotationDate - uint64(tenant2IngestionDay)
 
 		for metric := range metricsPerDay {
-			mn := newMN("testMetric2", tenant2IngestionDay, metric)
-			mn.AccountID = 1
-			mn.ProjectID = 1
+			mn := newMN(accountID2, projectID, "testMetric2", tenant2IngestionDay, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
 			if !isTenant2.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
@@ -2352,7 +2356,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	// Flush index to disk, so it becomes visible for search
 	s.DebugFlush()
 
-	is2 := db.getIndexSearch(0, 0, noDeadline)
+	is2 := db.getIndexSearch(accountID1, projectID, noDeadline)
 
 	// Check that all the metrics are found for all the days.
 	for date := rotationDate - days + 1; date <= rotationDate; date++ {
@@ -2369,8 +2373,8 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	db.putIndexSearch(is2)
 	putIndexDB()
 
-	// Check that all metrics for tenant 2 are found at ingestion day
-	is2Tenant2 := db.getIndexSearch(1, 1, noDeadline)
+	// Check that all metrics for the second tenant are found at ingestion day
+	is2Tenant2 := db.getIndexSearch(accountID2, projectID, noDeadline)
 	{
 		date := rotationDate - uint64(tenant2IngestionDay+1)
 		metricIDs, err := is2Tenant2.getMetricIDsForDate(date, metricsPerDay)
@@ -2378,7 +2382,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if !perDayMetricIDs[date].Equal(metricIDs) {
-			t.Fatalf("unexpected 1:1 tenant metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+			t.Fatalf("unexpected %d:%d tenant metricIDs found;\ngot\n%d\nwant\n%d", accountID2, projectID, metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
 		}
 	}
 	db.putIndexSearch(is2Tenant2)
@@ -2387,9 +2391,9 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	s.mustRotateIndexDB(rotationDay)
 	db, putIndexDB = s.getCurrIndexDB()
 
-	isExtTenant2 := db.extDB.getIndexSearch(1, 1, noDeadline)
+	isExtTenant2 := db.extDB.getIndexSearch(accountID2, projectID, noDeadline)
 
-	// search for range covers metrics for 1:1 at prev index
+	// search for range covers metrics for the second tenant at prev index
 	tr := TimeRange{
 		MinTimestamp: int64(rotationMillis - msecPerDay*(tenant2IngestionDay) + 1),
 		MaxTimestamp: int64(rotationMillis),
@@ -2397,7 +2401,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	if !isExtTenant2.containsTimeRange(tr) {
 		t.Fatalf("expected to have given time range at prev IndexDB")
 	}
-	// search for range missing for 1:1 at prev index
+	// search for range missing for the second tenant at prev index
 	tr = TimeRange{
 		MinTimestamp: int64(rotationMillis - msecPerDay*(tenant2IngestionDay-1)),
 		MaxTimestamp: int64(rotationMillis),
@@ -2412,14 +2416,14 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	db.extDB.minMissingTimestampByKeyLock.Unlock()
 
 	if minMissingTimetamp != tr.MinTimestamp {
-		t.Fatalf("unexpected minMissingTimestamp for 1:1 tenant got %d, want %d", minMissingTimetamp, tr.MinTimestamp)
+		t.Fatalf("unexpected minMissingTimestamp for %d:%d tenant got %d, want %d", accountID2, projectID, minMissingTimetamp, tr.MinTimestamp)
 	}
 	db.extDB.putIndexSearch(isExtTenant2)
 
 	// perform search for 0:0 tenant
 	// results of previous search requests shouldn't affect it
 
-	isExt := db.extDB.getIndexSearch(0, 0, noDeadline)
+	isExt := db.extDB.getIndexSearch(accountID1, projectID, noDeadline)
 	// search for range that covers prev indexDB for dates before ingestion
 	tr = TimeRange{
 		MinTimestamp: int64(rotationMillis - msecPerDay*(days)),
@@ -2444,7 +2448,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	db.extDB.minMissingTimestampByKeyLock.Unlock()
 
 	if minMissingTimetamp != tr.MinTimestamp {
-		t.Fatalf("unexpected minMissingTimestamp for 0:0 tenant got %d, want %d", minMissingTimetamp, tr.MinTimestamp)
+		t.Fatalf("unexpected minMissingTimestamp for %d:%d tenant got %d, want %d", accountID1, projectID, minMissingTimetamp, tr.MinTimestamp)
 	}
 
 	db.extDB.putIndexSearch(isExt)

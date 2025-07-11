@@ -818,18 +818,9 @@ func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
 	s := MustOpenStorage(path, OpenOptions{})
 
-	// Verify no label names exist
-	lns, err := s.SearchLabelNames(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("error in SearchLabelNames() at the start: %s", err)
-	}
-	if len(lns) != 0 {
-		t.Fatalf("found non-empty tag keys at the start: %q", lns)
-	}
-
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
-			if err = testStorageDeleteSeries(s, 0); err != nil {
+			if err := testStorageDeleteSeries(s, 0); err != nil {
 				t.Fatalf("unexpected error on iteration %d: %s", i, err)
 			}
 
@@ -867,15 +858,6 @@ func TestStorageDeleteSeries(t *testing.T) {
 		}
 	})
 
-	// Verify no more tag keys exist
-	lns, err = s.SearchLabelNames(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
-	if err != nil {
-		t.Fatalf("error in SearchLabelNames after the test: %s", err)
-	}
-	if len(lns) != 0 {
-		t.Fatalf("found non-empty tag keys after the test: %q", lns)
-	}
-
 	s.MustClose()
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
@@ -890,6 +872,15 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	workerTag := []byte(fmt.Sprintf("workerTag_%d", workerNum))
 	accountID := uint32(workerNum)
 	projectID := uint32(123)
+
+	// Verify no label names exist
+	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchLabelNames() at the start: %s", err)
+	}
+	if len(lns) != 0 {
+		return fmt.Errorf("found non-empty tag keys at the start: %q", lns)
+	}
 
 	lnsAll := make(map[string]bool)
 	lnsAll["__name__"] = true
@@ -936,7 +927,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	}
 
 	// Verify tag keys exist
-	lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err = s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames before metrics removal: %w", err)
 	}
@@ -1006,6 +997,13 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	}
 	if len(tvs) != 0 {
 		return fmt.Errorf("found non-empty tag values for %q after metrics removal: %q", workerTag, tvs)
+	}
+	lns, err = s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchLabelNames after all the metrics are removed: %w", err)
+	}
+	if len(lns) != 0 {
+		return fmt.Errorf("found non-empty tag keys after metrics removal: %q", lns)
 	}
 
 	return nil
@@ -1801,32 +1799,15 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 }
 
 func testGenerateMetricRowsForTenant(accountID, projectID uint32, rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
-	var mrs []MetricRow
-	var mn MetricName
-	mn.Tags = []Tag{
-		{[]byte("job"), []byte("webservice")},
-		{[]byte("instance"), []byte("1.2.3.4")},
-	}
-	for i := 0; i < int(rows); i++ {
-		mn.AccountID = accountID
-		mn.ProjectID = projectID
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
-		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rng.Int63n(timestampMax-timestampMin) + timestampMin
-		value := rng.NormFloat64() * 1e6
-
-		mr := MetricRow{
-			MetricNameRaw: metricNameRaw,
-			Timestamp:     timestamp,
-			Value:         value,
-		}
-		mrs = append(mrs, mr)
-	}
-	return mrs
+	return testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, rows, "metric", TimeRange{timestampMin, timestampMax})
 }
 
 func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
-	return testGenerateMetricRowsWithPrefix(rng, rows, "metric", TimeRange{timestampMin, timestampMax})
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	return testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, rows, "metric", TimeRange{timestampMin, timestampMax})
 }
 
 func testGenerateMetricRowsWithPrefixForTenantID(rng *rand.Rand, accountID, projectID uint32, rows uint64, prefix string, tr TimeRange) []MetricRow {
@@ -1839,31 +1820,6 @@ func testGenerateMetricRowsWithPrefixForTenantID(rng *rand.Rand, accountID, proj
 	for i := 0; i < int(rows); i++ {
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
-		mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefix, i))
-		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp
-		value := rng.NormFloat64() * 1e6
-
-		mr := MetricRow{
-			MetricNameRaw: metricNameRaw,
-			Timestamp:     timestamp,
-			Value:         value,
-		}
-		mrs = append(mrs, mr)
-	}
-	return mrs
-}
-
-func testGenerateMetricRowsWithPrefix(rng *rand.Rand, rows uint64, prefix string, tr TimeRange) []MetricRow {
-	var mrs []MetricRow
-	var mn MetricName
-	mn.Tags = []Tag{
-		{[]byte("job"), []byte("webservice")},
-		{[]byte("instance"), []byte("1.2.3.4")},
-	}
-	for i := 0; i < int(rows); i++ {
-		mn.AccountID = uint32(rand.Intn(2))
-		mn.ProjectID = uint32(rand.Intn(3))
 		mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefix, i))
 		metricNameRaw := mn.marshalRaw(nil)
 		timestamp := rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp
@@ -2031,43 +1987,55 @@ func testCountAllMetricNamesNoExtDB(tfss *TagFilters, is *indexSearch, tr TimeRa
 }
 
 func TestStorageRotateIndexDB_AddRows(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	op := func(s *Storage) {
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 	}
 
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
 }
 
 func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	op := func(s *Storage) {
 		s.RegisterMetricNames(nil, mrs)
 		s.DebugFlush()
 	}
 
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
 }
 
 func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
-	tfs := NewTagFilters(0, 0)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
@@ -2078,31 +2046,39 @@ func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 		}
 	}
 
-	testRotateIndexDB(t, mrs, op)
+	testRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
 func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	op := func(s *Storage) {
 		_ = s.MustCreateSnapshot()
 	}
 
-	testRotateIndexDB(t, mrs, op)
+	testRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
 func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
-	tfs := NewTagFilters(0, 0)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
@@ -2114,19 +2090,23 @@ func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 		}
 	}
 
-	testRotateIndexDB(t, mrs, op)
+	testRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
 func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchLabelNames(nil, 0, 0, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchLabelNames(nil, accountID, projectID, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
 		}
@@ -2134,15 +2114,19 @@ func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchLabelValues(nil, 0, 0, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchLabelValues(nil, accountID, projectID, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
 		}
@@ -2150,15 +2134,19 @@ func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric.", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchTagValueSuffixes(nil, 0, 0, tr, "", "metric.", '.', 1e6, noDeadline)
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "metric.", '.', 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
 		}
@@ -2166,15 +2154,19 @@ func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric.", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.SearchGraphitePaths(nil, 0, 0, tr, []byte("*.*"), 1e6, noDeadline)
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
 		}
@@ -2182,15 +2174,19 @@ func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.GetSeriesCount(0, 0, noDeadline)
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.GetSeriesCount(accountID, projectID, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
 		}
@@ -2198,16 +2194,20 @@ func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	date := uint64(tr.MinTimestamp) / msecPerDay
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
-		_, err := s.GetTSDBStatus(nil, 0, 0, nil, date, "", 10, 1e6, noDeadline)
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.GetTSDBStatus(nil, accountID, projectID, nil, date, "", 10, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
 		}
@@ -2215,6 +2215,10 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 }
 
 func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	op := func(s *Storage) {
 		// Set readonly so that the background workers started by
 		// notifyReadWriteMode exit early.
@@ -2222,31 +2226,39 @@ func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
 		s.notifyReadWriteMode()
 	}
 
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
 }
 
 func TestStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	op := func(s *Storage) {
 		s.UpdateMetrics(&Metrics{})
 	}
 
-	testRotateIndexDB(t, []MetricRow{}, op)
+	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
 }
 
 func TestStorageRotateIndexDB_Search(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, 1000, "metric", tr)
-	tfs := NewTagFilters(0, 0)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
 	tfss := []*TagFilters{tfs}
 
-	testRotateIndexDB(t, mrs, func(s *Storage) {
+	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		var search Search
 		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
 		for search.NextMetricBlock() {
@@ -2263,7 +2275,7 @@ func TestStorageRotateIndexDB_Search(t *testing.T) {
 // testRotateIndexDB checks that storage handles gracefully indexDB rotation
 // that happens concurrently with some operation (ingestion or search). The
 // operation is expected to finish successfully and there must be no panics.
-func testRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage)) {
+func testRotateIndexDB(t *testing.T, _, _ uint32, mrs []MetricRow, op func(s *Storage)) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
@@ -2742,8 +2754,10 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
 	const (
-		numDays = 100
-		numRows = 10
+		numDays   = 100
+		numRows   = 10
+		accountID = 12
+		projectID = 34
 	)
 	rng := rand.New(rand.NewSource(1))
 	var (
@@ -2757,9 +2771,9 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		}
 		days = append(days, day)
 		prefix1 := fmt.Sprintf("metric1_%d", i)
-		mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numRows, prefix1, day)...)
+		mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numRows, prefix1, day)...)
 		prefix2 := fmt.Sprintf("metric2_%d", i)
-		mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numRows, prefix2, day)...)
+		mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numRows, prefix2, day)...)
 	}
 
 	type options struct {
@@ -2781,7 +2795,7 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		var tfss []*TagFilters
 		for _, filter := range opts.filters {
 			filter := fmt.Sprintf("%s.*", filter)
-			tfs := NewTagFilters(0, 0)
+			tfs := NewTagFilters(accountID, projectID)
 			if err := tfs.Add(nil, []byte(filter), false, true); err != nil {
 				t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 			}
@@ -4008,6 +4022,11 @@ func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 	defer testRemoveAll(t)
 
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
 	f := func(t *testing.T, disablePerDayIndex bool) {
 		t.Helper()
 
@@ -4016,7 +4035,11 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 		})
 		defer s.MustClose()
 
-		mn := MetricName{MetricGroup: []byte("metric")}
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: []byte("metric"),
+		}
 		mr := MetricRow{MetricNameRaw: mn.marshalRaw(nil)}
 		for range 10 {
 			mr.Timestamp = rand.Int63n(msecPerDay)
@@ -4036,10 +4059,10 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 		if got := s.newTimeseriesCreated.Load(); got != uint64(want) {
 			t.Errorf("unexpected new timeseries count: got %d, want %d", got, want)
 		}
-		if got := testCountAllMetricNames(s, 0, 0, firstUnixDay); got != want {
+		if got := testCountAllMetricNames(s, accountID, projectID, firstUnixDay); got != want {
 			t.Errorf("unexpected metric name count: got %d, want %d", got, want)
 		}
-		if got := testCountAllMetricIDs(s, firstUnixDay); got != want {
+		if got := testCountAllMetricIDs(s, accountID, projectID, firstUnixDay); got != want {
 			t.Errorf("unexpected metric id count: got %d, want %d", got, want)
 		}
 	}
@@ -4058,6 +4081,10 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	f := func(t *testing.T, disablePerDayIndex bool) {
 		t.Helper()
 
+		const (
+			accountID = 12
+			projectID = 34
+		)
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: disablePerDayIndex,
 		})
@@ -4080,7 +4107,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 		// tsidCache contain no metricIDs, therefore the data ingestion will
 		// take slow path.
 
-		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "slow_path", currHourTR)
+		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slow_path", currHourTR)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.updateCurrHourMetricIDs(currHour)
@@ -4094,7 +4121,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 		// First insert samples to populate the tsidCache. The samples belong to
 		// the previous hour, therefore the metricIDs won't be added to
 		// currHourMetricIDs.
-		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "fast_path", prevHourTR)
+		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", prevHourTR)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.updateCurrHourMetricIDs(currHour)
@@ -4104,7 +4131,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 
 		// Now ingest the same metrics. This time the metricIDs will be found in
 		// tsidCache so the ingestion will take the fast path.
-		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "fast_path", currHourTR)
+		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "fast_path", currHourTR)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.updateCurrHourMetricIDs(currHour)
@@ -4119,7 +4146,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 		// First insert samples to populate the index. The samples belong to
 		// the previous hour, therefore the metricIDs won't be added to
 		// currHourMetricIDs.
-		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "slower_path", prevHourTR)
+		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", prevHourTR)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.updateCurrHourMetricIDs(currHour)
@@ -4132,7 +4159,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 
 		// Now ingest the same metrics. This time the metricIDs will be searched
 		// and found in index so the ingestion will take the slower path.
-		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "slower_path", currHourTR)
+		mrs = testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "slower_path", currHourTR)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.updateCurrHourMetricIDs(currHour)
@@ -4151,8 +4178,8 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 
 // testCountAllMetricIDs is a test helper function that counts the IDs of
 // all time series within the given time range.
-func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
-	tfsAll := NewTagFilters(0, 0)
+func testCountAllMetricIDs(s *Storage, accountID, projectID uint32, tr TimeRange) int {
+	tfsAll := NewTagFilters(accountID, projectID)
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
@@ -4221,8 +4248,13 @@ func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool,
 // concurrency, the per-day index setting, and the operation (AddRows or
 // RegisterMetricNames) under test.
 func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
 	f := func(t *testing.T, sameBatchMetricNames, sameRowMetricNames, sameBatchDates, sameRowDates bool) {
-		batches, wantCounts := testGenerateMetricRowBatches(&batchOptions{
+		batches, wantCounts := testGenerateMetricRowBatches(accountID, projectID, &batchOptions{
 			numBatches:           3,
 			numRowsPerBatch:      30,
 			disablePerDayIndex:   disablePerDayIndex,
@@ -4249,7 +4281,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
-		assertCounts(t, s, wantCounts, strict)
+		assertCounts(t, s, accountID, projectID, wantCounts, strict)
 
 		// Rotate indexDB to test the case when TSIDs from tsidCache have the
 		// generation that is older than the generation of the current indexDB.
@@ -4257,7 +4289,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
 		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, wantCounts, strict)
+		assertCounts(t, s, accountID, projectID, wantCounts, strict)
 
 		// Empty the tsidCache to test the case when tsid is retrieved from the
 		// index that belongs to the current generation indexDB.
@@ -4265,7 +4297,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
 		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, wantCounts, strict)
+		assertCounts(t, s, accountID, projectID, wantCounts, strict)
 
 		// Empty the tsidCache and rotate indexDB to test the case when tsid is
 		// retrieved from the index that belongs to the previous generation
@@ -4275,7 +4307,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
 		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, wantCounts, strict)
+		assertCounts(t, s, accountID, projectID, wantCounts, strict)
 
 		s.MustClose()
 	}
@@ -4452,7 +4484,7 @@ type counts struct {
 // can be created when rows are inserted concurrently. In this case `strict`
 // arg can be set to false in order to replace strict equality comparison with
 // `greater or equal`.
-func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
+func assertCounts(t *testing.T, s *Storage, accountID, projectID uint32, want *counts, strict bool) {
 	t.Helper()
 
 	var gotMetrics Metrics
@@ -4473,10 +4505,10 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 	}
 
 	for tr, want := range want.timeRangeCounts {
-		if got := testCountAllMetricNames(s, 0, 0, tr); got != want {
+		if got := testCountAllMetricNames(s, accountID, projectID, tr); got != want {
 			t.Errorf("%v: unexpected metric name count: got %d, want %d", &tr, got, want)
 		}
-		got := testCountAllMetricIDs(s, tr)
+		got := testCountAllMetricIDs(s, accountID, projectID, tr)
 		if strict {
 			if got != want {
 				t.Errorf("%v: unexpected metric ID count: got %d, want %d", &tr, got, want)
@@ -4491,7 +4523,7 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 
 	for date, wantStatus := range want.dateTSDBStatuses {
 		dt := time.UnixMilli(int64(date) * msecPerDay).UTC()
-		gotStatus, err := s.GetTSDBStatus(nil, 0, 0, nil, date, "", 10, 1e6, noDeadline)
+		gotStatus, err := s.GetTSDBStatus(nil, accountID, projectID, nil, date, "", 10, 1e6, noDeadline)
 		if err != nil {
 			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly: %v", dt, err)
 		}
@@ -4523,7 +4555,7 @@ type batchOptions struct {
 // combinations of metric names and dates. The function also returns the counts
 // that the storage is expected to report once the generated batch is ingested
 // into the storage.
-func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
+func testGenerateMetricRowBatches(accountID, projectID uint32, opts *batchOptions) ([][]MetricRow, *counts) {
 	if opts.numBatches <= 0 {
 		panic(fmt.Sprintf("unexpected number of batches: got %d, want > 0", opts.numBatches))
 	}
@@ -4553,8 +4585,8 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 			}
 			mn := MetricName{
 				MetricGroup: []byte(rowMetricName),
-				AccountID:   0,
-				ProjectID:   0,
+				AccountID:   accountID,
+				ProjectID:   projectID,
 			}
 			tr := TimeRange{
 				MinTimestamp: startTime.Add(days * 24 * time.Hour).UnixMilli(),
@@ -4617,6 +4649,11 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 
 func TestStorageMetricTracker(t *testing.T) {
 	defer testRemoveAll(t)
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
 	rng := rand.New(rand.NewSource(1))
 	numRows := uint64(1000)
 	minTimestamp := time.Now().UnixMilli()
@@ -4625,7 +4662,7 @@ func TestStorageMetricTracker(t *testing.T) {
 		MinTimestamp: minTimestamp,
 		MaxTimestamp: maxTimestamp,
 	}
-	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numRows, "metric_", tr)
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numRows, "metric_", tr)
 
 	var gotMetrics Metrics
 	s := MustOpenStorage(t.Name(), OpenOptions{TrackMetricNamesStats: true})
@@ -4642,7 +4679,7 @@ func TestStorageMetricTracker(t *testing.T) {
 	}
 
 	// search query for all ingested metrics
-	tfs := NewTagFilters(0, 0)
+	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add(nil, []byte("metric_.+"), false, true); err != nil {
 		t.Fatalf("unexpected error at tfs add: %s", err)
 	}
