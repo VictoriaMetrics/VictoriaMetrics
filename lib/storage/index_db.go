@@ -1801,34 +1801,6 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	return metricIDs, nil
 }
 
-func mergeSortedMetricIDs(a, b []uint64) []uint64 {
-	if len(b) == 0 {
-		return a
-	}
-	i := 0
-	j := 0
-	result := make([]uint64, 0, len(a)+len(b))
-	for {
-		next := b[j]
-		start := i
-		for i < len(a) && a[i] <= next {
-			i++
-		}
-		result = append(result, a[start:i]...)
-		if len(result) > 0 {
-			last := result[len(result)-1]
-			for j < len(b) && b[j] == last {
-				j++
-			}
-		}
-		if i == len(a) {
-			return append(result, b[j:]...)
-		}
-		a, b = b, a
-		i, j = j, i
-	}
-}
-
 func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, deadline uint64) ([]TSID, error) {
 	qt = qt.NewChild("obtain tsids from %d metricIDs", len(metricIDs))
 	defer qt.Done()
