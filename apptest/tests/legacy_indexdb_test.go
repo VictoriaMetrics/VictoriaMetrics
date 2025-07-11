@@ -174,6 +174,7 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
+				"-search.disableCache=true",
 				"-search.maxStalenessInterval=1m",
 			})
 		},
@@ -181,6 +182,7 @@ func TestLegacySingleBackupRestore(t *testing.T) {
 			return tc.MustStartVmsingle("vmsingle-new", []string{
 				"-storageDataPath=" + storageDataPath,
 				"-retentionPeriod=100y",
+				"-search.disableCache=true",
 				"-search.maxStalenessInterval=1m",
 			})
 		},
@@ -229,6 +231,7 @@ func TestLegacyClusterBackupRestore(t *testing.T) {
 				VminsertFlags:    []string{},
 				VmselectInstance: "vmselect",
 				VmselectFlags: []string{
+					"-search.disableCache=true",
 					"-search.maxStalenessInterval=1m",
 				},
 			})
@@ -249,6 +252,7 @@ func TestLegacyClusterBackupRestore(t *testing.T) {
 				VminsertFlags:    []string{},
 				VmselectInstance: "vmselect",
 				VmselectFlags: []string{
+					"-search.disableCache=true",
 					"-search.maxStalenessInterval=1m",
 				},
 			})
@@ -289,14 +293,7 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 	// below.
 	const numMetrics = 1000
 	start := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).Add(-numMetrics * time.Minute).UnixMilli()
-	noCacheOffset := time.Millisecond
-	end := func() int64 {
-		// Use different end timestamp everytime so that the vmstorage does not
-		// return cached results.
-		noCacheOffset++
-		// With 1000 metrics (one per minute), the time range spans 2 months.
-		return time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).UnixMilli()
-	}
+	end := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).UnixMilli()
 	genData := func(prefix string) (recs []string, wantSeries []map[string]string, wantQueryResults []*at.QueryResult) {
 		recs = make([]string, numMetrics)
 		wantSeries = make([]map[string]string, numMetrics)
@@ -330,7 +327,7 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 			Got: func() any {
 				return app.PrometheusAPIV1Series(t, query, at.QueryOpts{
 					Start: fmt.Sprintf("%d", start),
-					End:   fmt.Sprintf("%d", end()),
+					End:   fmt.Sprintf("%d", end),
 				}).Sort()
 			},
 			Want: &at.PrometheusAPIV1SeriesResponse{
@@ -345,7 +342,7 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 			Got: func() any {
 				return app.PrometheusAPIV1QueryRange(t, query, at.QueryOpts{
 					Start: fmt.Sprintf("%d", start),
-					End:   fmt.Sprintf("%d", end()),
+					End:   fmt.Sprintf("%d", end),
 					Step:  "60s",
 				})
 			},
@@ -456,19 +453,9 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 
 	// Start legacy SUT with storage containing legacy1+new1 data.
 	//
-	// Ensure that the SearchMetricNames() queries return legacy1 data only.
+	// Ensure that the /series and /query_range queries return legacy1 data only.
 	// new1 data is not returned because legacy vmsingle does not know about
 	// partition indexDBs.
-	//
-	// Ensure that query_range queries return both legacy1 data.
-	//
-	// Note that vmsingle also returns new1. This is because the samples are
-	// stored the same way in both legacy and new storage and the corresponding
-	// metric names are retrieved from the metricID -> metricName cache, not
-	// from indexDB.
-	//
-	// TODO(rtm0) The same should be true for the cluster as well, but new1 data
-	// is not returned. Find out why.
 	legacySUT = opts.startLegacySUT()
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1Series, wantLegacy1QueryResults)
 
