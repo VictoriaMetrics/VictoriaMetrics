@@ -16,9 +16,114 @@ var (
 	legacyVmstoragePath = os.Getenv("VM_LEGACY_VMSTORAGE_PATH")
 )
 
+type testLegacyDeleteSeriesOpts struct {
+	startLegacySUT func() at.PrometheusWriteQuerier
+	startNewSUT    func() at.PrometheusWriteQuerier
+	stopLegacySUT  func()
+	stopNewSUT     func()
+}
+
 func TestLegacySingleDeleteSeries(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
+
+	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
+
+	opts := testLegacyDeleteSeriesOpts{
+		startLegacySUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+				"-storageDataPath=" + storageDataPath,
+				"-retentionPeriod=100y",
+				"-search.maxStalenessInterval=1m",
+			})
+		},
+		startNewSUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartVmsingle("vmsingle-new", []string{
+				"-storageDataPath=" + storageDataPath,
+				"-retentionPeriod=100y",
+				"-search.maxStalenessInterval=1m",
+			})
+		},
+		stopLegacySUT: func() {
+			tc.StopApp("vmsingle-legacy")
+		},
+		stopNewSUT: func() {
+			tc.StopApp("vmsingle-new")
+		},
+	}
+
+	testLegacyDeleteSeries(tc, opts)
+}
+
+func TestLegacyClusterDeleteSeries(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	storage1DataPath := filepath.Join(tc.Dir(), "vmstorage1")
+	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
+
+	opts := testLegacyDeleteSeriesOpts{
+		startLegacySUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartCluster(&at.ClusterOptions{
+				Vmstorage1Instance: "vmstorage1-legacy",
+				Vmstorage1Binary:   legacyVmstoragePath,
+				Vmstorage1Flags: []string{
+					"-storageDataPath=" + storage1DataPath,
+					"-retentionPeriod=100y",
+				},
+				Vmstorage2Instance: "vmstorage2-legacy",
+				Vmstorage2Binary:   legacyVmstoragePath,
+				Vmstorage2Flags: []string{
+					"-storageDataPath=" + storage2DataPath,
+					"-retentionPeriod=100y",
+				},
+				VminsertInstance: "vminsert",
+				VminsertFlags:    []string{},
+				VmselectInstance: "vmselect",
+				VmselectFlags: []string{
+					"-search.maxStalenessInterval=1m",
+				},
+			})
+		},
+		startNewSUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartCluster(&at.ClusterOptions{
+				Vmstorage1Instance: "vmstorage1-new",
+				Vmstorage1Flags: []string{
+					"-storageDataPath=" + storage1DataPath,
+					"-retentionPeriod=100y",
+				},
+				Vmstorage2Instance: "vmstorage2-new",
+				Vmstorage2Flags: []string{
+					"-storageDataPath=" + storage2DataPath,
+					"-retentionPeriod=100y",
+				},
+				VminsertInstance: "vminsert",
+				VminsertFlags:    []string{},
+				VmselectInstance: "vmselect",
+				VmselectFlags: []string{
+					"-search.maxStalenessInterval=1m",
+				},
+			})
+		},
+		stopLegacySUT: func() {
+			tc.StopApp("vminsert")
+			tc.StopApp("vmselect")
+			tc.StopApp("vmstorage1-legacy")
+			tc.StopApp("vmstorage2-legacy")
+		},
+		stopNewSUT: func() {
+			tc.StopApp("vminsert")
+			tc.StopApp("vmselect")
+			tc.StopApp("vmstorage1-new")
+			tc.StopApp("vmstorage2-new")
+		},
+	}
+
+	testLegacyDeleteSeries(tc, opts)
+}
+
+func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
+	t := tc.T()
 
 	type want struct {
 		series       []map[string]string
@@ -84,28 +189,6 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 		})
 	}
 
-	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
-
-	// startLegacyVmsingle starts and instance of vmsingle that uses legacy
-	// indexDB.
-	startLegacyVmsingle := func() *at.Vmsingle {
-		return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
-			"-storageDataPath=" + storageDataPath,
-			"-retentionPeriod=100y",
-			"-search.maxStalenessInterval=1m",
-		})
-	}
-
-	// startNewVmsingle starts and instance of vmsingle that uses partition
-	// indexDBs.
-	startNewVmsingle := func() *at.Vmsingle {
-		return tc.MustStartVmsingle("vmsingle-new", []string{
-			"-storageDataPath=" + storageDataPath,
-			"-retentionPeriod=100y",
-			"-search.maxStalenessInterval=1m",
-		})
-	}
-
 	// - start legacy vmsingle
 	// - insert data1
 	// - confirm that metric names and samples are searcheable
@@ -114,11 +197,11 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 	start1 := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 	end1 := time.Date(2000, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
 	data1, want1 := genData("metric", start1, end1, step, 1)
-	legacyVmsingle := startLegacyVmsingle()
-	legacyVmsingle.PrometheusAPIV1ImportPrometheus(t, data1, at.QueryOpts{})
-	legacyVmsingle.ForceFlush(t)
-	assertSearchResults(legacyVmsingle, `{__name__=~".*"}`, start1, end1, "1d", want1)
-	tc.StopApp(legacyVmsingle.Name())
+	legacySUT := opts.startLegacySUT()
+	legacySUT.PrometheusAPIV1ImportPrometheus(t, data1, at.QueryOpts{})
+	legacySUT.ForceFlush(t)
+	assertSearchResults(legacySUT, `{__name__=~".*"}`, start1, end1, "1d", want1)
+	opts.stopLegacySUT()
 
 	// - start new vmsingle
 	// - confirm that data1 metric names and samples are searcheable
@@ -128,30 +211,31 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 	// - confirm that metric names become searcheable again
 	// - confirm that data1 samples are not searchable and data2 samples are searcheable
 
-	newVmsingle := startNewVmsingle()
-	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end1, "1d", want1)
+	newSUT := opts.startNewSUT()
+	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end1, "1d", want1)
 
-	newVmsingle.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
 	wantNoResults := &want{
 		series:       []map[string]string{},
 		queryResults: []*at.QueryResult{},
 	}
-	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end1, "1d", wantNoResults)
+	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end1, "1d", wantNoResults)
 
 	start2 := time.Date(2000, 1, 11, 0, 0, 0, 0, time.UTC).UnixMilli()
 	end2 := time.Date(2000, 1, 20, 0, 0, 0, 0, time.UTC).UnixMilli()
 	data2, want2 := genData("metric", start2, end2, step, 2)
-	newVmsingle.PrometheusAPIV1ImportPrometheus(t, data2, at.QueryOpts{})
-	newVmsingle.ForceFlush(t)
-	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end2, "1d", want2)
+	newSUT.PrometheusAPIV1ImportPrometheus(t, data2, at.QueryOpts{})
+	newSUT.ForceFlush(t)
+	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end2, "1d", want2)
 
 	// - restart new vmsingle
 	// - confirm that metric names still searchable, data1 samples are not
 	//   searchable, and data2 samples are searcheable
 
-	tc.StopApp(newVmsingle.Name())
-	newVmsingle = startNewVmsingle()
-	assertSearchResults(newVmsingle, `{__name__=~".*"}`, start1, end2, "1d", want2)
+	opts.stopNewSUT()
+	newSUT = opts.startNewSUT()
+	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end2, "1d", want2)
+	opts.stopNewSUT()
 }
 
 type testLegacyBackupRestoreOpts struct {
