@@ -757,7 +757,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
-	case "/prometheus/api/v1/notifiers", "/notifiers":
+	case "prometheus/api/v1/notifiers", "prometheus/notifiers":
 		notifiersRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
 			proxyVMAlertRequests(w, r, p.Suffix)
@@ -766,7 +766,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
 		return true
-	case "/prometheus/api/v1/metadata":
+	case "prometheus/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 		metadataRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
