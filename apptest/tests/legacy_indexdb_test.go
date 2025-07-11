@@ -16,6 +16,13 @@ var (
 	legacyVmstoragePath = os.Getenv("VM_LEGACY_VMSTORAGE_PATH")
 )
 
+type testLegacyDeleteSeriesOpts struct {
+	startLegacySUT func() at.PrometheusWriteQuerier
+	startNewSUT    func() at.PrometheusWriteQuerier
+	stopLegacySUT  func()
+	stopNewSUT     func()
+}
+
 func TestLegacySingleDeleteSeries(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -42,9 +49,6 @@ func TestLegacySingleDeleteSeries(t *testing.T) {
 		},
 		stopNewSUT: func() {
 			tc.StopApp("vmsingle-new")
-		},
-		storageDataPaths: []string{
-			storageDataPath,
 		},
 	}
 
@@ -112,10 +116,6 @@ func TestLegacyClusterDeleteSeries(t *testing.T) {
 			tc.StopApp("vmselect")
 			tc.StopApp("vmstorage1-new")
 			tc.StopApp("vmstorage2-new")
-		},
-		storageDataPaths: []string{
-			storage1DataPath,
-			storage2DataPath,
 		},
 	}
 
@@ -236,14 +236,6 @@ func testLegacyDeleteSeries(tc *at.TestCase, opts testLegacyDeleteSeriesOpts) {
 	newSUT = opts.startNewSUT()
 	assertSearchResults(newSUT, `{__name__=~".*"}`, start1, end2, "1d", want2)
 	opts.stopNewSUT()
-}
-
-type testLegacyDeleteSeriesOpts struct {
-	startLegacySUT   func() at.PrometheusWriteQuerier
-	startNewSUT      func() at.PrometheusWriteQuerier
-	stopLegacySUT    func()
-	stopNewSUT       func()
-	storageDataPaths []string
 }
 
 type testLegacyBackupRestoreOpts struct {
