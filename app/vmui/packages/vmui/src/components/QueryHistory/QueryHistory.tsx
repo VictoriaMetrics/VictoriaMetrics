@@ -17,7 +17,7 @@ import { arrayEquals } from "../../utils/array";
 
 interface Props {
   handleSelectQuery: (query: string, index: number) => void
-  historyKey: Extract<StorageKeys, "LOGS_QUERY_HISTORY" | "METRICS_QUERY_HISTORY">;
+  historyKey: Extract<StorageKeys, "METRICS_QUERY_HISTORY">;
 }
 
 export const HistoryTabTypes = {

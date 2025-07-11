@@ -76,16 +76,6 @@ export const getDefaultNavigation = ({
 ];
 
 /**
- * VictoriaLogs navigation menu
- */
-export const getLogsNavigation = (): NavigationItem[] => [
-  {
-    label: routerOptions[router.logs].title,
-    value: router.home,
-  },
-];
-
-/**
  * vmanomaly navigation menu
  */
 export const getAnomalyNavigation = (): NavigationItem[] => [

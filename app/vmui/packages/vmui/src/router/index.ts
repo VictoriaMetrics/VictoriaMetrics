@@ -7,7 +7,6 @@ const router = {
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
-  logs: "/logs",
   activeQueries: "/active-queries",
   queryAnalyzer: "/query-analyzer",
   icons: "/icons",
@@ -89,10 +88,6 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   },
   [router.relabel]: {
     title: "Metric relabel debug",
-    header: {}
-  },
-  [router.logs]: {
-    title: "Logs Explorer",
     header: {}
   },
   [router.activeQueries]: {

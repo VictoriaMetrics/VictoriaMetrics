@@ -1,12 +1,12 @@
 import { FC, useMemo } from "preact/compat";
-import { InstantMetricResult, Logs } from "../../../api/types";
+import { InstantMetricResult } from "../../../api/types";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { TopQuery } from "../../../types";
 import Button from "../../Main/Button/Button";
 import "./style.scss";
 
 export interface JsonViewProps {
-  data: InstantMetricResult[] | TopQuery[] | Logs[];
+  data: InstantMetricResult[] | TopQuery[];
 }
 
 const JsonView: FC<JsonViewProps> = ({ data }) => {
