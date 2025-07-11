@@ -79,6 +79,7 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 // vmsingle located at ../../bin/victoria-metrics and fails the test if the app
 // fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
+	tc.t.Helper()
 	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics", flags)
 }
 
@@ -96,11 +97,19 @@ func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string)
 }
 
 // MustStartVmstorage is a test helper function that starts an instance of
-// vmstorage and fails the test if the app fails to start.
+// vmstorage located at ../../bin/vmstorage and fails the test if the app fails
+// to start.
 func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstorage {
 	tc.t.Helper()
+	return tc.MustStartVmstorageAt(instance, "../../bin/vmstorage", flags)
+}
 
-	app, err := StartVmstorage(instance, flags, tc.cli)
+// MustStartVmstorageAt is a test helper function that starts an instance of
+// vmstorage and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags []string) *Vmstorage {
+	tc.t.Helper()
+
+	app, err := StartVmstorageAt(instance, binary, flags, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -261,8 +270,10 @@ func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 // tests usually come paired with corresponding vmsingle tests.
 type ClusterOptions struct {
 	Vmstorage1Instance string
+	Vmstorage1Binary   string
 	Vmstorage1Flags    []string
 	Vmstorage2Instance string
+	Vmstorage2Binary   string
 	Vmstorage2Flags    []string
 	VminsertInstance   string
 	VminsertFlags      []string
@@ -274,8 +285,15 @@ type ClusterOptions struct {
 func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
-	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
-	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
+	if opts.Vmstorage1Binary == "" {
+		opts.Vmstorage1Binary = "../../bin/vmstorage"
+	}
+	vmstorage1 := tc.MustStartVmstorageAt(opts.Vmstorage1Instance, opts.Vmstorage1Binary, opts.Vmstorage1Flags)
+
+	if opts.Vmstorage2Binary == "" {
+		opts.Vmstorage2Binary = "../../bin/vmstorage"
+	}
+	vmstorage2 := tc.MustStartVmstorageAt(opts.Vmstorage2Instance, opts.Vmstorage2Binary, opts.Vmstorage2Flags)
 
 	opts.VminsertFlags = append(opts.VminsertFlags, []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
