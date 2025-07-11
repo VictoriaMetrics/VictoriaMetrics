@@ -167,7 +167,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 
 	s.reset()
 	s.storage = storage
-	s.idbPrev, s.idbCurr = storage.getIndexDBs()
+	s.idbPrev, s.idbCurr = storage.getPrevAndCurrIndexDBs()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -244,7 +244,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
-	s.storage.putIndexDBs(s.idbPrev, s.idbCurr)
+	s.storage.putPrevAndCurrIndexDBs(s.idbPrev, s.idbCurr)
 	s.reset()
 }
 

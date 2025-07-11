@@ -119,8 +119,7 @@ type indexDB struct {
 	name string
 	tb   *mergeset.Table
 
-	extDB     *indexDB
-	extDBLock sync.Mutex
+	isPrevIDB atomic.Bool
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *workingsetcache.Cache
@@ -260,42 +259,12 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	db.tb.UpdateMetrics(&m.TableMetrics)
 }
 
-// doExtDB calls f for non-nil db.extDB.
-//
-// f isn't called if db.extDB is nil.
-func (db *indexDB) doExtDB(f func(extDB *indexDB)) {
-	db.extDBLock.Lock()
-	extDB := db.extDB
-	if extDB != nil {
-		extDB.incRef()
-	}
-	db.extDBLock.Unlock()
-	if extDB != nil {
-		f(extDB)
-		extDB.decRef()
-	}
+func (db *indexDB) SetIsPrevIDB() {
+	db.isPrevIDB.Store(true)
 }
 
-// hasExtDB returns true if db.extDB != nil
-func (db *indexDB) hasExtDB() bool {
-	db.extDBLock.Lock()
-	ok := db.extDB != nil
-	db.extDBLock.Unlock()
-	return ok
-}
-
-// SetExtDB sets external db to search.
-//
-// It decrements refCount for the previous extDB.
-func (db *indexDB) SetExtDB(extDB *indexDB) {
-	db.extDBLock.Lock()
-	prevExtDB := db.extDB
-	db.extDB = extDB
-	db.extDBLock.Unlock()
-
-	if prevExtDB != nil {
-		prevExtDB.decRef()
-	}
+func (db *indexDB) IsPrevIDB() bool {
+	return db.isPrevIDB.Load()
 }
 
 // MustClose closes db.
@@ -319,7 +288,6 @@ func (db *indexDB) decRef() {
 	tbPath := db.tb.Path()
 	db.tb.MustClose()
 	db.tb = nil
-	db.SetExtDB(nil)
 
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.Stop()
@@ -478,30 +446,6 @@ func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
 	dst = dst[:len(dstBuf)/8]
 
 	return dst
-}
-
-// getTSIDByMetricName fills the dst with TSID for the given metricName at the given date.
-//
-// It returns false if the given metricName isn't found in the indexdb.
-func (is *indexSearch) getTSIDByMetricName(dst *generationTSID, metricName []byte, date uint64) bool {
-	if is.getTSIDByMetricNameNoExtDB(&dst.TSID, metricName, date) {
-		// Fast path - the TSID is found in the current indexdb.
-		dst.generation = is.db.generation
-		return true
-	}
-
-	// Slow path - search for the TSID in the previous indexdb
-	ok := false
-	deadline := is.deadline
-	is.db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		ok = is.getTSIDByMetricNameNoExtDB(&dst.TSID, metricName, date)
-		extDB.putIndexSearch(is)
-		if ok {
-			dst.generation = extDB.generation
-		}
-	})
-	return ok
 }
 
 type indexSearch struct {
@@ -1362,8 +1306,7 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 
 // GetSeriesCount returns the approximate number of unique timeseries in the db.
 //
-// It includes the deleted series too and may count the same series
-// up to two times - in db and extDB.
+// It includes the deleted series.
 func (db *indexDB) GetSeriesCount(deadline uint64) (uint64, error) {
 	is := db.getIndexSearch(deadline)
 	defer db.putIndexSearch(is)
@@ -1787,7 +1730,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		return metricIDs, nil
 	}
 
-	// Slow path - search for metricIDs in the db and extDB.
+	// Slow path - search for metricIDs in the db
 	is := db.getIndexSearch(deadline)
 	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
@@ -1970,7 +1913,7 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
-func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, date uint64) bool {
+func (is *indexSearch) getTSIDByMetricName(dst *generationTSID, metricName []byte, date uint64) bool {
 	dmis := is.db.s.getDeletedMetricIDs()
 	ts := &is.ts
 	kb := &is.kb
@@ -1990,17 +1933,18 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 			return false
 		}
 		v := ts.Item[len(kb.B):]
-		tail, err := dst.Unmarshal(v)
+		tail, err := dst.TSID.Unmarshal(v)
 		if err != nil {
 			logger.Panicf("FATAL: cannot unmarshal TSID: %s", err)
 		}
 		if len(tail) > 0 {
 			logger.Panicf("FATAL: unexpected non-empty tail left after unmarshaling TSID: %X", tail)
 		}
-		if dmis.Has(dst.MetricID) {
+		if dmis.Has(dst.TSID.MetricID) {
 			// The dst is deleted. Continue searching.
 			continue
 		}
+		dst.generation = is.db.generation
 		// Found valid dst.
 		return true
 	}
@@ -2049,7 +1993,7 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	}
 
 	db := is.db
-	if db.hasExtDB() {
+	if !db.IsPrevIDB() {
 		// The db corresponds to the current indexDB, which is used for storing index data for newly registered time series.
 		// This means that it may contain data for the given tr with probability close to 100%.
 		return true
@@ -3035,9 +2979,9 @@ func reverseBytes(dst, src []byte) []byte {
 	return dst
 }
 
-func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {
+func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 	if date == globalIndexDate {
-		return is.hasMetricIDNoExtDB(metricID)
+		return is.hasMetricID(metricID)
 	}
 
 	ts := &is.ts
@@ -3059,7 +3003,7 @@ func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {
 	return false
 }
 
-func (is *indexSearch) hasMetricIDNoExtDB(metricID uint64) bool {
+func (is *indexSearch) hasMetricID(metricID uint64) bool {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
