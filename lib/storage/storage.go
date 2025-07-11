@@ -240,16 +240,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.metricNameCache = s.mustLoadCache("metricID_metricName", getMetricNamesCacheSize())
 	s.dateMetricIDCache = newDateMetricIDCache()
 
-	hour := fasttime.UnixHour()
-	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids")
-	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
-	s.currHourMetricIDs.Store(hmCurr)
-	s.prevHourMetricIDs.Store(hmPrev)
-	s.pendingHourEntries = &uint64set.Set{}
-
-	s.pendingNextDayMetricIDs = &uint64set.Set{}
-
-	s.prefetchedMetricIDs = &uint64set.Set{}
 	if opts.TrackMetricNamesStats {
 		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
@@ -313,6 +303,15 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	tablePath := filepath.Join(path, dataDirname)
 	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
+
+	hour := fasttime.UnixHour()
+	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids")
+	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
+	s.currHourMetricIDs.Store(hmCurr)
+	s.prevHourMetricIDs.Store(hmPrev)
+	s.pendingHourEntries = &uint64set.Set{}
+	s.pendingNextDayMetricIDs = &uint64set.Set{}
+	s.prefetchedMetricIDs = &uint64set.Set{}
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
