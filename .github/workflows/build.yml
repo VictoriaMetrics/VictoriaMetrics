@@ -30,6 +30,21 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Free space
+        run: |
+          # cleanup up space to free additional ~20GiB of memory
+          # which are lacking for multiplaform images build
+          formatByteCount() { echo $(numfmt --to=iec-i --suffix=B --padding=7 $1'000'); }
+          getAvailableSpace() { echo $(df -a $1 | awk 'NR > 1 {avail+=$4} END {print avail}'); }
+          BEFORE=$(getAvailableSpace)
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          AFTER=$(getAvailableSpace)
+          SAVED=$((AFTER-BEFORE))
+          echo "Saved $(formatByteCount $SAVED)"
+
       - name: Code checkout
         uses: actions/checkout@v4
 
