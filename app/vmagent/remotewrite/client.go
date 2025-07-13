@@ -38,8 +38,10 @@ var (
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
 	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
-	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
+	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	// deprecated in the future. use -remoteWrite.retryMaxInterval instead
+	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. This flag is deprecated, use -remoteWrite.retryMaxInterval instead")
+	retryMaxInterval = flagutil.NewArrayDuration("remoteWrite.retryMaxInterval", time.Minute, "The maximum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url.  The delay doubles with each retry until this maximum is reached, after which it remains constant. See also -remoteWrite.retryMinInterval")
 	proxyURL         = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
@@ -97,7 +99,7 @@ type client struct {
 	hc *http.Client
 
 	retryMinInterval time.Duration
-	retryMaxTime     time.Duration
+	retryMaxInterval time.Duration
 
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
@@ -151,6 +153,10 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		Transport: authCfg.NewRoundTripper(tr),
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
+	retryMaxIntervalFlag := retryMaxTime
+	if retryMaxInterval.String() != "" {
+		retryMaxIntervalFlag = retryMaxInterval
+	}
 	c := &client{
 		sanitizedURL:     sanitizedURL,
 		remoteWriteURL:   remoteWriteURL,
@@ -159,7 +165,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		fq:               fq,
 		hc:               hc,
 		retryMinInterval: retryMinInterval.GetOptionalArg(argIdx),
-		retryMaxTime:     retryMaxTime.GetOptionalArg(argIdx),
+		retryMaxInterval: retryMaxIntervalFlag.GetOptionalArg(argIdx),
 		stopCh:           make(chan struct{}),
 	}
 	c.sendBlock = c.sendBlockHTTP
@@ -404,7 +410,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // Otherwise, it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.Register(len(block))
-	maxRetryDuration := timeutil.AddJitterToDuration(c.retryMaxTime)
+	maxRetryDuration := timeutil.AddJitterToDuration(c.retryMaxInterval)
 	retryDuration := timeutil.AddJitterToDuration(c.retryMinInterval)
 	retriesCount := 0
 

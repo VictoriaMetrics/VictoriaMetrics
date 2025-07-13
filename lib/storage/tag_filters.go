@@ -772,10 +772,25 @@ func isDotStar(sre *syntax.Regexp) bool {
 	case syntax.OpCapture:
 		return isDotStar(sre.Sub[0])
 	case syntax.OpAlternate:
+		var (
+			hasDotPlus    bool
+			hasEmptyMatch bool
+		)
 		for _, reSub := range sre.Sub {
 			if isDotStar(reSub) {
 				return true
 			}
+			if !hasDotPlus {
+				hasDotPlus = isDotPlus(reSub)
+			}
+			if !hasEmptyMatch {
+				hasEmptyMatch = reSub.Op == syntax.OpEmptyMatch
+			}
+		}
+		// special case for .+|^$ expression
+		// it must be converted into .*
+		if hasDotPlus && hasEmptyMatch {
+			return true
 		}
 		return false
 	case syntax.OpStar:

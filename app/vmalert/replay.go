@@ -28,6 +28,8 @@ var (
 		"Defines how many retries to make before giving up on rule if request for it returns an error.")
 	disableProgressBar = flag.Bool("replay.disableProgressBar", false, "Whether to disable rendering progress bars during the replay. "+
 		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
+	ruleEvaluationConcurrency = flag.Int("replay.ruleEvaluationConcurrency", 1, "The maximum number of concurrent `/query_range` requests for a single rule. "+
+		"Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`.")
 )
 
 func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) (totalRows, droppedRows int, err error) {
@@ -71,7 +73,7 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 
 	for _, cfg := range groupsCfg {
 		ng := rule.NewGroup(cfg, qb, *evaluationInterval, labels)
-		totalRows += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar)
+		totalRows += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar, *ruleEvaluationConcurrency)
 	}
 	logger.Infof("replay evaluation finished, generated %d samples", totalRows)
 	if err := rw.Close(); err != nil {

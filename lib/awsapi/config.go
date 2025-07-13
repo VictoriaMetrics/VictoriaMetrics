@@ -74,9 +74,6 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 	}
 	cfg.ec2Endpoint = buildAPIEndpoint(ec2Endpoint, cfg.region, "ec2")
 	cfg.stsEndpoint = buildAPIEndpoint(stsEndpoint, cfg.region, "sts")
-	if cfg.roleARN == "" {
-		cfg.roleARN = os.Getenv("AWS_ROLE_ARN")
-	}
 	cfg.webTokenPath = os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 	if cfg.webTokenPath != "" && cfg.irsaRoleARN == "" {
 		return nil, fmt.Errorf("roleARN is missing for AWS_WEB_IDENTITY_TOKEN_FILE=%q; set it via env var AWS_ROLE_ARN", cfg.webTokenPath)
@@ -206,18 +203,19 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		AccessKeyID:     cfg.defaultAccessKey,
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
-	if len(cfg.webTokenPath) > 0 {
+	fullURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+	if relativeURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(relativeURI) > 0 {
+		fullURI = "http://169.254.170.2" + relativeURI
+	}
+	switch {
+	case len(acNew.AccessKeyID) > 0 && len(acNew.SecretAccessKey) > 0:
+	case len(cfg.webTokenPath) > 0:
 		token, err := os.ReadFile(cfg.webTokenPath)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read webToken from path: %q, err: %w", cfg.webTokenPath, err)
 		}
 		return cfg.getRoleWebIdentityCredentials(string(token), cfg.irsaRoleARN)
-	}
-	fullURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
-	if relativeURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(relativeURI) > 0 {
-		fullURI = "http://169.254.170.2" + relativeURI
-	}
-	if len(fullURI) > 0 {
+	case len(fullURI) > 0:
 		token := os.Getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN")
 		if len(token) == 0 && len(cfg.containerTokenPath) > 0 {
 			t, err := os.ReadFile(cfg.containerTokenPath)
@@ -231,17 +229,14 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 			return nil, err
 		}
 		acNew = ac
-	}
-
-	// we need instance credentials if we do not have access keys
-	if len(acNew.AccessKeyID) == 0 && len(acNew.SecretAccessKey) == 0 {
+	default:
+		// we need instance credentials if we do not have access keys
 		ac, err := getInstanceRoleCredentials(cfg.client)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instance role credentials: %w", err)
 		}
 		acNew = ac
 	}
-
 	// read credentials from sts api, if role_arn is defined
 	if len(cfg.roleARN) > 0 {
 		ac, err := cfg.getRoleARNCredentials(acNew, cfg.roleARN)
@@ -373,7 +368,7 @@ func (cfg *Config) getRoleWebIdentityCredentials(token, roleARN string) (*creden
 	if err != nil {
 		return nil, err
 	}
-	if roleARN != cfg.roleARN {
+	if len(cfg.roleARN) > 0 {
 		// need to assume a different role
 		assumeCreds, err := cfg.getRoleARNCredentials(creds, cfg.roleARN)
 		if err != nil {

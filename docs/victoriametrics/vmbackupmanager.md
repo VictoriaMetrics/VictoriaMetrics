@@ -474,6 +474,7 @@ command-line flags:
      Disable weekly run. Default false
   -dst string
      The root folder of Victoria Metrics backups. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+     Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -616,6 +617,16 @@ command-line flags:
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
+  -snapshot.tlsCAFile string
+     Optional path to TLS CA file to use for verifying connections to -snapshot.createURL. By default, system CA is used
+  -snapshot.tlsCertFile string
+     Optional path to client-side TLS certificate file to use when connecting to -snapshot.createURL
+  -snapshot.tlsInsecureSkipVerify
+     Whether to skip tls verification when connecting to -snapshot.createURL
+  -snapshot.tlsKeyFile string
+     Optional path to client-side TLS certificate key to use when connecting to -snapshot.createURL
+  -snapshot.tlsServerName string
+     Optional TLS server name to use for connections to -snapshot.createURL. By default, the server name from -snapshotCreateURL is used
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls array

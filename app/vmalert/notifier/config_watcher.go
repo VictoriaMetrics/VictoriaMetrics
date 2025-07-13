@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -54,6 +55,10 @@ func (cw *configWatcher) notifiers() []Notifier {
 			notifiers = append(notifiers, n.Notifier)
 		}
 	}
+	// deterministically sort the output
+	sort.Slice(notifiers, func(i, j int) bool {
+		return notifiers[i].Addr() < notifiers[j].Addr()
+	})
 	return notifiers
 }
 

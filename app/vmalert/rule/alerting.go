@@ -741,6 +741,13 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	}
 	var labelsFilter string
 	for k, v := range ar.Labels {
+		if strings.Contains(v, "{{") && strings.Contains(v, "}}") {
+			// do not append label to the filter when value contains template,
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9305.
+			// it's ok to do the simple check to skip some labels,
+			// since we verify the results' hash afterward to ensure the alerts match.
+			continue
+		}
 		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
 	}
 	// use `default_rollup()` instead of `last_over_time()` here to accounts for possible staleness markers

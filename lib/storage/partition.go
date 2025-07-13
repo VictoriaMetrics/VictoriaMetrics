@@ -943,6 +943,14 @@ func (pt *partition) MustClose() {
 	}
 }
 
+// DebugFlush flushes pending raw data rows of this partition so they
+// become visible to search.
+//
+// This function is for debug purposes only.
+func (pt *partition) DebugFlush() {
+	pt.flushPendingRows(true)
+}
+
 func (pt *partition) startInmemoryPartsMergers() {
 	pt.partsLock.Lock()
 	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {

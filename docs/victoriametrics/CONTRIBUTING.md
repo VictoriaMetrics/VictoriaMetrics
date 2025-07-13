@@ -58,6 +58,7 @@ to categorize GitHub issues. We have the following labels:
 Implementing a bugfix or enhancement requires sending a pull request to the [corresponding repository](https://github.com/orgs/VictoriaMetrics/repositories).
 
 Pull requests requirements are the following:
+1. The pull request must conform to [VictoriaMetrics development goals](https://docs.victoriametrics.com/victoriametrics/goals/).
 1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the changes.
 1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
 1. A commit message should contain clear and concise description of what was done and for what purpose.

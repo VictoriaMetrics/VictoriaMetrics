@@ -2,7 +2,7 @@ version: "3"
 
 services:
   generator:
-    image: golang:1.24.4-alpine
+    image: golang:1.24.5-alpine
     restart: always
     working_dir: /go/src/app
     volumes:

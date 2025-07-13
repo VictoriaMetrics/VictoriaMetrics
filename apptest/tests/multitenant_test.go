@@ -49,7 +49,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 
 	// ingest per tenant data and verify it with search
 	tenantIDs := []string{"1:1", "1:15"}
-	instantCT := "2022-05-10T08:05:00.000Z"
+	instantCT := "2022-05-10T08:05:00.000Z" // 1652169900 Unix seconds
 	for _, tenantID := range tenantIDs {
 		vminsert.PrometheusAPIV1ImportPrometheus(t, commonSamples, apptest.QueryOpts{Tenant: tenantID})
 		vmstorage.ForceFlush(t)
@@ -124,7 +124,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	// test multitenant ingest path, tenants must be populated from labels
 	//
 	var tenantLabelsSamples = []string{
-		`foo_bar{vm_account_id="5"} 1.00 1652169600000`,                    // 2022-05-10T08:00:00Z'
+		`foo_bar{vm_account_id="5"} 1.00 1652169720000`,                    // 2022-05-10T08:02:00Z'
 		`foo_bar{vm_project_id="10"} 2.00 1652169660000`,                   // 2022-05-10T08:01:00Z
 		`foo_bar{vm_account_id="5",vm_project_id="15"} 3.00 1652169720000`, // 2022-05-10T08:02:00Z
 	}
@@ -172,7 +172,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// Delete series from specific tenant
-	vmselect.DeleteSeries(t, "foo_bar", apptest.QueryOpts{
+	vmselect.APIV1AdminTSDBDeleteSeries(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "5:15",
 	})
 	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
@@ -195,7 +195,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// Delete series for multitenant with tenant filter
-	vmselect.DeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
+	vmselect.APIV1AdminTSDBDeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
 		Tenant: "multitenant",
 	})
 

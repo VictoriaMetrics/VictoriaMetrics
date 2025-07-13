@@ -145,6 +145,9 @@ type ScrapeWork struct {
 	// Optional limit on the number of unique series the scrape target can expose.
 	SeriesLimit int
 
+	// Optional limit on the number of allowed labels per series.
+	LabelLimit int
+
 	// Whether to process stale markers for the given target.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers
 	NoStaleMarkers bool
@@ -173,12 +176,12 @@ func (sw *ScrapeWork) key() string {
 		"HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, ExternalLabels=%s, MaxScrapeSize=%d, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%q, "+
 		"SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
-		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d, NoStaleMarkers=%v",
+		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d, LabelLimit=%d, NoStaleMarkers=%v",
 		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels,
 		sw.HonorTimestamps, sw.DenyRedirects, sw.Labels.String(), sw.ExternalLabels.String(), sw.MaxScrapeSize,
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(), sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(),
 		sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
-		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit, sw.NoStaleMarkers)
+		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit, sw.LabelLimit, sw.NoStaleMarkers)
 	return key
 }
 
@@ -400,6 +403,7 @@ var (
 	scrapeResponseSize          = metrics.NewHistogram("vm_promscrape_scrape_response_size_bytes")
 	scrapedSamples              = metrics.NewHistogram("vm_promscrape_scraped_samples")
 	scrapesSkippedBySampleLimit = metrics.NewCounter("vm_promscrape_scrapes_skipped_by_sample_limit_total")
+	scrapesSkippedByLabelLimit  = metrics.NewCounter("vm_promscrape_scrapes_skipped_by_label_limit_total")
 	scrapesFailed               = metrics.NewCounter("vm_promscrape_scrapes_failed_total")
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
 )
@@ -519,23 +523,32 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	} else {
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 	}
+	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
-	wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
-
-	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
-	if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
+	scrapeErr := wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
+	if scrapeErr == nil {
+		samplesPostRelabeling = len(wc.writeRequest.Timeseries)
+		if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
+			scrapesSkippedBySampleLimit.Inc()
+			scrapeErr = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
+				"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
+		}
+	}
+	if scrapeErr != nil {
+		if errors.Is(err, errLabelsLimitExceeded) {
+			scrapesSkippedByLabelLimit.Inc()
+			scrapeErr = fmt.Errorf("the response from %q contains samples with a number of labels exceeding label_limit=%d; "+
+				"either reduce the labels count for the target or increase label_limit", cfg.ScrapeURL, cfg.LabelLimit)
+		}
+		err = scrapeErr
 		// use wc.writeRequest.Reset() instead of wc.reset()
 		// in order to keep the len(wc.labels), which is used for initializing sw.prevLabelsLen below.
 		//
 		// This prevents from excess memory allocations at wc for the next scrape for the given scrapeWork.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/commit/12f26668a6bbf804db0e41a2683f1bd232e985d6#r155481168
 		wc.writeRequest.Reset()
-
 		up = 0
-		scrapesSkippedBySampleLimit.Inc()
-		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
-			"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
 	}
 	if up == 0 {
 		bodyString = ""
@@ -616,8 +629,14 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		}()
 
 		samplesScraped.Add(int64(len(rows)))
-		wc.addRows(cfg, rows, scrapeTimestamp, true)
-
+		if err := wc.addRows(cfg, rows, scrapeTimestamp, true); err != nil {
+			if errors.Is(err, errLabelsLimitExceeded) {
+				scrapesSkippedByLabelLimit.Inc()
+				return fmt.Errorf("the response from %q contains samples with a number of labels exceeding label_limit=%d; "+
+					"either reduce the labels count for the target or increase label_limit", cfg.ScrapeURL, cfg.LabelLimit)
+			}
+			return err
+		}
 		n := samplesPostRelabeling.Add(int64(len(wc.writeRequest.Timeseries)))
 		if cfg.SampleLimit > 0 && int(n) > cfg.SampleLimit {
 			scrapesSkippedBySampleLimit.Inc()
@@ -847,7 +866,10 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
-			wc.addRows(sw.Config, rows, timestamp, true)
+			if err := wc.addRows(sw.Config, rows, timestamp, true); err != nil {
+				sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
+				return err
+			}
 
 			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
@@ -964,10 +986,16 @@ func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, times
 		dst = appendRow(dst, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
 		dst = appendRow(dst, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
 	}
+	if labelLimit := sw.Config.LabelLimit; labelLimit > 0 {
+		dst = appendRow(dst, "scrape_labels_limit", float64(labelLimit), timestamp)
+	}
 	dst = appendRow(dst, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	dst = appendRow(dst, "up", float64(am.up), timestamp)
 
-	wc.addRows(sw.Config, dst, timestamp, false)
+	err := wc.addRows(sw.Config, dst, timestamp, false)
+	if err != nil {
+		sw.logError(fmt.Errorf("cannot add auto metrics: %w", err).Error())
+	}
 
 	rows.Rows = dst
 	putAutoRows(rows)
@@ -996,7 +1024,7 @@ func appendRow(dst []parser.Row, metric string, value float64, timestamp int64) 
 	})
 }
 
-func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) {
+func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) error {
 	// pre-allocate buffers
 	labelsLen := 0
 	for i := range rows {
@@ -1013,14 +1041,20 @@ func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp
 
 	// add rows
 	for i := range rows {
-		wc.addRow(cfg, &rows[i], timestamp, needRelabel)
+		err := wc.addRow(cfg, &rows[i], timestamp, needRelabel)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
+
+var errLabelsLimitExceeded = errors.New("label_limit exceeded")
 
 // addRow adds r with the given timestamp to wc.
 //
 // The cfg is used as a read-only configuration source.
-func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel bool) {
+func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel bool) error {
 	metric := r.Metric
 
 	// Add `exported_` prefix to metrics, which clash with the automatically generated
@@ -1050,12 +1084,18 @@ func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int6
 	wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
 	if len(wc.labels) == labelsLen {
 		// Skip row without labels.
-		return
+		return nil
 	}
 	// Add labels from `global->external_labels` section after the relabeling like Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3137
 	externalLabels := cfg.ExternalLabels.GetLabels()
 	wc.labels = appendExtraLabels(wc.labels, externalLabels, labelsLen, cfg.HonorLabels)
+	labelLimit := cfg.LabelLimit
+	labelsAfterRelabeling := len(wc.labels) - labelsLen
+	if labelLimit > 0 && labelsAfterRelabeling > labelLimit {
+		wc.labels = wc.labels[:labelsLen]
+		return errLabelsLimitExceeded
+	}
 	sampleTimestamp := r.Timestamp
 	if !cfg.HonorTimestamps || sampleTimestamp == 0 {
 		sampleTimestamp = timestamp
@@ -1069,6 +1109,7 @@ func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int6
 		Labels:  wc.labels[labelsLen:],
 		Samples: wc.samples[len(wc.samples)-1:],
 	})
+	return nil
 }
 
 var bbPool bytesutil.ByteBufferPool

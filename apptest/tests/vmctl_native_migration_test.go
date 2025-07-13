@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -50,15 +51,31 @@ func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
 
 	clusterSrc := tc.MustStartCluster(&apptest.ClusterOptions{
 		Vmstorage1Instance: "vmstorageSrc1",
+		Vmstorage1Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1-src"),
+			"-retentionPeriod=100y",
+		},
 		Vmstorage2Instance: "vmstorageSrc2",
-		VminsertInstance:   "vminsertSrc",
-		VmselectInstance:   "vmselectSrc",
+		Vmstorage2Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2-src"),
+			"-retentionPeriod=100y",
+		},
+		VminsertInstance: "vminsertSrc",
+		VmselectInstance: "vmselectSrc",
 	})
 	clusterDst := tc.MustStartCluster(&apptest.ClusterOptions{
 		Vmstorage1Instance: "vmstorageDst1",
+		Vmstorage1Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1-dst"),
+			"-retentionPeriod=100y",
+		},
 		Vmstorage2Instance: "vmstorageDst2",
-		VminsertInstance:   "vminsertDst",
-		VmselectInstance:   "vmselectDst",
+		Vmstorage2Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2-dst"),
+			"-retentionPeriod=100y",
+		},
+		VminsertInstance: "vminsertDst",
+		VmselectInstance: "vmselectDst",
 	})
 
 	vmSrcAddr := fmt.Sprintf("http://%s/", clusterSrc.Vmselect.HTTPAddr())

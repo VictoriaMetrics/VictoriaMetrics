@@ -22,8 +22,9 @@ func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ b
 	ac := c.(*quantilesAggrConfig)
 	if av.h != nil {
 		ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
+		histogram.PutFast(av.h)
+		av.h = nil
 	}
-	histogram.PutFast(av.h)
 	if len(ac.quantiles) > 0 {
 		for i, quantile := range ac.quantiles {
 			ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)

@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -8,17 +9,19 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 var (
-	tlsInsecureSkipVerify = flag.Bool("snapshot.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -snapshotCreateURL")
-	tlsCertFile           = flag.String("snapshot.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL")
-	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
-	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
-	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
+	tlsInsecureSkipVerify = flag.Bool("snapshot.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -snapshot.createURL")
+	tlsCertFile           = flag.String("snapshot.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -snapshot.createURL")
+	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshot.createURL")
+	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshot.createURL. By default, system CA is used`)
+	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshot.createURL. By default, the server name from -snapshot.createURL is used`)
 )
 
 type snapshot struct {
@@ -28,23 +31,22 @@ type snapshot struct {
 }
 
 // Create creates a snapshot via the provided api endpoint and returns the snapshot name
-func Create(createSnapshotURL string) (string, error) {
+func Create(ctx context.Context, createSnapshotURL string) (string, error) {
 	logger.Infof("Creating snapshot")
 	u, err := url.Parse(createSnapshotURL)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse -snapshot.createURL: %w", err)
 	}
 
-	// create Transport
-	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
+	hc, err := GetHTTPClient()
 	if err != nil {
-		return "", fmt.Errorf("failed to create transport for -snapshot.createURL=%q: %s", createSnapshotURL, err)
+		return "", fmt.Errorf("cannot create http client for -snapshot.createURL=%q: %w", createSnapshotURL, err)
 	}
-	hc := &http.Client{
-		Transport: tr,
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, createSnapshotURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("cannot create request for -snapshot.createURL=%q: %w", createSnapshotURL, err)
 	}
-
-	resp, err := hc.Get(createSnapshotURL)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -75,7 +77,7 @@ func Create(createSnapshotURL string) (string, error) {
 }
 
 // Delete deletes a snapshot via the provided api endpoint
-func Delete(deleteSnapshotURL string, snapshotName string) error {
+func Delete(ctx context.Context, deleteSnapshotURL string, snapshotName string) error {
 	logger.Infof("Deleting snapshot %s", snapshotName)
 	formData := url.Values{
 		"snapshot": {snapshotName},
@@ -84,13 +86,16 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse -snapshot.deleteURL: %w", err)
 	}
-	// create Transport
-	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
+	hc, err := GetHTTPClient()
 	if err != nil {
-		return fmt.Errorf("failed to create transport for -snapshot.deleteURL=%q: %s", deleteSnapshotURL, err)
+		return fmt.Errorf("cannot create http client for -snapshot.deleteURL=%q: %w", deleteSnapshotURL, err)
 	}
-	hc := &http.Client{Transport: tr}
-	resp, err := hc.PostForm(u.String(), formData)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, deleteSnapshotURL, strings.NewReader(formData.Encode()))
+	if err != nil {
+		return fmt.Errorf("cannot create request for -snapshot.deleteURL=%q: %w", deleteSnapshotURL, err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := hc.Do(req)
 	if err != nil {
 		return err
 	}
@@ -117,4 +122,19 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return errors.New(snap.Msg)
 	}
 	return fmt.Errorf("Unknown status: %v", snap.Status)
+}
+
+// GetHTTPClient returns a new HTTP client configured for snapshot operations.
+func GetHTTPClient() (*http.Client, error) {
+	tr, err := promauth.NewTLSTransport(*tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify, "vm_snapshot_client")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transport: %s", err)
+	}
+	hc := &http.Client{
+		Transport: tr,
+		// Use quite big timeout for snapshots that take too much time.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1571
+		Timeout: 5 * time.Minute,
+	}
+	return hc, nil
 }

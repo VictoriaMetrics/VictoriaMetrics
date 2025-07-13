@@ -377,11 +377,13 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
 
-	// window > lookbackDelta could result in negative delta.
-	// See issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
 	stalenessInterval := lookbackDelta
-	if stalenessInterval != 0 && stalenessInterval < window {
-		stalenessInterval = window
+	if stalenessInterval != 0 {
+		// If stalenessInterval was set, it should additionally account for [window] range to cover following cases:
+		// * window > stalenessInterval, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
+		// * window captures prevValue in doInternal while removeCounterResets does not,
+		//   see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-3000735468
+		stalenessInterval += window
 	}
 
 	if rollupFuncsRemoveCounterResets[funcName] {

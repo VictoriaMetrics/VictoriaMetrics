@@ -1,3 +1,0 @@
-include:
- - ../compose-base.yml
-name: vector-elasticsearch

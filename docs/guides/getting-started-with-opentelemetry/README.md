@@ -127,6 +127,7 @@ config:
   service:
     pipelines:
       logs:
+        receivers: [otlp]
         processors: []
         exporters: [otlphttp/victoriametrics]
       metrics:

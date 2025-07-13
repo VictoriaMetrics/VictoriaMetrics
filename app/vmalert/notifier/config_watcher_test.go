@@ -105,8 +105,8 @@ consul_sd_configs:
 		t.Fatalf("exp address %q; got %q", expAddr2, n2.Addr())
 	}
 
-	time.Sleep(1 * time.Second)
-	if len(cw.notifiers()) != 1 {
+	f := func() bool { return len(cw.notifiers()) == 1 }
+	if !waitFor(f, time.Second) {
 		t.Fatalf("expected to get 1 notifiers; got %d", len(cw.notifiers()))
 	}
 }
@@ -420,4 +420,14 @@ func TestParseLabels_Success(t *testing.T) {
 		Scheme:     "http",
 		PathPrefix: "test",
 	}, "https://alertmanager:9093/api/v1/alerts")
+}
+
+func waitFor(f func() bool, timeout time.Duration) bool {
+	for start := time.Now(); time.Since(start) < timeout; {
+		if f() == true {
+			return true
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return false
 }

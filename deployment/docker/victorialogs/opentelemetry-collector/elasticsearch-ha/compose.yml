@@ -1,5 +1,0 @@
-include:
- - path:
-     - ../compose-base.yml
-     - ../../compose-ha.yml
-name: collector-elasticsearch-ha
