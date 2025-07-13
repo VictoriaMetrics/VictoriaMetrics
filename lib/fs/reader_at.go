@@ -73,7 +73,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		}
 	} else {
 		if off > int64(len(mr.mmapData)-len(p)) {
-			logger.Panicf("BUG: off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(mr.mmapData)-len(p), len(p))
+			logger.Panicf("BUG: off=%d is out of allowed range [0...%d] for len(p)=%d in file %q", off, len(mr.mmapData)-len(p), len(p), r.path)
 		}
 		src := mr.mmapData[off:]
 		// The copy() below may result in thread block as described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d .

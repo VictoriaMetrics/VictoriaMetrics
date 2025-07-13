@@ -539,11 +539,13 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 		numRowsPerBatch = 10000
 		concurrency     = 1
 		splitBatches    = true
+		accountID       = 12
+		projectID       = 34
 	)
 
 	// Each batch corresponds to a unique date and has a unique set of metric
 	// names.
-	highChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
+	highChurnRateData, _ := testGenerateMetricRowBatches(accountID, projectID, &batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
 		sameBatchMetricNames: false, // Each batch has unique set of metric names.
@@ -554,7 +556,7 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 	// Each batch corresponds to a unique date but has the same set of metric
 	// names.
-	noChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
+	noChurnRateData, _ := testGenerateMetricRowBatches(accountID, projectID, &batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
 		sameBatchMetricNames: true,  // Each batch has the same set of metric names.
