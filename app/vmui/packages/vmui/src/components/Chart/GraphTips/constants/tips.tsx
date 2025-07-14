@@ -1,4 +1,3 @@
-import React from "react";
 import { isMacOs } from "../../../../utils/detect-device";
 import { DragIcon, SettingsIcon } from "../../../Main/Icons";
 

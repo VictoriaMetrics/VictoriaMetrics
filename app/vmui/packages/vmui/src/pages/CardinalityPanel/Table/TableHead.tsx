@@ -1,5 +1,4 @@
 import { MouseEvent } from "react";
-import React from "preact/compat";
 import { Data, EnhancedHeaderTableProps } from "./types";
 import classNames from "classnames";
 import { ArrowDropDownIcon, InfoOutlinedIcon } from "../../../components/Main/Icons";
