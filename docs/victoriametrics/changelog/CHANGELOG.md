@@ -27,7 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enable automatic deletion of snapshots older than 3 days by default. This helps to avoid wasting disk space due to snapshots not being removed in case of backup failure. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): Prevent panic when re-packing a corrupted block during protocol downgrade. See [#9417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417).
-* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fixed not properly ported changes to vmselect API from single-node branch that were introduced in [PR 9267](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9267).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix support for `/api/v1/notifiers` endpoint at `vmselect`.
 
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 
