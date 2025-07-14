@@ -155,9 +155,6 @@ func mustCreateDatadb(path string) {
 
 // mustOpenDatadb opens datadb at the given path with the given flushInterval for in-memory data.
 func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *datadb {
-	// Remove temporary directories, which may be left after unclean shutdown.
-	fs.MustRemoveTemporaryDirs(path)
-
 	partNames := mustReadPartNames(path)
 	mustRemoveUnusedDirs(path, partNames)
 

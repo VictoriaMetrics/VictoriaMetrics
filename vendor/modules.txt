@@ -111,8 +111,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/shared
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/managedidentity
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
-# github.com/VictoriaMetrics/VictoriaLogs v1.25.1 => github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250707001644-8b2cdbd4d59a
-## explicit; go 1.24.4
+# github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250714230749-82aca88cecd8
+## explicit; go 1.24.5
 github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
 github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
 # github.com/VictoriaMetrics/easyproto v0.1.4
@@ -963,7 +963,6 @@ k8s.io/klog/v2/internal/sloghandler
 k8s.io/utils/clock
 # sigs.k8s.io/yaml v1.5.0
 ## explicit; go 1.22
-# github.com/VictoriaMetrics/VictoriaLogs => github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250707001644-8b2cdbd4d59a
 # cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
 # github.com/aws/aws-sdk-go-v2 => github.com/aws/aws-sdk-go-v2 v1.32.8
 # github.com/aws/aws-sdk-go-v2/config => github.com/aws/aws-sdk-go-v2/config v1.28.11

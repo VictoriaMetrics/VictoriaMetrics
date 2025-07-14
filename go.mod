@@ -1,8 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.24.4
-
-replace github.com/VictoriaMetrics/VictoriaLogs => github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250707001644-8b2cdbd4d59a
+go 1.24.5
 
 // This is needed in order to avoid vmbackup and vmrestore binary size increase by 20MB
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8008
@@ -34,7 +32,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
-	github.com/VictoriaMetrics/VictoriaLogs v1.25.1
+	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250714230749-82aca88cecd8
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.5
 	github.com/VictoriaMetrics/metrics v1.38.0
