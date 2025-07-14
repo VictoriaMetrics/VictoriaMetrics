@@ -7,7 +7,7 @@ export const getQueryStringValue = (
 ): unknown => {
   const queryString = window.location.hash.split("?")[1];
   const values = qs.parse(queryString, { ignoreQueryPrefix: true });
-  return values[key] || defaultValue || "";
+  return values?.[key] || defaultValue || "";
 };
 
 export const getQueryArray = (): string[] => {

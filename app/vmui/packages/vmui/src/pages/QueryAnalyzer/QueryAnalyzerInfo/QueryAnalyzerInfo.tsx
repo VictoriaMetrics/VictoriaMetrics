@@ -14,6 +14,7 @@ import useBoolean from "../../../hooks/useBoolean";
 import Modal from "../../../components/Main/Modal/Modal";
 import { marked } from "marked";
 import Button from "../../../components/Main/Button/Button";
+import { getValueByPath } from "../../../utils/object";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -26,6 +27,7 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
   const comment = dataWithStats.find(d => d?.vmui?.comment)?.vmui?.comment;
 
   const table = useMemo(() => {
+    console.log("QueryAnalyzerInfo: Generating table data", data);
     return [
       "vmui.endpoint",
       ...new Set(dataWithStats.flatMap(d => [
@@ -35,7 +37,10 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
       ]))
     ].map(key => ({
       column: key.split(".").pop(),
-      values: dataWithStats.map(data => key in data ? data[key as keyof typeof data] : "-")
+      values: dataWithStats.map(data => {
+        const value = getValueByPath(data, key);
+        return typeof value === "string" ? value : "-";
+      })
     })).filter(({ values }) => values.length && values.every(v => v !== "-"));
   }, [dataWithStats]);
 
