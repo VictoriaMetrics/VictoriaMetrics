@@ -178,6 +178,14 @@ func writeRuntimeHistogramMetric(w io.Writer, name string, h *runtimemetrics.Flo
 	}
 	totalCount += tailCount
 	fmt.Fprintf(w, `%s_bucket{le="+Inf"} %d`+"\n", name, totalCount)
+	// _sum and _count are not exposed because the Go runtime histogram lacks accurate sum data.
+	// Estimating the sum (as Prometheus does) could be misleading,  while exposing only `_count` without `_sum` is impractical.
+	// We can reconsider if precise sum data becomes available.
+	//
+	// References:
+	// - Go runtime histogram: https://github.com/golang/go/blob/3432c68467d50ffc622fed230a37cd401d82d4bf/src/runtime/metrics/histogram.go#L8
+	// - Prometheus estimate: https://github.com/prometheus/client_golang/blob/5fe1d33cea76068edd4ece5f58e52f81d225b13c/prometheus/go_collector_latest.go#L498
+	// - Related discussion: https://github.com/VictoriaMetrics/metrics/issues/94
 }
 
 // Limit the number of buckets for Go runtime histograms in order to prevent from high cardinality issues at scraper side.
