@@ -46,7 +46,7 @@ func ParsePath(path string) (*Path, error) {
 
 	// Substitute double slashes with single slashes in the path, since such slashes
 	// may appear due improper copy-pasting of the url.
-	suffix := strings.Replace(s, "//", "/", -1)
+	suffix := strings.ReplaceAll(s, "//", "/")
 
 	p := &Path{
 		Prefix:    prefix,
