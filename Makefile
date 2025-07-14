@@ -27,8 +27,6 @@ include package/release/Makefile
 
 all: \
 	victoria-metrics-prod \
-	victoria-logs-prod \
-	vlogscli-prod \
 	vmagent-prod \
 	vmalert-prod \
 	vmalert-tool-prod \
@@ -52,8 +50,6 @@ publish: \
 
 package: \
 	package-victoria-metrics \
-	package-victoria-logs \
-	package-vlogscli \
 	package-vmagent \
 	package-vmalert \
 	package-vmalert-tool \
@@ -237,10 +233,6 @@ publish-latest:
 	PKG_TAG=$(TAG)-enterprise APP_NAME=vmgateway $(MAKE) publish-via-docker-latest
 	PKG_TAG=$(TAG)-enterprise APP_NAME=vmbackupmanager $(MAKE) publish-via-docker-latest
 
-publish-victoria-logs-latest:
-	PKG_TAG=$(TAG) APP_NAME=victoria-logs $(MAKE) publish-via-docker-latest
-	PKG_TAG=$(TAG) APP_NAME=vlogscli $(MAKE) publish-via-docker-latest
-
 publish-release:
 	rm -rf bin/*
 	git checkout $(TAG) && $(MAKE) release && $(MAKE) publish && \
@@ -309,128 +301,6 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 			> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
-
-release-victoria-logs-bundle: \
-	release-victoria-logs \
-	release-vlogscli
-
-publish-victoria-logs-bundle: \
-	publish-victoria-logs \
-	publish-vlogscli
-
-release-victoria-logs:
-	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
-		release-victoria-logs-linux-amd64 \
-		release-victoria-logs-linux-arm \
-		release-victoria-logs-linux-arm64 \
-		release-victoria-logs-darwin-amd64 \
-		release-victoria-logs-darwin-arm64 \
-		release-victoria-logs-freebsd-amd64 \
-		release-victoria-logs-openbsd-amd64 \
-		release-victoria-logs-windows-amd64
-
-release-victoria-logs-linux-386:
-	GOOS=linux GOARCH=386 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-linux-amd64:
-	GOOS=linux GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-linux-arm:
-	GOOS=linux GOARCH=arm $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-linux-arm64:
-	GOOS=linux GOARCH=arm64 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-darwin-amd64:
-	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-darwin-arm64:
-	GOOS=darwin GOARCH=arm64 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-freebsd-amd64:
-	GOOS=freebsd GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-openbsd-amd64:
-	GOOS=openbsd GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
-
-release-victoria-logs-windows-amd64:
-	GOARCH=amd64 $(MAKE) release-victoria-logs-windows-goarch
-
-release-victoria-logs-goos-goarch: victoria-logs-$(GOOS)-$(GOARCH)-prod
-	cd bin && \
-		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			victoria-logs-$(GOOS)-$(GOARCH)-prod \
-		&& sha256sum victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			victoria-logs-$(GOOS)-$(GOARCH)-prod \
-			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf victoria-logs-$(GOOS)-$(GOARCH)-prod
-
-release-victoria-logs-windows-goarch: victoria-logs-windows-$(GOARCH)-prod
-	cd bin && \
-		zip victoria-logs-windows-$(GOARCH)-$(PKG_TAG).zip \
-			victoria-logs-windows-$(GOARCH)-prod.exe \
-		&& sha256sum victoria-logs-windows-$(GOARCH)-$(PKG_TAG).zip \
-			victoria-logs-windows-$(GOARCH)-prod.exe \
-			> victoria-logs-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf \
-		victoria-logs-windows-$(GOARCH)-prod.exe
-
-release-vlogscli:
-	$(MAKE_PARALLEL) release-vlogscli-linux-386 \
-		release-vlogscli-linux-amd64 \
-		release-vlogscli-linux-arm \
-		release-vlogscli-linux-arm64 \
-		release-vlogscli-darwin-amd64 \
-		release-vlogscli-darwin-arm64 \
-		release-vlogscli-freebsd-amd64 \
-		release-vlogscli-openbsd-amd64 \
-		release-vlogscli-windows-amd64
-
-release-vlogscli-linux-386:
-	GOOS=linux GOARCH=386 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-linux-amd64:
-	GOOS=linux GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-linux-arm:
-	GOOS=linux GOARCH=arm $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-linux-arm64:
-	GOOS=linux GOARCH=arm64 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-darwin-amd64:
-	GOOS=darwin GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-darwin-arm64:
-	GOOS=darwin GOARCH=arm64 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-freebsd-amd64:
-	GOOS=freebsd GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-openbsd-amd64:
-	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vlogscli-goos-goarch
-
-release-vlogscli-windows-amd64:
-	GOARCH=amd64 $(MAKE) release-vlogscli-windows-goarch
-
-release-vlogscli-goos-goarch: vlogscli-$(GOOS)-$(GOARCH)-prod
-	cd bin && \
-		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vlogscli-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vlogscli-$(GOOS)-$(GOARCH)-prod \
-		&& sha256sum vlogscli-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vlogscli-$(GOOS)-$(GOARCH)-prod \
-			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > vlogscli-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf vlogscli-$(GOOS)-$(GOARCH)-prod
-
-release-vlogscli-windows-goarch: vlogscli-windows-$(GOARCH)-prod
-	cd bin && \
-		zip vlogscli-windows-$(GOARCH)-$(PKG_TAG).zip \
-			vlogscli-windows-$(GOARCH)-prod.exe \
-		&& sha256sum vlogscli-windows-$(GOARCH)-$(PKG_TAG).zip \
-			vlogscli-windows-$(GOARCH)-prod.exe \
-			> vlogscli-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf \
-		vlogscli-windows-$(GOARCH)-prod.exe
 
 release-vmutils: \
 	release-vmutils-linux-386 \
