@@ -1,0 +1,52 @@
+name: main-vmui
+
+on:
+  push:
+    branches:
+      - cluster
+      - master
+    paths:
+      - 'app/vmui/packages/vmui/**'
+  pull_request:
+    branches:
+      - cluster
+      - master
+    paths:
+      - 'app/vmui/packages/vmui/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  vmui:
+    name: vmui
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Cache node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/vmui/packages/vmui/node_modules
+          key: vmui-artifacts-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: vmui-artifacts-${{ runner.os }}-
+
+      - name: Run lint
+        run: make vmui-lint
+
+      - name: Run typecheck
+        run: make vmui-typecheck
+
+      - name: Run test
+        run: make vmui-test
