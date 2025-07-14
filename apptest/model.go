@@ -24,6 +24,9 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+	PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *PrometheusAPIV1SeriesCountResponse
+	PrometheusAPIV1Labels(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1LabelsResponse
+	PrometheusAPIV1LabelValues(t *testing.T, labelName, query string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
 
 	APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts)
@@ -279,6 +282,75 @@ func (r *PrometheusAPIV1SeriesResponse) Sort() *PrometheusAPIV1SeriesResponse {
 	})
 
 	return r
+}
+
+// PrometheusAPIV1SeriesResponse is an inmemory representation of the
+// /prometheus/api/v1/series/count response.
+type PrometheusAPIV1SeriesCountResponse struct {
+	Status    string
+	IsPartial bool
+	Data      []uint64
+	Trace     *Trace
+	ErrorType string
+	Error     string
+}
+
+// NewPrometheusAPIV1SeriesCountResponse is a test helper function that creates a new
+// instance of PrometheusAPIV1SeriesCountResponse by unmarshalling a json string.
+func NewPrometheusAPIV1SeriesCountResponse(t *testing.T, s string) *PrometheusAPIV1SeriesCountResponse {
+	t.Helper()
+
+	res := &PrometheusAPIV1SeriesCountResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
+	}
+	return res
+}
+
+// PrometheusAPIV1LabelsResponse is an inmemory representation of the
+// /prometheus/api/v1/labels response.
+type PrometheusAPIV1LabelsResponse struct {
+	Status    string
+	IsPartial bool
+	Data      []string
+	Trace     *Trace
+	ErrorType string
+	Error     string
+}
+
+// NewPrometheusAPIV1LabelsResponse is a test helper function that creates a new
+// instance of PrometheusAPIV1LabelsResponse by unmarshalling a json string.
+func NewPrometheusAPIV1LabelsResponse(t *testing.T, s string) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+
+	res := &PrometheusAPIV1LabelsResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
+	}
+	return res
+}
+
+// PrometheusAPIV1LabelValuesResponse is an inmemory representation of the
+// /prometheus/api/v1/labels/.../values response.
+type PrometheusAPIV1LabelValuesResponse struct {
+	Status    string
+	IsPartial bool
+	Data      []string
+	Trace     *Trace
+	ErrorType string
+	Error     string
+}
+
+// NewPrometheusAPIV1LabelValuesResponse is a test helper function that creates a new
+// instance of PrometheusAPIV1LabelValuesResponse by unmarshalling a json string.
+func NewPrometheusAPIV1LabelValuesResponse(t *testing.T, s string) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+
+	res := &PrometheusAPIV1LabelValuesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
+	}
+	return res
 }
 
 // Trace provides the description and the duration of some unit of work that has

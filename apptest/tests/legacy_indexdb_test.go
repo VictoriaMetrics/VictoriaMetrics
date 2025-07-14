@@ -373,7 +373,7 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 	t := tc.T()
 
 	const msecPerMinute = 60 * 1000
-	// Use the same number of metrics and and time range for all the data ingestions
+	// Use the same number of metrics and time range for all the data ingestions
 	// below.
 	const numMetrics = 1000
 	start := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).Add(-numMetrics * time.Minute).UnixMilli()
@@ -566,5 +566,333 @@ func testLegacyBackupRestore(tc *at.TestCase, opts testLegacyBackupRestoreOpts) 
 	newSUT = opts.startNewSUT()
 	assertQueries(newSUT, `{__name__=~"(legacy|new).*"}`, wantLegacy1New12Series, wantLegacy1New12QueryResults)
 
+	opts.stopNewSUT()
+}
+
+type testLegacyDowngradeOpts struct {
+	startLegacySUT func() at.PrometheusWriteQuerier
+	startNewSUT    func() at.PrometheusWriteQuerier
+	stopLegacySUT  func()
+	stopNewSUT     func()
+}
+
+func TestLegacySingleDowngrade(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	storageDataPath := filepath.Join(tc.Dir(), "vmsingle")
+
+	opts := testLegacyDowngradeOpts{
+		startLegacySUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartVmsingleAt("vmsingle-legacy", legacyVmsinglePath, []string{
+				"-storageDataPath=" + storageDataPath,
+				"-retentionPeriod=100y",
+				"-search.disableCache=true",
+				"-search.maxStalenessInterval=1m",
+			})
+		},
+		startNewSUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartVmsingle("vmsingle-new", []string{
+				"-storageDataPath=" + storageDataPath,
+				"-retentionPeriod=100y",
+				"-search.disableCache=true",
+				"-search.maxStalenessInterval=1m",
+			})
+		},
+		stopLegacySUT: func() {
+			tc.StopApp("vmsingle-legacy")
+		},
+		stopNewSUT: func() {
+			tc.StopApp("vmsingle-new")
+		},
+	}
+
+	testLegacyDowngrade(tc, opts)
+}
+
+func TestLegacyClusterDowngrade(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	storage1DataPath := filepath.Join(tc.Dir(), "vmstorage1")
+	storage2DataPath := filepath.Join(tc.Dir(), "vmstorage2")
+
+	opts := testLegacyDowngradeOpts{
+		startLegacySUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartCluster(&at.ClusterOptions{
+				Vmstorage1Instance: "vmstorage1-legacy",
+				Vmstorage1Binary:   legacyVmstoragePath,
+				Vmstorage1Flags: []string{
+					"-storageDataPath=" + storage1DataPath,
+					"-retentionPeriod=100y",
+				},
+				Vmstorage2Instance: "vmstorage2-legacy",
+				Vmstorage2Binary:   legacyVmstoragePath,
+				Vmstorage2Flags: []string{
+					"-storageDataPath=" + storage2DataPath,
+					"-retentionPeriod=100y",
+				},
+				VminsertInstance: "vminsert",
+				VminsertFlags:    []string{},
+				VmselectInstance: "vmselect",
+				VmselectFlags: []string{
+					"-search.disableCache=true",
+					"-search.maxStalenessInterval=1m",
+				},
+			})
+		},
+		startNewSUT: func() at.PrometheusWriteQuerier {
+			return tc.MustStartCluster(&at.ClusterOptions{
+				Vmstorage1Instance: "vmstorage1-new",
+				Vmstorage1Flags: []string{
+					"-storageDataPath=" + storage1DataPath,
+					"-retentionPeriod=100y",
+				},
+				Vmstorage2Instance: "vmstorage2-new",
+				Vmstorage2Flags: []string{
+					"-storageDataPath=" + storage2DataPath,
+					"-retentionPeriod=100y",
+				},
+				VminsertInstance: "vminsert",
+				VminsertFlags:    []string{},
+				VmselectInstance: "vmselect",
+				VmselectFlags: []string{
+					"-search.disableCache=true",
+					"-search.maxStalenessInterval=1m",
+				},
+			})
+		},
+		stopLegacySUT: func() {
+			tc.StopApp("vminsert")
+			tc.StopApp("vmselect")
+			tc.StopApp("vmstorage1-legacy")
+			tc.StopApp("vmstorage2-legacy")
+		},
+		stopNewSUT: func() {
+			tc.StopApp("vminsert")
+			tc.StopApp("vmselect")
+			tc.StopApp("vmstorage1-new")
+			tc.StopApp("vmstorage2-new")
+		},
+	}
+
+	testLegacyDowngrade(tc, opts)
+}
+
+func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
+	t := tc.T()
+
+	type want struct {
+		series            []map[string]string
+		labels            []string
+		labelValues       []string
+		queryResults      []*at.QueryResult
+		queryRangeResults []*at.QueryResult
+	}
+
+	uniq := func(s []string) []string {
+		slices.Sort(s)
+		return slices.Compact(s)
+	}
+
+	mergeWant := func(want1, want2 want) want {
+		var result want
+		result.series = slices.Concat(want1.series, want2.series)
+		result.labels = uniq(slices.Concat(want1.labels, want2.labels))
+		result.labelValues = slices.Concat(want1.labelValues, want2.labelValues)
+		result.queryResults = slices.Concat(want1.queryResults, want2.queryResults)
+		result.queryRangeResults = slices.Concat(want1.queryRangeResults, want2.queryRangeResults)
+
+		return result
+	}
+
+	// Use the same number of metrics and time range for all the data batches below.
+	const numMetrics = 1000
+	const labelName = "prefix"
+	start := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).UnixMilli()
+	end := start
+	genData := func(prefix string) (recs []string, want want) {
+		recs = make([]string, numMetrics)
+		want.series = make([]map[string]string, numMetrics)
+		want.labels = []string{"__name__", labelName}
+		want.labelValues = []string{prefix}
+		want.queryResults = make([]*at.QueryResult, numMetrics)
+		want.queryRangeResults = make([]*at.QueryResult, numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("%s_%03d", prefix, i)
+			value := float64(i)
+			timestamp := start
+
+			recs[i] = fmt.Sprintf("%s{%s=\"%s\"} %f %d", name, labelName, prefix, value, timestamp)
+			want.series[i] = map[string]string{"__name__": name, labelName: prefix}
+			want.queryResults[i] = &at.QueryResult{
+				Metric: map[string]string{"__name__": name, labelName: prefix},
+				Sample: &at.Sample{Timestamp: timestamp, Value: value},
+			}
+			want.queryRangeResults[i] = &at.QueryResult{
+				Metric:  map[string]string{"__name__": name, labelName: prefix},
+				Samples: []*at.Sample{{Timestamp: timestamp, Value: value}},
+			}
+		}
+		return recs, want
+	}
+
+	// assertSeries issues various queries to the app and compares the query
+	// results with the expected ones.
+	assertQueries := func(app at.PrometheusQuerier, query string, want want, wantSeriesCount uint64) {
+		t.Helper()
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+			Got: func() any {
+				return app.PrometheusAPIV1Series(t, query, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+				}).Sort()
+			},
+			Want: &at.PrometheusAPIV1SeriesResponse{
+				Status: "success",
+				Data:   want.series,
+			},
+			FailNow: true,
+		})
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/series/count response",
+			Got: func() any {
+				return app.PrometheusAPIV1SeriesCount(t, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+				})
+			},
+			Want: &at.PrometheusAPIV1SeriesCountResponse{
+				Status: "success",
+				Data:   []uint64{wantSeriesCount},
+			},
+			FailNow: true,
+		})
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/labels response",
+			Got: func() any {
+				return app.PrometheusAPIV1Labels(t, query, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+				})
+			},
+			Want: &at.PrometheusAPIV1LabelsResponse{
+				Status: "success",
+				Data:   want.labels,
+			},
+			FailNow: true,
+		})
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/label/../values response",
+			Got: func() any {
+				return app.PrometheusAPIV1LabelValues(t, labelName, query, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+				})
+			},
+			Want: &at.PrometheusAPIV1LabelValuesResponse{
+				Status: "success",
+				Data:   want.labelValues,
+			},
+			FailNow: true,
+		})
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/query response",
+			Got: func() any {
+				return app.PrometheusAPIV1Query(t, query, at.QueryOpts{
+					Time: fmt.Sprintf("%d", start),
+					Step: "10m",
+				})
+			},
+			Want: &at.PrometheusAPIV1QueryResponse{
+				Status: "success",
+				Data: &at.QueryData{
+					ResultType: "vector",
+					Result:     want.queryResults,
+				},
+			},
+			Retries: 300,
+			FailNow: true,
+		})
+
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/query_range response",
+			Got: func() any {
+				return app.PrometheusAPIV1QueryRange(t, query, at.QueryOpts{
+					Start: fmt.Sprintf("%d", start),
+					End:   fmt.Sprintf("%d", end),
+					Step:  "60s",
+				})
+			},
+			Want: &at.PrometheusAPIV1QueryResponse{
+				Status: "success",
+				Data: &at.QueryData{
+					ResultType: "matrix",
+					Result:     want.queryRangeResults,
+				},
+			},
+			Retries: 300,
+			FailNow: true,
+		})
+	}
+
+	wantEmpty := want{
+		series:            []map[string]string{},
+		labels:            []string{"__name__"},
+		labelValues:       []string{},
+		queryResults:      []*at.QueryResult{},
+		queryRangeResults: []*at.QueryResult{},
+	}
+
+	legacy1Data, wantLegacy1 := genData("legacy1")
+	legacy2Data, wantLegacy2 := genData("legacy2")
+	new1Data, wantNew1 := genData("new1")
+	wantLegacy1New1 := mergeWant(wantLegacy1, wantNew1)
+	wantLegacy2New1 := mergeWant(wantLegacy2, wantNew1)
+	var legacySUT, newSUT at.PrometheusWriteQuerier
+
+	// Start legacy SUT with empty storage data dir.
+	// Ingest legacy1 records, ensure the queries return legacy1
+	legacySUT = opts.startLegacySUT()
+	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy1Data, at.QueryOpts{})
+	legacySUT.ForceFlush(t)
+	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
+	opts.stopLegacySUT()
+
+	// Start new SUT (with partition indexDBs) with storage containing legacy1
+	// data and ensure that queries return new1 and legacy1 data.
+	newSUT = opts.startNewSUT()
+	newSUT.PrometheusAPIV1ImportPrometheus(t, new1Data, at.QueryOpts{})
+	newSUT.ForceFlush(t)
+	assertQueries(newSUT, `{__name__=~".*"}`, wantLegacy1New1, 2*numMetrics)
+	opts.stopNewSUT()
+
+	// Downgrade to legacy SUT, ensure the queries return only legacy1.
+	// Delete all series, ensure that queries return no series.
+	// Ingest legacy2 records, ensure the queries return only legacy2.
+	legacySUT = opts.startLegacySUT()
+	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
+	legacySUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, 1000)
+	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy2Data, at.QueryOpts{})
+	legacySUT.ForceFlush(t)
+	// series count includes deleted metrics
+	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy2, 2*numMetrics)
+	opts.stopLegacySUT()
+
+	// Upgrade to new SUT, ensure the queries return recently ingested legacy2 and new1
+	// since legacy SUT cannot delete them.
+	// Delete all series, ensure that queries return no series.
+	newSUT = opts.startNewSUT()
+	// series count includes deleted metrics
+	assertQueries(newSUT, `{__name__=~".*"}`, wantLegacy2New1, 3*numMetrics)
+	newSUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
+	// series count includes deleted metrics
+	assertQueries(newSUT, `{__name__=~".*"}`, wantEmpty, 3*numMetrics)
 	opts.stopNewSUT()
 }
