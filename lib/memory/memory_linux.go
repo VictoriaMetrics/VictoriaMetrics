@@ -1,6 +1,13 @@
 package memory
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -29,3 +36,54 @@ func sysTotalMemory() int {
 	}
 	return int(mem)
 }
+
+func sysCurrentMemory() int {
+	am, err := getAvailableMemory()
+	if err != nil {
+		return 0
+	}
+	return am
+	//mem := cgroup.GetMemoryUsage()
+	//if mem <= 0 || int64(int(mem)) != mem || int(mem) > usedMem {
+	//	mem = cgroup.GetHierarchicalMemoryUsage()
+	//	if mem <= 0 || int64(int(mem)) != mem || int(mem) > usedMem {
+	//		return usedMem
+	//	}
+	//}
+	//return int(mem)
+}
+
+// getAvailableMemory parse /proc/meminfo and return MemAvailable in byte.
+func getAvailableMemory() (int, error) {
+	b, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0, err
+	}
+	s := bufio.NewScanner(bytes.NewReader(b))
+	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		if fields[0] != "MemAvailable:" {
+			continue
+		}
+		val, err := strconv.ParseInt(fields[1], 0, 64)
+		if err != nil {
+			return 0, err
+		}
+		switch len(fields) {
+		case 2:
+			return int(val), nil
+		case 3:
+			if fields[2] != "kB" {
+				return 0, fmt.Errorf("%w: unsupported unit in optional 3rd field %q", ErrFileParse, fields[2])
+			}
+			return int(1024 * val), nil
+		default:
+			return 0, fmt.Errorf("%w: malformed line %q", ErrFileParse, s.Text())
+		}
+	}
+	return 0, fmt.Errorf("AvailableMemory not found")
+}
+
+var (
+	ErrFileParse = errors.New("error parsing file")
+)
