@@ -867,6 +867,9 @@ func parsePipeStreamContextBeforeAfter(lex *lexer) (int, int, error) {
 			if f < 0 {
 				return 0, 0, fmt.Errorf("'before' value cannot be smaller than 0; got %q", s)
 			}
+			if f > math.MaxInt {
+				return 0, 0, fmt.Errorf("'before' value cannot be bigger than %v; got %v", math.MaxInt, f)
+			}
 			linesBefore = int(f)
 			beforeSet = true
 		case lex.isKeyword("after"):
@@ -877,6 +880,9 @@ func parsePipeStreamContextBeforeAfter(lex *lexer) (int, int, error) {
 			}
 			if f < 0 {
 				return 0, 0, fmt.Errorf("'after' value cannot be smaller than 0; got %q", s)
+			}
+			if f > math.MaxInt {
+				return 0, 0, fmt.Errorf("'after' value cannot be bigger than %v; got %v", math.MaxInt, f)
 			}
 			linesAfter = int(f)
 			afterSet = true
