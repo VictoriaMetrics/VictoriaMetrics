@@ -27,7 +27,6 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
   const comment = dataWithStats.find(d => d?.vmui?.comment)?.vmui?.comment;
 
   const table = useMemo(() => {
-    console.log("QueryAnalyzerInfo: Generating table data", data);
     return [
       "vmui.endpoint",
       ...new Set(dataWithStats.flatMap(d => [

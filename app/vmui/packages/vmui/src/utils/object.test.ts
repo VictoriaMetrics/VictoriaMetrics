@@ -85,5 +85,11 @@ describe("object", () => {
       const result = getValueByPath(obj, "a.1.b");
       expect(result).toBeUndefined();
     });
+
+    it("should return value for dot separated key", () => {
+      const obj = { "foo.bar" : 1 };
+      const result = getValueByPath(obj, "foo.bar");
+      expect(result).toStrictEqual(1);
+    });
   });
 });
