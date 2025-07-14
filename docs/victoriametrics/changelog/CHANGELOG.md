@@ -24,7 +24,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 Released at 2025-07-04
 
-**Update Note 1:** The `-retryMaxTime` flag has been deprecated. Please use `-retryMaxInterval` flag instead. For more details, see [#9169](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9169).
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/vmagent/): The `-retryMaxTime` flag has been deprecated. Please use `-retryMaxInterval` flag instead. For more details, see [#9169](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9169).
 
 * FEATURE: all the [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) components: improve error message when an empty license is provided via the `-license` or `-licenseFile` command-line flags. See [#9337](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9337) for the details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `concurrency` option to kafka remoteWrite producer. See [9249](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9249) issue for details.
