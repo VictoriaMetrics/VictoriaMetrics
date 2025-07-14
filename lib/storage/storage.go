@@ -535,12 +535,8 @@ func (s *Storage) getPrevAndCurrIndexDBs() (prev, curr *indexDB) {
 	defer s.idbLock.Unlock()
 	curr = s.idbCurr.Load()
 	prev = s.idbPrev.Load()
-	if curr != nil {
-		curr.incRef()
-	}
-	if prev != nil {
-		prev.incRef()
-	}
+	curr.incRef()
+	prev.incRef()
 	return prev, curr
 }
 
@@ -550,37 +546,21 @@ func (s *Storage) getIndexDBs() (prev, curr, next *indexDB) {
 	prev = s.idbPrev.Load()
 	curr = s.idbCurr.Load()
 	next = s.idbNext.Load()
-	if next != nil {
-		next.incRef()
-	}
-	if curr != nil {
-		curr.incRef()
-	}
-	if prev != nil {
-		prev.incRef()
-	}
+	next.incRef()
+	curr.incRef()
+	prev.incRef()
 	return prev, curr, next
 }
 
 func (s *Storage) putPrevAndCurrIndexDBs(prev, curr *indexDB) {
-	if prev != nil {
-		prev.decRef()
-	}
-	if curr != nil {
-		curr.decRef()
-	}
+	prev.decRef()
+	curr.decRef()
 }
 
 func (s *Storage) putIndexDBs(prev, curr, next *indexDB) {
-	if prev != nil {
-		prev.decRef()
-	}
-	if curr != nil {
-		curr.decRef()
-	}
-	if next != nil {
-		next.decRef()
-	}
+	prev.decRef()
+	curr.decRef()
+	next.decRef()
 }
 
 // Metrics contains essential metrics for the Storage.
