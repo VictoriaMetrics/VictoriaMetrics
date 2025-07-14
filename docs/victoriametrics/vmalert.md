@@ -900,29 +900,32 @@ a review to the dashboard.
 ### Common mistakes
 
 Try the following tips to avoid common issues:
-1. Always set group's `-evaluationInterval` to be **equal to or greater than** the [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
+1. Always set [group's interval](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) to be **equal to or greater than** 
+   the [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
 1. vmalert runs [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) during rule evaluation
    using the `&step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
    In VictoriaMetrics, `step` controls how far back the query can look for a recent datapoint.
    If [series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution)
    is `>=5m`, the query might return no data.
-  * 👉 To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
-    You can also set `step` per group using the `params` setting.
-1. Don't skip `[lookbehind-window]` in rollup functions (i.e. `rate(errors_total) > 0`).
-   MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
-   but that works well with [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
-   For [instant requests](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query), setting window
-   makes the query more reliable.
-1. Increase `[lookbehind-window]` to help tolerate data delays.
-  * 👉 Example: `max_over_time(errors_total[10m]) > 0` will still work even if no data was present in the last 9 minutes.
-1. Make sure the `[lookbehind-window]` in your expression is at least **2× larger** than [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
-  * 👉 Example: in `rate(my_metric[2m]) > 0`, ensure `my_metric` is scraped every 1 minute or better, every 30 seconds.
-1. Don't skip step in [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries).
-  * 👉 Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.  
-    In that case, the default step will be used (`evaluation_interval` in Prometheus or `-datasource.queryStep` in VictoriaMetrics),
-    which may cause unexpected results.
+   * 👉 To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
+     You can also set `step` per group using the `params` setting.
 1. Be careful when chaining rules. If rule B uses results from rule A, make sure rule A is evaluated with an
-   interval **less than 5 minutes**. Otherwise, rule B might get empty results from time to time.
+   interval **less than 5 minutes** (or less than `-datasource.queryStep`). Otherwise, rule B might get empty results during evaluation.
+   See how to [chain groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#chaining-groups).
+1. Don't skip `[lookbehind-window]` in rollup functions.
+   * 👉 Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
+   but that works well only with [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
+   For [instant requests](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) setting window
+   makes the query predictable.
+1. Make sure the `[lookbehind-window]` in your expression is at least **2× larger** than [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
+    * 👉 Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
+1. Increase `[lookbehind-window]` to help tolerate data delays.
+   * 👉 Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
+1. Don't skip step in [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries).
+   * 👉 Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.  
+    In that case, the default step will be used (`-datasource.queryStep`) and may cause unexpected results compared to
+    executing this query in vmui/Grafana, where step is adjusted differently.
+
 
 ### Rule state
 
@@ -940,16 +943,16 @@ Every state has the following attributes:
 1. `Updated at` - the actual time when vmalert ran this rule.
 1. `Executed at` - the `time` param that was sent to the datasource with evaluation request.
 1. `Series returned` - the number of series returned in this evaluation:
-  * A recording rule with 0 series means it produced no results;
-  * An alerting rule with 0 series means the rule is in inactive state.
+    * A recording rule with 0 series means it produced no results;
+    * An alerting rule with 0 series means the rule is in inactive state.
 1. `Series fetched` - the number of series scanned during execution. See [never-firing alerts](#never-firing-alerts).
 1. `Duration` - how long it took to evaluate the rule.
-  * If this time is close to or longer than the evaluation interval, some evaluations might be skipped.
-  * See how to handle [slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries). 
+    * If this time is close to or longer than the evaluation interval, some evaluations might be skipped.
+    * See how to handle [slow queries](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries). 
 1.  `cURL` - a sample HTTP request that vmalert sent to `-datasource.url` during evaluation.
-  * It includes all headers and query parameters.
-  * You can use this command to debug and see what the data source returned at that moment of time.
-  * _Sensitive data is removed from the `curl` example – see the [security](#security) section for more info._
+    * It includes all headers and query parameters.
+    * You can use this command to debug and see what the data source returned at that moment of time.
+    * _Sensitive data is removed from the `curl` example – see the [security](#security) section for more info._
 
 > If a specific entry shows **Series returned: 0**, but the **cURL command returns some data** when you execute it,
 it likely means there was no data in the data source at the exact time the rule was evaluated.  
