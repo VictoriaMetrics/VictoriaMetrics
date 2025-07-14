@@ -314,12 +314,10 @@ func (s *Search) searchMetricName(metricName []byte, metricID uint64) ([]byte, b
 		return mn, true
 	}
 
-	// Fallback to previous indexDB if it exists.
-	if s.idbPrev != nil {
-		mn, found := s.idbPrev.searchMetricName(metricName, metricID, false)
-		if found {
-			return mn, true
-		}
+	// Fallback to previous indexDB.
+	mn, found = s.idbPrev.searchMetricName(metricName, metricID, false)
+	if found {
+		return mn, true
 	}
 
 	return metricName, false

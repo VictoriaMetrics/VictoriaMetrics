@@ -396,9 +396,7 @@ func (s *Storage) DebugFlush() {
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	idbCurr.tb.DebugFlush()
-	if idbPrev != nil {
-		idbPrev.tb.DebugFlush()
-	}
+	idbPrev.tb.DebugFlush()
 
 	hour := fasttime.UnixHour()
 	s.updateCurrHourMetricIDs(hour)
@@ -443,10 +441,8 @@ func (s *Storage) MustCreateSnapshot() string {
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	currSnapshot := filepath.Join(idbSnapshot, idbCurr.name)
 	idbCurr.tb.MustCreateSnapshotAt(currSnapshot)
-	if idbPrev != nil {
-		prevSnapshot := filepath.Join(idbSnapshot, idbPrev.name)
-		idbPrev.tb.MustCreateSnapshotAt(prevSnapshot)
-	}
+	prevSnapshot := filepath.Join(idbSnapshot, idbPrev.name)
+	idbPrev.tb.MustCreateSnapshotAt(prevSnapshot)
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
 	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 
@@ -784,9 +780,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 	idbCurr.UpdateMetrics(&m.IndexDBMetrics)
-	if idbPrev != nil {
-		idbPrev.UpdateMetrics(&m.IndexDBMetrics)
-	}
+	idbPrev.UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
 }
 
@@ -856,9 +850,7 @@ func (s *Storage) notifyReadWriteMode() {
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	idbCurr.tb.NotifyReadWriteMode()
-	if idbPrev != nil {
-		idbPrev.tb.NotifyReadWriteMode()
-	}
+	idbPrev.tb.NotifyReadWriteMode()
 }
 
 func (s *Storage) startRetentionWatcher() {
@@ -955,10 +947,8 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	s.idbPrev.Store(idbCurr)
 	idbCurr.SetIsPrevIDB()
 	// Schedule data removal for idbPrev
-	if idbPrev != nil {
-		idbPrev.scheduleToDrop()
-		idbPrev.decRef()
-	}
+	idbPrev.scheduleToDrop()
+	idbPrev.decRef()
 
 	s.idbLock.Unlock()
 
@@ -1292,35 +1282,14 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
-	var idbs []*indexDB
-
 	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
-	if idbPrev != nil {
-		idbs = append(idbs, idbPrev)
-	}
-	if idbCurr != nil {
-		idbs = append(idbs, idbCurr)
-	}
+	var idbs = []*indexDB{idbPrev, idbCurr}
 
 	if len(idbs) == 0 {
 		qt.Printf("no indexDBs found")
 		var zeroValue T
 		return zeroValue, nil
-	}
-
-	// It is faster to process one indexDB without spawning goroutines.
-	if len(idbs) == 1 {
-		idb := idbs[0]
-		searchTR := s.adjustTimeRange(tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		defer qtChild.Done()
-		data, err := search(qtChild, idb, searchTR)
-		if err != nil {
-			var zeroValue T
-			return zeroValue, err
-		}
-		return data, nil
 	}
 
 	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
@@ -1434,25 +1403,21 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		err      error
 	)
 
-	if idbPrev != nil {
-		qt.Printf("start deleting from previous indexDB")
-		dmisPrev, err = idbPrev.DeleteSeries(qt, tfss, maxMetrics)
-		if err != nil {
-			return 0, err
-		}
-		qt.Printf("deleted %d metricIDs from previous indexDB", len(dmisPrev))
-		deletedMetricIDs.AddMulti(dmisPrev)
+	qt.Printf("start deleting from previous indexDB")
+	dmisPrev, err = idbPrev.DeleteSeries(qt, tfss, maxMetrics)
+	if err != nil {
+		return 0, err
 	}
+	qt.Printf("deleted %d metricIDs from previous indexDB", len(dmisPrev))
+	deletedMetricIDs.AddMulti(dmisPrev)
 
-	if idbCurr != nil {
-		qt.Printf("start deleting from current indexDB")
-		dmisCurr, err = idbCurr.DeleteSeries(qt, tfss, maxMetrics)
-		if err != nil {
-			return 0, err
-		}
-		qt.Printf("deleted %d metricIDs from current indexDB", len(dmisCurr))
-		deletedMetricIDs.AddMulti(dmisCurr)
+	qt.Printf("start deleting from current indexDB")
+	dmisCurr, err = idbCurr.DeleteSeries(qt, tfss, maxMetrics)
+	if err != nil {
+		return 0, err
 	}
+	qt.Printf("deleted %d metricIDs from current indexDB", len(dmisCurr))
+	deletedMetricIDs.AddMulti(dmisCurr)
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
@@ -1593,7 +1558,7 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 // GetSeriesCount returns the approximate number of unique time series.
 //
 // It includes the deleted series too and may count the same series
-// up to two times - in curr and prev index index.
+// up to two times - in curr and prev indexDB.
 func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 	tr := TimeRange{
 		MinTimestamp: 0,
