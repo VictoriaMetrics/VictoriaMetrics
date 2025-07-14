@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import { useFetchJobs } from "./hooks/useFetchJobs";
 import Spinner from "../../components/Main/Spinner/Spinner";

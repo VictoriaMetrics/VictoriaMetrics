@@ -1,4 +1,3 @@
-import React from "react";
 import "./style.scss";
 import { Theme } from "../../../types";
 import Toggle from "../../Main/Toggle/Toggle";
