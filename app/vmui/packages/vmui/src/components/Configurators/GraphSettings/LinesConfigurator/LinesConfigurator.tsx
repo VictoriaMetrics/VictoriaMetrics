@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import Switch from "../../../Main/Switch/Switch";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 

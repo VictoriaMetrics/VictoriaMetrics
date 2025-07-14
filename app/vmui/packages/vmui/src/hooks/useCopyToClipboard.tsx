@@ -1,4 +1,3 @@
-import React from "preact/compat";
 import { useSnack } from "../contexts/Snackbar";
 
 type CopyFn = (text: string, msgInfo?: string) => Promise<boolean> // Return success

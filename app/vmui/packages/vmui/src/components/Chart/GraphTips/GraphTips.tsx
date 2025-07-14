@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import "./style.scss";
 import Button from "../../Main/Button/Button";
 import { TipIcon } from "../../Main/Icons";

@@ -1,9 +1,0 @@
-@use "src/styles/variables" as *;
-
-.vm-json-view {
-  &__settings-container {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  }
-}

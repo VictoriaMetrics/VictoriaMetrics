@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "preact/compat";
 import dayjs, { Dayjs } from "dayjs";
 import CalendarHeader from "./CalendarHeader/CalendarHeader";
 import CalendarBody from "./CalendarBody/CalendarBody";

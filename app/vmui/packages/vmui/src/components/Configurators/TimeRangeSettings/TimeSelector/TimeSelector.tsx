@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState, useMemo, useRef } from "preact/compat";
+import { FC, useEffect, useState, useMemo, useRef } from "preact/compat";
 import { dateFromSeconds, formatDateForNativeInput, getRelativeTime, getUTCByTimezone } from "../../../../utils/time";
 import TimeDurationSelector from "../TimeDurationSelector/TimeDurationSelector";
 import dayjs from "dayjs";
