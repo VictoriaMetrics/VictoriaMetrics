@@ -1,4 +1,4 @@
-import React, { FC, useState } from "react";
+import { FC, useState } from "react";
 import { TopQuery } from "../../../types";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
