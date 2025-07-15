@@ -2,10 +2,10 @@ package regexutil
 
 import (
 	"regexp"
-	"regexp/syntax"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil/syntax"
 )
 
 // PromRegex implements an optimized string matching for Prometheus-like regex.

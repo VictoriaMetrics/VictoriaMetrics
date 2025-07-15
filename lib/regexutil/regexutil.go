@@ -2,9 +2,10 @@ package regexutil
 
 import (
 	"fmt"
-	"regexp/syntax"
 	"sort"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil/syntax"
 )
 
 // RemoveStartEndAnchors removes '^' at the start of expr and '$' at the end of the expr.
