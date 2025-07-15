@@ -32,7 +32,7 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout t
 		dials:      ms.NewCounter(fmt.Sprintf(`vm_tcpdialer_dials_total{name=%q, addr=%q}`, name, addr)),
 		dialErrors: ms.NewCounter(fmt.Sprintf(`vm_tcpdialer_errors_total{name=%q, addr=%q, type="dial"}`, name, addr)),
 	}
-	d.connMetrics.init(ms, "vm_tcpdialer", name, addr)
+	d.init(ms, "vm_tcpdialer", name, addr)
 	if userTimeout > 0 {
 		nd.Control = func(_, _ string, c syscall.RawConn) error {
 			var err error
