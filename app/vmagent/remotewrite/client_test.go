@@ -105,7 +105,10 @@ func TestRepackBlockFromZstdToSnappy(t *testing.T) {
 	expectedPlainBlock := []byte(`foobar`)
 
 	zstdBlock := encoding.CompressZSTDLevel(nil, expectedPlainBlock, 1)
-	snappyBlock := mustRepackBlockFromZstdToSnappy(zstdBlock)
+	snappyBlock, err := repackBlockFromZstdToSnappy(zstdBlock)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 
 	actualPlainBlock, err := snappy.Decode(nil, snappyBlock)
 	if err != nil {
@@ -114,5 +117,16 @@ func TestRepackBlockFromZstdToSnappy(t *testing.T) {
 
 	if string(actualPlainBlock) != string(expectedPlainBlock) {
 		t.Fatalf("unexpected plain block; got %q; want %q", actualPlainBlock, expectedPlainBlock)
+	}
+}
+
+func TestRepackBlockFromZstdToSnappyInvalidBlock(t *testing.T) {
+	snappyBlock, err := repackBlockFromZstdToSnappy([]byte("invalid zstd block"))
+
+	if err == nil {
+		t.Fatalf("expected error for invalid zstd block; got nil")
+	}
+	if len(snappyBlock) != 0 {
+		t.Fatalf("expected empty snappy block; got %d bytes", len(snappyBlock))
 	}
 }
