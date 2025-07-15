@@ -18,13 +18,14 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix handling of `/api/v1/notifiers` and `/api/v1/metadata` endpoints; previously, requests to these endpoints returned 400 Bad Request. `vmsingle` was not affected..
+* SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix handling of `/api/v1/notifiers` and `/api/v1/metadata` endpoints; previously, requests to these endpoints returned 400 Bad Request. `vmsingle` was not affected.
 
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 
 Released at 2025-07-04
 
-**Update Note 1:** The `-retryMaxTime` flag has been deprecated. Please use `-retryMaxInterval` flag instead. For more details, see [#9169](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9169).
+**Update Note 1:** [vmagent](https://docs.victoriametrics.com/vmagent/): The `-retryMaxTime` flag has been deprecated. Please use `-retryMaxInterval` flag instead. For more details, see [#9169](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9169).
 
 * FEATURE: all the [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) components: improve error message when an empty license is provided via the `-license` or `-licenseFile` command-line flags. See [#9337](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9337) for the details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `concurrency` option to kafka remoteWrite producer. See [9249](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9249) issue for details.
