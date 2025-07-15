@@ -31,8 +31,32 @@ concurrency:
 
 jobs:
   build:
-    name: Build
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: 386
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: linux
+            arch: arm
+          - os: linux
+            arch: ppc64le
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: freebsd
+            arch: amd64
+          - os: openbsd
+            arch: amd64
+          - os: windows
+            arch: amd64
     steps:
       - name: Free space
         run: |
@@ -69,5 +93,8 @@ jobs:
           key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
 
-      - name: Run crossbuild
-        run: make crossbuild
+      - name: Build victoria-metrics for ${{ matrix.os }}-${{ matrix.arch }}
+        run: make victoria-metrics-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: Build vmutils for ${{ matrix.os }}-${{ matrix.arch }}
+        run: make vmutils-${{ matrix.os }}-${{ matrix.arch }}
