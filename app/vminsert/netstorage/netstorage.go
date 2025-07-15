@@ -75,13 +75,13 @@ func (sn *storageNode) pushTS(snb *storageNodesBucket, buf []byte, rows int) err
 	}
 	if *dropSamplesOnOverload && !sn.isReadOnly.Load() {
 		sn.rowsDroppedOnOverload.Add(rows)
-		dropSamplesOnOverloadLogger.Warnf("some tsRows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new tsRows now. "+
+		dropSamplesOnOverloadLogger.Warnf("some timeseries rows are dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
 			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
 		return nil
 	}
-	// Slow path - sn cannot accept tsBuf now, so re-route it to other vmstorage nodes.
+	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
 	if err := sn.rerouteTSBufToOtherStorageNodes(snb, buf, rows); err != nil {
-		return fmt.Errorf("error when re-routing tsRows from %s: %w", sn.dialer.Addr(), err)
+		return fmt.Errorf("error when re-routing timeseries rows from %s: %w", sn.dialer.Addr(), err)
 	}
 	return nil
 }
@@ -111,9 +111,9 @@ func (sn *storageNode) pushMR(snb *storageNodesBucket, buf []byte, rows int) err
 			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
 		return nil
 	}
-	// Slow path - sn cannot accept tsBuf now, so re-route it to other vmstorage nodes.
+	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
 	if err := sn.rerouteMRBufToOtherStorageNodes(snb, buf, rows); err != nil {
-		return fmt.Errorf("error when re-routing tsRows from %s: %w", sn.dialer.Addr(), err)
+		return fmt.Errorf("error when re-routing metadata rows from %s: %w", sn.dialer.Addr(), err)
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ again:
 	select {
 	case <-sn.stopCh:
 		sn.brLock.Unlock()
-		return fmt.Errorf("cannot send %d tsRows because of graceful shutdown", rows)
+		return fmt.Errorf("cannot send %d timeseries rows because of graceful shutdown", rows)
 	default:
 	}
 
@@ -145,10 +145,10 @@ again:
 		sn.brLock.Unlock()
 
 		// The vmstorage node isn't ready for data processing. Re-route tsBuf to healthy vmstorage nodes even if disableRerouting is set.
-		rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
+		rowsProcessed, err := rerouteTimeseriesRowsToReadyStorageNodes(snb, sn, buf)
 		rows -= rowsProcessed
 		if err != nil {
-			return fmt.Errorf("%d tsRows dropped because the current vsmtorage is unavailable and %w", rows, err)
+			return fmt.Errorf("%d timeseries rows dropped because the current vsmtorage is unavailable and %w", rows, err)
 		}
 		return nil
 	}
@@ -166,10 +166,10 @@ again:
 		goto again
 	}
 	sn.brLock.Unlock()
-	rowsProcessed, err := rerouteRowsToFreeStorageNodes(snb, sn, buf)
+	rowsProcessed, err := rerouteTimeseriesRowsToFreeStorageNodes(snb, sn, buf)
 	rows -= rowsProcessed
 	if err != nil {
-		return fmt.Errorf("%d tsRows dropped because the current vmstorage tsBuf is full and %w", rows, err)
+		return fmt.Errorf("%d timeseries rows dropped because the current vmstorage buf is full and %w", rows, err)
 	}
 	return nil
 }
@@ -181,7 +181,7 @@ again:
 	select {
 	case <-sn.stopCh:
 		sn.brLock.Unlock()
-		return fmt.Errorf("cannot send %d tsRows because of graceful shutdown", rows)
+		return fmt.Errorf("cannot send %d metadata rows because of graceful shutdown", rows)
 	default:
 	}
 
@@ -199,10 +199,10 @@ again:
 		sn.brLock.Unlock()
 
 		// The vmstorage node isn't ready for data processing. Re-route metaBuf to healthy vmstorage nodes even if disableRerouting is set.
-		rowsProcessed, err := rerouteMRToReadyStorageNodes(snb, sn, buf)
+		rowsProcessed, err := rerouteMetadataRowsToReadyStorageNodes(snb, sn, buf)
 		rows -= rowsProcessed
 		if err != nil {
-			return fmt.Errorf("%d tsRows dropped because the current vsmtorage is unavailable and %w", rows, err)
+			return fmt.Errorf("%d metadata rows dropped because the current vsmtorage is unavailable and %w", rows, err)
 		}
 		return nil
 	}
@@ -220,10 +220,10 @@ again:
 		goto again
 	}
 	sn.brLock.Unlock()
-	rowsProcessed, err := rerouteMRToReadyStorageNodes(snb, sn, buf)
+	rowsProcessed, err := rerouteMetadataRowsToFreeStorageNodes(snb, sn, buf)
 	rows -= rowsProcessed
 	if err != nil {
-		return fmt.Errorf("%d tsRows dropped because the current vmstorage tsBuf is full and %w", rows, err)
+		return fmt.Errorf("%d metadata rows dropped because the current vmstorage buf is full and %w", rows, err)
 	}
 	return nil
 }
@@ -295,7 +295,7 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 			select {
 			case <-sn.stopCh:
 				timerpool.Put(t)
-				logger.Errorf("dropping %d tsRows on graceful shutdown, since all the vmstorage nodes are unavailable", br.tsRows)
+				logger.Errorf("dropping %d timeseries and %d metadata rows on graceful shutdown, since all the vmstorage nodes are unavailable", br.tsRows, br.metaRows)
 				return
 			case <-t.C:
 				timerpool.Put(t)
@@ -317,16 +317,16 @@ func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, r
 			if attempts > len(sns) {
 				if i == 0 {
 					// The data wasn't replicated at all.
-					cannotReplicateLogger.Warnf("cannot pushTS %d bytes with %d tsRows to storage nodes, since all the nodes are temporarily unavailable; "+
-						"re-trying to send the data soon", len(br.tsBuf), br.tsRows)
+					cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to storage nodes, since all the nodes are temporarily unavailable; "+
+						"re-trying to send the data soon", len(br.tsBuf)+len(br.metaBuf), br.tsRows+br.metaRows)
 					return false
 				}
 				// The data is partially replicated, so just emit a warning and return true.
 				// We could retry sending the data again, but this may result in uncontrolled duplicate data.
 				// So it is better returning true.
 				rowsIncompletelyReplicatedTotal.Add(br.tsRows)
-				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d tsRows, "+
-					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.tsBuf), br.tsRows)
+				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d rows, "+
+					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.tsBuf)+len(br.metaBuf), br.tsRows+br.metaRows)
 				return true
 			}
 			if idx >= len(sns) {
@@ -415,7 +415,10 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 
+	startTime = time.Now()
 	err = sendToConn(sn.bc, "writeMetadata_v1", br.metaBuf)
+	duration = time.Since(startTime)
+	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
 		// Successfully sent metaBuf to bc.
 		sn.rowsSent.Add(br.metaRows)
@@ -431,7 +434,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	}
 
 	// Couldn't flush bufs to sn. Mark sn as broken.
-	cannotSendBufsLogger.Warnf("cannot send %d timeseries bytes with %d Rows and %d metadata bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
+	cannotSendBufsLogger.Warnf("cannot send %d timeseries bytes with %d rows and %d metadata bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
 		"re-routing this data to healthy storage nodes", len(br.tsBuf), br.tsRows, len(br.metaBuf), br.metaRows, sn.dialer.Addr(), err)
 	if err = sn.bc.Close(); err != nil {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
@@ -682,14 +685,13 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
-			n := sn.br.tsRows
+			n := sn.br.tsRows + sn.br.metaRows
 			sn.brLock.Unlock()
 			return float64(n)
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
-			// todo: update metrics
-			n := len(sn.br.tsBuf)
+			n := len(sn.br.tsBuf) + len(sn.br.metaBuf)
 			sn.brLock.Unlock()
 			return float64(n)
 		})
@@ -743,103 +745,72 @@ func mustStopStorageNodes(snb *storageNodesBucket) {
 	metrics.UnregisterSet(snb.ms, true)
 }
 
-// rerouteRowsToReadyStorageNodes reroutes src from not ready snSource to ready storage nodes.
+// rerouteTimeseriesRowsToReadyStorageNodes reroutes src from not ready snSource to ready storage nodes.
 //
 // The function blocks until src is fully re-routed.
-func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
-	reroutesTotal.Inc()
-	rowsProcessed := 0
-	var idxsExclude, idxsExcludeNew []int
-	nodesHash := snb.nodesHash
-	sns := snb.sns
-	idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
+func rerouteTimeseriesRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
 	var mr storage.MetricRow
-	for len(src) > 0 {
+	next := func() ([]byte, uint64, bool) {
+		if len(src) == 0 {
+			return nil, 0, false
+		}
 		tail, err := mr.UnmarshalX(src)
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal MetricRow: %s", err)
 		}
 		rowBuf := src[:len(src)-len(tail)]
 		src = tail
-		reroutedRowsProcessed.Inc()
 		h := xxhash.Sum64(mr.MetricNameRaw)
-		mr.ResetX()
-		var sn *storageNode
-		for {
-			idx := nodesHash.getNodeIdx(h, idxsExclude)
-			sn = sns[idx]
-			if sn.isReady() {
-				break
-			}
-			select {
-			case <-sn.stopCh:
-				return rowsProcessed, fmt.Errorf("graceful shutdown started")
-			default:
-			}
-
-			// re-generate idxsExclude list, since sn must be put there.
-			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
-		}
-		if *disableRerouting {
-			if !sn.sendTSBufMayBlock(rowBuf) {
-				return rowsProcessed, fmt.Errorf("graceful shutdown started")
-			}
-			rowsProcessed++
-			if sn != snSource {
-				snSource.rowsReroutedFromHere.Inc()
-				sn.rowsReroutedToHere.Inc()
-			}
-			continue
-		}
-	again:
-		if sn.trySendTSBuf(rowBuf, 1) {
-			rowsProcessed++
-			if sn != snSource {
-				snSource.rowsReroutedFromHere.Inc()
-				sn.rowsReroutedToHere.Inc()
-			}
-			continue
-		}
-		// If the re-routing is enabled, then try sending the row to another storage node.
-		idxsExcludeNew = getNotReadyStorageNodeIdxs(snb, idxsExcludeNew[:0], sn)
-		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
-		snNew := sns[idx]
-		if !snNew.trySendTSBuf(rowBuf, 1) {
-			// The row cannot be sent to both snSource, sn and snNew without blocking.
-			// Sleep for a while and try sending the row to snSource again.
-			time.Sleep(100 * time.Millisecond)
-			goto again
-		}
-		rowsProcessed++
-		if snNew != snSource {
-			snSource.rowsReroutedFromHere.Inc()
-			snNew.rowsReroutedToHere.Inc()
-		}
+		return rowBuf, h, true
 	}
-	return rowsProcessed, nil
+
+	return rerouteToReadyStorageNodesRows(snb, snSource, next, func(sn *storageNode, buf []byte) bool {
+		return sn.sendTSBufMayBlock(buf)
+	}, func(sn *storageNode, buf []byte) bool {
+		return sn.trySendTSBuf(buf, 1)
+	})
 }
 
-// TODO: deduplicate rerouting logic
-// extract src parsing to a callback and use core logic for rerouting
-// in separate functions
-func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
-	reroutesTotal.Inc()
-	rowsProcessed := 0
-	var idxsExclude, idxsExcludeNew []int
-	nodesHash := snb.nodesHash
-	sns := snb.sns
-	idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
+// rerouteMetadataRowsToReadyStorageNodes reroutes src from not ready snSource to ready storage nodes.
+//
+// The function blocks until src is fully re-routed.
+func rerouteMetadataRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
 	var mr metricsmetadata.Row
-	for len(src) > 0 {
+	next := func() ([]byte, uint64, bool) {
+		if len(src) == 0 {
+			return nil, 0, false
+		}
 		tail, err := mr.Unmarshal(src)
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal MetricRow: %s", err)
 		}
 		rowBuf := src[:len(src)-len(tail)]
 		src = tail
-		reroutedRowsProcessed.Inc()
 		h := xxhash.Sum64(mr.MetricFamilyName)
-		mr.Reset()
+		return rowBuf, h, true
+	}
+
+	return rerouteToReadyStorageNodesRows(snb, snSource, next, func(sn *storageNode, buf []byte) bool {
+		return sn.sendMRBufMayBlock(buf)
+	}, func(sn *storageNode, buf []byte) bool {
+		return sn.trySendMRBuf(buf, 1)
+	})
+}
+
+func rerouteToReadyStorageNodesRows(snb *storageNodesBucket, snSource *storageNode, nextRow func() ([]byte, uint64, bool), pushRowBlocking func(*storageNode, []byte) bool, pushRowNonBlocking func(*storageNode, []byte) bool) (int, error) {
+	reroutesTotal.Inc()
+	rowsProcessed := 0
+	var idxsExclude, idxsExcludeNew []int
+	nodesHash := snb.nodesHash
+	sns := snb.sns
+	idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
+	for {
+		rowBuf, h, hasMore := nextRow()
+		if !hasMore {
+			return rowsProcessed, nil
+		}
+
+		reroutedRowsProcessed.Inc()
 		var sn *storageNode
 		for {
 			idx := nodesHash.getNodeIdx(h, idxsExclude)
@@ -857,7 +828,7 @@ func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode
 			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
 		}
 		if *disableRerouting {
-			if !sn.sendMRBufMayBlock(rowBuf) {
+			if !pushRowBlocking(sn, rowBuf) {
 				return rowsProcessed, fmt.Errorf("graceful shutdown started")
 			}
 			rowsProcessed++
@@ -868,7 +839,7 @@ func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode
 			continue
 		}
 	again:
-		if sn.trySendMRBuf(rowBuf, 1) {
+		if pushRowNonBlocking(sn, rowBuf) {
 			rowsProcessed++
 			if sn != snSource {
 				snSource.rowsReroutedFromHere.Inc()
@@ -880,7 +851,7 @@ func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode
 		idxsExcludeNew = getNotReadyStorageNodeIdxs(snb, idxsExcludeNew[:0], sn)
 		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
 		snNew := sns[idx]
-		if !snNew.trySendMRBuf(rowBuf, 1) {
+		if !pushRowNonBlocking(snNew, rowBuf) {
 			// The row cannot be sent to both snSource, sn and snNew without blocking.
 			// Sleep for a while and try sending the row to snSource again.
 			time.Sleep(100 * time.Millisecond)
@@ -892,7 +863,6 @@ func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode
 			snNew.rowsReroutedToHere.Inc()
 		}
 	}
-	return rowsProcessed, nil
 }
 
 // reouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
@@ -900,7 +870,59 @@ func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode
 // It is expected that snSource has no enough buffer for sending src.
 // It is expected than *disableRerouting isn't set when calling this function.
 // It is expected that len(snb.sns) >= 2
-func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
+func rerouteTimeseriesRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
+	var mr storage.MetricRow
+	next := func() ([]byte, uint64, bool) {
+		if len(src) == 0 {
+			return nil, 0, false
+		}
+		tail, err := mr.UnmarshalX(src)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal MetricRow: %s", err)
+		}
+		rowBuf := src[:len(src)-len(tail)]
+		src = tail
+		h := xxhash.Sum64(mr.MetricNameRaw)
+		return rowBuf, h, true
+	}
+
+	return rerouteRowsToFreeStorageNodes(snb, snSource, next, func(sn *storageNode, buf []byte) bool {
+		return sn.trySendTSBuf(buf, 1)
+	})
+}
+
+// rerouteMetadataRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
+//
+// It is expected that snSource has no enough buffer for sending src.
+// It is expected than *disableRerouting isn't set when calling this function.
+// It is expected that len(snb.sns) >= 2
+func rerouteMetadataRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
+	var mr metricsmetadata.Row
+	next := func() ([]byte, uint64, bool) {
+		if len(src) == 0 {
+			return nil, 0, false
+		}
+		tail, err := mr.Unmarshal(src)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal metadata row: %s", err)
+		}
+		rowBuf := src[:len(src)-len(tail)]
+		src = tail
+		h := xxhash.Sum64(mr.MetricFamilyName)
+		return rowBuf, h, true
+	}
+
+	return rerouteRowsToFreeStorageNodes(snb, snSource, next, func(sn *storageNode, buf []byte) bool {
+		return sn.trySendMRBuf(buf, 1)
+	})
+}
+
+func rerouteRowsToFreeStorageNodes(
+	snb *storageNodesBucket,
+	snSource *storageNode,
+	nextRow func() ([]byte, uint64, bool),
+	pushRow func(*storageNode, []byte) bool,
+) (int, error) {
 	if *disableRerouting {
 		logger.Panicf("BUG: disableRerouting must be disabled when calling rerouteRowsToFreeStorageNodes")
 	}
@@ -913,21 +935,15 @@ func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNod
 	var idxsExclude []int
 	nodesHash := snb.nodesHash
 	idxsExclude = getNotReadyStorageNodeIdxs(snb, idxsExclude[:0], snSource)
-	var mr storage.MetricRow
-	for len(src) > 0 {
-		tail, err := mr.UnmarshalX(src)
-		if err != nil {
-			logger.Panicf("BUG: cannot unmarshal MetricRow: %s", err)
+	for {
+		rowBuf, h, hasMore := nextRow()
+		if !hasMore {
+			return rowsProcessed, nil
 		}
-		rowBuf := src[:len(src)-len(tail)]
-		src = tail
-		reroutedRowsProcessed.Inc()
-		h := xxhash.Sum64(mr.MetricNameRaw)
-		mr.ResetX()
 
 	again:
 		// Try sending the row to snSource in order to minimize re-routing.
-		if snSource.trySendTSBuf(rowBuf, 1) {
+		if pushRow(snSource, rowBuf) {
 			rowsProcessed++
 			continue
 		}
@@ -940,7 +956,7 @@ func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNod
 			idx := nodesHash.getNodeIdx(h, idxsExclude)
 			sn = sns[idx]
 		}
-		if !sn.trySendTSBuf(rowBuf, 1) {
+		if !pushRow(sn, rowBuf) {
 			// The row cannot be sent to both snSource and sn without blocking.
 			// Sleep for a while and try sending the row to snSource again.
 			time.Sleep(100 * time.Millisecond)
@@ -950,7 +966,6 @@ func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNod
 		snSource.rowsReroutedFromHere.Inc()
 		sn.rowsReroutedToHere.Inc()
 	}
-	return rowsProcessed, nil
 }
 
 func getNotReadyStorageNodeIdxsBlocking(snb *storageNodesBucket, dst []int) []int {
