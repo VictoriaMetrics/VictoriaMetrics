@@ -68,15 +68,15 @@ jobs:
           go-version: stable
           cache: false
 
-#      - name: Cache Go artifacts
-#        uses: actions/cache@v4
-#        with:
-#          path: |
-#            ~/.cache/go-build
-#            ~/go/bin
-#            ~/go/pkg/mod
-#          key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-#          restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
+      - name: Cache Go artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/bin
+            ~/go/pkg/mod
+          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: Build victoria-metrics for ${{ matrix.os }}-${{ matrix.arch }}
         run: make victoria-metrics-${{ matrix.os }}-${{ matrix.arch }}
