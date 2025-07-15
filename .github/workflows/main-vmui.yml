@@ -22,8 +22,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
-  lint:
-    name: lint
+  vmui-checks:
+    name: VMUI Checks (lint, test, typecheck)
     runs-on: ubuntu-latest
     steps:
       - name: Code checkout
@@ -43,51 +43,29 @@ jobs:
           restore-keys: vmui-artifacts-${{ runner.os }}-
 
       - name: Run lint
+        id: lint
         run: make vmui-lint
+        continue-on-error: true
 
-  typecheck:
-      name: typecheck
-      runs-on: ubuntu-latest
-      steps:
-        - name: Code checkout
-          uses: actions/checkout@v4
+      - name: Run tests
+        id: test
+        run: make vmui-test
+        continue-on-error: true
 
-        - name: Setup Node
-          uses: actions/setup-node@v4
-          with:
-            node-version: '24.x'
+      - name: Run typecheck
+        id: typecheck
+        run: make vmui-typecheck
+        continue-on-error: true
 
-        - name: Cache node-modules
-          uses: actions/cache@v4
-          with:
-            path: |
-              app/vmui/packages/vmui/node_modules
-            key: vmui-artifacts-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-            restore-keys: vmui-artifacts-${{ runner.os }}-
+      - name: Check overall status
+        run: |
+          echo "Lint status: ${{ steps.lint.outcome }}"
+          echo "Test status: ${{ steps.test.outcome }}"
+          echo "Typecheck status: ${{ steps.typecheck.outcome }}"
 
-        - name: Run typecheck
-          run: make vmui-typecheck
-
-  test:
-      name: test
-      runs-on: ubuntu-latest
-      steps:
-        - name: Code checkout
-          uses: actions/checkout@v4
-
-        - name: Setup Node
-          uses: actions/setup-node@v4
-          with:
-            node-version: '24.x'
-
-        - name: Cache node-modules
-          uses: actions/cache@v4
-          with:
-            path: |
-              app/vmui/packages/vmui/node_modules
-            key: vmui-artifacts-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-            restore-keys: vmui-artifacts-${{ runner.os }}-
-
-        - name: Run tests
-          id: lint
-          run: make vmui-test
+          if [[ "${{ steps.lint.outcome }}" == "failure" || "${{ steps.test.outcome }}" == "failure" || "${{ steps.typecheck.outcome }}" == "failure" ]]; then
+            echo "One or more checks failed"
+            exit 1
+          else
+            echo "All checks passed"
+          fi
