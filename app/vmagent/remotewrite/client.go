@@ -462,21 +462,27 @@ again:
 		// - Real-world implementations of v1 use both 400 and 415 status codes.
 		// See more in research: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462#issuecomment-2786918054
 	} else if statusCode == 415 || statusCode == 400 {
-		if c.canDowngradeVMProto.Swap(false) {
-			logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
-				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
-			c.useVMProto.Store(false)
-		}
-
 		if encoding.IsZstd(block) {
 			logger.Infof("received unsupported media type or bad request from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
 				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
 
-			block = mustRepackBlockFromZstdToSnappy(block)
+			zstdBlockLen := len(block)
+			block, err = repackBlockFromZstdToSnappy(block)
+			if err == nil {
+				if c.canDowngradeVMProto.Swap(false) {
+					logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
+						"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+					c.useVMProto.Store(false)
+				}
 
-			c.retriesCount.Inc()
-			_ = resp.Body.Close()
-			goto again
+				c.retriesCount.Inc()
+				_ = resp.Body.Close()
+				goto again
+			}
+
+			logger.Warnf("failed to repack zstd block (%s bytes) to snappy: %s; The block will be rejected. "+
+				"Possible cause: ungraceful shutdown leading to persisted queue corruption.",
+				zstdBlockLen, err)
 		}
 
 		// Just drop snappy blocks on 400 or 415 status codes like Prometheus does.
@@ -538,14 +544,21 @@ func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.D
 	return retryDuration
 }
 
-func mustRepackBlockFromZstdToSnappy(zstdBlock []byte) []byte {
+// repackBlockFromZstdToSnappy repacks the given zstd-compressed block to snappy-compressed block.
+//
+// The input block may be corrupted, for example, if vmagent was shut down ungracefully and
+// failed to properly update the persisted queue files. In such cases, zstd decompression
+// will fail and an error will be returned.
+//
+// For more details, see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417
+func repackBlockFromZstdToSnappy(zstdBlock []byte) ([]byte, error) {
 	plainBlock := make([]byte, 0, len(zstdBlock)*2)
 	plainBlock, err := zstd.Decompress(plainBlock, zstdBlock)
 	if err != nil {
-		logger.Panicf("FATAL: cannot re-pack block with size %d bytes from Zstd to Snappy: %s", len(zstdBlock), err)
+		return nil, fmt.Errorf("zstd: decompress: %s", err)
 	}
 
-	return snappy.Encode(nil, plainBlock)
+	return snappy.Encode(nil, plainBlock), nil
 }
 
 func logBlockRejected(block []byte, sanitizedURL string, resp *http.Response) {

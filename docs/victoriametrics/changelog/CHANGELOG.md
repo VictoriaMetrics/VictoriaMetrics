@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): Prevent panic when re-packing a corrupted block during protocol downgrade. See [#9417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417).
+
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 
 Released at 2025-07-04
