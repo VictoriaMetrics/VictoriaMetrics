@@ -607,41 +607,46 @@ check-licenses: install-wwhrd
 
 tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
 
-TSBS_START := $(shell date -u -d "3 days ago" +"%Y-%m-%dT%H:%M:%SZ")
-TSBS_END   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+TSBS_SCALE := 4000
+TSBS_START := 2025-01-01T00:00:00Z
+TSBS_END := 2025-01-04T00:00:00Z
+TSBS_STEP := 10s
+TSBS_QUERIES := 1000
+TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
+TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
 
 tsbs-build:
 	test -d /tmp/tsbs || (git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
-	cd /tmp/tsbs/cmd/tsbs_generate_data && GOBIN=/tmp/tsbs/bin go install && \
-	cd /tmp/tsbs/cmd/tsbs_generate_queries && GOBIN=/tmp/tsbs/bin go install && \
-	cd /tmp/tsbs/cmd/tsbs_load_victoriametrics && GOBIN=/tmp/tsbs/bin go install && \
-	cd /tmp/tsbs/cmd/tsbs_run_queries_victoriametrics && GOBIN=/tmp/tsbs/bin go install)
+		cd /tmp/tsbs/cmd/tsbs_generate_data && GOBIN=/tmp/tsbs/bin go install && \
+		cd /tmp/tsbs/cmd/tsbs_generate_queries && GOBIN=/tmp/tsbs/bin go install && \
+		cd /tmp/tsbs/cmd/tsbs_load_victoriametrics && GOBIN=/tmp/tsbs/bin go install && \
+		cd /tmp/tsbs/cmd/tsbs_run_queries_victoriametrics && GOBIN=/tmp/tsbs/bin go install)
 
 tsbs-generate-data:
-	test -f /tmp/tsbs-data.gz || /tmp/tsbs/bin/tsbs_generate_data \
-	--format=victoriametrics \
-	--use-case=devops  \
-	--seed=8428 \
-	--scale=400 \
-	--timestamp-start=$(TSBS_START) \
-	--timestamp-end=$(TSBS_END) \
-	--log-interval=10s \
-	| gzip > /tmp/tsbs-data.gz
+	test -f $(TSBS_DATA_FILE) || /tmp/tsbs/bin/tsbs_generate_data \
+		--format=victoriametrics \
+		--use-case=cpu-only  \
+		--seed=8428 \
+		--scale=$(TSBS_SCALE) \
+		--timestamp-start=$(TSBS_START) \
+		--timestamp-end=$(TSBS_END) \
+		--log-interval=$(TSBS_STEP) \
+		| gzip > $(TSBS_DATA_FILE)
 
 tsbs-load-data:
-	cat /tmp/tsbs-data.gz | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=16
+	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=4
 
 tsbs-generate-queries:
-	test -f /tmp/tsbs-queries.gz || /tmp/tsbs/bin/tsbs_generate_queries \
-	--format=victoriametrics \
-	--queries=1000 \
-	--query-type=cpu-max-all-8 \
-	--scale=4000 \
-	--seed=8428 \
-	--timestamp-start=$(TSBS_START) \
-	--timestamp-end=$(TSBS_END) \
-	--use-case=devops \
-	| gzip > /tmp/tsbs-queries.gz
+	test -f $(TSBS_QUERY_FILE) || /tmp/tsbs/bin/tsbs_generate_queries \
+		--format=victoriametrics \
+		--use-case=cpu-only \
+		--seed=8428 \
+		--scale=$(TSBS_SCALE) \
+		--timestamp-start=$(TSBS_START) \
+		--timestamp-end=$(TSBS_END) \
+		--query-type=cpu-max-all-8 \
+		--queries=1000 \
+		| gzip > $(TSBS_QUERY_FILE)
 
 tsbs-run-queries:
-	cat /tmp/tsbs-queries.gz | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=16
+	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=4
