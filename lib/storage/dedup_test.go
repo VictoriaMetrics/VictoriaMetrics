@@ -218,13 +218,12 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 }
 
 func TestDeduplicateSamples_KeepsFirstAndLast(t *testing.T) {
-	f := func(scrapeInterval time.Duration, timestamps []int64, values []float64, timestampsExpected []int64, valuesExpected []float64) {
+	f := func(dedupInterval time.Duration, timestamps []int64, values []float64, timestampsExpected []int64, valuesExpected []float64) {
 		t.Helper()
 		tsCopy := append([]int64{}, timestamps...)
 		vCopy := append([]float64{}, values...)
 
-		dedupInterval := scrapeInterval.Milliseconds()
-		tsCopy, vCopy = DeduplicateSamples(tsCopy, vCopy, dedupInterval)
+		tsCopy, vCopy = DeduplicateSamples(tsCopy, vCopy, dedupInterval.Milliseconds())
 
 		// Original boundary checks for clarity and safety
 		if len(tsCopy) == 0 {
@@ -296,13 +295,12 @@ func TestDeduplicateSamples_KeepsFirstAndLast(t *testing.T) {
 }
 
 func TestDeduplicateSamplesDuringMerge_KeepsFirstAndLast(t *testing.T) {
-	f := func(scrapeInterval time.Duration, timestamps []int64, values []int64, timestampsExpected []int64, valuesExpected []int64) {
+	f := func(dedupInterval time.Duration, timestamps []int64, values []int64, timestampsExpected []int64, valuesExpected []int64) {
 		t.Helper()
 		tsCopy := append([]int64{}, timestamps...)
 		vCopy := append([]int64{}, values...)
 
-		dedupInterval := scrapeInterval.Milliseconds()
-		tsCopy, vCopy = deduplicateSamplesDuringMerge(tsCopy, vCopy, dedupInterval)
+		tsCopy, vCopy = deduplicateSamplesDuringMerge(tsCopy, vCopy, dedupInterval.Milliseconds())
 
 		// Original boundary checks
 		if len(tsCopy) == 0 {
