@@ -7,7 +7,7 @@ ROOT_IMAGE ?= alpine:3.22.0
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.22.0
 
-GO_BUILDER_IMAGE := golang:1.24.4-alpine
+GO_BUILDER_IMAGE := golang:1.24.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -95,7 +95,7 @@ publish-via-docker:
 		--label "org.opencontainers.image.version=$(PKG_TAG)" \
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_TAG_SUFFIX) \
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX) \
 		) \
 		-o type=image \
 		--provenance=false \
@@ -115,7 +115,7 @@ publish-via-docker:
 		--label "org.opencontainers.image.version=$(PKG_TAG)" \
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		$(foreach registry,$(DOCKER_REGISTRIES),\
-		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_TAG_SUFFIX)-scratch \
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch \
 		) \
 		-o type=image \
 		--provenance=false \
@@ -128,6 +128,14 @@ publish-via-docker:
 		$(APP_NAME)-linux-arm64-prod \
 		$(APP_NAME)-linux-ppc64le-prod \
 		$(APP_NAME)-linux-386-prod
+
+publish-via-docker-from-rc:
+	$(foreach registry,$(DOCKER_REGISTRIES),\
+		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX); \
+	)
+	$(foreach registry,$(DOCKER_REGISTRIES),\
+		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-scratch $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch; \
+	)
 
 publish-via-docker-latest:
 	$(foreach registry,$(DOCKER_REGISTRIES),\
@@ -227,26 +235,9 @@ docker-vm-cluster-up:
 docker-vm-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
 
-# VL single
-docker-vl-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
-
-docker-vl-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
-
-# VL cluster
-docker-vl-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
-
-docker-vl-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
-
 # Command aliases to keep backward-compatibility, as they could have been mentioned on the Internet before the rename.
 docker-single-up: docker-vm-single-up
 docker-single-down: docker-vm-single-down
 
 docker-cluster-up: docker-vm-cluster-up
 docker-cluster-down: docker-vm-cluster-down
-
-docker-victorialogs-up: docker-vl-single-up
-docker-victorialogs-down: docker-vl-single-down

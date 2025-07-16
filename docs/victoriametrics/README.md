@@ -2053,7 +2053,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 * VictoriaMetrics limits the number of labels per each series, label name length and label value length
   via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
   Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
-  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
+  It is recommended [monitoring](#monitoring) `vm_rows_ignored_total` metric and VictoriaMetrics logs in order 
   to determine whether limits must be adjusted for your workload.
   Alternatively, you can use [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) to change metric target labels.
 
@@ -2173,7 +2173,7 @@ Things to consider when copying data:
 1. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
 
 For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
-of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/vmctl/#migrating-data-from-victoriametrics).
+of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ### From other systems
 
@@ -2272,14 +2272,6 @@ The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
-
-## Integrations
-
-* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
-  See [this example](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml).
-* [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
-  See [these docs](https://github.com/netdata/netdata#integrations).
-* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
 
 ## Third-party contributions
 
@@ -2786,6 +2778,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
   -search.logSlowQueryStats duration
      Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/victoriametrics/query-stats . Zero disables slow query statistics logging. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+  -search.logSlowQueryStatsHeaders array
+     White list of header keys to log for queries exceeding -search.logSlowQueryStats. By default, no headers are logged. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -search.maxBinaryOpPushdownLabelValues instance
      The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example instance, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
@@ -2890,7 +2886,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Deprecated: this flag does nothing
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
-     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 3d)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storage.cacheSizeIndexDBDataBlocks size
@@ -3045,3 +3041,7 @@ Moved to [integrations/graphite/#metrics-api](https://docs.victoriametrics.com/v
 ###### Graphite Tags API usage
 
 Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#tags-api).
+
+###### Integrations
+
+Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations).

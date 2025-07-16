@@ -19,17 +19,3 @@ export const footerLinksByDefault = [
   },
   issueLink
 ];
-
-export const footerLinksToLogs = [
-  {
-    href: "https://docs.victoriametrics.com/victorialogs/logsql/",
-    Icon: CodeIcon,
-    title: "LogsQL",
-  },
-  {
-    href: "https://docs.victoriametrics.com/victorialogs/",
-    Icon: WikiIcon,
-    title: "Documentation",
-  },
-  issueLink
-];

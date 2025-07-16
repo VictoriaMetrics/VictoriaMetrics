@@ -316,7 +316,7 @@ func Welcome(r *http.Request) string {
 }
 
 //line app/vmalert/web.qtpl:96
-func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []apiGroup, filter string) {
+func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*apiGroup, filter string) {
 //line app/vmalert/web.qtpl:96
 	qw422016.N().S(`
     `)
@@ -325,12 +325,12 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []apiGr
 	filters := map[string]string{
 		"":          "All",
 		"unhealthy": "Unhealthy",
-		"noMatch":   "No Match",
+		"nomatch":   "No Match",
 	}
 	icons := map[string]string{
 		"":          "all",
 		"unhealthy": "unhealthy",
-		"noMatch":   "nomatch",
+		"nomatch":   "nomatch",
 	}
 	currentText := filters[filter]
 	currentIcon := icons[filter]
@@ -523,9 +523,9 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []apiGr
                         <table class="table table-striped table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th scope="col" style="width: 60%">Rule</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many series were produced by the rule">Series</th>
-                                    <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                                    <th scope="col" class="w-60">Rule</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series</th>
+                                    <th scope="col" class="w-20" class="text-center" title="How many seconds ago rule was executed">Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -722,7 +722,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []apiGr
 }
 
 //line app/vmalert/web.qtpl:222
-func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, groups []apiGroup, filter string) {
+func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, groups []*apiGroup, filter string) {
 //line app/vmalert/web.qtpl:222
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:222
@@ -733,7 +733,7 @@ func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, groups []apiGr
 }
 
 //line app/vmalert/web.qtpl:222
-func ListGroups(r *http.Request, groups []apiGroup, filter string) string {
+func ListGroups(r *http.Request, groups []*apiGroup, filter string) string {
 //line app/vmalert/web.qtpl:222
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:222
@@ -1697,17 +1697,17 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule apiRule)
             <thead>
                 <tr>
                     <th scope="col" title="The time when event was created">Updated at</th>
-                    <th scope="col" style="width: 10%" class="text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
+                    <th scope="col" class="w-10 text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
                     `)
 //line app/vmalert/web.qtpl:598
 	if seriesFetchedEnabled {
 //line app/vmalert/web.qtpl:598
-		qw422016.N().S(`<th scope="col" style="width: 10%" class="text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>`)
+		qw422016.N().S(`<th scope="col" class="w-10 text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>`)
 //line app/vmalert/web.qtpl:598
 	}
 //line app/vmalert/web.qtpl:598
 	qw422016.N().S(`
-                    <th scope="col" style="width: 10%" class="text-center" title="How many seconds request took">Duration</th>
+                    <th scope="col" class="w-10 text-center" title="How many seconds request took">Duration</th>
                     <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
                     <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>

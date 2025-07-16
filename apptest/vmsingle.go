@@ -43,11 +43,11 @@ type Vmsingle struct {
 	prometheusAPIV1SeriesURL       string
 }
 
-// StartVmsingle starts an instance of vmsingle with the given flags. It also
+// StartVmsingleAt starts an instance of vmsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
-func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-metrics", flags, &appOptions{
+func StartVmsingleAt(instance, binary string, flags []string, cli *Client) (*Vmsingle, error) {
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":     "127.0.0.1:0",
@@ -316,6 +316,42 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
+}
+
+// APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending
+// a request to /api/v1/admin/tsdb/delete_series.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
+func (app *Vmsingle) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/api/v1/admin/tsdb/delete_series", app.httpListenAddr)
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
+	}
+}
+
+// GraphiteMetricsIndex sends a query to a /metrics/index.json
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMetricsIndexResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/metrics/index.json", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, seriesURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var index GraphiteMetricsIndexResponse
+	if err := json.Unmarshal([]byte(res), &index); err != nil {
+		t.Fatalf("could not unmarshal metrics index response data:\n%s\n err: %v", res, err)
+	}
+	return index
 }
 
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint

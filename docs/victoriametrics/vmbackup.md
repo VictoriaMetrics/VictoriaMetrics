@@ -12,7 +12,8 @@ aliases:
   - /vmbackup/index.html
   - /vmbackup/
 ---
-`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
+`vmbackup` creates VictoriaMetrics data backups from instant snapshots.
+More information how to work with them could be found in [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots) documentation.
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
@@ -180,9 +181,10 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth or CPU, then either decrease the `-concurrency` command-line flag value or set `-maxBytesPerSecond` command-line flag value to lower value.
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
-* If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
+* If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process. After backup process has finished successfully, please remove old snapshot that was created during failed attempt.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
+* Please find description how snapshots use disk space and recommendations in [snapshot troubleshooting](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting)
 
 ## Advanced usage
 
@@ -347,6 +349,7 @@ Run `vmbackup -help` in order to see all the available options:
   -dst string
      Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
+     Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -481,15 +484,15 @@ Run `vmbackup -help` in order to see all the available options:
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
   -snapshot.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used
+     Optional path to TLS CA file to use for verifying connections to -snapshot.createURL. By default, system CA is used
   -snapshot.tlsCertFile string
-     Optional path to client-side TLS certificate file to use when connecting to -snapshotCreateURL
+     Optional path to client-side TLS certificate file to use when connecting to -snapshot.createURL
   -snapshot.tlsInsecureSkipVerify
-     Whether to skip tls verification when connecting to -snapshotCreateURL
+     Whether to skip tls verification when connecting to -snapshot.createURL
   -snapshot.tlsKeyFile string
-     Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL
+     Optional path to client-side TLS certificate key to use when connecting to -snapshot.createURL
   -snapshot.tlsServerName string
-     Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used
+     Optional TLS server name to use for connections to -snapshot.createURL. By default, the server name from -snapshot.createURL is used
   -snapshotName string
      Name for the snapshot to backup. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set
   -storageDataPath string

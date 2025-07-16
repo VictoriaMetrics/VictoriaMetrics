@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useEffect, useRef, useState, createPortal } from "preact/compat";
-import { MouseEvent as ReactMouseEvent } from "react";
+import { FC, useCallback, useEffect, useRef, useState, createPortal, ReactNode, MouseEvent as ReactMouseEvent } from "preact/compat";
 import useEventListener from "../../../hooks/useEventListener";
 import classNames from "classnames";
 import uPlot from "uplot";
@@ -18,7 +17,7 @@ export interface ChartTooltipProps {
   unit?: string;
   statsFormatted?: SeriesItemStatsFormatted;
   isSticky?: boolean;
-  info?: string;
+  info?: ReactNode;
   marker?: string;
   show?: boolean;
   onClose?: (id: string) => void;

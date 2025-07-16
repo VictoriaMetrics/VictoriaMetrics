@@ -2,6 +2,7 @@ package tests
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
@@ -27,10 +28,18 @@ func TestClusterSpecialQueryRegression(t *testing.T) {
 
 	sut := tc.MustStartCluster(&at.ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
+		Vmstorage1Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1"),
+			"-retentionPeriod=100y",
+		},
 		Vmstorage2Instance: "vmstorage2",
-		VminsertInstance:   "vminsert",
-		VminsertFlags:      []string{"-graphiteListenAddr=:0", "-opentsdbListenAddr=127.0.0.1:0"},
-		VmselectInstance:   "vmselect",
+		Vmstorage2Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2"),
+			"-retentionPeriod=100y",
+		},
+		VminsertInstance: "vminsert",
+		VminsertFlags:    []string{"-graphiteListenAddr=:0", "-opentsdbListenAddr=127.0.0.1:0"},
+		VmselectInstance: "vmselect",
 	})
 	testSpecialQueryRegression(tc, sut)
 }
@@ -41,6 +50,7 @@ func testSpecialQueryRegression(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 	testDuplicateLabel(tc, sut)
 	testTooBigLookbehindWindow(tc, sut)
 	testMatchSeries(tc, sut)
+	testNegativeIncrease(tc, sut)
 
 	// graphite
 	testComparisonNotInfNotNan(tc, sut)
@@ -229,6 +239,53 @@ func testMatchSeries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 				{"__name__": "GenBearTemp", "db": "TenMinute", "Park": "2", "TurbineType": "V112"},
 				{"__name__": "GenBearTemp", "db": "TenMinute", "Park": "3", "TurbineType": "V112"},
 				{"__name__": "GenBearTemp", "db": "TenMinute", "Park": "4", "TurbineType": "V112"},
+			},
+		},
+	})
+}
+
+func testNegativeIncrease(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+	t := tc.T()
+
+	// negative increase when user overrides staleness interval
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-2978728661
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`foo 108 1750109243514`, // 2025-06-16 21:27:23:514
+		`foo 108 1750109258514`, // 2025-06-16 21:27:38:514
+		// gap 75s
+		`foo 1 1750109333514`, // 2025-06-16 21:28:53:514
+		`foo 1 1750109348514`, // 2025-06-16 21:29:08:514
+	}, at.QueryOpts{})
+	sut.ForceFlush(t)
+
+	tc.Assert(&at.AssertOptions{
+		Msg:        "regression for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-2978728661",
+		DoNotRetry: true,
+		Got: func() any {
+			return sut.PrometheusAPIV1QueryRange(t, `increase(foo[1m])`, at.QueryOpts{
+				Start:       "2025-06-16T21:28:40.700Z",
+				End:         "2025-06-16T21:29:30.700Z",
+				Step:        "9s",
+				MaxLookback: "65s",
+			})
+		},
+		Want: &at.PrometheusAPIV1QueryResponse{
+			Status: "success",
+			Data: &at.QueryData{
+				ResultType: "matrix",
+				Result: []*at.QueryResult{
+					{
+						Metric: map[string]string{},
+						Samples: []*at.Sample{
+							at.NewSample(t, "2025-06-16T21:28:40.700Z", 0),
+							at.NewSample(t, "2025-06-16T21:28:49.700Z", 0),
+							at.NewSample(t, "2025-06-16T21:28:58.700Z", 1),
+							at.NewSample(t, "2025-06-16T21:29:07.700Z", 1),
+							at.NewSample(t, "2025-06-16T21:29:16.700Z", 0),
+							at.NewSample(t, "2025-06-16T21:29:25.700Z", 0),
+						},
+					},
+				},
 			},
 		},
 	})

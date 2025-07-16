@@ -136,5 +136,6 @@ func WithSchemaURL(schemaURL string) LoggerOption {
 
 // EnabledParameters represents payload for [Logger]'s Enabled method.
 type EnabledParameters struct {
-	Severity Severity
+	Severity  Severity
+	EventName string
 }

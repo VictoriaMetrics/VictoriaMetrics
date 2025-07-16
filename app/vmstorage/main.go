@@ -31,7 +31,7 @@ var (
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
-	snapshotsMaxAge   = flagutil.NewRetentionDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
+	snapshotsMaxAge   = flagutil.NewRetentionDuration("snapshotsMaxAge", "3d", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	_                 = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
@@ -644,6 +644,15 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexps"}`, storage.RegexpCacheMisses())
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMisses())
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="cache_size"}`, m.TSIDCacheSizeEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="miss_percentage"}`, m.TSIDCacheMissEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="expiration"}`, m.TSIDCacheExpireEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="cache_size"}`, m.MetricNameCacheSizeEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="miss_percentage"}`, m.MetricNameCacheMissEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="expiration"}`, m.MetricNameCacheExpireEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="cache_size"}`, m.MetricIDCacheSizeEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="miss_percentage"}`, m.MetricIDCacheMissEvictionBytes)
+	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="expiration"}`, m.MetricIDCacheExpireEvictionBytes)
 
 	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, idbm.DeletedMetricsCount)
 

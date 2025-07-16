@@ -197,15 +197,16 @@ func (tb *table) MustClose() {
 	}
 }
 
-// flushPendingRows flushes all the pending raw rows, so they become visible to search.
+// DebugFlush flushes all pending raw data rows, so they become
+// visible to search.
 //
 // This function is for debug purposes only.
-func (tb *table) flushPendingRows() {
+func (tb *table) DebugFlush() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
-		ptw.pt.flushPendingRows(true)
+		ptw.pt.DebugFlush()
 	}
 }
 

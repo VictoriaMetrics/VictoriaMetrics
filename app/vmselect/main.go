@@ -99,7 +99,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
 	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
 	//
@@ -562,6 +562,15 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
+	case "/api/v1/notifiers", "/notifiers":
+		notifiersRequests.Inc()
+		if len(*vmalertProxyURL) > 0 {
+			proxyVMAlertRequests(w, r)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
+		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 		metadataRequests.Inc()
@@ -691,9 +700,10 @@ var (
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 	prettifyQueryRequests   = metrics.NewCounter(`vm_http_requests_total{path="/prettify-query"}`)
 
-	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
-	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
-	alertsRequests  = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	vmalertRequests   = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
+	rulesRequests     = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
+	alertsRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
+	notifiersRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/notifiers"}`)
 
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)

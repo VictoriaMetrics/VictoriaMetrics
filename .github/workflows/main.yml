@@ -7,12 +7,16 @@ on:
       - master
     paths:
       - '**.go'
+      - 'go.*'
+      - '.github/workflows/main.yml'
   pull_request:
     branches:
       - cluster
       - master
     paths:
       - '**.go'
+      - 'go.*'
+      - '.github/workflows/main.yml'
 
 permissions:
   contents: read

@@ -70,7 +70,7 @@ var (
 			Usage: "VictoriaMetrics address to perform import requests. \n" +
 				"Should be the same as --httpListenAddr value for single-node version or vminsert component. \n" +
 				"When importing into the clustered version do not forget to set additionally --vm-account-id flag. \n" +
-				"Please note, that `vmctl` performs initial readiness check for the given address by checking `/health` endpoint.",
+				"Please note, that vmctl performs initial readiness check for the given address by checking /health endpoint.",
 		},
 		&cli.StringFlag{
 			Name:    vmUser,
@@ -514,27 +514,27 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  vmNativeSrcBearerToken,
-			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
+			Usage: "Optional bearer auth token to use for the corresponding --vm-native-src-addr",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeSrcCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-src-addr`",
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to --vm-native-src-addr",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeSrcKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-src-addr`",
+			Usage: "Optional path to client-side TLS key to use when connecting to --vm-native-src-addr",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeSrcCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-src-addr`. By default, system CA is used",
+			Usage: "Optional path to TLS CA file to use for verifying connections to --vm-native-src-addr. By default, system CA is used",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeSrcServerName,
-			Usage: "Optional TLS server name to use for connections to `--vm-native-src-addr`. By default, the server name from `--vm-native-src-addr` is used",
+			Usage: "Optional TLS server name to use for connections to --vm-native-src-addr. By default, the server name from --vm-native-src-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeSrcInsecureSkipVerify,
-			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-src-addr`",
+			Usage: "Whether to skip TLS certificate verification when connecting to --vm-native-src-addr",
 			Value: false,
 		},
 
@@ -563,27 +563,27 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  vmNativeDstBearerToken,
-			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
+			Usage: "Optional bearer auth token to use for the corresponding --vm-native-dst-addr",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeDstCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-dst-addr`",
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to --vm-native-dst-addr",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeDstKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-dst-addr`",
+			Usage: "Optional path to client-side TLS key to use when connecting to --vm-native-dst-addr",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeDstCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-dst-addr`. By default, system CA is used",
+			Usage: "Optional path to TLS CA file to use for verifying connections to --vm-native-dst-addr. By default, system CA is used",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeDstServerName,
-			Usage: "Optional TLS server name to use for connections to `--vm-native-dst-addr`. By default, the server name from `--vm-native-dst-addr` is used",
+			Usage: "Optional TLS server name to use for connections to --vm-native-dst-addr. By default, the server name from --vm-native-dst-addr is used",
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeDstInsecureSkipVerify,
-			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-dst-addr`",
+			Usage: "Whether to skip TLS certificate verification when connecting to --vm-native-dst-addr",
 			Value: false,
 		},
 
@@ -597,7 +597,7 @@ var (
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
 				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases. \n" +
-				"Rate limit is applied per worker, see `--vm-concurrency`.",
+				"Rate limit is applied per worker, see --vm-concurrency.",
 		},
 		&cli.BoolFlag{
 			Name: vmInterCluster,

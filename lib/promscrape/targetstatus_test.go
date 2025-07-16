@@ -58,3 +58,44 @@ func TestWriteActiveTargetsJSON(t *testing.T) {
 	})
 	f("unknown", []activeTarget{})
 }
+
+func TestRegisterDroppedTargets(t *testing.T) {
+	type opts struct {
+		toRegister       []*promutil.Labels
+		wantTotalTargets int
+	}
+	f := func(opts opts) {
+		t.Helper()
+		dtm := &droppedTargets{
+			m: make(map[uint64]droppedTarget),
+		}
+
+		for _, originalLabels := range opts.toRegister {
+			dtm.Register(originalLabels, nil, targetDropReasonRelabeling, nil)
+		}
+		got := dtm.getTotalTargets()
+		if got != opts.wantTotalTargets {
+			t.Fatalf("unexpected total targets: (-%d;+%d)", opts.wantTotalTargets, got)
+		}
+	}
+
+	// duplicate annotations
+	f(opts{
+		toRegister: []*promutil.Labels{
+			promutil.MustNewLabelsFromString(`{up="1",__meta_kubernetes_endpoints_annotation_updated="123"}`),
+			promutil.MustNewLabelsFromString(`{up="1",__meta_kubernetes_endpoints_annotation_updated="125"}`),
+			promutil.MustNewLabelsFromString(`{up="1",__meta_docker_annotation_some="5"}`),
+		},
+		wantTotalTargets: 2,
+	})
+	// collision with missing annotation
+	f(opts{
+		toRegister: []*promutil.Labels{
+			promutil.MustNewLabelsFromString(`{up="1",pod="vmagent-0"}`),
+			promutil.MustNewLabelsFromString(`{up="1",pod="vmagent-0",__meta_kubernetes_endpoints_annotation_updated="125"}`),
+			promutil.MustNewLabelsFromString(`{up="1",__meta_docker_annotation_some="5"}`),
+		},
+		wantTotalTargets: 2,
+	})
+
+}

@@ -198,8 +198,8 @@ func templateFuncs() textTpl.FuncMap {
 		// It is better to use quotesEscape, jsonEscape, queryEscape or pathEscape instead -
 		// these functions properly escape `\n` and `\r` chars according to their purpose.
 		"crlfEscape": func(q string) string {
-			q = strings.Replace(q, "\n", `\n`, -1)
-			return strings.Replace(q, "\r", `\r`, -1)
+			q = strings.ReplaceAll(q, "\n", `\n`)
+			return strings.ReplaceAll(q, "\r", `\r`)
 		},
 
 		// quotesEscape escapes the string, so it can be safely put inside JSON string.
