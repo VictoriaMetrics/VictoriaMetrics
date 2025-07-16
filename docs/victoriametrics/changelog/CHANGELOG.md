@@ -18,9 +18,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
-
 **Update Note 1:**  [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): The `-snapshotsMaxAge` flag default have been changed to `3d`. This enables automatic deletion of snapshots older than 3 days. If you want to keep the previous behavior (never automatically deleting snapshots), please set `-snapshotsMaxAge=0`. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344) for the details.
+
+* SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enable automatic deletion of snapshots older than 3 days by default. This helps to avoid wasting disk space due to snapshots not being removed in case of backup failure. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344).
 
