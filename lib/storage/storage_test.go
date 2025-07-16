@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"io/fs"
 	"math"
 	"math/rand"
@@ -17,6 +16,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -3496,6 +3497,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 			}
 			got[i] = string(mn.MetricGroup)
 		}
+		slices.Sort(got)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("[%v] unexpected metric names: got %v, want %v", &tr, got, want)
 		}
@@ -3915,11 +3917,19 @@ func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetric
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
 		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
-	metricIDs, err := searchAndMerge(nil, s, tr, search, mergeUniq)
+	merge := func(data [][]uint64) []uint64 {
+		s := &uint64set.Set{}
+		for _, d := range data {
+			s.AddMulti(d)
+		}
+		all := s.AppendTo(nil)
+		slices.Sort(all)
+		return all
+	}
+	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
-	slices.Sort(metricIDs)
 	return metricIDs
 }
 

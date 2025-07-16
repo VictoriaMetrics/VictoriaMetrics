@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -637,15 +638,6 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 }
 
 func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, timestamp int64, isConcurrent bool) error {
-	hasValue := func(lvs []string, v []byte) bool {
-		for _, lv := range lvs {
-			if string(v) == lv {
-				return true
-			}
-		}
-		return false
-	}
-
 	timeseriesCounters := make(map[uint64]bool)
 	var genTSID generationTSID
 	var tsidLocal TSID
@@ -701,7 +693,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		if err != nil {
 			return fmt.Errorf("error in SearchLabelValues(labelName=%q): %w", "__name__", err)
 		}
-		if !hasValue(lvs, mn.MetricGroup) {
+		if _, ok := lvs[string(mn.MetricGroup)]; !ok {
 			return fmt.Errorf("SearchLabelValues(labelName=%q): couldn't find %q; found %q", "__name__", mn.MetricGroup, lvs)
 		}
 		for i := range mn.Tags {
@@ -710,7 +702,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 			if err != nil {
 				return fmt.Errorf("error in SearchLabelValues(labelName=%q): %w", tag.Key, err)
 			}
-			if !hasValue(lvs, tag.Value) {
+			if _, ok := lvs[string(tag.Value)]; !ok {
 				return fmt.Errorf("SearchLabelValues(labelName=%q): couldn't find %q; found %q", tag.Key, tag.Value, lvs)
 			}
 			allLabelNames[string(tag.Key)] = true
@@ -722,11 +714,11 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNames(empty filter, global time range): %w", err)
 	}
-	if !hasValue(lns, []byte("__name__")) {
+	if _, ok := lns["__name__"]; !ok {
 		return fmt.Errorf("cannot find __name__ in %q", lns)
 	}
 	for labelName := range allLabelNames {
-		if !hasValue(lns, []byte(labelName)) {
+		if _, ok := lns[labelName]; !ok {
 			return fmt.Errorf("cannot find %q in %q", labelName, lns)
 		}
 	}
@@ -1690,9 +1682,18 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelNames(timeRange=%s): %s", &tr, err)
 	}
-	sort.Strings(lns)
-	if !reflect.DeepEqual(lns, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	sortedSlice := func(m map[string]struct{}) []string {
+		t.Helper()
+		s := make([]string, 0, len(m))
+		for k := range m {
+			s = append(s, k)
+		}
+		slices.Sort(s)
+		return s
+	}
+	got := sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
 	// Check SearchLabelValues with the specified time range.
@@ -1700,9 +1701,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
 	}
-	sort.Strings(lvs)
-	if !reflect.DeepEqual(lvs, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	got = sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
 	// Create a filter that will match series that occur across multiple days
@@ -1737,9 +1738,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelNames(filters=%s): %s", tfs, err)
 	}
-	sort.Strings(lns)
-	if !reflect.DeepEqual(lns, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	got = sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
 	// Check SearchLabelNames with the specified filter and time range.
@@ -1747,9 +1748,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
-	sort.Strings(lns)
-	if !reflect.DeepEqual(lns, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	got = sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
 	// Check SearchLabelNames with filters on metric name and time range.
@@ -1757,9 +1758,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
-	sort.Strings(lns)
-	if !reflect.DeepEqual(lns, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	got = sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
 	// Check SearchLabelValues with the specified filter.
@@ -1767,9 +1768,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(filters=%s): %s", tfs, err)
 	}
-	sort.Strings(lvs)
-	if !reflect.DeepEqual(lvs, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	got = sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
 	// Check SearchLabelValues with the specified filter and time range.
@@ -1777,9 +1778,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
-	sort.Strings(lvs)
-	if !reflect.DeepEqual(lvs, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	got = sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
 	// Check SearchLabelValues with filters on metric name and time range.
@@ -1787,9 +1788,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
-	sort.Strings(lvs)
-	if !reflect.DeepEqual(lvs, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	got = sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
 	// Perform a search across all the days, should match all metrics

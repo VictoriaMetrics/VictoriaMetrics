@@ -2,12 +2,12 @@ package storage
 
 import (
 	"bytes"
-	"cmp"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -1301,34 +1301,53 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	result := merge(data)
 	qtMerge.Done()
 
+	// Do not sort the results, since they must be sorted by vmselect.
 	return result, nil
 }
 
-// mergeUniq combines the values of several slices into once slice, duplicate
-// values are ignored.
-func mergeUniq[T cmp.Ordered](data [][]T) []T {
-	maxLength := 0
-	for _, s := range data {
-		if len(s) > maxLength {
-			maxLength += len(s)
+// searchAndMergeUniq is a specific searchAndMerge operation that is common for
+// most index searches. It expects each individual search to return a set of
+// strings. The results of all individual searches are then unioned and the
+// resulting set is converted into a slice.
+//
+// The final result is not sorted since it must be done by vmselect.
+func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error)) ([]string, error) {
+	merge := func(data []map[string]struct{}) map[string]struct{} {
+		if len(data) == 0 {
+			return nil
 		}
-	}
-	if maxLength == 0 {
-		return []T{}
+
+		// Sort the slice by the size of individual result, biggest first.
+		slices.SortFunc(data, func(a, b map[string]struct{}) int {
+			if len(a) < len(b) {
+				return 1
+			}
+			if len(a) > len(b) {
+				return -1
+			}
+			return 0
+		})
+
+		all := data[0]
+		for i := 1; i < len(data); i++ {
+			d := data[i]
+			for v := range d {
+				all[v] = struct{}{}
+			}
+		}
+		return all
 	}
 
-	all := make([]T, 0, maxLength)
-	seen := make(map[T]struct{}, maxLength)
-	for _, s := range data {
-		for _, v := range s {
-			if _, ok := seen[v]; ok {
-				continue
-			}
-			all = append(all, v)
-			seen[v] = struct{}{}
-		}
+	m, err := searchAndMerge(qt, s, tr, search, merge)
+	if err != nil {
+		return nil, err
 	}
-	return all
+
+	res := make([]string, 0, len(m))
+	for k := range m {
+		res = append(res, k)
+	}
+	return res, nil
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on
@@ -1346,13 +1365,12 @@ func mergeUniq[T cmp.Ordered](data [][]T) []T {
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	}
-	metricNames, err := searchAndMerge(qt, s, tr, search, mergeUniq)
-
-	qt.Donef("found %d metric names", len(metricNames))
-	return metricNames, err
+	res, err := searchAndMergeUniq(qt, s, tr, search)
+	qt.Donef("found %d metric names", len(res))
+	return res, err
 }
 
 // ErrDeadlineExceeded is returned when the request times out.
@@ -1418,13 +1436,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
-
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 	}
-	labelNames, err := searchAndMerge(qt, s, tr, search, mergeUniq)
-	qt.Donef("found %d label names", len(labelNames))
-	return labelNames, err
+	res, err := searchAndMergeUniq(qt, s, tr, search)
+	qt.Donef("found %d label names", len(res))
+	return res, err
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters
@@ -1439,13 +1456,12 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
-
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	}
-	labelValues, err := searchAndMerge(qt, s, tr, search, mergeUniq)
-	qt.Donef("found %d label values", len(labelValues))
-	return labelValues, err
+	res, err := searchAndMergeUniq(qt, s, tr, search)
+	qt.Donef("found %d label values", len(res))
+	return res, err
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given
@@ -1465,13 +1481,11 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 // If -disablePerDayIndex is set or the time range is more than 40 days, the
 // time range is ignored and the tag value suffixes are searched within the
 // entire retention period, i.e. the global index are used for searching.
-func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxTagValueSuffixes int, deadline uint64,
-) ([]string, error) {
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	}
-	return searchAndMerge(qt, s, tr, search, mergeUniq)
+	return searchAndMergeUniq(qt, s, tr, search)
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
@@ -1486,11 +1500,10 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 // retention period, i.e. global index are used for searching.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
-
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 	}
-	return searchAndMerge(qt, s, tr, search, mergeUniq)
+	return searchAndMergeUniq(qt, s, tr, search)
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
