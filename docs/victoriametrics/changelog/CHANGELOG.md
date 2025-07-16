@@ -18,7 +18,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-**Update Note 1:**  [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): The `-snapshotsMaxAge` flag default have been changed to `3d`. This enables automatic deletion of snapshots older than 3 days. If you want to keep the previous behavior (never automatically deleting snapshots), please set `-snapshotsMaxAge=0`. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344) for the details.
+**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): The `-snapshotsMaxAge` flag default have been changed to `3d`. This enables automatic deletion of snapshots older than 3 days. If you want to keep the previous behavior (never automatically deleting snapshots), please set `-snapshotsMaxAge=0`. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344) for the details.
+
+**Update Note 2:** all the [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) components: `-eula` command-line flag is skipped when validating VictoriaMetrics enterprise license. Instead, the `-license` or `-licenseFile` command-line flags must be used to provide a valid license key. See [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/) for configuration examples.
 
 * SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
 
