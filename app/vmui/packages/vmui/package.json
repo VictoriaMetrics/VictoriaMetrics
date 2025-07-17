@@ -15,7 +15,9 @@
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",
     "preview": "vite preview",
-    "test": "vitest"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:dev": "vitest"
   },
   "dependencies": {
     "classnames": "^2.5.1",

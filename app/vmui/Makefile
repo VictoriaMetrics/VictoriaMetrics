@@ -34,3 +34,15 @@ vmui-publish-release: vmui-release
 
 vmui-update: vmui-build
 	rm -rf app/vmselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vmselect/vmui
+
+vmui-install-dependencies:
+	cd app/vmui/packages/vmui && npm ci
+
+vmui-lint: vmui-install-dependencies
+	cd app/vmui/packages/vmui && npm run lint
+
+vmui-typecheck: vmui-install-dependencies
+	cd app/vmui/packages/vmui && npm run typecheck
+
+vmui-test: vmui-install-dependencies
+	cd app/vmui/packages/vmui && npm run test
