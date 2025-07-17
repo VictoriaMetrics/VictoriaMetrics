@@ -504,11 +504,42 @@ install-wwhrd:
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
+# Time Series Benchmark Suite (TSBS) for VictoriaMetrics
+# This command runs a complete benchmark cycle:
+# 1. Builds TSBS tools
+# 2. Generates sample time series data
+# 3. Loads data into VictoriaMetrics
+# 4. Generates benchmark queries
+# 5. Runs the queries and measures performance
+#
+# REQUIREMENTS:
+# - VictoriaMetrics must be running at http://localhost:8428 before running this benchmark
+#
+# CUSTOMIZATION:
+# - For VictoriaMetrics cluster setup, modify the endpoints in tsbs-load-data and tsbs-run-queries:
+#   * For data ingestion: add "--urls=http://vminsert:8480/insert/0/influx/write" to tsbs_load_victoriametrics
+#   * For querying: add "--urls=http://vmselect:8481/select/0/prometheus" to tsbs_run_queries_victoriametrics
+#
+# SCALE:
+# - Adjust --scale parameter in tsbs-generate-data and tsbs-generate-queries to increase/decrease load
+# - Adjust --workers parameter to control concurrency
+#
+# DOCUMENTATION:
+# See https://github.com/timescale/tsbs/blob/master/docs/victoriametrics.md for details
 tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
 
+# Default parameters for TSBS benchmark
+# These parameters can be adjusted based on the desired scale and time range
+# With those params the benchmark will generate 1 billion metrics (each line contains 10 metrics)
+# BENCHMARK SCALE EXPLANATION:
+# - The default configuration simulates 4000 machines generating metrics
+# - Each machine produces 1 line with 10 metrics every 10 seconds
+# - Over 3 days (~259,200 seconds), this creates ~26,000 intervals per machine
+# - Total number of lines: 4000 machines × 26,000 intervals = ~100 million lines
+# - Total number of metrics: 10 metrics per line × 100 million lines = ~1 billion metrics
 TSBS_SCALE := 4000
-TSBS_START := 2025-01-01T00:00:00Z
-TSBS_END := 2025-01-04T00:00:00Z
+TSBS_START := $(shell date -u -d "3 days ago 00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
+TSBS_END   := $(shell date -u -d "00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
 TSBS_STEP := 10s
 TSBS_QUERIES := 1000
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
@@ -521,6 +552,7 @@ tsbs-build:
 		cd /tmp/tsbs/cmd/tsbs_load_victoriametrics && GOBIN=/tmp/tsbs/bin go install && \
 		cd /tmp/tsbs/cmd/tsbs_run_queries_victoriametrics && GOBIN=/tmp/tsbs/bin go install)
 
+# Generate sample time series data for benchmarking
 tsbs-generate-data:
 	test -f $(TSBS_DATA_FILE) || /tmp/tsbs/bin/tsbs_generate_data \
 		--format=victoriametrics \
@@ -547,5 +579,10 @@ tsbs-generate-queries:
 		--queries=1000 \
 		| gzip > $(TSBS_QUERY_FILE)
 
+# Run benchmark queries against VictoriaMetrics
+# IMPORTANT CONSIDERATIONS:
+# - The --workers=4 parameter should ideally match the number of CPU cores on your VM instance for optimal performance
+# - For accurate benchmark results, run this command on a separate machine from VictoriaMetrics
+# - Both gunzipping and query processing are CPU-intensive operations that can impact results when run on the same machine
 tsbs-run-queries:
 	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=4
