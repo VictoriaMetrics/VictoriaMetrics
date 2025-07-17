@@ -430,7 +430,6 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 
 	var bb bytesutil.ByteBuffer
 	err = readFromBuffer(&bb, cb, isGzipped)
-	chunkedbuffer.Put(cb)
 	return bb.B, err
 }
 
