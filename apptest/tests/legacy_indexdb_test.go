@@ -333,7 +333,6 @@ func TestLegacyClusterBackupRestore(t *testing.T) {
 					"-retentionPeriod=100y",
 				},
 				VminsertInstance: "vminsert",
-				VminsertFlags:    []string{},
 				VmselectInstance: "vmselect",
 				VmselectFlags: []string{
 					"-search.disableCache=true",
@@ -712,10 +711,11 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	start := time.Date(2025, 3, 1, 10, 0, 0, 0, time.UTC).UnixMilli()
 	end := start
 	genData := func(prefix string) (recs []string, want want) {
+		labelValue := prefix
 		recs = make([]string, numMetrics)
 		want.series = make([]map[string]string, numMetrics)
 		want.labels = []string{"__name__", labelName}
-		want.labelValues = []string{prefix}
+		want.labelValues = []string{labelValue}
 		want.queryResults = make([]*at.QueryResult, numMetrics)
 		want.queryRangeResults = make([]*at.QueryResult, numMetrics)
 		for i := range numMetrics {
@@ -723,14 +723,14 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 			value := float64(i)
 			timestamp := start
 
-			recs[i] = fmt.Sprintf("%s{%s=\"%s\"} %f %d", name, labelName, prefix, value, timestamp)
-			want.series[i] = map[string]string{"__name__": name, labelName: prefix}
+			recs[i] = fmt.Sprintf("%s{%s=\"%s\"} %f %d", name, labelName, labelValue, value, timestamp)
+			want.series[i] = map[string]string{"__name__": name, labelName: labelValue}
 			want.queryResults[i] = &at.QueryResult{
-				Metric: map[string]string{"__name__": name, labelName: prefix},
+				Metric: map[string]string{"__name__": name, labelName: labelValue},
 				Sample: &at.Sample{Timestamp: timestamp, Value: value},
 			}
 			want.queryRangeResults[i] = &at.QueryResult{
-				Metric:  map[string]string{"__name__": name, labelName: prefix},
+				Metric:  map[string]string{"__name__": name, labelName: labelValue},
 				Samples: []*at.Sample{{Timestamp: timestamp, Value: value}},
 			}
 		}
@@ -878,7 +878,7 @@ func testLegacyDowngrade(tc *at.TestCase, opts testLegacyDowngradeOpts) {
 	legacySUT = opts.startLegacySUT()
 	assertQueries(legacySUT, `{__name__=~".*"}`, wantLegacy1, numMetrics)
 	legacySUT.APIV1AdminTSDBDeleteSeries(t, `{__name__=~".*"}`, at.QueryOpts{})
-	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, 1000)
+	assertQueries(legacySUT, `{__name__=~".*"}`, wantEmpty, numMetrics)
 	legacySUT.PrometheusAPIV1ImportPrometheus(t, legacy2Data, at.QueryOpts{})
 	legacySUT.ForceFlush(t)
 	// series count includes deleted metrics

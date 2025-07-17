@@ -284,7 +284,7 @@ func (r *PrometheusAPIV1SeriesResponse) Sort() *PrometheusAPIV1SeriesResponse {
 	return r
 }
 
-// PrometheusAPIV1SeriesResponse is an inmemory representation of the
+// PrometheusAPIV1SeriesCountResponse is an inmemory representation of the
 // /prometheus/api/v1/series/count response.
 type PrometheusAPIV1SeriesCountResponse struct {
 	Status    string
