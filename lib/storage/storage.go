@@ -34,6 +34,7 @@ import (
 const (
 	retention31Days = 31 * 24 * time.Hour
 	retentionMax    = 100 * 12 * retention31Days
+	idbPrefilStart  = time.Hour
 )
 
 // Storage represents TSDB storage.
@@ -169,6 +170,10 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	// idbPrefillStartSeconds defines the start time of the idbNext prefill.
+	// It helps to spread load in time for index records creation and reduce resource usage.
+	idbPrefillStartSeconds int64
 }
 
 // OpenOptions optional args for MustOpenStorage
@@ -178,6 +183,7 @@ type OpenOptions struct {
 	MaxDailySeries        int
 	DisablePerDayIndex    bool
 	TrackMetricNamesStats bool
+	IDBPrefillStart       time.Duration
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -190,11 +196,16 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if retention <= 0 || retention > retentionMax {
 		retention = retentionMax
 	}
+	idbPrefillStart := opts.IDBPrefillStart
+	if idbPrefillStart <= 0 {
+		idbPrefillStart = time.Hour
+	}
 	s := &Storage{
-		path:           path,
-		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retention.Milliseconds(),
-		stopCh:         make(chan struct{}),
+		path:                   path,
+		cachePath:              filepath.Join(path, cacheDirname),
+		retentionMsecs:         retention.Milliseconds(),
+		stopCh:                 make(chan struct{}),
+		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
 	}
 	fs.MustMkdirIfNotExist(path)
 
@@ -2024,16 +2035,16 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 
 func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*MetricRow) error {
 	d := s.nextRetentionSeconds()
-	if d >= 3600 {
+	if d >= s.idbPrefillStartSeconds {
 		// Fast path: nothing to pre-fill because it is too early.
 		// The pre-fill is started during the last hour before the indexdb rotation.
 		return nil
 	}
 
-	// Slower path: less than hour left for the next indexdb rotation.
+	// Slower path: less than nextPrefillStartSeconds left for the next indexdb rotation.
 	// Pre-populate idbNext with the increasing probability until the rotation.
-	// The probability increases from 0% to 100% proportioinally to d=[3600 .. 0].
-	pMin := float64(d) / 3600
+	// The probability increases from 0% to 100% proportioinally to d=[nextPrefillStartSeconds .. 0].
+	pMin := float64(d) / float64(s.idbPrefillStartSeconds)
 
 	generation := idbNext.generation
 	isNext := idbNext.getIndexSearch(noDeadline)
