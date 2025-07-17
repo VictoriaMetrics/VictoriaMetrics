@@ -147,6 +147,8 @@ monitoring:
 
 ## State Restoration
 
+> This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} for increased deployment flexibility.
+
 The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vmanomaly` service **stateful** by persisting and restoring state between runs. If enabled, the service will save the state of anomaly detection models and their training data to local filesystem, allowing for seamless continuation of operations after service restarts.
 
 By default, `restore_state` is set to `false`, meaning the service will start fresh on each restart, to maintain backward compatibility.
@@ -158,7 +160,7 @@ By default, `restore_state` is set to `false`, meaning the service will start fr
 This feature improves the experience of using the anomaly detection service in several ways:
 - **Operational continuity**: Production of anomaly scores is resumed from the last known state, minimizing downtime, especially useful in conbination with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with `start_from` argument explicitly defined.
 - **Resource efficiency**: Avoids unnecessary resource and time consumption by not retraining models that have already been trained and remain actual, or querying redundant data from VictoriaMetrics TSDB.
-- **Config hot-reloading**: Allows for on-the-fly configuration changes with the reuse of unchanged models/data/scheduler combinations, avoiding unnecessary retraining and manual service restarts. *Please note, that hot reloading is not yet supported yet, will be a part of recent releases.*
+- **Config hot-reloading**: Allows for on-the-fly configuration changes with the reuse of unchanged models/data/scheduler combinations, avoiding unnecessary retraining, additional resource utilization and manual service restarts. Please refer to the [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) section for more details on how to use this feature.
 
 ### How it works
 
