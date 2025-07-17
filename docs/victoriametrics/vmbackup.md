@@ -12,21 +12,41 @@ aliases:
   - /vmbackup/index.html
   - /vmbackup/
 ---
-`vmbackup` creates VictoriaMetrics data backups from instant snapshots.
-More information how to work with them could be found in [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots) documentation.
+## Quick start
 
-`vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
-Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
-data between the existing backup and new backup. It saves time and costs on data transfer.
-
+`vmbackup` creates VictoriaMetrics data backups to protect from user errors such as accidental data deletion.
+Whether you are using a single-node  or a cluster version, it is recommended to use `vmbackup` to perform periodical data backup from instant snapshots.
+More information how to work with them could be found in [instant snapshots documentation](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
-
 Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
-See also [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
+If you are running enterprise version, you can also use [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+
+### Single node backup
+In order to perform a complete backup for VictoriaMetrics single node, refer to [full backup creation](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backup).
+We recommend using smart backup strategy as a best practice.
+
+### Cluster backup
+
+In order to perform a complete backup for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/), `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
+be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
+
+For example, when creating a backup with 3 `vmstorage` nodes, the following commands must be run:
+
+```sh
+vmstorage-1$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
+vmstorage-2$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage2:8482/snapshot/create -dst=gs://<bucket>/vmstorage-2
+vmstorage-3$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage3:8482/snapshot/create -dst=gs://<bucket>/vmstorage-3
+````
+
+Note that `vmbackup` needs access to data folder of every `vmstorage` node. It is recommended to run `vmbackup` on the same machine where `vmstorage` is running.
+For Kubernetes deployments it is recommended to use [sidecar containers](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/) for running `vmbackup` on the same pod with `vmstorage`.
+
 
 ## Supported storage types
 
@@ -38,11 +58,21 @@ creation of hourly, daily, weekly and monthly backups.
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio) or [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
-## Use cases
+## Backup types
 
-### Regular backups
+`vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
+Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
+data between the existing backup and new backup. It saves time and costs on data transfer.
 
-Regular backup can be performed with the following command:
+All commands below are provided for a single node version.
+For a cluster version `vmbackup` should be executed on each vmstorage node and `-snapshot.createUrl` should point to vmstorage:
+```sh
+./vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
+```
+
+### Full backups
+
+Full backup can be performed on a single node with the following command:
 
 ```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
@@ -54,7 +84,7 @@ Regular backup can be performed with the following command:
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
-### Regular backups with server-side copy from existing backup
+### Full backups with server-side copy from existing backup
 
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be accelerated
 with the following command:
@@ -79,8 +109,8 @@ It saves time and network bandwidth costs when working with big backups:
 ```
 
 ### Smart backups
-
-Smart backups mean storing full daily backups into `YYYYMMDD` folders and creating incremental hourly backup into `latest` folder:
+Smart backup is a backup strategy that combines full and incremental backups with cleanup operations to efficiently manage data backups based on defined settings and available storage space.
+In case of VictoriaMetrics smart backups mean storing full daily backups into `YYYYMMDD` folders and creating incremental hourly backup into `latest` folder:
 
 * Run the following command every hour:
 
@@ -132,23 +162,6 @@ which perform full object copy during server-side copying. This may be slow and 
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
-### Backups for VictoriaMetrics cluster
-
-`vmbackup` can be used for creating backups for [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
-In order to perform a complete backup for the cluster, `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
-be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
-
-For example, when creating a backup with 3 `vmstorage` nodes, the following commands must be run:
-
-```sh
-vmstorage-1$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
-vmstorage-2$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage2:8482/snapshot/create -dst=gs://<bucket>/vmstorage-2
-vmstorage-3$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage3:8482/snapshot/create -dst=gs://<bucket>/vmstorage-3
-````
-
-Note that `vmbackup` needs access to data folder of every `vmstorage` node. It is recommended to run `vmbackup` on the same machine where `vmstorage` is running.
-For Kubernetes deployments it is recommended to use [sidecar containers](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/) for running `vmbackup` on the same pod with `vmstorage`.
-
 ## How does it work?
 
 The backup algorithm is the following:
@@ -181,7 +194,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth or CPU, then either decrease the `-concurrency` command-line flag value or set `-maxBytesPerSecond` command-line flag value to lower value.
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
-* If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process. After backup process has finished successfully, please remove old snapshot that was created during failed attempt.
+* If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process. After backup process has finished successfully, please [remove old snapshot](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#delete-snapshot) that was created during failed attempt.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
   at [cluster VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and vice versa.
 * Please find description how snapshots use disk space and recommendations in [snapshot troubleshooting](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#snapshot-troubleshooting)
