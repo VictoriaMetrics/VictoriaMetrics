@@ -1,20 +1,18 @@
-import { FC, useCallback } from "preact/compat";
+import { useCallback, useRef } from "preact/compat";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import Button from "../Main/Button/Button";
 import { DownloadIcon } from "../Main/Icons";
 import Popper from "../Main/Popper/Popper";
-import { useRef } from "react";
 import "./style.scss";
 import useBoolean from "../../hooks/useBoolean";
 
-interface DownloadButtonProps {
+interface DownloadButtonProps<T extends string> {
   title: string;
-  downloadFormatOptions?: string[];
-  onDownload: (format?: string) => void;
+  downloadFormatOptions?: T[];
+  onDownload: (format?: T) => void;
 }
 
-/** TODO: Currently unused, later will be added for the exporting metrics */
-const DownloadButton: FC<DownloadButtonProps> = ({ title, downloadFormatOptions, onDownload }) => {
+const DownloadButton = <T extends string>({ title, downloadFormatOptions, onDownload }: DownloadButtonProps<T>) => {
   const {
     value: isPopupOpen,
     setTrue: onOpenPopup,
@@ -35,9 +33,19 @@ const DownloadButton: FC<DownloadButtonProps> = ({ title, downloadFormatOptions,
     }
   }, [onDownload, onClosePopup, isPopupOpen, onOpenPopup]);
 
+  const isDownloadFormat = useCallback((format: string): format is T => {
+    return (downloadFormatOptions as string[])?.includes(format);
+  }, [downloadFormatOptions]);
+
   const onDownloadFormatClick = useCallback((event: Event) => {
     const button = event.currentTarget as HTMLButtonElement;
-    onDownload(button.textContent ?? undefined);
+    const format = button.textContent;
+    if (format && isDownloadFormat(format)) {
+      onDownload(format);
+    } else {
+      onDownload();
+    }
+    onClosePopup();
   }, [onDownload]);
 
   return (
