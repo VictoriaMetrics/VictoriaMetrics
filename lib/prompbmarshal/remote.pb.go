@@ -64,3 +64,7 @@ func (m *WriteRequest) size() (n int) {
 func sov(x uint64) (n int) {
 	return (bits.Len64(x|1) + 6) / 7
 }
+
+func (m *WriteRequest) IsEmpty() bool {
+	return m == nil || (len(m.Timeseries) == 0 && len(m.Metadata) == 0)
+}

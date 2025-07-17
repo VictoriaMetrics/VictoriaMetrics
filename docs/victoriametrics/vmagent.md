@@ -600,7 +600,7 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 By default, `vmagent` drops metric metadata that exposed by target in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). To enable sending metadata to configured `-remoteWrite.url`, set `-remoteWrite.enableMetadata=true`.
 
-Apart from the native metadata fields, vmagent also attaches tenant info to the metadata when `-enableMultitenantHandlers` is set and data is sent via the multitenant endpoints (/insert/<accountID>/<suffix>), allowing storing metadata under different tenants in VictoriaMetrics cluster.
+Besides native metadata fields, vmagent also adds tenant info to metadata when `-enableMultitenantHandlers` is enabled and data is sent via the multitenant endpoints (/insert/<accountID>/<suffix>), allowing storing metadata under different tenants in VictoriaMetrics cluster. However, if `vm_account_id` or `vm_project_id labels` are added directly in metrics labels and send to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), tenant info won't be attached in the metadata, and it will be stored in the default tenant of VictoriaMetrics cluster.
 
 Please note, sending metadata requires extra memory, disk space, and network transmissions.
 

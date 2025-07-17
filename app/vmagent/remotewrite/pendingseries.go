@@ -274,7 +274,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 var marshalConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
-	if len(wr.Timeseries) == 0 && len(wr.Metadata) == 0 {
+	if wr.IsEmpty() {
 		// Nothing to push
 		return true
 	}
@@ -338,7 +338,7 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 		// A single time series left. Recursively split its samples and metadata into smaller parts if possible.
 		samples := wr.Timeseries[0].Samples
 		metaData := wr.Metadata
-		if len(samples) == 1 && (len(metaData) == 0 || len(metaData) == 1) {
+		if len(samples) == 1 && len(metaData) <= 1 {
 			logger.Warnf("dropping a sample for metric and %d metadata which are exceeding -remoteWrite.maxBlockSize=%d bytes", len(metaData), maxUnpackedBlockSize.N)
 			return true
 		}

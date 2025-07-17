@@ -830,6 +830,8 @@ func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
 			mr.Type = uint32(prompb.MetricMetadataHISTOGRAM)
 		case "summary":
 			mr.Type = uint32(prompb.MetricMetadataSUMMARY)
+		case "untyped":
+			mr.Type = uint32(prompb.MetricMetadataUNKNOWN)
 		default:
 			if errLogger != nil {
 				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: missing TYPE", s))
