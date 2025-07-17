@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enable automatic deletion of snapshots older than 3 days by default. This helps to avoid wasting disk space due to snapshots not being removed in case of backup failure. See [#9344](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9344).
 
+* BUGFIX: all VictoriaMetrics components: fix `process_cpu_cores_available` metric to respect both logical CPU cores and cgroup CPU quota. Previously, it could report incorrect values in containerized environments with no cgroup limits. See [#9449](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9449).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): Prevent panic when re-packing a corrupted block during protocol downgrade. See [#9417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix handling of `/api/v1/notifiers` and `/api/v1/metadata` endpoints; previously, requests to these endpoints returned 400 Bad Request. `vmsingle` was not affected.
 
