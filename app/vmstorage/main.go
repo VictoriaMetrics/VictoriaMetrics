@@ -126,7 +126,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	if *idbPrefillStart > 23*time.Hour {
-		logger.Panicf("-storage.idbPrefillStart cannot be bigger than exceed 23 hours; got %s", idbPrefillStart)
+		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
