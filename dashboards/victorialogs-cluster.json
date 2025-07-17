@@ -25,7 +25,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset $__interval) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"} offset $__interval) by(short_version))",
         "hide": true,
         "iconColor": "blue",
         "name": "version change",
@@ -38,7 +38,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__interval])) by(job)",
         "hide": true,
         "iconColor": "orange",
         "name": "restarts",
@@ -126,7 +126,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vl_storage_rows{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vl_storage_rows{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -198,7 +198,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(increase(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+          "expr": "sum(increase(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[24h]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -270,7 +270,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vl_data_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vl_data_size_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -342,7 +342,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -418,7 +418,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -516,7 +516,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(increase(vl_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+          "expr": "sum(increase(vl_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[24h]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -588,7 +588,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": " sum(vl_uncompressed_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vl_compressed_data_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": " sum(vl_uncompressed_data_size_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}) / sum(vl_compressed_data_size_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -660,7 +660,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\", path=~\"/select/.*\"}[$__rate_interval]))",
+          "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\", path=~\"/select/.*\", cluster=~\"$cluster\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -731,7 +731,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -837,7 +837,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(job, short_version)",
+          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}) by(job, short_version)",
           "format": "table",
           "instant": true,
           "range": false,
@@ -943,7 +943,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(min_over_time(up{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+          "expr": "sum(min_over_time(up{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{job}}",
@@ -1080,7 +1080,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+          "expr": "sum(rate(vl_rows_ingested_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (type) > 0",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -1094,7 +1094,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vl_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+          "expr": "sum(rate(vl_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (type) > 0",
           "hide": false,
           "instant": false,
           "legendFormat": "{{type}} (bytes)",
@@ -1203,7 +1203,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1311,7 +1311,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (job, path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1326,7 +1326,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vl_http_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, path) > 0",
+          "expr": "sum(rate(vl_http_errors_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by (job, path) > 0",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -1437,7 +1437,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vl_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (path) > 0",
+          "expr": "max(vl_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\", cluster=~\"$cluster\"}) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -1546,7 +1546,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(vl_data_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vl_data_size_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1653,7 +1653,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, level, location) > 0",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\", cluster=~\"$cluster\"}[$__rate_interval])) by (job, level, location) > 0",
           "interval": "5m",
           "legendFormat": "{{job}} - {{level}}: {{location}}",
           "range": true,
@@ -1769,7 +1769,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval]) > 0) by(job)",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}",
@@ -1876,7 +1876,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vl_streams_created_total{job=~\"$job\", instance=~\"$instance\"}[1d])",
+              "expr": "increase(vl_streams_created_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[1d])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1987,7 +1987,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}) by(job, instance, name, value)",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -2094,7 +2094,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(increase(vl_rows_dropped_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (job, reason)",
+              "expr": "sum(increase(vl_rows_dropped_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[1h])) by (job, reason)",
               "hide": false,
               "interval": "",
               "legendFormat": "{{job}} - {{reason}}",
@@ -2218,7 +2218,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}\n) by(job)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,
@@ -2326,7 +2326,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -2437,7 +2437,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}\n) by(job)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,
@@ -2542,7 +2542,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2556,7 +2556,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2664,7 +2664,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -2678,7 +2678,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2801,7 +2801,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(job) > 0",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2816,7 +2816,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(job) > 0",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2944,7 +2944,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}\n) by(job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3067,7 +3067,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\", cluster=~\"$cluster\"}[$__rate_interval])) by(job) > 0",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3082,7 +3082,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(job) > 0",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3193,7 +3193,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "__auto",
@@ -3299,7 +3299,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_io_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_io_waiting_seconds_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -3313,7 +3313,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(process_pressure_io_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(process_pressure_io_stalled_seconds_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3424,7 +3424,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(process_num_threads{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "sum(max_over_time(process_num_threads{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "__auto",
@@ -3533,7 +3533,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+              "expr": "sum(max_over_time(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -3642,7 +3642,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n  rate(go_gc_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) \n / rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n ) by(job)",
+              "expr": "max(\n  rate(go_gc_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval]) \n / rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])\n ) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -3752,7 +3752,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])) by(job)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -3857,7 +3857,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(rate(go_memstats_alloc_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job)",
+              "expr": "max(rate(go_memstats_alloc_bytes_total{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -3966,7 +3966,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\", cluster=~\"$cluster\"}[$__rate_interval])) by (job, instance, le))) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
@@ -4003,18 +4003,39 @@
         "type": "datasource"
       },
       {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "uid": "${ds}"
+        },
+        "definition": "label_values(vm_app_version{version=~\"^victoria-logs-.*.*\"},cluster)",
+        "hide": 2,
+        "includeAll": true,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{version=~\"^victoria-logs-.*.*\"},cluster)",
+          "refId": "VictoriaMetrics-cluster-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
         "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{version=~\"victoria-logs-.*\"}, job)",
+        "definition": "label_values(vm_app_version{version=~\"victoria-logs-.*\", cluster=~\"$cluster\"}, job)",
         "includeAll": true,
         "multi": true,
         "name": "job",
         "options": [],
         "query": {
-          "query": "label_values(vm_app_version{version=~\"victoria-logs-.*\"}, job)",
+          "query": "label_values(vm_app_version{version=~\"victoria-logs-.*\", cluster=~\"$cluster\"}, job)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -4027,13 +4048,13 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "definition": "label_values(vm_app_version{job=~\"$job\", cluster=~\"$cluster\"}, instance)",
         "includeAll": true,
         "multi": true,
         "name": "instance",
         "options": [],
         "query": {
-          "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+          "query": "label_values(vm_app_version{job=~\"$job\", cluster=~\"$cluster\"}, instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -4046,13 +4067,13 @@
           "type": "prometheus",
           "uid": "${ds}"
         },
-        "definition": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\"},short_version)",
+        "definition": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"},short_version)",
         "hide": 2,
         "name": "version",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\"},short_version)",
+          "query": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"},short_version)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
