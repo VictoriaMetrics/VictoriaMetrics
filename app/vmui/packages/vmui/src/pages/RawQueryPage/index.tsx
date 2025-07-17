@@ -1,4 +1,4 @@
-import { FC, useState } from "preact/compat";
+import { FC, useCallback, useState } from "preact/compat";
 import LineLoader from "../../components/Main/LineLoader/LineLoader";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
@@ -17,7 +17,7 @@ import { DisplayType } from "../../types";
 import Hyperlink from "../../components/Main/Hyperlink/Hyperlink";
 import { CloseIcon } from "../../components/Main/Icons";
 import Button from "../../components/Main/Button/Button";
-import DownloadReport, { ReportType } from "../CustomPanel/DownloadReport/DownloadReport";
+import DownloadButton from "../../components/DownloadButton/DownloadButton";
 
 const RawSamplesLink = () => (
   <Hyperlink
@@ -66,7 +66,7 @@ const RawQueryPage: FC = () => {
     queryErrors,
     setQueryErrors,
     abortFetch,
-    fetchUrl,
+    exportData
   } = useFetchExport({ hideQuery, showAllSeries });
 
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -84,6 +84,11 @@ const RawQueryPage: FC = () => {
   const handleHidePageDescription = () => {
     setShowPageDescription(false);
   };
+
+  const onExportClick = useCallback(async (format?: "csv" | "json") => {
+    if (!format) return;
+    exportData(format);
+  }, [exportData]);
 
   return (
     <div
@@ -159,9 +164,10 @@ const RawQueryPage: FC = () => {
             <DisplayTypeSwitch tabFilter={(tab) => (tab.value !== DisplayType.table)}/>
           </div>
           {data && (
-            <DownloadReport
-              fetchUrl={fetchUrl}
-              reportType={ReportType.RAW_DATA}
+            <DownloadButton
+              title={"Export query"}
+              downloadFormatOptions={["json", "csv"]}
+              onDownload={onExportClick}
             />
           )}
         </div>
