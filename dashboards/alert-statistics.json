@@ -72,6 +72,7 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
+      "description": "Shows the state of alerts on the selected time interval.\n\n Color represents the frequency of state changes: red is frequent, green is no state changes.",
       "fieldConfig": {
         "defaults": {
           "color": {
