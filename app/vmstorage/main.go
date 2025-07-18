@@ -599,6 +599,13 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
 	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(servers.GetMaxUniqueTimeSeries()))
+
+	metrics.WriteGaugeUint64(w, `vm_metadata_rows_count`, m.MetadataStoreItemsTotal)
+	metrics.WriteCounterUint64(w, `vm_metadata_rows_added_total`, m.MetadataStoreItemsIngested)
+	metrics.WriteCounterUint64(w, `vm_metadata_rows_deleted_total`, m.MetadataStoreItemsDeleted)
+	metrics.WriteCounterUint64(w, `vm_metadata_rows_deduplicated_total`, m.MetadataStoreItemsDeduplicated)
+	metrics.WriteCounterUint64(w, `vm_metadata_rows_size_bytes`, m.MetadataStoreItemsSizeBytes)
+
 }
 
 func jsonResponseError(w http.ResponseWriter, err error) {
