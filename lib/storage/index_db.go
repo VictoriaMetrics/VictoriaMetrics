@@ -119,7 +119,7 @@ type indexDB struct {
 	name string
 	tb   *mergeset.Table
 
-	isPrevIDB atomic.Bool
+	registerNewSeries atomic.Bool
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *workingsetcache.Cache
@@ -152,7 +152,7 @@ func getTagFiltersCacheSize() int {
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
+func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, registerNewSeries bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be non-nil")
 	}
@@ -179,6 +179,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB 
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
+	db.registerNewSeries.Store(registerNewSeries)
 	db.incRef()
 	return db
 }
@@ -259,12 +260,12 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	db.tb.UpdateMetrics(&m.TableMetrics)
 }
 
-func (db *indexDB) SetIsPrevIDB() {
-	db.isPrevIDB.Store(true)
+func (db *indexDB) DisableNewSeriesRegistration() {
+	db.registerNewSeries.Store(false)
 }
 
-func (db *indexDB) IsPrevIDB() bool {
-	return db.isPrevIDB.Load()
+func (db *indexDB) canRegisterNewSeries() bool {
+	return db.registerNewSeries.Load()
 }
 
 // MustClose closes db.
@@ -1972,9 +1973,8 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	}
 
 	db := is.db
-	if !db.IsPrevIDB() {
-		// The db corresponds to the current indexDB, which is used for storing index data for newly registered time series.
-		// This means that it may contain data for the given tr with probability close to 100%.
+	if db.canRegisterNewSeries() {
+		// indexDB could register new time series - it is not safe to cache minMissingTimestamp
 		return true
 	}
 	// The db corresponds to the previous indexDB, which is readonly.

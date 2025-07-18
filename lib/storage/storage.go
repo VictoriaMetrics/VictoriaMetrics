@@ -906,7 +906,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	// Create new indexdb table, which will be used as idbNext
 	newTableName := nextIndexDBTableName()
 	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
-	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly)
+	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly, true)
 
 	// Update nextRotationTimestamp
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
@@ -924,7 +924,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 
 	idbPrev := s.idbPrev.Load()
 	s.idbPrev.Store(idbCurr)
-	idbCurr.SetIsPrevIDB()
+	idbCurr.DisableNewSeriesRegistration()
 	// Schedule data removal for idbPrev
 	idbPrev.scheduleToDrop()
 	idbPrev.decRef()
@@ -2794,10 +2794,9 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 	currPath := filepath.Join(path, tableNames[1])
 	prevPath := filepath.Join(path, tableNames[0])
 
-	next = mustOpenIndexDB(nextPath, s, &s.isReadOnly)
-	curr = mustOpenIndexDB(currPath, s, &s.isReadOnly)
-	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly)
-	prev.SetIsPrevIDB()
+	next = mustOpenIndexDB(nextPath, s, &s.isReadOnly, true)
+	curr = mustOpenIndexDB(currPath, s, &s.isReadOnly, true)
+	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly, false)
 
 	return next, curr, prev
 }
