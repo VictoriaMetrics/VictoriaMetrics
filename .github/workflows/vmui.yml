@@ -66,7 +66,7 @@ jobs:
         uses: ataylorme/eslint-annotate-action@v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: app/vmui/packages/vmui/vmui-eslint-report.json
+          report-json: app/vmui/packages/vmui/vmui-lint-report.json
 
       - name: Check overall status
         run: |
