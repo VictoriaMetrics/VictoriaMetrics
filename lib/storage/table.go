@@ -141,7 +141,7 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
-	ptws := tb.GetPartitions(nil)
+	ptws := tb.GetAllPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	dstSmallDir := filepath.Join(tb.path, smallDirname, snapshotsDirname, snapshotName)
@@ -181,17 +181,14 @@ func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	fs.MustRemoveDirAtomic(indexDBDir)
 }
 
-func (tb *table) addPartitionNolock(pt *partition) {
+func (tb *table) addPartitionNolock(pt *partition) *partitionWrapper {
 	ptw := &partitionWrapper{
 		pt: pt,
 	}
 	ptw.incRef()
 
-	// An ugly hack to know which partitions need its ref counter decremented.
-	// See Table.PutIndexDBs().
-	pt.idb.ptw = ptw
-
 	tb.ptws = append(tb.ptws, ptw)
+	return ptw
 }
 
 // MustClose closes the table.
@@ -223,7 +220,7 @@ func (tb *table) MustClose() {
 //
 // This function is for debug purposes only.
 func (tb *table) DebugFlush() {
-	ptws := tb.GetPartitions(nil)
+	ptws := tb.GetAllPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
@@ -253,7 +250,7 @@ type TableMetrics struct {
 
 // UpdateMetrics updates m with metrics from tb.
 func (tb *table) UpdateMetrics(m *TableMetrics) {
-	ptws := tb.GetPartitions(nil)
+	ptws := tb.GetAllPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
@@ -277,7 +274,7 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 //
 // Partitions are merged sequentially in order to reduce load on the system.
 func (tb *table) ForceMergePartitions(partitionNamePrefix string) error {
-	ptws := tb.GetPartitions(nil)
+	ptws := tb.GetAllPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	tb.forceMergeWG.Add(1)
@@ -307,7 +304,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	ptwsX := getPartitionWrappers()
 	defer putPartitionWrappers(ptwsX)
 
-	ptwsX.a = tb.GetPartitions(ptwsX.a[:0])
+	ptwsX.a = tb.GetAllPartitions(ptwsX.a[:0])
 	ptws := ptwsX.a
 	for i, ptw := range ptws {
 		singlePt := true
@@ -399,83 +396,13 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	tb.ptwsLock.Unlock()
 }
 
-// MustGetIndexDB returns an IndexDB that belongs to the partition that
-// corresponds to the given date.
-//
-// If the partition does not exist yet, it will be created.
-//
-// The function increments the ref counter for the found indexDB and the
-// partition it belongs to.
-func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
-	tb.ptwsLock.Lock()
-	defer tb.ptwsLock.Unlock()
-
-	var idb *indexDB
-
-	for _, ptw := range tb.ptws {
-		if ptw.pt.HasTimestamp(timestamp) {
-			idb = ptw.pt.idb
-			break
-		}
-	}
-
-	if idb == nil {
-		pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
-		tb.addPartitionNolock(pt)
-		idb = pt.idb
-	}
-
-	idb.ptw.incRef()
-	idb.incRef()
-
-	return idb
-}
-
-// PutIndexDB decrements the ref counter for the given indexDB and the
-// partition it belongs to.
-func (tb *table) PutIndexDB(idb *indexDB) {
-	idb.decRef()
-	idb.ptw.decRef()
-}
-
-// GetIndexDBs returns the list of IndexDBs whose time ranges overlap with the
-// given time range.
-//
-// The function increments the ref counter for the found indexDBs and the
-// partitions they belong to.
-func (tb *table) GetIndexDBs(tr TimeRange) []*indexDB {
-	tb.ptwsLock.Lock()
-	defer tb.ptwsLock.Unlock()
-
-	var idbs []*indexDB
-
-	for _, ptw := range tb.ptws {
-		if ptw.pt.tr.overlapsWith(tr) {
-			ptw.incRef()
-			idb := ptw.pt.idb
-			idb.incRef()
-			idbs = append(idbs, idb)
-		}
-	}
-
-	return idbs
-}
-
-// PutIndexDBs decrements the ref counter for the given indexDBs and the
-// partitions they belong to.
-func (tb *table) PutIndexDBs(idbs []*indexDB) {
-	for _, idb := range idbs {
-		tb.PutIndexDB(idb)
-	}
-}
-
 // MustGetIndexDBIDByHour returns the id of the indexDB which contains the
 // provided hour. If the indexDB does not exist it will be created.
 func (tb *table) MustGetIndexDBIDByHour(hour uint64) uint64 {
 	ts := int64(hour * msecPerHour)
-	idb := tb.MustGetIndexDB(ts)
-	defer tb.PutIndexDB(idb)
-	return idb.id
+	ptw := tb.MustGetPartition(ts)
+	defer tb.PutPartition(ptw)
+	return ptw.pt.idb.id
 }
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
@@ -555,7 +482,7 @@ func (tb *table) historicalMergeWatcher() {
 	}
 
 	f := func() {
-		ptws := tb.GetPartitions(nil)
+		ptws := tb.GetAllPartitions(nil)
 		defer tb.PutPartitions(ptws)
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
@@ -622,11 +549,34 @@ func (tb *table) historicalMergeWatcher() {
 	}
 }
 
-// GetPartitions appends tb's partitions snapshot to dst and returns the result.
+// MustGetPartition returns a partition that corresponds to the given date.
+//
+// If the partition does not exist yet, it will be created.
+//
+// The function increments the ref counter for the found partition.
+func (tb *table) MustGetPartition(timestamp int64) *partitionWrapper {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
+	for _, ptw := range tb.ptws {
+		if ptw.pt.HasTimestamp(timestamp) {
+			ptw.incRef()
+			return ptw
+		}
+	}
+
+	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
+	ptw := tb.addPartitionNolock(pt)
+	ptw.incRef()
+
+	return ptw
+}
+
+// GetAllPartitions appends tb's partitions snapshot to dst and returns the result.
 //
 // The returned partitions must be passed to PutPartitions
 // when they no longer needed.
-func (tb *table) GetPartitions(dst []*partitionWrapper) []*partitionWrapper {
+func (tb *table) GetAllPartitions(dst []*partitionWrapper) []*partitionWrapper {
 	tb.ptwsLock.Lock()
 	for _, ptw := range tb.ptws {
 		ptw.incRef()
@@ -637,10 +587,36 @@ func (tb *table) GetPartitions(dst []*partitionWrapper) []*partitionWrapper {
 	return dst
 }
 
-// PutPartitions deregisters ptws obtained via GetPartitions.
+// GetPartitions returns snapshot of partitions whose time ranges overlap with the
+// given time range.
+//
+// The returned partitions must be passed to PutPartitions
+// when they no longer needed.
+func (tb *table) GetPartitions(tr TimeRange) []*partitionWrapper {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
+	var ptws []*partitionWrapper
+
+	for _, ptw := range tb.ptws {
+		if ptw.pt.tr.overlapsWith(tr) {
+			ptw.incRef()
+			ptws = append(ptws, ptw)
+		}
+	}
+
+	return ptws
+}
+
+// PutPartition decrements the ref counter for the given partition.
+func (tb *table) PutPartition(ptw *partitionWrapper) {
+	ptw.decRef()
+}
+
+// PutPartitions deregisters ptws obtained via GetAllPartitions or GetPartitions.
 func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	for _, ptw := range ptws {
-		ptw.decRef()
+		tb.PutPartition(ptw)
 	}
 }
 

@@ -23,5 +23,5 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *indexDB {
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	}
-	return mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly)
+	return mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, false)
 }

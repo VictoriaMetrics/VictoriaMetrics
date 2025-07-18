@@ -27,8 +27,9 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 	synctest.Run(func() {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		idb := s.tb.MustGetIndexDB(time.Now().UnixMilli())
-		defer s.tb.PutIndexDB(idb)
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		idb := ptw.pt.idb
+		defer s.tb.PutPartition(ptw)
 
 		type want struct {
 			missingMetricIDs        []uint64

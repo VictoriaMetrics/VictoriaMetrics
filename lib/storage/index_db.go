@@ -216,13 +216,8 @@ type indexDB struct {
 	// The parent storage.
 	s *Storage
 
-	// The wrapper of the parent partition
-	// This is needed for decrementing partition ref counter.
-	// See Table.PutIndexDBs().
-	//
-	// TODO(@rtm0): Ideally, indexDB must not know about its parents. Figure out
-	// a way to decouple them.
-	ptw *partitionWrapper
+	// registerNewSeries indicates whether the indexDB could register new entries.
+	registerNewSeries bool
 
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
@@ -270,7 +265,7 @@ func getTagFiltersCacheSize() int {
 	return maxTagFiltersCacheSize
 }
 
-func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
+func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isReadOnly *atomic.Bool, registerNewSeries bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must not be nil")
 	}
@@ -287,6 +282,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		tagFiltersToMetricIDsCache:     workingsetcache.New(tagFiltersCacheSize),
 		s:                              s,
+		registerNewSeries:              registerNewSeries,
 		loopsPerDateTagFilterCache:     workingsetcache.New(mem / 128),
 		metricIDCache:                  newMetricIDCache(),
 		prefetchedMetricIDs:            &uint64set.Set{},
@@ -620,6 +616,10 @@ func generateTSID(dst *TSID, mn *MetricName) {
 }
 
 func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
+	if !db.registerNewSeries {
+		logger.Panicf("BUG: registration of new series is disabled for indexDB %q", db.name)
+	}
+
 	// Add new metricID to cache.
 	db.metricIDCache.Set(tsid.MetricID)
 
@@ -2138,8 +2138,8 @@ func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
 		return true
 	}
 
-	if is.db.ptw != nil {
-		// Partition index db.
+	// indexDB could register new time series - it is not safe to cache minMissingTimestamp
+	if is.db.registerNewSeries {
 		return true
 	}
 
@@ -2985,6 +2985,10 @@ const (
 )
 
 func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
+	if !db.registerNewSeries {
+		logger.Panicf("BUG: registration of new series is disabled for indexDB %q", db.name)
+	}
+
 	if db.s.disablePerDayIndex {
 		return
 	}
