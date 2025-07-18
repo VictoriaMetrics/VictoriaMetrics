@@ -1142,13 +1142,13 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached := func(tfss []*TagFilters, tr TimeRange, want bool) {
 		t.Helper()
 
-		idbs := s.tb.GetIndexDBs(tr)
-		defer s.tb.PutIndexDBs(idbs)
+		ptws := s.tb.GetPartitions(tr)
+		defer s.tb.PutPartitions(ptws)
 
-		if got, want := len(idbs), 1; got != want {
-			t.Fatalf("unexpected idb count for %v: got %d, want %d", &tr, got, want)
+		if got, want := len(ptws), 1; got != want {
+			t.Fatalf("unexpected partitions count for %v: got %d, want %d", &tr, got, want)
 		}
-		idb := idbs[0]
+		idb := ptws[0].pt.idb
 		tfssTR := tr
 		if idb.tr.MinTimestamp > tfssTR.MinTimestamp {
 			tfssTR.MinTimestamp = idb.tr.MinTimestamp
@@ -1166,13 +1166,13 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertDeletedMetricIDsCacheSize := func(tr TimeRange, want int) {
 		t.Helper()
 
-		idbs := s.tb.GetIndexDBs(tr)
-		defer s.tb.PutIndexDBs(idbs)
+		ptws := s.tb.GetPartitions(tr)
+		defer s.tb.PutPartitions(ptws)
 
-		if got, want := len(idbs), 1; got != want {
-			t.Fatalf("unexpected idb count for %v: got %d, want %d", &tr, got, want)
+		if got, want := len(ptws), 1; got != want {
+			t.Fatalf("unexpected partitions count for %v: got %d, want %d", &tr, got, want)
 		}
-		idb := idbs[0]
+		idb := ptws[0].pt.idb
 		if got := idb.getDeletedMetricIDs().Len(); got != want {
 			t.Fatalf("unexpected deletedMetricIDs cache size: got %d, want %d", got, want)
 		}
@@ -1760,7 +1760,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	if err := s1.ForceMergePartitions(""); err != nil {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
-	ptws := s1.tb.GetPartitions(nil)
+	ptws := s1.tb.GetAllPartitions(nil)
 	for _, ptw := range ptws {
 		pws := ptw.pt.GetParts(nil, true)
 		numParts := len(pws)

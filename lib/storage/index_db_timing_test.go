@@ -43,7 +43,8 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBAddTSIDs"
 	timestamp := time.Date(2025, 3, 17, 0, 0, 0, 0, time.UTC).UnixMilli()
 	s := MustOpenStorage(path, OpenOptions{})
-	db := s.tb.MustGetIndexDB(timestamp)
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
 
 	const recordsPerLoop = 1e3
 
@@ -72,7 +73,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	})
 	b.StopTimer()
 
-	s.tb.PutIndexDB(db)
+	s.tb.PutPartition(ptw)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
@@ -97,7 +98,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	const path = "BenchmarkHeadPostingForMatchers"
 	timestamp := int64(0)
 	s := MustOpenStorage(path, OpenOptions{})
-	db := s.tb.MustGetIndexDB(timestamp)
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
 	var mn MetricName
@@ -254,7 +256,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		benchSearch(b, tfs, 88889)
 	})
 
-	s.tb.PutIndexDB(db)
+	s.tb.PutPartition(ptw)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
@@ -263,7 +265,8 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBGetTSIDs"
 	timestamp := time.Date(2025, 3, 17, 0, 0, 0, 0, time.UTC).UnixMilli()
 	s := MustOpenStorage(path, OpenOptions{})
-	db := s.tb.MustGetIndexDB(timestamp)
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
 
 	const recordsPerLoop = 1000
 	const recordsCount = 1e5
@@ -309,7 +312,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	})
 	b.StopTimer()
 
-	s.tb.PutIndexDB(db)
+	s.tb.PutPartition(ptw)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }

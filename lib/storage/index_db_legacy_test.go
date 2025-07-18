@@ -45,12 +45,12 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
 
-	idbs := s.tb.GetIndexDBs(tr)
-	defer s.tb.PutIndexDBs(idbs)
-	if len(idbs) != 1 {
-		t.Fatalf("unexpected number of indexDBs for one month time range %s: got %d, want 1", tr.String(), len(idbs))
+	ptws := s.tb.GetPartitions(tr)
+	defer s.tb.PutPartitions(ptws)
+	if len(ptws) != 1 {
+		t.Fatalf("unexpected number of partitions for one month time range %s: got %d, want 1", tr.String(), len(ptws))
 	}
-	idb := idbs[0]
+	idb := ptws[0].pt.idb
 
 	// fully before tr
 	tr1 := TimeRange{

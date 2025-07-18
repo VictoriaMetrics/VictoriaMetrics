@@ -26,8 +26,9 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		}
 		const numMetrics = 10
 		date := uint64(tr.MinTimestamp) / msecPerDay
-		idb := s.tb.MustGetIndexDB(tr.MinTimestamp)
-		defer s.tb.PutIndexDB(idb)
+		ptw := s.tb.MustGetPartition(tr.MinTimestamp)
+		idb := ptw.pt.idb
+		defer s.tb.PutPartition(ptw)
 		var wantMetricIDs []uint64
 
 		// Symulate corrupted index by inserting `(date, tag) -> metricID`
