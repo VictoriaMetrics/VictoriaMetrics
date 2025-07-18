@@ -233,20 +233,36 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 }
 
 func (cp *ConnPool) closeIdleConns() {
-	// Close connections, which were idle for more than 30 seconds.
+	// Close connections, which were idle for more than 120 seconds.
 	// This should reduce the number of connections after sudden spikes in query rate.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2508
-	deadline := fasttime.UnixTimestamp() - 30
+	deadline := fasttime.UnixTimestamp() - 120
 	var activeConns []connWithTimestamp
+	var closeConns []connWithTimestamp
 	cp.mu.Lock()
+
+	// fast path, if there are less than 3 connections in the pool.
+	if len(cp.conns) < 3 {
+		cp.mu.Unlock()
+		return
+	}
+
 	conns := cp.conns
 	for _, c := range conns {
 		if c.lastActiveTime > deadline {
 			activeConns = append(activeConns, c)
 		} else {
-			_ = c.bc.Close()
-			c.bc = nil
+			closeConns = append(closeConns, c)
 		}
+	}
+	for _, c := range closeConns {
+		if len(activeConns) < 3 {
+			activeConns = append(activeConns, c)
+			continue
+		}
+
+		_ = c.bc.Close()
+		c.bc = nil
 	}
 	cp.conns = activeConns
 	cp.mu.Unlock()
