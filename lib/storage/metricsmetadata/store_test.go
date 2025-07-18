@@ -1,6 +1,8 @@
 package metricsmetadata
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -45,14 +47,16 @@ func TestStoreWrite(t *testing.T) {
 		}
 
 		// Verify metrics were added
-		s.metricMetadataStorageLock.RLock()
-		if len(s.metricsMetadataStorage) != 2 {
-			t.Fatalf("expected 2 metrics, got %d", len(s.metricsMetadataStorage))
+		s.metricMetadataStorageLock.Lock()
+		msCnt := len(s.MetricsMetadataStorage)
+		timingCnt := len(s.MetricTimingInfo)
+		s.metricMetadataStorageLock.Unlock()
+		if msCnt != 2 {
+			t.Fatalf("expected 2 metrics, got %d", msCnt)
 		}
-		if len(s.metricTimingInfo) != 2 {
-			t.Fatalf("expected 2 timing entries, got %d", len(s.metricTimingInfo))
+		if timingCnt != 2 {
+			t.Fatalf("expected 2 timing entries, got %d", timingCnt)
 		}
-		s.metricMetadataStorageLock.RUnlock()
 
 		time.Sleep(1000 * time.Millisecond)
 
@@ -62,15 +66,18 @@ func TestStoreWrite(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		s.metricMetadataStorageLock.RLock()
-		if len(s.metricsMetadataStorage["metric1"]) != 1 {
+		s.metricMetadataStorageLock.Lock()
+		key := metadataKey{accountID: 1, projectID: 1, metricFamilyName: "metric1"}
+		msCnt = len(s.MetricsMetadataStorage[key])
+		s.metricMetadataStorageLock.Unlock()
+
+		if msCnt != 1 {
 			t.Fatalf("duplicate metadata should not be added")
 		}
-		timing := s.metricTimingInfo["metric1"]
-		if timing.ingestionCount != 2 {
-			t.Fatalf("expected ingestion count 2, got %d", timing.ingestionCount)
+		timing := s.MetricTimingInfo[key]
+		if timing.IngestionCount != 2 {
+			t.Fatalf("expected ingestion count 2, got %d", timing.IngestionCount)
 		}
-		s.metricMetadataStorageLock.RUnlock()
 		synctest.Wait()
 	})
 }
@@ -86,6 +93,8 @@ func TestStoreAvgCalculation(t *testing.T) {
 			Type:             1,
 			Unit:             []byte("unit"),
 			Help:             []byte("help"),
+			AccountID:        1,
+			ProjectID:        1,
 		}
 
 		_ = s.Add([]Row{row})
@@ -100,15 +109,16 @@ func TestStoreAvgCalculation(t *testing.T) {
 		_ = s.Add([]Row{row})
 
 		s.metricMetadataStorageLock.RLock()
-		timing := s.metricTimingInfo[metricName]
+		key := metadataKey{accountID: 1, projectID: 1, metricFamilyName: metricName}
+		timing := s.MetricTimingInfo[key]
 		s.metricMetadataStorageLock.RUnlock()
 
 		expectedAvg := uint64(100)
-		if timing.avgIngestionInterval != expectedAvg {
-			t.Fatalf("expected avg interval %d, got %d", expectedAvg, timing.avgIngestionInterval)
+		if timing.AvgIngestionInterval != expectedAvg {
+			t.Fatalf("expected avg interval %d, got %d", expectedAvg, timing.AvgIngestionInterval)
 		}
-		if timing.ingestionCount != 4 {
-			t.Fatalf("expected ingestion count 3, got %d", timing.ingestionCount)
+		if timing.IngestionCount != 4 {
+			t.Fatalf("expected ingestion count 3, got %d", timing.IngestionCount)
 		}
 		synctest.Wait()
 	})
@@ -118,8 +128,8 @@ func TestStoreCleanup(t *testing.T) {
 	synctest.Run(func() {
 		// Create store with short cleanup interval for testing
 		s := &Store{
-			metricsMetadataStorage: make(map[string][]Row),
-			metricTimingInfo:       make(map[string]*metricTimingInfo),
+			MetricsMetadataStorage: make(map[metadataKey][]Row),
+			MetricTimingInfo:       make(map[metadataKey]metricTimingInfo),
 			cleanupInterval:        100 * time.Millisecond,
 			cleanupStopCh:          make(chan struct{}),
 		}
@@ -128,10 +138,14 @@ func TestStoreCleanup(t *testing.T) {
 		row1 := Row{
 			MetricFamilyName: []byte("metric1"),
 			Type:             1,
+			AccountID:        1,
+			ProjectID:        1,
 		}
 		row2 := Row{
 			MetricFamilyName: []byte("metric2"),
 			Type:             1,
+			AccountID:        1,
+			ProjectID:        1,
 		}
 
 		_ = s.Add([]Row{row1})
@@ -150,14 +164,16 @@ func TestStoreCleanup(t *testing.T) {
 
 		s.cleanup()
 
-		if _, exists := s.metricsMetadataStorage["metric1"]; exists {
+		key1 := metadataKey{accountID: 1, projectID: 1, metricFamilyName: "metric1"}
+		key2 := metadataKey{accountID: 1, projectID: 1, metricFamilyName: "metric2"}
+		if _, exists := s.MetricsMetadataStorage[key1]; exists {
 			t.Fatal("metric1 should have been cleaned up")
 		}
-		if _, exists := s.metricTimingInfo["metric1"]; exists {
+		if _, exists := s.MetricTimingInfo[key1]; exists {
 			t.Fatal("metric1 timing should have been cleaned up")
 		}
 
-		if _, exists := s.metricsMetadataStorage["metric2"]; !exists {
+		if _, exists := s.MetricsMetadataStorage[key2]; !exists {
 			t.Fatal("metric2 should not have been cleaned up")
 		}
 		synctest.Wait()
@@ -230,4 +246,45 @@ func TestStoreRead(t *testing.T) {
 	if len(result) != 0 {
 		t.Fatalf("expected 0 results for nonexistent tenant, got %d", len(result))
 	}
+}
+
+func TestLoadClose(t *testing.T) {
+	// create tmp dir
+	tmpDir := t.TempDir()
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
+	path := filepath.Join(tmpDir, "metrics_metadata_store_test.db")
+	s := MustLoadFrom(path)
+
+	rows := []Row{
+		{
+			MetricFamilyName: []byte("metric1"),
+			Type:             1,
+			Unit:             []byte("seconds"),
+			Help:             []byte("help1"),
+			AccountID:        1,
+			ProjectID:        1,
+		},
+	}
+
+	err := s.Add(rows)
+	if err != nil {
+		t.Fatalf("unexpected error on add: %v", err)
+	}
+
+	s.MustClose()
+
+	s2 := MustLoadFrom(path)
+	if len(s2.MetricsMetadataStorage) != 1 {
+		t.Fatalf("expected 1 metric after load, got %d", len(s2.MetricsMetadataStorage))
+	}
+	if len(s2.MetricTimingInfo) != 1 {
+		t.Fatalf("expected 1 timing entry after load, got %d", len(s2.MetricTimingInfo))
+	}
+	key := metadataKey{accountID: 1, projectID: 1, metricFamilyName: "metric1"}
+	if len(s2.MetricsMetadataStorage[key]) != 1 {
+		t.Fatalf("expected 1 row for metric1 after load, got %d", len(s2.MetricsMetadataStorage[key]))
+	}
+
 }
