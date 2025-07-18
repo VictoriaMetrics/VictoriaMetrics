@@ -3923,7 +3923,6 @@ func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetric
 			s.AddMulti(d)
 		}
 		all := s.AppendTo(nil)
-		slices.Sort(all)
 		return all
 	}
 	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)

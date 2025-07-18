@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -1317,20 +1316,13 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 			return nil
 		}
 
-		// Sort the slice by the size of individual result, biggest first.
-		slices.SortFunc(data, func(a, b map[string]struct{}) int {
-			if len(a) < len(b) {
-				return 1
-			}
-			if len(a) > len(b) {
-				return -1
-			}
-			return 0
-		})
+		totalLen := 0
+		for _, d := range data {
+			totalLen += len(d)
+		}
 
-		all := data[0]
-		for i := 1; i < len(data); i++ {
-			d := data[i]
+		all := make(map[string]struct{}, totalLen)
+		for _, d := range data {
 			for v := range d {
 				all[v] = struct{}{}
 			}
