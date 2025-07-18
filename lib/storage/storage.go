@@ -209,7 +209,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		cachePath:      filepath.Join(path, cacheDirname),
 		retentionMsecs: retention.Milliseconds(),
 		stopCh:         make(chan struct{}),
-		metadataStore:  metricsmetadata.NewStore(),
 	}
 	fs.MustMkdirIfNotExist(path)
 
@@ -273,6 +272,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 			s.tsidCache.Reset()
 		}
 	}
+
+	s.metadataStore = metricsmetadata.MustLoadFrom(filepath.Join(s.cachePath, "metrics_metadata"))
 
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
@@ -661,6 +662,12 @@ type Metrics struct {
 
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
+
+	MetadataStoreItemsTotal        uint64
+	MetadataStoreItemsSizeBytes    uint64
+	MetadataStoreItemsIngested     uint64
+	MetadataStoreItemsDeduplicated uint64
+	MetadataStoreItemsDeleted      uint64
 }
 
 // Reset resets m.
@@ -767,6 +774,14 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNamesUsageTrackerSizeBytes = tm.CurrentSizeBytes
 	m.MetricNamesUsageTrackerSize = tm.CurrentItemsCount
 	m.MetricNamesUsageTrackerSizeMaxBytes = tm.MaxSizeBytes
+
+	var mr metricsmetadata.MetadataStoreMetrics
+	s.metadataStore.UpdateMetrics(&mr)
+	m.MetadataStoreItemsTotal += mr.ItemsTotal
+	m.MetadataStoreItemsIngested += mr.ItemsIngestedTotal
+	m.MetadataStoreItemsDeleted += mr.ItemsDeleted
+	m.MetadataStoreItemsDeduplicated += mr.ItemsDeduplicated
+	m.MetadataStoreItemsSizeBytes += mr.ItemsSizeBytes
 
 	d := s.nextRetentionSeconds()
 	if d < 0 {
