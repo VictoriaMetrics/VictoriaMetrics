@@ -582,8 +582,8 @@
       },
       {
         "current": {
-          "text": "30",
-          "value": "30"
+          "text": "10",
+          "value": "10"
         },
         "includeAll": false,
         "name": "topk",
