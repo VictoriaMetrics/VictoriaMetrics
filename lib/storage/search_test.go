@@ -169,7 +169,10 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		if err := testSearchInternal(s, tr, mrs); err != nil {
