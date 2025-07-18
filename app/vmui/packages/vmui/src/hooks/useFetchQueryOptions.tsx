@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, Dispatch, SetStateAction } from "preact/compat";
+import { useEffect, useState, useRef, Dispatch, SetStateAction } from "preact/compat";
 import { useAppState } from "../state/common/StateContext";
 import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplete";
 import { LabelIcon, MetricIcon, ValueIcon } from "../components/Main/Icons";

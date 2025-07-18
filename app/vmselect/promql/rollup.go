@@ -377,11 +377,13 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
 
-	// window > lookbackDelta could result in negative delta.
-	// See issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
 	stalenessInterval := lookbackDelta
-	if stalenessInterval != 0 && stalenessInterval < window {
-		stalenessInterval = window
+	if stalenessInterval != 0 {
+		// If stalenessInterval was set, it should additionally account for [window] range to cover following cases:
+		// * window > stalenessInterval, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
+		// * window captures prevValue in doInternal while removeCounterResets does not,
+		//   see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-3000735468
+		stalenessInterval += window
 	}
 
 	if rollupFuncsRemoveCounterResets[funcName] {
@@ -916,18 +918,15 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
-// removeCounterResets removes resets for rollup functions over counters - see rollupFuncsRemoveCounterResets
-// it doesn't remove resets between samples with staleNaNs, or samples that exceed maxStalenessInterval
 func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
+	// There is no need in handling NaNs here, since they are impossible
+	// on values from vmstorage.
 	if len(values) == 0 {
 		return
 	}
 	var correction float64
 	prevValue := values[0]
 	for i, v := range values {
-		if decimal.IsStaleNaN(v) {
-			continue
-		}
 		d := v - prevValue
 		if d < 0 {
 			if (-d * 8) < prevValue {
@@ -1859,13 +1858,8 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 
 func rollupDelta(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs. Only StaleNaNs could remain in values - see dropStaleNaNs().
+	// before calling rollup funcs.
 	values := rfa.values
-	if len(values) > 0 && decimal.IsStaleNaN(values[len(values)-1]) {
-		// if last sample on interval is staleness marker then the selected series is expected
-		// to stop rendering immediately. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
-		return nan
-	}
 	prevValue := rfa.prevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
@@ -1959,13 +1953,8 @@ func rollupDerivFastPrometheus(rfa *rollupFuncArg) float64 {
 
 func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs. Only StaleNaNs could remain in values - see  - see dropStaleNaNs().
+	// before calling rollup funcs.
 	values := rfa.values
-	if len(values) > 0 && decimal.IsStaleNaN(values[len(values)-1]) {
-		// if last sample on interval is staleness marker then the selected series is expected
-		// to stop rendering immediately. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8891
-		return nan
-	}
 	timestamps := rfa.timestamps
 	prevValue := rfa.prevValue
 	prevTimestamp := rfa.prevTimestamp

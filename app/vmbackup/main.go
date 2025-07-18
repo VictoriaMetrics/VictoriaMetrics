@@ -35,7 +35,8 @@ var (
 		"All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete")
 	dst = flag.String("dst", "", "Where to put the backup on the remote storage. "+
 		"Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir\n"+
-		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded")
+		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded\n"+
+		"Note: If custom S3 endpoint is used, URL should contain only name of the bucket, while hostname of S3 server must be specified via the -customS3Endpoint command-line flag.")
 	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
 	maxBytesPerSecond = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
@@ -50,6 +51,13 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		procutil.WaitForSigterm()
+		logger.Infof("received stop signal, canceling backup operation")
+		cancel()
+	}()
 
 	// Storing snapshot delete function to be able to call it in case
 	// of error since logger.Fatal will exit the program without
@@ -79,7 +87,7 @@ func main() {
 		}
 		logger.Infof("Snapshot delete url %s", deleteURL.Redacted())
 
-		name, err := snapshot.Create(createURL.String())
+		name, err := snapshot.Create(ctx, createURL.String())
 		if err != nil {
 			logger.Fatalf("cannot create snapshot: %s", err)
 		}
@@ -89,7 +97,9 @@ func main() {
 		}
 
 		deleteSnapshot = func() {
-			err := snapshot.Delete(deleteURL.String(), name)
+			// Do not use ctx here as it may be canceled by the time deleteSnapshot is called
+			// if process is interrupted.
+			err := snapshot.Delete(context.Background(), deleteURL.String(), name)
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
@@ -98,13 +108,6 @@ func main() {
 
 	listenAddrs := []string{*httpListenAddr}
 	go httpserver.Serve(listenAddrs, nil, httpserver.ServeOptions{})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		procutil.WaitForSigterm()
-		logger.Infof("received stop signal, canceling backup operation")
-		cancel()
-	}()
 
 	pushmetrics.Init()
 	err := makeBackup(ctx)

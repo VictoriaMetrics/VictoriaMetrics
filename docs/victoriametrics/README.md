@@ -1805,7 +1805,7 @@ VictoriaMetrics enhances Prometheus stats with `requestsCount` and `lastRequestT
 VictoriaMetrics can track statistics of fetched [metric names](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#structure-of-a-metric) 
 during [querying](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. It tracks
 only metric names, as the number of names is usually limited (thousands) compared to time series (millions or billions).
-This feature can be enabled via the flag `--storage.trackMetricNamesStats` (**disabled by default**) on a single-node 
+This feature can be disabled via the flag `--storage.trackMetricNamesStats=false` (**enabled by default**) on a single-node 
 VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview). 
 
 During querying, VictoriaMetrics tracks how many times the requested metric name was fetched from the database and 
@@ -2053,7 +2053,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 * VictoriaMetrics limits the number of labels per each series, label name length and label value length
   via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
   Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
-  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
+  It is recommended [monitoring](#monitoring) `vm_rows_ignored_total` metric and VictoriaMetrics logs in order 
   to determine whether limits must be adjusted for your workload.
   Alternatively, you can use [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling) to change metric target labels.
 
@@ -2886,7 +2886,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Deprecated: this flag does nothing
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
-     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 3d)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storage.cacheSizeIndexDBDataBlocks size
@@ -2917,7 +2917,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
   -storage.trackMetricNamesStats
-     Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+     Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage (default true)
   -storageDataPath string
      Path to storage data (default "victoria-metrics-data")
   -streamAggr.config string

@@ -967,6 +967,7 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 
 * `class` (string) - model class name `"model.online.OnlineQuantileModel"` (or `quantile_online` with class alias support{{% available_from "v1.13.0" anomaly %}})
 * `quantiles` (list[float], optional) - The quantiles to estimate. `yhat_lower`, `yhat`, `yhat_upper` are the quantile order. By default (0.01, 0.5, 0.99).
+* `iqr_threshold` (float, optional) - {{% available_from "v1.25.0" anomaly %}} The [interquartile range (IQR)](https://en.wikipedia.org/wiki/Interquartile_range) multiplier to increase the width of the prediction intervals. Defaults to 0 (no adjustment) for backward compatibility. If set > 0, the model will add IQR * `iqr_threshold` to `yhat_lower` and  `yhat_upper` (respecting `min_subseason` seasonal buckets). This is useful for data with high variance or outliers, as it helps to avoid false positives in anomaly detection. Best used with **robust** `quantiles` set to (0.25, 0.5, 0.75) or similar.
 * `seasonal_interval` (string, optional) - the interval for the seasonal adjustment. If not set, the model will equal to a simple online quantile model. By default not set.
 * `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default not set. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
 * `use_transform` (bool, optional) - whether to internally apply a `log1p(abs(x)) * sign(x)` transformation to the data to stabilize internal quantile estimation. Does not affect the scale of produced output (i.e. `yhat`) By default False.
@@ -984,7 +985,8 @@ Suppose we have a data with strong intra-day (hourly) and intra-week (daily) sea
 models:
   your_desired_alias_for_a_model:
     class: "quantile_online"  # or 'model.online.OnlineQuantileModel'
-    quantiles: [0.025, 0.5, 0.975]  # lowered to exclude anomalous edges, can be compensated by `scale` param > 1
+    quantiles: [0.25, 0.5, 0.75]  # lowered to exclude anomalous edges, can be compensated by `scale` param > 1 and `iqr_threshold` > 0
+    iqr_threshold: 2.5  # to increase prediction intervals' width to avoid false positives while still keeping the model robust
     seasonal_interval: '7d'  # longest seasonality (week, day) = week, starting from `season_starts_from`
     min_subseason: '1h'  # smallest seasonality (week, day, hour) = hour, will have its own quantile estimates
     min_n_samples_seen: 288 # 1440 / 5 - at least 1 full day, ideal = 1440 / 5 * 7 - one full week (seasonal_interval)
@@ -1278,7 +1280,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.24.1
+docker pull victoriametrics/vmanomaly:v1.25.0
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1292,7 +1294,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.24.1 /config.yaml \
+victoriametrics/vmanomaly:v1.25.0 /config.yaml \
 --licenseFile=/license
 ```
 

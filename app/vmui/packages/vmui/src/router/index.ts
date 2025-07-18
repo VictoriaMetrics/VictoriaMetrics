@@ -1,5 +1,3 @@
-import { APP_TYPE_LOGS } from "../constants/appType";
-
 const router = {
   home: "/",
   metrics: "/metrics",
@@ -9,7 +7,6 @@ const router = {
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
-  logs: "/logs",
   activeQueries: "/active-queries",
   queryAnalyzer: "/query-analyzer",
   icons: "/icons",
@@ -37,9 +34,9 @@ export interface RouterOptions {
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !APP_TYPE_LOGS,
-    timeSelector: !APP_TYPE_LOGS,
-    executionControls: !APP_TYPE_LOGS,
+    stepControl: true,
+    timeSelector: true,
+    executionControls: true,
   }
 };
 
@@ -91,10 +88,6 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   },
   [router.relabel]: {
     title: "Metric relabel debug",
-    header: {}
-  },
-  [router.logs]: {
-    title: "Logs Explorer",
     header: {}
   },
   [router.activeQueries]: {

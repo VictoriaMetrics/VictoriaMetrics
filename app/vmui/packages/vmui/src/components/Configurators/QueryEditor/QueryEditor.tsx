@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import { FC, useEffect, useRef, useState } from "preact/compat";
 import { ErrorTypes } from "../../../types";
 import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
 import "./style.scss";
@@ -57,7 +57,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const [caretPositionInput, setCaretPositionInput] = useState<[number, number]>([0, 0]);
   const autocompleteAnchorEl = useRef<HTMLInputElement>(null);
 
-  const [showAutocomplete, setShowAutocomplete] = useState(!!AutocompleteEl);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
   const debouncedSetShowAutocomplete = useRef(debounce(setShowAutocomplete, 500)).current;
 
   const warning = [
@@ -128,7 +128,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   useEffect(() => {
     setShowAutocomplete(false);
-    debouncedSetShowAutocomplete(true);
+    debouncedSetShowAutocomplete(caretPositionAutocomplete.every(Boolean));
   }, [caretPositionAutocomplete]);
 
   return (

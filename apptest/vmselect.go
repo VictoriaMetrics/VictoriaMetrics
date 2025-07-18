@@ -140,20 +140,64 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
-// DeleteSeries sends a query to a /prometheus/api/v1/admin/tsdb/delete_series
+// PrometheusAPIV1SeriesCount sends a query to a /prometheus/api/v1/series/count endpoint
+// and returns the total number of time series.
 //
-// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
-func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
+func (app *Vmselect) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *PrometheusAPIV1SeriesCountResponse {
 	t.Helper()
 
-	seriesURL := fmt.Sprintf("http://%s/delete/%s/prometheus/api/v1/admin/tsdb/delete_series", app.httpListenAddr, opts.getTenant())
+	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series/count", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+
+	res, _ := app.cli.PostForm(t, seriesURL, values)
+	return NewPrometheusAPIV1SeriesCountResponse(t, res)
+}
+
+// PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
+// and returns the label names list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels
+func (app *Vmselect) PrometheusAPIV1Labels(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	// TODO(@rtm0): Add DeleteSeriesResponse.
-	res, _ := app.cli.PostForm(t, seriesURL, values)
-	if res != "" {
-		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/labels", app.httpListenAddr, opts.getTenant())
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1LabelsResponse(t, res)
+}
+
+// PrometheusAPIV1LabelValues sends a query to a /prometheus/api/v1/label/.../values endpoint
+// and returns the label names list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues
+func (app *Vmselect) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, opts.getTenant(), labelName)
+
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1LabelValuesResponse(t, res)
+}
+
+// APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending
+// a request to /api/v1/admin/tsdb/delete_series.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
+func (app *Vmselect) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/delete/%s/prometheus/api/v1/admin/tsdb/delete_series", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
 }
 
@@ -225,6 +269,25 @@ func (app *Vmselect) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	}
 	status.Sort()
 	return status
+}
+
+// GraphiteMetricsIndex sends a query to a /graphite/metrics/index.json
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/select/%s/graphite/metrics/index.json", app.httpListenAddr, opts.getTenant())
+	res, statusCode := app.cli.Get(t, seriesURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var index GraphiteMetricsIndexResponse
+	if err := json.Unmarshal([]byte(res), &index); err != nil {
+		t.Fatalf("could not unmarshal metrics index response data:\n%s\n err: %v", res, err)
+	}
+	return index
 }
 
 // APIV1AdminTenants sends a query to a /admin/tenants endpoint

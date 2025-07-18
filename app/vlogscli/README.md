@@ -1,5 +1,1 @@
-# vlogscli
-
-Command-line utility for querying [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-
-See [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+VictoriaLogs source code has been moved to [github.com/VictoriaMetrics/VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/).

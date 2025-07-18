@@ -175,7 +175,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	if err == nil {
 		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 		if err == nil {
-			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
+			err = s.idb.prefetchMetricNames(qt, metricIDs, deadline)
 		}
 	}
 	// It is ok to call Init on non-nil err.

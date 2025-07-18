@@ -19,7 +19,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	vmalertconfig "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -112,7 +111,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
 
-	testfiles, err := config.ReadFromFS(files)
+	testfiles, err := vmalertconfig.ReadFromFS(files)
 	if err != nil {
 		logger.Fatalf("failed to load test files %q: %v", files, err)
 	}
