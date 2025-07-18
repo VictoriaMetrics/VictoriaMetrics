@@ -617,16 +617,6 @@
         ],
         "query": "5, 10, 20, 30, 50",
         "type": "custom"
-      },
-      {
-        "baseFilters": [],
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${ds}"
-        },
-        "filters": [],
-        "name": "adhoc",
-        "type": "adhoc"
       }
     ]
   },
