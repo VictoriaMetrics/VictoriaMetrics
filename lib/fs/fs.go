@@ -18,6 +18,15 @@ import (
 
 var tmpFileNum atomicutil.Uint64
 
+// MustSyncPathAndParentDir fsyncs the path and the parent dir.
+//
+// This guarantees that the path is visible and readable after unclean shutdown.
+func MustSyncPathAndParentDir(path string) {
+	MustSyncPath(path)
+	parentDirPath := filepath.Dir(path)
+	MustSyncPath(parentDirPath)
+}
+
 // MustSyncPath syncs contents of the given path.
 func MustSyncPath(path string) {
 	mustSyncPath(path)
