@@ -532,8 +532,14 @@ tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-ru
 # - Total number of lines, therefore: 4K machines × 26K intervals = ~100M
 # - And total number of samples: 40K metrics × 26K intervals = ~1B
 TSBS_SCALE := 4000
-TSBS_START := $(shell date -u -v-3d -v0H -v0M -v0S +"%Y-%m-%dT%H:%M:%SZ")
-TSBS_END   := $(shell date -u -v0H -v0M -v0S +"%Y-%m-%dT%H:%M:%SZ")
+# First define which date command to use (gdate on macOS, date on Linux)
+# This allows the Makefile to be portable across different systems
+# If GNU date is available, use it; otherwise, fall back to the standard date command
+# User can install GNU date on macOS via `brew install coreutils`
+DATE_CMD := $(shell which gdate 2>/dev/null || echo date)
+# Then use it consistently with GNU date syntax
+TSBS_START := $(shell $(DATE_CMD) -u -d "3 days ago 00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
+TSBS_END   := $(shell $(DATE_CMD) -u -d "00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
 TSBS_STEP := 10s
 TSBS_QUERIES := 1000
 TSBS_WORKERS := 4
