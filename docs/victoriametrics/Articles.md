@@ -94,6 +94,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
 * [Grepping logs remains terrible](https://chronicles.mad-scientist.club/tales/grepping-logs-remains-terrible/)
 * [Scaling Observability: Why TiDB Moved from Prometheus to VictoriaMetrics](https://www.pingcap.com/blog/tidb-observability-migrating-prometheus-victoriametrics/)
+* [Victorialogs vs Loki - Benchmarking Results](https://www.truefoundry.com/blog/victorialogs-vs-loki)
 
 ## Our articles
 
