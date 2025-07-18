@@ -3537,6 +3537,7 @@
               "expr": "sum(max_over_time(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
               "format": "time_series",
               "hide": false,
+              "interval": "1m",
               "intervalFactor": 1,
               "legendFormat": "__auto",
               "range": true,
