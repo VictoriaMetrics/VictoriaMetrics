@@ -39,7 +39,15 @@ type partSearch struct {
 
 	sparse bool
 
-	tmpIB  *inmemoryBlock
+	// tmpIB contains temporary inmemoryBlock reused during partSearch requests
+	// It reduces memory allocations on cache misses
+	//
+	// tmpIB is valid until call to reset.
+	tmpIB *inmemoryBlock
+	// tmpIdB contains temporary indexBlock reused during partSearch requests
+	// It reduces memory allocations on cache misses
+	//
+	// tmpIdB is valid until call to reset.
 	tmpIdB *indexBlock
 }
 
@@ -290,6 +298,8 @@ func (ps *partSearch) nextBHS() error {
 		}
 		b = idxb
 		if idxbCache.TryPutBlock(idxbKey, b) {
+			// cannot re-used tmpIdB anymore
+			// it's now owned by idxbCache
 			ps.tmpIdB = &indexBlock{}
 		}
 	}
@@ -333,6 +343,8 @@ func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) 
 		}
 		b = ib
 		if cache.TryPutBlock(ibKey, b) {
+			// cannot re-used tmpIB anymore
+			// it's now owned by cache
 			ps.tmpIB = &inmemoryBlock{}
 		}
 	}
