@@ -2722,7 +2722,10 @@ func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		tfss := NewTagFilters(accountID, projectID)
@@ -3008,7 +3011,10 @@ func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e9, 1e9, noDeadline)
@@ -3063,7 +3069,10 @@ func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchLabelValues(nil, accountID, projectID, "label", nil, tr, 1e9, 1e9, noDeadline)
@@ -3111,7 +3120,10 @@ func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "prefix.", '.', 1e9, noDeadline)
@@ -3158,7 +3170,10 @@ func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e9, noDeadline)
@@ -3297,11 +3312,15 @@ func TestStorageGetSeriesCount(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		for _, tr := range trs {
-			for i := range mrs {
-				mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+		for i, tr := range trs {
+			for j := range mrs {
+				mrs[j].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
 			}
 			s.AddRows(mrs, defaultPrecisionBits)
+			if i == 0 {
+				// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+				s.mustRotateIndexDB(time.Now())
+			}
 		}
 		s.DebugFlush()
 
@@ -3324,15 +3343,18 @@ func TestStorageGetSeriesCount(t *testing.T) {
 	var want uint64
 
 	oneMonth := []TimeRange{month(1)}
+	// no index inflation since the metrics are inserted only to one indexDB
 	want = numMetrics
 	f(numMetrics, oneMonth, want)
 
 	twoMonths := []TimeRange{month(1), month(2)}
-	want = numMetrics
+	// index inflation since the same metrics are inserted both to the previous and current indexDBs
+	want = numMetrics * 2
 	f(numMetrics, twoMonths, want)
 
 	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
-	want = numMetrics
+	// index inflation since the same metrics are inserted both to the previous and current indexDBs
+	want = numMetrics * 2
 	f(numMetrics, fourMonths, want)
 }
 
