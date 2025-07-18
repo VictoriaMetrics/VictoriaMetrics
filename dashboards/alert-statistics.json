@@ -635,7 +635,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "vmalert - Alert statistics",
+  "title": "VictoriaMetrics - Alert statistics",
   "uid": "ehXxUsGSk",
   "version": 1,
   "weekStart": ""
