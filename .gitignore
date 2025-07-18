@@ -27,5 +27,7 @@ _site
 /docs/.jekyll-metadata
 coverage.txt
 cspell.json
+yarn.lock
+vmui-lint-report.json
 *~
 deployment/docker/provisioning/plugins/
