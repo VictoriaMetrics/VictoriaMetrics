@@ -169,6 +169,9 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	// logNewSeriesUntil is used for logging the new series
+	logNewSeriesUntil atomic.Uint64
 }
 
 // OpenOptions optional args for MustOpenStorage
@@ -1927,7 +1930,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 
-		if logNewSeries {
+		if logNewSeries || (s.logNewSeriesUntil.Load() >= fasttime.UnixTimestamp()) {
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
@@ -1976,6 +1979,10 @@ func SetLogNewSeries(ok bool) {
 }
 
 var logNewSeries = false
+
+func (s *Storage) SetLogNewSeriesUntil(t uint64) {
+	s.logNewSeriesUntil.Store(t)
+}
 
 func createAllIndexesForMetricName(db *indexDB, mn *MetricName, tsid *TSID, date uint64) {
 	db.createGlobalIndexes(tsid, mn)
