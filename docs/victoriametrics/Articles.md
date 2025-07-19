@@ -92,9 +92,16 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Harness the Power of VictoriaMetrics and Grafana Operators for Metrics Management](https://blog.ogenki.io/post/series/observability/metrics/)
 * [VictoriaMetrics: Effective alerts, from theory to practice](https://blog.ogenki.io/post/series/observability/alerts/)
 * [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
-* [Grepping logs remains terrible](https://chronicles.mad-scientist.club/tales/grepping-logs-remains-terrible/)
 * [Scaling Observability: Why TiDB Moved from Prometheus to VictoriaMetrics](https://www.pingcap.com/blog/tidb-observability-migrating-prometheus-victoriametrics/)
+
+## Third-party articles and slides about VictoriaLogs
+
+* [Grepping logs remains terrible](https://chronicles.mad-scientist.club/tales/grepping-logs-remains-terrible/)
 * [Victorialogs vs Loki - Benchmarking Results](https://www.truefoundry.com/blog/victorialogs-vs-loki)
+* [How to Extend Percona Monitoring and Management to Add Logging Functionality](https://www.percona.com/blog/how-to-extend-percona-monitoring-and-management-to-add-logging-functionality/)
+* [VictoriaLogs: an overview, run in Kubernetes, LogsQL, and Grafana](https://itnext.io/victorialogs-an-overview-run-in-kubernetes-logsql-and-grafana-88e0934a5ccd)
+* [VictoriaLogs: a Grafana dashboard for AWS VPC Flow Logs — migrating from Grafana Loki](https://itnext.io/victorialogs-a-grafana-dashboard-for-aws-vpc-flow-logs-migrating-from-grafana-loki-c0cc0f1c3186)
+* [VictoriaLogs: creating Recording Rules with VMAlert](https://itnext.io/victorialogs-creating-recording-rules-with-vmalert-f606c2b94c5e)
 
 ## Our articles
 
