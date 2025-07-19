@@ -1,5 +1,3 @@
-//go:build linux || darwin || freebsd
-
 package fs
 
 import (
@@ -10,7 +8,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type statfs_t = unix.Statfs_t
+type statfs_t = unix.Statvfs_t
 
 func freeSpace(stat statfs_t) uint64 {
 	return uint64(stat.Bavail) * uint64(stat.Bsize)
@@ -25,6 +23,6 @@ func mustRemoveDirAtomic(dir string) {
 	MustRemoveAll(tmpDir)
 }
 
-func statfs(path string, stat *statfs_t) (err error) {
-	return unix.Statfs(path, stat)
+func statfs(path string, buf *statfs_t) (err error) {
+	return unix.Statvfs(path, buf)
 }
