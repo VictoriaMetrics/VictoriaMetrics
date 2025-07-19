@@ -423,11 +423,12 @@ Understanding resource usage and performance of VictoriaMetrics also requires kn
 [slow inserts](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-a-slow-insert).
 All of them are present in [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 
-### Data safety
+### Data safety and backups
 
-It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety),
+It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
-and [backups](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backups).
+
+For backup configuration, please refer to [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
 ### Configuring limits
 
