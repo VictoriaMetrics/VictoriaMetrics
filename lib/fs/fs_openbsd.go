@@ -8,7 +8,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func freeSpace(stat unix.Statfs_t) uint64 {
+type statfs_t = unix.Statfs_t
+
+func freeSpace(stat statfs_t) uint64 {
 	return uint64(stat.F_bavail) * uint64(stat.F_bsize)
 }
 
@@ -19,4 +21,8 @@ func mustRemoveDirAtomic(dir string) {
 		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
 	}
 	MustRemoveAll(tmpDir)
+}
+
+func statfs(path string, stat *statfs_t) (err error) {
+	return unix.Statfs(path, stat)
 }
